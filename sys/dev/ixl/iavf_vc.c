@@ -39,19 +39,19 @@
 */
 
 #include "ixl.h"
-#include "ixlv.h"
+#include "iavf.h"
 
 /* busy wait delay in msec */
-#define IXLV_BUSY_WAIT_DELAY 10
-#define IXLV_BUSY_WAIT_COUNT 50
+#define IAVF_BUSY_WAIT_DELAY 10
+#define IAVF_BUSY_WAIT_COUNT 50
 
 /*
-** ixlv_send_pf_msg
+** iavf_send_pf_msg
 **
 ** Send message to PF and print status if failure.
 */
 static int
-ixlv_send_pf_msg(struct ixlv_sc *sc,
+iavf_send_pf_msg(struct iavf_sc *sc,
 	enum virtchnl_ops op, u8 *msg, u16 len)
 {
 	struct i40e_hw *hw = &sc->hw;
@@ -73,7 +73,7 @@ ixlv_send_pf_msg(struct ixlv_sc *sc,
 	}
 
 	if (op != VIRTCHNL_OP_GET_STATS)
-		ixlv_dbg_vc(sc,
+		iavf_dbg_vc(sc,
 		    "Sending msg (op=%s[%d]) to PF\n",
 		    ixl_vc_opcode_str(op), op);
 
@@ -89,33 +89,33 @@ ixlv_send_pf_msg(struct ixlv_sc *sc,
 }
 
 /*
-** ixlv_send_api_ver
+** iavf_send_api_ver
 **
 ** Send API version admin queue message to the PF. The reply is not checked
 ** in this function. Returns 0 if the message was successfully
 ** sent, or one of the I40E_ADMIN_QUEUE_ERROR_ statuses if not.
 */
 int
-ixlv_send_api_ver(struct ixlv_sc *sc)
+iavf_send_api_ver(struct iavf_sc *sc)
 {
 	struct virtchnl_version_info vvi;
 
 	vvi.major = VIRTCHNL_VERSION_MAJOR;
 	vvi.minor = VIRTCHNL_VERSION_MINOR;
 
-	return ixlv_send_pf_msg(sc, VIRTCHNL_OP_VERSION,
+	return iavf_send_pf_msg(sc, VIRTCHNL_OP_VERSION,
 	    (u8 *)&vvi, sizeof(vvi));
 }
 
 /*
-** ixlv_verify_api_ver
+** iavf_verify_api_ver
 **
 ** Compare API versions with the PF. Must be called after admin queue is
 ** initialized. Returns 0 if API versions match, EIO if
 ** they do not, or I40E_ERR_ADMIN_QUEUE_NO_WORK if the admin queue is empty.
 */
 int
-ixlv_verify_api_ver(struct ixlv_sc *sc)
+iavf_verify_api_ver(struct iavf_sc *sc)
 {
 	struct virtchnl_version_info *pf_vvi;
 	struct i40e_hw *hw = &sc->hw;
@@ -125,10 +125,10 @@ ixlv_verify_api_ver(struct ixlv_sc *sc)
 	int retries = 0;
 
 	event.buf_len = IXL_AQ_BUF_SZ;
-	event.msg_buf = malloc(event.buf_len, M_IXLV, M_WAITOK);
+	event.msg_buf = malloc(event.buf_len, M_IAVF, M_WAITOK);
 
 	for (;;) {
-		if (++retries > IXLV_AQ_MAX_ERR)
+		if (++retries > IAVF_AQ_MAX_ERR)
 			goto out_alloc;
 
 		/* Initial delay here is necessary */
@@ -174,19 +174,19 @@ ixlv_verify_api_ver(struct ixlv_sc *sc)
 	    VIRTCHNL_VERSION_MAJOR, VIRTCHNL_VERSION_MINOR);
 
 out_alloc:
-	free(event.msg_buf, M_IXLV);
+	free(event.msg_buf, M_IAVF);
 	return (err);
 }
 
 /*
-** ixlv_send_vf_config_msg
+** iavf_send_vf_config_msg
 **
 ** Send VF configuration request admin queue message to the PF. The reply
 ** is not checked in this function. Returns 0 if the message was
 ** successfully sent, or one of the I40E_ADMIN_QUEUE_ERROR_ statuses if not.
 */
 int
-ixlv_send_vf_config_msg(struct ixlv_sc *sc)
+iavf_send_vf_config_msg(struct iavf_sc *sc)
 {
 	u32	caps;
 
@@ -194,19 +194,19 @@ ixlv_send_vf_config_msg(struct ixlv_sc *sc)
 	    VIRTCHNL_VF_OFFLOAD_RSS_PF |
 	    VIRTCHNL_VF_OFFLOAD_VLAN;
 
-	ixlv_dbg_info(sc, "Sending offload flags: 0x%b\n",
-	    caps, IXLV_PRINTF_VF_OFFLOAD_FLAGS);
+	iavf_dbg_info(sc, "Sending offload flags: 0x%b\n",
+	    caps, IAVF_PRINTF_VF_OFFLOAD_FLAGS);
 
 	if (sc->version.minor == VIRTCHNL_VERSION_MINOR_NO_VF_CAPS)
-		return ixlv_send_pf_msg(sc, VIRTCHNL_OP_GET_VF_RESOURCES,
+		return iavf_send_pf_msg(sc, VIRTCHNL_OP_GET_VF_RESOURCES,
 				  NULL, 0);
 	else
-		return ixlv_send_pf_msg(sc, VIRTCHNL_OP_GET_VF_RESOURCES,
+		return iavf_send_pf_msg(sc, VIRTCHNL_OP_GET_VF_RESOURCES,
 				  (u8 *)&caps, sizeof(caps));
 }
 
 /*
-** ixlv_get_vf_config
+** iavf_get_vf_config
 **
 ** Get VF configuration from PF and populate hw structure. Must be called after
 ** admin queue is initialized. Busy waits until response is received from PF,
@@ -214,7 +214,7 @@ ixlv_send_vf_config_msg(struct ixlv_sc *sc)
 ** processing by the caller.
 */
 int
-ixlv_get_vf_config(struct ixlv_sc *sc)
+iavf_get_vf_config(struct iavf_sc *sc)
 {
 	struct i40e_hw	*hw = &sc->hw;
 	device_t	dev = sc->dev;
@@ -227,12 +227,12 @@ ixlv_get_vf_config(struct ixlv_sc *sc)
 	len = sizeof(struct virtchnl_vf_resource) +
 	    sizeof(struct virtchnl_vsi_resource);
 	event.buf_len = len;
-	event.msg_buf = malloc(event.buf_len, M_IXLV, M_WAITOK);
+	event.msg_buf = malloc(event.buf_len, M_IAVF, M_WAITOK);
 
 	for (;;) {
 		err = i40e_clean_arq_element(hw, &event, NULL);
 		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
-			if (++retries <= IXLV_AQ_MAX_ERR)
+			if (++retries <= IAVF_AQ_MAX_ERR)
 				i40e_msec_pause(10);
 		} else if ((enum virtchnl_ops)le32toh(event.desc.cookie_high) !=
 		    VIRTCHNL_OP_GET_VF_RESOURCES) {
@@ -256,7 +256,7 @@ ixlv_get_vf_config(struct ixlv_sc *sc)
 			break;
 		}
 
-		if (retries > IXLV_AQ_MAX_ERR) {
+		if (retries > IAVF_AQ_MAX_ERR) {
 			INIT_DBG_DEV(dev, "Did not receive response after %d tries.",
 			    retries);
 			err = ETIMEDOUT;
@@ -268,17 +268,17 @@ ixlv_get_vf_config(struct ixlv_sc *sc)
 	i40e_vf_parse_hw_config(hw, sc->vf_res);
 
 out_alloc:
-	free(event.msg_buf, M_IXLV);
+	free(event.msg_buf, M_IAVF);
 	return err;
 }
 
 /*
-** ixlv_configure_queues
+** iavf_configure_queues
 **
 ** Request that the PF set up our queues.
 */
 int
-ixlv_configure_queues(struct ixlv_sc *sc)
+iavf_configure_queues(struct iavf_sc *sc)
 {
 	device_t		dev = sc->dev;
 	struct ixl_vsi		*vsi = &sc->vsi;
@@ -297,7 +297,7 @@ ixlv_configure_queues(struct ixlv_sc *sc)
 	pairs = max(vsi->num_tx_queues, vsi->num_rx_queues);
 	len = sizeof(struct virtchnl_vsi_queue_config_info) +
 		       (sizeof(struct virtchnl_queue_pair_info) * pairs);
-	vqci = malloc(len, M_IXLV, M_NOWAIT | M_ZERO);
+	vqci = malloc(len, M_IAVF, M_NOWAIT | M_ZERO);
 	if (!vqci) {
 		device_printf(dev, "%s: unable to allocate memory\n", __func__);
 		return (ENOMEM);
@@ -336,20 +336,20 @@ ixlv_configure_queues(struct ixlv_sc *sc)
 		vqpi->rxq.splithdr_enabled = 0;
 	}
 
-	ixlv_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_VSI_QUEUES,
+	iavf_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_VSI_QUEUES,
 			   (u8 *)vqci, len);
-	free(vqci, M_IXLV);
+	free(vqci, M_IAVF);
 
 	return (0);
 }
 
 /*
-** ixlv_enable_queues
+** iavf_enable_queues
 **
 ** Request that the PF enable all of our queues.
 */
 int
-ixlv_enable_queues(struct ixlv_sc *sc)
+iavf_enable_queues(struct iavf_sc *sc)
 {
 	struct virtchnl_queue_select vqs;
 
@@ -358,18 +358,18 @@ ixlv_enable_queues(struct ixlv_sc *sc)
 	 * every queue in VF VSI is enabled. */
 	vqs.tx_queues = (1 << sc->vsi.num_tx_queues) - 1;
 	vqs.rx_queues = vqs.tx_queues;
-	ixlv_send_pf_msg(sc, VIRTCHNL_OP_ENABLE_QUEUES,
+	iavf_send_pf_msg(sc, VIRTCHNL_OP_ENABLE_QUEUES,
 			   (u8 *)&vqs, sizeof(vqs));
 	return (0);
 }
 
 /*
-** ixlv_disable_queues
+** iavf_disable_queues
 **
 ** Request that the PF disable all of our queues.
 */
 int
-ixlv_disable_queues(struct ixlv_sc *sc)
+iavf_disable_queues(struct iavf_sc *sc)
 {
 	struct virtchnl_queue_select vqs;
 
@@ -378,19 +378,19 @@ ixlv_disable_queues(struct ixlv_sc *sc)
 	 * every queue in VF VSI is disabled. */
 	vqs.tx_queues = (1 << sc->vsi.num_tx_queues) - 1;
 	vqs.rx_queues = vqs.tx_queues;
-	ixlv_send_pf_msg(sc, VIRTCHNL_OP_DISABLE_QUEUES,
+	iavf_send_pf_msg(sc, VIRTCHNL_OP_DISABLE_QUEUES,
 			   (u8 *)&vqs, sizeof(vqs));
 	return (0);
 }
 
 /*
-** ixlv_map_queues
+** iavf_map_queues
 **
 ** Request that the PF map queues to interrupt vectors. Misc causes, including
 ** admin queue, are always mapped to vector 0.
 */
 int
-ixlv_map_queues(struct ixlv_sc *sc)
+iavf_map_queues(struct iavf_sc *sc)
 {
 	struct virtchnl_irq_map_info *vm;
 	int 			i, q, len;
@@ -408,7 +408,7 @@ ixlv_map_queues(struct ixlv_sc *sc)
 
 	len = sizeof(struct virtchnl_irq_map_info) +
 	      (scctx->isc_vectors * sizeof(struct virtchnl_vector_map));
-	vm = malloc(len, M_IXLV, M_NOWAIT);
+	vm = malloc(len, M_IAVF, M_NOWAIT);
 	if (!vm) {
 		device_printf(dev, "%s: unable to allocate memory\n", __func__);
 		return (ENOMEM);
@@ -434,9 +434,9 @@ ixlv_map_queues(struct ixlv_sc *sc)
 	vm->vecmap[i].rxitr_idx = 0;
 	vm->vecmap[i].txitr_idx = 0;
 
-	ixlv_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_IRQ_MAP,
+	iavf_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_IRQ_MAP,
 	    (u8 *)vm, len);
-	free(vm, M_IXLV);
+	free(vm, M_IAVF);
 
 	return (0);
 }
@@ -447,10 +447,10 @@ ixlv_map_queues(struct ixlv_sc *sc)
 ** for handling.
 */
 int
-ixlv_add_vlans(struct ixlv_sc *sc)
+iavf_add_vlans(struct iavf_sc *sc)
 {
 	struct virtchnl_vlan_filter_list *v;
-	struct ixlv_vlan_filter *f, *ftmp;
+	struct iavf_vlan_filter *f, *ftmp;
 	device_t	dev = sc->dev;
 	int		len, i = 0, cnt = 0;
 
@@ -472,7 +472,7 @@ ixlv_add_vlans(struct ixlv_sc *sc)
 		return (EFBIG);
 	}
 
-	v = malloc(len, M_IXLV, M_NOWAIT);
+	v = malloc(len, M_IAVF, M_NOWAIT);
 	if (!v) {
 		device_printf(dev, "%s: unable to allocate memory\n",
 			__func__);
@@ -493,8 +493,8 @@ ixlv_add_vlans(struct ixlv_sc *sc)
                         break;
 	}
 
-	ixlv_send_pf_msg(sc, VIRTCHNL_OP_ADD_VLAN, (u8 *)v, len);
-	free(v, M_IXLV);
+	iavf_send_pf_msg(sc, VIRTCHNL_OP_ADD_VLAN, (u8 *)v, len);
+	free(v, M_IAVF);
 	/* add stats? */
 	return (0);
 }
@@ -505,10 +505,10 @@ ixlv_add_vlans(struct ixlv_sc *sc)
 ** for handling.
 */
 int
-ixlv_del_vlans(struct ixlv_sc *sc)
+iavf_del_vlans(struct iavf_sc *sc)
 {
 	struct virtchnl_vlan_filter_list *v;
-	struct ixlv_vlan_filter *f, *ftmp;
+	struct iavf_vlan_filter *f, *ftmp;
 	device_t dev = sc->dev;
 	int len, i = 0, cnt = 0;
 
@@ -530,7 +530,7 @@ ixlv_del_vlans(struct ixlv_sc *sc)
 		return (EFBIG);
 	}
 
-	v = malloc(len, M_IXLV, M_NOWAIT | M_ZERO);
+	v = malloc(len, M_IAVF, M_NOWAIT | M_ZERO);
 	if (!v) {
 		device_printf(dev, "%s: unable to allocate memory\n",
 			__func__);
@@ -545,15 +545,15 @@ ixlv_del_vlans(struct ixlv_sc *sc)
                 if (f->flags & IXL_FILTER_DEL) {
                         bcopy(&f->vlan, &v->vlan_id[i], sizeof(u16));
                         i++;
-                        SLIST_REMOVE(sc->vlan_filters, f, ixlv_vlan_filter, next);
-                        free(f, M_IXLV);
+                        SLIST_REMOVE(sc->vlan_filters, f, iavf_vlan_filter, next);
+                        free(f, M_IAVF);
                 }
                 if (i == cnt)
                         break;
 	}
 
-	ixlv_send_pf_msg(sc, VIRTCHNL_OP_DEL_VLAN, (u8 *)v, len);
-	free(v, M_IXLV);
+	iavf_send_pf_msg(sc, VIRTCHNL_OP_DEL_VLAN, (u8 *)v, len);
+	free(v, M_IAVF);
 	/* add stats? */
 	return (0);
 }
@@ -565,10 +565,10 @@ ixlv_del_vlans(struct ixlv_sc *sc)
 ** the filters in the hardware.
 */
 int
-ixlv_add_ether_filters(struct ixlv_sc *sc)
+iavf_add_ether_filters(struct iavf_sc *sc)
 {
 	struct virtchnl_ether_addr_list *a;
-	struct ixlv_mac_filter	*f;
+	struct iavf_mac_filter	*f;
 	device_t dev = sc->dev;
 	int len, j = 0, cnt = 0;
 	enum i40e_status_code status;
@@ -579,14 +579,14 @@ ixlv_add_ether_filters(struct ixlv_sc *sc)
 			cnt++;
 	}
 	if (cnt == 0) { /* Should not happen... */
-		ixlv_dbg_vc(sc, "%s: cnt == 0, exiting...\n", __func__);
+		iavf_dbg_vc(sc, "%s: cnt == 0, exiting...\n", __func__);
 		return (ENOENT);
 	}
 
 	len = sizeof(struct virtchnl_ether_addr_list) +
 	    (cnt * sizeof(struct virtchnl_ether_addr));
 
-	a = malloc(len, M_IXLV, M_NOWAIT | M_ZERO);
+	a = malloc(len, M_IAVF, M_NOWAIT | M_ZERO);
 	if (a == NULL) {
 		device_printf(dev, "%s: Failed to get memory for "
 		    "virtchnl_ether_addr_list\n", __func__);
@@ -602,7 +602,7 @@ ixlv_add_ether_filters(struct ixlv_sc *sc)
 			f->flags &= ~IXL_FILTER_ADD;
 			j++;
 
-			ixlv_dbg_vc(sc, "ADD: " MAC_FORMAT "\n",
+			iavf_dbg_vc(sc, "ADD: " MAC_FORMAT "\n",
 			    MAC_FORMAT_ARGS(f->macaddr));
 		}
 		if (j == cnt)
@@ -611,10 +611,10 @@ ixlv_add_ether_filters(struct ixlv_sc *sc)
 	DDPRINTF(dev, "len %d, j %d, cnt %d",
 	    len, j, cnt);
 
-	status = ixlv_send_pf_msg(sc,
+	status = iavf_send_pf_msg(sc,
 	    VIRTCHNL_OP_ADD_ETH_ADDR, (u8 *)a, len);
 	/* add stats? */
-	free(a, M_IXLV);
+	free(a, M_IAVF);
 	return (status);
 }
 
@@ -624,10 +624,10 @@ ixlv_add_ether_filters(struct ixlv_sc *sc)
 ** to delete those filters in the hardware.
 */
 int
-ixlv_del_ether_filters(struct ixlv_sc *sc)
+iavf_del_ether_filters(struct iavf_sc *sc)
 {
 	struct virtchnl_ether_addr_list *d;
-	struct ixlv_mac_filter *f, *f_temp;
+	struct iavf_mac_filter *f, *f_temp;
 	device_t dev = sc->dev;
 	int len, j = 0, cnt = 0;
 
@@ -637,14 +637,14 @@ ixlv_del_ether_filters(struct ixlv_sc *sc)
 			cnt++;
 	}
 	if (cnt == 0) {
-		ixlv_dbg_vc(sc, "%s: cnt == 0, exiting...\n", __func__);
+		iavf_dbg_vc(sc, "%s: cnt == 0, exiting...\n", __func__);
 		return (ENOENT);
 	}
 
 	len = sizeof(struct virtchnl_ether_addr_list) +
 	    (cnt * sizeof(struct virtchnl_ether_addr));
 
-	d = malloc(len, M_IXLV, M_NOWAIT | M_ZERO);
+	d = malloc(len, M_IAVF, M_NOWAIT | M_ZERO);
 	if (d == NULL) {
 		device_printf(dev, "%s: Failed to get memory for "
 		    "virtchnl_ether_addr_list\n", __func__);
@@ -657,28 +657,28 @@ ixlv_del_ether_filters(struct ixlv_sc *sc)
 	SLIST_FOREACH_SAFE(f, sc->mac_filters, next, f_temp) {
 		if (f->flags & IXL_FILTER_DEL) {
 			bcopy(f->macaddr, d->list[j].addr, ETHER_ADDR_LEN);
-			ixlv_dbg_vc(sc, "DEL: " MAC_FORMAT "\n",
+			iavf_dbg_vc(sc, "DEL: " MAC_FORMAT "\n",
 			    MAC_FORMAT_ARGS(f->macaddr));
 			j++;
-			SLIST_REMOVE(sc->mac_filters, f, ixlv_mac_filter, next);
-			free(f, M_IXLV);
+			SLIST_REMOVE(sc->mac_filters, f, iavf_mac_filter, next);
+			free(f, M_IAVF);
 		}
 		if (j == cnt)
 			break;
 	}
-	ixlv_send_pf_msg(sc,
+	iavf_send_pf_msg(sc,
 	    VIRTCHNL_OP_DEL_ETH_ADDR, (u8 *)d, len);
 	/* add stats? */
-	free(d, M_IXLV);
+	free(d, M_IAVF);
 	return (0);
 }
 
 /*
-** ixlv_request_reset
+** iavf_request_reset
 ** Request that the PF reset this VF. No response is expected.
 */
 int
-ixlv_request_reset(struct ixlv_sc *sc)
+iavf_request_reset(struct iavf_sc *sc)
 {
 	/*
 	** Set the reset status to "in progress" before
@@ -686,23 +686,23 @@ ixlv_request_reset(struct ixlv_sc *sc)
 	** a mistaken early detection of completion.
 	*/
 	wr32(&sc->hw, I40E_VFGEN_RSTAT, VIRTCHNL_VFR_INPROGRESS);
-	ixlv_send_pf_msg(sc, VIRTCHNL_OP_RESET_VF, NULL, 0);
+	iavf_send_pf_msg(sc, VIRTCHNL_OP_RESET_VF, NULL, 0);
 	return (0);
 }
 
 /*
-** ixlv_request_stats
+** iavf_request_stats
 ** Request the statistics for this VF's VSI from PF.
 */
 int
-ixlv_request_stats(struct ixlv_sc *sc)
+iavf_request_stats(struct iavf_sc *sc)
 {
 	struct virtchnl_queue_select vqs;
 	int error = 0;
 
 	vqs.vsi_id = sc->vsi_res->vsi_id;
 	/* Low priority, we don't need to error check */
-	error = ixlv_send_pf_msg(sc, VIRTCHNL_OP_GET_STATS,
+	error = iavf_send_pf_msg(sc, VIRTCHNL_OP_GET_STATS,
 	    (u8 *)&vqs, sizeof(vqs));
 	if (error)
 		device_printf(sc->dev, "Error sending stats request to PF: %d\n", error);
@@ -714,7 +714,7 @@ ixlv_request_stats(struct ixlv_sc *sc)
 ** Updates driver's stats counters with VSI stats returned from PF.
 */
 void
-ixlv_update_stats_counters(struct ixlv_sc *sc, struct i40e_eth_stats *es)
+iavf_update_stats_counters(struct iavf_sc *sc, struct i40e_eth_stats *es)
 {
 	struct ixl_vsi *vsi = &sc->vsi;
 	uint64_t tx_discards;
@@ -747,7 +747,7 @@ ixlv_update_stats_counters(struct ixlv_sc *sc, struct i40e_eth_stats *es)
 }
 
 int
-ixlv_config_rss_key(struct ixlv_sc *sc)
+iavf_config_rss_key(struct iavf_sc *sc)
 {
 	struct virtchnl_rss_key *rss_key_msg;
 	int msg_len, key_length;
@@ -763,7 +763,7 @@ ixlv_config_rss_key(struct ixlv_sc *sc)
 	/* Send the fetched key */
 	key_length = IXL_RSS_KEY_SIZE;
 	msg_len = sizeof(struct virtchnl_rss_key) + (sizeof(u8) * key_length) - 1;
-	rss_key_msg = malloc(msg_len, M_IXLV, M_NOWAIT | M_ZERO);
+	rss_key_msg = malloc(msg_len, M_IAVF, M_NOWAIT | M_ZERO);
 	if (rss_key_msg == NULL) {
 		device_printf(sc->dev, "Unable to allocate msg memory for RSS key msg.\n");
 		return (ENOMEM);
@@ -773,18 +773,18 @@ ixlv_config_rss_key(struct ixlv_sc *sc)
 	rss_key_msg->key_len = key_length;
 	bcopy(rss_seed, &rss_key_msg->key[0], key_length);
 
-	ixlv_dbg_vc(sc, "config_rss: vsi_id %d, key_len %d\n",
+	iavf_dbg_vc(sc, "config_rss: vsi_id %d, key_len %d\n",
 	    rss_key_msg->vsi_id, rss_key_msg->key_len);
 	
-	ixlv_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_RSS_KEY,
+	iavf_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_RSS_KEY,
 			  (u8 *)rss_key_msg, msg_len);
 
-	free(rss_key_msg, M_IXLV);
+	free(rss_key_msg, M_IAVF);
 	return (0);
 }
 
 int
-ixlv_set_rss_hena(struct ixlv_sc *sc)
+iavf_set_rss_hena(struct iavf_sc *sc)
 {
 	struct virtchnl_rss_hena hena;
 	struct i40e_hw *hw = &sc->hw;
@@ -794,13 +794,13 @@ ixlv_set_rss_hena(struct ixlv_sc *sc)
 	else
 		hena.hena = IXL_DEFAULT_RSS_HENA_XL710;
 
-	ixlv_send_pf_msg(sc, VIRTCHNL_OP_SET_RSS_HENA,
+	iavf_send_pf_msg(sc, VIRTCHNL_OP_SET_RSS_HENA,
 			  (u8 *)&hena, sizeof(hena));
 	return (0);
 }
 
 int
-ixlv_config_rss_lut(struct ixlv_sc *sc)
+iavf_config_rss_lut(struct iavf_sc *sc)
 {
 	struct virtchnl_rss_lut *rss_lut_msg;
 	int msg_len;
@@ -810,7 +810,7 @@ ixlv_config_rss_lut(struct ixlv_sc *sc)
 
 	lut_length = IXL_RSS_VSI_LUT_SIZE;
 	msg_len = sizeof(struct virtchnl_rss_lut) + (lut_length * sizeof(u8)) - 1;
-	rss_lut_msg = malloc(msg_len, M_IXLV, M_NOWAIT | M_ZERO);
+	rss_lut_msg = malloc(msg_len, M_IAVF, M_NOWAIT | M_ZERO);
 	if (rss_lut_msg == NULL) {
 		device_printf(sc->dev, "Unable to allocate msg memory for RSS lut msg.\n");
 		return (ENOMEM);
@@ -837,42 +837,42 @@ ixlv_config_rss_lut(struct ixlv_sc *sc)
 		rss_lut_msg->lut[i] = lut;
 	}
 
-	ixlv_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_RSS_LUT,
+	iavf_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_RSS_LUT,
 			  (u8 *)rss_lut_msg, msg_len);
 
-	free(rss_lut_msg, M_IXLV);
+	free(rss_lut_msg, M_IAVF);
 	return (0);
 }
 
 int
-ixlv_config_promisc_mode(struct ixlv_sc *sc)
+iavf_config_promisc_mode(struct iavf_sc *sc)
 {
 	struct virtchnl_promisc_info pinfo;
 
 	pinfo.vsi_id = sc->vsi_res->vsi_id;
 	pinfo.flags = sc->promisc_flags;
 
-	ixlv_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE,
+	iavf_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE,
 	    (u8 *)&pinfo, sizeof(pinfo));
 	return (0);
 }
 
 /*
-** ixlv_vc_completion
+** iavf_vc_completion
 **
 ** Asynchronous completion function for admin queue messages. Rather than busy
 ** wait, we fire off our requests and assume that no errors will be returned.
 ** This function handles the reply messages.
 */
 void
-ixlv_vc_completion(struct ixlv_sc *sc,
+iavf_vc_completion(struct iavf_sc *sc,
     enum virtchnl_ops v_opcode,
     enum virtchnl_status_code v_retval, u8 *msg, u16 msglen)
 {
 	device_t	dev = sc->dev;
 
 	if (v_opcode != VIRTCHNL_OP_GET_STATS)
-		ixlv_dbg_vc(sc, "%s: opcode %s\n", __func__,
+		iavf_dbg_vc(sc, "%s: opcode %s\n", __func__,
 		    ixl_vc_opcode_str(v_opcode));
 
 	if (v_opcode == VIRTCHNL_OP_EVENT) {
@@ -881,22 +881,22 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 
 		switch (vpe->event) {
 		case VIRTCHNL_EVENT_LINK_CHANGE:
-			ixlv_dbg_vc(sc, "Link change: status %d, speed %s\n",
+			iavf_dbg_vc(sc, "Link change: status %d, speed %s\n",
 			    vpe->event_data.link_event.link_status,
-			    ixlv_vc_speed_to_string(vpe->event_data.link_event.link_speed));
+			    iavf_vc_speed_to_string(vpe->event_data.link_event.link_speed));
 			sc->link_up =
 				vpe->event_data.link_event.link_status;
 			sc->link_speed =
 				vpe->event_data.link_event.link_speed;
-			ixlv_update_link_status(sc);
+			iavf_update_link_status(sc);
 			break;
 		case VIRTCHNL_EVENT_RESET_IMPENDING:
 			device_printf(dev, "PF initiated reset!\n");
-			sc->init_state = IXLV_RESET_PENDING;
-			ixlv_if_init(sc->vsi.ctx);
+			sc->init_state = IAVF_RESET_PENDING;
+			iavf_if_init(sc->vsi.ctx);
 			break;
 		default:
-			ixlv_dbg_vc(sc, "Unknown event %d from AQ\n",
+			iavf_dbg_vc(sc, "Unknown event %d from AQ\n",
 				vpe->event);
 			break;
 		}
@@ -913,7 +913,7 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 
 	switch (v_opcode) {
 	case VIRTCHNL_OP_GET_STATS:
-		ixlv_update_stats_counters(sc, (struct i40e_eth_stats *)msg);
+		iavf_update_stats_counters(sc, (struct i40e_eth_stats *)msg);
 		break;
 	case VIRTCHNL_OP_ADD_ETH_ADDR:
 		if (v_retval) {
@@ -948,7 +948,7 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 	case VIRTCHNL_OP_CONFIG_RSS_LUT:
 		break;
 	default:
-		ixlv_dbg_vc(sc,
+		iavf_dbg_vc(sc,
 		    "Received unexpected message %s from PF.\n",
 		    ixl_vc_opcode_str(v_opcode));
 		break;
@@ -956,57 +956,57 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 }
 
 int
-ixl_vc_send_cmd(struct ixlv_sc *sc, uint32_t request)
+ixl_vc_send_cmd(struct iavf_sc *sc, uint32_t request)
 {
 
 	switch (request) {
-	case IXLV_FLAG_AQ_MAP_VECTORS:
-		return ixlv_map_queues(sc);
+	case IAVF_FLAG_AQ_MAP_VECTORS:
+		return iavf_map_queues(sc);
 
-	case IXLV_FLAG_AQ_ADD_MAC_FILTER:
-		return ixlv_add_ether_filters(sc);
+	case IAVF_FLAG_AQ_ADD_MAC_FILTER:
+		return iavf_add_ether_filters(sc);
 
-	case IXLV_FLAG_AQ_ADD_VLAN_FILTER:
-		return ixlv_add_vlans(sc);
+	case IAVF_FLAG_AQ_ADD_VLAN_FILTER:
+		return iavf_add_vlans(sc);
 
-	case IXLV_FLAG_AQ_DEL_MAC_FILTER:
-		return ixlv_del_ether_filters(sc);
+	case IAVF_FLAG_AQ_DEL_MAC_FILTER:
+		return iavf_del_ether_filters(sc);
 
-	case IXLV_FLAG_AQ_DEL_VLAN_FILTER:
-		return ixlv_del_vlans(sc);
+	case IAVF_FLAG_AQ_DEL_VLAN_FILTER:
+		return iavf_del_vlans(sc);
 
-	case IXLV_FLAG_AQ_CONFIGURE_QUEUES:
-		return ixlv_configure_queues(sc);
+	case IAVF_FLAG_AQ_CONFIGURE_QUEUES:
+		return iavf_configure_queues(sc);
 
-	case IXLV_FLAG_AQ_DISABLE_QUEUES:
-		return ixlv_disable_queues(sc);
+	case IAVF_FLAG_AQ_DISABLE_QUEUES:
+		return iavf_disable_queues(sc);
 
-	case IXLV_FLAG_AQ_ENABLE_QUEUES:
-		return ixlv_enable_queues(sc);
+	case IAVF_FLAG_AQ_ENABLE_QUEUES:
+		return iavf_enable_queues(sc);
 
-	case IXLV_FLAG_AQ_CONFIG_RSS_KEY:
-		return ixlv_config_rss_key(sc);
+	case IAVF_FLAG_AQ_CONFIG_RSS_KEY:
+		return iavf_config_rss_key(sc);
 
-	case IXLV_FLAG_AQ_SET_RSS_HENA:
-		return ixlv_set_rss_hena(sc);
+	case IAVF_FLAG_AQ_SET_RSS_HENA:
+		return iavf_set_rss_hena(sc);
 
-	case IXLV_FLAG_AQ_CONFIG_RSS_LUT:
-		return ixlv_config_rss_lut(sc);
+	case IAVF_FLAG_AQ_CONFIG_RSS_LUT:
+		return iavf_config_rss_lut(sc);
 
-	case IXLV_FLAG_AQ_CONFIGURE_PROMISC:
-		return ixlv_config_promisc_mode(sc);
+	case IAVF_FLAG_AQ_CONFIGURE_PROMISC:
+		return iavf_config_promisc_mode(sc);
 	}
 
 	return (0);
 }
 
 void *
-ixl_vc_get_op_chan(struct ixlv_sc *sc, uint32_t request)
+ixl_vc_get_op_chan(struct iavf_sc *sc, uint32_t request)
 {
 	switch (request) {
-	case IXLV_FLAG_AQ_ENABLE_QUEUES:
+	case IAVF_FLAG_AQ_ENABLE_QUEUES:
 		return (&sc->enable_queues_chan);
-	case IXLV_FLAG_AQ_DISABLE_QUEUES:
+	case IAVF_FLAG_AQ_DISABLE_QUEUES:
 		return (&sc->disable_queues_chan);
 	default:
 		return (NULL);

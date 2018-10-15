@@ -32,7 +32,7 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#include "ixlv.h"
+#include "iavf.h"
 
 /*********************************************************************
  *  Driver version
@@ -54,7 +54,7 @@
  *  ( Vendor ID, Device ID, Branding String )
  *********************************************************************/
 
-static pci_vendor_info_t ixlv_vendor_info_array[] =
+static pci_vendor_info_t iavf_vendor_info_array[] =
 {
 	PVID(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_VF, "Intel(R) Ethernet Virtual Function 700 Series"),
 	PVID(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_X722_VF, "Intel(R) Ethernet Virtual Function 700 Series (X722)"),
@@ -66,80 +66,80 @@ static pci_vendor_info_t ixlv_vendor_info_array[] =
 /*********************************************************************
  *  Function prototypes
  *********************************************************************/
-static void	 *ixlv_register(device_t dev);
-static int	 ixlv_if_attach_pre(if_ctx_t ctx);
-static int	 ixlv_if_attach_post(if_ctx_t ctx);
-static int	 ixlv_if_detach(if_ctx_t ctx);
-static int	 ixlv_if_shutdown(if_ctx_t ctx);
-static int	 ixlv_if_suspend(if_ctx_t ctx);
-static int	 ixlv_if_resume(if_ctx_t ctx);
-static int	 ixlv_if_msix_intr_assign(if_ctx_t ctx, int msix);
-static void	 ixlv_if_enable_intr(if_ctx_t ctx);
-static void	 ixlv_if_disable_intr(if_ctx_t ctx);
-static int	 ixlv_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid);
-static int	 ixlv_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid);
-static int	 ixlv_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntxqs, int ntxqsets);
-static int	 ixlv_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nqs, int nqsets);
-static void	 ixlv_if_queues_free(if_ctx_t ctx);
-static void	 ixlv_if_update_admin_status(if_ctx_t ctx);
-static void	 ixlv_if_multi_set(if_ctx_t ctx);
-static int	 ixlv_if_mtu_set(if_ctx_t ctx, uint32_t mtu);
-static void	 ixlv_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr);
-static int	 ixlv_if_media_change(if_ctx_t ctx);
-static int	 ixlv_if_promisc_set(if_ctx_t ctx, int flags);
-static void	 ixlv_if_timer(if_ctx_t ctx, uint16_t qid);
-static void	 ixlv_if_vlan_register(if_ctx_t ctx, u16 vtag);
-static void	 ixlv_if_vlan_unregister(if_ctx_t ctx, u16 vtag);
-static uint64_t	 ixlv_if_get_counter(if_ctx_t ctx, ift_counter cnt);
-static void	 ixlv_if_stop(if_ctx_t ctx);
+static void	 *iavf_register(device_t dev);
+static int	 iavf_if_attach_pre(if_ctx_t ctx);
+static int	 iavf_if_attach_post(if_ctx_t ctx);
+static int	 iavf_if_detach(if_ctx_t ctx);
+static int	 iavf_if_shutdown(if_ctx_t ctx);
+static int	 iavf_if_suspend(if_ctx_t ctx);
+static int	 iavf_if_resume(if_ctx_t ctx);
+static int	 iavf_if_msix_intr_assign(if_ctx_t ctx, int msix);
+static void	 iavf_if_enable_intr(if_ctx_t ctx);
+static void	 iavf_if_disable_intr(if_ctx_t ctx);
+static int	 iavf_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid);
+static int	 iavf_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid);
+static int	 iavf_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntxqs, int ntxqsets);
+static int	 iavf_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nqs, int nqsets);
+static void	 iavf_if_queues_free(if_ctx_t ctx);
+static void	 iavf_if_update_admin_status(if_ctx_t ctx);
+static void	 iavf_if_multi_set(if_ctx_t ctx);
+static int	 iavf_if_mtu_set(if_ctx_t ctx, uint32_t mtu);
+static void	 iavf_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr);
+static int	 iavf_if_media_change(if_ctx_t ctx);
+static int	 iavf_if_promisc_set(if_ctx_t ctx, int flags);
+static void	 iavf_if_timer(if_ctx_t ctx, uint16_t qid);
+static void	 iavf_if_vlan_register(if_ctx_t ctx, u16 vtag);
+static void	 iavf_if_vlan_unregister(if_ctx_t ctx, u16 vtag);
+static uint64_t	 iavf_if_get_counter(if_ctx_t ctx, ift_counter cnt);
+static void	 iavf_if_stop(if_ctx_t ctx);
 
-static int	ixlv_allocate_pci_resources(struct ixlv_sc *);
-static int	ixlv_reset_complete(struct i40e_hw *);
-static int	ixlv_setup_vc(struct ixlv_sc *);
-static int	ixlv_reset(struct ixlv_sc *);
-static int	ixlv_vf_config(struct ixlv_sc *);
-static void	ixlv_init_filters(struct ixlv_sc *);
-static void	ixlv_free_pci_resources(struct ixlv_sc *);
-static void	ixlv_free_filters(struct ixlv_sc *);
-static void	ixlv_setup_interface(device_t, struct ixlv_sc *);
-static void	ixlv_add_device_sysctls(struct ixlv_sc *);
-static void	ixlv_enable_adminq_irq(struct i40e_hw *);
-static void	ixlv_disable_adminq_irq(struct i40e_hw *);
-static void	ixlv_enable_queue_irq(struct i40e_hw *, int);
-static void	ixlv_disable_queue_irq(struct i40e_hw *, int);
-static void	ixlv_config_rss(struct ixlv_sc *);
-static void	ixlv_stop(struct ixlv_sc *);
+static int	iavf_allocate_pci_resources(struct iavf_sc *);
+static int	iavf_reset_complete(struct i40e_hw *);
+static int	iavf_setup_vc(struct iavf_sc *);
+static int	iavf_reset(struct iavf_sc *);
+static int	iavf_vf_config(struct iavf_sc *);
+static void	iavf_init_filters(struct iavf_sc *);
+static void	iavf_free_pci_resources(struct iavf_sc *);
+static void	iavf_free_filters(struct iavf_sc *);
+static void	iavf_setup_interface(device_t, struct iavf_sc *);
+static void	iavf_add_device_sysctls(struct iavf_sc *);
+static void	iavf_enable_adminq_irq(struct i40e_hw *);
+static void	iavf_disable_adminq_irq(struct i40e_hw *);
+static void	iavf_enable_queue_irq(struct i40e_hw *, int);
+static void	iavf_disable_queue_irq(struct i40e_hw *, int);
+static void	iavf_config_rss(struct iavf_sc *);
+static void	iavf_stop(struct iavf_sc *);
 
-static int	ixlv_add_mac_filter(struct ixlv_sc *, u8 *, u16);
-static int	ixlv_del_mac_filter(struct ixlv_sc *sc, u8 *macaddr);
-static int	ixlv_msix_que(void *);
-static int	ixlv_msix_adminq(void *);
-//static void	ixlv_del_multi(struct ixlv_sc *sc);
-static void	ixlv_init_multi(struct ixlv_sc *sc);
-static void	ixlv_configure_itr(struct ixlv_sc *sc);
+static int	iavf_add_mac_filter(struct iavf_sc *, u8 *, u16);
+static int	iavf_del_mac_filter(struct iavf_sc *sc, u8 *macaddr);
+static int	iavf_msix_que(void *);
+static int	iavf_msix_adminq(void *);
+//static void	iavf_del_multi(struct iavf_sc *sc);
+static void	iavf_init_multi(struct iavf_sc *sc);
+static void	iavf_configure_itr(struct iavf_sc *sc);
 
-static int	ixlv_sysctl_rx_itr(SYSCTL_HANDLER_ARGS);
-static int	ixlv_sysctl_tx_itr(SYSCTL_HANDLER_ARGS);
-static int	ixlv_sysctl_current_speed(SYSCTL_HANDLER_ARGS);
-static int	ixlv_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS);
-static int	ixlv_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS);
-static int	ixlv_sysctl_vf_reset(SYSCTL_HANDLER_ARGS);
-static int	ixlv_sysctl_vflr_reset(SYSCTL_HANDLER_ARGS);
+static int	iavf_sysctl_rx_itr(SYSCTL_HANDLER_ARGS);
+static int	iavf_sysctl_tx_itr(SYSCTL_HANDLER_ARGS);
+static int	iavf_sysctl_current_speed(SYSCTL_HANDLER_ARGS);
+static int	iavf_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS);
+static int	iavf_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS);
+static int	iavf_sysctl_vf_reset(SYSCTL_HANDLER_ARGS);
+static int	iavf_sysctl_vflr_reset(SYSCTL_HANDLER_ARGS);
 
-char *ixlv_vc_speed_to_string(enum virtchnl_link_speed link_speed);
-static void	ixlv_save_tunables(struct ixlv_sc *);
+char *iavf_vc_speed_to_string(enum virtchnl_link_speed link_speed);
+static void	iavf_save_tunables(struct iavf_sc *);
 static enum i40e_status_code
-    ixlv_process_adminq(struct ixlv_sc *, u16 *);
-static int	ixlv_send_vc_msg(struct ixlv_sc *sc, u32 op);
-static int	ixlv_send_vc_msg_sleep(struct ixlv_sc *sc, u32 op);
+    iavf_process_adminq(struct iavf_sc *, u16 *);
+static int	iavf_send_vc_msg(struct iavf_sc *sc, u32 op);
+static int	iavf_send_vc_msg_sleep(struct iavf_sc *sc, u32 op);
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
  *********************************************************************/
 
-static device_method_t ixlv_methods[] = {
+static device_method_t iavf_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_register, ixlv_register),
+	DEVMETHOD(device_register, iavf_register),
 	DEVMETHOD(device_probe, iflib_device_probe),
 	DEVMETHOD(device_attach, iflib_device_attach),
 	DEVMETHOD(device_detach, iflib_device_detach),
@@ -147,55 +147,55 @@ static device_method_t ixlv_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ixlv_driver = {
-	"iavf", ixlv_methods, sizeof(struct ixlv_sc),
+static driver_t iavf_driver = {
+	"iavf", iavf_methods, sizeof(struct iavf_sc),
 };
 
-devclass_t ixlv_devclass;
-DRIVER_MODULE(iavf, pci, ixlv_driver, ixlv_devclass, 0, 0);
+devclass_t iavf_devclass;
+DRIVER_MODULE(iavf, pci, iavf_driver, iavf_devclass, 0, 0);
 MODULE_PNP_INFO("U32:vendor;U32:device;U32:subvendor;U32:subdevice;U32:revision",
-    pci, iavf, ixlv_vendor_info_array,
-        nitems(ixlv_vendor_info_array) - 1);
+    pci, iavf, iavf_vendor_info_array,
+        nitems(iavf_vendor_info_array) - 1);
 MODULE_VERSION(iavf, 1);
 
 MODULE_DEPEND(iavf, pci, 1, 1, 1);
 MODULE_DEPEND(iavf, ether, 1, 1, 1);
 MODULE_DEPEND(iavf, iflib, 1, 1, 1);
 
-MALLOC_DEFINE(M_IXLV, "iavf", "iavf driver allocations");
+MALLOC_DEFINE(M_IAVF, "iavf", "iavf driver allocations");
 
-static device_method_t ixlv_if_methods[] = {
-	DEVMETHOD(ifdi_attach_pre, ixlv_if_attach_pre),
-	DEVMETHOD(ifdi_attach_post, ixlv_if_attach_post),
-	DEVMETHOD(ifdi_detach, ixlv_if_detach),
-	DEVMETHOD(ifdi_shutdown, ixlv_if_shutdown),
-	DEVMETHOD(ifdi_suspend, ixlv_if_suspend),
-	DEVMETHOD(ifdi_resume, ixlv_if_resume),
-	DEVMETHOD(ifdi_init, ixlv_if_init),
-	DEVMETHOD(ifdi_stop, ixlv_if_stop),
-	DEVMETHOD(ifdi_msix_intr_assign, ixlv_if_msix_intr_assign),
-	DEVMETHOD(ifdi_intr_enable, ixlv_if_enable_intr),
-	DEVMETHOD(ifdi_intr_disable, ixlv_if_disable_intr),
-	DEVMETHOD(ifdi_rx_queue_intr_enable, ixlv_if_rx_queue_intr_enable),
-	DEVMETHOD(ifdi_tx_queue_intr_enable, ixlv_if_tx_queue_intr_enable),
-	DEVMETHOD(ifdi_tx_queues_alloc, ixlv_if_tx_queues_alloc),
-	DEVMETHOD(ifdi_rx_queues_alloc, ixlv_if_rx_queues_alloc),
-	DEVMETHOD(ifdi_queues_free, ixlv_if_queues_free),
-	DEVMETHOD(ifdi_update_admin_status, ixlv_if_update_admin_status),
-	DEVMETHOD(ifdi_multi_set, ixlv_if_multi_set),
-	DEVMETHOD(ifdi_mtu_set, ixlv_if_mtu_set),
-	DEVMETHOD(ifdi_media_status, ixlv_if_media_status),
-	DEVMETHOD(ifdi_media_change, ixlv_if_media_change),
-	DEVMETHOD(ifdi_promisc_set, ixlv_if_promisc_set),
-	DEVMETHOD(ifdi_timer, ixlv_if_timer),
-	DEVMETHOD(ifdi_vlan_register, ixlv_if_vlan_register),
-	DEVMETHOD(ifdi_vlan_unregister, ixlv_if_vlan_unregister),
-	DEVMETHOD(ifdi_get_counter, ixlv_if_get_counter),
+static device_method_t iavf_if_methods[] = {
+	DEVMETHOD(ifdi_attach_pre, iavf_if_attach_pre),
+	DEVMETHOD(ifdi_attach_post, iavf_if_attach_post),
+	DEVMETHOD(ifdi_detach, iavf_if_detach),
+	DEVMETHOD(ifdi_shutdown, iavf_if_shutdown),
+	DEVMETHOD(ifdi_suspend, iavf_if_suspend),
+	DEVMETHOD(ifdi_resume, iavf_if_resume),
+	DEVMETHOD(ifdi_init, iavf_if_init),
+	DEVMETHOD(ifdi_stop, iavf_if_stop),
+	DEVMETHOD(ifdi_msix_intr_assign, iavf_if_msix_intr_assign),
+	DEVMETHOD(ifdi_intr_enable, iavf_if_enable_intr),
+	DEVMETHOD(ifdi_intr_disable, iavf_if_disable_intr),
+	DEVMETHOD(ifdi_rx_queue_intr_enable, iavf_if_rx_queue_intr_enable),
+	DEVMETHOD(ifdi_tx_queue_intr_enable, iavf_if_tx_queue_intr_enable),
+	DEVMETHOD(ifdi_tx_queues_alloc, iavf_if_tx_queues_alloc),
+	DEVMETHOD(ifdi_rx_queues_alloc, iavf_if_rx_queues_alloc),
+	DEVMETHOD(ifdi_queues_free, iavf_if_queues_free),
+	DEVMETHOD(ifdi_update_admin_status, iavf_if_update_admin_status),
+	DEVMETHOD(ifdi_multi_set, iavf_if_multi_set),
+	DEVMETHOD(ifdi_mtu_set, iavf_if_mtu_set),
+	DEVMETHOD(ifdi_media_status, iavf_if_media_status),
+	DEVMETHOD(ifdi_media_change, iavf_if_media_change),
+	DEVMETHOD(ifdi_promisc_set, iavf_if_promisc_set),
+	DEVMETHOD(ifdi_timer, iavf_if_timer),
+	DEVMETHOD(ifdi_vlan_register, iavf_if_vlan_register),
+	DEVMETHOD(ifdi_vlan_unregister, iavf_if_vlan_unregister),
+	DEVMETHOD(ifdi_get_counter, iavf_if_get_counter),
 	DEVMETHOD_END
 };
 
-static driver_t ixlv_if_driver = {
-	"iavf_if", ixlv_if_methods, sizeof(struct ixlv_sc)
+static driver_t iavf_if_driver = {
+	"iavf_if", iavf_if_methods, sizeof(struct iavf_sc)
 };
 
 /*
@@ -209,41 +209,41 @@ static SYSCTL_NODE(_hw, OID_AUTO, iavf, CTLFLAG_RD, 0,
  * Different method for processing TX descriptor
  * completion.
  */
-static int ixlv_enable_head_writeback = 0;
+static int iavf_enable_head_writeback = 0;
 TUNABLE_INT("hw.iavf.enable_head_writeback",
-    &ixlv_enable_head_writeback);
+    &iavf_enable_head_writeback);
 SYSCTL_INT(_hw_iavf, OID_AUTO, enable_head_writeback, CTLFLAG_RDTUN,
-    &ixlv_enable_head_writeback, 0,
+    &iavf_enable_head_writeback, 0,
     "For detecting last completed TX descriptor by hardware, use value written by HW instead of checking descriptors");
 
-static int ixlv_core_debug_mask = 0;
+static int iavf_core_debug_mask = 0;
 TUNABLE_INT("hw.iavf.core_debug_mask",
-    &ixlv_core_debug_mask);
+    &iavf_core_debug_mask);
 SYSCTL_INT(_hw_iavf, OID_AUTO, core_debug_mask, CTLFLAG_RDTUN,
-    &ixlv_core_debug_mask, 0,
+    &iavf_core_debug_mask, 0,
     "Display debug statements that are printed in non-shared code");
 
-static int ixlv_shared_debug_mask = 0;
+static int iavf_shared_debug_mask = 0;
 TUNABLE_INT("hw.iavf.shared_debug_mask",
-    &ixlv_shared_debug_mask);
+    &iavf_shared_debug_mask);
 SYSCTL_INT(_hw_iavf, OID_AUTO, shared_debug_mask, CTLFLAG_RDTUN,
-    &ixlv_shared_debug_mask, 0,
+    &iavf_shared_debug_mask, 0,
     "Display debug statements that are printed in shared code");
 
-int ixlv_rx_itr = IXL_ITR_8K;
-TUNABLE_INT("hw.iavf.rx_itr", &ixlv_rx_itr);
+int iavf_rx_itr = IXL_ITR_8K;
+TUNABLE_INT("hw.iavf.rx_itr", &iavf_rx_itr);
 SYSCTL_INT(_hw_iavf, OID_AUTO, rx_itr, CTLFLAG_RDTUN,
-    &ixlv_rx_itr, 0, "RX Interrupt Rate");
+    &iavf_rx_itr, 0, "RX Interrupt Rate");
 
-int ixlv_tx_itr = IXL_ITR_4K;
-TUNABLE_INT("hw.iavf.tx_itr", &ixlv_tx_itr);
+int iavf_tx_itr = IXL_ITR_4K;
+TUNABLE_INT("hw.iavf.tx_itr", &iavf_tx_itr);
 SYSCTL_INT(_hw_iavf, OID_AUTO, tx_itr, CTLFLAG_RDTUN,
-    &ixlv_tx_itr, 0, "TX Interrupt Rate");
+    &iavf_tx_itr, 0, "TX Interrupt Rate");
 
 extern struct if_txrx ixl_txrx_hwb;
 extern struct if_txrx ixl_txrx_dwb;
 
-static struct if_shared_ctx ixlv_sctx_init = {
+static struct if_shared_ctx iavf_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
 	.isc_q_align = PAGE_SIZE,/* max(DBA_ALIGN, PAGE_SIZE) */
 	.isc_tx_maxsize = IXL_TSO_SIZE + sizeof(struct ether_vlan_header),
@@ -258,9 +258,9 @@ static struct if_shared_ctx ixlv_sctx_init = {
 	.isc_nrxqs = 1,
 
 	.isc_admin_intrcnt = 1,
-	.isc_vendor_info = ixlv_vendor_info_array,
+	.isc_vendor_info = iavf_vendor_info_array,
 	.isc_driver_version = IAVF_DRIVER_VERSION_STRING,
-	.isc_driver = &ixlv_if_driver,
+	.isc_driver = &iavf_if_driver,
 	.isc_flags = IFLIB_NEED_SCRATCH | IFLIB_NEED_ZERO_CSUM | IFLIB_IS_VF,
 
 	.isc_nrxd_min = {IXL_MIN_RING},
@@ -271,17 +271,17 @@ static struct if_shared_ctx ixlv_sctx_init = {
 	.isc_ntxd_default = {IXL_DEFAULT_RING},
 };
 
-if_shared_ctx_t ixlv_sctx = &ixlv_sctx_init;
+if_shared_ctx_t iavf_sctx = &iavf_sctx_init;
 
 /*** Functions ***/
 static void *
-ixlv_register(device_t dev)
+iavf_register(device_t dev)
 {
-	return (ixlv_sctx);
+	return (iavf_sctx);
 }
 
 static int
-ixlv_allocate_pci_resources(struct ixlv_sc *sc)
+iavf_allocate_pci_resources(struct iavf_sc *sc)
 {
 	struct i40e_hw *hw = &sc->hw;
 	device_t dev = iflib_get_dev(sc->vsi.ctx);
@@ -325,10 +325,10 @@ ixlv_allocate_pci_resources(struct ixlv_sc *sc)
 }
 
 static int
-ixlv_if_attach_pre(if_ctx_t ctx)
+iavf_if_attach_pre(if_ctx_t ctx)
 {
 	device_t dev;
-	struct ixlv_sc *sc;
+	struct iavf_sc *sc;
 	struct i40e_hw *hw;
 	struct ixl_vsi *vsi;
 	if_softc_ctx_t scctx;
@@ -349,17 +349,17 @@ ixlv_if_attach_pre(if_ctx_t ctx)
 	vsi->media = iflib_get_media(ctx);
 	vsi->shared = scctx = iflib_get_softc_ctx(ctx);
 
-	ixlv_save_tunables(sc);
+	iavf_save_tunables(sc);
 
 	/* Do PCI setup - map BAR0, etc */
-	if (ixlv_allocate_pci_resources(sc)) {
+	if (iavf_allocate_pci_resources(sc)) {
 		device_printf(dev, "%s: Allocation of PCI resources failed\n",
 		    __func__);
 		error = ENXIO;
 		goto err_early;
 	}
 
-	ixlv_dbg_init(sc, "Allocated PCI resources and MSIX vectors\n");
+	iavf_dbg_init(sc, "Allocated PCI resources and MSIX vectors\n");
 
 	/*
 	 * XXX: This is called by init_shared_code in the PF driver,
@@ -372,36 +372,36 @@ ixlv_if_attach_pre(if_ctx_t ctx)
 		goto err_pci_res;
 	}
 
-	error = ixlv_reset_complete(hw);
+	error = iavf_reset_complete(hw);
 	if (error) {
 		device_printf(dev, "%s: Device is still being reset\n",
 		    __func__);
 		goto err_pci_res;
 	}
 
-	ixlv_dbg_init(sc, "VF Device is ready for configuration\n");
+	iavf_dbg_init(sc, "VF Device is ready for configuration\n");
 
 	/* Sets up Admin Queue */
-	error = ixlv_setup_vc(sc);
+	error = iavf_setup_vc(sc);
 	if (error) {
 		device_printf(dev, "%s: Error setting up PF comms, %d\n",
 		    __func__, error);
 		goto err_pci_res;
 	}
 
-	ixlv_dbg_init(sc, "PF API version verified\n");
+	iavf_dbg_init(sc, "PF API version verified\n");
 
 	/* Need API version before sending reset message */
-	error = ixlv_reset(sc);
+	error = iavf_reset(sc);
 	if (error) {
 		device_printf(dev, "VF reset failed; reload the driver\n");
 		goto err_aq;
 	}
 
-	ixlv_dbg_init(sc, "VF reset complete\n");
+	iavf_dbg_init(sc, "VF reset complete\n");
 
 	/* Ask for VF config from PF */
-	error = ixlv_vf_config(sc);
+	error = iavf_vf_config(sc);
 	if (error) {
 		device_printf(dev, "Error getting configuration from PF: %d\n",
 		    error);
@@ -414,8 +414,8 @@ ixlv_if_attach_pre(if_ctx_t ctx)
 	    sc->vf_res->max_vectors,
 	    sc->vf_res->rss_key_size,
 	    sc->vf_res->rss_lut_size);
-	ixlv_dbg_info(sc, "Capabilities=%b\n",
-	    sc->vf_res->vf_cap_flags, IXLV_PRINTF_VF_OFFLOAD_FLAGS);
+	iavf_dbg_info(sc, "Capabilities=%b\n",
+	    sc->vf_res->vf_cap_flags, IAVF_PRINTF_VF_OFFLOAD_FLAGS);
 
 	/* got VF config message back from PF, now we can parse it */
 	for (int i = 0; i < sc->vf_res->num_vsis; i++) {
@@ -430,10 +430,10 @@ ixlv_if_attach_pre(if_ctx_t ctx)
 	}
 	vsi->id = sc->vsi_res->vsi_id;
 
-	ixlv_dbg_init(sc, "Resource Acquisition complete\n");
+	iavf_dbg_init(sc, "Resource Acquisition complete\n");
 
 	/* If no mac address was assigned just make a random one */
-	if (!ixlv_check_ether_addr(hw->mac.addr)) {
+	if (!iavf_check_ether_addr(hw->mac.addr)) {
 		u8 addr[ETHER_ADDR_LEN];
 		arc4rand(&addr, sizeof(addr), 0);
 		addr[0] &= 0xFE;
@@ -444,7 +444,7 @@ ixlv_if_attach_pre(if_ctx_t ctx)
 	iflib_set_mac(ctx, hw->mac.addr);
 
 	/* Allocate filter lists */
-	ixlv_init_filters(sc);
+	iavf_init_filters(sc);
 
 	/* Fill out more iflib parameters */
 	scctx->isc_ntxqsets_max = scctx->isc_nrxqsets_max =
@@ -472,20 +472,20 @@ ixlv_if_attach_pre(if_ctx_t ctx)
 	return (0);
 
 err_res_buf:
-	free(sc->vf_res, M_IXLV);
+	free(sc->vf_res, M_IAVF);
 err_aq:
 	i40e_shutdown_adminq(hw);
 err_pci_res:
-	ixlv_free_pci_resources(sc);
+	iavf_free_pci_resources(sc);
 err_early:
 	return (error);
 }
 
 static int
-ixlv_if_attach_post(if_ctx_t ctx)
+iavf_if_attach_post(if_ctx_t ctx)
 {
 	device_t dev;
-	struct ixlv_sc	*sc;
+	struct iavf_sc	*sc;
 	struct i40e_hw	*hw;
 	struct ixl_vsi *vsi;
 	int error = 0;
@@ -503,19 +503,19 @@ ixlv_if_attach_post(if_ctx_t ctx)
 	vsi->num_tx_queues = vsi->shared->isc_ntxqsets;
 
 	/* Setup the stack interface */
-	ixlv_setup_interface(dev, sc);
+	iavf_setup_interface(dev, sc);
 
 	INIT_DBG_DEV(dev, "Interface setup complete");
 
 	/* Initialize statistics & add sysctls */
 	bzero(&sc->vsi.eth_stats, sizeof(struct i40e_eth_stats));
-	ixlv_add_device_sysctls(sc);
+	iavf_add_device_sysctls(sc);
 
-	sc->init_state = IXLV_INIT_READY;
+	sc->init_state = IAVF_INIT_READY;
 	atomic_store_rel_32(&sc->queues_enabled, 0);
 
 	/* We want AQ enabled early for init */
-	ixlv_enable_adminq_irq(hw);
+	iavf_enable_adminq_irq(hw);
 
 	INIT_DBG_DEV(dev, "end");
 
@@ -527,9 +527,9 @@ ixlv_if_attach_post(if_ctx_t ctx)
  * -> This means that this isn't allowed to fail
  */
 static int
-ixlv_if_detach(if_ctx_t ctx)
+iavf_if_detach(if_ctx_t ctx)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 	struct i40e_hw *hw = &sc->hw;
 	device_t dev = sc->dev;
@@ -540,7 +540,7 @@ ixlv_if_detach(if_ctx_t ctx)
 	/* Remove all the media and link information */
 	ifmedia_removeall(vsi->media);
 
-	ixlv_disable_adminq_irq(hw);
+	iavf_disable_adminq_irq(hw);
 	status = i40e_shutdown_adminq(&sc->hw);
 	if (status != I40E_SUCCESS) {
 		device_printf(dev,
@@ -548,71 +548,71 @@ ixlv_if_detach(if_ctx_t ctx)
 		    i40e_stat_str(hw, status));
 	}
 
-	free(sc->vf_res, M_IXLV);
-	ixlv_free_pci_resources(sc);
-	ixlv_free_filters(sc);
+	free(sc->vf_res, M_IAVF);
+	iavf_free_pci_resources(sc);
+	iavf_free_filters(sc);
 
 	INIT_DBG_DEV(dev, "end");
 	return (0);
 }
 
 static int
-ixlv_if_shutdown(if_ctx_t ctx)
+iavf_if_shutdown(if_ctx_t ctx)
 {
 	return (0);
 }
 
 static int
-ixlv_if_suspend(if_ctx_t ctx)
+iavf_if_suspend(if_ctx_t ctx)
 {
 	return (0);
 }
 
 static int
-ixlv_if_resume(if_ctx_t ctx)
+iavf_if_resume(if_ctx_t ctx)
 {
 	return (0);
 }
 
 static int
-ixlv_send_vc_msg_sleep(struct ixlv_sc *sc, u32 op)
+iavf_send_vc_msg_sleep(struct iavf_sc *sc, u32 op)
 {
 	int error = 0;
 	if_ctx_t ctx = sc->vsi.ctx;
 
 	error = ixl_vc_send_cmd(sc, op);
 	if (error != 0) {
-		ixlv_dbg_vc(sc, "Error sending %b: %d\n", op, IXLV_FLAGS, error);
+		iavf_dbg_vc(sc, "Error sending %b: %d\n", op, IAVF_FLAGS, error);
 		return (error);
 	}
 
 	/* Don't wait for a response if the device is being detached. */
 	if (!iflib_in_detach(ctx)) {
-		ixlv_dbg_vc(sc, "Sleeping for op %b\n", op, IXLV_FLAGS);
+		iavf_dbg_vc(sc, "Sleeping for op %b\n", op, IAVF_FLAGS);
 		error = sx_sleep(ixl_vc_get_op_chan(sc, op),
-		    iflib_ctx_lock_get(ctx), PRI_MAX, "ixlvc", IXLV_AQ_TIMEOUT);
+		    iflib_ctx_lock_get(ctx), PRI_MAX, "iavf_vc", IAVF_AQ_TIMEOUT);
 
 		if (error == EWOULDBLOCK)
-			device_printf(sc->dev, "%b timed out\n", op, IXLV_FLAGS);
+			device_printf(sc->dev, "%b timed out\n", op, IAVF_FLAGS);
 	}
 
 	return (error);
 }
 
 static int
-ixlv_send_vc_msg(struct ixlv_sc *sc, u32 op)
+iavf_send_vc_msg(struct iavf_sc *sc, u32 op)
 {
 	int error = 0;
 
 	error = ixl_vc_send_cmd(sc, op);
 	if (error != 0)
-		ixlv_dbg_vc(sc, "Error sending %b: %d\n", op, IXLV_FLAGS, error);
+		iavf_dbg_vc(sc, "Error sending %b: %d\n", op, IAVF_FLAGS, error);
 
 	return (error);
 }
 
 static void
-ixlv_init_queues(struct ixl_vsi *vsi)
+iavf_init_queues(struct ixl_vsi *vsi)
 {
 	if_softc_ctx_t scctx = vsi->shared;
 	struct ixl_tx_queue *tx_que = vsi->tx_queues;
@@ -635,9 +635,9 @@ ixlv_init_queues(struct ixl_vsi *vsi)
 }
 
 void
-ixlv_if_init(if_ctx_t ctx)
+iavf_if_init(if_ctx_t ctx)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 	struct i40e_hw *hw = &sc->hw;
 	struct ifnet *ifp = iflib_get_ifp(ctx);
@@ -648,50 +648,50 @@ ixlv_if_init(if_ctx_t ctx)
 
 	MPASS(sx_xlocked(iflib_ctx_lock_get(ctx)));
 
-	error = ixlv_reset_complete(hw);
+	error = iavf_reset_complete(hw);
 	if (error) {
 		device_printf(sc->dev, "%s: VF reset failed\n",
 		    __func__);
 	}
 
 	if (!i40e_check_asq_alive(hw)) {
-		ixlv_dbg_info(sc, "ASQ is not alive, re-initializing AQ\n");
+		iavf_dbg_info(sc, "ASQ is not alive, re-initializing AQ\n");
 		pci_enable_busmaster(sc->dev);
 		i40e_shutdown_adminq(hw);
 		i40e_init_adminq(hw);
 	}
 
 	/* Make sure queues are disabled */
-	ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_DISABLE_QUEUES);
+	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_DISABLE_QUEUES);
 
 	bcopy(IF_LLADDR(ifp), tmpaddr, ETHER_ADDR_LEN);
 	if (!cmp_etheraddr(hw->mac.addr, tmpaddr) &&
 	    (i40e_validate_mac_addr(tmpaddr) == I40E_SUCCESS)) {
-		error = ixlv_del_mac_filter(sc, hw->mac.addr);
+		error = iavf_del_mac_filter(sc, hw->mac.addr);
 		if (error == 0)
-			ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_DEL_MAC_FILTER);
+			iavf_send_vc_msg(sc, IAVF_FLAG_AQ_DEL_MAC_FILTER);
 
 		bcopy(tmpaddr, hw->mac.addr, ETH_ALEN);
 	}
 
-	error = ixlv_add_mac_filter(sc, hw->mac.addr, 0);
+	error = iavf_add_mac_filter(sc, hw->mac.addr, 0);
 	if (!error || error == EEXIST)
-		ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_ADD_MAC_FILTER);
+		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_ADD_MAC_FILTER);
 	iflib_set_mac(ctx, hw->mac.addr);
 
 	/* Prepare the queues for operation */
-	ixlv_init_queues(vsi);
+	iavf_init_queues(vsi);
 
 	/* Set initial ITR values */
-	ixlv_configure_itr(sc);
+	iavf_configure_itr(sc);
 
-	ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_CONFIGURE_QUEUES);
+	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_CONFIGURE_QUEUES);
 
 	/* Set up RSS */
-	ixlv_config_rss(sc);
+	iavf_config_rss(sc);
 
 	/* Map vectors */
-	ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_MAP_VECTORS);
+	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_MAP_VECTORS);
 
 	/* Init SW TX ring indices */
 	if (vsi->enable_head_writeback)
@@ -700,22 +700,22 @@ ixlv_if_init(if_ctx_t ctx)
 		ixl_init_tx_rsqs(vsi);
 
 	/* Configure promiscuous mode */
-	ixlv_if_promisc_set(ctx, if_getflags(ifp));
+	iavf_if_promisc_set(ctx, if_getflags(ifp));
 
 	/* Enable queues */
-	ixlv_send_vc_msg_sleep(sc, IXLV_FLAG_AQ_ENABLE_QUEUES);
+	iavf_send_vc_msg_sleep(sc, IAVF_FLAG_AQ_ENABLE_QUEUES);
 
-	sc->init_state = IXLV_RUNNING;
+	sc->init_state = IAVF_RUNNING;
 }
 
 /*
- * ixlv_attach() helper function; initalizes the admin queue
+ * iavf_attach() helper function; initalizes the admin queue
  * and attempts to establish contact with the PF by
  * retrying the initial "API version" message several times
  * or until the PF responds.
  */
 static int
-ixlv_setup_vc(struct ixlv_sc *sc)
+iavf_setup_vc(struct iavf_sc *sc)
 {
 	struct i40e_hw *hw = &sc->hw;
 	device_t dev = sc->dev;
@@ -728,7 +728,7 @@ ixlv_setup_vc(struct ixlv_sc *sc)
 	hw->aq.arq_buf_size = IXL_AQ_BUF_SZ;
 	hw->aq.asq_buf_size = IXL_AQ_BUF_SZ;
 
-	for (int i = 0; i < IXLV_AQ_MAX_ERR; i++) {
+	for (int i = 0; i < IAVF_AQ_MAX_ERR; i++) {
 		/* Initialize admin queue */
 		error = i40e_init_adminq(hw);
 		if (error) {
@@ -738,12 +738,12 @@ ixlv_setup_vc(struct ixlv_sc *sc)
 			continue;
 		}
 
-		ixlv_dbg_init(sc, "Initialized Admin Queue; starting"
+		iavf_dbg_init(sc, "Initialized Admin Queue; starting"
 		    " send_api_ver attempt %d", i+1);
 
 retry_send:
 		/* Send VF's API version */
-		error = ixlv_send_api_ver(sc);
+		error = iavf_send_api_ver(sc);
 		if (error) {
 			i40e_shutdown_adminq(hw);
 			ret_error = 2;
@@ -754,23 +754,23 @@ retry_send:
 
 		asq_retries = 0;
 		while (!i40e_asq_done(hw)) {
-			if (++asq_retries > IXLV_AQ_MAX_ERR) {
+			if (++asq_retries > IAVF_AQ_MAX_ERR) {
 				i40e_shutdown_adminq(hw);
 				device_printf(dev, "Admin Queue timeout "
 				    "(waiting for send_api_ver), %d more tries...\n",
-				    IXLV_AQ_MAX_ERR - (i + 1));
+				    IAVF_AQ_MAX_ERR - (i + 1));
 				ret_error = 3;
 				break;
 			} 
 			i40e_msec_pause(10);
 		}
-		if (asq_retries > IXLV_AQ_MAX_ERR)
+		if (asq_retries > IAVF_AQ_MAX_ERR)
 			continue;
 
-		ixlv_dbg_init(sc, "Sent API version message to PF");
+		iavf_dbg_init(sc, "Sent API version message to PF");
 
 		/* Verify that the VF accepts the PF's API version */
-		error = ixlv_verify_api_ver(sc);
+		error = iavf_verify_api_ver(sc);
 		if (error == ETIMEDOUT) {
 			if (!send_api_ver_retried) {
 				/* Resend message, one more time */
@@ -802,11 +802,11 @@ retry_send:
 }
 
 /*
- * ixlv_attach() helper function; asks the PF for this VF's
+ * iavf_attach() helper function; asks the PF for this VF's
  * configuration, and saves the information if it receives it.
  */
 static int
-ixlv_vf_config(struct ixlv_sc *sc)
+iavf_vf_config(struct iavf_sc *sc)
 {
 	struct i40e_hw *hw = &sc->hw;
 	device_t dev = sc->dev;
@@ -814,7 +814,7 @@ ixlv_vf_config(struct ixlv_sc *sc)
 	int asq_retries, retried = 0;
 
 retry_config:
-	error = ixlv_send_vf_config_msg(sc);
+	error = iavf_send_vf_config_msg(sc);
 	if (error) {
 		device_printf(dev,
 		    "%s: Unable to send VF config request, attempt %d,"
@@ -824,7 +824,7 @@ retry_config:
 
 	asq_retries = 0;
 	while (!i40e_asq_done(hw)) {
-		if (++asq_retries > IXLV_AQ_MAX_ERR) {
+		if (++asq_retries > IAVF_AQ_MAX_ERR) {
 			device_printf(dev, "%s: Admin Queue timeout "
 			    "(waiting for send_vf_config_msg), attempt %d\n",
 			    __func__, retried + 1);
@@ -834,13 +834,13 @@ retry_config:
 		i40e_msec_pause(10);
 	}
 
-	ixlv_dbg_init(sc, "Sent VF config message to PF, attempt %d\n",
+	iavf_dbg_init(sc, "Sent VF config message to PF, attempt %d\n",
 	    retried + 1);
 
 	if (!sc->vf_res) {
 		bufsz = sizeof(struct virtchnl_vf_resource) +
 		    (I40E_MAX_VF_VSI * sizeof(struct virtchnl_vsi_resource));
-		sc->vf_res = malloc(bufsz, M_IXLV, M_NOWAIT);
+		sc->vf_res = malloc(bufsz, M_IAVF, M_NOWAIT);
 		if (!sc->vf_res) {
 			device_printf(dev,
 			    "%s: Unable to allocate memory for VF configuration"
@@ -851,7 +851,7 @@ retry_config:
 	}
 
 	/* Check for VF config response */
-	error = ixlv_get_vf_config(sc);
+	error = iavf_get_vf_config(sc);
 	if (error == ETIMEDOUT) {
 		/* The 1st time we timeout, send the configuration message again */
 		if (!retried) {
@@ -859,7 +859,7 @@ retry_config:
 			goto retry_config;
 		}
 		device_printf(dev,
-		    "%s: ixlv_get_vf_config() timed out waiting for a response\n",
+		    "%s: iavf_get_vf_config() timed out waiting for a response\n",
 		    __func__);
 	}
 	if (error) {
@@ -871,15 +871,15 @@ retry_config:
 	goto done;
 
 fail:
-	free(sc->vf_res, M_IXLV);
+	free(sc->vf_res, M_IAVF);
 done:
 	return (ret_error);
 }
 
 static int
-ixlv_if_msix_intr_assign(if_ctx_t ctx, int msix)
+iavf_if_msix_intr_assign(if_ctx_t ctx, int msix)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 	struct ixl_rx_queue *rx_que = vsi->rx_queues;
 	struct ixl_tx_queue *tx_que = vsi->tx_queues;
@@ -892,7 +892,7 @@ ixlv_if_msix_intr_assign(if_ctx_t ctx, int msix)
 	/* Admin Que is vector 0*/
 	rid = vector + 1;
 	err = iflib_irq_alloc_generic(ctx, &vsi->irq, rid, IFLIB_INTR_ADMIN,
-	    ixlv_msix_adminq, sc, 0, "aq");
+	    iavf_msix_adminq, sc, 0, "aq");
 	if (err) {
 		iflib_irq_free(ctx, &vsi->irq);
 		device_printf(iflib_get_dev(ctx),
@@ -906,7 +906,7 @@ ixlv_if_msix_intr_assign(if_ctx_t ctx, int msix)
 
 		snprintf(buf, sizeof(buf), "rxq%d", i);
 		err = iflib_irq_alloc_generic(ctx, &rx_que->que_irq, rid,
-		    IFLIB_INTR_RX, ixlv_msix_que, rx_que, rx_que->rxr.me, buf);
+		    IFLIB_INTR_RX, iavf_msix_que, rx_que, rx_que->rxr.me, buf);
 		/* XXX: Does the driver work as expected if there are fewer num_rx_queues than
 		 * what's expected in the iflib context? */
 		if (err) {
@@ -943,52 +943,52 @@ fail:
 
 /* Enable all interrupts */
 static void
-ixlv_if_enable_intr(if_ctx_t ctx)
+iavf_if_enable_intr(if_ctx_t ctx)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 
-	ixlv_enable_intr(vsi);
+	iavf_enable_intr(vsi);
 }
 
 /* Disable all interrupts */
 static void
-ixlv_if_disable_intr(if_ctx_t ctx)
+iavf_if_disable_intr(if_ctx_t ctx)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 
-	ixlv_disable_intr(vsi);
+	iavf_disable_intr(vsi);
 }
 
 static int
-ixlv_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid)
+iavf_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 	struct i40e_hw *hw = vsi->hw;
 	struct ixl_rx_queue *rx_que = &vsi->rx_queues[rxqid];
 
-	ixlv_enable_queue_irq(hw, rx_que->msix - 1);
+	iavf_enable_queue_irq(hw, rx_que->msix - 1);
 	return (0);
 }
 
 static int
-ixlv_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid)
+iavf_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 	struct i40e_hw *hw = vsi->hw;
 	struct ixl_tx_queue *tx_que = &vsi->tx_queues[txqid];
 
-	ixlv_enable_queue_irq(hw, tx_que->msix - 1);
+	iavf_enable_queue_irq(hw, tx_que->msix - 1);
 	return (0);
 }
 
 static int
-ixlv_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntxqs, int ntxqsets)
+iavf_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntxqs, int ntxqsets)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 	if_softc_ctx_t scctx = vsi->shared;
 	struct ixl_tx_queue *que;
@@ -1000,7 +1000,7 @@ ixlv_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntx
 
 	/* Allocate queue structure memory */
 	if (!(vsi->tx_queues =
-	    (struct ixl_tx_queue *) malloc(sizeof(struct ixl_tx_queue) *ntxqsets, M_IXLV, M_NOWAIT | M_ZERO))) {
+	    (struct ixl_tx_queue *) malloc(sizeof(struct ixl_tx_queue) *ntxqsets, M_IAVF, M_NOWAIT | M_ZERO))) {
 		device_printf(iflib_get_dev(ctx), "Unable to allocate TX ring memory\n");
 		return (ENOMEM);
 	}
@@ -1013,7 +1013,7 @@ ixlv_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntx
 
 		if (!vsi->enable_head_writeback) {
 			/* Allocate report status array */
-			if (!(txr->tx_rsq = malloc(sizeof(qidx_t) * scctx->isc_ntxd[0], M_IXLV, M_NOWAIT))) {
+			if (!(txr->tx_rsq = malloc(sizeof(qidx_t) * scctx->isc_ntxd[0], M_IAVF, M_NOWAIT))) {
 				device_printf(iflib_get_dev(ctx), "failed to allocate tx_rsq memory\n");
 				error = ENOMEM;
 				goto fail;
@@ -1031,14 +1031,14 @@ ixlv_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int ntx
 
 	return (0);
 fail:
-	ixlv_if_queues_free(ctx);
+	iavf_if_queues_free(ctx);
 	return (error);
 }
 
 static int
-ixlv_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrxqs, int nrxqsets)
+iavf_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrxqs, int nrxqsets)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 	struct ixl_rx_queue *que;
 	int i, error = 0;
@@ -1053,7 +1053,7 @@ ixlv_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrx
 	/* Allocate queue structure memory */
 	if (!(vsi->rx_queues =
 	    (struct ixl_rx_queue *) malloc(sizeof(struct ixl_rx_queue) *
-	    nrxqsets, M_IXLV, M_NOWAIT | M_ZERO))) {
+	    nrxqsets, M_IAVF, M_NOWAIT | M_ZERO))) {
 		device_printf(iflib_get_dev(ctx), "Unable to allocate RX ring memory\n");
 		error = ENOMEM;
 		goto fail;
@@ -1074,14 +1074,14 @@ ixlv_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrx
 
 	return (0);
 fail:
-	ixlv_if_queues_free(ctx);
+	iavf_if_queues_free(ctx);
 	return (error);
 }
 
 static void
-ixlv_if_queues_free(if_ctx_t ctx)
+iavf_if_queues_free(if_ctx_t ctx)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 
 	if (!vsi->enable_head_writeback) {
@@ -1091,24 +1091,24 @@ ixlv_if_queues_free(if_ctx_t ctx)
 		for (i = 0, que = vsi->tx_queues; i < vsi->shared->isc_ntxqsets; i++, que++) {
 			struct tx_ring *txr = &que->txr;
 			if (txr->tx_rsq != NULL) {
-				free(txr->tx_rsq, M_IXLV);
+				free(txr->tx_rsq, M_IAVF);
 				txr->tx_rsq = NULL;
 			}
 		}
 	}
 
 	if (vsi->tx_queues != NULL) {
-		free(vsi->tx_queues, M_IXLV);
+		free(vsi->tx_queues, M_IAVF);
 		vsi->tx_queues = NULL;
 	}
 	if (vsi->rx_queues != NULL) {
-		free(vsi->rx_queues, M_IXLV);
+		free(vsi->rx_queues, M_IAVF);
 		vsi->rx_queues = NULL;
 	}
 }
 
 static int
-ixlv_check_aq_errors(struct ixlv_sc *sc)
+iavf_check_aq_errors(struct iavf_sc *sc)
 {
 	struct i40e_hw *hw = &sc->hw;
 	device_t dev = sc->dev;
@@ -1160,16 +1160,16 @@ ixlv_check_aq_errors(struct ixlv_sc *sc)
 		 * A VF reset might not be enough to fix a problem here;
 		 * a PF reset could be required.
 		 */
-		sc->init_state = IXLV_RESET_REQUIRED;
-		ixlv_stop(sc);
-		ixlv_request_reset(sc);
+		sc->init_state = IAVF_RESET_REQUIRED;
+		iavf_stop(sc);
+		iavf_request_reset(sc);
 	}
 
 	return (aq_error ? EIO : 0);
 }
 
 static enum i40e_status_code
-ixlv_process_adminq(struct ixlv_sc *sc, u16 *pending)
+iavf_process_adminq(struct iavf_sc *sc, u16 *pending)
 {
 	enum i40e_status_code status = I40E_SUCCESS;
 	struct i40e_arq_event_info event;
@@ -1178,7 +1178,7 @@ ixlv_process_adminq(struct ixlv_sc *sc, u16 *pending)
 	int error = 0, loop = 0;
 	u32 reg;
 
-	error = ixlv_check_aq_errors(sc);
+	error = iavf_check_aq_errors(sc);
 	if (error)
 		return (I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR);
 
@@ -1196,7 +1196,7 @@ ixlv_process_adminq(struct ixlv_sc *sc, u16 *pending)
 		 */
 		if (status)
 			break;
-		ixlv_vc_completion(sc, v_msg->v_opcode,
+		iavf_vc_completion(sc, v_msg->v_opcode,
 		    v_msg->v_retval, event.msg_buf, event.msg_len);
 		bzero(event.msg_buf, IXL_AQ_BUF_SZ);
 	} while (*pending && (loop++ < IXL_ADM_LIMIT));
@@ -1210,14 +1210,14 @@ ixlv_process_adminq(struct ixlv_sc *sc, u16 *pending)
 }
 
 static void
-ixlv_if_update_admin_status(if_ctx_t ctx)
+iavf_if_update_admin_status(if_ctx_t ctx)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct i40e_hw *hw = &sc->hw;
 	u16 pending;
 
-	ixlv_process_adminq(sc, &pending);
-	ixlv_update_link_status(sc);
+	iavf_process_adminq(sc, &pending);
+	iavf_update_link_status(sc);
 	
 	/*
 	 * If there are still messages to process, reschedule.
@@ -1226,18 +1226,18 @@ ixlv_if_update_admin_status(if_ctx_t ctx)
 	if (pending > 0)
 		iflib_admin_intr_deferred(ctx);
 	else
-		ixlv_enable_adminq_irq(hw);
+		iavf_enable_adminq_irq(hw);
 }
 
 static int
-ixlv_mc_filter_apply(void *arg, struct ifmultiaddr *ifma, int count __unused)
+iavf_mc_filter_apply(void *arg, struct ifmultiaddr *ifma, int count __unused)
 {
-	struct ixlv_sc *sc = arg;
+	struct iavf_sc *sc = arg;
 	int error = 0;
 
 	if (ifma->ifma_addr->sa_family != AF_LINK)
 		return (0);
-	error = ixlv_add_mac_filter(sc,
+	error = iavf_add_mac_filter(sc,
 	    (u8*)LLADDR((struct sockaddr_dl *) ifma->ifma_addr),
 	    IXL_FILTER_MC);
 
@@ -1245,36 +1245,36 @@ ixlv_mc_filter_apply(void *arg, struct ifmultiaddr *ifma, int count __unused)
 }
 
 static void
-ixlv_if_multi_set(if_ctx_t ctx)
+iavf_if_multi_set(if_ctx_t ctx)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	int mcnt = 0;
 
-	IOCTL_DEBUGOUT("ixlv_if_multi_set: begin");
+	IOCTL_DEBUGOUT("iavf_if_multi_set: begin");
 
 	mcnt = if_multiaddr_count(iflib_get_ifp(ctx), MAX_MULTICAST_ADDR);
 	if (__predict_false(mcnt == MAX_MULTICAST_ADDR)) {
 		/* Delete MC filters and enable mulitcast promisc instead */
-		ixlv_init_multi(sc);
+		iavf_init_multi(sc);
 		sc->promisc_flags |= FLAG_VF_MULTICAST_PROMISC;
-		ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_CONFIGURE_PROMISC);
+		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_CONFIGURE_PROMISC);
 		return;
 	}
 
 	/* If there aren't too many filters, delete existing MC filters */
-	ixlv_init_multi(sc);
+	iavf_init_multi(sc);
 
 	/* And (re-)install filters for all mcast addresses */
-	mcnt = if_multi_apply(iflib_get_ifp(ctx), ixlv_mc_filter_apply, sc);
+	mcnt = if_multi_apply(iflib_get_ifp(ctx), iavf_mc_filter_apply, sc);
 
 	if (mcnt > 0)
-		ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_ADD_MAC_FILTER);
+		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_ADD_MAC_FILTER);
 }
 
 static int
-ixlv_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
+iavf_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 
 	IOCTL_DEBUGOUT("ioctl: SIOCSIFMTU (Set Interface MTU)");
@@ -1289,16 +1289,16 @@ ixlv_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 }
 
 static void
-ixlv_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr)
+iavf_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr)
 {
 #ifdef IXL_DEBUG
 	struct ifnet *ifp = iflib_get_ifp(ctx);
 #endif
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 
 	INIT_DBG_IF(ifp, "begin");
 
-	ixlv_update_link_status(sc);
+	iavf_update_link_status(sc);
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
@@ -1341,7 +1341,7 @@ ixlv_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr)
 }
 
 static int
-ixlv_if_media_change(if_ctx_t ctx)
+iavf_if_media_change(if_ctx_t ctx)
 {
 	struct ifmedia *ifm = iflib_get_media(ctx);
 
@@ -1355,9 +1355,9 @@ ixlv_if_media_change(if_ctx_t ctx)
 }
 
 static int
-ixlv_if_promisc_set(if_ctx_t ctx, int flags)
+iavf_if_promisc_set(if_ctx_t ctx, int flags)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ifnet	*ifp = iflib_get_ifp(ctx);
 
 	sc->promisc_flags = 0;
@@ -1368,15 +1368,15 @@ ixlv_if_promisc_set(if_ctx_t ctx, int flags)
 	if (flags & IFF_PROMISC)
 		sc->promisc_flags |= FLAG_VF_UNICAST_PROMISC;
 
-	ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_CONFIGURE_PROMISC);
+	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_CONFIGURE_PROMISC);
 
 	return (0);
 }
 
 static void
-ixlv_if_timer(if_ctx_t ctx, uint16_t qid)
+iavf_if_timer(if_ctx_t ctx, uint16_t qid)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct i40e_hw *hw = &sc->hw;
 	u32 val;
 
@@ -1388,7 +1388,7 @@ ixlv_if_timer(if_ctx_t ctx, uint16_t qid)
 	    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
 	if (val != VIRTCHNL_VFR_VFACTIVE
 	    && val != VIRTCHNL_VFR_COMPLETED) {
-		ixlv_dbg_info(sc, "reset in progress! (%d)\n", val);
+		iavf_dbg_info(sc, "reset in progress! (%d)\n", val);
 		return;
 	}
 
@@ -1396,34 +1396,34 @@ ixlv_if_timer(if_ctx_t ctx, uint16_t qid)
 	iflib_admin_intr_deferred(ctx);
 
 	/* Update stats */
-	ixlv_request_stats(sc);
+	iavf_request_stats(sc);
 }
 
 static void
-ixlv_if_vlan_register(if_ctx_t ctx, u16 vtag)
+iavf_if_vlan_register(if_ctx_t ctx, u16 vtag)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
-	struct ixlv_vlan_filter	*v;
+	struct iavf_vlan_filter	*v;
 
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
 		return;
 
 	++vsi->num_vlans;
-	v = malloc(sizeof(struct ixlv_vlan_filter), M_IXLV, M_WAITOK | M_ZERO);
+	v = malloc(sizeof(struct iavf_vlan_filter), M_IAVF, M_WAITOK | M_ZERO);
 	SLIST_INSERT_HEAD(sc->vlan_filters, v, next);
 	v->vlan = vtag;
 	v->flags = IXL_FILTER_ADD;
 
-	ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_ADD_VLAN_FILTER);
+	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_ADD_VLAN_FILTER);
 }
 
 static void
-ixlv_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
+iavf_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
-	struct ixlv_vlan_filter	*v;
+	struct iavf_vlan_filter	*v;
 	int			i = 0;
 
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
@@ -1437,13 +1437,13 @@ ixlv_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 		}
 	}
 	if (i)
-		ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_DEL_VLAN_FILTER);
+		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_DEL_VLAN_FILTER);
 }
 
 static uint64_t
-ixlv_if_get_counter(if_ctx_t ctx, ift_counter cnt)
+iavf_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &sc->vsi;
 	if_t ifp = iflib_get_ifp(ctx);
 
@@ -1480,7 +1480,7 @@ ixlv_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 
  
 static void
-ixlv_free_pci_resources(struct ixlv_sc *sc)
+iavf_free_pci_resources(struct iavf_sc *sc)
 {
 	struct ixl_vsi		*vsi = &sc->vsi;
 	struct ixl_rx_queue	*rx_que = vsi->rx_queues;
@@ -1509,18 +1509,18 @@ early:
 ** Requires the VF's Admin Queue to be initialized.
 */
 static int
-ixlv_reset(struct ixlv_sc *sc)
+iavf_reset(struct iavf_sc *sc)
 {
 	struct i40e_hw	*hw = &sc->hw;
 	device_t	dev = sc->dev;
 	int		error = 0;
 
 	/* Ask the PF to reset us if we are initiating */
-	if (sc->init_state != IXLV_RESET_PENDING)
-		ixlv_request_reset(sc);
+	if (sc->init_state != IAVF_RESET_PENDING)
+		iavf_request_reset(sc);
 
 	i40e_msec_pause(100);
-	error = ixlv_reset_complete(hw);
+	error = iavf_reset_complete(hw);
 	if (error) {
 		device_printf(dev, "%s: VF reset failed\n",
 		    __func__);
@@ -1542,12 +1542,12 @@ ixlv_reset(struct ixlv_sc *sc)
 		return (error);
 	}
 
-	ixlv_enable_adminq_irq(hw);
+	iavf_enable_adminq_irq(hw);
 	return (0);
 }
 
 static int
-ixlv_reset_complete(struct i40e_hw *hw)
+iavf_reset_complete(struct i40e_hw *hw)
 {
 	u32 reg;
 
@@ -1566,7 +1566,7 @@ ixlv_reset_complete(struct i40e_hw *hw)
 }
 
 static void
-ixlv_setup_interface(device_t dev, struct ixlv_sc *sc)
+iavf_setup_interface(device_t dev, struct iavf_sc *sc)
 {
 	struct ixl_vsi *vsi = &sc->vsi;
 	if_ctx_t ctx = vsi->ctx;
@@ -1590,13 +1590,13 @@ ixlv_setup_interface(device_t dev, struct ixlv_sc *sc)
 /*
 ** Get a new filter and add it to the mac filter list.
 */
-static struct ixlv_mac_filter *
-ixlv_get_mac_filter(struct ixlv_sc *sc)
+static struct iavf_mac_filter *
+iavf_get_mac_filter(struct iavf_sc *sc)
 {
-	struct ixlv_mac_filter	*f;
+	struct iavf_mac_filter	*f;
 
-	f = malloc(sizeof(struct ixlv_mac_filter),
-	    M_IXLV, M_NOWAIT | M_ZERO);
+	f = malloc(sizeof(struct iavf_mac_filter),
+	    M_IAVF, M_NOWAIT | M_ZERO);
 	if (f)
 		SLIST_INSERT_HEAD(sc->mac_filters, f, next);
 
@@ -1606,10 +1606,10 @@ ixlv_get_mac_filter(struct ixlv_sc *sc)
 /*
 ** Find the filter with matching MAC address
 */
-static struct ixlv_mac_filter *
-ixlv_find_mac_filter(struct ixlv_sc *sc, u8 *macaddr)
+static struct iavf_mac_filter *
+iavf_find_mac_filter(struct iavf_sc *sc, u8 *macaddr)
 {
-	struct ixlv_mac_filter	*f;
+	struct iavf_mac_filter	*f;
 	bool match = FALSE;
 
 	SLIST_FOREACH(f, sc->mac_filters, next) {
@@ -1628,9 +1628,9 @@ ixlv_find_mac_filter(struct ixlv_sc *sc, u8 *macaddr)
 ** Admin Queue interrupt handler
 */
 static int
-ixlv_msix_adminq(void *arg)
+iavf_msix_adminq(void *arg)
 {
-	struct ixlv_sc	*sc = arg;
+	struct iavf_sc	*sc = arg;
 	struct i40e_hw	*hw = &sc->hw;
 	u32		reg, mask;
 	bool		do_task = FALSE;
@@ -1651,7 +1651,7 @@ ixlv_msix_adminq(void *arg)
 	}
 
 	wr32(hw, I40E_VFINT_ICR0_ENA1, mask);
-	ixlv_enable_adminq_irq(hw);
+	iavf_enable_adminq_irq(hw);
 
 	if (do_task)
 		return (FILTER_SCHEDULE_THREAD);
@@ -1660,28 +1660,28 @@ ixlv_msix_adminq(void *arg)
 }
 
 void
-ixlv_enable_intr(struct ixl_vsi *vsi)
+iavf_enable_intr(struct ixl_vsi *vsi)
 {
 	struct i40e_hw *hw = vsi->hw;
 	struct ixl_rx_queue *que = vsi->rx_queues;
 
-	ixlv_enable_adminq_irq(hw);
+	iavf_enable_adminq_irq(hw);
 	for (int i = 0; i < vsi->num_rx_queues; i++, que++)
-		ixlv_enable_queue_irq(hw, que->rxr.me);
+		iavf_enable_queue_irq(hw, que->rxr.me);
 }
 
 void
-ixlv_disable_intr(struct ixl_vsi *vsi)
+iavf_disable_intr(struct ixl_vsi *vsi)
 {
         struct i40e_hw *hw = vsi->hw;
         struct ixl_rx_queue *que = vsi->rx_queues;
 
 	for (int i = 0; i < vsi->num_rx_queues; i++, que++)
-		ixlv_disable_queue_irq(hw, que->rxr.me);
+		iavf_disable_queue_irq(hw, que->rxr.me);
 }
 
 static void
-ixlv_disable_adminq_irq(struct i40e_hw *hw)
+iavf_disable_adminq_irq(struct i40e_hw *hw)
 {
 	wr32(hw, I40E_VFINT_DYN_CTL01, 0);
 	wr32(hw, I40E_VFINT_ICR0_ENA1, 0);
@@ -1690,7 +1690,7 @@ ixlv_disable_adminq_irq(struct i40e_hw *hw)
 }
 
 static void
-ixlv_enable_adminq_irq(struct i40e_hw *hw)
+iavf_enable_adminq_irq(struct i40e_hw *hw)
 {
 	wr32(hw, I40E_VFINT_DYN_CTL01,
 	    I40E_VFINT_DYN_CTL01_INTENA_MASK |
@@ -1701,7 +1701,7 @@ ixlv_enable_adminq_irq(struct i40e_hw *hw)
 }
 
 static void
-ixlv_enable_queue_irq(struct i40e_hw *hw, int id)
+iavf_enable_queue_irq(struct i40e_hw *hw, int id)
 {
 	u32		reg;
 
@@ -1712,7 +1712,7 @@ ixlv_enable_queue_irq(struct i40e_hw *hw, int id)
 }
 
 static void
-ixlv_disable_queue_irq(struct i40e_hw *hw, int id)
+iavf_disable_queue_irq(struct i40e_hw *hw, int id)
 {
 	wr32(hw, I40E_VFINT_DYN_CTLN1(id),
 	    I40E_VFINT_DYN_CTLN1_ITR_INDX_MASK);
@@ -1720,7 +1720,7 @@ ixlv_disable_queue_irq(struct i40e_hw *hw, int id)
 }
 
 static void
-ixlv_configure_tx_itr(struct ixlv_sc *sc)
+iavf_configure_tx_itr(struct iavf_sc *sc)
 {
 	struct i40e_hw		*hw = &sc->hw;
 	struct ixl_vsi		*vsi = &sc->vsi;
@@ -1739,7 +1739,7 @@ ixlv_configure_tx_itr(struct ixlv_sc *sc)
 }
 
 static void
-ixlv_configure_rx_itr(struct ixlv_sc *sc)
+iavf_configure_rx_itr(struct iavf_sc *sc)
 {
 	struct i40e_hw		*hw = &sc->hw;
 	struct ixl_vsi		*vsi = &sc->vsi;
@@ -1761,10 +1761,10 @@ ixlv_configure_rx_itr(struct ixlv_sc *sc)
  * Get initial ITR values from tunable values.
  */
 static void
-ixlv_configure_itr(struct ixlv_sc *sc)
+iavf_configure_itr(struct iavf_sc *sc)
 {
-	ixlv_configure_tx_itr(sc);
-	ixlv_configure_rx_itr(sc);
+	iavf_configure_tx_itr(sc);
+	iavf_configure_rx_itr(sc);
 }
 
 /*
@@ -1772,7 +1772,7 @@ ixlv_configure_itr(struct ixlv_sc *sc)
 ** interrupt moderation value.
 */
 static void
-ixlv_set_queue_rx_itr(struct ixl_rx_queue *que)
+iavf_set_queue_rx_itr(struct ixl_rx_queue *que)
 {
 	struct ixl_vsi	*vsi = que->vsi;
 	struct i40e_hw	*hw = vsi->hw;
@@ -1791,14 +1791,14 @@ ixlv_set_queue_rx_itr(struct ixl_rx_queue *que)
 }
 
 static int
-ixlv_msix_que(void *arg)
+iavf_msix_que(void *arg)
 {
 	struct ixl_rx_queue *rx_que = arg;
 
 	++rx_que->irqs;
 
-	ixlv_set_queue_rx_itr(rx_que);
-	// ixlv_set_queue_tx_itr(que);
+	iavf_set_queue_rx_itr(rx_que);
+	// iavf_set_queue_tx_itr(que);
 
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -1810,9 +1810,9 @@ ixlv_msix_que(void *arg)
  *
  **********************************************************************/
 static void
-ixlv_init_multi(struct ixlv_sc *sc)
+iavf_init_multi(struct iavf_sc *sc)
 {
-	struct ixlv_mac_filter *f;
+	struct iavf_mac_filter *f;
 	int mcnt = 0;
 
 	/* First clear any multicast filters */
@@ -1824,7 +1824,7 @@ ixlv_init_multi(struct ixlv_sc *sc)
 		}
 	}
 	if (mcnt > 0)
-		ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_DEL_MAC_FILTER);
+		iavf_send_vc_msg(sc, IAVF_FLAG_AQ_DEL_MAC_FILTER);
 }
 
 /*
@@ -1833,7 +1833,7 @@ ixlv_init_multi(struct ixlv_sc *sc)
 **	a link interrupt.
 */
 void
-ixlv_update_link_status(struct ixlv_sc *sc)
+iavf_update_link_status(struct iavf_sc *sc)
 {
 	struct ixl_vsi *vsi = &sc->vsi;
 	u64 baudrate;
@@ -1842,7 +1842,7 @@ ixlv_update_link_status(struct ixlv_sc *sc)
 		if (vsi->link_active == FALSE) {
 			vsi->link_active = TRUE;
 			baudrate = ixl_max_vc_speed_to_value(sc->link_speed);
-			ixlv_dbg_info(sc, "baudrate: %lu\n", baudrate);
+			iavf_dbg_info(sc, "baudrate: %lu\n", baudrate);
 			iflib_link_state_change(vsi->ctx, LINK_STATE_UP, baudrate);
 		}
 	} else { /* Link down */
@@ -1861,28 +1861,28 @@ ixlv_update_link_status(struct ixlv_sc *sc)
  **********************************************************************/
 
 static void
-ixlv_stop(struct ixlv_sc *sc)
+iavf_stop(struct iavf_sc *sc)
 {
 	struct ifnet *ifp;
 
 	ifp = sc->vsi.ifp;
 
-	ixlv_disable_intr(&sc->vsi);
+	iavf_disable_intr(&sc->vsi);
 
 	if (atomic_load_acq_32(&sc->queues_enabled))
-		ixlv_send_vc_msg_sleep(sc, IXLV_FLAG_AQ_DISABLE_QUEUES);
+		iavf_send_vc_msg_sleep(sc, IAVF_FLAG_AQ_DISABLE_QUEUES);
 }
 
 static void
-ixlv_if_stop(if_ctx_t ctx)
+iavf_if_stop(if_ctx_t ctx)
 {
-	struct ixlv_sc *sc = iflib_get_softc(ctx);
+	struct iavf_sc *sc = iflib_get_softc(ctx);
 
-	ixlv_stop(sc);
+	iavf_stop(sc);
 }
 
 static void
-ixlv_config_rss_reg(struct ixlv_sc *sc)
+iavf_config_rss_reg(struct iavf_sc *sc)
 {
 	struct i40e_hw	*hw = &sc->hw;
 	struct ixl_vsi	*vsi = &sc->vsi;
@@ -1966,29 +1966,29 @@ ixlv_config_rss_reg(struct ixlv_sc *sc)
 }
 
 static void
-ixlv_config_rss_pf(struct ixlv_sc *sc)
+iavf_config_rss_pf(struct iavf_sc *sc)
 {
-	ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_CONFIG_RSS_KEY);
+	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_CONFIG_RSS_KEY);
 
-	ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_SET_RSS_HENA);
+	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_SET_RSS_HENA);
 
-	ixlv_send_vc_msg(sc, IXLV_FLAG_AQ_CONFIG_RSS_LUT);
+	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_CONFIG_RSS_LUT);
 }
 
 /*
-** ixlv_config_rss - setup RSS 
+** iavf_config_rss - setup RSS 
 **
 ** RSS keys and table are cleared on VF reset.
 */
 static void
-ixlv_config_rss(struct ixlv_sc *sc)
+iavf_config_rss(struct iavf_sc *sc)
 {
 	if (sc->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_RSS_REG) {
-		ixlv_dbg_info(sc, "Setting up RSS using VF registers...");
-		ixlv_config_rss_reg(sc);
+		iavf_dbg_info(sc, "Setting up RSS using VF registers...");
+		iavf_config_rss_reg(sc);
 	} else if (sc->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_RSS_PF) {
-		ixlv_dbg_info(sc, "Setting up RSS using messages to PF...");
-		ixlv_config_rss_pf(sc);
+		iavf_dbg_info(sc, "Setting up RSS using messages to PF...");
+		iavf_config_rss_pf(sc);
 	} else
 		device_printf(sc->dev, "VF does not support RSS capability sent by PF.\n");
 }
@@ -1999,27 +1999,27 @@ ixlv_config_rss(struct ixlv_sc *sc)
 ** channel message.
 */
 static int
-ixlv_add_mac_filter(struct ixlv_sc *sc, u8 *macaddr, u16 flags)
+iavf_add_mac_filter(struct iavf_sc *sc, u8 *macaddr, u16 flags)
 {
-	struct ixlv_mac_filter	*f;
+	struct iavf_mac_filter	*f;
 
 	/* Does one already exist? */
-	f = ixlv_find_mac_filter(sc, macaddr);
+	f = iavf_find_mac_filter(sc, macaddr);
 	if (f != NULL) {
-		ixlv_dbg_filter(sc, "exists: " MAC_FORMAT "\n",
+		iavf_dbg_filter(sc, "exists: " MAC_FORMAT "\n",
 		    MAC_FORMAT_ARGS(macaddr));
 		return (EEXIST);
 	}
 
 	/* If not, get a new empty filter */
-	f = ixlv_get_mac_filter(sc);
+	f = iavf_get_mac_filter(sc);
 	if (f == NULL) {
 		device_printf(sc->dev, "%s: no filters available!!\n",
 		    __func__);
 		return (ENOMEM);
 	}
 
-	ixlv_dbg_filter(sc, "marked: " MAC_FORMAT "\n",
+	iavf_dbg_filter(sc, "marked: " MAC_FORMAT "\n",
 	    MAC_FORMAT_ARGS(macaddr));
 
 	bcopy(macaddr, f->macaddr, ETHER_ADDR_LEN);
@@ -2032,11 +2032,11 @@ ixlv_add_mac_filter(struct ixlv_sc *sc, u8 *macaddr, u16 flags)
 ** Marks a MAC filter for deletion.
 */
 static int
-ixlv_del_mac_filter(struct ixlv_sc *sc, u8 *macaddr)
+iavf_del_mac_filter(struct iavf_sc *sc, u8 *macaddr)
 {
-	struct ixlv_mac_filter	*f;
+	struct iavf_mac_filter	*f;
 
-	f = ixlv_find_mac_filter(sc, macaddr);
+	f = iavf_find_mac_filter(sc, macaddr);
 	if (f == NULL)
 		return (ENOENT);
 
@@ -2048,7 +2048,7 @@ ixlv_del_mac_filter(struct ixlv_sc *sc, u8 *macaddr)
  * Re-uses the name from the PF driver.
  */
 static void
-ixlv_add_device_sysctls(struct ixlv_sc *sc)
+iavf_add_device_sysctls(struct iavf_sc *sc)
 {
 	struct ixl_vsi *vsi = &sc->vsi;
 	device_t dev = sc->dev;
@@ -2061,16 +2061,16 @@ ixlv_add_device_sysctls(struct ixlv_sc *sc)
 
 	SYSCTL_ADD_PROC(ctx, ctx_list,
 	    OID_AUTO, "current_speed", CTLTYPE_STRING | CTLFLAG_RD,
-	    sc, 0, ixlv_sysctl_current_speed, "A", "Current Port Speed");
+	    sc, 0, iavf_sysctl_current_speed, "A", "Current Port Speed");
 
 	SYSCTL_ADD_PROC(ctx, ctx_list,
 	    OID_AUTO, "tx_itr", CTLTYPE_INT | CTLFLAG_RW,
-	    sc, 0, ixlv_sysctl_tx_itr, "I",
+	    sc, 0, iavf_sysctl_tx_itr, "I",
 	    "Immediately set TX ITR value for all queues");
 
 	SYSCTL_ADD_PROC(ctx, ctx_list,
 	    OID_AUTO, "rx_itr", CTLTYPE_INT | CTLFLAG_RW,
-	    sc, 0, ixlv_sysctl_rx_itr, "I",
+	    sc, 0, iavf_sysctl_rx_itr, "I",
 	    "Immediately set RX ITR value for all queues");
 
 	/* Add sysctls meant to print debug information, but don't list them
@@ -2089,19 +2089,19 @@ ixlv_add_device_sysctls(struct ixlv_sc *sc)
 
 	SYSCTL_ADD_PROC(ctx, debug_list,
 	    OID_AUTO, "filter_list", CTLTYPE_STRING | CTLFLAG_RD,
-	    sc, 0, ixlv_sysctl_sw_filter_list, "A", "SW Filter List");
+	    sc, 0, iavf_sysctl_sw_filter_list, "A", "SW Filter List");
 
 	SYSCTL_ADD_PROC(ctx, debug_list,
 	    OID_AUTO, "queue_interrupt_table", CTLTYPE_STRING | CTLFLAG_RD,
-	    sc, 0, ixlv_sysctl_queue_interrupt_table, "A", "View MSI-X indices for TX/RX queues");
+	    sc, 0, iavf_sysctl_queue_interrupt_table, "A", "View MSI-X indices for TX/RX queues");
 
 	SYSCTL_ADD_PROC(ctx, debug_list,
 	    OID_AUTO, "do_vf_reset", CTLTYPE_INT | CTLFLAG_WR,
-	    sc, 0, ixlv_sysctl_vf_reset, "A", "Request a VF reset from PF");
+	    sc, 0, iavf_sysctl_vf_reset, "A", "Request a VF reset from PF");
 
 	SYSCTL_ADD_PROC(ctx, debug_list,
 	    OID_AUTO, "do_vflr_reset", CTLTYPE_INT | CTLFLAG_WR,
-	    sc, 0, ixlv_sysctl_vflr_reset, "A", "Request a VFLR reset from HW");
+	    sc, 0, iavf_sysctl_vflr_reset, "A", "Request a VFLR reset from HW");
 
 	/* Add stats sysctls */
 	ixl_add_vsi_sysctls(dev, vsi, ctx, "vsi");
@@ -2110,38 +2110,38 @@ ixlv_add_device_sysctls(struct ixlv_sc *sc)
 }
 
 static void
-ixlv_init_filters(struct ixlv_sc *sc)
+iavf_init_filters(struct iavf_sc *sc)
 {
 	sc->mac_filters = malloc(sizeof(struct mac_list),
-	    M_IXLV, M_WAITOK | M_ZERO);
+	    M_IAVF, M_WAITOK | M_ZERO);
 	SLIST_INIT(sc->mac_filters);
 	sc->vlan_filters = malloc(sizeof(struct vlan_list),
-	    M_IXLV, M_WAITOK | M_ZERO);
+	    M_IAVF, M_WAITOK | M_ZERO);
 	SLIST_INIT(sc->vlan_filters);
 }
 
 static void
-ixlv_free_filters(struct ixlv_sc *sc)
+iavf_free_filters(struct iavf_sc *sc)
 {
-	struct ixlv_mac_filter *f;
-	struct ixlv_vlan_filter *v;
+	struct iavf_mac_filter *f;
+	struct iavf_vlan_filter *v;
 
 	while (!SLIST_EMPTY(sc->mac_filters)) {
 		f = SLIST_FIRST(sc->mac_filters);
 		SLIST_REMOVE_HEAD(sc->mac_filters, next);
-		free(f, M_IXLV);
+		free(f, M_IAVF);
 	}
-	free(sc->mac_filters, M_IXLV);
+	free(sc->mac_filters, M_IAVF);
 	while (!SLIST_EMPTY(sc->vlan_filters)) {
 		v = SLIST_FIRST(sc->vlan_filters);
 		SLIST_REMOVE_HEAD(sc->vlan_filters, next);
-		free(v, M_IXLV);
+		free(v, M_IAVF);
 	}
-	free(sc->vlan_filters, M_IXLV);
+	free(sc->vlan_filters, M_IAVF);
 }
 
 char *
-ixlv_vc_speed_to_string(enum virtchnl_link_speed link_speed)
+iavf_vc_speed_to_string(enum virtchnl_link_speed link_speed)
 {
 	int index;
 
@@ -2184,13 +2184,13 @@ ixlv_vc_speed_to_string(enum virtchnl_link_speed link_speed)
 }
 
 static int
-ixlv_sysctl_current_speed(SYSCTL_HANDLER_ARGS)
+iavf_sysctl_current_speed(SYSCTL_HANDLER_ARGS)
 {
-	struct ixlv_sc *sc = (struct ixlv_sc *)arg1;
+	struct iavf_sc *sc = (struct iavf_sc *)arg1;
 	int error = 0;
 
 	error = sysctl_handle_string(oidp,
-	  ixlv_vc_speed_to_string(sc->link_speed),
+	  iavf_vc_speed_to_string(sc->link_speed),
 	  8, req);
 	return (error);
 }
@@ -2199,18 +2199,18 @@ ixlv_sysctl_current_speed(SYSCTL_HANDLER_ARGS)
  * Sanity check and save off tunable values.
  */
 static void
-ixlv_save_tunables(struct ixlv_sc *sc)
+iavf_save_tunables(struct iavf_sc *sc)
 {
 	device_t dev = sc->dev;
 
 	/* Save tunable information */
-	sc->dbg_mask = ixlv_core_debug_mask;
-	sc->hw.debug_mask = ixlv_shared_debug_mask;
-	sc->vsi.enable_head_writeback = !!(ixlv_enable_head_writeback);
+	sc->dbg_mask = iavf_core_debug_mask;
+	sc->hw.debug_mask = iavf_shared_debug_mask;
+	sc->vsi.enable_head_writeback = !!(iavf_enable_head_writeback);
 
-	if (ixlv_tx_itr < 0 || ixlv_tx_itr > IXL_MAX_ITR) {
+	if (iavf_tx_itr < 0 || iavf_tx_itr > IXL_MAX_ITR) {
 		device_printf(dev, "Invalid tx_itr value of %d set!\n",
-		    ixlv_tx_itr);
+		    iavf_tx_itr);
 		device_printf(dev, "tx_itr must be between %d and %d, "
 		    "inclusive\n",
 		    0, IXL_MAX_ITR);
@@ -2218,11 +2218,11 @@ ixlv_save_tunables(struct ixlv_sc *sc)
 		    IXL_ITR_4K);
 		sc->tx_itr = IXL_ITR_4K;
 	} else
-		sc->tx_itr = ixlv_tx_itr;
+		sc->tx_itr = iavf_tx_itr;
 
-	if (ixlv_rx_itr < 0 || ixlv_rx_itr > IXL_MAX_ITR) {
+	if (iavf_rx_itr < 0 || iavf_rx_itr > IXL_MAX_ITR) {
 		device_printf(dev, "Invalid rx_itr value of %d set!\n",
-		    ixlv_rx_itr);
+		    iavf_rx_itr);
 		device_printf(dev, "rx_itr must be between %d and %d, "
 		    "inclusive\n",
 		    0, IXL_MAX_ITR);
@@ -2230,7 +2230,7 @@ ixlv_save_tunables(struct ixlv_sc *sc)
 		    IXL_ITR_8K);
 		sc->rx_itr = IXL_ITR_8K;
 	} else
-		sc->rx_itr = ixlv_rx_itr;
+		sc->rx_itr = iavf_rx_itr;
 }
 
 /*
@@ -2238,9 +2238,9 @@ ixlv_save_tunables(struct ixlv_sc *sc)
  * Writes to the ITR registers immediately.
  */
 static int
-ixlv_sysctl_tx_itr(SYSCTL_HANDLER_ARGS)
+iavf_sysctl_tx_itr(SYSCTL_HANDLER_ARGS)
 {
-	struct ixlv_sc *sc = (struct ixlv_sc *)arg1;
+	struct iavf_sc *sc = (struct iavf_sc *)arg1;
 	device_t dev = sc->dev;
 	int requested_tx_itr;
 	int error = 0;
@@ -2257,7 +2257,7 @@ ixlv_sysctl_tx_itr(SYSCTL_HANDLER_ARGS)
 	}
 
 	sc->tx_itr = requested_tx_itr;
-	ixlv_configure_tx_itr(sc);
+	iavf_configure_tx_itr(sc);
 
 	return (error);
 }
@@ -2267,9 +2267,9 @@ ixlv_sysctl_tx_itr(SYSCTL_HANDLER_ARGS)
  * Writes to the ITR registers immediately.
  */
 static int
-ixlv_sysctl_rx_itr(SYSCTL_HANDLER_ARGS)
+iavf_sysctl_rx_itr(SYSCTL_HANDLER_ARGS)
 {
-	struct ixlv_sc *sc = (struct ixlv_sc *)arg1;
+	struct iavf_sc *sc = (struct iavf_sc *)arg1;
 	device_t dev = sc->dev;
 	int requested_rx_itr;
 	int error = 0;
@@ -2286,17 +2286,17 @@ ixlv_sysctl_rx_itr(SYSCTL_HANDLER_ARGS)
 	}
 
 	sc->rx_itr = requested_rx_itr;
-	ixlv_configure_rx_itr(sc);
+	iavf_configure_rx_itr(sc);
 
 	return (error);
 }
 
 static int
-ixlv_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS)
+iavf_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS)
 {
-	struct ixlv_sc *sc = (struct ixlv_sc *)arg1;
-	struct ixlv_mac_filter *f;
-	struct ixlv_vlan_filter *v;
+	struct iavf_sc *sc = (struct iavf_sc *)arg1;
+	struct iavf_mac_filter *f;
+	struct iavf_vlan_filter *v;
 	device_t dev = sc->dev;
 	int ftl_len, ftl_counter = 0, error = 0;
 	struct sbuf *buf;
@@ -2355,9 +2355,9 @@ ixlv_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS)
  * to MSI-X vectors.
  */
 static int
-ixlv_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS)
+iavf_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS)
 {
-	struct ixlv_sc *sc = (struct ixlv_sc *)arg1;
+	struct iavf_sc *sc = (struct iavf_sc *)arg1;
 	struct ixl_vsi *vsi = &sc->vsi;
 	device_t dev = sc->dev;
 	struct sbuf *buf;
@@ -2392,9 +2392,9 @@ ixlv_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS)
 
 #define CTX_ACTIVE(ctx) ((if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING))
 static int
-ixlv_sysctl_vf_reset(SYSCTL_HANDLER_ARGS)
+iavf_sysctl_vf_reset(SYSCTL_HANDLER_ARGS)
 {
-	struct ixlv_sc *sc = (struct ixlv_sc *)arg1;
+	struct iavf_sc *sc = (struct iavf_sc *)arg1;
 	int do_reset = 0, error = 0;
 
 	error = sysctl_handle_int(oidp, &do_reset, 0, req);
@@ -2402,7 +2402,7 @@ ixlv_sysctl_vf_reset(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	if (do_reset == 1) {
-		ixlv_reset(sc);
+		iavf_reset(sc);
 		if (CTX_ACTIVE(sc->vsi.ctx))
 			iflib_request_reset(sc->vsi.ctx);
 	}
@@ -2411,9 +2411,9 @@ ixlv_sysctl_vf_reset(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-ixlv_sysctl_vflr_reset(SYSCTL_HANDLER_ARGS)
+iavf_sysctl_vflr_reset(SYSCTL_HANDLER_ARGS)
 {
-	struct ixlv_sc *sc = (struct ixlv_sc *)arg1;
+	struct iavf_sc *sc = (struct iavf_sc *)arg1;
 	device_t dev = sc->dev;
 	int do_reset = 0, error = 0;
 

@@ -108,7 +108,7 @@ ixl_initialize_sriov(struct ixl_pf *pf)
 	    IOV_SCHEMA_HASDEFAULT, FALSE);
 	pci_iov_schema_add_uint16(vf_schema, "num-queues",
 	    IOV_SCHEMA_HASDEFAULT,
-	    max(1, min(hw->func_caps.num_msix_vectors_vf - 1, IXLV_MAX_QUEUES)));
+	    max(1, min(hw->func_caps.num_msix_vectors_vf - 1, IAVF_MAX_QUEUES)));
 
 	iov_error = pci_iov_attach(dev, pf_schema, vf_schema);
 	if (iov_error != 0) {
@@ -1889,9 +1889,9 @@ ixl_vf_reserve_queues(struct ixl_pf *pf, struct ixl_vf *vf, int num_queues)
 	if (num_queues < 1) {
 		device_printf(dev, "Setting VF %d num-queues to 1\n", vf->vf_num);
 		num_queues = 1;
-	} else if (num_queues > IXLV_MAX_QUEUES) {
-		device_printf(dev, "Setting VF %d num-queues to %d\n", vf->vf_num, IXLV_MAX_QUEUES);
-		num_queues = IXLV_MAX_QUEUES;
+	} else if (num_queues > IAVF_MAX_QUEUES) {
+		device_printf(dev, "Setting VF %d num-queues to %d\n", vf->vf_num, IAVF_MAX_QUEUES);
+		num_queues = IAVF_MAX_QUEUES;
 	}
 	error = ixl_pf_qmgr_alloc_scattered(&pf->qmgr, num_queues, &vf->qtag);
 	if (error) {
