@@ -81,29 +81,32 @@ intr_enable(void)
 	);
 }
 
-#define	cpu_nullop()			riscv_nullop()
+/* NB: fence() is defined as a macro in <machine/atomic.h>. */
+
+static __inline void
+fence_i(void)
+{
+
+	__asm __volatile("fence.i" ::: "memory");
+}
+
+static __inline void
+sfence_vma(void)
+{
+
+	__asm __volatile("sfence.vma" ::: "memory");
+}
+
+static __inline void
+sfence_vma_page(uintptr_t addr)
+{
+
+	__asm __volatile("sfence.vma %0" :: "r" (addr) : "memory");
+}
+
 #define	cpufunc_nullop()		riscv_nullop()
-#define	cpu_setttb(a)			riscv_setttb(a)
-
-#define	cpu_tlb_flushID()		riscv_tlb_flushID()
-#define	cpu_tlb_flushID_SE(e)		riscv_tlb_flushID_SE(e)
-
-#define	cpu_dcache_wbinv_range(a, s)	riscv_dcache_wbinv_range((a), (s))
-#define	cpu_dcache_inv_range(a, s)	riscv_dcache_inv_range((a), (s))
-#define	cpu_dcache_wb_range(a, s)	riscv_dcache_wb_range((a), (s))
-
-#define	cpu_idcache_wbinv_range(a, s)	riscv_idcache_wbinv_range((a), (s))
-#define	cpu_icache_sync_range(a, s)	riscv_icache_sync_range((a), (s))
 
 void riscv_nullop(void);
-void riscv_setttb(vm_offset_t);
-void riscv_tlb_flushID(void);
-void riscv_tlb_flushID_SE(vm_offset_t);
-void riscv_icache_sync_range(vm_offset_t, vm_size_t);
-void riscv_idcache_wbinv_range(vm_offset_t, vm_size_t);
-void riscv_dcache_wbinv_range(vm_offset_t, vm_size_t);
-void riscv_dcache_inv_range(vm_offset_t, vm_size_t);
-void riscv_dcache_wb_range(vm_offset_t, vm_size_t);
 
 #endif	/* _KERNEL */
 #endif	/* _MACHINE_CPUFUNC_H_ */
