@@ -417,7 +417,7 @@ label:
 				i += *buf - '0';
 				len--;
 			}
-			if (i > 31)
+			if (i == 0 || i > 31)
 				return (NULL);
 
 			tm->tm_mday = i;
