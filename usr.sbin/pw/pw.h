@@ -64,6 +64,7 @@ enum _which
 };
 
 #define	_DEF_DIRMODE	(S_IRWXU | S_IRWXG | S_IRWXO)
+#define	_PW_CONF	"pw.conf"
 #define _PATH_PW_CONF	"/etc/pw.conf"
 #define _UC_MAXLINE	1024
 #define _UC_MAXSHELLS	32
