@@ -153,6 +153,7 @@ struct ifvlantrunk {
 struct vlan_mc_entry {
 	struct sockaddr_dl		mc_addr;
 	CK_SLIST_ENTRY(vlan_mc_entry)	mc_entries;
+	struct epoch_context		mc_epoch_ctx;
 };
 
 struct	ifvlan {
@@ -315,6 +316,13 @@ VNET_DEFINE_STATIC(struct if_clone *, vlan_cloner);
 
 #ifndef VLAN_ARRAY
 #define HASH(n, m)	((((n) >> 8) ^ ((n) >> 4) ^ (n)) & (m))
+
+static void
+vlan_mc_free(struct epoch_context *ctx)
+{
+	struct vlan_mc_entry *mc = __containerof(ctx, struct vlan_mc_entry, mc_epoch_ctx);
+	free(mc, M_VLAN);
+}
 
 static void
 vlan_inithash(struct ifvlantrunk *trunk)
@@ -572,8 +580,7 @@ vlan_setmulti(struct ifnet *ifp)
 	while ((mc = CK_SLIST_FIRST(&sc->vlan_mc_listhead)) != NULL) {
 		CK_SLIST_REMOVE_HEAD(&sc->vlan_mc_listhead, mc_entries);
 		(void)if_delmulti(ifp_p, (struct sockaddr *)&mc->mc_addr);
-		NET_EPOCH_WAIT();
-		free(mc, M_VLAN);
+		epoch_call(net_epoch_preempt, &mc->mc_epoch_ctx, vlan_mc_free);
 	}
 
 	/* Now program new ones. */
@@ -1485,8 +1492,7 @@ vlan_unconfig_locked(struct ifnet *ifp, int departing)
 					    error);
 			}
 			CK_SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
-			NET_EPOCH_WAIT();
-			free(mc, M_VLAN);
+			epoch_call(net_epoch_preempt, &mc->mc_epoch_ctx, vlan_mc_free);
 		}
 
 		vlan_setflags(ifp, 0); /* clear special flags on parent */
