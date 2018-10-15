@@ -328,6 +328,12 @@ ipi_handler(void *arg)
 			CPU_CLR_ATOMIC(cpu, &started_cpus);
 			CPU_CLR_ATOMIC(cpu, &stopped_cpus);
 			CTR0(KTR_SMP, "IPI_STOP (restart)");
+
+			/*
+			 * The kernel debugger might have set a breakpoint,
+			 * so flush the instruction cache.
+			 */
+			fence_i();
 			break;
 		case IPI_HARDCLOCK:
 			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
