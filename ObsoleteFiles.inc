@@ -38,6 +38,19 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20181015: Stale libcasper(3) files following 20181009: OpenSSL 1.1.1
+OLD_LIBS+=lib/casper/libcap_sysctl.so.0
+OLD_LIBS+=lib/casper/libcap_grp.so.0
+OLD_LIBS+=lib/casper/libcap_pwd.so.0
+OLD_LIBS+=lib/casper/libcap_random.so.0
+OLD_LIBS+=lib/casper/libcap_dns.so.0
+OLD_LIBS+=lib/casper/libcap_syslog.so.0
+OLD_LIBS+=usr/lib32/libcap_sysctl.so.0
+OLD_LIBS+=usr/lib32/libcap_grp.so.0
+OLD_LIBS+=usr/lib32/libcap_pwd.so.0
+OLD_LIBS+=usr/lib32/libcap_random.so.0
+OLD_LIBS+=usr/lib32/libcap_dns.so.0
+OLD_LIBS+=usr/lib32/libcap_syslog.so.0
 # 20181009: OpenSSL 1.1.1
 OLD_FILES+=usr/include/openssl/des_old.h
 OLD_FILES+=usr/include/openssl/dso.h
