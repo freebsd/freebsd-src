@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #define BITS_PER_LONG 64
 #endif
 
-extern int bxe_grc_dump(struct bxe_softc *sc);
 
 static inline long
 bxe_hilo(uint32_t *hiref)
@@ -238,11 +237,11 @@ bxe_stats_comp(struct bxe_softc *sc)
     while (*stats_comp != DMAE_COMP_VAL) {
         if (!cnt) {
             BLOGE(sc, "Timeout waiting for stats finished\n");
-            if(sc->trigger_grcdump) {
-                /* taking grcdump */
-                bxe_grc_dump(sc);
-            }
+	    BXE_SET_ERROR_BIT(sc, BXE_ERR_STATS_TO);
+            taskqueue_enqueue_timeout(taskqueue_thread,
+                &sc->sp_err_timeout_task, hz/10);
             break;
+
         }
 
         cnt--;
@@ -925,6 +924,7 @@ bxe_hw_stats_update(struct bxe_softc *sc)
         nig_timer_max = SHMEM_RD(sc, port_mb[SC_PORT(sc)].stat_nig_timer);
         if (nig_timer_max != estats->nig_timer_max) {
             estats->nig_timer_max = nig_timer_max;
+	    /*NOTE: not setting error bit */
             BLOGE(sc, "invalid NIG timer max (%u)\n",
                   estats->nig_timer_max);
         }
@@ -1318,12 +1318,10 @@ bxe_stats_update(struct bxe_softc *sc)
         if (bxe_storm_stats_update(sc)) {
             if (sc->stats_pending++ == 3) {
 		if (if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) {
-                    if(sc->trigger_grcdump) {
-                        /* taking grcdump */
-                        bxe_grc_dump(sc);
-                    }
-                    atomic_store_rel_long(&sc->chip_tq_flags, CHIP_TQ_REINIT);
-                    taskqueue_enqueue(sc->chip_tq, &sc->chip_tq_task);
+		    BLOGE(sc, "Storm stats not updated for 3 times, resetting\n");
+		    BXE_SET_ERROR_BIT(sc, BXE_ERR_STATS_TO);
+		    taskqueue_enqueue_timeout(taskqueue_thread,
+                            &sc->sp_err_timeout_task, hz/10);
 		}
             }
             return;
