@@ -162,7 +162,8 @@ main(int argc, char *argv[])
 					PWF._altdir = PWF_ROOTDIR;
 				}
 				snprintf(conf.etcpath, sizeof(conf.etcpath),
-				    "%s%s", optarg, arg == 'R' ? "/etc" : "");
+				    "%s%s", optarg, arg == 'R' ?
+				    _PATH_PWD : "");
 			} else
 				break;
 		}

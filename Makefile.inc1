@@ -939,6 +939,15 @@ _cleanobj_fast_depend_hack: .PHONY
 		    ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
 	fi
 .endfor
+# 20181013  r339348  bcopy reimplemented as .c
+.for f in bcopy memcpy memmove
+	@if [ -e "${OBJTOP}/lib/libc/.depend.${f}.o" ] && \
+	    egrep -qw 'bcopy\.[sS]' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
+		echo "Removing stale dependencies for bcopy"; \
+		rm -f ${OBJTOP}/lib/libc/.depend.${f}.* \
+		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
+	fi
+.endfor
 # 20181009 track migration from ntp's embedded libevent to updated one
 	@if [ -e "${OBJTOP}/usr.sbin/ntp/libntpevent/.depend.bufferevent_openssl.o" ] && \
 	    egrep -q 'contrib/ntp/sntp/libevent/bufferevent_openssl.c' \
@@ -2534,8 +2543,8 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_cddl_lib_libctf} \
 		lib/libufs \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
-		${_secure_lib_libcrypto} ${_lib_libldns} \
-		${_secure_lib_libssh} ${_secure_lib_libssl}
+		${_secure_lib_libcrypto} ${_secure_lib_libssl} \
+		${_lib_libldns} ${_secure_lib_libssh}
 
 .if ${MK_GNUCXX} != "no"
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
@@ -2631,9 +2640,10 @@ lib/librtld_db__L: lib/libprocstat__L
 _secure_lib_libcrypto= secure/lib/libcrypto
 _secure_lib_libssl= secure/lib/libssl
 lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
+secure/lib/libcrypto__L: lib/libthr__L
 .if ${MK_LDNS} != "no"
 _lib_libldns= lib/libldns
-lib/libldns__L: secure/lib/libcrypto__L
+lib/libldns__L: secure/lib/libssl__L
 .endif
 .if ${MK_OPENSSH} != "no"
 _secure_lib_libssh= secure/lib/libssh

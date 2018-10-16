@@ -321,8 +321,13 @@ igb_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 	status = ((union e1000_adv_tx_desc *)&txr->tx_base[cur])->wb.status;
 	updated = !!(status & E1000_TXD_STAT_DD);
 
-	if (!clear || !updated)
-		return (updated);
+	if (!updated)
+		return (0);
+
+	/* If clear is false just let caller know that there
+	 * are descriptors to reclaim */
+	if (!clear)
+		return (1);
 
 	prev = txr->tx_cidx_processed;
 	ntxd = scctx->isc_ntxd[0];
@@ -392,28 +397,18 @@ igb_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 	struct rx_ring *rxr = &que->rxr;
 	union e1000_adv_rx_desc *rxd;
 	u32 staterr = 0;
-	int cnt, i, iter;
+	int cnt, i;
 
-	if (budget == 1) {
-		rxd = (union e1000_adv_rx_desc *)&rxr->rx_base[idx];
-		staterr = le32toh(rxd->wb.upper.status_error);
-		return (staterr & E1000_RXD_STAT_DD);
-	}
-
-	for (iter = cnt = 0, i = idx; iter < scctx->isc_nrxd[0] && iter <= budget;) {
+	for (cnt = 0, i = idx; cnt < scctx->isc_nrxd[0] && cnt <= budget;) {
 		rxd = (union e1000_adv_rx_desc *)&rxr->rx_base[i];
 		staterr = le32toh(rxd->wb.upper.status_error);
 
 		if ((staterr & E1000_RXD_STAT_DD) == 0)
 			break;
-
-		if (++i == scctx->isc_nrxd[0]) {
+		if (++i == scctx->isc_nrxd[0])
 			i = 0;
-		}
-
 		if (staterr & E1000_RXD_STAT_EOP)
 			cnt++;
-		iter++;
 	}
 	return (cnt);
 }

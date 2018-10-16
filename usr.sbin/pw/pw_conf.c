@@ -255,9 +255,6 @@ read_userconfig(char const * file)
 	buf = NULL;
 	linecap = 0;
 
-	if (file == NULL)
-		file = _PATH_PW_CONF;
-
 	if ((fp = fopen(file, "r")) == NULL)
 		return (&config);
 
@@ -417,9 +414,13 @@ write_userconfig(struct userconf *cnf, const char *file)
 	int             i, j;
 	struct sbuf	*buf;
 	FILE           *fp;
+	char		cfgfile[MAXPATHLEN];
 
-	if (file == NULL)
-		file = _PATH_PW_CONF;
+	if (file == NULL) {
+		snprintf(cfgfile, sizeof(cfgfile), "%s/" _PW_CONF,
+		    conf.etcpath);
+		file = cfgfile;
+	}
 
 	if ((fd = open(file, O_CREAT|O_RDWR|O_TRUNC|O_EXLOCK, 0644)) == -1)
 		return (0);

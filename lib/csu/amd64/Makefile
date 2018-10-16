@@ -5,9 +5,9 @@
 SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		Scrt1.o gcrt1.o
-CFLAGS+=	-I${.CURDIR:H}/common \
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR:H}/common \
 		-I${SRCTOP}/lib/libc/include
-CFLAGS+=	-fno-omit-frame-pointer
+CFLAGS+=	-fno-omit-frame-pointer -DCRT_IRELOC_RELA
 
 FILES=		${OBJS}
 FILESMODE=	${LIBMODE}

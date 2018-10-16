@@ -29,7 +29,7 @@
 ;	COMPAT6	included on COMPAT_FREEBSD6 #ifdef (FreeBSD 6 compat)
 ;	COMPAT7	included on COMPAT_FREEBSD7 #ifdef (FreeBSD 7 compat)
 ;	COMPAT10 included on COMPAT_FREEBSD10 #ifdef (FreeBSD 10 compat)
-;	COMPAT11 included on COMPAT11 #ifdef (FreeBSD 11 compat)
+;	COMPAT11 included on COMPAT_FREEBSD11 #ifdef (FreeBSD 11 compat)
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically

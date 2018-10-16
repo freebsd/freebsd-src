@@ -152,6 +152,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+#include <machine/sbi.h>
 
 #define	NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
 #define	NUPDE			(NPDEPG * NPDEPG)
@@ -364,30 +365,11 @@ pmap_is_write(pt_entry_t entry)
 }
 
 static __inline int
-pmap_is_current(pmap_t pmap)
-{
-
-	return ((pmap == pmap_kernel()) ||
-	    (pmap == curthread->td_proc->p_vmspace->vm_map.pmap));
-}
-
-static __inline int
 pmap_l3_valid(pt_entry_t l3)
 {
 
 	return (l3 & PTE_V);
 }
-
-static __inline int
-pmap_l3_valid_cacheable(pt_entry_t l3)
-{
-
-	/* TODO */
-
-	return (0);
-}
-
-#define	PTE_SYNC(pte)	cpu_dcache_wb_range((vm_offset_t)pte, sizeof(*pte))
 
 static inline int
 pmap_page_accessed(pt_entry_t pte)
@@ -514,14 +496,13 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 	dmap_phys_max = pa;
 	dmap_max_addr = va;
 
-	cpu_dcache_wb_range((vm_offset_t)l1, PAGE_SIZE);
-	cpu_tlb_flushID();
+	sfence_vma();
 }
 
 static vm_offset_t
 pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 {
-	vm_offset_t l2pt, l3pt;
+	vm_offset_t l3pt;
 	pt_entry_t entry;
 	pd_entry_t *l2;
 	vm_paddr_t pa;
@@ -532,7 +513,6 @@ pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 
 	l2 = pmap_l2(kernel_pmap, va);
 	l2 = (pd_entry_t *)((uintptr_t)l2 & ~(PAGE_SIZE - 1));
-	l2pt = (vm_offset_t)l2;
 	l2_slot = pmap_l2_index(va);
 	l3pt = l3_start;
 
@@ -550,9 +530,6 @@ pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 
 	/* Clean the L2 page table */
 	memset((void *)l3_start, 0, l3pt - l3_start);
-	cpu_dcache_wb_range(l3_start, l3pt - l3_start);
-
-	cpu_dcache_wb_range((vm_offset_t)l2, PAGE_SIZE);
 
 	return (l3pt);
 }
@@ -676,7 +653,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	freemempos = pmap_bootstrap_l3(l1pt,
 	    VM_MAX_KERNEL_ADDRESS - L2_SIZE, freemempos);
 
-	cpu_tlb_flushID();
+	sfence_vma();
 
 #define alloc_pages(var, np)						\
 	(var) = freemempos;						\
@@ -732,8 +709,6 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	 * called something like "Maxphyspage".
 	 */
 	Maxmem = atop(phys_avail[avail_slot - 1]);
-
-	cpu_tlb_flushID();
 }
 
 /*
@@ -769,42 +744,99 @@ pmap_init(void)
 		rw_init(&pv_list_locks[i], "pmap pv list");
 }
 
+#ifdef SMP
+/*
+ * For SMP, these functions have to use IPIs for coherence.
+ *
+ * In general, the calling thread uses a plain fence to order the
+ * writes to the page tables before invoking an SBI callback to invoke
+ * sfence_vma() on remote CPUs.
+ *
+ * Since the riscv pmap does not yet have a pm_active field, IPIs are
+ * sent to all CPUs in the system.
+ */
+static void
+pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
+{
+	cpuset_t mask;
+
+	sched_pin();
+	mask = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &mask);
+	fence();
+	sbi_remote_sfence_vma(mask.__bits, va, 1);
+	sfence_vma_page(va);
+	sched_unpin();
+}
+
+static void
+pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	cpuset_t mask;
+
+	sched_pin();
+	mask = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &mask);
+	fence();
+	sbi_remote_sfence_vma(mask.__bits, sva, eva - sva + 1);
+
+	/*
+	 * Might consider a loop of sfence_vma_page() for a small
+	 * number of pages in the future.
+	 */
+	sfence_vma();
+	sched_unpin();
+}
+
+static void
+pmap_invalidate_all(pmap_t pmap)
+{
+	cpuset_t mask;
+
+	sched_pin();
+	mask = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &mask);
+	fence();
+
+	/*
+	 * XXX: The SBI doc doesn't detail how to specify x0 as the
+	 * address to perform a global fence.  BBL currently treats
+	 * all sfence_vma requests as global however.
+	 */
+	sbi_remote_sfence_vma(mask.__bits, 0, 0);
+	sfence_vma();
+	sched_unpin();
+}
+#else
 /*
  * Normal, non-SMP, invalidation functions.
  * We inline these within pmap.c for speed.
  */
-PMAP_INLINE void
+static __inline void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
 
-	/* TODO */
-
-	sched_pin();
-	__asm __volatile("sfence.vma %0" :: "r" (va) : "memory");
-	sched_unpin();
+	sfence_vma_page(va);
 }
 
-PMAP_INLINE void
+static __inline void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 
-	/* TODO */
-
-	sched_pin();
-	__asm __volatile("sfence.vma");
-	sched_unpin();
+	/*
+	 * Might consider a loop of sfence_vma_page() for a small
+	 * number of pages in the future.
+	 */
+	sfence_vma();
 }
 
-PMAP_INLINE void
+static __inline void
 pmap_invalidate_all(pmap_t pmap)
 {
 
-	/* TODO */
-
-	sched_pin();
-	__asm __volatile("sfence.vma");
-	sched_unpin();
+	sfence_vma();
 }
+#endif
 
 /*
  *	Routine:	pmap_extract
@@ -937,8 +969,6 @@ pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
 		entry |= (pn << PTE_PPN0_S);
 		pmap_load_store(l3, entry);
 
-		PTE_SYNC(l3);
-
 		va += PAGE_SIZE;
 		pa += PAGE_SIZE;
 		size -= PAGE_SIZE;
@@ -958,11 +988,9 @@ pmap_kremove(vm_offset_t va)
 	l3 = pmap_l3(kernel_pmap, va);
 	KASSERT(l3 != NULL, ("pmap_kremove: Invalid address"));
 
-	if (pmap_l3_valid_cacheable(pmap_load(l3)))
-		cpu_dcache_wb_range(va, L3_SIZE);
 	pmap_load_clear(l3);
-	PTE_SYNC(l3);
-	pmap_invalidate_page(kernel_pmap, va);
+
+	sfence_vma();
 }
 
 void
@@ -981,11 +1009,11 @@ pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 		l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("Invalid page table, va: 0x%lx", va));
 		pmap_load_clear(l3);
-		PTE_SYNC(l3);
 
 		va += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
+
 	pmap_invalidate_range(kernel_pmap, sva, va);
 }
 
@@ -1039,7 +1067,6 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		entry |= (pn << PTE_PPN0_S);
 		pmap_load_store(l3, entry);
 
-		PTE_SYNC(l3);
 		va += L3_SIZE;
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
@@ -1063,10 +1090,7 @@ pmap_qremove(vm_offset_t sva, int count)
 		l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("pmap_kremove: Invalid address"));
 
-		if (pmap_l3_valid_cacheable(pmap_load(l3)))
-			cpu_dcache_wb_range(va, L3_SIZE);
 		pmap_load_clear(l3);
-		PTE_SYNC(l3);
 
 		va += PAGE_SIZE;
 	}
@@ -1127,13 +1151,11 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		l1 = pmap_l1(pmap, va);
 		pmap_load_clear(l1);
 		pmap_distribute_l1(pmap, pmap_l1_index(va), 0);
-		PTE_SYNC(l1);
 	} else {
 		/* PTE page */
 		pd_entry_t *l2;
 		l2 = pmap_l2(pmap, va);
 		pmap_load_clear(l2);
-		PTE_SYNC(l2);
 	}
 	pmap_resident_count_dec(pmap, 1);
 	if (m->pindex < NUPDE) {
@@ -1279,9 +1301,6 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		entry |= (pn << PTE_PPN0_S);
 		pmap_load_store(l1, entry);
 		pmap_distribute_l1(pmap, l1index, entry);
-
-		PTE_SYNC(l1);
-
 	} else {
 		vm_pindex_t l1index;
 		pd_entry_t *l1, *l2;
@@ -1310,8 +1329,6 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		entry = (PTE_V);
 		entry |= (pn << PTE_PPN0_S);
 		pmap_load_store(l2, entry);
-
-		PTE_SYNC(l2);
 	}
 
 	pmap_resident_count_inc(pmap, 1);
@@ -1445,8 +1462,6 @@ pmap_growkernel(vm_offset_t addr)
 			pmap_load_store(l1, entry);
 			pmap_distribute_l1(kernel_pmap,
 			    pmap_l1_index(kernel_vm_end), entry);
-
-			PTE_SYNC(l1);
 			continue; /* try again */
 		}
 		l2 = pmap_l1_to_l2(l1, kernel_vm_end);
@@ -1474,7 +1489,6 @@ pmap_growkernel(vm_offset_t addr)
 		entry |= (pn << PTE_PPN0_S);
 		pmap_load_store(l2, entry);
 
-		PTE_SYNC(l2);
 		pmap_invalidate_page(kernel_pmap, kernel_vm_end);
 
 		kernel_vm_end = (kernel_vm_end + L2_SIZE) & ~L2_OFFSET;
@@ -1754,10 +1768,7 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 	vm_page_t m;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (pmap_is_current(pmap) && pmap_l3_valid_cacheable(pmap_load(l3)))
-		cpu_dcache_wb_range(va, L3_SIZE);
 	old_l3 = pmap_load_clear(l3);
-	PTE_SYNC(l3);
 	pmap_invalidate_page(pmap, va);
 	if (old_l3 & PTE_SW_WIRED)
 		pmap->pm_stats.wired_count -= 1;
@@ -1913,11 +1924,7 @@ pmap_remove_all(vm_page_t m)
 		    "a block in %p's pv list", m));
 
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
-		if (pmap_is_current(pmap) &&
-		    pmap_l3_valid_cacheable(pmap_load(l3)))
-			cpu_dcache_wb_range(pv->pv_va, L3_SIZE);
 		tl3 = pmap_load_clear(l3);
-		PTE_SYNC(l3);
 		pmap_invalidate_page(pmap, pv->pv_va);
 		if (tl3 & PTE_SW_WIRED)
 			pmap->pm_stats.wired_count--;
@@ -1947,7 +1954,7 @@ pmap_remove_all(vm_page_t m)
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	vm_offset_t va, va_next;
+	vm_offset_t va_next;
 	pd_entry_t *l1, *l2;
 	pt_entry_t *l3p, l3;
 	pt_entry_t entry;
@@ -1986,7 +1993,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		if (va_next > eva)
 			va_next = eva;
 
-		va = va_next;
 		for (l3p = pmap_l2_to_l3(l2, sva); sva != va_next; l3p++,
 		    sva += L3_SIZE) {
 			l3 = pmap_load(l3p);
@@ -1994,7 +2000,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				entry = pmap_load(l3p);
 				entry &= ~(PTE_W);
 				pmap_load_store(l3p, entry);
-				PTE_SYNC(l3p);
 				/* XXX: Use pmap_invalidate_range */
 				pmap_invalidate_page(pmap, sva);
 			}
@@ -2092,8 +2097,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				entry |= (l2_pn << PTE_PPN0_S);
 				pmap_load_store(l1, entry);
 				pmap_distribute_l1(pmap, pmap_l1_index(va), entry);
-				PTE_SYNC(l1);
-
 				l2 = pmap_l1_to_l2(l1, va);
 			}
 
@@ -2112,7 +2115,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			entry = (PTE_V);
 			entry |= (l3_pn << PTE_PPN0_S);
 			pmap_load_store(l2, entry);
-			PTE_SYNC(l2);
 			l3 = pmap_l2_to_l3(l2, va);
 		}
 		pmap_invalidate_page(pmap, va);
@@ -2162,10 +2164,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			}
 			goto validate;
 		}
-
-		/* Flush the cache, there might be uncommitted data in it */
-		if (pmap_is_current(pmap) && pmap_l3_valid_cacheable(orig_l3))
-			cpu_dcache_wb_range(va, L3_SIZE);
 
 		/*
 		 * The physical page has changed.  Temporarily invalidate
@@ -2225,13 +2223,20 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
 
+validate:
+	/*
+	 * Sync the i-cache on all harts before updating the PTE
+	 * if the new PTE is executable.
+	 */
+	if (prot & VM_PROT_EXECUTE)
+		pmap_sync_icache(pmap, va, PAGE_SIZE);
+
 	/*
 	 * Update the L3 entry.
 	 */
 	if (orig_l3 != 0) {
-validate:
 		orig_l3 = pmap_load_store(l3, new_l3);
-		PTE_SYNC(l3);
+		pmap_invalidate_page(pmap, va);
 		KASSERT(PTE_TO_PHYS(orig_l3) == pa,
 		    ("pmap_enter: invalid update"));
 		if (pmap_page_dirty(orig_l3) &&
@@ -2239,11 +2244,7 @@ validate:
 			vm_page_dirty(m);
 	} else {
 		pmap_load_store(l3, new_l3);
-		PTE_SYNC(l3);
 	}
-	pmap_invalidate_page(pmap, va);
-	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
-	    cpu_icache_sync_range(va, PAGE_SIZE);
 
 	if (lock != NULL)
 		rw_wunlock(lock);
@@ -2423,9 +2424,16 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		entry |= PTE_SW_MANAGED;
+
+	/*
+	 * Sync the i-cache on all harts before updating the PTE
+	 * if the new PTE is executable.
+	 */
+	if (prot & VM_PROT_EXECUTE)
+		pmap_sync_icache(pmap, va, PAGE_SIZE);
+
 	pmap_load_store(l3, entry);
 
-	PTE_SYNC(l3);
 	pmap_invalidate_page(pmap, va);
 	return (mpte);
 }
@@ -2766,11 +2774,7 @@ pmap_remove_pages(pmap_t pmap)
 				    ("pmap_remove_pages: bad l3 %#jx",
 				    (uintmax_t)tl3));
 
-				if (pmap_is_current(pmap) &&
-				    pmap_l3_valid_cacheable(pmap_load(l3)))
-					cpu_dcache_wb_range(pv->pv_va, L3_SIZE);
 				pmap_load_clear(l3);
-				PTE_SYNC(l3);
 				pmap_invalidate_page(pmap, pv->pv_va);
 
 				/*
@@ -3244,16 +3248,10 @@ pmap_activate(struct thread *td)
 	critical_exit();
 }
 
-static void
-pmap_sync_icache_one(void *arg __unused)
-{
-
-	__asm __volatile("fence.i");
-}
-
 void
 pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
+	cpuset_t mask;
 
 	/*
 	 * From the RISC-V User-Level ISA V2.2:
@@ -3263,8 +3261,12 @@ pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 	 * before requesting that all remote RISC-V harts execute a
 	 * FENCE.I."
 	 */
-	__asm __volatile("fence");
-	smp_rendezvous(NULL, pmap_sync_icache_one, NULL, NULL);
+	sched_pin();
+	mask = all_cpus;
+	CPU_CLR(PCPU_GET(cpuid), &mask);
+	fence();
+	sbi_remote_fence_i(mask.__bits);
+	sched_unpin();
 }
 
 /*

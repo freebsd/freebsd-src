@@ -200,82 +200,236 @@ END(memcmp)
  * Adapted from bcopy written by:
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
-ENTRY(memmove_std)
-	PUSH_FRAME_POINTER
-	movq	%rdi,%rax
-	movq	%rdx,%rcx
 
+/*
+ * Register state at entry is supposed to be as follows:
+ * rdi - destination
+ * rsi - source
+ * rdx - count
+ *
+ * The macro possibly clobbers the above and: rcx, r8.
+ * It does not clobber rax, r10 nor r11.
+ */
+.macro MEMMOVE erms overlap begin end
+	\begin
+.if \overlap == 1
 	movq	%rdi,%r8
 	subq	%rsi,%r8
-	cmpq	%rcx,%r8			/* overlapping && src < dst? */
+	cmpq	%rcx,%r8	/* overlapping && src < dst? */
 	jb	2f
+.endif
 
-	cmpq	$15,%rcx
-	jbe	1f
-	shrq	$3,%rcx				/* copy by 64-bit words */
+	cmpq	$32,%rcx
+	jb	1016f
+
+	cmpq	$256,%rcx
+	ja	1256f
+
+1032:
+	movq	(%rsi),%rdx
+	movq	%rdx,(%rdi)
+	movq	8(%rsi),%rdx
+	movq	%rdx,8(%rdi)
+	movq	16(%rsi),%rdx
+	movq	%rdx,16(%rdi)
+	movq	24(%rsi),%rdx
+	movq	%rdx,24(%rdi)
+	leaq	32(%rsi),%rsi
+	leaq	32(%rdi),%rdi
+	subq	$32,%rcx
+	cmpq	$32,%rcx
+	jae	1032b
+	cmpb	$0,%cl
+	jne	1016f
+	\end
+	ret
+	ALIGN_TEXT
+1016:
+	cmpb	$16,%cl
+	jl	1008f
+	movq	(%rsi),%rdx
+	movq	%rdx,(%rdi)
+	movq	8(%rsi),%rdx
+	movq	%rdx,8(%rdi)
+	subb	$16,%cl
+	jz	1000f
+	leaq	16(%rsi),%rsi
+	leaq	16(%rdi),%rdi
+1008:
+	cmpb	$8,%cl
+	jl	1004f
+	movq	(%rsi),%rdx
+	movq	%rdx,(%rdi)
+	subb	$8,%cl
+	jz	1000f
+	leaq	8(%rsi),%rsi
+	leaq	8(%rdi),%rdi
+1004:
+	cmpb	$4,%cl
+	jl	1002f
+	movl	(%rsi),%edx
+	movl	%edx,(%rdi)
+	subb	$4,%cl
+	jz	1000f
+	leaq	4(%rsi),%rsi
+	leaq	4(%rdi),%rdi
+1002:
+	cmpb	$2,%cl
+	jl	1001f
+	movw	(%rsi),%dx
+	movw	%dx,(%rdi)
+	subb	$2,%cl
+	jz	1000f
+	leaq	2(%rsi),%rsi
+	leaq	2(%rdi),%rdi
+1001:
+	cmpb	$1,%cl
+	jl	1000f
+	movb	(%rsi),%dl
+	movb	%dl,(%rdi)
+1000:
+	\end
+	ret
+
+	ALIGN_TEXT
+1256:
+.if \erms == 1
+	rep
+	movsb
+.else
+	shrq	$3,%rcx                         /* copy by 64-bit words */
 	rep
 	movsq
 	movq	%rdx,%rcx
-	andq	$7,%rcx				/* any bytes left? */
-	jne	1f
-	POP_FRAME_POINTER
-	ret
-	ALIGN_TEXT
-1:
-	rep
-	movsb
-	POP_FRAME_POINTER
+	andb	$7,%cl                         /* any bytes left? */
+	jne	1004b
+.endif
+	\end
 	ret
 
-	/* ALIGN_TEXT */
+.if \overlap == 1
+	/*
+	 * Copy backwards.
+	 */
+        ALIGN_TEXT
 2:
-	addq	%rcx,%rdi			/* copy backwards */
+	addq	%rcx,%rdi
 	addq	%rcx,%rsi
+
+	cmpq	$32,%rcx
+	jb	2016f
+
+	cmpq	$256,%rcx
+	ja	2256f
+
+2032:
+	movq	-8(%rsi),%rdx
+	movq	%rdx,-8(%rdi)
+	movq	-16(%rsi),%rdx
+	movq	%rdx,-16(%rdi)
+	movq	-24(%rsi),%rdx
+	movq	%rdx,-24(%rdi)
+	movq	-32(%rsi),%rdx
+	movq	%rdx,-32(%rdi)
+	leaq	-32(%rsi),%rsi
+	leaq	-32(%rdi),%rdi
+	subq	$32,%rcx
+	cmpq	$32,%rcx
+	jae	2032b
+	cmpb	$0,%cl
+	jne	2016f
+	\end
+	ret
+	ALIGN_TEXT
+2016:
+	cmpb	$16,%cl
+	jl	2008f
+	movq	-8(%rsi),%rdx
+	movq	%rdx,-8(%rdi)
+	movq	-16(%rsi),%rdx
+	movq	%rdx,-16(%rdi)
+	subb	$16,%cl
+	jz	2000f
+	leaq	-16(%rsi),%rsi
+	leaq	-16(%rdi),%rdi
+2008:
+	cmpb	$8,%cl
+	jl	2004f
+	movq	-8(%rsi),%rdx
+	movq	%rdx,-8(%rdi)
+	subb	$8,%cl
+	jz	2000f
+	leaq	-8(%rsi),%rsi
+	leaq	-8(%rdi),%rdi
+2004:
+	cmpb	$4,%cl
+	jl	2002f
+	movl	-4(%rsi),%edx
+	movl	%edx,-4(%rdi)
+	subb	$4,%cl
+	jz	2000f
+	leaq	-4(%rsi),%rsi
+	leaq	-4(%rdi),%rdi
+2002:
+	cmpb	$2,%cl
+	jl	2001f
+	movw	-2(%rsi),%dx
+	movw	%dx,-2(%rdi)
+	subb	$2,%cl
+	jz	2000f
+	leaq	-2(%rsi),%rsi
+	leaq	-2(%rdi),%rdi
+2001:
+	cmpb	$1,%cl
+	jl	2000f
+	movb	-1(%rsi),%dl
+	movb	%dl,-1(%rdi)
+2000:
+	\end
+	ret
+	ALIGN_TEXT
+2256:
 	decq	%rdi
 	decq	%rsi
 	std
-	andq	$7,%rcx				/* any fractional bytes? */
+.if \erms == 1
+	rep
+	movsb
+.else
+	andq	$7,%rcx                         /* any fractional bytes? */
 	je	3f
 	rep
 	movsb
 3:
-	movq	%rdx,%rcx			/* copy remainder by 32-bit words */
+	movq	%rdx,%rcx                       /* copy remainder by 32-bit words */
 	shrq	$3,%rcx
 	subq	$7,%rsi
 	subq	$7,%rdi
 	rep
 	movsq
+.endif
 	cld
-	POP_FRAME_POINTER
+	\end
 	ret
-END(memmove_std)
+.endif
+.endm
 
-ENTRY(memmove_erms)
+.macro MEMMOVE_BEGIN
 	PUSH_FRAME_POINTER
 	movq	%rdi,%rax
 	movq	%rdx,%rcx
+.endm
 
-	movq	%rdi,%r8
-	subq	%rsi,%r8
-	cmpq	%rcx,%r8			/* overlapping && src < dst? */
-	jb	1f
-
-	rep
-	movsb
+.macro MEMMOVE_END
 	POP_FRAME_POINTER
-	ret
+.endm
 
-1:
-	addq	%rcx,%rdi			/* copy backwards */
-	addq	%rcx,%rsi
-	decq	%rdi
-	decq	%rsi
-	std
-	rep
-	movsb
-	cld
-	POP_FRAME_POINTER
-	ret
+ENTRY(memmove_std)
+	MEMMOVE erms=0 overlap=1 begin=MEMMOVE_BEGIN end=MEMMOVE_END
+END(memmove_std)
+
+ENTRY(memmove_erms)
+	MEMMOVE erms=1 overlap=1 begin=MEMMOVE_BEGIN end=MEMMOVE_END
 END(memmove_erms)
 
 /*
@@ -285,35 +439,11 @@ END(memmove_erms)
  * Note: memcpy does not support overlapping copies
  */
 ENTRY(memcpy_std)
-	PUSH_FRAME_POINTER
-	movq	%rdi,%rax
-	movq	%rdx,%rcx
-	cmpq	$15,%rcx
-	jbe	1f
-	shrq	$3,%rcx				/* copy by 64-bit words */
-	rep
-	movsq
-	movq	%rdx,%rcx
-	andq	$7,%rcx				/* any bytes left? */
-	jne	1f
-	POP_FRAME_POINTER
-	ret
-	ALIGN_TEXT
-1:
-	rep
-	movsb
-	POP_FRAME_POINTER
-	ret
+	MEMMOVE erms=0 overlap=0 begin=MEMMOVE_BEGIN end=MEMMOVE_END
 END(memcpy_std)
 
 ENTRY(memcpy_erms)
-	PUSH_FRAME_POINTER
-	movq	%rdi,%rax
-	movq	%rdx,%rcx
-	rep
-	movsb
-	POP_FRAME_POINTER
-	ret
+	MEMMOVE erms=1 overlap=0 begin=MEMMOVE_BEGIN end=MEMMOVE_END
 END(memcpy_erms)
 
 /*
@@ -446,14 +576,27 @@ END(fillw)
 .endif
 .endm
 
+.macro COPYINOUT_BEGIN
+.endm
+
+.macro COPYINOUT_END
+	movq	%rax,PCB_ONFAULT(%r11)
+	POP_FRAME_POINTER
+.endm
+
+.macro COPYINOUT_SMAP_END
+	SMAP_ENABLE smap=1
+	COPYINOUT_END
+.endm
+
 /*
  * copyout(from_kernel, to_user, len)
  *         %rdi,        %rsi,    %rdx
  */
 .macro	COPYOUT smap erms
 	PUSH_FRAME_POINTER
-	movq	PCPU(CURPCB),%r9
-	movq	$copy_fault,PCB_ONFAULT(%r9)
+	movq	PCPU(CURPCB),%r11
+	movq	$copy_fault,PCB_ONFAULT(%r11)
 
 	/*
 	 * Check explicitly for non-user addresses.  If 486 write protection
@@ -479,43 +622,27 @@ END(fillw)
 	ja	copy_fault
 
 	/*
-	 * Set up arguments for rep movs*.
+	 * Set return value to zero. Remaining failure mode goes through
+	 * copy_fault.
+	 */
+	xorl	%eax,%eax
+
+	/*
+	 * Set up arguments for MEMMOVE.
 	 */
 	movq	%rdi,%r8
 	movq	%rsi,%rdi
 	movq	%r8,%rsi
 	movq	%rdx,%rcx
 
-	/*
-	 * Set return value to zero. Remaining failure mode goes through
-	 * copy_fault.
-	 */
-	xorl	%eax,%eax
 
 	SMAP_DISABLE \smap
-.if	\erms == 0
-	cmpq	$15,%rcx
-	jbe	1f
-	shrq	$3,%rcx
-	rep
-	movsq
-	movb	%dl,%cl
-	andb	$7,%cl
-	jne	1f
-	SMAP_ENABLE \smap
-	movq	%rax,PCB_ONFAULT(%r9)
-	POP_FRAME_POINTER
-	ret
-	ALIGN_TEXT
-1:
+.if	\smap == 1
+	MEMMOVE erms=\erms overlap=0 begin=COPYINOUT_BEGIN end=COPYINOUT_SMAP_END
+.else
+	MEMMOVE erms=\erms overlap=0 begin=COPYINOUT_BEGIN end=COPYINOUT_END
 .endif
-	rep
-	movsb
-
-	SMAP_ENABLE \smap
-	movq	%rax,PCB_ONFAULT(%r9)
-	POP_FRAME_POINTER
-	ret
+	/* NOTREACHED */
 .endm
 
 ENTRY(copyout_nosmap_std)
@@ -540,8 +667,8 @@ END(copyout_smap_erms)
  */
 .macro	COPYIN smap erms
 	PUSH_FRAME_POINTER
-	movq	PCPU(CURPCB),%r9
-	movq	$copy_fault,PCB_ONFAULT(%r9)
+	movq	PCPU(CURPCB),%r11
+	movq	$copy_fault,PCB_ONFAULT(%r11)
 
 	/*
 	 * make sure address is valid
@@ -553,37 +680,20 @@ END(copyout_smap_erms)
 	cmpq	%rcx,%rax
 	ja	copy_fault
 
+	xorl	%eax,%eax
+
 	movq	%rdi,%r8
 	movq	%rsi,%rdi
 	movq	%r8,%rsi
 	movq	%rdx,%rcx
 
-	xorl	%eax,%eax
-
 	SMAP_DISABLE \smap
-.if \erms == 0
-	cmpq	$15,%rcx
-	jbe	1f
-	shrq	$3,%rcx				/* copy longword-wise */
-	rep
-	movsq
-	movb	%dl,%cl
-	andb	$7,%cl				/* copy remaining bytes */
-	jne	1f
-	SMAP_ENABLE \smap
-	movq	%rax,PCB_ONFAULT(%r9)
-	POP_FRAME_POINTER
-	ret
-	ALIGN_TEXT
-1:
+.if	\smap == 1
+	MEMMOVE erms=\erms overlap=0 begin=COPYINOUT_BEGIN end=COPYINOUT_SMAP_END
+.else
+	MEMMOVE erms=\erms overlap=0 begin=COPYINOUT_BEGIN end=COPYINOUT_END
 .endif
-	rep
-	movsb
-
-	SMAP_ENABLE \smap
-	movq	%rax,PCB_ONFAULT(%r9)
-	POP_FRAME_POINTER
-	ret
+	/* NOTREACHED */
 .endm
 
 ENTRY(copyin_nosmap_std)
@@ -605,7 +715,7 @@ END(copyin_smap_erms)
 	ALIGN_TEXT
 	/* Trap entry clears PSL.AC */
 copy_fault:
-	movq	$0,PCB_ONFAULT(%r9)
+	movq	$0,PCB_ONFAULT(%r11)
 	movl	$EFAULT,%eax
 	POP_FRAME_POINTER
 	ret

@@ -271,25 +271,23 @@ dev/ixl/ixl_pf_iov.c		optional	ixl pci  pci_iov \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/ixl_pf_i2c.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-#dev/ixl/ixl_iw.c		optional	ixl pci \
-#	compile-with "${NORMAL_C} -I$S/dev/ixl"
-#dev/ixl/if_ixlv.c		optional	ixlv pci \
-#	compile-with "${NORMAL_C} -I$S/dev/ixl"
-#dev/ixl/ixlvc.c			optional	ixlv pci \
-#	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/ixl_txrx.c		optional	ixl pci | ixlv pci \
+dev/ixl/if_iavf.c		optional	iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_osdep.c		optional	ixl pci | ixlv pci \
+dev/ixl/iavf_vc.c			optional	iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_lan_hmc.c		optional	ixl pci | ixlv pci \
+dev/ixl/ixl_txrx.c		optional	ixl pci | iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_hmc.c		optional	ixl pci | ixlv pci \
+dev/ixl/i40e_osdep.c		optional	ixl pci | iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_common.c		optional	ixl pci | ixlv pci \
+dev/ixl/i40e_lan_hmc.c		optional	ixl pci | iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_nvm.c		optional	ixl pci | ixlv pci \
+dev/ixl/i40e_hmc.c		optional	ixl pci | iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_adminq.c		optional	ixl pci | ixlv pci \
+dev/ixl/i40e_common.c		optional	ixl pci | iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_nvm.c		optional	ixl pci | iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_adminq.c		optional	ixl pci | iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/i40e_dcb.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"

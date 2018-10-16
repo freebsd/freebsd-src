@@ -528,7 +528,6 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	    in_broadcast(ip->ip_dst, ifp)) {
 		struct inpcb *last;
 		struct inpcbhead *pcblist;
-		struct ip_moptions *imo;
 
 		INP_INFO_RLOCK_ET(pcbinfo, et);
 		pcblist = udp_get_pcblist(proto);
@@ -552,6 +551,11 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 
 			INP_RLOCK(inp);
 
+			if (__predict_false(inp->inp_flags2 & INP_FREED)) {
+				INP_RUNLOCK(inp);
+				continue;
+			}
+
 			/*
 			 * XXXRW: Because we weren't holding either the inpcb
 			 * or the hash lock when we checked for a match
@@ -563,10 +567,12 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			 * Handle socket delivery policy for any-source
 			 * and source-specific multicast. [RFC3678]
 			 */
-			imo = inp->inp_moptions;
 			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
+				struct ip_moptions	*imo;
 				struct sockaddr_in	 group;
 				int			 blocked;
+
+				imo = inp->inp_moptions;
 				if (imo == NULL) {
 					INP_RUNLOCK(inp);
 					continue;
