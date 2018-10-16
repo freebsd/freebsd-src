@@ -528,7 +528,6 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 	struct tseg_qent *p = NULL;
 	struct tseg_qent *nq = NULL;
 	struct tseg_qent *te = NULL;
-	struct tseg_qent tqs;
 	struct mbuf *mlast = NULL;
 	struct sockbuf *sb;
 	struct socket *so = tp->t_inpcb->inp_socket;
@@ -1053,8 +1052,7 @@ present:
 		KASSERT(tp->t_segqmbuflen >= q->tqe_mbuf_cnt,
 			("tp:%p seg queue goes negative", tp));
 		tp->t_segqmbuflen -= q->tqe_mbuf_cnt;
-		if (q != &tqs) 
-			uma_zfree(tcp_reass_zone, q);
+		uma_zfree(tcp_reass_zone, q);
 		tp->t_segqlen--;
 		q = nq;
 	} while (q && q->tqe_start == tp->rcv_nxt);
