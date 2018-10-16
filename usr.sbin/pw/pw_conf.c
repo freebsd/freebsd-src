@@ -255,9 +255,6 @@ read_userconfig(char const * file)
 	buf = NULL;
 	linecap = 0;
 
-	if (file == NULL)
-		file = _PATH_PW_CONF;
-
 	if ((fp = fopen(file, "r")) == NULL)
 		return (&config);
 
