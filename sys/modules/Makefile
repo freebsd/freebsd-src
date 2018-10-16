@@ -288,6 +288,7 @@ SUBDIR=	\
 	nullfs \
 	${_ntb} \
 	${_nvd} \
+	${_nvdimm} \
 	${_nvme} \
 	${_nvram} \
 	oce \
@@ -724,6 +725,7 @@ _ixl=		ixl
 _linux64=	linux64
 _linux_common=	linux_common
 _ntb=		ntb
+_nvdimm=	nvdimm
 _pms=		pms
 _qlxge=		qlxge
 _qlxgb=		qlxgb
