@@ -897,8 +897,6 @@ typedef int (*c4iw_handler_func)(struct c4iw_dev *dev, struct mbuf *m);
 
 int c4iw_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new,
 		     struct l2t_entry *l2t);
-void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qpid,
-		   struct c4iw_dev_ucontext *uctx);
 u32 c4iw_get_resource(struct c4iw_id_table *id_table);
 void c4iw_put_resource(struct c4iw_id_table *id_table, u32 entry);
 int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid);
@@ -964,7 +962,6 @@ void c4iw_pblpool_free(struct c4iw_rdev *rdev, u32 addr, int size);
 int c4iw_ofld_send(struct c4iw_rdev *rdev, struct mbuf *m);
 void c4iw_flush_hw_cq(struct c4iw_cq *cq);
 void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count);
-void c4iw_count_scqes(struct t4_cq *cq, struct t4_wq *wq, int *count);
 int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp);
 int __c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp);
 int c4iw_flush_rq(struct t4_wq *wq, struct t4_cq *cq, int count);
@@ -984,7 +981,6 @@ void __iomem *c4iw_bar2_addrs(struct c4iw_rdev *rdev, unsigned int qid,
 		unsigned int *pbar2_qid, u64 *pbar2_pa);
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
-extern int c4iw_max_read_depth;
 
 #if defined(__i386__) || defined(__amd64__)
 #define L1_CACHE_BYTES 128
