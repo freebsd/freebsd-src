@@ -804,6 +804,7 @@ pmap_invalidate_all(pmap_t pmap)
 	 * all sfence_vma requests as global however.
 	 */
 	sbi_remote_sfence_vma(mask.__bits, 0, 0);
+	sfence_vma();
 	sched_unpin();
 }
 #else
