@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "t4_ioctl.h"
+#include "tcb_common.h"
 
 #define in_range(val, lo, hi) ( val < 0 || (val <= hi && val >= lo))
 #define	max(x, y) ((x) > (y) ? (x) : (y))
@@ -2102,6 +2103,7 @@ memdump(int argc, const char *argv[])
 static void
 show_tcb(uint32_t *buf, uint32_t len)
 {
+	unsigned char *tcb = (unsigned char *)buf;
 	const char *s;
 	int i, n = 8;
 
@@ -2112,6 +2114,10 @@ show_tcb(uint32_t *buf, uint32_t len)
 		}
 		printf("\n");
 	}
+	set_tcb_info(TIDTYPE_TCB, chip_id);
+	set_print_style(PRNTSTYL_COMP);
+	swizzle_tcb(tcb);
+	parse_n_display_xcb(tcb);
 }
 
 #define A_TP_CMM_TCB_BASE 0x7d10
