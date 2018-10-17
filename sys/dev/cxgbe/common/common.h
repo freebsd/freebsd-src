@@ -64,9 +64,10 @@ enum {
 };
 
 enum {
+	FEC_NONE      = 0,
 	FEC_RS        = 1 << 0,
 	FEC_BASER_RS  = 1 << 1,
-	FEC_RESERVED  = 1 << 2,
+	FEC_AUTO      = 1 << 5,		/* M_FW_PORT_CAP32_FEC + 1 */
 };
 
 enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
@@ -368,6 +369,7 @@ struct adapter_params {
 				   resources for TOE operation. */
 	unsigned int bypass:1;	/* this is a bypass card */
 	unsigned int ethoffload:1;
+	unsigned int port_caps32:1;
 
 	unsigned int ofldq_wr_cred;
 	unsigned int eo_wr_cred;
@@ -409,20 +411,21 @@ struct trace_params {
 };
 
 struct link_config {
-	/* OS-specific code owns all the requested_* fields */
-	unsigned char  requested_aneg;   /* link aneg user has requested */
-	unsigned char  requested_fc;     /* flow control user has requested */
-	unsigned char  requested_fec;    /* FEC user has requested */
-	unsigned int   requested_speed;  /* speed user has requested (Mbps) */
+	/* OS-specific code owns all the requested_* fields. */
+	int8_t requested_aneg;		/* link autonegotiation */
+	int8_t requested_fc;		/* flow control */
+	int8_t requested_fec;		/* FEC */
+	u_int requested_speed;		/* speed (Mbps) */
 
-	unsigned short supported;        /* link capabilities */
-	unsigned short advertising;      /* advertised capabilities */
-	unsigned short lp_advertising;   /* peer advertised capabilities */
-	unsigned int   speed;            /* actual link speed (Mbps) */
-	unsigned char  fc;               /* actual link flow control */
-	unsigned char  fec;              /* actual FEC */
-	unsigned char  link_ok;          /* link up? */
-	unsigned char  link_down_rc;     /* link down reason */
+	uint32_t supported;		/* link capabilities */
+	uint32_t advertising;		/* advertised capabilities */
+	uint32_t lp_advertising;	/* peer advertised capabilities */
+	uint32_t fec_hint;		/* use this fec */
+	u_int speed;			/* actual link speed (Mbps) */
+	int8_t fc;			/* actual link flow control */
+	int8_t fec;			/* actual FEC */
+	bool link_ok;			/* link up? */
+	uint8_t link_down_rc;		/* link down reason */
 };
 
 #include "adapter.h"
@@ -854,5 +857,16 @@ int t4vf_prep_adapter(struct adapter *adapter);
 int t4_bar2_sge_qregs(struct adapter *adapter, unsigned int qid,
 		enum t4_bar2_qtype qtype, int user, u64 *pbar2_qoffset,
 		unsigned int *pbar2_qid);
+unsigned int fwcap_to_speed(uint32_t caps);
+uint32_t speed_to_fwcap(unsigned int speed);
+uint32_t fwcap_top_speed(uint32_t caps);
+
+static inline int
+port_top_speed(const struct port_info *pi)
+{
+
+	/* Mbps -> Gbps */
+	return (fwcap_to_speed(pi->link_cfg.supported) / 1000);
+}
 
 #endif /* __CHELSIO_COMMON_H */
