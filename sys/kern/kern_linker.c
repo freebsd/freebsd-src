@@ -2123,7 +2123,7 @@ linker_load_dependencies(linker_file_t lf)
 	const struct mod_depend *verinfo;
 	modlist_t mod;
 	const char *modname, *nmodname;
-	int ver, error = 0, count;
+	int ver, error = 0;
 
 	/*
 	 * All files are dependent on /kernel.
@@ -2136,7 +2136,7 @@ linker_load_dependencies(linker_file_t lf)
 			return (error);
 	}
 	if (linker_file_lookup_set(lf, MDT_SETNAME, &start, &stop,
-	    &count) != 0)
+	    NULL) != 0)
 		return (0);
 	for (mdp = start; mdp < stop; mdp++) {
 		mp = *mdp;
