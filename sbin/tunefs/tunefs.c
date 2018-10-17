@@ -377,7 +377,7 @@ main(int argc, char *argv[])
 				warnx("%s cannot be enabled until fsck is run",
 				    name);
 			} else if (journal_alloc(Svalue) != 0) {
-				warnx("%s can not be enabled", name);
+				warnx("%s cannot be enabled", name);
 			} else {
  				sblock.fs_flags |= FS_DOSOFTDEP | FS_SUJ;
  				warnx("%s set", name);
@@ -966,8 +966,10 @@ journal_alloc(int64_t size)
 	 * If the journal file exists we can't allocate it.
 	 */
 	ino = journal_findfile();
-	if (ino == (ino_t)-1)
+	if (ino == (ino_t)-1) {
+		warnx("journal_findfile() failed.");
 		return (-1);
+	}
 	if (ino > 0) {
 		warnx("Journal file %s already exists, please remove.",
 		    SUJ_FILE);
