@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 22, 2016
+.Dd Sep 24, 2018
 .Dt CXGBE 4
 .Os
 .Sh NAME
@@ -278,19 +278,21 @@ This usually results in the port emitting PAUSE frames.
 1 instructs the hardware to drop frames destined for congested queues.
 .It Va hw.cxgbe.pause_settings
 PAUSE frame settings.
-Bit 0 is rx_pause, bit 1 is tx_pause.
+Bit 0 is rx_pause, bit 1 is tx_pause, bit 2 is pause_autoneg.
 rx_pause = 1 instructs the hardware to heed incoming PAUSE frames, 0 instructs
 it to ignore them.
 tx_pause = 1 allows the hardware to emit PAUSE frames when its receive FIFO
 reaches a high threshold, 0 prohibits the hardware from emitting PAUSE frames.
-The default is 3 (both rx_pause and tx_pause = 1).
+pause_autoneg = 1 overrides the rx_pause and tx_pause bits and instructs the
+hardware to negotiate PAUSE settings with the link peer.
+The default is 7 (all three = 1).
 This tunable establishes the default PAUSE settings for all ports.
 Settings can be displayed and controlled on a per-port basis via the
 dev.<port>.X.pause_settings sysctl.
 .It Va hw.cxgbe.fec
 FEC (Forward Error Correction) settings.
 0 diables FEC.
-Bit 0 enables RS FEC, bit 1 enables BASE-R RS, bit 3 is reserved.
+Bit 0 enables RS FEC, bit 1 enables BASE-R FEC (aka Firecode FEC).
 The default is -1 which lets the driver pick a value.
 This tunable establishes the default FEC settings for all ports.
 Settings can be displayed and controlled on a per-port basis via the

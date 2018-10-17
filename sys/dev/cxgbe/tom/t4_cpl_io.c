@@ -524,7 +524,7 @@ write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
 	if (txalign > 0) {
 		struct tcpcb *tp = intotcpcb(toep->inp);
 
-		if (plen < 2 * tp->t_maxseg || is_10G_port(toep->vi->pi))
+		if (plen < 2 * tp->t_maxseg)
 			txwr->lsodisable_to_flags |=
 			    htobe32(F_FW_OFLD_TX_DATA_WR_LSODISABLE);
 		else
