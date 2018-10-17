@@ -898,6 +898,38 @@ ptable_getbestpart(const struct ptable *table, struct ptable_entry *part)
 				pref = PREF_NONE;
 		}
 #endif /* LOADER_GPT_SUPPORT */
+#ifdef LOADER_PC98_SUPPORT
+		if (table->type == PTABLE_PC98) {
+			switch(entry->part.type & PC98_MID_MASK) {
+			case PC98_MID_386BSD:		/* FreeBSD */
+				if ((entry->part.type & PC98_MID_BOOTABLE) &&
+				    (preflevel > PREF_FBSD_ACT)) {
+					pref = i;
+					preflevel = PREF_FBSD_ACT;
+				} else if (preflevel > PREF_FBSD) {
+					pref = i;
+					preflevel = PREF_FBSD;
+				}
+				break;
+
+			case 0x11:			/* DOS/Windows */
+			case 0x20:
+			case 0x21:
+			case 0x22:
+			case 0x23:
+			case 0x63:
+				if ((entry->part.type & PC98_MID_BOOTABLE) &&
+				    (preflevel > PREF_DOS_ACT)) {
+					pref = i;
+					preflevel = PREF_DOS_ACT;
+				} else if (preflevel > PREF_DOS) {
+					pref = i;
+					preflevel = PREF_DOS;
+				}
+				break;
+			}
+		}
+#endif /* LOADER_PC98_SUPPORT */
 		if (pref < preflevel) {
 			preflevel = pref;
 			best = entry;
@@ -943,3 +975,162 @@ ptable_iterate(const struct ptable *table, void *arg, ptable_iterate_t *iter)
 	}
 	return (ret);
 }
+#ifdef LOADER_PC98_SUPPORT
+static int
+bd_open_pc98(struct open_disk *od, struct i386_devdesc *dev)
+{
+    struct pc98_partition	*dptr;
+    struct disklabel		*lp;
+    int				sector, slice, i;
+    char			buf[BUFSIZE];
+
+    /*
+     * Following calculations attempt to determine the correct value
+     * for d->od_boff by looking for the slice and partition specified,
+     * or searching for reasonable defaults.
+     */
+
+    /*
+     * Find the slice in the DOS slice table.
+     */
+    od->od_nslices = 0;
+    if (od->od_flags & BD_FLOPPY) {
+	sector = 0;
+	goto unsliced;
+    }
+    if (bd_read(od, 0, 1, buf)) {
+	DEBUG("error reading MBR");
+	return (EIO);
+    }
+
+    /* 
+     * Check the slice table magic.
+     */
+    if (((u_char)buf[0x1fe] != 0x55) || ((u_char)buf[0x1ff] != 0xaa)) {
+	/* If a slice number was explicitly supplied, this is an error */
+	if (dev->d_kind.biosdisk.slice > 0) {
+	    DEBUG("no slice table/MBR (no magic)");
+	    return (ENOENT);
+	}
+	sector = 0;
+	goto unsliced;		/* may be a floppy */
+    }
+    if (bd_read(od, 1, 1, buf)) {
+	DEBUG("error reading MBR");
+	return (EIO);
+    }
+
+    /*
+     * copy the partition table, then pick up any extended partitions.
+     */
+    bcopy(buf + PC98_PARTOFF, &od->od_slicetab,
+      sizeof(struct pc98_partition) * PC98_NPARTS);
+    od->od_nslices = PC98_NPARTS;	/* extended slices start here */
+    od->od_flags |= BD_PARTTABOK;
+    dptr = &od->od_slicetab[0];
+
+    /* Is this a request for the whole disk? */
+    if (dev->d_kind.biosdisk.slice == -1) {
+	sector = 0;
+	goto unsliced;
+    }
+
+    /*
+     * if a slice number was supplied but not found, this is an error.
+     */
+    if (dev->d_kind.biosdisk.slice > 0) {
+        slice = dev->d_kind.biosdisk.slice - 1;
+        if (slice >= od->od_nslices) {
+            DEBUG("slice %d not found", slice);
+	    return (ENOENT);
+        }
+    }
+
+    /* Try to auto-detect the best slice; this should always give a slice number */
+    if (dev->d_kind.biosdisk.slice == 0) {
+	slice = bd_bestslice(od);
+        if (slice == -1) {
+	    return (ENOENT);
+        }
+        dev->d_kind.biosdisk.slice = slice;
+    }
+
+    dptr = &od->od_slicetab[0];
+    /*
+     * Accept the supplied slice number unequivocally (we may be looking
+     * at a DOS partition).
+     */
+    dptr += (dev->d_kind.biosdisk.slice - 1);	/* we number 1-4, offsets are 0-3 */
+    sector = dptr->dp_scyl * od->od_hds * od->od_sec +
+	dptr->dp_shd * od->od_sec + dptr->dp_ssect;
+    {
+	int end = dptr->dp_ecyl * od->od_hds * od->od_sec +
+	    dptr->dp_ehd * od->od_sec + dptr->dp_esect;
+	DEBUG("slice entry %d at %d, %d sectors",
+	      dev->d_kind.biosdisk.slice - 1, sector, end-sector);
+    }
+
+    /*
+     * If we are looking at a BSD slice, and the partition is < 0, assume the 'a' partition
+     */
+    if ((dptr->dp_mid == DOSMID_386BSD) && (dev->d_kind.biosdisk.partition < 0))
+	dev->d_kind.biosdisk.partition = 0;
+
+ unsliced:
+    /* 
+     * Now we have the slice offset, look for the partition in the disklabel if we have
+     * a partition to start with.
+     *
+     * XXX we might want to check the label checksum.
+     */
+    if (dev->d_kind.biosdisk.partition < 0) {
+	od->od_boff = sector;		/* no partition, must be after the slice */
+	DEBUG("opening raw slice");
+    } else {
+	
+	if (bd_read(od, sector + LABELSECTOR, 1, buf)) {
+	    DEBUG("error reading disklabel");
+	    return (EIO);
+	}
+	DEBUG("copy %d bytes of label from %p to %p", sizeof(struct disklabel), buf + LABELOFFSET, &od->od_disklabel);
+	bcopy(buf + LABELOFFSET, &od->od_disklabel, sizeof(struct disklabel));
+	lp = &od->od_disklabel;
+	od->od_flags |= BD_LABELOK;
+
+	if (lp->d_magic != DISKMAGIC) {
+	    DEBUG("no disklabel");
+	    return (ENOENT);
+	}
+	if (dev->d_kind.biosdisk.partition >= lp->d_npartitions) {
+	    DEBUG("partition '%c' exceeds partitions in table (a-'%c')",
+		  'a' + dev->d_kind.biosdisk.partition, 'a' + lp->d_npartitions);
+	    return (EPART);
+	}
+
+#ifdef DISK_DEBUG
+	/* Complain if the partition is unused unless this is a floppy. */
+	if ((lp->d_partitions[dev->d_kind.biosdisk.partition].p_fstype == FS_UNUSED) &&
+	    !(od->od_flags & BD_FLOPPY))
+	    DEBUG("warning, partition marked as unused");
+#endif
+	
+	od->od_boff = 
+		lp->d_partitions[dev->d_kind.biosdisk.partition].p_offset -
+		lp->d_partitions[RAW_PART].p_offset +
+		sector;
+    }
+    return (0);
+}
+static void
+bd_closedisk(struct open_disk *od)
+{
+    DEBUG("open_disk %p", od);
+#if 0
+    /* XXX is this required? (especially if disk already open...) */
+    if (od->od_flags & BD_FLOPPY)
+	delay(3000000);
+#endif
+    free(od);
+}
+
+#endif /* LOADER_PC98_SUPPORT */
