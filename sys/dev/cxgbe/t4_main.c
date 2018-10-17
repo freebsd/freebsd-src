@@ -563,6 +563,7 @@ static int sysctl_autoneg(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
 static int sysctl_temperature(SYSCTL_HANDLER_ARGS);
 #ifdef SBUF_DRAIN
+static int sysctl_loadavg(SYSCTL_HANDLER_ARGS);
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_la(SYSCTL_HANDLER_ARGS);
@@ -5460,6 +5461,10 @@ t4_sysctls(struct adapter *sc)
 	    CTLFLAG_RD, sc, 0, sysctl_temperature, "I",
 	    "chip temperature (in Celsius)");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "loadavg", CTLTYPE_STRING |
+	    CTLFLAG_RD, sc, 0, sysctl_loadavg, "A",
+	    "microprocessor load averages (debug firmwares only)");
+
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_vdd", CTLFLAG_RD,
 	    &sc->params.core_vdd, 0, "core Vdd (in mV)");
 
@@ -6516,6 +6521,45 @@ sysctl_temperature(SYSCTL_HANDLER_ARGS)
 }
 
 #ifdef SBUF_DRAIN
+static int
+sysctl_loadavg(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc;
+	uint32_t param, val;
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4lavg");
+	if (rc)
+		return (rc);
+	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_LOAD);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+	end_synchronized_op(sc, 0);
+	if (rc)
+		return (rc);
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	if (val == 0xffffffff) {
+		/* Only debug and custom firmwares report load averages. */
+		sbuf_printf(sb, "not available");
+	} else {
+		sbuf_printf(sb, "%d %d %d", val & 0xff, (val >> 8) & 0xff,
+		    (val >> 16) & 0xff);
+	}
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
 static int
 sysctl_cctrl(SYSCTL_HANDLER_ARGS)
 {
