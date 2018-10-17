@@ -23,6 +23,15 @@
 #include <sys/types.h>
 #include <machine/psl.h>
 
+/*
+ * Memory buffer space for real mode IO.
+ * Just one page is not much, but the space is rather limited.
+ * See ../btx/btx.S for details.
+ * XXX TEST THIS XXX
+ */
+#define	V86_IO_BUFFER		0x8000
+#define	V86_IO_BUFFER_SIZE	0x1000
+
 #define V86_ADDR   0x10000	/* Segment:offset address */
 #define V86_CALLF  0x20000	/* Emulate far call */
 #define V86_FLAGS  0x40000	/* Return flags */
