@@ -74,6 +74,7 @@ struct cpl_set_tcb_rpl;
 #include <linux/inetdevice.h>
 #include <linux/if_vlan.h>
 #include <net/netevent.h>
+#include <rdma/rdma_cm.h>
 
 static spinlock_t req_lock;
 static TAILQ_HEAD(c4iw_ep_list, c4iw_ep_common) req_list;
@@ -1195,7 +1196,7 @@ static int enable_tcp_window_scaling = 1;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, enable_tcp_window_scaling, CTLFLAG_RWTUN, &enable_tcp_window_scaling, 0,
 		"Enable tcp window scaling (default = 1)");
 
-int c4iw_debug = 1;
+int c4iw_debug = 0;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, c4iw_debug, CTLFLAG_RWTUN, &c4iw_debug, 0,
 		"Enable debug logging (default = 0)");
 
@@ -2514,6 +2515,10 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_ep *ep = NULL;
 	struct ifnet    *nh_ifp;        /* Logical egress interface */
+#ifdef VIMAGE
+	struct rdma_cm_id *rdma_id = (struct rdma_cm_id*)cm_id->context;
+	struct vnet *vnet = rdma_id->route.addr.dev_addr.net;
+#endif
 
 	CTR2(KTR_IW_CXGBE, "%s:ccB %p", __func__, cm_id);
 
@@ -2559,7 +2564,10 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ref_qp(ep);
 	ep->com.thread = curthread;
 
+	CURVNET_SET(vnet);
 	err = get_ifnet_from_raddr(&cm_id->remote_addr, &nh_ifp);
+	CURVNET_RESTORE();
+
 	if (err) {
 
 		CTR2(KTR_IW_CXGBE, "%s:cc7 %p", __func__, ep);
@@ -2802,7 +2810,10 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 
 			if (!ep->parent_ep)
 				ep->com.state = MORIBUND;
+
+			CURVNET_SET(ep->com.so->so_vnet);
 			sodisconnect(ep->com.so);
+			CURVNET_RESTORE();
 		}
 
 	}
