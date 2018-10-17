@@ -70,7 +70,7 @@ prefetch(void *x)
 	__asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
 }
 #else
-#define prefetch(x)
+#define prefetch(x) __builtin_prefetch(x)
 #endif
 
 #ifndef SYSCTL_ADD_UQUAD
@@ -422,7 +422,7 @@ struct sge_eq {
 	struct mtx eq_lock;
 
 	struct tx_desc *desc;	/* KVA of descriptor ring */
-	uint16_t doorbells;
+	uint8_t doorbells;
 	volatile uint32_t *udb;	/* KVA of doorbell (lies within BAR2) */
 	u_int udb_qid;		/* relative qid within the doorbell page */
 	uint16_t sidx;		/* index of the entry with the status page */
@@ -692,7 +692,7 @@ struct sge_nm_txq {
 	uint16_t equiqidx;	/* EQUIQ last requested at this pidx */
 	uint16_t equeqidx;	/* EQUEQ last requested at this pidx */
 	uint16_t dbidx;		/* pidx of the most recent doorbell */
-	uint16_t doorbells;
+	uint8_t doorbells;
 	volatile uint32_t *udb;
 	u_int udb_qid;
 	u_int cntxt_id;
@@ -804,7 +804,7 @@ struct adapter {
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
-	uint16_t doorbells;
+	uint8_t doorbells;
 	int offload_map;	/* ports with IFCAP_TOE enabled */
 	int active_ulds;	/* ULDs activated on this adapter */
 	int flags;

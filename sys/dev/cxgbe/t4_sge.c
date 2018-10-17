@@ -4731,13 +4731,13 @@ get_flit(struct sglist_seg *segs, int nsegs, int idx)
 
 	switch (idx % 3) {
 	case 0: {
-		__be64 rc;
+		uint64_t rc;
 
-		rc = htobe32(segs[i].ss_len);
+		rc = (uint64_t)segs[i].ss_len << 32;
 		if (i + 1 < nsegs)
-			rc |= (uint64_t)htobe32(segs[i + 1].ss_len) << 32;
+			rc |= (uint64_t)(segs[i + 1].ss_len);
 
-		return (rc);
+		return (htobe64(rc));
 	}
 	case 1:
 		return (htobe64(segs[i].ss_paddr));
