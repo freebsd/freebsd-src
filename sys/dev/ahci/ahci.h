@@ -604,7 +604,6 @@ enum ahci_err_type {
 #define AHCI_Q_MRVL_SR_DEL	0x00200000
 #define AHCI_Q_NOCCS		0x00400000
 #define AHCI_Q_NOAUX		0x00800000
-#define AHCI_Q_DMA31		0x01000000
 
 #define AHCI_Q_BIT_STRING	\
 	"\020"			\
@@ -631,8 +630,7 @@ enum ahci_err_type {
 	"\025NOMSIX"		\
 	"\026MRVL_SR_DEL"	\
 	"\027NOCCS"		\
-	"\030NOAUX"		\
-	"\031DMA31"
+	"\030NOAUX"
 
 int ahci_attach(device_t dev);
 int ahci_detach(device_t dev);

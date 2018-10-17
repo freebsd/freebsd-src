@@ -96,6 +96,9 @@ static int opalpci_route_interrupt(device_t bus, device_t dev, int pin);
 static void opalpic_pic_enable(device_t dev, u_int irq, u_int vector);
 static void opalpic_pic_eoi(device_t dev, u_int irq);
 
+/* Bus interface */
+static bus_dma_tag_t opalpci_get_dma_tag(device_t dev, device_t child);
+
 /*
  * Commands
  */
@@ -119,6 +122,8 @@ static void opalpic_pic_eoi(device_t dev, u_int irq);
  */
 #define OPAL_PCI_DEFAULT_PE			1
 
+#define OPAL_PCI_BUS_SPACE_LOWADDR_32BIT	0x7FFFFFFFUL
+
 /*
  * Driver methods.
  */
@@ -141,6 +146,9 @@ static device_method_t	opalpci_methods[] = {
 	/* PIC interface for MSIs */
 	DEVMETHOD(pic_enable,		opalpic_pic_enable),
 	DEVMETHOD(pic_eoi,		opalpic_pic_eoi),
+
+	/* Bus interface */
+	DEVMETHOD(bus_get_dma_tag,	opalpci_get_dma_tag),
 
 	DEVMETHOD_END
 };
@@ -424,6 +432,23 @@ opalpci_attach(device_t dev)
 			    msi_ranges[1], msi_ranges[0]);
 	}
 
+	/* Create the parent DMA tag */
+	err = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
+	    1, 0,				/* alignment, bounds */
+	    OPAL_PCI_BUS_SPACE_LOWADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR_32BIT,		/* highaddr */
+	    NULL, NULL,				/* filter, filterarg */
+	    BUS_SPACE_MAXSIZE,			/* maxsize */
+	    BUS_SPACE_UNRESTRICTED,		/* nsegments */
+	    BUS_SPACE_MAXSIZE,			/* maxsegsize */
+	    0,					/* flags */
+	    NULL, NULL,				/* lockfunc, lockarg */
+	    &sc->ofw_sc.sc_dmat);
+	if (err != 0) {
+		device_printf(dev, "Failed to create DMA tag\n");
+		return (err);
+	}
+
 	/*
 	 * General OFW PCI attach
 	 */
@@ -660,4 +685,13 @@ static void opalpic_pic_eoi(device_t dev, u_int irq)
 	opal_call(OPAL_PCI_MSI_EOI, sc->phb_id, irq);
 
 	PIC_EOI(root_pic, irq);
+}
+
+static bus_dma_tag_t
+opalpci_get_dma_tag(device_t dev, device_t child)
+{
+	struct opalpci_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (sc->ofw_sc.sc_dmat);
 }
