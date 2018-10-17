@@ -1308,15 +1308,15 @@ t4_detach_common(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	if (sc->cdev) {
+		destroy_dev(sc->cdev);
+		sc->cdev = NULL;
+	}
+
 	sc->flags &= ~CHK_MBOX_ACCESS;
 	if (sc->flags & FULL_INIT_DONE) {
 		if (!(sc->flags & IS_VF))
 			t4_intr_disable(sc);
-	}
-
-	if (sc->cdev) {
-		destroy_dev(sc->cdev);
-		sc->cdev = NULL;
 	}
 
 	if (device_is_attached(dev)) {
