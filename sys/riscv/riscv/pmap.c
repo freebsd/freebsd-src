@@ -15,7 +15,7 @@
  * All rights reserved.
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
- * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -487,7 +487,7 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 
 		/* superpages */
 		pn = (pa / PAGE_SIZE);
-		entry = PTE_KERN;
+		entry = (PTE_V | PTE_RWX);
 		entry |= (pn << PTE_PPN0_S);
 		pmap_load_store(&l1[l1_slot], entry);
 	}
@@ -965,7 +965,7 @@ pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
 		KASSERT(l3 != NULL, ("Invalid page table, va: 0x%lx", va));
 
 		pn = (pa / PAGE_SIZE);
-		entry = PTE_KERN;
+		entry = (PTE_V | PTE_RWX);
 		entry |= (pn << PTE_PPN0_S);
 		pmap_load_store(l3, entry);
 
@@ -1063,7 +1063,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		pn = (pa / PAGE_SIZE);
 		l3 = pmap_l3(kernel_pmap, va);
 
-		entry = PTE_KERN;
+		entry = (PTE_V | PTE_RWX);
 		entry |= (pn << PTE_PPN0_S);
 		pmap_load_store(l3, entry);
 
@@ -1465,8 +1465,7 @@ pmap_growkernel(vm_offset_t addr)
 			continue; /* try again */
 		}
 		l2 = pmap_l1_to_l2(l1, kernel_vm_end);
-		if ((pmap_load(l2) & PTE_V) != 0 &&
-		    (pmap_load(l2) & PTE_RWX) == 0) {
+		if ((pmap_load(l2) & PTE_A) != 0) {
 			kernel_vm_end = (kernel_vm_end + L2_SIZE) & ~L2_OFFSET;
 			if (kernel_vm_end - 1 >= vm_map_max(kernel_map)) {
 				kernel_vm_end = vm_map_max(kernel_map);
@@ -2009,41 +2008,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	PMAP_UNLOCK(pmap);
 }
 
-int
-pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
-{
-	pt_entry_t orig_l3;
-	pt_entry_t new_l3;
-	pt_entry_t *l3;
-
-	l3 = pmap_l3(pmap, va);
-	if (l3 == NULL)
-		return (0);
-
-	orig_l3 = pmap_load(l3);
-	if ((orig_l3 & PTE_V) == 0 ||
-	    ((prot & VM_PROT_WRITE) != 0 && (orig_l3 & PTE_W) == 0) ||
-	    ((prot & VM_PROT_READ) != 0 && (orig_l3 & PTE_R) == 0))
-		return (0);
-
-	new_l3 = orig_l3 | PTE_A;
-	if ((prot & VM_PROT_WRITE) != 0)
-		new_l3 |= PTE_D;
-
-	if (orig_l3 != new_l3) {
-		pmap_load_store(l3, new_l3);
-		pmap_invalidate_page(pmap, va);
-		return (1);
-	}
-
-	/*	
-	 * XXX: This case should never happen since it means
-	 * the PTE shouldn't have resulted in a fault.
-	 */
-
-	return (0);
-}
-
 /*
  *	Insert the given physical page (p) at
  *	the specified virtual address (v) in the
@@ -2451,7 +2415,8 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	pa = VM_PAGE_TO_PHYS(m);
 	pn = (pa / PAGE_SIZE);
 
-	entry = (PTE_V | PTE_R | PTE_X);
+	/* RISCVTODO: check permissions */
+	entry = (PTE_V | PTE_RWX);
 	entry |= (pn << PTE_PPN0_S);
 
 	/*
