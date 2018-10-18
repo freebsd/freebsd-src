@@ -3352,7 +3352,7 @@ prison_priv_check(struct ucred *cred, int priv)
 		return (0);
 
 		/*
-		 * Do not allow a process inside a jail read the kernel
+		 * Do not allow a process inside a jail to read the kernel
 		 * message buffer unless explicitly permitted.
 		 */
 	case PRIV_MSGBUF:
