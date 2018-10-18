@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: local_unbound
-# REQUIRE: FILESYSTEMS netif resolv
+# REQUIRE: FILESYSTEMS defaultroute netwait resolv
 # BEFORE: NETWORKING
 # KEYWORD: shutdown
 
