@@ -585,6 +585,8 @@ pfsync_input(struct mbuf **mp, int *offp __unused, int proto __unused)
 	int rv;
 	uint16_t count;
 
+	PF_RULES_RLOCK_TRACKER;
+
 	*mp = NULL;
 	V_pfsyncstats.pfsyncs_ipackets++;
 

@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/refcount.h>
-#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <vm/uma.h>
 
