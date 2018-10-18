@@ -61,6 +61,10 @@
 	};
 };
 
+&L2 {
+	status = "disabled";
+};
+
 &uart1 {
 	clock-frequency = < 50000000 >;
 };
