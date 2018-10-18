@@ -153,8 +153,6 @@ bool	pmap_get_tables(pmap_t, vm_offset_t, pd_entry_t **, pd_entry_t **,
 
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 
-int pmap_fault_fixup(pmap_t, vm_offset_t, vm_prot_t);
-
 #endif	/* _KERNEL */
 
 #endif	/* !LOCORE */
