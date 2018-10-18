@@ -36,8 +36,11 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/counter.h>
+#include <sys/cpuset.h>
 #include <sys/malloc.h>
 #include <sys/refcount.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/tree.h>
 #include <vm/uma.h>
 
@@ -145,14 +148,15 @@ extern struct mtx pf_unlnkdrules_mtx;
 #define	PF_UNLNKDRULES_LOCK()	mtx_lock(&pf_unlnkdrules_mtx)
 #define	PF_UNLNKDRULES_UNLOCK()	mtx_unlock(&pf_unlnkdrules_mtx)
 
-extern struct rwlock pf_rules_lock;
-#define	PF_RULES_RLOCK()	rw_rlock(&pf_rules_lock)
-#define	PF_RULES_RUNLOCK()	rw_runlock(&pf_rules_lock)
-#define	PF_RULES_WLOCK()	rw_wlock(&pf_rules_lock)
-#define	PF_RULES_WUNLOCK()	rw_wunlock(&pf_rules_lock)
-#define	PF_RULES_ASSERT()	rw_assert(&pf_rules_lock, RA_LOCKED)
-#define	PF_RULES_RASSERT()	rw_assert(&pf_rules_lock, RA_RLOCKED)
-#define	PF_RULES_WASSERT()	rw_assert(&pf_rules_lock, RA_WLOCKED)
+extern struct rmlock pf_rules_lock;
+#define	PF_RULES_RLOCK_TRACKER	struct rm_priotracker _pf_rules_tracker
+#define	PF_RULES_RLOCK()	rm_rlock(&pf_rules_lock, &_pf_rules_tracker)
+#define	PF_RULES_RUNLOCK()	rm_runlock(&pf_rules_lock, &_pf_rules_tracker)
+#define	PF_RULES_WLOCK()	rm_wlock(&pf_rules_lock)
+#define	PF_RULES_WUNLOCK()	rm_wunlock(&pf_rules_lock)
+#define	PF_RULES_ASSERT()	rm_assert(&pf_rules_lock, RA_LOCKED)
+#define	PF_RULES_RASSERT()	rm_assert(&pf_rules_lock, RA_RLOCKED)
+#define	PF_RULES_WASSERT()	rm_assert(&pf_rules_lock, RA_WLOCKED)
 
 #define	PF_MODVER	1
 #define	PFLOG_MODVER	1

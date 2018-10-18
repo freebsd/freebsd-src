@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
-#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
