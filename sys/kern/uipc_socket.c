@@ -1026,6 +1026,9 @@ sofree(struct socket *so)
 		so->so_error = ECONNABORTED;
 	SOCK_UNLOCK(so);
 
+	if (so->so_dtor != NULL)
+		so->so_dtor(so);
+
 	VNET_SO_ASSERT(so);
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
 		(*pr->pr_domain->dom_dispose)(so);
@@ -1102,8 +1105,6 @@ soclose(struct socket *so)
 drop:
 	if (so->so_proto->pr_usrreqs->pru_close != NULL)
 		(*so->so_proto->pr_usrreqs->pru_close)(so);
-	if (so->so_dtor != NULL)
-		so->so_dtor(so);
 
 	SOCK_LOCK(so);
 	if ((listening = (so->so_options & SO_ACCEPTCONN))) {
