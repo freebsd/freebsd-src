@@ -36,6 +36,7 @@ files		"../allwinner/a31/files.a31"
 files		"../allwinner/a33/files.a33"
 files		"../allwinner/a83t/files.a83t"
 files		"../allwinner/h3/files.h3"
+files		"../altera/socfpga/files.socfpga"
 files		"../broadcom/bcm2835/files.bcm2836"
 files		"../broadcom/bcm2835/files.bcm283x"
 files		"../freescale/imx/files.imx6"
@@ -56,6 +57,8 @@ options 	SOC_ALLWINNER_A33
 options 	SOC_ALLWINNER_A83T
 options 	SOC_ALLWINNER_H2PLUS
 options 	SOC_ALLWINNER_H3
+options 	SOC_ALTERA_ARRIA10
+options 	SOC_ALTERA_CYCLONE5
 options 	SOC_BCM2836
 options 	SOC_MV_ARMADA38X
 options 	SOC_MV_ARMADAXP
@@ -89,10 +92,15 @@ device		pmu
 device		generic_timer
 device		mpcore_timer
 
+# DMA support
+device		xdma
+device		pl330
+
 # MMC/SD/SDIO Card slot support
 device		sdhci			# SD controller
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
+device		dwmmc
 
 # ATA controllers
 device		ahci			# AHCI-compatible SATA controllers
@@ -169,7 +177,9 @@ device		aw_cir
 device		spibus
 device		spigen
 device		bcm2835_spi
+device		cqspi			# Cadence Quad SPI Flash Controller
 device		ti_spi
+device		n25q			# n25q Quad SPI Flash
 
 # ADC support
 device		ti_adc

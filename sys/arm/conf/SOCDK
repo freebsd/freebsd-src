@@ -20,7 +20,7 @@
 
 #NO_UNIVERSE
 
-include 	"SOCFPGA"
+include 	"GENERIC"
 ident		SOCDK
 
 options		ROOTDEVNAME=\"ufs:/dev/mmcsd0s4\"
