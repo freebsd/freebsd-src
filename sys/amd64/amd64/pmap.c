@@ -637,7 +637,8 @@ static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
 
-static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode);
+static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode,
+    bool noflush);
 static boolean_t pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
 static boolean_t pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde,
     vm_offset_t va, struct rwlock **lockp);
@@ -7098,8 +7099,8 @@ pmap_pde_attr(pd_entry_t *pde, int cache_bits, int mask)
  * routine is intended to be used for mapping device memory,
  * NOT real memory.
  */
-void *
-pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
+static void *
+pmap_mapdev_internal(vm_paddr_t pa, vm_size_t size, int mode, bool noflush)
 {
 	struct pmap_preinit_mapping *ppim;
 	vm_offset_t va, offset;
@@ -7142,7 +7143,10 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 		 */
 		if (pa < dmaplimit && pa + size <= dmaplimit) {
 			va = PHYS_TO_DMAP(pa);
-			if (!pmap_change_attr(va, size, mode))
+			PMAP_LOCK(kernel_pmap);
+			i = pmap_change_attr_locked(va, size, mode, noflush);
+			PMAP_UNLOCK(kernel_pmap);
+			if (!i)
 				return ((void *)(va + offset));
 		}
 		va = kva_alloc(size);
@@ -7152,22 +7156,37 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	for (tmpsize = 0; tmpsize < size; tmpsize += PAGE_SIZE)
 		pmap_kenter_attr(va + tmpsize, pa + tmpsize, mode);
 	pmap_invalidate_range(kernel_pmap, va, va + tmpsize);
-	pmap_invalidate_cache_range(va, va + tmpsize);
+	if (!noflush)
+		pmap_invalidate_cache_range(va, va + tmpsize);
 	return ((void *)(va + offset));
+}
+
+void *
+pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
+{
+
+	return (pmap_mapdev_internal(pa, size, mode, false));
 }
 
 void *
 pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
 
-	return (pmap_mapdev_attr(pa, size, PAT_UNCACHEABLE));
+	return (pmap_mapdev_internal(pa, size, PAT_UNCACHEABLE, false));
+}
+
+void *
+pmap_mapdev_pciecfg(vm_paddr_t pa, vm_size_t size)
+{
+
+	return (pmap_mapdev_internal(pa, size, PAT_UNCACHEABLE, true));
 }
 
 void *
 pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 {
 
-	return (pmap_mapdev_attr(pa, size, PAT_WRITE_BACK));
+	return (pmap_mapdev_internal(pa, size, PAT_WRITE_BACK, false));
 }
 
 void
@@ -7306,13 +7325,13 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	int error;
 
 	PMAP_LOCK(kernel_pmap);
-	error = pmap_change_attr_locked(va, size, mode);
+	error = pmap_change_attr_locked(va, size, mode, false);
 	PMAP_UNLOCK(kernel_pmap);
 	return (error);
 }
 
 static int
-pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
+pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode, bool noflush)
 {
 	vm_offset_t base, offset, tmpva;
 	vm_paddr_t pa_start, pa_end, pa_end1;
@@ -7429,7 +7448,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 					/* Run ended, update direct map. */
 					error = pmap_change_attr_locked(
 					    PHYS_TO_DMAP(pa_start),
-					    pa_end - pa_start, mode);
+					    pa_end - pa_start, mode, noflush);
 					if (error != 0)
 						break;
 					/* Start physical address run. */
@@ -7459,7 +7478,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 					/* Run ended, update direct map. */
 					error = pmap_change_attr_locked(
 					    PHYS_TO_DMAP(pa_start),
-					    pa_end - pa_start, mode);
+					    pa_end - pa_start, mode, noflush);
 					if (error != 0)
 						break;
 					/* Start physical address run. */
@@ -7487,7 +7506,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 					/* Run ended, update direct map. */
 					error = pmap_change_attr_locked(
 					    PHYS_TO_DMAP(pa_start),
-					    pa_end - pa_start, mode);
+					    pa_end - pa_start, mode, noflush);
 					if (error != 0)
 						break;
 					/* Start physical address run. */
@@ -7502,7 +7521,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		pa_end1 = MIN(pa_end, dmaplimit);
 		if (pa_start != pa_end1)
 			error = pmap_change_attr_locked(PHYS_TO_DMAP(pa_start),
-			    pa_end1 - pa_start, mode);
+			    pa_end1 - pa_start, mode, noflush);
 	}
 
 	/*
@@ -7511,7 +7530,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	 */
 	if (changed) {
 		pmap_invalidate_range(kernel_pmap, base, tmpva);
-		pmap_invalidate_cache_range(base, tmpva);
+		if (!noflush)
+			pmap_invalidate_cache_range(base, tmpva);
 	}
 	return (error);
 }
