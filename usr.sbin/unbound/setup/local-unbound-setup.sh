@@ -29,6 +29,9 @@
 # $FreeBSD$
 #
 
+D="${DESTDIR}"
+echo "destination: ${D}"
+
 #
 # Configuration variables
 #
@@ -47,13 +50,28 @@ resolv_conf=""
 resolvconf_conf=""
 service=""
 start_unbound=""
+use_tls=""
 forwarders=""
 
 #
 # Global variables
 #
 self=$(basename $(realpath "$0"))
+bkdir=/var/backups
 bkext=$(date "+%Y%m%d.%H%M%S")
+
+#
+# Regular expressions
+#
+RE_octet="([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])"
+RE_ipv4="(${RE_octet}(\\.${RE_octet}){3})"
+RE_word="([0-9A-Fa-f]{1,4})"
+RE_ipv6="((${RE_word}:){1,}(:|(:${RE_word})*)|::1)"
+RE_port="([1-9][0-9]{0,3}|[1-5][0-9]{4,4}|6([0-4][0-9]{3}|5([0-4][0-9]{2}|5([0-2][0-9]|3[0-5]))))"
+RE_dnsname="([0-9A-Za-z-]{1,}(\\.[0-9A-Za-z-]{1,})*\\.?)"
+RE_forward_addr="((${RE_ipv4}|${RE_ipv6})(@${RE_port})?)"
+RE_forward_name="(${RE_dnsname}(@${RE_port})?)"
+RE_forward_tls="(${RE_forward_addr}(#${RE_dnsname})?)"
 
 #
 # Set default values for unset configuration variables.
@@ -73,6 +91,7 @@ set_defaults() {
 	: ${resolvconf_conf:=/etc/resolvconf.conf}
 	: ${service:=local_unbound}
 	: ${start_unbound:=yes}
+	: ${use_tls:=no}
 }
 
 #
@@ -195,13 +214,16 @@ gen_forward_conf() {
 	do_not_edit
 	echo "forward-zone:"
 	echo "        name: ."
-	for forwarder ; do
-		if expr "${forwarder}" : "^[0-9A-Fa-f:.]\{1,\}$" >/dev/null ; then
-			echo "        forward-addr: ${forwarder}"
-		else
-			echo "        forward-host: ${forwarder}"
-		fi
-	done
+	for forwarder ; do echo "${forwarder}" ; done |
+	if [ "${use_tls}" = "yes" ] ; then
+		echo "        forward-tls-upstream: yes"
+		sed -nE \
+		    -e "s/^(${RE_forward_tls})$/        forward-addr: \\1/p"
+	else
+		sed -nE \
+		    -e "s/^${RE_forward_addr}\$/        forward-addr: \\1/p" \
+		    -e "s/^${RE_forward_name}\$/        forward-host: \\1/p"
+	fi
 }
 
 #
@@ -237,6 +259,9 @@ gen_unbound_conf() {
 	echo "        chroot: ${chrootdir}"
 	echo "        pidfile: ${pidfile}"
 	echo "        auto-trust-anchor-file: ${anchor}"
+	if [ "${use_tls}" = "yes" ] ; then
+		echo "        tls-cert-bundle: /etc/ssl/cert.pem"
+	fi
 	echo ""
 	if [ -f "${forward_conf}" ] ; then
 		echo "include: ${forward_conf}"
@@ -257,11 +282,19 @@ gen_unbound_conf() {
 #
 backup() {
 	local file="$1"
-	if [ -f "${file}" ] ; then
-		local bkfile="${file}.${bkext}"
+	if [ -f "${D}${file}" ] ; then
+		local bkfile="${bkdir}/${file##*/}.${bkext}"
 		echo "Original ${file} saved as ${bkfile}"
-		mv "${file}" "${bkfile}"
+		mv "${D}${file}" "${D}${bkfile}"
 	fi
+}
+
+#
+# Wrapper for mktemp which respects DESTDIR
+#
+tmp() {
+	local file="$1"
+	mktemp -u "${D}${file}.XXXXX"
 }
 
 #
@@ -271,12 +304,12 @@ backup() {
 replace() {
 	local file="$1"
 	local newfile="$2"
-	if [ ! -f "${file}" ] ; then
+	if [ ! -f "${D}${file}" ] ; then
 		echo "${file} created"
-		mv "${newfile}" "${file}"
-	elif ! cmp -s "${file}" "${newfile}" ; then
+		mv "${newfile}" "${D}${file}"
+	elif ! cmp -s "${D}${file}" "${newfile}" ; then
 		backup "${file}"
-		mv "${newfile}" "${file}"
+		mv "${newfile}" "${D}${file}"
 	else
 		echo "${file} not modified"
 		rm "${newfile}"
@@ -315,7 +348,7 @@ main() {
 	#
 	# Parse and validate command-line options
 	#
-	while getopts "a:C:c:f:no:p:R:r:s:u:w:" option ; do
+	while getopts "a:C:c:f:no:p:R:r:s:tu:w:" option ; do
 		case $option in
 		a)
 			anchor="$OPTARG"
@@ -350,6 +383,9 @@ main() {
 		s)
 			service="$OPTARG"
 			;;
+		t)
+			use_tls="yes"
+			;;
 		u)
 			user="$OPTARG"
 			;;
@@ -376,7 +412,7 @@ main() {
 		;;
 	"")
 		echo "Extracting forwarders from ${resolv_conf}."
-		forwarders=$(get_nameservers <"${resolv_conf}")
+		forwarders=$(get_nameservers <"${D}${resolv_conf}")
 		style=dynamic
 		;;
 	*)
@@ -398,7 +434,7 @@ main() {
 		echo "Forwarding disabled, unbound will recurse."
 		backup "${forward_conf}"
 	else
-		local tmp_forward_conf=$(mktemp -u "${forward_conf}.XXXXX")
+		local tmp_forward_conf=$(tmp "${forward_conf}")
 		gen_forward_conf ${forwarders} | unexpand >"${tmp_forward_conf}"
 		replace "${forward_conf}" "${tmp_forward_conf}"
 	fi
@@ -406,21 +442,21 @@ main() {
 	#
 	# Generate lan-zones.conf.
 	#
-	local tmp_lanzones_conf=$(mktemp -u "${lanzones_conf}.XXXXX")
+	local tmp_lanzones_conf=$(tmp "${lanzones_conf}")
 	gen_lanzones_conf | unexpand >"${tmp_lanzones_conf}"
 	replace "${lanzones_conf}" "${tmp_lanzones_conf}"
 
 	#
 	# Generate control.conf.
 	#
-	local tmp_control_conf=$(mktemp -u "${control_conf}.XXXXX")
+	local tmp_control_conf=$(tmp "${control_conf}")
 	gen_control_conf | unexpand >"${tmp_control_conf}"
 	replace "${control_conf}" "${tmp_control_conf}"
 
 	#
 	# Generate unbound.conf.
 	#
-	local tmp_unbound_conf=$(mktemp -u "${unbound_conf}.XXXXX")
+	local tmp_unbound_conf=$(tmp "${unbound_conf}")
 	set_chrootdir
 	gen_unbound_conf | unexpand >"${tmp_unbound_conf}"
 	replace "${unbound_conf}" "${tmp_unbound_conf}"
@@ -445,15 +481,15 @@ main() {
 	# Rewrite resolvconf.conf so resolvconf updates forward.conf
 	# instead of resolv.conf.
 	#
-	local tmp_resolvconf_conf=$(mktemp -u "${resolvconf_conf}.XXXXX")
+	local tmp_resolvconf_conf=$(tmp "${resolvconf_conf}")
 	gen_resolvconf_conf "${style}" | unexpand >"${tmp_resolvconf_conf}"
 	replace "${resolvconf_conf}" "${tmp_resolvconf_conf}"
 
 	#
 	# Finally, rewrite resolv.conf.
 	#
-	local tmp_resolv_conf=$(mktemp -u "${resolv_conf}.XXXXX")
-	gen_resolv_conf <"${resolv_conf}" | unexpand >"${tmp_resolv_conf}"
+	local tmp_resolv_conf=$(tmp "${resolv_conf}")
+	gen_resolv_conf <"${D}${resolv_conf}" | unexpand >"${tmp_resolv_conf}"
 	replace "${resolv_conf}" "${tmp_resolv_conf}"
 }
 
