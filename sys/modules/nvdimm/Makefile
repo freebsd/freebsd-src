@@ -6,6 +6,6 @@ KMOD=	nvdimm
 SRCS=	nvdimm.c \
 	nvdimm_spa.c
 
-SRCS+=	device_if.h bus_if.h
+SRCS+=	acpi_if.h bus_if.h device_if.h
 
 .include <bsd.kmod.mk>
