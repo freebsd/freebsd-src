@@ -234,6 +234,20 @@ boot</screen>
 	    xlink:href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=228536">228536</link>
 	  for more information.</para>
       </listitem>
+
+      <listitem>
+	<para>[2018-10-18] A &os; system with a custom kernel
+	  configuration excluding <acronym>NFS</acronym> on 10.x did
+	  not explicitly require the <literal>krpc</literal> option to
+	  be included when booting via <acronym>ZFS</acronym>-on-root
+	  and, for example, setting
+	  <literal>MODULES_OVERRIDE="zfs opensolaris"</literal> in the
+	  kernel configuration.</para>
+
+	<para>In 11.x, however, <literal>krpc</literal> is explicitly
+	  required if the kernel configuration excludes
+	  <literal>NFS</literal>.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
