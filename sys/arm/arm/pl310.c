@@ -168,34 +168,27 @@ pl310_set_ram_latency(struct pl310_softc *sc, uint32_t which_reg,
 {
 	uint32_t v;
 
-	printf("%s\n", __func__);
 	KASSERT(which_reg == PL310_TAG_RAM_CTRL ||
 	    which_reg == PL310_DATA_RAM_CTRL,
 	    ("bad pl310 ram latency register address"));
 
-	printf("%s\n", __func__);
 	v = pl310_read4(sc, which_reg);
-	printf("%s\n", __func__);
 	if (setup != 0) {
 		KASSERT(setup <= 8, ("bad pl310 setup latency: %d", setup));
 		v &= ~RAM_CTRL_SETUP_MASK;
 		v |= (setup - 1) << RAM_CTRL_SETUP_SHIFT;
 	}
-	printf("%s\n", __func__);
 	if (read != 0) {
 		KASSERT(read <= 8, ("bad pl310 read latency: %d", read));
 		v &= ~RAM_CTRL_READ_MASK;
 		v |= (read - 1) << RAM_CTRL_READ_SHIFT;
 	}
-	printf("%s\n", __func__);
 	if (write != 0) {
 		KASSERT(write <= 8, ("bad pl310 write latency: %d", write));
 		v &= ~RAM_CTRL_WRITE_MASK;
 		v |= (write - 1) << RAM_CTRL_WRITE_SHIFT;
 	}
-	printf("%s wr\n", __func__);
 	pl310_write4(sc, which_reg, v);
-	printf("%s done\n", __func__);
 }
 
 static int
@@ -489,16 +482,12 @@ pl310_attach(device_t dev)
 	uint32_t cache_id, debug_ctrl;
 	phandle_t node;
 
-	printf("%s\n", __func__);
-
 	sc->sc_dev = dev;
 	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->sc_mem_res == NULL)
 		panic("%s: Cannot map registers", device_get_name(dev));
-
-	printf("%s\n", __func__);
 
 	/* Allocate an IRQ resource */
 	rid = 0;
@@ -508,16 +497,10 @@ pl310_attach(device_t dev)
 		device_printf(dev, "cannot allocate IRQ, not using interrupt\n");
 	}
 
-	printf("%s: mtx init\n", __func__);
 	pl310_softc = sc;
 	mtx_init(&sc->sc_mtx, "pl310lock", NULL, MTX_SPIN);
 
-	printf("%s: pl310_read4\n", __func__);
-	printf("%s: pl310_read4\n", __func__);
-	printf("%s: pl310_read4\n", __func__);
-
 	cache_id = pl310_read4(sc, PL310_CACHE_ID);
-	printf("%s\n", __func__);
 	sc->sc_rtl_revision = (cache_id >> CACHE_ID_RELEASE_SHIFT) &
 	    CACHE_ID_RELEASE_MASK;
 	device_printf(dev, "Part number: 0x%x, release: 0x%x\n",

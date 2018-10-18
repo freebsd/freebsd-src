@@ -20,6 +20,3 @@ device		pass
 
 nodevice	mmc
 nodevice	mmcsd
-
-# dwmmc_altera.c fails to build
-nodevice	dwmmc
