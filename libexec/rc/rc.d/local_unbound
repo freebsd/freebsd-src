@@ -33,6 +33,7 @@ load_rc_config $name
 : ${local_unbound_controlconf:=${local_unbound_workdir}/control.conf}
 : ${local_unbound_anchor:=${local_unbound_workdir}/root.key}
 : ${local_unbound_forwarders:=}
+: ${local_unbound_tls:=}
 
 do_as_unbound()
 {
@@ -63,6 +64,10 @@ local_unbound_configtest()
 #
 local_unbound_setup()
 {
+	local tls_flag
+	if checkyesno local_unbound_tls ; then
+		tls_flag="-t"
+	fi
 	echo "Performing initial setup."
 	${command}-setup -n \
 	    -u unbound \
@@ -71,6 +76,7 @@ local_unbound_setup()
 	    -f ${local_unbound_forwardconf} \
 	    -o ${local_unbound_controlconf} \
 	    -a ${local_unbound_anchor} \
+	    ${tls_flag} \
 	    ${local_unbound_forwarders}
 }
 
