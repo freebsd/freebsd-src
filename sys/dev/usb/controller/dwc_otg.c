@@ -1461,6 +1461,8 @@ dwc_otg_host_data_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 				/* check if we are complete */
 				if (td->tt_xactpos == HCSPLT_XACTPOS_BEGIN) {
 					goto complete;
+				} else if (td->hcsplt != 0) {
+					goto receive_pkt;
 				} else {
 					/* get more packets */
 					goto busy;
@@ -1519,8 +1521,10 @@ receive_pkt:
   	if (td->hcsplt != 0) {
 		delta = td->tt_complete_slot - sc->sc_last_frame_num - 1;
 		if (td->tt_scheduled == 0 || delta < DWC_OTG_TT_SLOT_MAX) {
-			td->state = DWC_CHAN_ST_WAIT_C_PKT;
-			goto busy;
+			if (td->ep_type != UE_ISOCHRONOUS) {
+				td->state = DWC_CHAN_ST_WAIT_C_PKT;
+				goto busy;
+			}
 		}
 		delta = sc->sc_last_frame_num - td->tt_start_slot;
 		if (delta > DWC_OTG_TT_SLOT_MAX) {
@@ -1566,12 +1570,23 @@ receive_pkt:
 		hcchar = td->hcchar;
 		hcchar |= HCCHAR_EPDIR_IN;
 
-		/* receive complete split ASAP */
-		if ((sc->sc_last_frame_num & 1) != 0 &&
-		    td->ep_type == UE_ISOCHRONOUS)
-			hcchar |= HCCHAR_ODDFRM;
-		else
+		if (td->ep_type == UE_ISOCHRONOUS) {
+			if (td->hcsplt != 0) {
+				/* continously buffer */
+				if (sc->sc_last_frame_num & 1)
+					hcchar &= ~HCCHAR_ODDFRM;
+				else
+					hcchar |= HCCHAR_ODDFRM;
+			} else {
+				/* multi buffer, if any */
+				if (sc->sc_last_frame_num & 1)
+					hcchar |= HCCHAR_ODDFRM;
+				else
+					hcchar &= ~HCCHAR_ODDFRM;
+			}
+		} else {
 			hcchar &= ~HCCHAR_ODDFRM;
+		}
 
 		/* must enable channel before data can be received */
 		DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(channel), hcchar);
