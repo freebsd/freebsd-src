@@ -74,6 +74,7 @@ enum {
 	VIE_OP_TYPE_GROUP1,
 	VIE_OP_TYPE_STOS,
 	VIE_OP_TYPE_BITTEST,
+	VIE_OP_TYPE_TWOB_GRP15,
 	VIE_OP_TYPE_LAST
 };
 
@@ -85,6 +86,10 @@ enum {
 #define	VIE_OP_F_NO_GLA_VERIFICATION (1 << 4)
 
 static const struct vie_op two_byte_opcodes[256] = {
+	[0xAE] = {
+		  .op_byte = 0xAE,
+		  .op_type = VIE_OP_TYPE_TWOB_GRP15,
+	},
 	[0xB6] = {
 		.op_byte = 0xB6,
 		.op_type = VIE_OP_TYPE_MOVZX,
@@ -1441,6 +1446,37 @@ emulate_bittest(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (0);
 }
 
+static int
+emulate_twob_group15(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+    mem_region_read_t memread, mem_region_write_t memwrite, void *memarg)
+{
+	int error;
+	uint64_t buf;
+
+	switch (vie->reg & 7) {
+	case 0x7:	/* CLFLUSH, CLFLUSHOPT, and SFENCE */
+		if (vie->mod == 0x3) {
+			/*
+			 * SFENCE.  Ignore it, VM exit provides enough
+			 * barriers on its own.
+			 */
+			error = 0;
+		} else {
+			/*
+			 * CLFLUSH, CLFLUSHOPT.  Only check for access
+			 * rights.
+			 */
+			error = memread(vm, vcpuid, gpa, &buf, 1, memarg);
+		}
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	return (error);
+}
+
 int
 vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
     struct vm_guest_paging *paging, mem_region_read_t memread,
@@ -1499,6 +1535,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		break;
 	case VIE_OP_TYPE_BITTEST:
 		error = emulate_bittest(vm, vcpuid, gpa, vie,
+		    memread, memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_TWOB_GRP15:
+		error = emulate_twob_group15(vm, vcpuid, gpa, vie,
 		    memread, memwrite, memarg);
 		break;
 	default:
