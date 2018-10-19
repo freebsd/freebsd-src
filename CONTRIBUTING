@@ -17,11 +17,14 @@ To email small changes, please run a POSIX shell command like
 'diff -u old/europe new/europe >myfix.patch', and attach
 myfix.patch to the email.
 
-For more-elaborate changes, please read the theory.html file and browse
-the mailing list archives <https://mm.icann.org/pipermail/tz/> for
-examples of patches that tend to work well.  Additions to
-data should contain commentary citing reliable sources as
-justification.  Citations should use https: URLs if available.
+For more-elaborate or possibly-controversial changes,
+such as renaming, adding or removing zones, please read
+<https://www.iana.org/time-zones/repository/theory.html> or the file
+theory.html.  It is also good to browse the mailing list archives
+<https://mm.icann.org/pipermail/tz/> for examples of patches that tend
+to work well.  Additions to data should contain commentary citing
+reliable sources as justification.  Citations should use https: URLs
+if available.
 
 Please submit changes against either the latest release in
 <https://www.iana.org/time-zones> or the master branch of the development
