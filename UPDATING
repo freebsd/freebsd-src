@@ -16,20 +16,9 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
-	FreeBSD 12.x has many debugging features turned on, in both the kernel
-	and userland.  These features attempt to detect incorrect use of
-	system primitives, and encourage loud failure through extra sanity
-	checking and fail stop semantics.  They also substantially impact
-	system performance.  If you want to do performance measurement,
-	benchmarking, and optimization, you'll want to turn them off.  This
-	includes various WITNESS- related kernel options, INVARIANTS, malloc
-	debugging flags in userland, and various verbose features in the
-	kernel.  Many developers choose to disable these features on build
-	machines to maximize performance.  (To completely disable malloc
-	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
-	disable the most expensive debugging functionality run
-	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+20181019:
+	The stable/12 branch has been created in subversion from head
+	revision r339432.
 
 20181009:
 	OpenSSL has been updated to version 1.1.1.  This update included
