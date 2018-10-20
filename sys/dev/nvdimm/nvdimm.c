@@ -222,7 +222,7 @@ nvdimm_count_devs(ACPI_HANDLE handle __unused, void *arg)
 		status = AcpiGetName(handle, ACPI_FULL_PATHNAME, &name);
 		if (ACPI_FAILURE(status))
 			return_ACPI_STATUS(status);
-		printf("nvdimm: enumerated %s\n", name.Pointer);
+		printf("nvdimm: enumerated %s\n", (char *)name.Pointer);
 		AcpiOsFree(name.Pointer);
 	}
 
