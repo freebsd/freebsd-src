@@ -285,7 +285,8 @@ random_fortuna_reseed_internal(uint32_t *entropy_data, u_int blockcount)
 	 */
 	randomdev_hash_init(&context);
 	randomdev_hash_iterate(&context, zero_region, RANDOM_ZERO_BLOCKSIZE);
-	randomdev_hash_iterate(&context, &fortuna_state.fs_key, sizeof(fortuna_state.fs_key));
+	randomdev_hash_iterate(&context, &fortuna_state.fs_key.key.keyMaterial,
+	    fortuna_state.fs_key.key.keyLen / 8);
 	randomdev_hash_iterate(&context, entropy_data, RANDOM_KEYSIZE*blockcount);
 	randomdev_hash_finish(&context, hash);
 	randomdev_hash_init(&context);
