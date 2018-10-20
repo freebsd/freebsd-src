@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/domainset.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -584,6 +585,33 @@ vm_phys_init(void)
 	}
 
 	rw_init(&vm_phys_fictitious_reg_lock, "vmfctr");
+}
+
+/*
+ * Register info about the NUMA topology of the system.
+ *
+ * Invoked by platform-dependent code prior to vm_phys_init().
+ */
+void
+vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
+    int *locality)
+{
+#ifdef NUMA
+	int i;
+
+	vm_ndomains = ndomains;
+	mem_affinity = affinity;
+	mem_locality = locality;
+
+	for (i = 0; i < vm_ndomains; i++)
+		DOMAINSET_SET(i, &all_domains);
+
+	domainset_init();
+#else
+	(void)ndomains;
+	(void)affinity;
+	(void)locality;
+#endif
 }
 
 /*
