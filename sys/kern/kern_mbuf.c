@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_param.h"
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/malloc.h>
-#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
@@ -409,6 +409,8 @@ nd_buf_import(void *arg, void **store, int count, int domain __unused,
 	struct mbuf *m;
 	int i;
 
+	KASSERT(!dumping, ("%s: ran out of pre-allocated mbufs", __func__));
+
 	q = arg;
 
 	for (i = 0; i < count; i++) {
@@ -443,6 +445,8 @@ nd_pack_import(void *arg __unused, void **store, int count, int domain __unused,
 	struct mbuf *m;
 	void *clust;
 	int i;
+
+	KASSERT(!dumping, ("%s: ran out of pre-allocated mbufs", __func__));
 
 	for (i = 0; i < count; i++) {
 		m = m_get(MT_DATA, M_NOWAIT);
