@@ -12,10 +12,7 @@ Public domain.
 #define CHACHA_H
 
 #include <sys/types.h>
-
-struct chacha_ctx {
-	u_int input[16];
-};
+#include <crypto/chacha20/_chacha.h>
 
 #define CHACHA_MINKEYLEN 	16
 #define CHACHA_NONCELEN		8
