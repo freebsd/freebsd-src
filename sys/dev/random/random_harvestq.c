@@ -414,7 +414,8 @@ random_harvestq_prime(void *unused __unused)
 				event.he_somecounter = (uint32_t)get_cyclecount();
 				event.he_size = count;
 				event.he_source = RANDOM_CACHED;
-				event.he_destination = harvest_context.hc_destination[0]++;
+				event.he_destination =
+				    harvest_context.hc_destination[RANDOM_CACHED]++;
 				memcpy(event.he_entropy, data + i, sizeof(event.he_entropy));
 				random_harvestq_fast_process_event(&event);
 				explicit_bzero(&event, sizeof(event));
