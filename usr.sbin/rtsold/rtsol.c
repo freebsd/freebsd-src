@@ -616,7 +616,6 @@ ra_opt_handler(struct ifinfo *ifi)
 				TAILQ_INSERT_TAIL(&sm_rdnss_head, smp3,
 				    sm_next);
 				ifi->ifi_rdnss = IFI_DNSOPT_STATE_RECEIVED;
-
 				break;
 			case ND_OPT_DNSSL:
 				if (TS_CMP(&now, &rao->rao_expire, >)) {
@@ -656,10 +655,7 @@ ra_opt_handler(struct ifinfo *ifi)
 				    sm_next);
 				dlen += strlen(rao->rao_msg) +
 				    strlen(resstr_sp);
-				break;
-
 				ifi->ifi_dnssl = IFI_DNSOPT_STATE_RECEIVED;
-			default:
 				break;
 			}
 			continue;
