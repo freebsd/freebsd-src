@@ -97,6 +97,8 @@ static int do_dump;
 static const char *dumpfilename = RTSOL_DUMPFILE;
 #endif
 
+static char **autoifprobe(void);
+static int ifconfig(char *ifname);
 static int make_packet(struct ifinfo *);
 static struct timespec *rtsol_check_timer(void);
 
@@ -325,7 +327,7 @@ main(int argc, char **argv)
 	return (0);
 }
 
-int
+static int
 ifconfig(char *ifname)
 {
 	struct ifinfo *ifi;
@@ -775,7 +777,7 @@ warnmsg(int priority, const char *func, const char *msg, ...)
 /*
  * return a list of interfaces which is suitable to sending an RS.
  */
-char **
+static char **
 autoifprobe(void)
 {
 	static char **argv = NULL;
