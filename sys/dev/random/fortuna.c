@@ -310,6 +310,8 @@ random_fortuna_genblocks(uint8_t *buf, u_int blockcount)
 	u_int i;
 
 	RANDOM_RESEED_ASSERT_LOCK_OWNED();
+	KASSERT(!uint128_is_zero(fortuna_state.fs_counter), ("FS&K: C != 0"));
+
 	for (i = 0; i < blockcount; i++) {
 		/*-
 		 * FS&K - r = r|E(K,C)
