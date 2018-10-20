@@ -431,21 +431,6 @@ bad:
 	return (-1);
 }
 
-void
-iflist_init(void)
-{
-	struct ifinfo *ifi;
-
-	while ((ifi = TAILQ_FIRST(&ifinfo_head)) != NULL) {
-		TAILQ_REMOVE(&ifinfo_head, ifi, ifi_next);
-		if (ifi->sdl != NULL)
-			free(ifi->sdl);
-		if (ifi->rs_data != NULL)
-			free(ifi->rs_data);
-		free(ifi);
-	}
-}
-
 struct rainfo *
 find_rainfo(struct ifinfo *ifi, struct sockaddr_in6 *sin6)
 {
@@ -726,9 +711,6 @@ rtsol_timer_update(struct ifinfo *ifi)
 
 #undef MILLION
 }
-
-/* timer related utility functions */
-#define MILLION 1000000
 
 #ifndef SMALL
 static void

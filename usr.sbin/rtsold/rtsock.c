@@ -57,14 +57,6 @@
 #include <syslog.h>
 #include "rtsold.h"
 
-#define ROUNDUP(a, size) \
-	(((a) & ((size)-1)) ? (1 + ((a) | ((size)-1))) : (a))
-
-#define NEXT_SA(ap) (ap) = (struct sockaddr *) \
-	((caddr_t)(ap) + \
-	 ((ap)->sa_len ? ROUNDUP((ap)->sa_len, sizeof(u_long)) \
-		       : sizeof(u_long)))
-
 static int rtsock_input_ifannounce(int, struct rt_msghdr *, char *);
 
 static struct {
