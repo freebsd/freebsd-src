@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "un-namespace.h"
 
+#define CHACHA_EMBED
 #define KEYSTREAM_ONLY
 #include "chacha.c"
 
