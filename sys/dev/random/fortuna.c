@@ -368,11 +368,11 @@ random_fortuna_pre_read(void)
 	u_int i;
 
 	KASSERT(fortuna_state.fs_minpoolsize > 0, ("random: Fortuna threshold must be > 0"));
+	RANDOM_RESEED_LOCK();
 #ifdef _KERNEL
 	/* FS&K - Use 'getsbinuptime()' to prevent reseed-spamming. */
 	now = getsbinuptime();
 #endif
-	RANDOM_RESEED_LOCK();
 
 	if (fortuna_state.fs_pool[0].fsp_length >= fortuna_state.fs_minpoolsize
 #ifdef _KERNEL
