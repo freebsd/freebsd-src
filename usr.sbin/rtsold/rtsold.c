@@ -33,10 +33,9 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/param.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -96,10 +95,6 @@ static const char *pidfilename = RTSOL_PIDFILE;
 #ifndef SMALL
 static int do_dump;
 static const char *dumpfilename = RTSOL_DUMPFILE;
-#endif
-
-#if 0
-static int ifreconfig(char *);
 #endif
 
 static int make_packet(struct ifinfo *);
@@ -216,16 +211,6 @@ main(int argc, char **argv)
 		errx(1, "pid filename (%s) must be an absolute path",
 		    pidfilename);
 	}
-
-#if (__FreeBSD_version < 900000)
-	if (Fflag) {
-		setinet6sysctl(IPV6CTL_FORWARDING, 0);
-	} else {
-		/* warn if forwarding is up */
-		if (getinet6sysctl(IPV6CTL_FORWARDING))
-			warnx("kernel is configured as a router, not a host");
-	}
-#endif
 
 #ifndef SMALL
 	/* initialization to dump internal status to a file */
@@ -458,33 +443,6 @@ iflist_init(void)
 		free(ifi);
 	}
 }
-
-#if 0
-static int
-ifreconfig(char *ifname)
-{
-	struct ifinfo *ifi, *prev;
-	int rv;
-
-	prev = NULL;
-	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
-		if (strncmp(ifi->ifname, ifname, sizeof(ifi->ifname)) == 0)
-			break;
-		prev = ifi;
-	}
-	prev->next = ifi->next;
-
-	rv = ifconfig(ifname);
-
-	/* reclaim it after ifconfig() in case ifname is pointer inside ifi */
-	if (ifi->rs_data)
-		free(ifi->rs_data);
-	free(ifi->sdl);
-	free(ifi);
-
-	return (rv);
-}
-#endif
 
 struct rainfo *
 find_rainfo(struct ifinfo *ifi, struct sockaddr_in6 *sin6)
