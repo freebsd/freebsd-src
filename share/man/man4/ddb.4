@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2018
+.Dd September 21, 2018
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -1013,13 +1013,17 @@ For exact interpretation of output, visit
 header file.
 .\"
 .Pp
-.It Ic show Cm thread Op Ar addr
+.It Ic show Cm thread Op Ar addr | tid
 If no
 .Ar addr
+or
+.Ar tid
 is specified, show detailed information about current thread.
-Otherwise, information about thread at
-.Ar addr
-is printed.
+Otherwise, print information about the thread with ID
+.Ar tid
+or kernel address
+.Ar addr .
+(If the argument is a decimal number, it is assumed to be a tid.)
 .\"
 .Pp
 .It Ic show Cm threads
@@ -1249,6 +1253,13 @@ rather than a traditional memory dump or minidump.
 reports whether a textdump has been scheduled.
 .Ic textdump unset
 cancels a request to perform a textdump as the next kernel core dump.
+.Pp
+.It Ic thread Ar addr | tid
+Switch the debugger to the thread with ID
+.Ar tid ,
+if the argument is a decimal number, or address
+.Ar addr ,
+otherwise.
 .El
 .Sh VARIABLES
 The debugger accesses registers and variables as
