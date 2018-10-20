@@ -1,22 +1,25 @@
-# Mesajele în limba română pentru dialog.
-# Copyright (C) 2003 Free Software Foundation, Inc.
-# Acest fişier este distribuit sub aceeaşi licenţă ca şi pachetul dialog.
+# Translation of dialog messages in Romanian.
+# Copyright (C) 2015 Free Software Foundation, Inc.
+# This file is distributed under the same license as the dialog package.
 # Laurentiu Buzdugan <lbuz@rolix.org>, 2005.
-#
+# Mihai Cristescu <mihai.cristescu@archlinux.info>, 2015.
 #
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: dialog 1.0-rel20041222\n"
+"Project-Id-Version: dialog 1.1.20080819\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2008-07-20 14:31-0400\n"
-"PO-Revision-Date: 2005-01-20 12:00-0500\n"
-"Last-Translator: Laurentiu Buzdugan <lbuz@rolix.org>\n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2015-03-13 19:50+0200\n"
+"Last-Translator: Mihai Cristescu <mihai.cristescu@archlinux.info>\n"
 "Language-Team: Romanian <translation-team-ro@lists.sourceforge.net>\n"
+"Language: ro\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=3; plural=(n==1?0:(((n%100>19)||((n%100==0)&&(n!=0)))?2:1));\n"
+"X-Generator: Poedit 1.7.4\n"
 
 #: buttons.c:385
 msgid "Yes"
@@ -32,7 +35,7 @@ msgstr "OK"
 
 #: buttons.c:409
 msgid "Cancel"
-msgstr "Renunţă"
+msgstr "Renunță"
 
 #: buttons.c:417
 msgid "EXIT"
@@ -49,16 +52,16 @@ msgstr "Ajutor"
 #. Headline "Month"
 #: calendar.c:273
 msgid "Month"
-msgstr "Luna"
+msgstr "Lună"
 
 #. Headline "Year"
 #: calendar.c:293
 msgid "Year"
 msgstr "An"
 
-#: dialog.c:744
+#: dialog.c:741
 msgid "Rename"
-msgstr "Redenumeşte"
+msgstr "Redenumește"
 
 #: fselect.c:550
 msgid "Directories"
@@ -66,48 +69,47 @@ msgstr "Directoare"
 
 #: fselect.c:551
 msgid "Files"
-msgstr "Fişiere"
+msgstr "Fișiere"
 
 #: mixedgauge.c:58
 msgid "Succeeded"
-msgstr ""
+msgstr "A reușit"
 
 #: mixedgauge.c:61
-#, fuzzy
 msgid "Failed"
-msgstr "Fişiere"
+msgstr "A eșuat"
 
 #: mixedgauge.c:64
 msgid "Passed"
-msgstr ""
+msgstr "A trecut"
 
 #: mixedgauge.c:67
 msgid "Completed"
-msgstr ""
+msgstr "Complet"
 
 #: mixedgauge.c:70
 msgid "Checked"
-msgstr ""
+msgstr "Verificat"
 
 #: mixedgauge.c:73
 msgid "Done"
-msgstr ""
+msgstr "Gata"
 
 #: mixedgauge.c:76
 msgid "Skipped"
-msgstr ""
+msgstr "Omis"
 
 #: mixedgauge.c:79
 msgid "In Progress"
-msgstr ""
+msgstr "În curs"
 
 #: mixedgauge.c:85
 msgid "N/A"
-msgstr ""
+msgstr "N/A"
 
 #: mixedgauge.c:193
 msgid "Overall Progress"
-msgstr ""
+msgstr "Progres pe ansamblu"
 
 #: textbox.c:489
 msgid "Search"
