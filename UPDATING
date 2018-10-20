@@ -31,6 +31,31 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20181015:
+	Ports for the DRM modules have been simplified. Now, amd64 users should
+	just install the drm-kmod port. All others should install
+	drm-legacy-kmod.
+
+	Graphics hardware that's newer than about 2010 usually works with
+	drm-kmod.  For hardware older than 2013, however, some users will need
+	to use drm-legacy-kmod if drm-kmod doesn't work for them. Hardware older
+	than 2008 usually only works in drm-legacy-kmod. The graphics team can
+	only commit to hardware made since 2013 due to the complexity of the
+	market and difficulty to test all the older cards effectively. If you
+	have hardware supported by drm-kmod, you are strongly encouraged to use
+	that as you will get better support.
+
+	Other than KPI chasing, drm-legacy-kmod will not be updated. As outlined
+	elsewhere, the drm and drm2 modules will be eliminated from the src base
+	soon (with a limited exception for arm). Please update to the package asap
+	and report any issues to x11@freebsd.org.
+
+	Generally, anybody using the drm*-kmod packages should add
+	WITHOUT_DRM_MODULE=t and WITHOUT_DRM2_MODULE=t to avoid nasty
+	cross-threading surprises, especially with automatic driver
+	loading from X11 startup. These will become the defaults in 13-current
+	shortly.
+
 20181009:
 	OpenSSL has been updated to version 1.1.1.  This update included
 	additional various API changes througout the base system.  It is
