@@ -119,6 +119,8 @@ __FBSDID("$FreeBSD$");
  */
 
 LIST_HEAD(domainlist, domainset);
+struct domainset __read_mostly domainset_prefer[MAXMEMDOM];
+struct domainset __read_mostly domainset_roundrobin;
 
 static uma_zone_t cpuset_zone;
 static uma_zone_t domainset_zone;
@@ -1369,28 +1371,53 @@ cpuset_setithread(lwpid_t id, int cpu)
 }
 
 /*
+ * Initialize static domainsets after NUMA information is available.  This is
+ * called very early during boot.
+ */
+void
+domainset_init(void)
+{
+	struct domainset *dset;
+	int i;
+
+	dset = &domainset_roundrobin;
+	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
+	dset->ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
+	dset->ds_prefer = -1;
+	_domainset_create(dset, NULL);
+
+	for (i = 0; i < vm_ndomains; i++) {
+		dset = &domainset_prefer[i];
+		DOMAINSET_COPY(&all_domains, &dset->ds_mask);
+		dset->ds_policy = DOMAINSET_POLICY_PREFER;
+		dset->ds_prefer = i;
+		_domainset_create(dset, NULL);
+	}
+}
+
+/*
  * Create the domainset for cpuset 0, 1 and cpuset 2.
  */
 void
 domainset_zero(void)
 {
 	struct domainset *dset;
-	int i;
 
 	mtx_init(&cpuset_lock, "cpuset", NULL, MTX_SPIN | MTX_RECURSE);
 
 	dset = &domainset0;
-	DOMAINSET_ZERO(&dset->ds_mask);
-	for (i = 0; i < vm_ndomains; i++)
-		DOMAINSET_SET(i, &dset->ds_mask);
+	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
 	dset->ds_policy = DOMAINSET_POLICY_FIRSTTOUCH;
 	dset->ds_prefer = -1;
-	(void)domainset_empty_vm(dset);
 	curthread->td_domain.dr_policy = _domainset_create(dset, NULL);
 
 	domainset_copy(dset, &domainset2);
 	domainset2.ds_policy = DOMAINSET_POLICY_INTERLEAVE;
 	kernel_object->domain.dr_policy = _domainset_create(&domainset2, NULL);
+
+	/* Remove empty domains from the global policies. */
+	LIST_FOREACH(dset, &cpuset_domains, ds_link)
+		(void)domainset_empty_vm(dset);
 }
 
 /*
