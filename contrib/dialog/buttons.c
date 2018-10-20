@@ -1,9 +1,9 @@
 /*
- *  $Id: buttons.c,v 1.94 2012/12/30 20:51:01 tom Exp $
+ *  $Id: buttons.c,v 1.99 2018/06/18 22:11:16 tom Exp $
  *
  *  buttons.c -- draw buttons, e.g., OK/Cancel
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2017,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -29,6 +29,7 @@
 #endif
 
 #define MIN_BUTTON (-dialog_state.visit_cols)
+#define CHR_BUTTON (!dialog_state.plain_buttons)
 
 static void
 center_label(char *buffer, int longest, const char *label)
@@ -160,6 +161,12 @@ get_hotkeys(const char **labels)
     return result;
 }
 
+typedef enum {
+    sFIND_KEY = 0
+    ,sHAVE_KEY = 1
+    ,sHAD_KEY = 2
+} HOTKEY;
+
 /*
  * Print a button
  */
@@ -167,7 +174,7 @@ static void
 print_button(WINDOW *win, char *label, int hotkey, int y, int x, int selected)
 {
     int i;
-    int state = 0;
+    HOTKEY state = sFIND_KEY;
     const int *indx = dlg_index_wchars(label);
     int limit = dlg_count_wchars(label);
     chtype key_attr = (selected
@@ -178,18 +185,18 @@ print_button(WINDOW *win, char *label, int hotkey, int y, int x, int selected)
 			 : button_label_inactive_attr);
 
     (void) wmove(win, y, x);
-    (void) wattrset(win, selected
-		    ? button_active_attr
-		    : button_inactive_attr);
+    dlg_attrset(win, selected
+		? button_active_attr
+		: button_inactive_attr);
     (void) waddstr(win, "<");
-    (void) wattrset(win, label_attr);
+    dlg_attrset(win, label_attr);
     for (i = 0; i < limit; ++i) {
 	int check;
 	int first = indx[i];
 	int last = indx[i + 1];
 
 	switch (state) {
-	case 0:
+	case sFIND_KEY:
 	    check = UCH(label[first]);
 #ifdef USE_WIDE_CURSES
 	    if ((last - first) != 1) {
@@ -198,22 +205,24 @@ print_button(WINDOW *win, char *label, int hotkey, int y, int x, int selected)
 	    }
 #endif
 	    if (check == hotkey) {
-		(void) wattrset(win, key_attr);
-		state = 1;
+		dlg_attrset(win, key_attr);
+		state = sHAVE_KEY;
 	    }
 	    break;
-	case 1:
-	    wattrset(win, label_attr);
-	    state = 2;
+	case sHAVE_KEY:
+	    dlg_attrset(win, label_attr);
+	    state = sHAD_KEY;
+	    break;
+	default:
 	    break;
 	}
 	waddnstr(win, label + first, last - first);
     }
-    (void) wattrset(win, selected
-		    ? button_active_attr
-		    : button_inactive_attr);
+    dlg_attrset(win, selected
+		? button_active_attr
+		: button_inactive_attr);
     (void) waddstr(win, ">");
-    (void) wmove(win, y, x + ((int) strspn(label, " ")) + 1);
+    (void) wmove(win, y, x + ((int) (strspn) (label, " ")) + 1);
 }
 
 /*
@@ -374,7 +383,9 @@ dlg_draw_buttons(WINDOW *win,
 	for (n = 0; labels[n] != 0; n++) {
 	    center_label(buffer, longest, labels[n]);
 	    mouse_mkbutton(y, x, dlg_count_columns(buffer), n);
-	    print_button(win, buffer, hotkeys[n], y, x,
+	    print_button(win, buffer,
+			 CHR_BUTTON ? hotkeys[n] : -1,
+			 y, x,
 			 (selected == n) || (n == 0 && selected < 0));
 	    if (selected == n)
 		getyx(win, final_y, final_x);
@@ -389,7 +400,7 @@ dlg_draw_buttons(WINDOW *win,
 	}
 	(void) wmove(win, final_y, final_x);
 	wrefresh(win);
-	(void) wattrset(win, save);
+	dlg_attrset(win, save);
 	free(buffer);
 	free(hotkeys);
     }
@@ -629,7 +640,7 @@ dlg_ok_buttoncode(int button)
     } else if (dialog_vars.help_button && (button == n)) {
 	result = DLG_EXIT_HELP;
     }
-    dlg_trace_msg("# dlg_ok_buttoncode(%d) = %d\n", button, result);
+    DLG_TRACE(("# dlg_ok_buttoncode(%d) = %d\n", button, result));
     return result;
 }
 
@@ -679,7 +690,7 @@ dlg_defaultno_button(void)
 	while (dlg_ok_buttoncode(result) != DLG_EXIT_CANCEL)
 	    ++result;
     }
-    dlg_trace_msg("# dlg_defaultno_button() = %d\n", result);
+    DLG_TRACE(("# dlg_defaultno_button() = %d\n", result));
     return result;
 }
 
@@ -702,7 +713,7 @@ dlg_default_button(void)
 	    }
 	}
     }
-    dlg_trace_msg("# dlg_default_button() = %d\n", result);
+    DLG_TRACE(("# dlg_default_button() = %d\n", result));
     return result;
 }
 
