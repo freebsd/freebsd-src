@@ -1,0 +1,2 @@
+pass out log quick on lo0 route-to (lo0 ?) all flags S/SA keep state
+pass in log quick on lo0 route-to (lo0 ::1) inet6 all flags S/SA keep state
