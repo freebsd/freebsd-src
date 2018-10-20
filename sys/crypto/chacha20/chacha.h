@@ -20,10 +20,10 @@ Public domain.
 #define CHACHA_STATELEN		(CHACHA_NONCELEN+CHACHA_CTRLEN)
 #define CHACHA_BLOCKLEN		64
 
-#ifdef _KERNEL
-#define LOCAL
-#else
+#ifdef CHACHA_EMBED
 #define LOCAL static
+#else
+#define LOCAL
 #endif
 
 LOCAL void chacha_keysetup(struct chacha_ctx *x, const u_char *k, u_int kbits);
