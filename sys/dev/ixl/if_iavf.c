@@ -126,7 +126,6 @@ static int	iavf_sysctl_queue_interrupt_table(SYSCTL_HANDLER_ARGS);
 static int	iavf_sysctl_vf_reset(SYSCTL_HANDLER_ARGS);
 static int	iavf_sysctl_vflr_reset(SYSCTL_HANDLER_ARGS);
 
-char *iavf_vc_speed_to_string(enum virtchnl_link_speed link_speed);
 static void	iavf_save_tunables(struct iavf_sc *);
 static enum i40e_status_code
     iavf_process_adminq(struct iavf_sc *, u16 *);
