@@ -47,6 +47,8 @@ void		 stack_print_short(const struct stack *);
 void		 stack_print_short_ddb(const struct stack *);
 void		 stack_sbuf_print(struct sbuf *, const struct stack *);
 void		 stack_sbuf_print_ddb(struct sbuf *, const struct stack *);
+int		 stack_sbuf_print_flags(struct sbuf *, const struct stack *,
+		 int);
 #ifdef KTR
 void		 stack_ktr(u_int, const char *, int, const struct stack *,
 		    u_int, int);
