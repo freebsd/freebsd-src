@@ -333,7 +333,7 @@ random_fortuna_genblocks(uint8_t *buf, u_int blockcount)
 static __inline void
 random_fortuna_genrandom(uint8_t *buf, u_int bytecount)
 {
-	static uint8_t temp[RANDOM_BLOCKSIZE*(RANDOM_KEYS_PER_BLOCK)];
+	uint8_t temp[RANDOM_BLOCKSIZE * RANDOM_KEYS_PER_BLOCK];
 	u_int blockcount;
 
 	RANDOM_RESEED_ASSERT_LOCK_OWNED();
