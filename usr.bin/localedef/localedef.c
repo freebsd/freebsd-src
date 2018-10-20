@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2018 Nexenta Systems, Inc.
  * Copyright 2015 John Marino <draco@marino.st>
  *
  * This source code is derived from the illumos localedef command, and
@@ -34,11 +34,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <string.h>
 #include <libgen.h>
 #include <stddef.h>
@@ -54,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static int bsd = 0;
+static int byteorder = 0;
 int verbose = 0;
 int undefok = 0;
 int warnok = 0;
@@ -221,6 +224,18 @@ wr_category(void *buf, size_t sz, FILE *f)
 	return (0);
 }
 
+uint32_t
+htote(uint32_t arg)
+{
+
+	if (byteorder == 4321)
+		return (htobe32(arg));
+	else if (byteorder == 1234)
+		return (htole32(arg));
+	else
+		return (arg);
+}
+
 int yyparse(void);
 
 static void
@@ -229,7 +244,9 @@ usage(void)
 	(void) fprintf(stderr, "Usage: localedef [options] localename\n");
 	(void) fprintf(stderr, "[options] are:\n");
 	(void) fprintf(stderr, "  -D          : BSD-style output\n");
+	(void) fprintf(stderr, "  -b          : big-endian output\n");
 	(void) fprintf(stderr, "  -c          : ignore warnings\n");
+	(void) fprintf(stderr, "  -l          : little-endian output\n");
 	(void) fprintf(stderr, "  -v          : verbose output\n");
 	(void) fprintf(stderr, "  -U          : ignore undefined symbols\n");
 	(void) fprintf(stderr, "  -f charmap  : use given charmap file\n");
@@ -260,10 +277,16 @@ main(int argc, char **argv)
 
 	(void) setlocale(LC_ALL, "");
 
-	while ((c = getopt(argc, argv, "w:i:cf:u:vUD")) != -1) {
+	while ((c = getopt(argc, argv, "blw:i:cf:u:vUD")) != -1) {
 		switch (c) {
 		case 'D':
 			bsd = 1;
+			break;
+		case 'b':
+		case 'l':
+			if (byteorder != 0)
+				usage();
+			byteorder = c == 'b' ? 4321 : 1234;
 			break;
 		case 'v':
 			verbose++;

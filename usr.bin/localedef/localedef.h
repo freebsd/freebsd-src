@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2018 Nexenta Systems, Inc.
  * Copyright 2015 John Marino <draco@marino.st>
  *
  * This source code is derived from the illumos localedef command, and
@@ -74,6 +74,8 @@ void scan_to_eol(void);
 void add_wcs(wchar_t);
 void add_tok(int);
 wchar_t *get_wcs(void);
+
+uint32_t htote(uint32_t);
 
 /* charmap.c - CHARMAP handling */
 void init_charmap(void);
