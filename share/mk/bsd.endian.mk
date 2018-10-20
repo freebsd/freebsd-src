@@ -8,6 +8,7 @@
     ${MACHINE_ARCH:Mmips*el*} != ""
 TARGET_ENDIANNESS= 1234
 CAP_MKDB_ENDIAN= -l
+LOCALEDEF_ENDIAN= -l
 .elif ${MACHINE_ARCH} == "powerpc" || \
     ${MACHINE_ARCH} == "powerpc64" || \
     ${MACHINE_ARCH} == "powerpcspe" || \
@@ -16,4 +17,5 @@ CAP_MKDB_ENDIAN= -l
     ${MACHINE_ARCH:Mmips*} != ""
 TARGET_ENDIANNESS= 4321
 CAP_MKDB_ENDIAN= -b
+LOCALEDEF_ENDIAN= -b
 .endif

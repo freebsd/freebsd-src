@@ -1,5 +1,5 @@
 /*-
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2018 Nexenta Systems, Inc.
  * Copyright 2012 Garrett D'Amore <garrett@damore.org>  All rights reserved.
  * Copyright 2015 John Marino <draco@marino.st>
  *
@@ -296,10 +296,16 @@ dump_ctype(void)
 	_FileRuneEntry	*lo = NULL;
 	_FileRuneEntry	*up = NULL;
 	wchar_t		wc;
+	uint32_t	runetype_ext_nranges;
+	uint32_t	maplower_ext_nranges;
+	uint32_t	mapupper_ext_nranges;
 
 	(void) memset(&rl, 0, sizeof (rl));
+	runetype_ext_nranges = 0;
 	last_ct = NULL;
+	maplower_ext_nranges = 0;
 	last_lo = NULL;
+	mapupper_ext_nranges = 0;
 	last_up = NULL;
 
 	if ((f = open_category()) == NULL)
@@ -312,8 +318,8 @@ dump_ctype(void)
 	 * Initialize the identity map.
 	 */
 	for (wc = 0; (unsigned)wc < _CACHED_RUNES; wc++) {
-		rl.maplower[wc] = wc;
-		rl.mapupper[wc] = wc;
+		rl.maplower[wc] = htote(wc);
+		rl.mapupper[wc] = htote(wc);
 	}
 
 	RB_FOREACH(ctn, ctypes, &ctypes) {
@@ -399,39 +405,39 @@ dump_ctype(void)
 		 * upper/lower case, then we identity map it.
 		 */
 		if ((unsigned)wc < _CACHED_RUNES) {
-			rl.runetype[wc] = ctn->ctype;
+			rl.runetype[wc] = htote(ctn->ctype);
 			if (ctn->tolower)
-				rl.maplower[wc] = ctn->tolower;
+				rl.maplower[wc] = htote(ctn->tolower);
 			if (ctn->toupper)
-				rl.mapupper[wc] = ctn->toupper;
+				rl.mapupper[wc] = htote(ctn->toupper);
 			continue;
 		}
 
 		if ((last_ct != NULL) && (last_ct->ctype == ctn->ctype) &&
 		    (last_ct->wc + 1 == wc)) {
-			ct[rl.runetype_ext_nranges-1].max = wc;
+			ct[runetype_ext_nranges - 1].max = htote(wc);
 		} else {
-			rl.runetype_ext_nranges++;
-			ct = realloc(ct,
-			    sizeof (*ct) * rl.runetype_ext_nranges);
-			ct[rl.runetype_ext_nranges - 1].min = wc;
-			ct[rl.runetype_ext_nranges - 1].max = wc;
-			ct[rl.runetype_ext_nranges - 1].map = ctn->ctype;
+			runetype_ext_nranges++;
+			ct = realloc(ct, sizeof (*ct) * runetype_ext_nranges);
+			ct[runetype_ext_nranges - 1].min = htote(wc);
+			ct[runetype_ext_nranges - 1].max = htote(wc);
+			ct[runetype_ext_nranges - 1].map =
+			    htote(ctn->ctype);
 		}
 		last_ct = ctn;
 		if (ctn->tolower == 0) {
 			last_lo = NULL;
 		} else if ((last_lo != NULL) &&
 		    (last_lo->tolower + 1 == ctn->tolower)) {
-			lo[rl.maplower_ext_nranges-1].max = wc;
+			lo[maplower_ext_nranges - 1].max = htote(wc);
 			last_lo = ctn;
 		} else {
-			rl.maplower_ext_nranges++;
-			lo = realloc(lo,
-			    sizeof (*lo) * rl.maplower_ext_nranges);
-			lo[rl.maplower_ext_nranges - 1].min = wc;
-			lo[rl.maplower_ext_nranges - 1].max = wc;
-			lo[rl.maplower_ext_nranges - 1].map = ctn->tolower;
+			maplower_ext_nranges++;
+			lo = realloc(lo, sizeof (*lo) * maplower_ext_nranges);
+			lo[maplower_ext_nranges - 1].min = htote(wc);
+			lo[maplower_ext_nranges - 1].max = htote(wc);
+			lo[maplower_ext_nranges - 1].map =
+			    htote(ctn->tolower);
 			last_lo = ctn;
 		}
 
@@ -439,23 +445,26 @@ dump_ctype(void)
 			last_up = NULL;
 		} else if ((last_up != NULL) &&
 		    (last_up->toupper + 1 == ctn->toupper)) {
-			up[rl.mapupper_ext_nranges-1].max = wc;
+			up[mapupper_ext_nranges-1].max = htote(wc);
 			last_up = ctn;
 		} else {
-			rl.mapupper_ext_nranges++;
-			up = realloc(up,
-			    sizeof (*up) * rl.mapupper_ext_nranges);
-			up[rl.mapupper_ext_nranges - 1].min = wc;
-			up[rl.mapupper_ext_nranges - 1].max = wc;
-			up[rl.mapupper_ext_nranges - 1].map = ctn->toupper;
+			mapupper_ext_nranges++;
+			up = realloc(up, sizeof (*up) * mapupper_ext_nranges);
+			up[mapupper_ext_nranges - 1].min = htote(wc);
+			up[mapupper_ext_nranges - 1].max = htote(wc);
+			up[mapupper_ext_nranges - 1].map =
+			    htote(ctn->toupper);
 			last_up = ctn;
 		}
 	}
 
+	rl.runetype_ext_nranges = htote(runetype_ext_nranges);
+	rl.maplower_ext_nranges = htote(maplower_ext_nranges);
+	rl.mapupper_ext_nranges = htote(mapupper_ext_nranges);
 	if ((wr_category(&rl, sizeof (rl), f) < 0) ||
-	    (wr_category(ct, sizeof (*ct) * rl.runetype_ext_nranges, f) < 0) ||
-	    (wr_category(lo, sizeof (*lo) * rl.maplower_ext_nranges, f) < 0) ||
-	    (wr_category(up, sizeof (*up) * rl.mapupper_ext_nranges, f) < 0)) {
+	    (wr_category(ct, sizeof (*ct) * runetype_ext_nranges, f) < 0) ||
+	    (wr_category(lo, sizeof (*lo) * maplower_ext_nranges, f) < 0) ||
+	    (wr_category(up, sizeof (*up) * mapupper_ext_nranges, f) < 0)) {
 		return;
 	}
 
