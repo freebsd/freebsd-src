@@ -230,7 +230,8 @@ struct prison_racct {
 #define	PR_ALLOW_MOUNT_FDESCFS		0x1000
 #define	PR_ALLOW_MOUNT_LINPROCFS	0x2000
 #define	PR_ALLOW_MOUNT_LINSYSFS		0x4000
-#define	PR_ALLOW_ALL			0x7fff
+#define	PR_ALLOW_READ_MSGBUF		0x8000
+#define	PR_ALLOW_ALL			0xffff
 
 /*
  * OSD methods

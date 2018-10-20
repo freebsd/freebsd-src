@@ -200,6 +200,7 @@ static char *pr_allow_names[] = {
 	"allow.mount.fdescfs",
 	"allow.mount.linprocfs",
 	"allow.mount.linsysfs",
+	"allow.read_msgbuf",
 };
 const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
@@ -219,6 +220,7 @@ static char *pr_allow_nonames[] = {
 	"allow.mount.nofdescfs",
 	"allow.mount.nolinprocfs",
 	"allow.mount.nolinsysfs",
+	"allow.noread_msgbuf",
 };
 const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
@@ -3348,6 +3350,15 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_PROC_SETLOGINCLASS:
 		return (0);
 
+		/*
+		 * Do not allow a process inside a jail to read the kernel
+		 * message buffer unless explicitly permitted.
+		 */
+	case PRIV_MSGBUF:
+		if (cred->cr_prison->pr_allow & PR_ALLOW_READ_MSGBUF)
+			return (0);
+		return (EPERM);
+
 	default:
 		/*
 		 * In all remaining cases, deny the privilege request.  This
@@ -3796,6 +3807,8 @@ SYSCTL_JAIL_PARAM(_allow, quotas, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may set file quotas");
 SYSCTL_JAIL_PARAM(_allow, socket_af, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may create sockets other than just UNIX/IPv4/IPv6/route");
+SYSCTL_JAIL_PARAM(_allow, read_msgbuf, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may read the kernel message buffer");
 
 SYSCTL_JAIL_PARAM_SUBNODE(allow, mount, "Jail mount/unmount permission flags");
 SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
