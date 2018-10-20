@@ -1,9 +1,9 @@
 /*
- *  $Id: checklist.c,v 1.153 2013/09/02 17:01:02 tom Exp $
+ *  $Id: checklist.c,v 1.160 2018/06/19 22:57:01 tom Exp $
  *
  *  checklist.c -- implements the checklist box
  *
- *  Copyright 2000-2012,2013	Thomas E. Dickey
+ *  Copyright 2000-2016,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -70,17 +70,17 @@ print_item(ALL_DATA * data,
 			: item->text);
 
     /* Clear 'residue' of last item */
-    (void) wattrset(win, menubox_attr);
+    dlg_attrset(win, menubox_attr);
     (void) wmove(win, choice, 0);
     for (i = 0; i < data->use_width; i++)
 	(void) waddch(win, ' ');
 
     (void) wmove(win, choice, data->check_x);
-    (void) wattrset(win, selected ? check_selected_attr : check_attr);
+    dlg_attrset(win, selected ? check_selected_attr : check_attr);
     (void) wprintw(win,
 		   (data->checkflag == FLAG_CHECK) ? "[%c]" : "(%c)",
 		   states[item->state]);
-    (void) wattrset(win, menubox_attr);
+    dlg_attrset(win, menubox_attr);
     (void) waddch(win, ' ');
 
     if (both) {
@@ -94,7 +94,7 @@ print_item(ALL_DATA * data,
     if (selected) {
 	dlg_item_help(item->help);
     }
-    (void) wattrset(win, save);
+    dlg_attrset(win, save);
 }
 
 static void
@@ -181,6 +181,7 @@ dlg_checklist(const char *title,
 	DLG_KEYS_DATA( DLGK_PAGE_NEXT,	DLGK_MOUSE(KEY_NPAGE) ),
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,	KEY_PPAGE ),
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,	DLGK_MOUSE(KEY_PPAGE) ),
+	TOGGLEKEY_BINDINGS,
 	END_KEYS_BINDING
     };
     /* *INDENT-ON* */
@@ -201,16 +202,29 @@ dlg_checklist(const char *title,
     int result = DLG_EXIT_UNKNOWN;
     int num_states;
     WINDOW *dialog;
-    char *prompt = dlg_strclone(cprompt);
+    char *prompt;
     const char **buttons = dlg_ok_labels();
     const char *widget_name;
+
+    DLG_TRACE(("# %s args:\n", flag ? "checklist" : "radiolist"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("message", cprompt);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+    DLG_TRACE2N("lheight", list_height);
+    DLG_TRACE2N("llength", item_no);
+    /* FIXME dump the items[][] too */
+    DLG_TRACE2S("states", states);
+    DLG_TRACE2N("flag", flag);
+    DLG_TRACE2N("current", *current_item);
+
+    dialog_state.plain_buttons = TRUE;
 
     memset(&all, 0, sizeof(all));
     all.items = items;
     all.item_no = item_no;
 
     dlg_does_output();
-    dlg_tab_correct_str(prompt);
 
     /*
      * If this is a radiobutton list, ensure that no more than one item is
@@ -236,6 +250,9 @@ dlg_checklist(const char *title,
 #ifdef KEY_RESIZE
   retry:
 #endif
+
+    prompt = dlg_strclone(cprompt);
+    dlg_tab_correct_str(prompt);
 
     all.use_height = list_height;
     use_width = dlg_calc_list_width(item_no, items) + 10;
@@ -275,7 +292,7 @@ dlg_checklist(const char *title,
     dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
     dlg_print_autowrap(dialog, prompt, height, width);
 
     all.use_width = width - 6;
@@ -381,7 +398,7 @@ dlg_checklist(const char *title,
 		choice = (key - KEY_MAX);
 		print_list(&all, choice, scrollamt, max_choice);
 
-		key = ' ';	/* force the selected item to toggle */
+		key = DLGK_TOGGLE;	/* force the selected item to toggle */
 	    } else {
 		beep();
 		continue;
@@ -396,7 +413,7 @@ dlg_checklist(const char *title,
 	 * (any number of items can be selected) or radio list (zero or one
 	 * items can be selected).
 	 */
-	if (key == ' ') {
+	if (key == DLGK_TOGGLE) {
 	    int current = scrollamt + choice;
 	    int next = items[current].state + 1;
 
@@ -555,14 +572,15 @@ dlg_checklist(const char *title,
 		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
+		dlg_will_resize(dialog);
 		/* reset data */
 		height = old_height;
 		width = old_width;
-		/* repaint */
+		free(prompt);
 		dlg_clear();
 		dlg_del_window(dialog);
-		refresh();
 		dlg_mouse_free_regions();
+		/* repaint */
 		goto retry;
 #endif
 	    default:
