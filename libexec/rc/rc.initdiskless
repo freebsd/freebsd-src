@@ -111,6 +111,15 @@
 #		created for /SUBDIR if necessary). The presence of this file
 #		prevents the copy from /conf/T/SUBDIR/
 #
+# /conf/T/M/extract
+#		This is alternative to SUBDIR.cpio.gz and remount.
+#		Similar to remount case, a memory filesystem is created
+#		for /M and initialized from a template but no mounting
+#		performed. Instead, this file is run passing /M as singe
+#		argument. It is expected to extract template override to /M
+#		using auxiliary storage found in some embedded systems
+#		having NVRAM too small to hold mountable file system.
+#
 # /conf/T/SUBDIR.remove
 #		The list of paths contained in the file are rm -rf'd
 #		relative to /SUBDIR.
@@ -343,8 +352,8 @@ done
 
 # - Create all required MFS filesystems and populate them from
 #   our templates.  Support both a direct template and a dir.cpio.gz
-#   archive.  Support dir.remove files containing a list of relative
-#   paths to remove.
+#   archive. Support for auxiliary NVRAM. Support dir.remove files containing
+#   a list of relative paths to remove.
 #
 # The dir.cpio.gz form is there to make the copy process more efficient,
 # so if the cpio archive is present, it prevents the files from dir/
@@ -365,6 +374,15 @@ for i in ${templates} ; do
 	    create_md $subdir
 	    echo "Loading /$subdir from cpio archive $j"
 	    (cd / ; /rescue/tar -xpf $j)
+	fi
+    done
+    for j in /conf/$i/*/extract ; do
+	if [ -x $j ]; then
+	    subdir=${j%*/extract}
+	    subdir=${subdir##*/}
+	    create_md $subdir
+	    echo "Loading /$subdir using auxiliary command $j"
+	    $j /$subdir
 	fi
     done
     for j in /conf/$i/*.remove ; do
