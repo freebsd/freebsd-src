@@ -290,7 +290,6 @@ int	vasprintf(char **ret, struct malloc_type *mtp, const char *format,
 int	vsnprintf(char *, size_t, const char *, __va_list) __printflike(3, 0);
 int	vsnrprintf(char *, size_t, int, const char *, __va_list) __printflike(4, 0);
 int	vsprintf(char *buf, const char *, __va_list) __printflike(2, 0);
-int	ttyprintf(struct tty *, const char *, ...) __printflike(2, 3);
 int	sscanf(const char *, char const * _Nonnull, ...) __scanflike(2, 3);
 int	vsscanf(const char * _Nonnull, char const * _Nonnull, __va_list)  __scanflike(2, 0);
 long	strtol(const char *, char **, int);
