@@ -157,7 +157,6 @@ extern int Fflag;
 extern int uflag;
 extern const char *otherconf_script;
 extern const char *resolvconf_script;
-extern void iflist_init(void);
 struct ifinfo *find_ifinfo(int);
 struct rainfo *find_rainfo(struct ifinfo *, struct sockaddr_in6 *);
 void rtsol_timer_update(struct ifinfo *);
@@ -172,8 +171,6 @@ extern int interface_status(struct ifinfo *);
 extern int lladdropt_length(struct sockaddr_dl *);
 extern void lladdropt_fill(struct sockaddr_dl *, struct nd_opt_hdr *);
 extern struct sockaddr_dl *if_nametosdl(char *);
-extern int getinet6sysctl(int);
-extern int setinet6sysctl(int, int);
 
 /* rtsol.c */
 extern int rssock;
