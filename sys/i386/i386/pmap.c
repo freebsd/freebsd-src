@@ -3820,6 +3820,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			if ((origpte & PG_A) != 0)
 				vm_page_aflag_set(om, PGA_REFERENCED);
 			pv = pmap_pvh_remove(&om->md, pmap, va);
+			KASSERT(pv != NULL,
+			    ("pmap_enter: no PV entry for %#x", va));
 			if ((newpte & PG_MANAGED) == 0)
 				free_pv_entry(pmap, pv);
 			if ((om->aflags & PGA_WRITEABLE) != 0 &&

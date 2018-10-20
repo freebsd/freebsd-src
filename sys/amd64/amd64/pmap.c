@@ -5141,6 +5141,8 @@ retry:
 				vm_page_aflag_set(om, PGA_REFERENCED);
 			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
 			pv = pmap_pvh_remove(&om->md, pmap, va);
+			KASSERT(pv != NULL,
+			    ("pmap_enter: no PV entry for %#lx", va));
 			if ((newpte & PG_MANAGED) == 0)
 				free_pv_entry(pmap, pv);
 			if ((om->aflags & PGA_WRITEABLE) != 0 &&
