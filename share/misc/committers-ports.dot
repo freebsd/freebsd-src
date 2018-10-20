@@ -220,6 +220,7 @@ rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
 rezny [label="Matthew Rezny\nrezny@FreeBSD.org\n2017/01/09"]
 riggs [label="Thomas Zander\nriggs@FreeBSD.org\n2014/01/09"]
+rigoletto [label="Alexandre C. Guimaraes\nrigoletto@FreeBSD.org\n2018/10/01"]
 rm [label="Ruslan Makhmatkhanov\nrm@FreeBSD.org\n2011/11/06"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 robak [label="Bartek Rutkowski\nrobak@FreeBSD.org\n2014/06/10"]
@@ -549,6 +550,7 @@ mat -> tcberner
 mat -> thierry
 mat -> tobik
 mat -> woodsb02
+mat -> rigoletto
 
 matthew -> leres
 matthew -> lifanov
@@ -708,6 +710,7 @@ tcberner -> joneum
 tcberner -> yuri
 tcberner -> fernape
 tcberner -> arrowd
+tcberner -> rigoletto
 
 thierry -> jadawin
 thierry -> riggs
