@@ -19,7 +19,6 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/dev/en/*.[ch] \
 	${SYS}/dev/iicbus/*.[ch] \
 	${SYS}/dev/isp/*.[ch] \
-	${SYS}/dev/pdq/*.[ch] \
 	${SYS}/dev/ppbus/*.[ch] \
 	${SYS}/dev/smbus/*.[ch] \
 	${SYS}/dev/vx/*.[ch] \
@@ -78,7 +77,6 @@ COMMDIR2= ${SYS}/dev/advansys \
 	${SYS}/dev/iicbus \
 	${SYS}/dev/isp \
 	${SYS}/dev/md \
-	${SYS}/dev/pdq \
 	${SYS}/dev/ppbus \
 	${SYS}/dev/smbus \
 	${SYS}/dev/vx \
