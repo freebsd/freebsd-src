@@ -328,18 +328,6 @@ static MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
-/*
- * Support for old ifaddr_event.
- */
-static void
-ifaddr_event_compat(void *arg __unused, struct ifnet *ifp,
-    struct ifaddr *ifa __unused, int event __unused)
-{
-
-	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
-}
-EVENTHANDLER_DEFINE(ifaddr_event_ext, ifaddr_event_compat, NULL, 0);
-
 struct ifnet *
 ifnet_byindex_locked(u_short idx)
 {
