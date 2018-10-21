@@ -479,13 +479,13 @@ me_transmit(struct ifnet *ifp, struct mbuf *m)
 	uint32_t af;
 	int error, hlen, plen;
 
+	ME_RLOCK();
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error != 0)
 		goto drop;
 #endif
 	error = ENETDOWN;
-	ME_RLOCK();
 	sc = ifp->if_softc;
 	if (sc == NULL || !ME_READY(sc) ||
 	    (ifp->if_flags & IFF_MONITOR) != 0 ||
