@@ -66,9 +66,13 @@ SYSCTL_INT(_net_inet6_ip6, OID_AUTO, grehlim, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip6_gre_hlim), 0, "Default hop limit for encapsulated packets");
 
 VNET_DEFINE_STATIC(struct gre_list *, ipv6_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gre_list *, ipv6_srchashtbl) = NULL;
 #define	V_ipv6_hashtbl		VNET(ipv6_hashtbl)
+#define	V_ipv6_srchashtbl	VNET(ipv6_srchashtbl)
 #define	GRE_HASH(src, dst)	(V_ipv6_hashtbl[\
     in6_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])
+#define	GRE_SRCHASH(src)	(V_ipv6_srchashtbl[\
+    fnv_32_buf((src), sizeof(*src), FNV1_32_INIT) & (GRE_HASH_SIZE - 1)])
 #define	GRE_HASH_SC(sc)		GRE_HASH(&(sc)->gre_oip6.ip6_src,\
     &(sc)->gre_oip6.ip6_dst)
 
@@ -131,6 +135,44 @@ in6_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	return (0);
 }
 
+/*
+ * Check that ingress address belongs to local host.
+ */
+static void
+in6_gre_set_running(struct gre_softc *sc)
+{
+
+	if (in6_localip(&sc->gre_oip6.ip6_src))
+		GRE2IFP(sc)->if_drv_flags |= IFF_DRV_RUNNING;
+	else
+		GRE2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
+}
+
+/*
+ * ifaddr_event handler.
+ * Clear IFF_DRV_RUNNING flag when ingress address disappears to prevent
+ * source address spoofing.
+ */
+static void
+in6_gre_srcaddr(void *arg __unused, const struct sockaddr *sa,
+    int event __unused)
+{
+	const struct sockaddr_in6 *sin;
+	struct gre_softc *sc;
+
+	if (V_ipv6_srchashtbl == NULL)
+		return;
+
+	MPASS(in_epoch(net_epoch_preempt));
+	sin = (const struct sockaddr_in6 *)sa;
+	CK_LIST_FOREACH(sc, &GRE_SRCHASH(&sin->sin6_addr), srchash) {
+		if (IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_src,
+		    &sin->sin6_addr) == 0)
+			continue;
+		in6_gre_set_running(sc);
+	}
+}
+
 static void
 in6_gre_attach(struct gre_softc *sc)
 {
@@ -140,6 +182,7 @@ in6_gre_attach(struct gre_softc *sc)
 	sc->gre_oip6.ip6_nxt = IPPROTO_GRE;
 	gre_updatehdr(sc, &sc->gre_gi6hdr->gi6_gre);
 	CK_LIST_INSERT_HEAD(&GRE_HASH_SC(sc), sc, chain);
+	CK_LIST_INSERT_HEAD(&GRE_SRCHASH(&sc->gre_oip6.ip6_src), sc, srchash);
 }
 
 void
@@ -151,6 +194,7 @@ in6_gre_setopts(struct gre_softc *sc, u_long cmd, uint32_t value)
 	/* NOTE: we are protected with gre_ioctl_sx lock */
 	MPASS(sc->gre_family == AF_INET6);
 	CK_LIST_REMOVE(sc, chain);
+	CK_LIST_REMOVE(sc, srchash);
 	GRE_WAIT();
 	if (cmd == GRESKEY)
 		sc->gre_key = value;
@@ -194,8 +238,10 @@ in6_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 		    (error = sa6_embedscope(dst, 0)) != 0)
 			break;
 
-		if (V_ipv6_hashtbl == NULL)
+		if (V_ipv6_hashtbl == NULL) {
 			V_ipv6_hashtbl = gre_hashinit();
+			V_ipv6_srchashtbl = gre_hashinit();
+		}
 		error = in6_gre_checkdup(sc, &src->sin6_addr,
 		    &dst->sin6_addr);
 		if (error == EADDRNOTAVAIL)
@@ -212,6 +258,7 @@ in6_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 		if (sc->gre_family != 0) {
 			/* Detach existing tunnel first */
 			CK_LIST_REMOVE(sc, chain);
+			CK_LIST_REMOVE(sc, srchash);
 			GRE_WAIT();
 			free(sc->gre_hdr, M_GRE);
 			/* XXX: should we notify about link state change? */
@@ -221,6 +268,7 @@ in6_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 		sc->gre_oseq = 0;
 		sc->gre_iseq = UINT32_MAX;
 		in6_gre_attach(sc);
+		in6_gre_set_running(sc);
 		break;
 	case SIOCGIFPSRCADDR_IN6:
 	case SIOCGIFPDSTADDR_IN6:
@@ -254,6 +302,7 @@ in6_gre_output(struct mbuf *m, int af __unused, int hlen __unused)
 	return (ip6_output(m, NULL, NULL, IPV6_MINMTU, NULL, NULL, NULL));
 }
 
+static const struct srcaddrtab *ipv6_srcaddrtab = NULL;
 static const struct encaptab *ecookie = NULL;
 static const struct encap_config ipv6_encap_cfg = {
 	.proto = IPPROTO_GRE,
@@ -274,6 +323,8 @@ in6_gre_init(void)
 
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
+	ipv6_srcaddrtab = ip6_encap_register_srcaddr(in6_gre_srcaddr,
+	    NULL, M_WAITOK);
 	ecookie = ip6_encap_attach(&ipv6_encap_cfg, NULL, M_WAITOK);
 }
 
@@ -281,8 +332,12 @@ void
 in6_gre_uninit(void)
 {
 
-	if (IS_DEFAULT_VNET(curvnet))
+	if (IS_DEFAULT_VNET(curvnet)) {
 		ip6_encap_detach(ecookie);
-	if (V_ipv6_hashtbl != NULL)
+		ip6_encap_unregister_srcaddr(ipv6_srcaddrtab);
+	}
+	if (V_ipv6_hashtbl != NULL) {
 		gre_hashdestroy(V_ipv6_hashtbl);
+		gre_hashdestroy(V_ipv6_srchashtbl);
+	}
 }
