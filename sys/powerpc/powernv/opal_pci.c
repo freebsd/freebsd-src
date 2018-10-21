@@ -367,7 +367,7 @@ opalpci_attach(device_t dev)
 		device_printf(dev, "Mapping 0-%#jx for DMA\n", (uintmax_t)maxmem);
 	sc->tce = contigmalloc(tce_tbl_size,
 	    M_DEVBUF, M_NOWAIT | M_ZERO, 0,
-	    BUS_SPACE_MAXADDR, tce_size, 0);
+	    BUS_SPACE_MAXADDR, tce_tbl_size, 0);
 	if (sc->tce == NULL)
 		panic("Failed to allocate TCE memory for PHB %jd\n",
 		    (uintmax_t)sc->phb_id);
