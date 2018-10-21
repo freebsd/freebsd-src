@@ -245,6 +245,33 @@
 
 #define	SPR_PTCR		0x1d0	/* Partition Table Control Register */
 #define	SPR_SPEFSCR		0x200	/* ..8 Signal Processing Engine FSCR. */
+#define	  SPEFSCR_SOVH		  0x80000000
+#define	  SPEFSCR_OVH		  0x40000000
+#define	  SPEFSCR_FGH		  0x20000000
+#define	  SPEFSCR_FXH		  0x10000000
+#define	  SPEFSCR_FINVH		  0x08000000
+#define	  SPEFSCR_FDBZH		  0x04000000
+#define	  SPEFSCR_FUNFH		  0x02000000
+#define	  SPEFSCR_FOVFH		  0x01000000
+#define	  SPEFSCR_FINXS		  0x00200000
+#define	  SPEFSCR_FINVS		  0x00100000
+#define	  SPEFSCR_FDBZS		  0x00080000
+#define	  SPEFSCR_FUNFS		  0x00040000
+#define	  SPEFSCR_FOVFS		  0x00020000
+#define	  SPEFSCR_SOV		  0x00008000
+#define	  SPEFSCR_OV		  0x00004000
+#define	  SPEFSCR_FG		  0x00002000
+#define	  SPEFSCR_FX		  0x00001000
+#define	  SPEFSCR_FINV		  0x00000800
+#define	  SPEFSCR_FDBZ		  0x00000400
+#define	  SPEFSCR_FUNF		  0x00000200
+#define	  SPEFSCR_FOVF		  0x00000100
+#define	  SPEFSCR_FINXE		  0x00000040
+#define	  SPEFSCR_FINVE		  0x00000020
+#define	  SPEFSCR_FDBZE		  0x00000010
+#define	  SPEFSCR_FUNFE		  0x00000008
+#define	  SPEFSCR_FOVFE		  0x00000004
+#define	  SPEFSCR_FRMC_M	  0x00000003
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0L		0x211	/* .6. Instruction BAT Reg 0 Lower */
 #define	SPR_IBAT1U		0x212	/* .6. Instruction BAT Reg 1 Upper */
