@@ -323,6 +323,7 @@ ipsec_transmit(struct ifnet *ifp, struct mbuf *m)
 	uint32_t af;
 	int error;
 
+	IPSEC_RLOCK();
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {
@@ -331,7 +332,6 @@ ipsec_transmit(struct ifnet *ifp, struct mbuf *m)
 	}
 #endif
 	error = ENETDOWN;
-	IPSEC_RLOCK();
 	sc = ifp->if_softc;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 	    (ifp->if_flags & IFF_MONITOR) != 0 ||
