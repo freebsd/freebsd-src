@@ -504,6 +504,18 @@ main(int argc, char *argv[])
 			}
 #endif
 			errx(1, "interface %s does not exist", ifname);
+		} else {
+			/*
+			 * Do not allow use `create` command as hostname if
+			 * address family is not specified.
+			 */
+			if (argc > 0 && (strcmp(argv[0], "create") == 0 ||
+			    strcmp(argv[0], "plumb") == 0)) {
+				if (argc == 1)
+					errx(1, "interface %s already exist",
+					    ifname);
+				argc--, argv++;
+			}
 		}
 	}
 
