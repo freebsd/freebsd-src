@@ -272,6 +272,7 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 	uint8_t proto, ecn;
 	int error;
 
+	GIF_RLOCK();
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {
@@ -280,7 +281,6 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 	}
 #endif
 	error = ENETDOWN;
-	GIF_RLOCK();
 	sc = ifp->if_softc;
 	if ((ifp->if_flags & IFF_MONITOR) != 0 ||
 	    (ifp->if_flags & IFF_UP) == 0 ||
