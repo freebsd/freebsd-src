@@ -100,21 +100,138 @@ struct encaptab {
 	encap_input_t	input;
 };
 
+struct srcaddrtab {
+	CK_LIST_ENTRY(srcaddrtab) chain;
+
+	encap_srcaddr_t	srcaddr;
+	void		*arg;
+};
+
 CK_LIST_HEAD(encaptab_head, encaptab);
+CK_LIST_HEAD(srcaddrtab_head, srcaddrtab);
 #ifdef INET
 static struct encaptab_head ipv4_encaptab = CK_LIST_HEAD_INITIALIZER();
+static struct srcaddrtab_head ipv4_srcaddrtab = CK_LIST_HEAD_INITIALIZER();
 #endif
 #ifdef INET6
 static struct encaptab_head ipv6_encaptab = CK_LIST_HEAD_INITIALIZER();
+static struct srcaddrtab_head ipv6_srcaddrtab = CK_LIST_HEAD_INITIALIZER();
 #endif
 
-static struct mtx encapmtx;
+static struct mtx encapmtx, srcaddrmtx;
 MTX_SYSINIT(encapmtx, &encapmtx, "encapmtx", MTX_DEF);
+MTX_SYSINIT(srcaddrmtx, &srcaddrmtx, "srcaddrmtx", MTX_DEF);
 #define	ENCAP_WLOCK()		mtx_lock(&encapmtx)
 #define	ENCAP_WUNLOCK()		mtx_unlock(&encapmtx)
-#define	ENCAP_RLOCK()		struct epoch_tracker encap_et; epoch_enter_preempt(net_epoch_preempt, &encap_et)
-#define	ENCAP_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt, &encap_et)
+#define	ENCAP_RLOCK_TRACKER	struct epoch_tracker encap_et
+#define	ENCAP_RLOCK()		\
+    epoch_enter_preempt(net_epoch_preempt, &encap_et)
+#define	ENCAP_RUNLOCK()		\
+    epoch_exit_preempt(net_epoch_preempt, &encap_et)
 #define	ENCAP_WAIT()		epoch_wait_preempt(net_epoch_preempt)
+
+#define	SRCADDR_WLOCK()		mtx_lock(&srcaddrmtx)
+#define	SRCADDR_WUNLOCK()	mtx_unlock(&srcaddrmtx)
+#define	SRCADDR_RLOCK_TRACKER	struct epoch_tracker srcaddr_et
+#define	SRCADDR_RLOCK()		\
+    epoch_enter_preempt(net_epoch_preempt, &srcaddr_et)
+#define	SRCADDR_RUNLOCK()	\
+    epoch_exit_preempt(net_epoch_preempt, &srcaddr_et)
+#define	SRCADDR_WAIT()		epoch_wait_preempt(net_epoch_preempt)
+
+/*
+ * ifaddr_event_ext handler.
+ *
+ * Tunnelling interfaces may request the kernel to notify when
+ * some interface addresses appears or disappears. Usually tunnelling
+ * interface must use an address configured on the local machine as
+ * ingress address to be able receive datagramms and do not send
+ * spoofed packets.
+ */
+static void
+srcaddr_change_event(void *arg __unused, struct ifnet *ifp,
+    struct ifaddr *ifa, int event)
+{
+	SRCADDR_RLOCK_TRACKER;
+	struct srcaddrtab_head *head;
+	struct srcaddrtab *p;
+
+	/* Support for old ifaddr_event. */
+	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+
+	switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+	case AF_INET:
+		head = &ipv4_srcaddrtab;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		head = &ipv6_srcaddrtab;
+		break;
+#endif
+	default:
+		/* ignore event */
+		return;
+	}
+
+	SRCADDR_RLOCK();
+	CK_LIST_FOREACH(p, head, chain) {
+		(*p->srcaddr)(p->arg, ifa->ifa_addr, event);
+	}
+	SRCADDR_RUNLOCK();
+}
+EVENTHANDLER_DEFINE(ifaddr_event_ext, srcaddr_change_event, NULL, 0);
+
+static struct srcaddrtab *
+encap_register_srcaddr(struct srcaddrtab_head *head, encap_srcaddr_t func,
+    void *arg, int mflags)
+{
+	struct srcaddrtab *p, *tmp;
+
+	if (func == NULL)
+		return (NULL);
+	p = malloc(sizeof(*p), M_NETADDR, mflags);
+	if (p == NULL)
+		return (NULL);
+	p->srcaddr = func;
+	p->arg = arg;
+
+	SRCADDR_WLOCK();
+	CK_LIST_FOREACH(tmp, head, chain) {
+		if (func == tmp->srcaddr && arg == tmp->arg)
+			break;
+	}
+	if (tmp == NULL)
+		CK_LIST_INSERT_HEAD(head, p, chain);
+	SRCADDR_WUNLOCK();
+
+	if (tmp != NULL) {
+		free(p, M_NETADDR);
+		p = tmp;
+	}
+	return (p);
+}
+
+static int
+encap_unregister_srcaddr(struct srcaddrtab_head *head,
+    const struct srcaddrtab *cookie)
+{
+	struct srcaddrtab *p;
+
+	SRCADDR_WLOCK();
+	CK_LIST_FOREACH(p, head, chain) {
+		if (p == cookie) {
+			CK_LIST_REMOVE(p, chain);
+			SRCADDR_WUNLOCK();
+			SRCADDR_WAIT();
+			free(p, M_NETADDR);
+			return (0);
+		}
+	}
+	SRCADDR_WUNLOCK();
+	return (EINVAL);
+}
 
 static struct encaptab *
 encap_attach(struct encaptab_head *head, const struct encap_config *cfg,
@@ -175,6 +292,7 @@ encap_detach(struct encaptab_head *head, const struct encaptab *cookie)
 static int
 encap_input(struct encaptab_head *head, struct mbuf *m, int off, int proto)
 {
+	ENCAP_RLOCK_TRACKER;
 	struct encaptab *ep, *match;
 	void *arg;
 	int matchprio, ret;
@@ -220,6 +338,20 @@ encap_input(struct encaptab_head *head, struct mbuf *m, int off, int proto)
 }
 
 #ifdef INET
+const struct srcaddrtab *
+ip_encap_register_srcaddr(encap_srcaddr_t func, void *arg, int mflags)
+{
+
+	return (encap_register_srcaddr(&ipv4_srcaddrtab, func, arg, mflags));
+}
+
+int
+ip_encap_unregister_srcaddr(const struct srcaddrtab *cookie)
+{
+
+	return (encap_unregister_srcaddr(&ipv4_srcaddrtab, cookie));
+}
+
 const struct encaptab *
 ip_encap_attach(const struct encap_config *cfg, void *arg, int mflags)
 {
@@ -245,6 +377,20 @@ encap4_input(struct mbuf **mp, int *offp, int proto)
 #endif /* INET */
 
 #ifdef INET6
+const struct srcaddrtab *
+ip6_encap_register_srcaddr(encap_srcaddr_t func, void *arg, int mflags)
+{
+
+	return (encap_register_srcaddr(&ipv6_srcaddrtab, func, arg, mflags));
+}
+
+int
+ip6_encap_unregister_srcaddr(const struct srcaddrtab *cookie)
+{
+
+	return (encap_unregister_srcaddr(&ipv6_srcaddrtab, cookie));
+}
+
 const struct encaptab *
 ip6_encap_attach(const struct encap_config *cfg, void *arg, int mflags)
 {
