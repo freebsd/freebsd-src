@@ -796,10 +796,11 @@ teken_subr_primary_device_attributes(const teken_t *t, unsigned int request)
 }
 
 static void
-teken_subr_do_putchar(const teken_t *t, const teken_pos_t *tp, teken_char_t c,
+teken_subr_do_putchar(teken_t *t, const teken_pos_t *tp, teken_char_t c,
     int width)
 {
 
+	t->t_last = c;
 	if (t->t_stateflags & TS_INSERT &&
 	    tp->tp_col < t->t_winsize.tp_col - width) {
 		teken_rect_t ctr;
@@ -1332,3 +1333,12 @@ teken_subr_vertical_position_absolute(teken_t *t, unsigned int row)
 	t->t_stateflags &= ~TS_WRAPPED;
 	teken_funcs_cursor(t);
 }
+
+static void
+teken_subr_repeat_last_graphic_char(teken_t *t, unsigned int rpts)
+{
+
+	for (; t->t_last != 0 && rpts > 0; rpts--)
+		teken_subr_regular_character(t, t->t_last);
+}
+

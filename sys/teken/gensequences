@@ -158,6 +158,7 @@ for (p in l_prefix_name) {
 
 	if (l_prefix_name[p] != "teken_state_init") {
 		print "";
+		print "\tt->t_last = 0;";
 		print "\tteken_state_switch(t, teken_state_init);";
 	}
 	print "}";
