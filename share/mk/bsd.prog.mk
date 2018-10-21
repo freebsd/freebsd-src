@@ -34,6 +34,12 @@ PROG=	${PROG_CXX}
 MK_DEBUG_FILES=	no
 .endif
 
+.if ${MK_RETPOLINE} != "no"
+CFLAGS+= -mretpoline
+CXXFLAGS+= -mretpoline
+LDFLAGS+= -Wl,-zretpolineplt
+.endif
+
 .if defined(CRUNCH_CFLAGS)
 CFLAGS+=${CRUNCH_CFLAGS}
 .else
