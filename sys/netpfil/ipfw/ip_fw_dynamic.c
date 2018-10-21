@@ -979,7 +979,8 @@ dyn_update_tcp_state(struct dyn_data *data, const struct ipfw_flow_id *pkt,
 		break;
 
 	default:
-		if (V_dyn_rst_lifetime >= V_dyn_keepalive_period)
+		if (V_dyn_keepalive != 0 &&
+		    V_dyn_rst_lifetime >= V_dyn_keepalive_period)
 			V_dyn_rst_lifetime = V_dyn_keepalive_period - 1;
 		expire = time_uptime + V_dyn_rst_lifetime;
 	}
