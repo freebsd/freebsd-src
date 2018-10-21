@@ -452,11 +452,11 @@ END(memcpy_erms)
  */
 .macro MEMSET erms
 	PUSH_FRAME_POINTER
-	movq	%rdi,%r9
+	movq	%rdi,%rax
 	movq	%rdx,%rcx
 	movzbq	%sil,%r8
-	movabs	$0x0101010101010101,%rax
-	imulq	%r8,%rax
+	movabs	$0x0101010101010101,%r10
+	imulq	%r8,%r10
 
 	cmpq	$32,%rcx
 	jb	1016f
@@ -465,10 +465,10 @@ END(memcpy_erms)
 	ja	1256f
 
 1032:
-	movq	%rax,(%rdi)
-	movq	%rax,8(%rdi)
-	movq	%rax,16(%rdi)
-	movq	%rax,24(%rdi)
+	movq	%r10,(%rdi)
+	movq	%r10,8(%rdi)
+	movq	%r10,16(%rdi)
+	movq	%r10,24(%rdi)
 	leaq	32(%rdi),%rdi
 	subq	$32,%rcx
 	cmpq	$32,%rcx
@@ -478,54 +478,56 @@ END(memcpy_erms)
 1016:
 	cmpb	$16,%cl
 	jl	1008f
-	movq	%rax,(%rdi)
-	movq	%rax,8(%rdi)
+	movq	%r10,(%rdi)
+	movq	%r10,8(%rdi)
 	subb	$16,%cl
 	jz	1000f
 	leaq	16(%rdi),%rdi
 1008:
 	cmpb	$8,%cl
 	jl	1004f
-	movq	%rax,(%rdi)
+	movq	%r10,(%rdi)
 	subb	$8,%cl
 	jz	1000f
 	leaq	8(%rdi),%rdi
 1004:
 	cmpb	$4,%cl
 	jl	1002f
-	movl	%eax,(%rdi)
+	movl	%r10d,(%rdi)
 	subb	$4,%cl
 	jz	1000f
 	leaq	4(%rdi),%rdi
 1002:
 	cmpb	$2,%cl
 	jl	1001f
-	movw	%ax,(%rdi)
+	movw	%r10w,(%rdi)
 	subb	$2,%cl
 	jz	1000f
 	leaq	2(%rdi),%rdi
 1001:
 	cmpb	$1,%cl
 	jl	1000f
-	movb	%al,(%rdi)
+	movb	%r10b,(%rdi)
 1000:
-	movq	%r9,%rax
 	POP_FRAME_POINTER
 	ret
 	ALIGN_TEXT
 1256:
+	movq	%rdi,%r9
+	movq	%r10,%rax
 .if \erms == 1
 	rep
 	stosb
+	movq	%r9,%rax
 .else
 	shrq	$3,%rcx
 	rep
 	stosq
+	movq	%r9,%rax
 	movq	%rdx,%rcx
 	andb	$7,%cl
 	jne	1004b
 .endif
-	movq	%r9,%rax
 	POP_FRAME_POINTER
 	ret
 .endm
