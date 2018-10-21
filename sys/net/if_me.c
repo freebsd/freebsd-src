@@ -83,11 +83,13 @@ struct me_softc {
 	struct in_addr		me_dst;
 
 	CK_LIST_ENTRY(me_softc) chain;
+	CK_LIST_ENTRY(me_softc) srchash;
 };
 CK_LIST_HEAD(me_list, me_softc);
 #define	ME2IFP(sc)		((sc)->me_ifp)
 #define	ME_READY(sc)		((sc)->me_src.s_addr != 0)
-#define	ME_RLOCK()		struct epoch_tracker me_et; epoch_enter_preempt(net_epoch_preempt, &me_et)
+#define	ME_RLOCK_TRACKER	struct epoch_tracker me_et
+#define	ME_RLOCK()		epoch_enter_preempt(net_epoch_preempt, &me_et)
 #define	ME_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt, &me_et)
 #define	ME_WAIT()		epoch_wait_preempt(net_epoch_preempt)
 
@@ -95,9 +97,13 @@ CK_LIST_HEAD(me_list, me_softc);
 #define	ME_HASH_SIZE	(1 << 4)
 #endif
 VNET_DEFINE_STATIC(struct me_list *, me_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct me_list *, me_srchashtbl) = NULL;
 #define	V_me_hashtbl		VNET(me_hashtbl)
+#define	V_me_srchashtbl		VNET(me_srchashtbl)
 #define	ME_HASH(src, dst)	(V_me_hashtbl[\
     me_hashval((src), (dst)) & (ME_HASH_SIZE - 1)])
+#define	ME_SRCHASH(src)		(V_me_srchashtbl[\
+    fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & (ME_HASH_SIZE - 1)])
 
 static struct sx me_ioctl_sx;
 SX_SYSINIT(me_ioctl_sx, &me_ioctl_sx, "me_ioctl");
@@ -165,8 +171,10 @@ static void
 vnet_me_uninit(const void *unused __unused)
 {
 
-	if (V_me_hashtbl != NULL)
+	if (V_me_hashtbl != NULL) {
 		free(V_me_hashtbl, M_IFME);
+		free(V_me_srchashtbl, M_IFME);
+	}
 	if_clone_detach(V_me_cloner);
 }
 VNET_SYSUNINIT(vnet_me_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
@@ -330,6 +338,43 @@ me_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	return (0);
 }
 
+/*
+ * Check that ingress address belongs to local host.
+ */
+static void
+me_set_running(struct me_softc *sc)
+{
+
+	if (in_localip(sc->me_src))
+		ME2IFP(sc)->if_drv_flags |= IFF_DRV_RUNNING;
+	else
+		ME2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
+}
+
+/*
+ * ifaddr_event handler.
+ * Clear IFF_DRV_RUNNING flag when ingress address disappears to prevent
+ * source address spoofing.
+ */
+static void
+me_srcaddr(void *arg __unused, const struct sockaddr *sa,
+    int event __unused)
+{
+	const struct sockaddr_in *sin;
+	struct me_softc *sc;
+
+	if (V_me_srchashtbl == NULL)
+		return;
+
+	MPASS(in_epoch(net_epoch_preempt));
+	sin = (const struct sockaddr_in *)sa;
+	CK_LIST_FOREACH(sc, &ME_SRCHASH(sin->sin_addr.s_addr), srchash) {
+		if (sc->me_src.s_addr != sin->sin_addr.s_addr)
+			continue;
+		me_set_running(sc);
+	}
+}
+
 static int
 me_set_tunnel(struct me_softc *sc, in_addr_t src, in_addr_t dst)
 {
@@ -337,8 +382,10 @@ me_set_tunnel(struct me_softc *sc, in_addr_t src, in_addr_t dst)
 
 	sx_assert(&me_ioctl_sx, SA_XLOCKED);
 
-	if (V_me_hashtbl == NULL)
+	if (V_me_hashtbl == NULL) {
 		V_me_hashtbl = me_hashinit();
+		V_me_srchashtbl = me_hashinit();
+	}
 
 	if (sc->me_src.s_addr == src && sc->me_dst.s_addr == dst)
 		return (0);
@@ -355,8 +402,9 @@ me_set_tunnel(struct me_softc *sc, in_addr_t src, in_addr_t dst)
 	sc->me_dst.s_addr = dst;
 	sc->me_src.s_addr = src;
 	CK_LIST_INSERT_HEAD(&ME_HASH(src, dst), sc, chain);
+	CK_LIST_INSERT_HEAD(&ME_SRCHASH(src), sc, srchash);
 
-	ME2IFP(sc)->if_drv_flags |= IFF_DRV_RUNNING;
+	me_set_running(sc);
 	if_link_state_change(ME2IFP(sc), LINK_STATE_UP);
 	return (0);
 }
@@ -368,6 +416,7 @@ me_delete_tunnel(struct me_softc *sc)
 	sx_assert(&me_ioctl_sx, SA_XLOCKED);
 	if (ME_READY(sc)) {
 		CK_LIST_REMOVE(sc, chain);
+		CK_LIST_REMOVE(sc, srchash);
 		ME_WAIT();
 
 		sc->me_src.s_addr = 0;
@@ -473,6 +522,7 @@ me_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 static int
 me_transmit(struct ifnet *ifp, struct mbuf *m)
 {
+	ME_RLOCK_TRACKER;
 	struct mobhdr mh;
 	struct me_softc *sc;
 	struct ip *ip;
@@ -490,6 +540,7 @@ me_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (sc == NULL || !ME_READY(sc) ||
 	    (ifp->if_flags & IFF_MONITOR) != 0 ||
 	    (ifp->if_flags & IFF_UP) == 0 ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 	    (error = if_tunnel_check_nesting(ifp, m, MTAG_ME,
 		V_max_me_nesting)) != 0) {
 		m_freem(m);
@@ -567,6 +618,7 @@ me_qflush(struct ifnet *ifp __unused)
 
 }
 
+static const struct srcaddrtab *me_srcaddrtab = NULL;
 static const struct encaptab *ecookie = NULL;
 static const struct encap_config me_encap_cfg = {
 	.proto = IPPROTO_MOBILE,
@@ -583,10 +635,13 @@ memodevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		me_srcaddrtab = ip_encap_register_srcaddr(me_srcaddr,
+		    NULL, M_WAITOK);
 		ecookie = ip_encap_attach(&me_encap_cfg, NULL, M_WAITOK);
 		break;
 	case MOD_UNLOAD:
 		ip_encap_detach(ecookie);
+		ip_encap_unregister_srcaddr(me_srcaddrtab);
 		break;
 	default:
 		return (EOPNOTSUPP);
