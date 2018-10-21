@@ -69,6 +69,12 @@ TAGS+=		package=${PACKAGE:Uruntime}
 TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 .endif
 
+.if ${MK_RETPOLINE} != "no"
+CFLAGS+= -mretpoline
+CXXFLAGS+= -mretpoline
+LDFLAGS+= -Wl,-zretpolineplt
+.endif
+
 .if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
     empty(DEBUG_FLAGS:M-gdwarf*)
 CFLAGS+= ${DEBUG_FILES_CFLAGS}
