@@ -3778,6 +3778,7 @@ ncr_attach (device_t dev)
 	ncr_timeout (np);
 	np->lasttime=0;
 	mtx_unlock(&np->lock);
+	gone_in_dev(dev, 12, "ncr(4) driver, use sym(4) instead");
 
 	return 0;
 }
