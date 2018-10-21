@@ -550,6 +550,7 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 	uint16_t proto;
 
 	len = 0;
+	GRE_RLOCK();
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {
@@ -558,7 +559,6 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 	}
 #endif
 	error = ENETDOWN;
-	GRE_RLOCK();
 	sc = ifp->if_softc;
 	if ((ifp->if_flags & IFF_MONITOR) != 0 ||
 	    (ifp->if_flags & IFF_UP) == 0 ||
