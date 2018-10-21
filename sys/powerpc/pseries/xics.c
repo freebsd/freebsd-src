@@ -143,7 +143,7 @@ static driver_t xics_driver = {
 /* We can only pass physical addresses into OPAL.  Kernel stacks are in the KVA,
  * not in the direct map, so we need to somehow extract the physical address.
  * However, pmap_kextract() takes locks, which is forbidden in a critical region
- * (which PMAP_DISPATCH() operates in).  The kernel is mapped into the Direct
+ * (which PIC_DISPATCH() operates in).  The kernel is mapped into the Direct
  * Map (0xc000....), and the CPU implicitly drops the top two bits when doing
  * real address by nature that the bus width is smaller than 64-bits.  Placing
  * cpu_xirr into the DMAP lets us take advantage of this and avoids the
