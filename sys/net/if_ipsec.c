@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2016 Yandex LLC
- * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
+ * Copyright (c) 2016-2018 Yandex LLC
+ * Copyright (c) 2016-2018 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
-#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sx.h>
@@ -61,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
+#include <netinet/ip_encap.h>
 
 #include <netinet/ip6.h>
 #include <netinet6/in6_var.h>
@@ -87,57 +87,71 @@ static const char ipsecname[] = "ipsec";
 
 struct ipsec_softc {
 	struct ifnet		*ifp;
-
-	struct rmlock		lock;
 	struct secpolicy	*sp[IPSEC_SPCOUNT];
-
 	uint32_t		reqid;
 	u_int			family;
 	u_int			fibnum;
-	LIST_ENTRY(ipsec_softc)	chain;
-	LIST_ENTRY(ipsec_softc) hash;
+
+	CK_LIST_ENTRY(ipsec_softc) idhash;
+	CK_LIST_ENTRY(ipsec_softc) srchash;
 };
 
-#define	IPSEC_LOCK_INIT(sc)	rm_init(&(sc)->lock, "if_ipsec softc")
-#define	IPSEC_LOCK_DESTROY(sc)	rm_destroy(&(sc)->lock)
-#define	IPSEC_RLOCK_TRACKER	struct rm_priotracker ipsec_tracker
-#define	IPSEC_RLOCK(sc)		rm_rlock(&(sc)->lock, &ipsec_tracker)
-#define	IPSEC_RUNLOCK(sc)	rm_runlock(&(sc)->lock, &ipsec_tracker)
-#define	IPSEC_RLOCK_ASSERT(sc)	rm_assert(&(sc)->lock, RA_RLOCKED)
-#define	IPSEC_WLOCK(sc)		rm_wlock(&(sc)->lock)
-#define	IPSEC_WUNLOCK(sc)	rm_wunlock(&(sc)->lock)
-#define	IPSEC_WLOCK_ASSERT(sc)	rm_assert(&(sc)->lock, RA_WLOCKED)
+#define	IPSEC_RLOCK_TRACKER	struct epoch_tracker ipsec_et
+#define	IPSEC_RLOCK()	epoch_enter_preempt(net_epoch_preempt, &ipsec_et)
+#define	IPSEC_RUNLOCK()	epoch_exit_preempt(net_epoch_preempt, &ipsec_et)
+#define	IPSEC_WAIT()	epoch_wait_preempt(net_epoch_preempt)
 
-static struct rmlock ipsec_sc_lock;
-RM_SYSINIT(ipsec_sc_lock, &ipsec_sc_lock, "if_ipsec softc list");
+#ifndef IPSEC_HASH_SIZE
+#define	IPSEC_HASH_SIZE	(1 << 5)
+#endif
 
-#define	IPSEC_SC_RLOCK_TRACKER	struct rm_priotracker ipsec_sc_tracker
-#define	IPSEC_SC_RLOCK()	rm_rlock(&ipsec_sc_lock, &ipsec_sc_tracker)
-#define	IPSEC_SC_RUNLOCK()	rm_runlock(&ipsec_sc_lock, &ipsec_sc_tracker)
-#define	IPSEC_SC_RLOCK_ASSERT()	rm_assert(&ipsec_sc_lock, RA_RLOCKED)
-#define	IPSEC_SC_WLOCK()	rm_wlock(&ipsec_sc_lock)
-#define	IPSEC_SC_WUNLOCK()	rm_wunlock(&ipsec_sc_lock)
-#define	IPSEC_SC_WLOCK_ASSERT()	rm_assert(&ipsec_sc_lock, RA_WLOCKED)
+CK_LIST_HEAD(ipsec_iflist, ipsec_softc);
+VNET_DEFINE_STATIC(struct ipsec_iflist *, ipsec_idhtbl) = NULL;
+#define	V_ipsec_idhtbl		VNET(ipsec_idhtbl)
 
-LIST_HEAD(ipsec_iflist, ipsec_softc);
-VNET_DEFINE_STATIC(struct ipsec_iflist, ipsec_sc_list);
-VNET_DEFINE_STATIC(struct ipsec_iflist *, ipsec_sc_htbl);
-VNET_DEFINE_STATIC(u_long, ipsec_sc_hmask);
-#define	V_ipsec_sc_list		VNET(ipsec_sc_list)
-#define	V_ipsec_sc_htbl		VNET(ipsec_sc_htbl)
-#define	V_ipsec_sc_hmask	VNET(ipsec_sc_hmask)
+#ifdef INET
+VNET_DEFINE_STATIC(struct ipsec_iflist *, ipsec4_srchtbl) = NULL;
+#define	V_ipsec4_srchtbl	VNET(ipsec4_srchtbl)
+static const struct srcaddrtab *ipsec4_srctab = NULL;
+#endif
 
-static uint32_t
-ipsec_hash(uint32_t id)
+#ifdef INET6
+VNET_DEFINE_STATIC(struct ipsec_iflist *, ipsec6_srchtbl) = NULL;
+#define	V_ipsec6_srchtbl	VNET(ipsec6_srchtbl)
+static const struct srcaddrtab *ipsec6_srctab = NULL;
+#endif
+
+static struct ipsec_iflist *
+ipsec_idhash(uint32_t id)
 {
 
-	return (fnv_32_buf(&id, sizeof(id), FNV1_32_INIT));
+	return (&V_ipsec_idhtbl[fnv_32_buf(&id, sizeof(id),
+	    FNV1_32_INIT) & (IPSEC_HASH_SIZE - 1)]);
 }
 
-#define	SCHASH_NHASH_LOG2	5
-#define	SCHASH_NHASH		(1 << SCHASH_NHASH_LOG2)
-#define	SCHASH_HASHVAL(id)	(ipsec_hash((id)) & V_ipsec_sc_hmask)
-#define	SCHASH_HASH(id)		&V_ipsec_sc_htbl[SCHASH_HASHVAL(id)]
+static struct ipsec_iflist *
+ipsec_srchash(const struct sockaddr *sa)
+{
+	uint32_t hval;
+
+	switch (sa->sa_family) {
+#ifdef INET
+	case AF_INET:
+		hval = fnv_32_buf(
+		    &((const struct sockaddr_in *)sa)->sin_addr.s_addr,
+		    sizeof(in_addr_t), FNV1_32_INIT);
+		return (&V_ipsec4_srchtbl[hval & (IPSEC_HASH_SIZE - 1)]);
+#endif
+#ifdef INET6
+	case AF_INET6:
+		hval = fnv_32_buf(
+		    &((const struct sockaddr_in6 *)sa)->sin6_addr,
+		    sizeof(struct in6_addr), FNV1_32_INIT);
+		return (&V_ipsec6_srchtbl[hval & (IPSEC_HASH_SIZE - 1)]);
+#endif
+	}
+	return (NULL);
+}
 
 /*
  * ipsec_ioctl_sx protects from concurrent ioctls.
@@ -148,12 +162,14 @@ SX_SYSINIT(ipsec_ioctl_sx, &ipsec_ioctl_sx, "ipsec_ioctl");
 static int	ipsec_init_reqid(struct ipsec_softc *);
 static int	ipsec_set_tunnel(struct ipsec_softc *, struct sockaddr *,
     struct sockaddr *, uint32_t);
-static void	ipsec_delete_tunnel(struct ifnet *, int);
+static void	ipsec_delete_tunnel(struct ipsec_softc *);
 
 static int	ipsec_set_addresses(struct ifnet *, struct sockaddr *,
     struct sockaddr *);
-static int	ipsec_set_reqid(struct ifnet *, uint32_t);
+static int	ipsec_set_reqid(struct ipsec_softc *, uint32_t);
+static void	ipsec_set_running(struct ipsec_softc *);
 
+static void	ipsec_srcaddr(void *, const struct sockaddr *, int);
 static int	ipsec_ioctl(struct ifnet *, u_long, caddr_t);
 static int	ipsec_transmit(struct ifnet *, struct mbuf *);
 static int	ipsec_output(struct ifnet *, struct mbuf *,
@@ -174,7 +190,6 @@ ipsec_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sc = malloc(sizeof(*sc), M_IPSEC, M_WAITOK | M_ZERO);
 	sc->fibnum = curthread->td_proc->p_fibnum;
 	sc->ifp = ifp = if_alloc(IFT_TUNNEL);
-	IPSEC_LOCK_INIT(sc);
 	ifp->if_softc = sc;
 	if_initname(ifp, ipsecname, unit);
 
@@ -188,9 +203,6 @@ ipsec_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(uint32_t));
 
-	IPSEC_SC_WLOCK();
-	LIST_INSERT_HEAD(&V_ipsec_sc_list, sc, chain);
-	IPSEC_SC_WUNLOCK();
 	return (0);
 }
 
@@ -201,28 +213,48 @@ ipsec_clone_destroy(struct ifnet *ifp)
 
 	sx_xlock(&ipsec_ioctl_sx);
 	sc = ifp->if_softc;
-
-	IPSEC_SC_WLOCK();
-	ipsec_delete_tunnel(ifp, 1);
-	LIST_REMOVE(sc, chain);
-	IPSEC_SC_WUNLOCK();
-
+	ipsec_delete_tunnel(sc);
 	bpfdetach(ifp);
 	if_detach(ifp);
 	ifp->if_softc = NULL;
 	sx_xunlock(&ipsec_ioctl_sx);
 
+	IPSEC_WAIT();
 	if_free(ifp);
-	IPSEC_LOCK_DESTROY(sc);
 	free(sc, M_IPSEC);
+}
+
+static struct ipsec_iflist *
+ipsec_hashinit(void)
+{
+	struct ipsec_iflist *hash;
+	int i;
+
+	hash = malloc(sizeof(struct ipsec_iflist) * IPSEC_HASH_SIZE,
+	    M_IPSEC, M_WAITOK);
+	for (i = 0; i < IPSEC_HASH_SIZE; i++)
+		CK_LIST_INIT(&hash[i]);
+
+	return (hash);
 }
 
 static void
 vnet_ipsec_init(const void *unused __unused)
 {
 
-	LIST_INIT(&V_ipsec_sc_list);
-	V_ipsec_sc_htbl = hashinit(SCHASH_NHASH, M_IPSEC, &V_ipsec_sc_hmask);
+	V_ipsec_idhtbl = ipsec_hashinit();
+#ifdef INET
+	V_ipsec4_srchtbl = ipsec_hashinit();
+	if (IS_DEFAULT_VNET(curvnet))
+		ipsec4_srctab = ip_encap_register_srcaddr(ipsec_srcaddr,
+		    NULL, M_WAITOK);
+#endif
+#ifdef INET6
+	V_ipsec6_srchtbl = ipsec_hashinit();
+	if (IS_DEFAULT_VNET(curvnet))
+		ipsec6_srctab = ip6_encap_register_srcaddr(ipsec_srcaddr,
+		    NULL, M_WAITOK);
+#endif
 	V_ipsec_cloner = if_clone_simple(ipsecname, ipsec_clone_create,
 	    ipsec_clone_destroy, 0);
 }
@@ -234,7 +266,17 @@ vnet_ipsec_uninit(const void *unused __unused)
 {
 
 	if_clone_detach(V_ipsec_cloner);
-	hashdestroy(V_ipsec_sc_htbl, M_IPSEC, V_ipsec_sc_hmask);
+	free(V_ipsec_idhtbl, M_IPSEC);
+#ifdef INET
+	if (IS_DEFAULT_VNET(curvnet))
+		ip_encap_unregister_srcaddr(ipsec4_srctab);
+	free(V_ipsec4_srchtbl, M_IPSEC);
+#endif
+#ifdef INET6
+	if (IS_DEFAULT_VNET(curvnet))
+		ip6_encap_unregister_srcaddr(ipsec6_srctab);
+	free(V_ipsec6_srchtbl, M_IPSEC);
+#endif
 }
 VNET_SYSUNINIT(vnet_ipsec_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
     vnet_ipsec_uninit, NULL);
@@ -289,10 +331,11 @@ ipsec_transmit(struct ifnet *ifp, struct mbuf *m)
 	}
 #endif
 	error = ENETDOWN;
+	IPSEC_RLOCK();
 	sc = ifp->if_softc;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 	    (ifp->if_flags & IFF_MONITOR) != 0 ||
-	    (ifp->if_flags & IFF_UP) == 0) {
+	    (ifp->if_flags & IFF_UP) == 0 || sc->family == 0) {
 		m_freem(m);
 		goto err;
 	}
@@ -327,16 +370,9 @@ ipsec_transmit(struct ifnet *ifp, struct mbuf *m)
 		goto err;
 	}
 
-	IPSEC_RLOCK(sc);
-	if (sc->family == 0) {
-		IPSEC_RUNLOCK(sc);
-		m_freem(m);
-		goto err;
-	}
 	sp = ipsec_getpolicy(sc, IPSEC_DIR_OUTBOUND, af);
 	key_addref(sp);
 	M_SETFIB(m, sc->fibnum);
-	IPSEC_RUNLOCK(sc);
 
 	BPF_MTAP2(ifp, &af, sizeof(af), m);
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
@@ -359,6 +395,7 @@ ipsec_transmit(struct ifnet *ifp, struct mbuf *m)
 err:
 	if (error != 0)
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+	IPSEC_RUNLOCK();
 	return (error);
 }
 
@@ -379,7 +416,7 @@ ipsec_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 int
 ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af)
 {
-	IPSEC_SC_RLOCK_TRACKER;
+	IPSEC_RLOCK_TRACKER;
 	struct secasindex *saidx;
 	struct ipsec_softc *sc;
 	struct ifnet *ifp;
@@ -394,13 +431,10 @@ ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af)
 	    sav->sah->saidx.proto != IPPROTO_ESP)
 		return (0);
 
-	IPSEC_SC_RLOCK();
-	/*
-	 * We only acquire SC_RLOCK() while we are doing search in
-	 * ipsec_sc_htbl. It is safe, because removing softc or changing
-	 * of reqid/addresses requires removing from hash table.
-	 */
-	LIST_FOREACH(sc, SCHASH_HASH(sav->sah->saidx.reqid), hash) {
+	IPSEC_RLOCK();
+	CK_LIST_FOREACH(sc, ipsec_idhash(sav->sah->saidx.reqid), idhash) {
+		if (sc->family == 0)
+			continue;
 		saidx = ipsec_getsaidx(sc, IPSEC_DIR_INBOUND,
 		    sav->sah->saidx.src.sa.sa_family);
 		/* SA's reqid should match reqid in SP */
@@ -416,14 +450,14 @@ ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af)
 			break;
 	}
 	if (sc == NULL) {
-		IPSEC_SC_RUNLOCK();
+		IPSEC_RUNLOCK();
 		/* Tunnel was not found. Nothing to do. */
 		return (0);
 	}
 	ifp = sc->ifp;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 	    (ifp->if_flags & IFF_UP) == 0) {
-		IPSEC_SC_RUNLOCK();
+		IPSEC_RUNLOCK();
 		m_freem(m);
 		return (ENETDOWN);
 	}
@@ -432,7 +466,6 @@ ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af)
 	 * Set its ifnet as receiving interface.
 	 */
 	m->m_pkthdr.rcvif = ifp;
-	IPSEC_SC_RUNLOCK();
 
 	m_clrprotoflags(m);
 	M_SETFIB(m, ifp->if_fib);
@@ -440,17 +473,17 @@ ipsec_if_input(struct mbuf *m, struct secasvar *sav, uint32_t af)
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	if ((ifp->if_flags & IFF_MONITOR) != 0) {
+		IPSEC_RUNLOCK();
 		m_freem(m);
 		return (ENETDOWN);
 	}
+	IPSEC_RUNLOCK();
 	return (0);
 }
 
-/* XXX how should we handle IPv6 scope on SIOC[GS]IFPHYADDR? */
-int
+static int
 ipsec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	IPSEC_RLOCK_TRACKER;
 	struct ifreq *ifr = (struct ifreq*)data;
 	struct sockaddr *dst, *src;
 	struct ipsec_softc *sc;
@@ -564,9 +597,10 @@ ipsec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 #ifdef INET6
 		case AF_INET6:
-			if (IN6_IS_ADDR_UNSPECIFIED(&satosin6(src)->sin6_addr)
-			    ||
-			    IN6_IS_ADDR_UNSPECIFIED(&satosin6(dst)->sin6_addr))
+			if (IN6_IS_ADDR_UNSPECIFIED(
+			    &satosin6(src)->sin6_addr) ||
+			    IN6_IS_ADDR_UNSPECIFIED(
+			    &satosin6(dst)->sin6_addr))
 				goto bad;
 			/*
 			 * Check validity of the scope zone ID of the
@@ -584,7 +618,7 @@ ipsec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ipsec_set_addresses(ifp, src, dst);
 		break;
 	case SIOCDIFPHYADDR:
-		ipsec_delete_tunnel(ifp, 0);
+		ipsec_delete_tunnel(sc);
 		break;
 	case SIOCGIFPSRCADDR:
 	case SIOCGIFPDSTADDR:
@@ -592,9 +626,7 @@ ipsec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGIFPSRCADDR_IN6:
 	case SIOCGIFPDSTADDR_IN6:
 #endif
-		IPSEC_RLOCK(sc);
 		if (sc->family == 0) {
-			IPSEC_RUNLOCK(sc);
 			error = EADDRNOTAVAIL;
 			break;
 		}
@@ -650,7 +682,6 @@ ipsec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 			}
 		}
-		IPSEC_RUNLOCK(sc);
 		if (error != 0)
 			break;
 		switch (cmd) {
@@ -696,7 +727,7 @@ ipsec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = copyin(ifr_data_get_ptr(ifr), &reqid, sizeof(reqid));
 		if (error != 0)
 			break;
-		error = ipsec_set_reqid(ifp, reqid);
+		error = ipsec_set_reqid(sc, reqid);
 		break;
 	default:
 		error = EINVAL;
@@ -705,6 +736,59 @@ ipsec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 bad:
 	sx_xunlock(&ipsec_ioctl_sx);
 	return (error);
+}
+
+/*
+ * Check that ingress address belongs to local host.
+ */
+static void
+ipsec_set_running(struct ipsec_softc *sc)
+{
+	struct secasindex *saidx;
+	int localip;
+
+	saidx = ipsec_getsaidx(sc, IPSEC_DIR_OUTBOUND, sc->family);
+	localip = 0;
+	switch (sc->family) {
+#ifdef INET
+	case AF_INET:
+		localip = in_localip(saidx->src.sin.sin_addr);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		localip = in6_localip(&saidx->src.sin6.sin6_addr);
+		break;
+#endif
+	}
+	if (localip != 0)
+		sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	else
+		sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+}
+
+/*
+ * ifaddr_event handler.
+ * Clear IFF_DRV_RUNNING flag when ingress address disappears to prevent
+ * source address spoofing.
+ */
+static void
+ipsec_srcaddr(void *arg __unused, const struct sockaddr *sa,
+    int event __unused)
+{
+	struct ipsec_softc *sc;
+	struct secasindex *saidx;
+
+	MPASS(in_epoch(net_epoch_preempt));
+	CK_LIST_FOREACH(sc, ipsec_srchash(sa), srchash) {
+		if (sc->family == 0)
+			continue;
+		saidx = ipsec_getsaidx(sc, IPSEC_DIR_OUTBOUND, sa->sa_family);
+		if (saidx == NULL ||
+		    key_sockaddrcmp(&saidx->src.sa, sa, 0) != 0)
+			continue;
+		ipsec_set_running(sc);
+	}
 }
 
 /*
@@ -779,8 +863,8 @@ ipsec_check_reqid(uint32_t reqid)
 {
 	struct ipsec_softc *sc;
 
-	IPSEC_SC_RLOCK_ASSERT();
-	LIST_FOREACH(sc, &V_ipsec_sc_list, chain) {
+	sx_assert(&ipsec_ioctl_sx, SA_XLOCKED);
+	CK_LIST_FOREACH(sc, ipsec_idhash(reqid), idhash) {
 		if (sc->reqid == reqid)
 			return (EEXIST);
 	}
@@ -800,8 +884,7 @@ ipsec_init_reqid(struct ipsec_softc *sc)
 	uint32_t reqid;
 	int trycount;
 
-	IPSEC_SC_RLOCK_ASSERT();
-
+	sx_assert(&ipsec_ioctl_sx, SA_XLOCKED);
 	if (sc->reqid != 0) /* already initialized */
 		return (0);
 
@@ -814,6 +897,7 @@ ipsec_init_reqid(struct ipsec_softc *sc)
 	if (trycount == 0)
 		return (EEXIST);
 	sc->reqid = reqid;
+	CK_LIST_INSERT_HEAD(ipsec_idhash(reqid), sc, idhash);
 	return (0);
 }
 
@@ -824,34 +908,30 @@ ipsec_init_reqid(struct ipsec_softc *sc)
  * Also softc would not disappear while we hold ioctl_sx lock.
  */
 static int
-ipsec_set_reqid(struct ifnet *ifp, uint32_t reqid)
+ipsec_set_reqid(struct ipsec_softc *sc, uint32_t reqid)
 {
-	IPSEC_SC_RLOCK_TRACKER;
-	struct ipsec_softc *sc;
 	struct secasindex *saidx;
 
 	sx_assert(&ipsec_ioctl_sx, SA_XLOCKED);
 
-	sc = ifp->if_softc;
 	if (sc->reqid == reqid && reqid != 0)
 		return (0);
 
-	IPSEC_SC_RLOCK();
 	if (reqid != 0) {
 		/* Check that specified reqid doesn't exist */
-		if (ipsec_check_reqid(reqid) != 0) {
-			IPSEC_SC_RUNLOCK();
+		if (ipsec_check_reqid(reqid) != 0)
 			return (EEXIST);
+		if (sc->reqid != 0) {
+			CK_LIST_REMOVE(sc, idhash);
+			IPSEC_WAIT();
 		}
 		sc->reqid = reqid;
+		CK_LIST_INSERT_HEAD(ipsec_idhash(reqid), sc, idhash);
 	} else {
 		/* Generate new reqid */
-		if (ipsec_init_reqid(sc) != 0) {
-			IPSEC_SC_RUNLOCK();
+		if (ipsec_init_reqid(sc) != 0)
 			return (EEXIST);
-		}
 	}
-	IPSEC_SC_RUNLOCK();
 
 	/* Tunnel isn't fully configured, just return. */
 	if (sc->family == 0)
@@ -871,7 +951,6 @@ static int
 ipsec_set_addresses(struct ifnet *ifp, struct sockaddr *src,
     struct sockaddr *dst)
 {
-	IPSEC_SC_RLOCK_TRACKER;
 	struct ipsec_softc *sc, *tsc;
 	struct secasindex *saidx;
 
@@ -887,43 +966,21 @@ ipsec_set_addresses(struct ifnet *ifp, struct sockaddr *src,
 			return (0); /* Nothing has been changed. */
 
 	}
-	/*
-	 * We cannot service IPsec tunnel when source address is
-	 * not our own.
-	 */
-#ifdef INET
-	if (src->sa_family == AF_INET &&
-	    in_localip(satosin(src)->sin_addr) == 0)
-		return (EADDRNOTAVAIL);
-#endif
-#ifdef INET6
-	/*
-	 * NOTE: IPv6 addresses are in kernel internal form with
-	 * embedded scope zone id.
-	 */
-	if (src->sa_family == AF_INET6 &&
-	    in6_localip(&satosin6(src)->sin6_addr) == 0)
-		return (EADDRNOTAVAIL);
-#endif
 	/* Check that given addresses aren't already configured */
-	IPSEC_SC_RLOCK();
-	LIST_FOREACH(tsc, &V_ipsec_sc_list, chain) {
-		if (tsc == sc || tsc->family != src->sa_family)
+	CK_LIST_FOREACH(tsc, ipsec_srchash(src), srchash) {
+		if (tsc == sc)
 			continue;
+		MPASS(tsc->family == src->sa_family);
 		saidx = ipsec_getsaidx(tsc, IPSEC_DIR_OUTBOUND, tsc->family);
 		if (key_sockaddrcmp(&saidx->src.sa, src, 0) == 0 &&
 		    key_sockaddrcmp(&saidx->dst.sa, dst, 0) == 0) {
 			/* We already have tunnel with such addresses */
-			IPSEC_SC_RUNLOCK();
 			return (EADDRNOTAVAIL);
 		}
 	}
 	/* If reqid is not set, generate new one. */
-	if (ipsec_init_reqid(sc) != 0) {
-		IPSEC_SC_RUNLOCK();
+	if (ipsec_init_reqid(sc) != 0)
 		return (EEXIST);
-	}
-	IPSEC_SC_RUNLOCK();
 	return (ipsec_set_tunnel(sc, src, dst, sc->reqid));
 }
 
@@ -932,8 +989,7 @@ ipsec_set_tunnel(struct ipsec_softc *sc, struct sockaddr *src,
     struct sockaddr *dst, uint32_t reqid)
 {
 	struct secpolicy *sp[IPSEC_SPCOUNT];
-	struct secpolicy *oldsp[IPSEC_SPCOUNT];
-	int i, f;
+	int i;
 
 	sx_assert(&ipsec_ioctl_sx, SA_XLOCKED);
 
@@ -945,58 +1001,41 @@ ipsec_set_tunnel(struct ipsec_softc *sc, struct sockaddr *src,
 				key_freesp(&sp[i]);
 			return (EAGAIN);
 		}
-		IPSEC_SC_WLOCK();
-		if ((f = sc->family) != 0)
-			LIST_REMOVE(sc, hash);
-		IPSEC_WLOCK(sc);
-		for (i = 0; i < IPSEC_SPCOUNT; i++) {
-			oldsp[i] = sc->sp[i];
+		if (sc->family != 0)
+			ipsec_delete_tunnel(sc);
+		for (i = 0; i < IPSEC_SPCOUNT; i++)
 			sc->sp[i] = sp[i];
-		}
 		sc->family = src->sa_family;
-		IPSEC_WUNLOCK(sc);
-		LIST_INSERT_HEAD(SCHASH_HASH(sc->reqid), sc, hash);
-		IPSEC_SC_WUNLOCK();
+		CK_LIST_INSERT_HEAD(ipsec_srchash(src), sc, srchash);
 	} else {
 		sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		return (ENOMEM);
 	}
-
-	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	if (f != 0) {
-		key_unregister_ifnet(oldsp, IPSEC_SPCOUNT);
-		for (i = 0; i < IPSEC_SPCOUNT; i++)
-			key_freesp(&oldsp[i]);
-	}
+	ipsec_set_running(sc);
 	return (0);
 }
 
 static void
-ipsec_delete_tunnel(struct ifnet *ifp, int locked)
+ipsec_delete_tunnel(struct ipsec_softc *sc)
 {
-	struct ipsec_softc *sc = ifp->if_softc;
-	struct secpolicy *oldsp[IPSEC_SPCOUNT];
 	int i;
 
 	sx_assert(&ipsec_ioctl_sx, SA_XLOCKED);
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	if (sc->family != 0) {
-		if (!locked)
-			IPSEC_SC_WLOCK();
-		/* Remove from hash table */
-		LIST_REMOVE(sc, hash);
-		IPSEC_WLOCK(sc);
-		for (i = 0; i < IPSEC_SPCOUNT; i++) {
-			oldsp[i] = sc->sp[i];
-			sc->sp[i] = NULL;
-		}
+		CK_LIST_REMOVE(sc, srchash);
+		IPSEC_WAIT();
+
+		/*
+		 * Make sure that ipsec_if_input() will not do access
+		 * to softc's policies.
+		 */
 		sc->family = 0;
-		IPSEC_WUNLOCK(sc);
-		if (!locked)
-			IPSEC_SC_WUNLOCK();
-		key_unregister_ifnet(oldsp, IPSEC_SPCOUNT);
+		IPSEC_WAIT();
+
+		key_unregister_ifnet(sc->sp, IPSEC_SPCOUNT);
 		for (i = 0; i < IPSEC_SPCOUNT; i++)
-			key_freesp(&oldsp[i]);
+			key_freesp(&sc->sp[i]);
 	}
 }
