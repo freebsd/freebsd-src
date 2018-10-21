@@ -1,10 +1,14 @@
 /*-
  * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
  * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Portions of this software were developed by Andrew Turner
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,57 +30,57 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef	_VIRTIO_MMIO_H
-#define	_VIRTIO_MMIO_H
+/*
+ * VirtIO MMIO interface.
+ * This driver is heavily based on VirtIO PCI interface driver.
+ */
 
-DECLARE_CLASS(vtmmio_driver);
+#include "opt_acpi.h"
 
-struct vtmmio_virtqueue;
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-struct vtmmio_softc {
-	device_t			dev;
-	device_t			platform;
-	struct resource			*res[2];
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 
-	uint64_t			vtmmio_features;
-	uint32_t			vtmmio_flags;
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
 
-	/* This "bus" will only ever have one child. */
-	device_t			vtmmio_child_dev;
-	struct virtio_feature_desc	*vtmmio_child_feat_desc;
+#include <dev/virtio/mmio/virtio_mmio.h>
 
-	int				vtmmio_nvqs;
-	struct vtmmio_virtqueue		*vtmmio_vqs;
-	void				*ih;
+static int	vtmmio_acpi_probe(device_t);
+
+static device_method_t vtmmio_acpi_methods[] = {
+	/* Device interface. */
+	DEVMETHOD(device_probe,		vtmmio_acpi_probe),
+
+	DEVMETHOD_END
 };
 
-int vtmmio_attach(device_t);
+DEFINE_CLASS_1(virtio_mmio, vtmmio_acpi_driver, vtmmio_acpi_methods,
+    sizeof(struct vtmmio_softc), vtmmio_driver);
 
-#define	VIRTIO_MMIO_MAGIC_VALUE		0x000
-#define	VIRTIO_MMIO_VERSION		0x004
-#define	VIRTIO_MMIO_DEVICE_ID		0x008
-#define	VIRTIO_MMIO_VENDOR_ID		0x00c
-#define	VIRTIO_MMIO_HOST_FEATURES	0x010
-#define	VIRTIO_MMIO_HOST_FEATURES_SEL	0x014
-#define	VIRTIO_MMIO_GUEST_FEATURES	0x020
-#define	VIRTIO_MMIO_GUEST_FEATURES_SEL	0x024
-#define	VIRTIO_MMIO_GUEST_PAGE_SIZE	0x028
-#define	VIRTIO_MMIO_QUEUE_SEL		0x030
-#define	VIRTIO_MMIO_QUEUE_NUM_MAX	0x034
-#define	VIRTIO_MMIO_QUEUE_NUM		0x038
-#define	VIRTIO_MMIO_QUEUE_ALIGN		0x03c
-#define	VIRTIO_MMIO_QUEUE_PFN		0x040
-#define	VIRTIO_MMIO_QUEUE_NOTIFY	0x050
-#define	VIRTIO_MMIO_INTERRUPT_STATUS	0x060
-#define	VIRTIO_MMIO_INTERRUPT_ACK	0x064
-#define	VIRTIO_MMIO_STATUS		0x070
-#define	VIRTIO_MMIO_CONFIG		0x100
-#define	VIRTIO_MMIO_INT_VRING		(1 << 0)
-#define	VIRTIO_MMIO_INT_CONFIG		(1 << 1)
-#define	VIRTIO_MMIO_VRING_ALIGN		4096
+static devclass_t vtmmio_acpi_devclass;
 
-#endif /* _VIRTIO_MMIO_H */
+DRIVER_MODULE(virtio_mmio, acpi, vtmmio_acpi_driver, vtmmio_acpi_devclass, 0,0);
+MODULE_DEPEND(virtio_mmio, acpi, 1, 1, 1);
+
+static int
+vtmmio_acpi_probe(device_t dev)
+{
+	ACPI_HANDLE h;
+
+	if ((h = acpi_get_handle(dev)) == NULL)
+		return (ENXIO);
+
+	if (!acpi_MatchHid(h, "LNRO0005"))
+		return (ENXIO);
+
+	device_set_desc(dev, "VirtIO MMIO adapter");
+	return (BUS_PROBE_DEFAULT);
+}
