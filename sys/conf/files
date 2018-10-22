@@ -1537,8 +1537,6 @@ dev/dcons/dcons_crom.c		optional dcons_crom
 dev/dcons/dcons_os.c		optional dcons
 dev/de/if_de.c			optional de pci
 dev/dme/if_dme.c		optional dme
-dev/dpt/dpt_pci.c		optional dpt pci
-dev/dpt/dpt_scsi.c		optional dpt
 dev/drm/ati_pcigart.c		optional drm
 dev/drm/drm_agpsupport.c	optional drm
 dev/drm/drm_auth.c		optional drm
