@@ -332,7 +332,6 @@ SUBDIR=	\
 	${_safe} \
 	${_sbni} \
 	scc \
-	${_scsi_low} \
 	sdhci \
 	${_sdhci_acpi} \
 	sdhci_pci \
@@ -614,7 +613,6 @@ _pccard=	pccard
 _rdma=		rdma
 .endif
 _safe=		safe
-_scsi_low=	scsi_low
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
