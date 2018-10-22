@@ -357,7 +357,6 @@ SUBDIR=	\
 	${_splash} \
 	${_sppp} \
 	ste \
-	${_stg} \
 	stge \
 	${_sym} \
 	${_syscons} \
@@ -758,7 +757,6 @@ _ncr=		ncr
 _pcfclock=	pcfclock
 _pst=		pst
 _sbni=		sbni
-_stg=		stg
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ctau=		ctau
 .endif
