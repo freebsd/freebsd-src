@@ -113,7 +113,6 @@ cam/ctl/scsi_ctl.c		optional ctl
 cam/mmc/mmc_xpt.c		optional scbus mmccam
 cam/mmc/mmc_da.c		optional scbus mmccam da
 cam/scsi/scsi_da.c		optional da
-cam/scsi/scsi_low.c		optional stg
 cam/scsi/scsi_pass.c		optional pass
 cam/scsi/scsi_pt.c		optional pt
 cam/scsi/scsi_sa.c		optional sa
@@ -3137,11 +3136,6 @@ dev/spibus/spibus.c		optional spibus				\
 dev/spibus/spigen.c		optional spigen
 dev/spibus/spibus_if.m		optional spibus
 dev/ste/if_ste.c		optional ste pci
-dev/stg/tmc18c30.c		optional stg
-dev/stg/tmc18c30_isa.c		optional stg isa
-dev/stg/tmc18c30_pccard.c	optional stg pccard
-dev/stg/tmc18c30_pci.c		optional stg pci
-dev/stg/tmc18c30_subr.c		optional stg
 dev/stge/if_stge.c		optional stge
 dev/sym/sym_hipd.c		optional sym				\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"

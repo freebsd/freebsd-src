@@ -504,7 +504,6 @@ MAN=	aac.4 \
 	sppp.4 \
 	ste.4 \
 	stf.4 \
-	stg.4 \
 	stge.4 \
 	sym.4 \
 	syncache.4 \
