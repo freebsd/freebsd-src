@@ -119,7 +119,6 @@ nodevice	snd_via8233
 nodevice	snd_via82c686
 nodevice	snd_vibes
 nodevice	snd_uaudio
-nodevice	bt
 nodevice	ep
 nodevice	ex
 
