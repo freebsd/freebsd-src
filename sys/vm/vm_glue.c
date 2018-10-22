@@ -377,8 +377,8 @@ vm_thread_new(struct thread *td, int pages)
 	 */
 	if (vm_ndomains > 1) {
 		ksobj->domain.dr_policy = DOMAINSET_RR();
-		ksobj->domain.dr_iter = atomic_fetchadd_int(&kstack_domain_iter,
-		    1);
+		ksobj->domain.dr_iterator =
+		    atomic_fetchadd_int(&kstack_domain_iter, 1);
 	}
 
 	atomic_add_int(&kstacks, 1);
