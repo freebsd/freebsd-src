@@ -742,7 +742,8 @@ swapper_selector(bool wkilled_only)
 /*
  * Limit swapper to swap in one non-WKILLED process in MAXSLP/2
  * interval, assuming that there is:
- * - no memory shortage;
+ * - there exists at least one domain that is not suffering from a shortage of
+ *   free memory;
  * - no parallel swap-ins;
  * - no other swap-ins in the current SWAPIN_INTERVAL.
  */
@@ -750,7 +751,7 @@ static bool
 swapper_wkilled_only(void)
 {
 
-	return (vm_page_count_min() || swap_inprogress > 0 ||
+	return (vm_page_count_min_set(&all_domains) || swap_inprogress > 0 ||
 	    (u_int)(ticks - last_swapin) < SWAPIN_INTERVAL);
 }
 
