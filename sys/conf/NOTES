@@ -1553,7 +1553,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
-# aic: Adaptec 6260/6360, APA-1460 (PC Card)
 # bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
 #      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
 # esp: Emulex ESP, NCR 53C9x and QLogic FAS families based controllers
@@ -1585,8 +1584,6 @@ hint.bt.0.port="0x330"
 device		adv
 hint.adv.0.at="isa"
 device		adw
-device		aic
-hint.aic.0.at="isa"
 device		ahc
 device		ahd
 device		esp
