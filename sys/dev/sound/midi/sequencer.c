@@ -434,7 +434,7 @@ static void
 seq_eventthread(void *arg)
 {
 	struct seq_softc *scp = arg;
-	char event[EV_SZ];
+	u_char event[EV_SZ];
 
 	mtx_lock(&scp->seq_lock);
 	SEQ_DEBUG(2, printf("seq_eventthread started\n"));
