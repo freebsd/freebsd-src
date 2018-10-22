@@ -767,8 +767,6 @@ dev/ae/if_ae.c			optional ae pci
 dev/age/if_age.c		optional age pci
 dev/agp/agp.c			optional agp pci
 dev/agp/agp_if.m		optional agp pci
-dev/aha/aha.c			optional aha
-dev/aha/aha_isa.c		optional aha isa
 dev/ahci/ahci.c			optional ahci
 dev/ahci/ahciem.c		optional ahci
 dev/ahci/ahci_pci.c		optional ahci pci

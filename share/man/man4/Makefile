@@ -29,7 +29,6 @@ MAN=	aac.4 \
 	${_aesni.4} \
 	age.4 \
 	agp.4 \
-	aha.4 \
 	ahc.4 \
 	ahci.4 \
 	ahd.4 \
