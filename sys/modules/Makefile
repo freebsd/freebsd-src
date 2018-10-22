@@ -110,7 +110,6 @@ SUBDIR=	\
 	dcons_crom \
 	de \
 	${_dpms} \
-	${_dpt} \
 	${_drm} \
 	${_drm2} \
 	dummynet \
@@ -767,7 +766,6 @@ _stg=		stg
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ctau=		ctau
 .endif
-_dpt=		dpt
 _ex=		ex
 .endif
 

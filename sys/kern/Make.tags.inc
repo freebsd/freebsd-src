@@ -12,7 +12,6 @@ SYS?=	${.CURDIR}/..
 
 COMM=	${SYS}/sys/vnode.h \
 	${SYS}/dev/alc/*.[ch] \
-	${SYS}/dev/dpt/*.[ch] \
 	${SYS}/dev/en/*.[ch] \
 	${SYS}/dev/iicbus/*.[ch] \
 	${SYS}/dev/isp/*.[ch] \
@@ -66,7 +65,6 @@ COMMDIR1= ${SYS}/conf \
 	${SYS}/sys
 
 COMMDIR2= ${SYS}/dev/alc \
-	${SYS}/dev/dpt \
 	${SYS}/dev/en \
 	${SYS}/dev/iicbus \
 	${SYS}/dev/isp \

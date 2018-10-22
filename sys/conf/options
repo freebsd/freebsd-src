@@ -566,10 +566,6 @@ DRM_DEBUG		opt_drm.h
 TI_SF_BUF_JUMBO		opt_ti.h
 TI_JUMBO_HDRSPLIT	opt_ti.h
 
-# DPT driver debug flags
-DPT_MEASURE_PERFORMANCE	opt_dpt.h
-DPT_RESET_HBA		opt_dpt.h
-
 # Misc debug flags.  Most of these should probably be replaced with
 # 'DEBUG', and then let people recompile just the interesting modules
 # with 'make CC="cc -DDEBUG"'.

@@ -151,7 +151,6 @@ device		ses			# Enclosure Services (SES and SAF-TE)
 device		amr			# AMI MegaRAID
 device		arcmsr			# Areca SATA II RAID
 device		ciss			# Compaq Smart RAID 5*
-device		dpt			# DPT Smartcache III, IV - See NOTES for options
 device		hptmv			# Highpoint RocketRAID 182x
 device		hptnr			# Highpoint DC7280, R750
 device		hptrr			# Highpoint RocketRAID 17xx, 22xx, 23xx, 25xx
