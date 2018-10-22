@@ -386,12 +386,6 @@ SYM_SETUP_PCI_PARITY	opt_sym.h	#-PCI parity checking
 SYM_SETUP_MAX_LUN	opt_sym.h	#-Number of LUNs supported
 					# default:8, range:[1..64]
 
-# Options used only in dev/ncr/*
-SCSI_NCR_DEBUG		opt_ncr.h
-SCSI_NCR_MAX_SYNC	opt_ncr.h
-SCSI_NCR_MAX_WIDE	opt_ncr.h
-SCSI_NCR_MYADDR		opt_ncr.h
-
 # Options used only in dev/isp/*
 ISP_TARGET_MODE		opt_isp.h
 ISP_FW_CRASH_DUMP	opt_isp.h
