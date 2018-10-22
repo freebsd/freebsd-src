@@ -161,7 +161,6 @@ dev/agp/agp_intel.c		optional agp
 dev/agp/agp_nvidia.c		optional agp
 dev/agp/agp_sis.c		optional agp
 dev/agp/agp_via.c		optional agp
-dev/aic/aic_isa.c		optional aic isa
 dev/amdsbwd/amdsbwd.c		optional amdsbwd
 dev/amdsmn/amdsmn.c		optional amdsmn | amdtemp
 dev/amdtemp/amdtemp.c		optional amdtemp

@@ -27,7 +27,6 @@ SUBDIR=	\
 	age \
 	${_agp} \
 	ahci \
-	${_aic} \
 	aic7xxx \
 	alc \
 	ale \
@@ -747,7 +746,6 @@ _vmm=		vmm
 # XXX some of these can move now, but are untested on other architectures.
 _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
-_aic=		aic
 _apm=		apm
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ce=		ce

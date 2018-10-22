@@ -2,8 +2,7 @@
 
 PACKAGE=runtime-manuals
 
-MAN=	aic.4 \
-	apm.4 \
+MAN=	apm.4 \
 	ce.4 \
 	cp.4 \
 	CPU_ELAN.4 \
