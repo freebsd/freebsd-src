@@ -238,6 +238,7 @@ sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
 shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
 shurd [label="Stephen Hurd\nshurd@FreeBSD.org\n2014/06/14"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2005/01/08"]
+skozlov [label="Sergey Kozlov\nskozlov@FreeBSD.org\n2018/09/21"]
 skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2009/03/25"]
 sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17"]
 sperber[label="Armin Pirkovitsch\nsperber@FreeBSD.org\n2012/04/15"]
@@ -652,6 +653,8 @@ sahil -> culot
 sahil -> eadler
 
 sat -> beech
+
+sbruno -> skozlov
 
 sem -> az
 sem -> anray
