@@ -68,13 +68,33 @@ if [ -n "$2" ]; then
 fi
 
 sed -e '
-:join
+	# FreeBSD ID, includes, comments, and blank lines
+	/.*\$FreeBSD/b done_joining
+	/^[#;]/b done_joining
+	/^$/b done_joining
+
+	# Join lines ending in backslash
+:joining
 	/\\$/{a\
 
 	N
 	s/\\\n//
-	b join
+	b joining
 	}
+
+	# OBSOL, etc lines without function signatures
+	/^[0-9][^{]*$/b done_joining
+
+	# Join incomplete signatures.  The { must appear on the first line
+	# and the } must appear on the last line (modulo lines joined by
+	# backslashes).
+	/^[^}]*$/{a\
+
+	N
+	s/\n//
+	b joining
+	}
+:done_joining
 2,${
 	/^#/!s/\([{}()*,]\)/ \1 /g
 }
