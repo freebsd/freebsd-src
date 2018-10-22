@@ -1563,7 +1563,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # ispfw: Firmware module for Qlogic host adapters
 # mpt: LSI-Logic MPT/Fusion 53c1020 or 53c1030 Ultra4
 #      or FC9x9 Fibre Channel host adapters.
-# ncr: NCR 53C810, 53C825 self-contained SCSI host adapters.
 # sym: Symbios/Logic 53C8XX family of PCI-SCSI I/O processors:
 #      53C810, 53C810A, 53C815, 53C825,  53C825A, 53C860, 53C875,
 #      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D,
@@ -1592,7 +1591,6 @@ hint.isp.0.portwnn="w50000000aaaa0000"
 hint.isp.0.nodewnn="w50000000aaaa0001"
 device		ispfw
 device		mpt
-device		ncr
 device		sym
 device		trm
 
@@ -1650,12 +1648,6 @@ options 	ISP_TARGET_MODE=1
 #
 options 	ISP_DEFAULT_ROLES=0
 
-# Options used in dev/sym/ (Symbios SCSI driver).
-#options 	SYM_SETUP_LP_PROBE_MAP	#-Low Priority Probe Map (bits)
-					# Allows the ncr to take precedence
-					# 1 (1<<0) -> 810a, 860
-					# 2 (1<<1) -> 825a, 875, 885, 895
-					# 4 (1<<2) -> 895a, 896, 1510d
 #options 	SYM_SETUP_SCSI_DIFF	#-HVD support for 825a, 875, 885
 					# disabled:0 (default), enabled:1
 #options 	SYM_SETUP_PCI_PARITY	#-PCI parity checking
@@ -2922,11 +2914,6 @@ options 	MSGSSZ=16	# Size of a message segment
 options 	MSGTQL=41	# Max number of messages in system
 
 options 	NBUF=512	# Number of buffer headers
-
-options 	SCSI_NCR_DEBUG
-options 	SCSI_NCR_MAX_SYNC=10000
-options 	SCSI_NCR_MAX_WIDE=1
-options 	SCSI_NCR_MYADDR=7
 
 options 	SC_DEBUG_LEVEL=5	# Syscons debug level
 options 	SC_RENDER_DEBUG	# syscons rendering debugging
