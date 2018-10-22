@@ -305,7 +305,6 @@ MAN=	aac.4 \
 	nand.4 \
 	nandsim.4 \
 	ncr.4 \
-	ncv.4 \
 	${_ndis.4} \
 	net80211.4 \
 	netdump.4 \

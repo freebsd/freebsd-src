@@ -428,11 +428,9 @@ device		twa			# 3ware 9000 series PATA/SATA RAID
 #
 # SCSI host adapters:
 #
-# ncv: NCR 53C500 based SCSI host adapters.
 # nsp: Workbit Ninja SCSI-3 based PC Card SCSI host adapters.
 # stg: TMC 18C30, 18C50 based SCSI host adapters.
 
-device		ncv
 device		nsp
 device		stg
 

@@ -113,7 +113,7 @@ cam/ctl/scsi_ctl.c		optional ctl
 cam/mmc/mmc_xpt.c		optional scbus mmccam
 cam/mmc/mmc_da.c		optional scbus mmccam da
 cam/scsi/scsi_da.c		optional da
-cam/scsi/scsi_low.c		optional ncv | nsp | stg
+cam/scsi/scsi_low.c		optional nsp | stg
 cam/scsi/scsi_pass.c		optional pass
 cam/scsi/scsi_pt.c		optional pt
 cam/scsi/scsi_sa.c		optional sa
@@ -2511,8 +2511,6 @@ dev/nand/nandsim_log.c		optional nandsim nand
 dev/nand/nandsim_swap.c		optional nandsim nand
 dev/nand/nfc_if.m		optional nand
 dev/ncr/ncr.c			optional ncr pci
-dev/ncv/ncr53c500.c		optional ncv
-dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/if_ptnet.c		optional netmap inet
 dev/netmap/netmap.c		optional netmap
 dev/netmap/netmap_freebsd.c	optional netmap
