@@ -2410,6 +2410,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	 * the current cache; when we re-acquire the critical section, we
 	 * must detect and handle migration if it has occurred.
 	 */
+zalloc_restart:
 	critical_enter();
 	cpu = curcpu;
 	cache = &zone->uz_cpu[cpu];
@@ -2551,12 +2552,18 @@ zalloc_start:
 		 * initialized bucket to make this less likely or claim
 		 * the memory directly.
 		 */
-		if (cache->uc_allocbucket != NULL ||
-		    (zone->uz_flags & UMA_ZONE_NUMA &&
-		    domain != PCPU_GET(domain)))
-			LIST_INSERT_HEAD(&zdom->uzd_buckets, bucket, ub_link);
-		else
+		if (cache->uc_allocbucket == NULL &&
+		    ((zone->uz_flags & UMA_ZONE_NUMA) == 0 ||
+		    domain == PCPU_GET(domain))) {
 			cache->uc_allocbucket = bucket;
+		} else if ((zone->uz_flags & UMA_ZONE_NOBUCKETCACHE) != 0) {
+			critical_exit();
+			ZONE_UNLOCK(zone);
+			bucket_drain(zone, bucket);
+			bucket_free(zone, bucket, udata);
+			goto zalloc_restart;
+		} else
+			LIST_INSERT_HEAD(&zdom->uzd_buckets, bucket, ub_link);
 		ZONE_UNLOCK(zone);
 		goto zalloc_start;
 	}
