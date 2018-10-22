@@ -10,8 +10,7 @@ SYS?=	${.CURDIR}/..
 # win when there is a struct tag with the same name (e.g., vmmeter).  The
 # better solution would be for ctags to generate "struct vmmeter" tags.
 
-COMM=	${SYS}/dev/advansys/*.[ch] \
-	${SYS}/sys/vnode.h \
+COMM=	${SYS}/sys/vnode.h \
 	${SYS}/dev/alc/*.[ch] \
 	${SYS}/dev/buslogic/*.[ch] \
 	${SYS}/dev/dpt/*.[ch] \
@@ -67,8 +66,7 @@ COMMDIR1= ${SYS}/conf \
 	${SYS}/vm \
 	${SYS}/sys
 
-COMMDIR2= ${SYS}/dev/advansys \
-	${SYS}/dev/alc \
+COMMDIR2= ${SYS}/dev/alc \
 	${SYS}/dev/buslogic \
 	${SYS}/dev/dpt \
 	${SYS}/dev/en \

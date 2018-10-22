@@ -23,8 +23,6 @@ MAN=	aac.4 \
 	${_acpi_wmi.4} \
 	ada.4 \
 	adm6996fc.4 \
-	adv.4 \
-	adw.4 \
 	ae.4 \
 	${_aesni.4} \
 	age.4 \
