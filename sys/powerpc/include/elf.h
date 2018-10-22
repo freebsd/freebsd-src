@@ -90,35 +90,6 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 
 __ElfType(Auxinfo);
 
-/* Values for a_type. */
-#define	AT_NULL		0	/* Terminates the vector. */
-#define	AT_IGNORE	1	/* Ignored entry. */
-#define	AT_EXECFD	2	/* File descriptor of program to load. */
-#define	AT_PHDR		3	/* Program header of program already loaded. */
-#define	AT_PHENT	4	/* Size of each program header entry. */
-#define	AT_PHNUM	5	/* Number of program header entries. */
-#define	AT_PAGESZ	6	/* Page size in bytes. */
-#define	AT_BASE		7	/* Interpreter's base address. */
-#define	AT_FLAGS	8	/* Flags (unused for PowerPC). */
-#define	AT_ENTRY	9	/* Where interpreter should transfer control. */
-#define	AT_DCACHEBSIZE	10	/* Data cache block size for the processor. */
-#define	AT_ICACHEBSIZE	11	/* Instruction cache block size for the uP. */
-#define	AT_UCACHEBSIZE	12	/* Cache block size, or `0' if cache not unified. */
-#define	AT_EXECPATH	13	/* Path to the executable. */
-#define	AT_CANARY	14	/* Canary for SSP */
-#define	AT_CANARYLEN	15	/* Length of the canary. */
-#define	AT_OSRELDATE	16	/* OSRELDATE. */
-#define	AT_NCPUS	17	/* Number of CPUs. */
-#define	AT_PAGESIZES	18	/* Pagesizes. */
-#define	AT_PAGESIZESLEN	19	/* Number of pagesizes. */
-#define	AT_STACKPROT	21	/* Initial stack protection. */
-#define	AT_TIMEKEEP	22	/* Pointer to timehands. */
-#define	AT_EHDRFLAGS	24	/* e_flags field from elf hdr */
-#define	AT_HWCAP	25	/* CPU feature flags. */
-#define	AT_HWCAP2	26	/* CPU feature flags 2. */
-
-#define	AT_COUNT	27	/* Count of defined aux entry types. */
-
 /*
  * Relocation types.
  */
