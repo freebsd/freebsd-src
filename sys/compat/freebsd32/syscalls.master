@@ -1051,8 +1051,8 @@
 540	AUE_CHFLAGSAT	NOPROTO	{ int chflagsat(int fd, const char *path, \
 				    u_long flags, int atflag); }
 541	AUE_ACCEPT	NOPROTO	{ int accept4(int s, \
-				    struct sockaddr * __restrict name, \
-				    __socklen_t * __restrict anamelen, \
+				    struct sockaddr *name, \
+				    __socklen_t *anamelen, \
 				    int flags); }
 542	AUE_PIPE	NOPROTO	{ int pipe2(int *fildes, int flags); }
 543	AUE_AIO_MLOCK	STD	{ int freebsd32_aio_mlock( \
