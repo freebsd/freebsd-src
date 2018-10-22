@@ -576,11 +576,12 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 		return (FALSE);
 
 	/* Try to read the numa node of this cpu */
-	if (OF_getencprop(node, "numa-node-id", &domain, sizeof(domain)) > 0) {
-		__pcpu[id].pc_domain = domain;
-		if (domain < MAXMEMDOM)
-			CPU_SET(id, &cpuset_domain[domain]);
-	}
+	if (vm_ndomains == 1 ||
+	    OF_getencprop(node, "numa-node-id", &domain, sizeof(domain)) <= 0)
+		domain = 0;
+	__pcpu[id].pc_domain = domain;
+	if (domain < MAXMEMDOM)
+		CPU_SET(id, &cpuset_domain[domain]);
 
 	return (TRUE);
 }
