@@ -1551,8 +1551,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
-# bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
-#      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
 # esp: Emulex ESP, NCR 53C9x and QLogic FAS families based controllers
 #      including the AMD Am53C974 (found on devices such as the Tekram
 #      DC-390(T)) and the Sun ESP and FAS families of controllers
@@ -1572,13 +1570,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 #      53C1010-33, 53C1010-66.
 # trm: Tekram DC395U/UW/F DC315U adapters.
 
-#
-# Note that the order is important in order for Buslogic ISA cards to be
-# probed correctly.
-#
-device		bt
-hint.bt.0.at="isa"
-hint.bt.0.port="0x330"
 device		ahc
 device		ahd
 device		esp

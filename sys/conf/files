@@ -1327,9 +1327,6 @@ dev/bnxt/bnxt_hwrm.c		optional bnxt iflib pci
 dev/bnxt/bnxt_sysctl.c		optional bnxt iflib pci
 dev/bnxt/bnxt_txrx.c		optional bnxt iflib pci
 dev/bnxt/if_bnxt.c		optional bnxt iflib pci
-dev/buslogic/bt.c		optional bt
-dev/buslogic/bt_isa.c		optional bt isa
-dev/buslogic/bt_pci.c		optional bt pci
 dev/bwi/bwimac.c		optional bwi
 dev/bwi/bwiphy.c		optional bwi
 dev/bwi/bwirf.c			optional bwi
