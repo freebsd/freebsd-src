@@ -657,16 +657,6 @@ options 	TWA_DEBUG		# 0-10; 10 prints the most messages.
 device		twa			# 3ware 9000 series PATA/SATA RAID
 
 #
-# SCSI host adapters:
-#
-# stg: TMC 18C30, 18C50 based SCSI host adapters.
-
-device		stg
-hint.stg.0.at="isa"
-hint.stg.0.port="0x140"
-hint.stg.0.port="11"
-
-#
 # Adaptec FSA RAID controllers, including integrated DELL controllers,
 # the Dell PERC 2/QC and the HP NetRAID-4M
 device		aac
