@@ -438,7 +438,7 @@ trap(struct trapframe *frame)
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = sig;
 		ksi.ksi_code = (int) ucode; /* XXX, not POSIX */
-		/* ksi.ksi_addr = ? */
+		ksi.ksi_addr = (void *)frame->srr0;
 		ksi.ksi_trapno = type;
 		trapsignal(td, &ksi);
 	}
