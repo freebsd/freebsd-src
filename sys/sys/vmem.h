@@ -41,8 +41,9 @@ typedef struct vmem vmem_t;
 typedef uintptr_t	vmem_addr_t;
 typedef size_t		vmem_size_t;
 
-#define	VMEM_ADDR_MIN	0
-#define	VMEM_ADDR_MAX	(~(vmem_addr_t)0)
+#define	VMEM_ADDR_MIN		0
+#define	VMEM_ADDR_QCACHE_MIN	1
+#define	VMEM_ADDR_MAX		(~(vmem_addr_t)0)
 
 typedef int (vmem_import_t)(void *, vmem_size_t, int, vmem_addr_t *);
 typedef void (vmem_release_t)(void *, vmem_addr_t, vmem_size_t);
