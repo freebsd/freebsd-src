@@ -1,4 +1,7 @@
 /* $FreeBSD$ */
+/*
+ * Public domain.
+ */
 
 #ifndef _CHACHA_H
 #define _CHACHA_H
