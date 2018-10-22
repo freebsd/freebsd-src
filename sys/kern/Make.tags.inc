@@ -12,7 +12,6 @@ SYS?=	${.CURDIR}/..
 
 COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/sys/vnode.h \
-	${SYS}/dev/aha/*.[ch] \
 	${SYS}/dev/alc/*.[ch] \
 	${SYS}/dev/buslogic/*.[ch] \
 	${SYS}/dev/dpt/*.[ch] \
@@ -69,7 +68,6 @@ COMMDIR1= ${SYS}/conf \
 	${SYS}/sys
 
 COMMDIR2= ${SYS}/dev/advansys \
-	${SYS}/dev/aha \
 	${SYS}/dev/alc \
 	${SYS}/dev/buslogic \
 	${SYS}/dev/dpt \

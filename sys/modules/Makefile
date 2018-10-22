@@ -26,7 +26,6 @@ SUBDIR=	\
 	${_aesni} \
 	age \
 	${_agp} \
-	aha \
 	ahci \
 	${_aic} \
 	aic7xxx \
