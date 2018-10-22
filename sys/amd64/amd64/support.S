@@ -524,9 +524,12 @@ END(memcpy_erms)
 	rep
 	stosq
 	movq	%r9,%rax
-	movq	%rdx,%rcx
-	andb	$7,%cl
-	jne	1004b
+	andl	$7,%edx
+	jnz	1f
+	POP_FRAME_POINTER
+	ret
+1:
+	movq	%r10,-8(%rdi,%rdx)
 .endif
 	POP_FRAME_POINTER
 	ret
