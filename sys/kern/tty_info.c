@@ -236,10 +236,12 @@ sbuf_tty_drain(void *a, const char *d, int len)
 	return (-ENXIO);
 }
 
+#ifdef STACK
 static bool tty_info_kstacks = false;
 SYSCTL_BOOL(_kern, OID_AUTO, tty_info_kstacks, CTLFLAG_RWTUN,
     &tty_info_kstacks, 0,
     "Enable printing kernel stack(9) traces on ^T (tty info)");
+#endif
 
 /*
  * Report on state of foreground process group.
@@ -248,13 +250,16 @@ void
 tty_info(struct tty *tp)
 {
 	struct timeval rtime, utime, stime;
+#ifdef STACK
 	struct stack stack;
+	int sterr;
+#endif
 	struct proc *p, *ppick;
 	struct thread *td, *tdpick;
 	const char *stateprefix, *state;
 	struct sbuf sb;
 	long rss;
-	int load, pctcpu, sterr;
+	int load, pctcpu;
 	pid_t pid;
 	char comm[MAXCOMLEN + 1];
 	struct rusage ru;
@@ -329,6 +334,7 @@ tty_info(struct tty *tp)
 	else
 		state = "unknown";
 	pctcpu = (sched_pctcpu(td) * 10000 + FSCALE / 2) >> FSHIFT;
+#ifdef STACK
 	if (tty_info_kstacks) {
 		stack_zero(&stack);
 		if (TD_IS_SWAPPED(td) || TD_IS_RUNNING(td))
@@ -338,6 +344,7 @@ tty_info(struct tty *tp)
 			sterr = 0;
 		}
 	}
+#endif
 	thread_unlock(td);
 	if (p->p_state == PRS_NEW || p->p_state == PRS_ZOMBIE)
 		rss = 0;
@@ -359,8 +366,10 @@ tty_info(struct tty *tp)
 	    (long)stime.tv_sec, stime.tv_usec / 10000,
 	    pctcpu / 100, rss);
 
+#ifdef STACK
 	if (tty_info_kstacks && sterr == 0)
 		stack_sbuf_print_flags(&sb, &stack, M_NOWAIT);
+#endif
 
 out:
 	sbuf_finish(&sb);
