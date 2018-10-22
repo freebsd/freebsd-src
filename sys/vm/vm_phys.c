@@ -597,11 +597,22 @@ vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
     int *locality)
 {
 #ifdef NUMA
-	int i;
+	int d, i;
 
-	vm_ndomains = ndomains;
-	mem_affinity = affinity;
-	mem_locality = locality;
+	/*
+	 * For now the only override value that we support is 1, which
+	 * effectively disables NUMA-awareness in the allocators.
+	 */
+	d = 0;
+	TUNABLE_INT_FETCH("vm.numa.disabled", &d);
+	if (d)
+		ndomains = 1;
+
+	if (ndomains > 1) {
+		vm_ndomains = ndomains;
+		mem_affinity = affinity;
+		mem_locality = locality;
+	}
 
 	for (i = 0; i < vm_ndomains; i++)
 		DOMAINSET_SET(i, &all_domains);
