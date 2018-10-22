@@ -4,7 +4,6 @@
 #
 # $FreeBSD$
 
-nodevice	adw
 nodevice	bce
 nodevice	fxp
 nodevice	ispfw

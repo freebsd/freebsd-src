@@ -1548,8 +1548,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 #
 # SCSI host adapters:
 #
-# adv: All Narrow SCSI bus AdvanSys controllers.
-# adw: Second Generation AdvanSys controllers including the ADV940UW.
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
@@ -1581,9 +1579,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 device		bt
 hint.bt.0.at="isa"
 hint.bt.0.port="0x330"
-device		adv
-hint.adv.0.at="isa"
-device		adw
 device		ahc
 device		ahd
 device		esp
@@ -1643,10 +1638,6 @@ options 	AHD_REG_PRETTY_PRINT
 
 # Bitmap of units to enable targetmode operations.
 options 	AHD_TMODE_ENABLE
-
-# The adw driver will attempt to use memory mapped I/O for all PCI
-# controllers that have it configured only if this option is set.
-options 	ADW_ALLOW_MEMIO
 
 # Options used in dev/iscsi (Software iSCSI stack)
 #
