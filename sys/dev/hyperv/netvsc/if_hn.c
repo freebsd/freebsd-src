@@ -861,7 +861,8 @@ hn_set_hlen(struct mbuf *m_head)
 
 		PULLUP_HDR(m_head, ehlen + sizeof(*ip6));
 		ip6 = mtodo(m_head, ehlen);
-		if (ip6->ip6_nxt != IPPROTO_TCP) {
+		if (ip6->ip6_nxt != IPPROTO_TCP &&
+		    ip6->ip6_nxt != IPPROTO_UDP) {
 			m_freem(m_head);
 			return (NULL);
 		}
