@@ -873,10 +873,9 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
     const struct in6_addr *laddr, uint16_t lport, const struct in6_addr *faddr,
     uint16_t fport, int lookupflags)
 {
-	struct inpcb *local_wild = NULL;
+	struct inpcb *local_wild;
 	const struct inpcblbgrouphead *hdr;
 	struct inpcblbgroup *grp;
-	struct inpcblbgroup *grp_local_wild;
 	uint32_t idx;
 
 	INP_HASH_LOCK_ASSERT(pcbinfo);
@@ -893,33 +892,24 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 	 * - Load balanced group does not contain jailed sockets.
 	 * - Load balanced does not contain IPv4 mapped INET6 wild sockets.
 	 */
+	local_wild = NULL;
 	CK_LIST_FOREACH(grp, hdr, il_list) {
 #ifdef INET
 		if (!(grp->il_vflag & INP_IPV6))
 			continue;
 #endif
-		if (grp->il_lport == lport) {
-			idx = 0;
-			int pkt_hash = INP_PCBLBGROUP_PKTHASH(
-			    INP6_PCBHASHKEY(faddr), lport, fport);
+		if (grp->il_lport != lport)
+			continue;
 
-			idx = pkt_hash % grp->il_inpcnt;
-
-			if (IN6_ARE_ADDR_EQUAL(&grp->il6_laddr, laddr)) {
-				return (grp->il_inp[idx]);
-			} else {
-				if (IN6_IS_ADDR_UNSPECIFIED(&grp->il6_laddr) &&
-				    (lookupflags & INPLOOKUP_WILDCARD)) {
-					local_wild = grp->il_inp[idx];
-					grp_local_wild = grp;
-				}
-			}
-		}
+		idx = INP_PCBLBGROUP_PKTHASH(INP6_PCBHASHKEY(faddr), lport,
+		    fport) % grp->il_inpcnt;
+		if (IN6_ARE_ADDR_EQUAL(&grp->il6_laddr, laddr))
+			return (grp->il_inp[idx]);
+		if (IN6_IS_ADDR_UNSPECIFIED(&grp->il6_laddr) &&
+		    (lookupflags & INPLOOKUP_WILDCARD) != 0)
+			local_wild = grp->il_inp[idx];
 	}
-	if (local_wild != NULL) {
-		return (local_wild);
-	}
-	return (NULL);
+	return (local_wild);
 }
 
 #ifdef PCBGROUP
