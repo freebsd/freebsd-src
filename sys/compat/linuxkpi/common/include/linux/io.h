@@ -38,153 +38,309 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 
-static inline uint32_t
-__raw_readl(const volatile void *addr)
-{
-	return *(const volatile uint32_t *)addr;
-}
-
-static inline void
-__raw_writel(uint32_t b, volatile void *addr)
-{
-	*(volatile uint32_t *)addr = b;
-}
-
-static inline uint64_t
-__raw_readq(const volatile void *addr)
-{
-	return *(const volatile uint64_t *)addr;
-}
-
-static inline void
-__raw_writeq(uint64_t b, volatile void *addr)
-{
-	*(volatile uint64_t *)addr = b;
-}
-
 /*
  * XXX This is all x86 specific.  It should be bus space access.
  */
-#define	mmiowb()	barrier()
 
-#undef writel
-static inline void
-writel(uint32_t b, void *addr)
-{
-	*(volatile uint32_t *)addr = b;
-}
+/* Access MMIO registers atomically without barriers and byte swapping. */
 
-#undef writel_relaxed
-static inline void
-writel_relaxed(uint32_t b, void *addr)
-{
-	*(volatile uint32_t *)addr = b;
-}
-
-#undef writeq
-static inline void
-writeq(uint64_t b, void *addr)
-{
-	*(volatile uint64_t *)addr = b;
-}
-
-#undef writeb
-static inline void
-writeb(uint8_t b, void *addr)
-{
-	*(volatile uint8_t *)addr = b;
-}
-
-#undef writew
-static inline void
-writew(uint16_t b, void *addr)
-{
-	*(volatile uint16_t *)addr = b;
-}
-
-#undef ioread8
 static inline uint8_t
-ioread8(const volatile void *addr)
+__raw_readb(const volatile void *addr)
 {
-	return *(const volatile uint8_t *)addr;
+	return (*(const volatile uint8_t *)addr);
 }
+#define	__raw_readb(addr)	__raw_readb(addr)
 
-#undef ioread16
-static inline uint16_t
-ioread16(const volatile void *addr)
-{
-	return *(const volatile uint16_t *)addr;
-}
-
-#undef ioread16be
-static inline uint16_t
-ioread16be(const volatile void *addr)
-{
-	return be16toh(*(const volatile uint16_t *)addr);
-}
-
-#undef ioread32
-static inline uint32_t
-ioread32(const volatile void *addr)
-{
-	return *(const volatile uint32_t *)addr;
-}
-
-#undef ioread32be
-static inline uint32_t
-ioread32be(const volatile void *addr)
-{
-	return be32toh(*(const volatile uint32_t *)addr);
-}
-
-#undef iowrite8
 static inline void
-iowrite8(uint8_t v, volatile void *addr)
+__raw_writeb(uint8_t v, volatile void *addr)
 {
 	*(volatile uint8_t *)addr = v;
 }
+#define	__raw_writeb(v, addr)	__raw_writeb(v, addr)
 
-#undef iowrite16
+static inline uint16_t
+__raw_readw(const volatile void *addr)
+{
+	return (*(const volatile uint16_t *)addr);
+}
+#define	__raw_readw(addr)	__raw_readw(addr)
+
 static inline void
-iowrite16(uint16_t v, volatile void *addr)
+__raw_writew(uint16_t v, volatile void *addr)
 {
 	*(volatile uint16_t *)addr = v;
 }
+#define	__raw_writew(v, addr)	__raw_writew(v, addr)
 
-#undef iowrite32
+static inline uint32_t
+__raw_readl(const volatile void *addr)
+{
+	return (*(const volatile uint32_t *)addr);
+}
+#define	__raw_readl(addr)	__raw_readl(addr)
+
 static inline void
-iowrite32(uint32_t v, volatile void *addr)
+__raw_writel(uint32_t v, volatile void *addr)
 {
 	*(volatile uint32_t *)addr = v;
 }
+#define	__raw_writel(v, addr)	__raw_writel(v, addr)
 
-#undef iowrite32be
-static inline void
-iowrite32be(uint32_t v, volatile void *addr)
+#ifdef __LP64__
+static inline uint64_t
+__raw_readq(const volatile void *addr)
 {
-	*(volatile uint32_t *)addr = htobe32(v);
+	return (*(const volatile uint64_t *)addr);
 }
+#define	__raw_readq(addr)	__raw_readq(addr)
+
+static inline void
+__raw_writeq(uint64_t v, volatile void *addr)
+{
+	*(volatile uint64_t *)addr = v;
+}
+#define	__raw_writeq(v, addr)	__raw_writeq(v, addr)
+#endif
+
+#define	mmiowb()	barrier()
+
+/* Access little-endian MMIO registers atomically with memory barriers. */
 
 #undef readb
 static inline uint8_t
 readb(const volatile void *addr)
 {
-	return *(const volatile uint8_t *)addr;
+	uint8_t v;
+
+	__compiler_membar();
+	v = *(const volatile uint8_t *)addr;
+	__compiler_membar();
+	return (v);
 }
+#define	readb(addr)		readb(addr)
+
+#undef writeb
+static inline void
+writeb(uint8_t v, volatile void *addr)
+{
+	__compiler_membar();
+	*(volatile uint8_t *)addr = v;
+	__compiler_membar();
+}
+#define	writeb(v, addr)		writeb(v, addr)
 
 #undef readw
 static inline uint16_t
 readw(const volatile void *addr)
 {
-	return *(const volatile uint16_t *)addr;
+	uint16_t v;
+
+	__compiler_membar();
+	v = *(const volatile uint16_t *)addr;
+	__compiler_membar();
+	return (v);
 }
+#define	readw(addr)		readw(addr)
+
+#undef writew
+static inline void
+writew(uint16_t v, volatile void *addr)
+{
+	__compiler_membar();
+	*(volatile uint16_t *)addr = v;
+	__compiler_membar();
+}
+#define	writew(v, addr)		writew(v, addr)
 
 #undef readl
 static inline uint32_t
 readl(const volatile void *addr)
 {
-	return *(const volatile uint32_t *)addr;
+	uint32_t v;
+
+	__compiler_membar();
+	v = *(const volatile uint32_t *)addr;
+	__compiler_membar();
+	return (v);
 }
+#define	readl(addr)		readl(addr)
+
+#undef writel
+static inline void
+writel(uint32_t v, volatile void *addr)
+{
+	__compiler_membar();
+	*(volatile uint32_t *)addr = v;
+	__compiler_membar();
+}
+#define	writel(v, addr)		writel(v, addr)
+
+#undef readq
+#undef writeq
+#ifdef __LP64__
+static inline uint64_t
+readq(const volatile void *addr)
+{
+	uint64_t v;
+
+	__compiler_membar();
+	v = *(const volatile uint64_t *)addr;
+	__compiler_membar();
+	return (v);
+}
+#define	readq(addr)		readq(addr)
+
+static inline void
+writeq(uint64_t v, volatile void *addr)
+{
+	__compiler_membar();
+	*(volatile uint64_t *)addr = v;
+	__compiler_membar();
+}
+#define	writeq(v, addr)		writeq(v, addr)
+#endif
+
+/* Access little-endian MMIO registers atomically without memory barriers. */
+
+#undef readb_relaxed
+static inline uint8_t
+readb_relaxed(const volatile void *addr)
+{
+	return (*(const volatile uint8_t *)addr);
+}
+#define	readb_relaxed(addr)	readb_relaxed(addr)
+
+#undef writeb_relaxed
+static inline void
+writeb_relaxed(uint8_t v, volatile void *addr)
+{
+	*(volatile uint8_t *)addr = v;
+}
+#define	writeb_relaxed(v, addr)	writeb_relaxed(v, addr)
+
+#undef readw_relaxed
+static inline uint16_t
+readw_relaxed(const volatile void *addr)
+{
+	return (*(const volatile uint16_t *)addr);
+}
+#define	readw_relaxed(addr)	readw_relaxed(addr)
+
+#undef writew_relaxed
+static inline void
+writew_relaxed(uint16_t v, volatile void *addr)
+{
+	*(volatile uint16_t *)addr = v;
+}
+#define	writew_relaxed(v, addr)	writew_relaxed(v, addr)
+
+#undef readl_relaxed
+static inline uint32_t
+readl_relaxed(const volatile void *addr)
+{
+	return (*(const volatile uint32_t *)addr);
+}
+#define	readl_relaxed(addr)	readl_relaxed(addr)
+
+#undef writel_relaxed
+static inline void
+writel_relaxed(uint32_t v, volatile void *addr)
+{
+	*(volatile uint32_t *)addr = v;
+}
+#define	writel_relaxed(v, addr)	writel_relaxed(v, addr)
+
+#undef readq_relaxed
+#undef writeq_relaxed
+#ifdef __LP64__
+static inline uint64_t
+readq_relaxed(const volatile void *addr)
+{
+	return (*(const volatile uint64_t *)addr);
+}
+#define	readq_relaxed(addr)	readq_relaxed(addr)
+
+static inline void
+writeq_relaxed(uint64_t v, volatile void *addr)
+{
+	*(volatile uint64_t *)addr = v;
+}
+#define	writeq_relaxed(v, addr)	writeq_relaxed(v, addr)
+#endif
+
+/* XXX On Linux ioread and iowrite handle both MMIO and port IO. */
+
+#undef ioread8
+static inline uint8_t
+ioread8(const volatile void *addr)
+{
+	return (readb(addr));
+}
+#define	ioread8(addr)		ioread8(addr)
+
+#undef ioread16
+static inline uint16_t
+ioread16(const volatile void *addr)
+{
+	return (readw(addr));
+}
+#define	ioread16(addr)		ioread16(addr)
+
+#undef ioread16be
+static inline uint16_t
+ioread16be(const volatile void *addr)
+{
+	return (bswap16(readw(addr)));
+}
+#define	ioread16be(addr)	ioread16be(addr)
+
+#undef ioread32
+static inline uint32_t
+ioread32(const volatile void *addr)
+{
+	return (readl(addr));
+}
+#define	ioread32(addr)		ioread32(addr)
+
+#undef ioread32be
+static inline uint32_t
+ioread32be(const volatile void *addr)
+{
+	return (bswap32(readl(addr)));
+}
+#define	ioread32be(addr)	ioread32be(addr)
+
+#undef iowrite8
+static inline void
+iowrite8(uint8_t v, volatile void *addr)
+{
+	writeb(v, addr);
+}
+#define	iowrite8(v, addr)	iowrite8(v, addr)
+
+#undef iowrite16
+static inline void
+iowrite16(uint16_t v, volatile void *addr)
+{
+	writew(v, addr);
+}
+#define	iowrite16	iowrite16
+
+#undef iowrite32
+static inline void
+iowrite32(uint32_t v, volatile void *addr)
+{
+	writel(v, addr);
+}
+#define	iowrite32(v, addr)	iowrite32(v, addr)
+
+#undef iowrite32be
+static inline void
+iowrite32be(uint32_t v, volatile void *addr)
+{
+	writel(bswap32(v), addr);
+}
+#define	iowrite32be(v, addr)	iowrite32be(v, addr)
 
 #if defined(__i386__) || defined(__amd64__)
 static inline void
