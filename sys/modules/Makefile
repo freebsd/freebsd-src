@@ -260,7 +260,6 @@ SUBDIR=	\
 	mrsas \
 	msdosfs \
 	msdosfs_iconv \
-	${_mse} \
 	msk \
 	${_mthca} \
 	mvs \
@@ -761,7 +760,6 @@ _cp=		cp
 _glxiic=	glxiic
 _glxsb=		glxsb
 #_ibcs2=		ibcs2
-_mse=		mse
 _ncr=		ncr
 _ncv=		ncv
 _nsp=		nsp

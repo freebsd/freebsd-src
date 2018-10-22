@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20181021: mse(4) removal
+OLD_FILES+=usr/share/man/man4/mse.4.gz
 # 20181021: joy(4) removal
 OLD_FILES+=usr/share/man/man4/joy.4.gz
 OLD_FILES+=usr/include/sys/joystick.h
