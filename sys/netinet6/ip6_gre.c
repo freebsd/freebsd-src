@@ -160,7 +160,8 @@ in6_gre_srcaddr(void *arg __unused, const struct sockaddr *sa,
 	const struct sockaddr_in6 *sin;
 	struct gre_softc *sc;
 
-	if (V_ipv6_srchashtbl == NULL)
+	/* Check that VNET is ready */
+	if (V_ipv6_hashtbl == NULL)
 		return;
 
 	MPASS(in_epoch(net_epoch_preempt));
@@ -338,6 +339,8 @@ in6_gre_uninit(void)
 	}
 	if (V_ipv6_hashtbl != NULL) {
 		gre_hashdestroy(V_ipv6_hashtbl);
+		V_ipv6_hashtbl = NULL;
+		GRE_WAIT();
 		gre_hashdestroy(V_ipv6_srchashtbl);
 	}
 }
