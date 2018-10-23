@@ -75,10 +75,10 @@
  *
  * The array itself is decrypted in `rar5_init` function. */
 
-unsigned char rar5_signature[] = { 243, 192, 211, 128, 187, 166, 160, 161 };
-const ssize_t rar5_signature_size = sizeof(rar5_signature);
-const size_t g_unpack_buf_chunk_size = 1024;
-const size_t g_unpack_window_size = 0x20000;
+static unsigned char rar5_signature[] = { 243, 192, 211, 128, 187, 166, 160, 161 };
+static const ssize_t rar5_signature_size = sizeof(rar5_signature);
+static const size_t g_unpack_buf_chunk_size = 1024;
+static const size_t g_unpack_window_size = 0x20000;
 
 struct file_header {
     ssize_t bytes_remaining;
