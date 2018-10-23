@@ -1753,7 +1753,7 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex,
 		    mpred);
 		if (m != NULL)
 			break;
-	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
+	} while (vm_domainset_iter_page(&di, object, &domain) == 0);
 
 	return (m);
 }
@@ -1990,7 +1990,7 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 		    npages, low, high, alignment, boundary, memattr);
 		if (m != NULL)
 			break;
-	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
+	} while (vm_domainset_iter_page(&di, object, &domain) == 0);
 
 	return (m);
 }
@@ -2191,7 +2191,7 @@ vm_page_alloc_freelist(int freelist, int req)
 		m = vm_page_alloc_freelist_domain(domain, freelist, req);
 		if (m != NULL)
 			break;
-	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
+	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
 
 	return (m);
 }
@@ -2830,7 +2830,7 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 		    high, alignment, boundary);
 		if (ret)
 			break;
-	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
+	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
 
 	return (ret);
 }

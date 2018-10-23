@@ -40,12 +40,15 @@ struct vm_domainset_iter {
 	bool			di_minskip;
 };
 
-int	vm_domainset_iter_page(struct vm_domainset_iter *, int *, int *);
+int	vm_domainset_iter_page(struct vm_domainset_iter *, struct vm_object *,
+	    int *);
 void	vm_domainset_iter_page_init(struct vm_domainset_iter *,
 	    struct vm_object *, vm_pindex_t, int *, int *);
-int	vm_domainset_iter_malloc(struct vm_domainset_iter *, int *, int *);
-void	vm_domainset_iter_malloc_init(struct vm_domainset_iter *,
-	    struct vm_object *, int *, int *);
+int	vm_domainset_iter_policy(struct vm_domainset_iter *, int *);
+void	vm_domainset_iter_policy_init(struct vm_domainset_iter *,
+	    struct domainset *, int *, int *);
+void	vm_domainset_iter_policy_ref_init(struct vm_domainset_iter *,
+	    struct domainset_ref *, int *, int *);
 
 void	vm_wait_doms(const domainset_t *);
 
