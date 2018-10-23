@@ -103,8 +103,11 @@ MK_GCC_BOOTSTRAP=	no
 # here since we will always have the right make, unlike in src/Makefile
 # Don't include bsd.linker.mk yet until XBINUTILS is handled (after src.opts.mk)
 _NO_INCLUDE_LINKERMK=	t
+# We also want the X_COMPILER* variables if we are using an external toolchain.
+_WANT_TOOLCHAIN_CROSS_VARS=	t
 .include "share/mk/bsd.compiler.mk"
 .undef _NO_INCLUDE_LINKERMK
+.undef _WANT_TOOLCHAIN_CROSS_VARS
 # src.opts.mk depends on COMPILER_FEATURES
 .include "share/mk/src.opts.mk"
 
@@ -205,7 +208,10 @@ X${BINUTIL}?=	${${BINUTIL}}
 MK_LLD_BOOTSTRAP=	no
 .endif
 
+# We also want the X_LINKER* variables if we are using an external toolchain.
+_WANT_TOOLCHAIN_CROSS_VARS=	t
 .include "share/mk/bsd.linker.mk"
+.undef _WANT_TOOLCHAIN_CROSS_VARS
 
 # Begin WITH_SYSTEM_COMPILER / WITH_SYSTEM_LD
 
