@@ -79,3 +79,4 @@ pf1001_descr () { echo "Binat" ; }
 pf1002_descr () { echo "Set timeout interval" ; }
 pf1003_descr () { echo "ALTQ" ; }
 pf1004_descr () { echo "ALTQ with Codel" ; }
+pf1005_descr () { echo "PR 231323" ; }

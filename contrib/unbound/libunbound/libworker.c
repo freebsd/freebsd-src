@@ -187,7 +187,7 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 		if(!w->is_bg || w->is_bg_thread) {
 			lock_basic_unlock(&ctx->cfglock);
 		}
-		seed = 0;
+		explicit_bzero(&seed, sizeof(seed));
 		libworker_delete(w);
 		return NULL;
 	}
@@ -207,7 +207,7 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 			hash_set_raninit((uint32_t)ub_random(w->env->rnd));
 		}
 	}
-	seed = 0;
+	explicit_bzero(&seed, sizeof(seed));
 
 	if(eb)
 		w->base = comm_base_create_event(eb);
@@ -521,8 +521,9 @@ libworker_enter_result(struct ub_result* res, sldns_buffer* buf,
 /** fillup fg results */
 static void
 libworker_fillup_fg(struct ctx_query* q, int rcode, sldns_buffer* buf, 
-	enum sec_status s, char* why_bogus)
+	enum sec_status s, char* why_bogus, int was_ratelimited)
 {
+	q->res->was_ratelimited = was_ratelimited;
 	if(why_bogus)
 		q->res->why_bogus = strdup(why_bogus);
 	if(rcode != 0) {
@@ -546,13 +547,13 @@ libworker_fillup_fg(struct ctx_query* q, int rcode, sldns_buffer* buf,
 
 void
 libworker_fg_done_cb(void* arg, int rcode, sldns_buffer* buf, enum sec_status s,
-	char* why_bogus)
+	char* why_bogus, int was_ratelimited)
 {
 	struct ctx_query* q = (struct ctx_query*)arg;
 	/* fg query is done; exit comm base */
 	comm_base_exit(q->w->base);
 
-	libworker_fillup_fg(q, rcode, buf, s, why_bogus);
+	libworker_fillup_fg(q, rcode, buf, s, why_bogus, was_ratelimited);
 }
 
 /** setup qinfo and edns */
@@ -603,16 +604,16 @@ int libworker_fg(struct ub_ctx* ctx, struct ctx_query* q)
 		NULL, 0, NULL, 0, NULL)) {
 		regional_free_all(w->env->scratch);
 		libworker_fillup_fg(q, LDNS_RCODE_NOERROR, 
-			w->back->udp_buff, sec_status_insecure, NULL);
+			w->back->udp_buff, sec_status_insecure, NULL, 0);
 		libworker_delete(w);
 		free(qinfo.qname);
 		return UB_NOERROR;
 	}
 	if(ctx->env->auth_zones && auth_zones_answer(ctx->env->auth_zones,
-		w->env, &qinfo, &edns, w->back->udp_buff, w->env->scratch)) {
+		w->env, &qinfo, &edns, NULL, w->back->udp_buff, w->env->scratch)) {
 		regional_free_all(w->env->scratch);
 		libworker_fillup_fg(q, LDNS_RCODE_NOERROR, 
-			w->back->udp_buff, sec_status_insecure, NULL);
+			w->back->udp_buff, sec_status_insecure, NULL, 0);
 		libworker_delete(w);
 		free(qinfo.qname);
 		return UB_NOERROR;
@@ -634,7 +635,7 @@ int libworker_fg(struct ub_ctx* ctx, struct ctx_query* q)
 
 void
 libworker_event_done_cb(void* arg, int rcode, sldns_buffer* buf,
-	enum sec_status s, char* why_bogus)
+	enum sec_status s, char* why_bogus, int was_ratelimited)
 {
 	struct ctx_query* q = (struct ctx_query*)arg;
 	ub_event_callback_type cb = q->cb_event;
@@ -657,7 +658,7 @@ libworker_event_done_cb(void* arg, int rcode, sldns_buffer* buf,
 		else if(s == sec_status_secure)
 			sec = 2;
 		(*cb)(cb_arg, rcode, (void*)sldns_buffer_begin(buf),
-			(int)sldns_buffer_limit(buf), sec, why_bogus);
+			(int)sldns_buffer_limit(buf), sec, why_bogus, was_ratelimited);
 	}
 }
 
@@ -684,15 +685,15 @@ int libworker_attach_mesh(struct ub_ctx* ctx, struct ctx_query* q,
 		regional_free_all(w->env->scratch);
 		free(qinfo.qname);
 		libworker_event_done_cb(q, LDNS_RCODE_NOERROR,
-			w->back->udp_buff, sec_status_insecure, NULL);
+			w->back->udp_buff, sec_status_insecure, NULL, 0);
 		return UB_NOERROR;
 	}
 	if(ctx->env->auth_zones && auth_zones_answer(ctx->env->auth_zones,
-		w->env, &qinfo, &edns, w->back->udp_buff, w->env->scratch)) {
+		w->env, &qinfo, &edns, NULL, w->back->udp_buff, w->env->scratch)) {
 		regional_free_all(w->env->scratch);
 		free(qinfo.qname);
 		libworker_event_done_cb(q, LDNS_RCODE_NOERROR,
-			w->back->udp_buff, sec_status_insecure, NULL);
+			w->back->udp_buff, sec_status_insecure, NULL, 0);
 		return UB_NOERROR;
 	}
 	/* process new query */
@@ -710,7 +711,7 @@ int libworker_attach_mesh(struct ub_ctx* ctx, struct ctx_query* q,
 /** add result to the bg worker result queue */
 static void
 add_bg_result(struct libworker* w, struct ctx_query* q, sldns_buffer* pkt, 
-	int err, char* reason)
+	int err, char* reason, int was_ratelimited)
 {
 	uint8_t* msg = NULL;
 	uint32_t len = 0;
@@ -724,19 +725,23 @@ add_bg_result(struct libworker* w, struct ctx_query* q, sldns_buffer* pkt,
 		lock_basic_lock(&w->ctx->cfglock);
 		if(reason)
 			q->res->why_bogus = strdup(reason);
+		q->res->was_ratelimited = was_ratelimited;
 		if(pkt) {
 			q->msg_len = sldns_buffer_remaining(pkt);
 			q->msg = memdup(sldns_buffer_begin(pkt), q->msg_len);
-			if(!q->msg)
-				msg = context_serialize_answer(q, UB_NOMEM, 
-				NULL, &len);
-			else	msg = context_serialize_answer(q, err, 
-				NULL, &len);
-		} else msg = context_serialize_answer(q, err, NULL, &len);
+			if(!q->msg) {
+				msg = context_serialize_answer(q, UB_NOMEM, NULL, &len);
+			} else {
+				msg = context_serialize_answer(q, err, NULL, &len);
+			}
+		} else {
+			msg = context_serialize_answer(q, err, NULL, &len);
+		}
 		lock_basic_unlock(&w->ctx->cfglock);
 	} else {
 		if(reason)
 			q->res->why_bogus = strdup(reason);
+		q->res->was_ratelimited = was_ratelimited;
 		msg = context_serialize_answer(q, err, pkt, &len);
 		(void)rbtree_delete(&w->ctx->queries, q->node.key);
 		w->ctx->num_async--;
@@ -755,7 +760,7 @@ add_bg_result(struct libworker* w, struct ctx_query* q, sldns_buffer* pkt,
 
 void
 libworker_bg_done_cb(void* arg, int rcode, sldns_buffer* buf, enum sec_status s,
-	char* why_bogus)
+	char* why_bogus, int was_ratelimited)
 {
 	struct ctx_query* q = (struct ctx_query*)arg;
 
@@ -773,12 +778,13 @@ libworker_bg_done_cb(void* arg, int rcode, sldns_buffer* buf, enum sec_status s,
 		return;
 	}
 	q->msg_security = s;
-	if(!buf)
+	if(!buf) {
 		buf = q->w->env->scratch_buffer;
+	}
 	if(rcode != 0) {
 		error_encode(buf, rcode, NULL, 0, BIT_RD, NULL);
 	}
-	add_bg_result(q->w, q, buf, UB_NOERROR, why_bogus);
+	add_bg_result(q->w, q, buf, UB_NOERROR, why_bogus, was_ratelimited);
 }
 
 
@@ -803,7 +809,7 @@ handle_newq(struct libworker* w, uint8_t* buf, uint32_t len)
 		return;
 	}
 	if(!setup_qinfo_edns(w, q, &qinfo, &edns)) {
-		add_bg_result(w, q, NULL, UB_SYNTAX, NULL);
+		add_bg_result(w, q, NULL, UB_SYNTAX, NULL, 0);
 		return;
 	}
 	qid = 0;
@@ -816,15 +822,15 @@ handle_newq(struct libworker* w, uint8_t* buf, uint32_t len)
 		NULL, 0, NULL, 0, NULL)) {
 		regional_free_all(w->env->scratch);
 		q->msg_security = sec_status_insecure;
-		add_bg_result(w, q, w->back->udp_buff, UB_NOERROR, NULL);
+		add_bg_result(w, q, w->back->udp_buff, UB_NOERROR, NULL, 0);
 		free(qinfo.qname);
 		return;
 	}
 	if(w->ctx->env->auth_zones && auth_zones_answer(w->ctx->env->auth_zones,
-		w->env, &qinfo, &edns, w->back->udp_buff, w->env->scratch)) {
+		w->env, &qinfo, &edns, NULL, w->back->udp_buff, w->env->scratch)) {
 		regional_free_all(w->env->scratch);
 		q->msg_security = sec_status_insecure;
-		add_bg_result(w, q, w->back->udp_buff, UB_NOERROR, NULL);
+		add_bg_result(w, q, w->back->udp_buff, UB_NOERROR, NULL, 0);
 		free(qinfo.qname);
 		return;
 	}
@@ -832,7 +838,7 @@ handle_newq(struct libworker* w, uint8_t* buf, uint32_t len)
 	/* process new query */
 	if(!mesh_new_callback(w->env->mesh, &qinfo, qflags, &edns, 
 		w->back->udp_buff, qid, libworker_bg_done_cb, q)) {
-		add_bg_result(w, q, NULL, UB_NOMEM, NULL);
+		add_bg_result(w, q, NULL, UB_NOMEM, NULL, 0);
 	}
 	free(qinfo.qname);
 }

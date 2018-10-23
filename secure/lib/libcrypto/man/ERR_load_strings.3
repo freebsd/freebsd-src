@@ -128,15 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "ERR_load_strings 3"
-.TH ERR_load_strings 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "ERR_LOAD_STRINGS 3"
+.TH ERR_LOAD_STRINGS 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ERR_load_strings, ERR_PACK, ERR_get_next_error_library \- load
-arbitrary error strings
+ERR_load_strings, ERR_PACK, ERR_get_next_error_library \- load arbitrary error strings
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -157,8 +156,8 @@ arbitrary error strings
 .Vb 5
 \& typedef struct ERR_string_data_st
 \& {
-\&        unsigned long error;
-\&        char *string;
+\&     unsigned long error;
+\&     char *string;
 \& } ERR_STRING_DATA;
 .Ve
 .PP
@@ -170,15 +169,19 @@ The last entry in the array is {0,0}.
 .PP
 \&\fIERR_get_next_error_library()\fR can be used to assign library numbers
 to user libraries at runtime.
-.SH "RETURN VALUE"
-.IX Header "RETURN VALUE"
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
 \&\fIERR_load_strings()\fR returns no value. \s-1\fIERR_PACK\s0()\fR return the error code.
-\&\fIERR_get_next_error_library()\fR returns a new library number.
+\&\fIERR_get_next_error_library()\fR returns zero on failure, otherwise a new
+library number.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIerr\fR\|(3), \fIERR_load_strings\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIERR_load_error_strings()\fR and \s-1\fIERR_PACK\s0()\fR are available in all versions
-of SSLeay and OpenSSL. \fIERR_get_next_error_library()\fR was added in
-SSLeay 0.9.0.
+\&\fIERR_load_strings\fR\|(3)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

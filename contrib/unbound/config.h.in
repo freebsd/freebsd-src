@@ -1,5 +1,11 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* apply the noreturn attribute to a function that exits the program */
+#undef ATTR_NORETURN
+
+/* apply the weak attribute to a symbol */
+#undef ATTR_WEAK
+
 /* Directory to chroot to */
 #undef CHROOT_DIR
 
@@ -44,6 +50,9 @@
 
 /* Whether the C compiler accepts the "format" attribute */
 #undef HAVE_ATTR_FORMAT
+
+/* Whether the C compiler accepts the "noreturn" attribute */
+#undef HAVE_ATTR_NORETURN
 
 /* Whether the C compiler accepts the "unused" attribute */
 #undef HAVE_ATTR_UNUSED
@@ -198,6 +207,9 @@
 
 /* Define to 1 if you have the <expat.h> header file. */
 #undef HAVE_EXPAT_H
+
+/* Define to 1 if you have the `explicit_bzero' function. */
+#undef HAVE_EXPLICIT_BZERO
 
 /* Define to 1 if you have the `fcntl' function. */
 #undef HAVE_FCNTL
@@ -1144,6 +1156,11 @@ char *strsep(char **stringp, const char *delim);
 int isblank(int c);
 #endif
 
+#ifndef HAVE_EXPLICIT_BZERO
+#define explicit_bzero unbound_explicit_bzero
+void explicit_bzero(void* buf, size_t len);
+#endif
+
 #if defined(HAVE_INET_NTOP) && !HAVE_DECL_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
@@ -1176,7 +1193,6 @@ void *reallocarray(void *ptr, size_t nmemb, size_t size);
 #  endif
 #endif /* HAVE_LIBRESSL */
 #ifndef HAVE_ARC4RANDOM
-void explicit_bzero(void* buf, size_t len);
 int getentropy(void* buf, size_t len);
 uint32_t arc4random(void);
 void arc4random_buf(void* buf, size_t n);

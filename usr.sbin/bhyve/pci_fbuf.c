@@ -117,8 +117,9 @@ static void
 pci_fbuf_usage(char *opt)
 {
 
-	fprintf(stderr, "Invalid fbuf emulation \"%s\"\r\n", opt);
-	fprintf(stderr, "fbuf: {wait,}{vga=on|io|off,}rfb=<ip>:port\r\n");
+	fprintf(stderr, "Invalid fbuf emulation option \"%s\"\r\n", opt);
+	fprintf(stderr, "fbuf: {wait,}{vga=on|io|off,}rfb=<ip>:port"
+	    "{,w=width}{,h=height}\r\n");
 }
 
 static void
@@ -268,7 +269,7 @@ pci_fbuf_parse_opts(struct pci_fbuf_softc *sc, char *opts)
 				sc->vga_enabled = 1;
 				sc->vga_full = 1;
 			} else {
-				pci_fbuf_usage(opts);
+				pci_fbuf_usage(xopts);
 				ret = -1;
 				goto done;
 			}

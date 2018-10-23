@@ -216,6 +216,10 @@
 #define	KPML4I		(NPML4EPG-1)
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
+/* Large map: index of the first and max last pml4 entry */
+#define	LMSPML4I	(PML4PML4I + 1)
+#define	LMEPML4I	(DMPML4I - 1)
+
 /*
  * XXX doesn't really belong here I guess...
  */
@@ -413,14 +417,20 @@ void	pmap_bootstrap(vm_paddr_t *);
 int	pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate);
+void	pmap_flush_cache_range(vm_offset_t, vm_offset_t);
+void	pmap_flush_cache_phys_range(vm_paddr_t, vm_paddr_t, vm_memattr_t);
 void	pmap_init_pat(void);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temporary(vm_paddr_t pa, int i);
 vm_paddr_t pmap_kextract(vm_offset_t);
 void	pmap_kremove(vm_offset_t);
+int	pmap_large_map(vm_paddr_t, vm_size_t, void **, vm_memattr_t);
+void	pmap_large_map_wb(void *sva, vm_size_t len);
+void	pmap_large_unmap(void *sva, vm_size_t len);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev_attr(vm_paddr_t, vm_size_t, int);
+void	*pmap_mapdev_pciecfg(vm_paddr_t pa, vm_size_t size);
 boolean_t pmap_page_is_mapped(vm_page_t m);
 void	pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 void	pmap_pinit_pml4(vm_page_t);

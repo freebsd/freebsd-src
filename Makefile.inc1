@@ -103,8 +103,11 @@ MK_GCC_BOOTSTRAP=	no
 # here since we will always have the right make, unlike in src/Makefile
 # Don't include bsd.linker.mk yet until XBINUTILS is handled (after src.opts.mk)
 _NO_INCLUDE_LINKERMK=	t
+# We also want the X_COMPILER* variables if we are using an external toolchain.
+_WANT_TOOLCHAIN_CROSS_VARS=	t
 .include "share/mk/bsd.compiler.mk"
 .undef _NO_INCLUDE_LINKERMK
+.undef _WANT_TOOLCHAIN_CROSS_VARS
 # src.opts.mk depends on COMPILER_FEATURES
 .include "share/mk/src.opts.mk"
 
@@ -126,9 +129,9 @@ TARGET_ABI=	gnueabi
 .endif
 .endif
 MACHINE_ABI?=	unknown
-MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${MACHINE_ABI}-freebsd12.0
+MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${MACHINE_ABI}-freebsd13.0
 TARGET_ABI?=	unknown
-TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd12.0
+TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd13.0
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
 		arm \
@@ -205,7 +208,10 @@ X${BINUTIL}?=	${${BINUTIL}}
 MK_LLD_BOOTSTRAP=	no
 .endif
 
+# We also want the X_LINKER* variables if we are using an external toolchain.
+_WANT_TOOLCHAIN_CROSS_VARS=	t
 .include "share/mk/bsd.linker.mk"
+.undef _WANT_TOOLCHAIN_CROSS_VARS
 
 # Begin WITH_SYSTEM_COMPILER / WITH_SYSTEM_LD
 
@@ -659,7 +665,7 @@ BSARGS= 	DESTDIR= \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
-		MK_LLDB=no MK_TESTS=no \
+		MK_LLDB=no MK_RETPOLINE=no MK_TESTS=no \
 		MK_INCLUDES=yes
 
 BMAKE=		\
@@ -680,7 +686,7 @@ TMAKE=		\
 		-DNO_LINT \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
-		MK_LLDB=no MK_TESTS=no
+		MK_LLDB=no MK_RETPOLINE=no MK_TESTS=no
 
 # cross-tools stage
 # TOOLS_PREFIX set in BMAKE
@@ -703,7 +709,7 @@ KTMAKE=		\
 		SSP_CFLAGS= \
 		MK_HTML=no -DNO_LINT MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
-		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no
+		-DNO_CPU_CFLAGS MK_RETPOLINE=no MK_WARNS=no MK_CTF=no
 
 # world stage
 WMAKEENV=	${CROSSENV} \
@@ -903,14 +909,13 @@ _sanity_check: .PHONY .MAKE
 _cleanobj_fast_depend_hack: .PHONY
 # Syscall stubs rewritten in C and obsolete MD assembly implementations
 # Date      SVN Rev  Syscalls
-# 20170624  r320278  fstat fstatat fstatfs getdirentries getfsstat statfs
 # 20180404  r332048  sigreturn
 # 20180405  r332080  shmat
 # 20180406  r332119  setlogin
 # 20180411  r332443  exect
 # 20180525  r334224  vadvise
 # 20180604  r334626  brk sbrk
-.for f in brk exect fstat fstatat fstatfs getdirentries getfsstat sbrk setlogin shmat sigreturn statfs vadvise
+.for f in brk exect sbrk setlogin shmat sigreturn vadvise
 	@if [ -e "${OBJTOP}/lib/libc/.depend.${f}.o" ] && \
 	    egrep -qw '${f}\.[sS]' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
 		echo "Removing stale dependencies for ${f} syscall wrappers"; \
@@ -918,27 +923,22 @@ _cleanobj_fast_depend_hack: .PHONY
 		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
 	fi
 .endfor
-# 20170607 remove stale dependencies for utimens* wrappers removed in r319663
-.for f in futimens utimensat
+# 20181013  r339348  bcopy reimplemented as .c
+.for f in bcopy memcpy memmove
 	@if [ -e "${OBJTOP}/lib/libc/.depend.${f}.o" ] && \
-	    egrep -q '/${f}.c' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
-		echo "Removing stale dependencies for ${f} syscall wrappers"; \
+	    egrep -qw 'bcopy\.[sS]' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
+		echo "Removing stale dependencies for bcopy"; \
 		rm -f ${OBJTOP}/lib/libc/.depend.${f}.* \
 		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
 	fi
 .endfor
-# 20170523 remove stale generated asm files for functions which are no longer
-# syscalls after r302092 (pipe) and r318736 (others)
-.for f in getdents lstat mknod pipe stat
-	@if [ -e "${OBJTOP}/lib/libc/${f}.s" ] || \
-	    [ -e "${OBJTOP}/lib/libc/${f}.S" ] ; then \
-		echo "Removing stale generated ${f} syscall files"; \
-		rm -f ${OBJTOP}/lib/libc/${f}.* \
-		    ${OBJTOP}/lib/libc/.depend.${f}.* \
-		    ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/${f}.*} \
-		    ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
+# 20181009 track migration from ntp's embedded libevent to updated one
+	@if [ -e "${OBJTOP}/usr.sbin/ntp/libntpevent/.depend.bufferevent_openssl.o" ] && \
+	    egrep -q 'contrib/ntp/sntp/libevent/bufferevent_openssl.c' \
+	    ${OBJTOP}/usr.sbin/ntp/libntpevent/.depend.bufferevent_openssl.o ; then \
+		echo "Removing stale libevent dependencies"; \
+		rm -f ${OBJTOP}/usr.sbin/ntp/libntpevent/.depend.*; \
 	fi
-.endfor
 
 _worldtmp: .PHONY
 	@echo
@@ -2367,6 +2367,7 @@ NXBMAKEARGS+= \
 	MK_OFED=no \
 	MK_OPENSSH=no \
 	MK_PROFILE=no \
+	MK_RETPOLINE=no \
 	MK_SENDMAIL=no \
 	MK_SVNLITE=no \
 	MK_TESTS=no \
@@ -2527,8 +2528,8 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_cddl_lib_libctf} \
 		lib/libufs \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
-		${_secure_lib_libcrypto} ${_lib_libldns} \
-		${_secure_lib_libssh} ${_secure_lib_libssl}
+		${_secure_lib_libcrypto} ${_secure_lib_libssl} \
+		${_lib_libldns} ${_secure_lib_libssh}
 
 .if ${MK_GNUCXX} != "no"
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
@@ -2624,9 +2625,10 @@ lib/librtld_db__L: lib/libprocstat__L
 _secure_lib_libcrypto= secure/lib/libcrypto
 _secure_lib_libssl= secure/lib/libssl
 lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
+secure/lib/libcrypto__L: lib/libthr__L
 .if ${MK_LDNS} != "no"
 _lib_libldns= lib/libldns
-lib/libldns__L: secure/lib/libcrypto__L
+lib/libldns__L: secure/lib/libssl__L
 .endif
 .if ${MK_OPENSSH} != "no"
 _secure_lib_libssh= secure/lib/libssh
@@ -2777,7 +2779,7 @@ delete-old-files: .PHONY
 	@exec 3<&0; \
 	cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
+	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | sort | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
@@ -2793,7 +2795,7 @@ delete-old-files: .PHONY
 	done
 # Remove catpages without corresponding manpages.
 	@exec 3<&0; \
-	find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | \
+	find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | sort | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
 	while read catpage; do \
 		read manpage; \
@@ -2817,7 +2819,7 @@ check-old-files: .PHONY
 			  echo "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}"; \
 		  fi; \
 		done; \
-	done
+	done | sort
 # Check for catpages without corresponding manpages.
 	@find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
@@ -2826,7 +2828,7 @@ check-old-files: .PHONY
 		if [ ! -e "$${manpage}" ]; then \
 			echo $${catpage}; \
 	        fi; \
-	done
+	done | sort
 
 delete-old-libs: .PHONY
 	@echo ">>> Removing old libraries"
@@ -2834,7 +2836,7 @@ delete-old-libs: .PHONY
 	@exec 3<&0; \
 	cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_LIBS | xargs -n1 | \
+	    -V OLD_LIBS | xargs -n1 | sort | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
@@ -2864,7 +2866,7 @@ check-old-libs: .PHONY
 			  echo "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}"; \
 		  fi; \
 		done; \
-	done
+	done | sort
 
 delete-old-dirs: .PHONY
 	@echo ">>> Removing old directories"
@@ -2889,7 +2891,7 @@ check-old-dirs: .PHONY
 	@echo ">>> Checking for old directories"
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_DIRS | xargs -n1 | \
+	    -V OLD_DIRS | xargs -n1 | sort -r | \
 	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			echo "${DESTDIR}/$${dir}"; \

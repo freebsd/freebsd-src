@@ -252,6 +252,10 @@ ZFS_VDEV_QUEUE_KNOB_MIN(scrub);
 ZFS_VDEV_QUEUE_KNOB_MAX(scrub);
 ZFS_VDEV_QUEUE_KNOB_MIN(trim);
 ZFS_VDEV_QUEUE_KNOB_MAX(trim);
+ZFS_VDEV_QUEUE_KNOB_MIN(removal);
+ZFS_VDEV_QUEUE_KNOB_MAX(removal);
+ZFS_VDEV_QUEUE_KNOB_MIN(initializing);
+ZFS_VDEV_QUEUE_KNOB_MAX(initializing);
 
 #undef ZFS_VDEV_QUEUE_KNOB
 
@@ -666,6 +670,7 @@ static zio_t *
 vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 {
 	zio_t *first, *last, *aio, *dio, *mandatory, *nio;
+	zio_link_t *zl = NULL;
 	uint64_t maxgap = 0;
 	uint64_t size;
 	boolean_t stretch;
@@ -809,9 +814,18 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 
 		zio_add_child(dio, aio);
 		vdev_queue_io_remove(vq, dio);
+	} while (dio != last);
+
+	/*
+	 * We need to drop the vdev queue's lock to avoid a deadlock that we
+	 * could encounter since this I/O will complete immediately.
+	 */
+	mutex_exit(&vq->vq_lock);
+	while ((dio = zio_walk_parents(aio, &zl)) != NULL) {
 		zio_vdev_io_bypass(dio);
 		zio_execute(dio);
-	} while (dio != last);
+	}
+	mutex_enter(&vq->vq_lock);
 
 	return (aio);
 }

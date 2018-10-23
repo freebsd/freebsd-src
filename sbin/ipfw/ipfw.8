@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2018
+.Dd October 21, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -3289,9 +3289,14 @@ Make sure that ND6 neighbor solicitation (ICMPv6 type 135) and neighbor
 advertisement (ICMPv6 type 136) messages will not be handled by translation
 rules.
 .Pp
-After translation NAT64 translator sends packets through corresponding netisr
-queue.
+After translation NAT64 translator by default sends packets through
+corresponding netisr queue.
 Thus translator host should be configured as IPv4 and IPv6 router.
+Also this means, that a packet is handled by firewall twice.
+First time an original packet is handled and consumed by translator,
+and then it is handled again as translated packet.
+This behavior can be changed by sysctl variable 
+.Va net.inet.ip.fw.nat64_direct_output .
 .Pp
 The stateful NAT64 configuration command is the following:
 .Bd -ragged -offset indent
@@ -3914,6 +3919,41 @@ Default is no.
 Controls whether bridged packets are passed to
 .Nm .
 Default is no.
+.It Va net.inet.ip.fw.nat64_allow_private : No 0
+Defines how
+.Nm nat64
+handles private IPv4 addresses:
+.Bl -tag -width indent
+.It Cm 0
+Packets with private IPv4 will not be handled by translator
+.It Cm 1
+Translator will accept and process packets with private IPv4 addresses.
+.El
+.It Va net.inet.ip.fw.nat64_debug : No 0
+Controls debugging messages produced by
+.Nm ipfw_nat64
+module.
+.It Va net.inet.ip.fw.nat64_direct_output : No 0
+Controls the output method used by
+.Nm ipfw_nat64
+module:
+.Bl -tag -width indent
+.It Cm 0
+A packet is handled by 
+.Nm ipfw
+twice.
+First time an original packet is handled by
+.Nm ipfw
+and consumed by
+.Nm ipfw_nat64
+translator.
+Then translated packet is queued via netisr to input processing again.
+.It Cm 1
+A packet is handled by
+.Nm ipfw
+only once, and after translation it will be pushed directly to outgoing
+interface.
+.El
 .El
 .Sh INTERNAL DIAGNOSTICS
 There are some commands that may be useful to understand current state

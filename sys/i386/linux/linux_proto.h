@@ -11,6 +11,7 @@
 #include <sys/signal.h>
 #include <sys/acl.h>
 #include <sys/cpuset.h>
+#include <sys/domainset.h>
 #include <sys/_ffcounter.h>
 #include <sys/_semaphore.h>
 #include <sys/ucontext.h>
@@ -1726,6 +1727,13 @@ int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
 #define	nosys	linux_nosys
 
 #endif /* COMPAT_FREEBSD10 */
+
+
+#ifdef COMPAT_FREEBSD11
+
+#define	nosys	linux_nosys
+
+#endif /* COMPAT_FREEBSD11 */
 
 #define	LINUX_SYS_AUE_linux_exit	AUE_EXIT
 #define	LINUX_SYS_AUE_linux_fork	AUE_FORK

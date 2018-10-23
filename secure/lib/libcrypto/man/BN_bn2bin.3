@@ -128,22 +128,25 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BN_bn2bin 3"
-.TH BN_bn2bin 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BN_BN2BIN 3"
+.TH BN_BN2BIN 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BN_bn2bin, BN_bin2bn, BN_bn2hex, BN_bn2dec, BN_hex2bn, BN_dec2bn,
-BN_print, BN_print_fp, BN_bn2mpi, BN_mpi2bn \- format conversions
+BN_bn2binpad, BN_bn2bin, BN_bin2bn, BN_bn2lebinpad, BN_lebin2bn, BN_bn2hex, BN_bn2dec, BN_hex2bn, BN_dec2bn, BN_print, BN_print_fp, BN_bn2mpi, BN_mpi2bn \- format conversions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bn.h>
 \&
 \& int BN_bn2bin(const BIGNUM *a, unsigned char *to);
+\& int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen);
 \& BIGNUM *BN_bin2bn(const unsigned char *s, int len, BIGNUM *ret);
+\&
+\& int BN_bn2lebinpad(const BIGNUM *a, unsigned char *to, int tolen);
+\& BIGNUM *BN_lebin2bn(const unsigned char *s, int len, BIGNUM *ret);
 \&
 \& char *BN_bn2hex(const BIGNUM *a);
 \& char *BN_bn2dec(const BIGNUM *a);
@@ -162,20 +165,28 @@ BN_print, BN_print_fp, BN_bn2mpi, BN_mpi2bn \- format conversions
 and stores it at \fBto\fR. \fBto\fR must point to BN_num_bytes(\fBa\fR) bytes of
 memory.
 .PP
+\&\fIBN_bn2binpad()\fR also converts the absolute value of \fBa\fR into big-endian form
+and stores it at \fBto\fR. \fBtolen\fR indicates the length of the output buffer
+\&\fBto\fR. The result is padded with zeroes if necessary. If \fBtolen\fR is less than
+BN_num_bytes(\fBa\fR) an error is returned.
+.PP
 \&\fIBN_bin2bn()\fR converts the positive integer in big-endian form of length
 \&\fBlen\fR at \fBs\fR into a \fB\s-1BIGNUM\s0\fR and places it in \fBret\fR. If \fBret\fR is
 \&\s-1NULL,\s0 a new \fB\s-1BIGNUM\s0\fR is created.
+.PP
+\&\fIBN_bn2lebinpad()\fR and \fIBN_lebin2bn()\fR are identical to \fIBN_bn2binpad()\fR and
+\&\fIBN_bin2bn()\fR except the buffer is in little-endian format.
 .PP
 \&\fIBN_bn2hex()\fR and \fIBN_bn2dec()\fR return printable strings containing the
 hexadecimal and decimal encoding of \fBa\fR respectively. For negative
 numbers, the string is prefaced with a leading '\-'. The string must be
 freed later using \fIOPENSSL_free()\fR.
 .PP
-\&\fIBN_hex2bn()\fR converts the string \fBstr\fR containing a hexadecimal number
-to a \fB\s-1BIGNUM\s0\fR and stores it in **\fBa\fR. If *\fBa\fR is \s-1NULL,\s0 a new
-\&\fB\s-1BIGNUM\s0\fR is created. If \fBa\fR is \s-1NULL,\s0 it only computes the number's
-length in hexadecimal digits. If the string starts with '\-', the
-number is negative.
+\&\fIBN_hex2bn()\fR takes as many characters as possible from the string \fBstr\fR,
+including the leading character '\-' which means negative, to form a valid
+hexadecimal number representation and converts them to a \fB\s-1BIGNUM\s0\fR and
+stores it in **\fBa\fR. If *\fBa\fR is \s-1NULL,\s0 a new \fB\s-1BIGNUM\s0\fR is created. If
+\&\fBa\fR is \s-1NULL,\s0 it only computes the length of valid representation.
 A \*(L"negative zero\*(R" is converted to zero.
 \&\fIBN_dec2bn()\fR is the same using the decimal system.
 .PP
@@ -201,6 +212,9 @@ if \fBret\fR is \s-1NULL.\s0
 \&\fIBN_bn2bin()\fR returns the length of the big-endian number placed at \fBto\fR.
 \&\fIBN_bin2bn()\fR returns the \fB\s-1BIGNUM\s0\fR, \s-1NULL\s0 on error.
 .PP
+\&\fIBN_bn2binpad()\fR returns the number of bytes written or \-1 if the supplied
+buffer is too small.
+.PP
 \&\fIBN_bn2hex()\fR and \fIBN_bn2dec()\fR return a null-terminated string, or \s-1NULL\s0
 on error. \fIBN_hex2bn()\fR and \fIBN_dec2bn()\fR return the number of characters
 used in parsing, or 0 on error, in which
@@ -214,13 +228,14 @@ returns the \fB\s-1BIGNUM\s0\fR, and \s-1NULL\s0 on error.
 The error codes can be obtained by \fIERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIbn\fR\|(3), \fIERR_get_error\fR\|(3), \fIBN_zero\fR\|(3),
+\&\fIERR_get_error\fR\|(3), \fIBN_zero\fR\|(3),
 \&\fIASN1_INTEGER_to_BN\fR\|(3),
 \&\fIBN_num_bytes\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIBN_bn2bin()\fR, \fIBN_bin2bn()\fR, \fIBN_print_fp()\fR and \fIBN_print()\fR are available
-in all versions of SSLeay and OpenSSL.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-\&\fIBN_bn2hex()\fR, \fIBN_bn2dec()\fR, \fIBN_hex2bn()\fR, \fIBN_dec2bn()\fR, \fIBN_bn2mpi()\fR and
-\&\fIBN_mpi2bn()\fR were added in SSLeay 0.9.0.
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

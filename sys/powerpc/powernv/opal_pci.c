@@ -95,8 +95,9 @@ static int opalpci_route_interrupt(device_t bus, device_t dev, int pin);
  */
 static void opalpic_pic_enable(device_t dev, u_int irq, u_int vector);
 static void opalpic_pic_eoi(device_t dev, u_int irq);
-static void opalpic_pic_mask(device_t dev, u_int irq);
-static void opalpic_pic_unmask(device_t dev, u_int irq);
+
+/* Bus interface */
+static bus_dma_tag_t opalpci_get_dma_tag(device_t dev, device_t child);
 
 /*
  * Commands
@@ -121,6 +122,8 @@ static void opalpic_pic_unmask(device_t dev, u_int irq);
  */
 #define OPAL_PCI_DEFAULT_PE			1
 
+#define OPAL_PCI_BUS_SPACE_LOWADDR_32BIT	0x7FFFFFFFUL
+
 /*
  * Driver methods.
  */
@@ -143,8 +146,9 @@ static device_method_t	opalpci_methods[] = {
 	/* PIC interface for MSIs */
 	DEVMETHOD(pic_enable,		opalpic_pic_enable),
 	DEVMETHOD(pic_eoi,		opalpic_pic_eoi),
-	DEVMETHOD(pic_mask,		opalpic_pic_mask),
-	DEVMETHOD(pic_unmask,		opalpic_pic_unmask),
+
+	/* Bus interface */
+	DEVMETHOD(bus_get_dma_tag,	opalpci_get_dma_tag),
 
 	DEVMETHOD_END
 };
@@ -371,7 +375,7 @@ opalpci_attach(device_t dev)
 		device_printf(dev, "Mapping 0-%#jx for DMA\n", (uintmax_t)maxmem);
 	sc->tce = contigmalloc(tce_tbl_size,
 	    M_DEVBUF, M_NOWAIT | M_ZERO, 0,
-	    BUS_SPACE_MAXADDR, tce_size, 0);
+	    BUS_SPACE_MAXADDR, tce_tbl_size, 0);
 	if (sc->tce == NULL)
 		panic("Failed to allocate TCE memory for PHB %jd\n",
 		    (uintmax_t)sc->phb_id);
@@ -426,6 +430,23 @@ opalpci_attach(device_t dev)
 		if (bootverbose)
 			device_printf(dev, "Supports %d MSIs starting at %d\n",
 			    msi_ranges[1], msi_ranges[0]);
+	}
+
+	/* Create the parent DMA tag */
+	err = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
+	    1, 0,				/* alignment, bounds */
+	    OPAL_PCI_BUS_SPACE_LOWADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR_32BIT,		/* highaddr */
+	    NULL, NULL,				/* filter, filterarg */
+	    BUS_SPACE_MAXSIZE,			/* maxsize */
+	    BUS_SPACE_UNRESTRICTED,		/* nsegments */
+	    BUS_SPACE_MAXSIZE,			/* maxsegsize */
+	    0,					/* flags */
+	    NULL, NULL,				/* lockfunc, lockarg */
+	    &sc->ofw_sc.sc_dmat);
+	if (err != 0) {
+		device_printf(dev, "Failed to create DMA tag\n");
+		return (err);
 	}
 
 	/*
@@ -650,7 +671,10 @@ opalpci_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
 static void
 opalpic_pic_enable(device_t dev, u_int irq, u_int vector)
 {
+	struct opalpci_softc *sc = device_get_softc(dev);
+
 	PIC_ENABLE(root_pic, irq, vector);
+	opal_call(OPAL_PCI_MSI_EOI, sc->phb_id, irq);
 }
 
 static void opalpic_pic_eoi(device_t dev, u_int irq)
@@ -663,20 +687,11 @@ static void opalpic_pic_eoi(device_t dev, u_int irq)
 	PIC_EOI(root_pic, irq);
 }
 
-static void opalpic_pic_mask(device_t dev, u_int irq)
-{
-	PIC_MASK(root_pic, irq);
-}
-
-static void opalpic_pic_unmask(device_t dev, u_int irq)
+static bus_dma_tag_t
+opalpci_get_dma_tag(device_t dev, device_t child)
 {
 	struct opalpci_softc *sc;
 
 	sc = device_get_softc(dev);
-
-	PIC_UNMASK(root_pic, irq);
-
-	opal_call(OPAL_PCI_MSI_EOI, sc->phb_id, irq);
+	return (sc->ofw_sc.sc_dmat);
 }
-
-

@@ -313,8 +313,6 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # iwn:	Intel Wireless WiFi Link 1000/105/135/2000/4965/5000/6000/6050 abgn
 #	802.11 network adapters
 #	Requires the iwn firmware module
-# ixl:	Intel XL710 40Gbe PCIE Ethernet
-# ixlv:	Intel XL710 40Gbe VF PCIE Ethernet
 # mthca: Mellanox HCA InfiniBand
 # mlx4ib: Mellanox ConnectX HCA InfiniBand
 # mlx4en: Mellanox ConnectX HCA Ethernet
@@ -332,9 +330,8 @@ options 	ED_SIC
 device		ipw		# Intel 2100 wireless NICs.
 device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
 device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
-device		ixl		# Intel XL710 40Gbe PCIE Ethernet
-#options		IXL_IW		# Enable iWARP Client Interface in ixl(4)
-#device		ixlv		# Intel XL710 40Gbe VF PCIE Ethernet
+device		ixl		# Intel 700 Series Physical Function
+device		iavf		# Intel Adaptive Virtual Function
 device  	mthca		# Mellanox HCA InfiniBand
 device  	mlx4		# Shared code module between IB and Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
@@ -427,17 +424,6 @@ device		smartpqi
 #
 options 	TWA_DEBUG		# 0-10; 10 prints the most messages.
 device		twa			# 3ware 9000 series PATA/SATA RAID
-
-#
-# SCSI host adapters:
-#
-# ncv: NCR 53C500 based SCSI host adapters.
-# nsp: Workbit Ninja SCSI-3 based PC Card SCSI host adapters.
-# stg: TMC 18C30, 18C50 based SCSI host adapters.
-
-device		ncv
-device		nsp
-device		stg
 
 #
 # Adaptec FSA RAID controllers, including integrated DELL controllers,

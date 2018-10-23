@@ -87,10 +87,6 @@ struct ixl_vf {
 
 /* Physical controller structure */
 struct ixl_pf {
-	/*
-	 * This is first so that iflib_get_softc can return
-	 * either the VSI or the PF structures.
-	 */
 	struct ixl_vsi		vsi;
 
 	struct i40e_hw		hw;
@@ -103,7 +99,6 @@ struct ixl_pf {
 	int			iw_msix;
 	bool			iw_enabled;
 #endif
-	int			if_flags;
 	u32			state;
 	u8			supported_speeds;
 
@@ -111,13 +106,12 @@ struct ixl_pf {
 	struct ixl_pf_qtag	qtag;
 
 	/* Tunable values */
-	bool			enable_msix;
-	int			max_queues;
 	bool			enable_tx_fc_filter;
 	int			dynamic_rx_itr;
 	int			dynamic_tx_itr;
 	int			tx_itr;
 	int			rx_itr;
+	int			enable_vf_loopback;
 
 	bool			link_up;
 	int			advertised_speed;
@@ -126,7 +120,6 @@ struct ixl_pf {
 	bool			has_i2c;
 
 	/* Misc stats maintained by the driver */
-	u64			watchdog_events;
 	u64			admin_irq;
 
 	/* Statistics from hw */
@@ -145,8 +138,7 @@ struct ixl_pf {
 	struct ixl_vf		*vfs;
 	int			num_vfs;
 	uint16_t		veb_seid;
-	struct task		vflr_task;
-	int			vc_debug_lvl;
+	struct if_irq		iov_irq;
 };
 
 /*
@@ -226,6 +218,12 @@ struct ixl_pf {
 "\t3 - Use Admin Queue command (best)\n"	\
 "Using the Admin Queue is only supported on 710 devices with FW version 1.7 or higher"
 
+#define IXL_SYSCTL_HELP_VF_LOOPBACK		\
+"\nDetermines mode that embedded device switch will use when SR-IOV is initialized:\n"	\
+"\t0 - Disable (VEPA)\n"			\
+"\t1 - Enable (VEB)\n"				\
+"Enabling this will allow VFs in separate VMs to communicate over the hardware bridge."
+
 extern const char * const ixl_fc_string[6];
 
 MALLOC_DECLARE(M_IXL);
@@ -242,14 +240,10 @@ MALLOC_DECLARE(M_IXL);
 	ixl_send_vf_nack_msg((pf), (vf), (op), (st), __FILE__, __LINE__)
 
 /* Debug printing */
-#define ixl_dbg(p, m, s, ...)	ixl_debug_core(p, m, s, ##__VA_ARGS__)
-void	ixl_debug_core(struct ixl_pf *, enum ixl_dbg_mask, char *, ...);
-
-/* For stats sysctl naming */
-#define QUEUE_NAME_LEN 32
-
-/* For netmap(4) compatibility */
-#define ixl_disable_intr(vsi)	ixl_disable_rings_intr(vsi)
+#define ixl_dbg(pf, m, s, ...) ixl_debug_core(pf->dev, pf->dbg_mask, m, s, ##__VA_ARGS__)
+#define ixl_dbg_info(pf, s, ...) ixl_debug_core(pf->dev, pf->dbg_mask, IXL_DBG_INFO, s, ##__VA_ARGS__)
+#define ixl_dbg_filter(pf, s, ...) ixl_debug_core(pf->dev, pf->dbg_mask, IXL_DBG_FILTER, s, ##__VA_ARGS__)
+#define ixl_dbg_iov(pf, s, ...) ixl_debug_core(pf->dev, pf->dbg_mask, IXL_DBG_IOV, s, ##__VA_ARGS__)
 
 /* PF-only function declarations */
 int	ixl_setup_interface(device_t, struct ixl_pf *);
@@ -273,9 +267,6 @@ char *	ixl_switch_element_string(struct sbuf *,
 	    struct i40e_aqc_switch_config_element_resp *);
 void	ixl_add_sysctls_mac_stats(struct sysctl_ctx_list *,
 		    struct sysctl_oid_list *, struct i40e_hw_port_stats *);
-void	ixl_add_sysctls_eth_stats(struct sysctl_ctx_list *,
-		    struct sysctl_oid_list *,
-		    struct i40e_eth_stats *);
 
 void    ixl_media_status(struct ifnet *, struct ifmediareq *);
 int     ixl_media_change(struct ifnet *);
@@ -292,7 +283,6 @@ void	ixl_stat_update32(struct i40e_hw *, u32, bool,
 		    u64 *, u64 *);
 
 void	ixl_stop(struct ixl_pf *);
-void	ixl_add_vsi_sysctls(struct ixl_pf *pf, struct ixl_vsi *vsi, struct sysctl_ctx_list *ctx, const char *sysctl_name);
 int	ixl_get_hw_capabilities(struct ixl_pf *);
 void	ixl_link_up_msg(struct ixl_pf *);
 void    ixl_update_link_status(struct ixl_pf *);
@@ -333,7 +323,7 @@ int	ixl_aq_get_link_status(struct ixl_pf *,
 int	ixl_handle_nvmupd_cmd(struct ixl_pf *, struct ifdrv *);
 void	ixl_handle_empr_reset(struct ixl_pf *);
 int	ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up);
-int	ixl_rebuild_hw_structs_after_reset(struct ixl_pf *, bool is_up);
+int	ixl_rebuild_hw_structs_after_reset(struct ixl_pf *);
 
 void	ixl_set_queue_rx_itr(struct ixl_rx_queue *);
 void	ixl_set_queue_tx_itr(struct ixl_tx_queue *);
@@ -342,7 +332,7 @@ void	ixl_add_filter(struct ixl_vsi *, const u8 *, s16 vlan);
 void	ixl_del_filter(struct ixl_vsi *, const u8 *, s16 vlan);
 void	ixl_reconfigure_filters(struct ixl_vsi *vsi);
 
-int	ixl_disable_rings(struct ixl_vsi *);
+int	ixl_disable_rings(struct ixl_pf *, struct ixl_vsi *, struct ixl_pf_qtag *);
 int	ixl_disable_tx_ring(struct ixl_pf *, struct ixl_pf_qtag *, u16);
 int	ixl_disable_rx_ring(struct ixl_pf *, struct ixl_pf_qtag *, u16);
 int	ixl_disable_ring(struct ixl_pf *pf, struct ixl_pf_qtag *, u16);
@@ -364,11 +354,12 @@ void	ixl_enable_intr(struct ixl_vsi *);
 void	ixl_disable_rings_intr(struct ixl_vsi *);
 void	ixl_set_promisc(struct ixl_vsi *);
 void	ixl_add_multi(struct ixl_vsi *);
-void	ixl_del_multi(struct ixl_vsi *);
+int	ixl_del_multi(struct ixl_vsi *);
 void	ixl_setup_vlan_filters(struct ixl_vsi *);
 void	ixl_init_filters(struct ixl_vsi *);
 void	ixl_add_hw_filters(struct ixl_vsi *, int, int);
 void	ixl_del_hw_filters(struct ixl_vsi *, int);
+void	ixl_del_default_hw_filters(struct ixl_vsi *);
 struct ixl_mac_filter *
 		ixl_find_filter(struct ixl_vsi *, const u8 *, s16);
 void	ixl_add_mc_filter(struct ixl_vsi *, u8 *);
@@ -400,5 +391,6 @@ s32	ixl_write_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
 
 int	ixl_get_fw_lldp_status(struct ixl_pf *pf);
 int	ixl_attach_get_link_status(struct ixl_pf *);
+u64		ixl_max_aq_speed_to_value(u8);
 
 #endif /* _IXL_PF_H_ */

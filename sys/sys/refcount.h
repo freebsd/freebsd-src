@@ -62,7 +62,7 @@ refcount_release(volatile u_int *count)
 
 	atomic_thread_fence_rel();
 	old = atomic_fetchadd_int(count, -1);
-	KASSERT(old > 0, ("negative refcount %p", count));
+	KASSERT(old > 0, ("refcount %p is zero", count));
 	if (old > 1)
 		return (0);
 
@@ -77,15 +77,19 @@ refcount_release(volatile u_int *count)
 }
 
 /*
+ * This functions returns non-zero if the refcount was
+ * incremented. Else zero is returned.
+ *
  * A temporary hack until refcount_* APIs are sorted out.
  */
-static __inline int
+static __inline __result_use_check int
 refcount_acquire_if_not_zero(volatile u_int *count)
 {
 	u_int old;
 
 	old = *count;
 	for (;;) {
+		KASSERT(old < UINT_MAX, ("refcount %p overflowed", count));
 		if (old == 0)
 			return (0);
 		if (atomic_fcmpset_int(count, &old, old + 1))
@@ -93,13 +97,14 @@ refcount_acquire_if_not_zero(volatile u_int *count)
 	}
 }
 
-static __inline int
+static __inline __result_use_check int
 refcount_release_if_not_last(volatile u_int *count)
 {
 	u_int old;
 
 	old = *count;
 	for (;;) {
+		KASSERT(old > 0, ("refcount %p is zero", count));
 		if (old == 1)
 			return (0);
 		if (atomic_fcmpset_int(count, &old, old - 1))

@@ -113,7 +113,6 @@ cam/ctl/scsi_ctl.c		optional ctl
 cam/mmc/mmc_xpt.c		optional scbus mmccam
 cam/mmc/mmc_da.c		optional scbus mmccam da
 cam/scsi/scsi_da.c		optional da
-cam/scsi/scsi_low.c		optional ncv | nsp | stg
 cam/scsi/scsi_pass.c		optional pass
 cam/scsi/scsi_pt.c		optional pt
 cam/scsi/scsi_sa.c		optional sa
@@ -439,6 +438,7 @@ contrib/dev/acpica/components/executer/exregion.c	optional acpi
 contrib/dev/acpica/components/executer/exresnte.c	optional acpi
 contrib/dev/acpica/components/executer/exresolv.c	optional acpi
 contrib/dev/acpica/components/executer/exresop.c	optional acpi
+contrib/dev/acpica/components/executer/exserial.c	optional acpi
 contrib/dev/acpica/components/executer/exstore.c	optional acpi
 contrib/dev/acpica/components/executer/exstoren.c	optional acpi
 contrib/dev/acpica/components/executer/exstorob.c	optional acpi
@@ -645,6 +645,7 @@ contrib/zstd/lib/common/error_private.c		optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/common/xxhash.c		optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/compress/zstd_compress.c	optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/compress/fse_compress.c	optional zstdio compile-with ${ZSTD_C}
+contrib/zstd/lib/compress/hist.c		optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/compress/huf_compress.c	optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/compress/zstd_double_fast.c	optional zstdio compile-with ${ZSTD_C}
 contrib/zstd/lib/compress/zstd_fast.c		optional zstdio compile-with ${ZSTD_C}
@@ -754,25 +755,13 @@ dev/acpica/acpi_throttle.c	optional acpi
 dev/acpica/acpi_video.c		optional acpi_video acpi
 dev/acpica/acpi_dock.c		optional acpi_dock acpi
 dev/adlink/adlink.c		optional adlink
-dev/advansys/adv_pci.c		optional adv pci
-dev/advansys/advansys.c		optional adv
-dev/advansys/advlib.c		optional adv
-dev/advansys/advmcode.c		optional adv
-dev/advansys/adw_pci.c		optional adw pci
-dev/advansys/adwcam.c		optional adw
-dev/advansys/adwlib.c		optional adw
-dev/advansys/adwmcode.c		optional adw
 dev/ae/if_ae.c			optional ae pci
 dev/age/if_age.c		optional age pci
 dev/agp/agp.c			optional agp pci
 dev/agp/agp_if.m		optional agp pci
-dev/aha/aha.c			optional aha
-dev/aha/aha_isa.c		optional aha isa
 dev/ahci/ahci.c			optional ahci
 dev/ahci/ahciem.c		optional ahci
 dev/ahci/ahci_pci.c		optional ahci pci
-dev/aic/aic.c			optional aic
-dev/aic/aic_pccard.c		optional aic pccard
 dev/aic7xxx/ahc_isa.c		optional ahc isa
 dev/aic7xxx/ahc_pci.c		optional ahc pci \
 	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
@@ -1338,9 +1327,6 @@ dev/bnxt/bnxt_hwrm.c		optional bnxt iflib pci
 dev/bnxt/bnxt_sysctl.c		optional bnxt iflib pci
 dev/bnxt/bnxt_txrx.c		optional bnxt iflib pci
 dev/bnxt/if_bnxt.c		optional bnxt iflib pci
-dev/buslogic/bt.c		optional bt
-dev/buslogic/bt_isa.c		optional bt isa
-dev/buslogic/bt_pci.c		optional bt pci
 dev/bwi/bwimac.c		optional bwi
 dev/bwi/bwiphy.c		optional bwi
 dev/bwi/bwirf.c			optional bwi
@@ -1551,8 +1537,6 @@ dev/dcons/dcons_crom.c		optional dcons_crom
 dev/dcons/dcons_os.c		optional dcons
 dev/de/if_de.c			optional de pci
 dev/dme/if_dme.c		optional dme
-dev/dpt/dpt_pci.c		optional dpt pci
-dev/dpt/dpt_scsi.c		optional dpt
 dev/drm/ati_pcigart.c		optional drm
 dev/drm/drm_agpsupport.c	optional drm
 dev/drm/drm_auth.c		optional drm
@@ -2311,8 +2295,6 @@ dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/jedec_dimm/jedec_dimm.c	optional jedec_dimm smbus
 dev/jme/if_jme.c		optional jme pci
-dev/joy/joy.c			optional joy
-dev/joy/joy_isa.c		optional joy isa
 dev/kbd/kbd.c			optional atkbd | pckbd | sc | ukbd | vt
 dev/kbdmux/kbdmux.c		optional kbdmux
 dev/ksyms/ksyms.c		optional ksyms
@@ -2529,9 +2511,6 @@ dev/nand/nandsim_ctrl.c		optional nandsim nand
 dev/nand/nandsim_log.c		optional nandsim nand
 dev/nand/nandsim_swap.c		optional nandsim nand
 dev/nand/nfc_if.m		optional nand
-dev/ncr/ncr.c			optional ncr pci
-dev/ncv/ncr53c500.c		optional ncv
-dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/if_ptnet.c		optional netmap inet
 dev/netmap/netmap.c		optional netmap
 dev/netmap/netmap_freebsd.c	optional netmap
@@ -2544,6 +2523,7 @@ dev/netmap/netmap_pipe.c	optional netmap
 dev/netmap/netmap_pt.c		optional netmap
 dev/netmap/netmap_vale.c	optional netmap
 dev/netmap/netmap_legacy.c	optional netmap
+dev/netmap/netmap_bdg.c		optional netmap
 # compile-with "${NORMAL_C} -Wconversion -Wextra"
 dev/nfsmb/nfsmb.c		optional nfsmb pci
 dev/nge/if_nge.c		optional nge
@@ -3158,11 +3138,6 @@ dev/spibus/spibus.c		optional spibus				\
 dev/spibus/spigen.c		optional spigen
 dev/spibus/spibus_if.m		optional spibus
 dev/ste/if_ste.c		optional ste pci
-dev/stg/tmc18c30.c		optional stg
-dev/stg/tmc18c30_isa.c		optional stg isa
-dev/stg/tmc18c30_pccard.c	optional stg pccard
-dev/stg/tmc18c30_pci.c		optional stg pci
-dev/stg/tmc18c30_subr.c		optional stg
 dev/stge/if_stge.c		optional stge
 dev/sym/sym_hipd.c		optional sym				\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
@@ -3430,8 +3405,10 @@ dev/virtio/virtqueue.c			optional	virtio
 dev/virtio/virtio_bus_if.m		optional	virtio
 dev/virtio/virtio_if.m			optional	virtio
 dev/virtio/pci/virtio_pci.c		optional	virtio_pci
-dev/virtio/mmio/virtio_mmio.c		optional	virtio_mmio fdt
-dev/virtio/mmio/virtio_mmio_if.m	optional	virtio_mmio fdt
+dev/virtio/mmio/virtio_mmio.c		optional	virtio_mmio
+dev/virtio/mmio/virtio_mmio_acpi.c	optional	virtio_mmio acpi
+dev/virtio/mmio/virtio_mmio_fdt.c	optional	virtio_mmio fdt
+dev/virtio/mmio/virtio_mmio_if.m	optional	virtio_mmio
 dev/virtio/network/if_vtnet.c		optional	vtnet
 dev/virtio/block/virtio_blk.c		optional	virtio_blk
 dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
@@ -3876,6 +3853,7 @@ kern/subr_compressor.c		standard \
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
+kern/subr_early.c		standard
 kern/subr_epoch.c		standard
 kern/subr_eventhandler.c	standard
 kern/subr_fattime.c		standard

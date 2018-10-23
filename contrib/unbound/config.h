@@ -1,6 +1,12 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* apply the noreturn attribute to a function that exits the program */
+#define ATTR_NORETURN __attribute__((__noreturn__))
+
+/* apply the weak attribute to a symbol */
+#define ATTR_WEAK __attribute__((weak))
+
 /* Directory to chroot to */
 #define CHROOT_DIR "/var/unbound"
 
@@ -46,6 +52,9 @@
 /* Whether the C compiler accepts the "format" attribute */
 #define HAVE_ATTR_FORMAT 1
 
+/* Whether the C compiler accepts the "noreturn" attribute */
+#define HAVE_ATTR_NORETURN 1
+
 /* Whether the C compiler accepts the "unused" attribute */
 #define HAVE_ATTR_UNUSED 1
 
@@ -59,7 +68,7 @@
 #define HAVE_CHROOT 1
 
 /* Define to 1 if you have the `CRYPTO_cleanup_all_ex_data' function. */
-#define HAVE_CRYPTO_CLEANUP_ALL_EX_DATA 1
+/* #undef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA */
 
 /* Define to 1 if you have the `ctime_r' function. */
 #define HAVE_CTIME_R 1
@@ -85,11 +94,11 @@
 
 /* Define to 1 if you have the declaration of `NID_ED25519', and to 0 if you
    don't. */
-#define HAVE_DECL_NID_ED25519 0
+#define HAVE_DECL_NID_ED25519 1
 
 /* Define to 1 if you have the declaration of `NID_ED448', and to 0 if you
    don't. */
-#define HAVE_DECL_NID_ED448 0
+#define HAVE_DECL_NID_ED448 1
 
 /* Define to 1 if you have the declaration of `NID_secp384r1', and to 0 if you
    don't. */
@@ -135,7 +144,7 @@
 #define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the `DSA_SIG_set0' function. */
-/* #undef HAVE_DSA_SIG_SET0 */
+#define HAVE_DSA_SIG_SET0 1
 
 /* Define to 1 if you have the <endian.h> header file. */
 /* #undef HAVE_ENDIAN_H */
@@ -150,10 +159,10 @@
 #define HAVE_ENDSERVENT 1
 
 /* Define to 1 if you have the `ERR_free_strings' function. */
-#define HAVE_ERR_FREE_STRINGS 1
+/* #undef HAVE_ERR_FREE_STRINGS */
 
 /* Define to 1 if you have the `ERR_load_crypto_strings' function. */
-#define HAVE_ERR_LOAD_CRYPTO_STRINGS 1
+/* #undef HAVE_ERR_LOAD_CRYPTO_STRINGS */
 
 /* Define to 1 if you have the `event_base_free' function. */
 /* #undef HAVE_EVENT_BASE_FREE */
@@ -171,16 +180,16 @@
 /* #undef HAVE_EVENT_H */
 
 /* Define to 1 if you have the `EVP_cleanup' function. */
-#define HAVE_EVP_CLEANUP 1
+/* #undef HAVE_EVP_CLEANUP */
 
 /* Define to 1 if you have the `EVP_DigestVerify' function. */
-/* #undef HAVE_EVP_DIGESTVERIFY */
+#define HAVE_EVP_DIGESTVERIFY 1
 
 /* Define to 1 if you have the `EVP_dss1' function. */
-#define HAVE_EVP_DSS1 1
+/* #undef HAVE_EVP_DSS1 */
 
 /* Define to 1 if you have the `EVP_MD_CTX_new' function. */
-/* #undef HAVE_EVP_MD_CTX_NEW */
+#define HAVE_EVP_MD_CTX_NEW 1
 
 /* Define to 1 if you have the `EVP_sha1' function. */
 #define HAVE_EVP_SHA1 1
@@ -199,6 +208,9 @@
 
 /* Define to 1 if you have the <expat.h> header file. */
 #define HAVE_EXPAT_H 1
+
+/* Define to 1 if you have the `explicit_bzero' function. */
+#define HAVE_EXPLICIT_BZERO 1
 
 /* Define to 1 if you have the `fcntl' function. */
 #define HAVE_FCNTL 1
@@ -321,7 +333,7 @@
 /* #undef HAVE_NSS */
 
 /* Define to 1 if you have the `OpenSSL_add_all_digests' function. */
-#define HAVE_OPENSSL_ADD_ALL_DIGESTS 1
+/* #undef HAVE_OPENSSL_ADD_ALL_DIGESTS */
 
 /* Define to 1 if you have the <openssl/bn.h> header file. */
 #define HAVE_OPENSSL_BN_H 1
@@ -345,10 +357,10 @@
 #define HAVE_OPENSSL_ERR_H 1
 
 /* Define to 1 if you have the `OPENSSL_init_crypto' function. */
-/* #undef HAVE_OPENSSL_INIT_CRYPTO */
+#define HAVE_OPENSSL_INIT_CRYPTO 1
 
 /* Define to 1 if you have the `OPENSSL_init_ssl' function. */
-/* #undef HAVE_OPENSSL_INIT_SSL */
+#define HAVE_OPENSSL_INIT_SSL 1
 
 /* Define to 1 if you have the <openssl/rand.h> header file. */
 #define HAVE_OPENSSL_RAND_H 1
@@ -381,7 +393,7 @@
 #define HAVE_RANDOM 1
 
 /* Define to 1 if you have the `RAND_cleanup' function. */
-#define HAVE_RAND_CLEANUP 1
+/* #undef HAVE_RAND_CLEANUP */
 
 /* Define to 1 if you have the `reallocarray' function. */
 #define HAVE_REALLOCARRAY 1
@@ -441,13 +453,13 @@
 #define HAVE_SSL /**/
 
 /* Define to 1 if you have the `SSL_CTX_set_security_level' function. */
-/* #undef HAVE_SSL_CTX_SET_SECURITY_LEVEL */
+#define HAVE_SSL_CTX_SET_SECURITY_LEVEL 1
 
 /* Define to 1 if you have the `SSL_get0_peername' function. */
-/* #undef HAVE_SSL_GET0_PEERNAME */
+#define HAVE_SSL_GET0_PEERNAME 1
 
 /* Define to 1 if you have the `SSL_set1_host' function. */
-/* #undef HAVE_SSL_SET1_HOST */
+#define HAVE_SSL_SET1_HOST 1
 
 /* Define to 1 if you have the <stdarg.h> header file. */
 #define HAVE_STDARG_H 1
@@ -631,7 +643,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.7.3"
+#define PACKAGE_STRING "unbound 1.8.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -640,7 +652,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.7.3"
+#define PACKAGE_VERSION "1.8.1"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -659,7 +671,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,7,3,0
+#define RSRC_PACKAGE_VERSION 1,8,1,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -722,13 +734,13 @@
 /* #undef USE_ECDSA_EVP_WORKAROUND */
 
 /* Define this to enable ED25519 support. */
-/* #undef USE_ED25519 */
+#define USE_ED25519 1
 
 /* Define this to enable ED448 support. */
-/* #undef USE_ED448 */
+#define USE_ED448 1
 
 /* Define this to enable GOST support. */
-#define USE_GOST 1
+/* #undef USE_GOST */
 
 /* Define to 1 to use ipsecmod support. */
 /* #undef USE_IPSECMOD */
@@ -1145,6 +1157,11 @@ char *strsep(char **stringp, const char *delim);
 int isblank(int c);
 #endif
 
+#ifndef HAVE_EXPLICIT_BZERO
+#define explicit_bzero unbound_explicit_bzero
+void explicit_bzero(void* buf, size_t len);
+#endif
+
 #if defined(HAVE_INET_NTOP) && !HAVE_DECL_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
@@ -1177,7 +1194,6 @@ void *reallocarray(void *ptr, size_t nmemb, size_t size);
 #  endif
 #endif /* HAVE_LIBRESSL */
 #ifndef HAVE_ARC4RANDOM
-void explicit_bzero(void* buf, size_t len);
 int getentropy(void* buf, size_t len);
 uint32_t arc4random(void);
 void arc4random_buf(void* buf, size_t n);

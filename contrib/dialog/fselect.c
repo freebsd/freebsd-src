@@ -1,9 +1,9 @@
 /*
- *  $Id: fselect.c,v 1.93 2012/12/30 20:52:25 tom Exp $
+ *  $Id: fselect.c,v 1.102 2018/06/21 23:28:04 tom Exp $
  *
  *  fselect.c -- implements the file-selector box
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2017,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -230,11 +230,11 @@ display_list(LIST * list)
 		break;
 	    (void) wmove(list->win, y, 0);
 	    if (n == list->choice)
-		(void) wattrset(list->win, item_selected_attr);
+		dlg_attrset(list->win, item_selected_attr);
 	    (void) waddstr(list->win, list->data[n]);
-	    (void) wattrset(list->win, item_attr);
+	    dlg_attrset(list->win, item_attr);
 	}
-	(void) wattrset(list->win, item_attr);
+	dlg_attrset(list->win, item_attr);
 
 	getparyx(list->win, y, x);
 
@@ -290,10 +290,10 @@ fix_arrows(LIST * list)
     }
 }
 
-static int
-show_list(char *target, LIST * list, int keep)
+static bool
+show_list(char *target, LIST * list, bool keep)
 {
-    int changed = keep || find_choice(target, list);
+    bool changed = keep || find_choice(target, list);
     display_list(list);
     return changed;
 }
@@ -302,12 +302,12 @@ show_list(char *target, LIST * list, int keep)
  * Highlight the closest match to 'target' in the given list, setting offset
  * to match.
  */
-static int
-show_both_lists(char *input, LIST * d_list, LIST * f_list, int keep)
+static bool
+show_both_lists(char *input, LIST * d_list, LIST * f_list, bool keep)
 {
     char *leaf = leaf_of(input);
 
-    return show_list(leaf, d_list, keep) | show_list(leaf, f_list, keep);
+    return show_list(leaf, d_list, keep) || show_list(leaf, f_list, keep);
 }
 
 /*
@@ -429,7 +429,7 @@ complete(char *name, LIST * d_list, LIST * f_list, char **buff_ptr)
 }
 
 static bool
-fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, int keep)
+fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, bool keep)
 {
     bool result = TRUE;
     bool rescan = FALSE;
@@ -475,10 +475,14 @@ fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, int keep)
 	    strcpy(path, "./");
 	    leaf = path + strlen(path);
 	}
-	dlg_trace_msg("opendir '%s'\n", path);
+	DLG_TRACE(("opendir '%s'\n", path));
 	if ((dp = opendir(path)) != 0) {
 	    while ((de = readdir(dp)) != 0) {
-		strncpy(leaf, de->d_name, NAMLEN(de))[NAMLEN(de)] = 0;
+		size_t len = NAMLEN(de);
+		if (len == 0 || (len + have + 2) >= MAX_LEN)
+		    continue;
+		memcpy(leaf, de->d_name, len);
+		leaf[len] = '\0';
 		if (stat(path, &sb) == 0) {
 		    if ((sb.st_mode & S_IFMT) == S_IFDIR)
 			add_to_list(d_list, leaf);
@@ -557,6 +561,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
+	TOGGLEKEY_BINDINGS,
 	END_KEYS_BINDING
     };
     static DLG_KEYS_BINDING binding2[] = {
@@ -564,6 +569,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
+	TOGGLEKEY_BINDINGS,
 	END_KEYS_BINDING
     };
     /* *INDENT-ON* */
@@ -584,8 +590,8 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
     int result = DLG_EXIT_UNKNOWN;
     int state = dialog_vars.default_button >= 0 ? dlg_default_button() : sTEXT;
     int button;
-    int first = (state == sTEXT);
-    int first_trace = TRUE;
+    bool first = (state == sTEXT);
+    bool first_trace = TRUE;
     char *input;
     char *completed;
     char current[MAX_LEN + 1];
@@ -599,6 +605,12 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
     int min_wide = MIN_WIDE;
     int min_items = height ? 0 : 4;
     LIST d_list, f_list;
+
+    DLG_TRACE(("# %s args:\n", dselect ? "dselect" : "fselect"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("path", path);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
 
     dlg_does_output();
 
@@ -631,7 +643,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
     dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
 
     /* Draw the input field box */
     tbox_height = 1;
@@ -713,7 +725,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 	if (resized) {
 	    resized = FALSE;
 	    dlg_show_string(w_text, input, offset, inputbox_attr,
-			    0, 0, tbox_width, (bool) 0, (bool) first);
+			    0, 0, tbox_width, FALSE, first);
 	}
 #endif
 
@@ -755,7 +767,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 		break;
 	}
 
-	if (!fkey && key == ' ') {
+	if (key == DLGK_TOGGLE) {
 	    key = DLGK_SELECT;
 	    fkey = TRUE;
 	}
@@ -841,6 +853,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 		continue;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
+		dlg_will_resize(dialog);
 		/* reset data */
 		height = old_height;
 		width = old_width;

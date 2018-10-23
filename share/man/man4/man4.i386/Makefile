@@ -2,8 +2,7 @@
 
 PACKAGE=runtime-manuals
 
-MAN=	aic.4 \
-	apm.4 \
+MAN=	apm.4 \
 	ce.4 \
 	cp.4 \
 	CPU_ELAN.4 \
@@ -16,7 +15,6 @@ MAN=	aic.4 \
 	glxiic.4 \
 	glxsb.4 \
 	longrun.4 \
-	mse.4 \
 	npx.4 \
 	pae.4 \
 	pbio.4 \

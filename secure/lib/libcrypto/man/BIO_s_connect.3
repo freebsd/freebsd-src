@@ -128,34 +128,31 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_s_connect 3"
-.TH BIO_s_connect 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_S_CONNECT 3"
+.TH BIO_S_CONNECT 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_s_connect, BIO_new_connect, BIO_set_conn_hostname, BIO_set_conn_port,
-BIO_set_conn_ip, BIO_set_conn_int_port, BIO_get_conn_hostname,
-BIO_get_conn_port, BIO_get_conn_ip, BIO_get_conn_int_port,
-BIO_set_nbio, BIO_do_connect \- connect BIO
+BIO_set_conn_address, BIO_get_conn_address, BIO_s_connect, BIO_new_connect, BIO_set_conn_hostname, BIO_set_conn_port, BIO_set_conn_ip_family, BIO_get_conn_ip_family, BIO_get_conn_hostname, BIO_get_conn_port, BIO_set_nbio, BIO_do_connect \- connect BIO
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& BIO_METHOD * BIO_s_connect(void);
+\& const BIO_METHOD * BIO_s_connect(void);
 \&
 \& BIO *BIO_new_connect(char *name);
 \&
 \& long BIO_set_conn_hostname(BIO *b, char *name);
 \& long BIO_set_conn_port(BIO *b, char *port);
-\& long BIO_set_conn_ip(BIO *b, char *ip);
-\& long BIO_set_conn_int_port(BIO *b, char *port);
-\& char *BIO_get_conn_hostname(BIO *b);
-\& char *BIO_get_conn_port(BIO *b);
-\& char *BIO_get_conn_ip(BIO *b);
-\& long BIO_get_conn_int_port(BIO *b);
+\& long BIO_set_conn_address(BIO *b, BIO_ADDR *addr);
+\& long BIO_set_conn_ip_family(BIO *b, long family);
+\& const char *BIO_get_conn_hostname(BIO *b);
+\& const char *BIO_get_conn_port(BIO *b);
+\& const BIO_ADDR *BIO_get_conn_address(BIO *b);
+\& const long BIO_get_conn_ip_family(BIO *b);
 \&
 \& long BIO_set_nbio(BIO *b, long n);
 \&
@@ -190,36 +187,37 @@ it also returns the socket . If \fBc\fR is not \s-1NULL\s0 it should be of
 type (int *).
 .PP
 \&\fIBIO_set_conn_hostname()\fR uses the string \fBname\fR to set the hostname.
-The hostname can be an \s-1IP\s0 address. The hostname can also include the
-port in the form hostname:port . It is also acceptable to use the
-form \*(L"hostname/any/other/path\*(R" or \*(L"hostname:port/any/other/path\*(R".
+The hostname can be an \s-1IP\s0 address; if the address is an IPv6 one, it
+must be enclosed with brackets. The hostname can also include the
+port in the form hostname:port.
 .PP
 \&\fIBIO_set_conn_port()\fR sets the port to \fBport\fR. \fBport\fR can be the
 numerical form or a string such as \*(L"http\*(R". A string will be looked
 up first using \fIgetservbyname()\fR on the host platform but if that
-fails a standard table of port names will be used. Currently the
-list is http, telnet, socks, https, ssl, ftp, gopher and wais.
+fails a standard table of port names will be used. This internal
+list is http, telnet, socks, https, ssl, ftp, and gopher.
 .PP
-\&\fIBIO_set_conn_ip()\fR sets the \s-1IP\s0 address to \fBip\fR using binary form,
-that is four bytes specifying the \s-1IP\s0 address in big-endian form.
+\&\fIBIO_set_conn_address()\fR sets the address and port information using
+a \s-1\fIBIO_ADDR\s0\fR\|(3ssl).
 .PP
-\&\fIBIO_set_conn_int_port()\fR sets the port using \fBport\fR. \fBport\fR should
-be of type (int *).
+\&\fIBIO_set_conn_ip_family()\fR sets the \s-1IP\s0 family.
 .PP
 \&\fIBIO_get_conn_hostname()\fR returns the hostname of the connect \s-1BIO\s0 or
 \&\s-1NULL\s0 if the \s-1BIO\s0 is initialized but no hostname is set.
 This return value is an internal pointer which should not be modified.
 .PP
 \&\fIBIO_get_conn_port()\fR returns the port as a string.
+This return value is an internal pointer which should not be modified.
 .PP
-\&\fIBIO_get_conn_ip()\fR returns the \s-1IP\s0 address in binary form.
+\&\fIBIO_get_conn_address()\fR returns the address information as a \s-1BIO_ADDR.\s0
+This return value is an internal pointer which should not be modified.
 .PP
-\&\fIBIO_get_conn_int_port()\fR returns the port as an int.
+\&\fIBIO_get_conn_ip_family()\fR returns the \s-1IP\s0 family of the connect \s-1BIO.\s0
 .PP
 \&\fIBIO_set_nbio()\fR sets the non blocking I/O flag to \fBn\fR. If \fBn\fR is
 zero then blocking I/O is set. If \fBn\fR is 1 then non blocking I/O
 is set. Blocking I/O is the default. The call to \fIBIO_set_nbio()\fR
-should be made before the connection is established because 
+should be made before the connection is established because
 non blocking I/O is set during the connect process.
 .PP
 \&\fIBIO_new_connect()\fR combines \fIBIO_new()\fR and \fIBIO_set_conn_hostname()\fR into
@@ -243,10 +241,10 @@ ports. This can be avoided by checking for the presence of the ':'
 character in the passed hostname and either indicating an error or
 truncating the string at that point.
 .PP
-The values returned by \fIBIO_get_conn_hostname()\fR, \fIBIO_get_conn_port()\fR,
-\&\fIBIO_get_conn_ip()\fR and \fIBIO_get_conn_int_port()\fR are updated when a
-connection attempt is made. Before any connection attempt the values
-returned are those set by the application itself.
+The values returned by \fIBIO_get_conn_hostname()\fR, \fIBIO_get_conn_address()\fR,
+and \fIBIO_get_conn_port()\fR are updated when a connection attempt is made.
+Before any connection attempt the values returned are those set by the
+application itself.
 .PP
 Applications do not have to call \fIBIO_do_connect()\fR but may wish to do
 so to separate the connection process from other I/O processing.
@@ -260,10 +258,10 @@ then this is an indication that a connection attempt would block,
 the application should then take appropriate action to wait until
 the underlying socket has connected and retry the call.
 .PP
-\&\fIBIO_set_conn_hostname()\fR, \fIBIO_set_conn_port()\fR, \fIBIO_set_conn_ip()\fR,
-\&\fIBIO_set_conn_int_port()\fR, \fIBIO_get_conn_hostname()\fR, \fIBIO_get_conn_port()\fR,
-\&\fIBIO_get_conn_ip()\fR, \fIBIO_get_conn_int_port()\fR, \fIBIO_set_nbio()\fR and
-\&\fIBIO_do_connect()\fR are macros.
+\&\fIBIO_set_conn_hostname()\fR, \fIBIO_set_conn_port()\fR, \fIBIO_get_conn_hostname()\fR,
+\&\fIBIO_set_conn_address()\fR, \fIBIO_get_conn_port()\fR, \fIBIO_get_conn_address()\fR,
+\&\fIBIO_set_conn_ip_family()\fR, \fIBIO_get_conn_ip_family()\fR,
+\&\fIBIO_set_nbio()\fR, and \fIBIO_do_connect()\fR are macros.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIBIO_s_connect()\fR returns the connect \s-1BIO\s0 method.
@@ -271,20 +269,21 @@ the underlying socket has connected and retry the call.
 \&\fIBIO_get_fd()\fR returns the socket or \-1 if the \s-1BIO\s0 has not
 been initialized.
 .PP
-\&\fIBIO_set_conn_hostname()\fR, \fIBIO_set_conn_port()\fR, \fIBIO_set_conn_ip()\fR and
-\&\fIBIO_set_conn_int_port()\fR always return 1.
+\&\fIBIO_set_conn_address()\fR, \fIBIO_set_conn_port()\fR, and \fIBIO_set_conn_ip_family()\fR
+always return 1.
 .PP
-\&\fIBIO_get_conn_hostname()\fR returns the connected hostname or \s-1NULL\s0 is
+\&\fIBIO_set_conn_hostname()\fR returns 1 on success and 0 on failure.
+.PP
+\&\fIBIO_get_conn_address()\fR returns the address information or \s-1NULL\s0 if none
+was set.
+.PP
+\&\fIBIO_get_conn_hostname()\fR returns the connected hostname or \s-1NULL\s0 if
 none was set.
+.PP
+\&\fIBIO_get_conn_ip_family()\fR returns the address family or \-1 if none was set.
 .PP
 \&\fIBIO_get_conn_port()\fR returns a string representing the connected
 port or \s-1NULL\s0 if not set.
-.PP
-\&\fIBIO_get_conn_ip()\fR returns a pointer to the connected \s-1IP\s0 address in
-binary form or all zeros if not set.
-.PP
-\&\fIBIO_get_conn_int_port()\fR returns the connected port or 0 if none was
-set.
 .PP
 \&\fIBIO_set_nbio()\fR always returns 1.
 .PP
@@ -295,27 +294,41 @@ established and 0 or \-1 if the connection failed.
 This is example connects to a webserver on the local host and attempts
 to retrieve a page and copy the result to standard output.
 .PP
-.Vb 10
+.Vb 3
 \& BIO *cbio, *out;
 \& int len;
 \& char tmpbuf[1024];
-\& ERR_load_crypto_strings();
+\&
 \& cbio = BIO_new_connect("localhost:http");
 \& out = BIO_new_fp(stdout, BIO_NOCLOSE);
-\& if(BIO_do_connect(cbio) <= 0) {
-\&        fprintf(stderr, "Error connecting to server\en");
-\&        ERR_print_errors_fp(stderr);
-\&        /* whatever ... */
-\&        }
+\& if (BIO_do_connect(cbio) <= 0) {
+\&     fprintf(stderr, "Error connecting to server\en");
+\&     ERR_print_errors_fp(stderr);
+\&     exit(1);
+\& }
 \& BIO_puts(cbio, "GET / HTTP/1.0\en\en");
-\& for(;;) {      
-\&        len = BIO_read(cbio, tmpbuf, 1024);
-\&        if(len <= 0) break;
-\&        BIO_write(out, tmpbuf, len);
+\& for (;;) {
+\&     len = BIO_read(cbio, tmpbuf, 1024);
+\&     if (len <= 0)
+\&         break;
+\&     BIO_write(out, tmpbuf, len);
 \& }
 \& BIO_free(cbio);
 \& BIO_free(out);
 .Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\s-1TBA\s0
+\&\s-1\fIBIO_ADDR\s0\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fIBIO_set_conn_int_port()\fR, \fIBIO_get_conn_int_port()\fR, \fIBIO_set_conn_ip()\fR, and \fIBIO_get_conn_ip()\fR
+were removed in OpenSSL 1.1.0.
+Use \fIBIO_set_conn_address()\fR and \fIBIO_get_conn_address()\fR instead.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

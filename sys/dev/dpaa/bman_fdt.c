@@ -68,7 +68,8 @@ static driver_t bman_driver = {
 };
 
 static devclass_t bman_devclass;
-DRIVER_MODULE(bman, simplebus, bman_driver, bman_devclass, 0, 0);
+EARLY_DRIVER_MODULE(bman, simplebus, bman_driver, bman_devclass, 0, 0,
+    BUS_PASS_SUPPORTDEV);
 
 static int
 bman_fdt_probe(device_t dev)

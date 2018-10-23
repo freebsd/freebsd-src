@@ -154,8 +154,8 @@ typedef void			irqreturn_t;
 	*(volatile u_int64_t *)(((vm_offset_t)(map)->handle) +		\
 	    (vm_offset_t)(offset)) = htole64(val)
 
-#ifdef __LP64__
-#define DRM_PORT "graphics/drm-stable-kmod"
+#ifdef amd64
+#define DRM_PORT "graphics/drm-kmod"
 #else
 #define DRM_PORT "graphics/drm-legacy-kmod"
 #endif

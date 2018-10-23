@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2015-2016 Yandex LLC
- * Copyright (c) 2015-2016 Andrey V. Elsukov <ae@FreeBSD.org>
+ * Copyright (c) 2015-2018 Yandex LLC
+ * Copyright (c) 2015-2018 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -141,6 +141,9 @@ void nat64_embed_ip4(const struct nat64_config *cfg, in_addr_t ia,
     struct in6_addr *ip6);
 in_addr_t nat64_extract_ip4(const struct nat64_config *cfg,
     const struct in6_addr *ip6);
+
+void nat64_set_output_method(int);
+int nat64_get_output_method(void);
 
 #endif
 

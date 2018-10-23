@@ -1643,6 +1643,49 @@ vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	}
 }
 
+static bool
+vm_map_mergeable_neighbors(vm_map_entry_t prev, vm_map_entry_t entry)
+{
+	vm_size_t prevsize;
+
+	prevsize = prev->end - prev->start;
+	return (prev->end == entry->start &&
+	    prev->object.vm_object == entry->object.vm_object &&
+	    (prev->object.vm_object == NULL ||
+	    prev->offset + prevsize == entry->offset) &&
+	    prev->eflags == entry->eflags &&
+	    prev->protection == entry->protection &&
+	    prev->max_protection == entry->max_protection &&
+	    prev->inheritance == entry->inheritance &&
+	    prev->wired_count == entry->wired_count &&
+	    prev->cred == entry->cred);
+}
+
+static void
+vm_map_merged_neighbor_dispose(vm_map_t map, vm_map_entry_t entry)
+{
+
+	/*
+	 * If the backing object is a vnode object,
+	 * vm_object_deallocate() calls vrele().
+	 * However, vrele() does not lock the vnode
+	 * because the vnode has additional
+	 * references.  Thus, the map lock can be kept
+	 * without causing a lock-order reversal with
+	 * the vnode lock.
+	 *
+	 * Since we count the number of virtual page
+	 * mappings in object->un_pager.vnp.writemappings,
+	 * the writemappings value should not be adjusted
+	 * when the entry is disposed of.
+	 */
+	if (entry->object.vm_object != NULL)
+		vm_object_deallocate(entry->object.vm_object);
+	if (entry->cred != NULL)
+		crfree(entry->cred);
+	vm_map_entry_dispose(map, entry);
+}
+
 /*
  *	vm_map_simplify_entry:
  *
@@ -1659,79 +1702,29 @@ void
 vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_map_entry_t next, prev;
-	vm_size_t prevsize, esize;
 
 	if ((entry->eflags & (MAP_ENTRY_GROWS_DOWN | MAP_ENTRY_GROWS_UP |
 	    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_IS_SUB_MAP)) != 0)
 		return;
 
 	prev = entry->prev;
-	if (prev != &map->header) {
-		prevsize = prev->end - prev->start;
-		if ( (prev->end == entry->start) &&
-		     (prev->object.vm_object == entry->object.vm_object) &&
-		     (!prev->object.vm_object ||
-			(prev->offset + prevsize == entry->offset)) &&
-		     (prev->eflags == entry->eflags) &&
-		     (prev->protection == entry->protection) &&
-		     (prev->max_protection == entry->max_protection) &&
-		     (prev->inheritance == entry->inheritance) &&
-		     (prev->wired_count == entry->wired_count) &&
-		     (prev->cred == entry->cred)) {
-			vm_map_entry_unlink(map, prev);
-			entry->start = prev->start;
-			entry->offset = prev->offset;
-			if (entry->prev != &map->header)
-				vm_map_entry_resize_free(map, entry->prev);
-
-			/*
-			 * If the backing object is a vnode object,
-			 * vm_object_deallocate() calls vrele().
-			 * However, vrele() does not lock the vnode
-			 * because the vnode has additional
-			 * references.  Thus, the map lock can be kept
-			 * without causing a lock-order reversal with
-			 * the vnode lock.
-			 *
-			 * Since we count the number of virtual page
-			 * mappings in object->un_pager.vnp.writemappings,
-			 * the writemappings value should not be adjusted
-			 * when the entry is disposed of.
-			 */
-			if (prev->object.vm_object)
-				vm_object_deallocate(prev->object.vm_object);
-			if (prev->cred != NULL)
-				crfree(prev->cred);
-			vm_map_entry_dispose(map, prev);
-		}
+	if (prev != &map->header &&
+	    vm_map_mergeable_neighbors(prev, entry)) {
+		vm_map_entry_unlink(map, prev);
+		entry->start = prev->start;
+		entry->offset = prev->offset;
+		if (entry->prev != &map->header)
+			vm_map_entry_resize_free(map, entry->prev);
+		vm_map_merged_neighbor_dispose(map, prev);
 	}
 
 	next = entry->next;
-	if (next != &map->header) {
-		esize = entry->end - entry->start;
-		if ((entry->end == next->start) &&
-		    (next->object.vm_object == entry->object.vm_object) &&
-		     (!entry->object.vm_object ||
-			(entry->offset + esize == next->offset)) &&
-		    (next->eflags == entry->eflags) &&
-		    (next->protection == entry->protection) &&
-		    (next->max_protection == entry->max_protection) &&
-		    (next->inheritance == entry->inheritance) &&
-		    (next->wired_count == entry->wired_count) &&
-		    (next->cred == entry->cred)) {
-			vm_map_entry_unlink(map, next);
-			entry->end = next->end;
-			vm_map_entry_resize_free(map, entry);
-
-			/*
-			 * See comment above.
-			 */
-			if (next->object.vm_object)
-				vm_object_deallocate(next->object.vm_object);
-			if (next->cred != NULL)
-				crfree(next->cred);
-			vm_map_entry_dispose(map, next);
-		}
+	if (next != &map->header &&
+	    vm_map_mergeable_neighbors(entry, next)) {
+		vm_map_entry_unlink(map, next);
+		entry->end = next->end;
+		vm_map_entry_resize_free(map, entry);
+		vm_map_merged_neighbor_dispose(map, next);
 	}
 }
 /*

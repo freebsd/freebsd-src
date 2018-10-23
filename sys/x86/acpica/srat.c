@@ -153,10 +153,6 @@ parse_slit(void)
 	acpi_unmap_table(slit);
 	slit = NULL;
 
-#ifdef NUMA
-	/* Tell the VM about it! */
-	mem_locality = vm_locality_table;
-#endif
 	return (0);
 }
 
@@ -311,8 +307,20 @@ check_domains(void)
 	}
 	for (i = 0; i <= max_apic_id; i++)
 		if (cpus[i].enabled && !cpus[i].has_memory) {
-			printf("SRAT: No memory found for CPU %d\n", i);
-			return (ENXIO);
+			found = 0;
+			for (j = 0; j < num_mem && !found; j++) {
+				if (mem_info[j].domain == cpus[i].domain)
+					found = 1;
+			}
+			if (!found) {
+				if (bootverbose)
+					printf("SRAT: mem dom %d is empty\n",
+					    cpus[i].domain);
+				mem_info[num_mem].start = 0;
+				mem_info[num_mem].end = 0;
+				mem_info[num_mem].domain = cpus[i].domain;
+				num_mem++;
+			}
 		}
 	return (0);
 }
@@ -469,13 +477,6 @@ parse_srat(void)
 		return (-1);
 	}
 
-#ifdef NUMA
-	vm_ndomains = ndomain;
-	for (int i = 0; i < vm_ndomains; i++)
-		DOMAINSET_SET(i, &all_domains);
-	mem_affinity = mem_info;
-#endif
-
 	return (0);
 }
 
@@ -499,7 +500,8 @@ parse_acpi_tables(void *dummy)
 	if (parse_srat() < 0)
 		return;
 	init_mem_locality();
-	(void) parse_slit();
+	(void)parse_slit();
+	vm_phys_register_domains(ndomain, mem_info, vm_locality_table);
 }
 SYSINIT(parse_acpi_tables, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_acpi_tables,
     NULL);
@@ -533,11 +535,7 @@ srat_set_cpus(void *dummy)
 		if (!cpu->enabled)
 			panic("SRAT: CPU with APIC ID %u is not known",
 			    pc->pc_apic_id);
-#ifdef NUMA
-		pc->pc_domain = cpu->domain;
-#else
-		pc->pc_domain = 0;
-#endif
+		pc->pc_domain = vm_ndomains > 1 ? cpu->domain : 0;
 		CPU_SET(i, &cpuset_domain[pc->pc_domain]);
 		if (bootverbose)
 			printf("SRAT: CPU %u has memory domain %d\n", i,
@@ -562,7 +560,7 @@ acpi_map_pxm_to_vm_domainid(int pxm)
 
 	for (i = 0; i < ndomain; i++) {
 		if (domain_pxm[i] == pxm)
-			return (i);
+			return (vm_ndomains > 1 ? i : 0);
 	}
 
 	return (-1);

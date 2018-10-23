@@ -144,16 +144,18 @@ _dtom(const char *msg, const char *s)
 void
 mp_gcd(const MINT *mp1, const MINT *mp2, MINT *rmp)
 {
-	BIGNUM b;
+	BIGNUM *b;
 	BN_CTX *c;
 
+	b = NULL;
 	c = BN_CTX_new();
-	if (c == NULL)
+	if (c != NULL)
+		b = BN_new();
+	if (c == NULL || b == NULL)
 		_bnerr("gcd");
-	BN_init(&b);
-	BN_ERRCHECK("gcd", BN_gcd(&b, mp1->bn, mp2->bn, c));
-	_moveb("gcd", &b, rmp);
-	BN_free(&b);
+	BN_ERRCHECK("gcd", BN_gcd(b, mp1->bn, mp2->bn, c));
+	_moveb("gcd", b, rmp);
+	BN_free(b);
 	BN_CTX_free(c);
 }
 
@@ -187,12 +189,14 @@ mp_itom(short n)
 static void
 _madd(const char *msg, const MINT *mp1, const MINT *mp2, MINT *rmp)
 {
-	BIGNUM b;
+	BIGNUM *b;
 
-	BN_init(&b);
-	BN_ERRCHECK(msg, BN_add(&b, mp1->bn, mp2->bn));
-	_moveb(msg, &b, rmp);
-	BN_free(&b);
+	b = BN_new();
+	if (b == NULL)
+		_bnerr(msg);
+	BN_ERRCHECK(msg, BN_add(b, mp1->bn, mp2->bn));
+	_moveb(msg, b, rmp);
+	BN_free(b);
 }
 
 void
@@ -229,15 +233,19 @@ static void
 _mdiv(const char *msg, const MINT *nmp, const MINT *dmp, MINT *qmp, MINT *rmp,
     BN_CTX *c)
 {
-	BIGNUM q, r;
+	BIGNUM *q, *r;
 
-	BN_init(&r);
-	BN_init(&q);
-	BN_ERRCHECK(msg, BN_div(&q, &r, nmp->bn, dmp->bn, c));
-	_moveb(msg, &q, qmp);
-	_moveb(msg, &r, rmp);
-	BN_free(&q);
-	BN_free(&r);
+	q = NULL;
+	r = BN_new();
+	if (r != NULL)
+		q = BN_new();
+	if (r == NULL || q == NULL)
+		_bnerr(msg);
+	BN_ERRCHECK(msg, BN_div(q, r, nmp->bn, dmp->bn, c));
+	_moveb(msg, q, qmp);
+	_moveb(msg, r, rmp);
+	BN_free(q);
+	BN_free(r);
 }
 
 void
@@ -402,12 +410,14 @@ mp_msqrt(const MINT *nmp, MINT *xmp, MINT *rmp)
 static void
 _msub(const char *msg, const MINT *mp1, const MINT *mp2, MINT *rmp)
 {
-	BIGNUM b;
+	BIGNUM *b;
 
-	BN_init(&b);
-	BN_ERRCHECK(msg, BN_sub(&b, mp1->bn, mp2->bn));
-	_moveb(msg, &b, rmp);
-	BN_free(&b);
+	b = BN_new();
+	if (b == NULL)
+		_bnerr(msg);
+	BN_ERRCHECK(msg, BN_sub(b, mp1->bn, mp2->bn));
+	_moveb(msg, b, rmp);
+	BN_free(b);
 }
 
 void
@@ -481,12 +491,14 @@ mp_mtox(const MINT *mp)
 static void
 _mult(const char *msg, const MINT *mp1, const MINT *mp2, MINT *rmp, BN_CTX *c)
 {
-	BIGNUM b;
+	BIGNUM *b;
 
-	BN_init(&b);
-	BN_ERRCHECK(msg, BN_mul(&b, mp1->bn, mp2->bn, c));
-	_moveb(msg, &b, rmp);
-	BN_free(&b);
+	b = BN_new();
+	if (b == NULL)
+		_bnerr(msg);
+	BN_ERRCHECK(msg, BN_mul(b, mp1->bn, mp2->bn, c));
+	_moveb(msg, b, rmp);
+	BN_free(b);
 }
 
 void
@@ -508,16 +520,18 @@ mp_mult(const MINT *mp1, const MINT *mp2, MINT *rmp)
 void
 mp_pow(const MINT *bmp, const MINT *emp, const MINT *mmp, MINT *rmp)
 {
-	BIGNUM b;
+	BIGNUM *b;
 	BN_CTX *c;
 
+	b = NULL;
 	c = BN_CTX_new();
-	if (c == NULL)
+	if (c != NULL)
+		b = BN_new();
+	if (c == NULL || b == NULL)
 		_bnerr("pow");
-	BN_init(&b);
-	BN_ERRCHECK("pow", BN_mod_exp(&b, bmp->bn, emp->bn, mmp->bn, c));
-	_moveb("pow", &b, rmp);
-	BN_free(&b);
+	BN_ERRCHECK("pow", BN_mod_exp(b, bmp->bn, emp->bn, mmp->bn, c));
+	_moveb("pow", b, rmp);
+	BN_free(b);
 	BN_CTX_free(c);
 }
 
@@ -528,18 +542,20 @@ void
 mp_rpow(const MINT *bmp, short e, MINT *rmp)
 {
 	MINT *emp;
-	BIGNUM b;
+	BIGNUM *b;
 	BN_CTX *c;
 
+	b = NULL;
 	c = BN_CTX_new();
-	if (c == NULL)
+	if (c != NULL)
+		b = BN_new();
+	if (c == NULL || b == NULL)
 		_bnerr("rpow");
-	BN_init(&b);
 	emp = _itom("rpow", e);
-	BN_ERRCHECK("rpow", BN_exp(&b, bmp->bn, emp->bn, c));
-	_moveb("rpow", &b, rmp);
+	BN_ERRCHECK("rpow", BN_exp(b, bmp->bn, emp->bn, c));
+	_moveb("rpow", b, rmp);
 	_mfree("rpow", emp);
-	BN_free(&b);
+	BN_free(b);
 	BN_CTX_free(c);
 }
 
@@ -551,16 +567,20 @@ _sdiv(const char *msg, const MINT *nmp, short d, MINT *qmp, short *ro,
     BN_CTX *c)
 {
 	MINT *dmp, *rmp;
-	BIGNUM q, r;
+	BIGNUM *q, *r;
 	char *s;
 
-	BN_init(&q);
-	BN_init(&r);
+	r = NULL;
+	q = BN_new();
+	if (q != NULL)
+		r = BN_new();
+	if (q == NULL || r == NULL)
+		_bnerr(msg);
 	dmp = _itom(msg, d);
 	rmp = _itom(msg, 0);
-	BN_ERRCHECK(msg, BN_div(&q, &r, nmp->bn, dmp->bn, c));
-	_moveb(msg, &q, qmp);
-	_moveb(msg, &r, rmp);
+	BN_ERRCHECK(msg, BN_div(q, r, nmp->bn, dmp->bn, c));
+	_moveb(msg, q, qmp);
+	_moveb(msg, r, rmp);
 	s = _mtox(msg, rmp);
 	errno = 0;
 	*ro = strtol(s, NULL, 16);
@@ -569,8 +589,8 @@ _sdiv(const char *msg, const MINT *nmp, short d, MINT *qmp, short *ro,
 	free(s);
 	_mfree(msg, dmp);
 	_mfree(msg, rmp);
-	BN_free(&r);
-	BN_free(&q);
+	BN_free(r);
+	BN_free(q);
 }
 
 void

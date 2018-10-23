@@ -42,7 +42,6 @@ AHD_DEBUG		opt_aic79xx.h
 AHD_DEBUG_OPTS		opt_aic79xx.h
 AHD_TMODE_ENABLE	opt_aic79xx.h	
 AHD_REG_PRETTY_PRINT	opt_aic79xx.h
-ADW_ALLOW_MEMIO		opt_adw.h
 
 TWA_DEBUG		opt_twa.h
 
@@ -375,23 +374,12 @@ SCSI_PT_DEFAULT_TIMEOUT	opt_pt.h
 SES_ENABLE_PASSTHROUGH	opt_ses.h
 
 # Options used in dev/sym/ (Symbios SCSI driver).
-SYM_SETUP_LP_PROBE_MAP	opt_sym.h	#-Low Priority Probe Map (bits)
-					# Allows the ncr to take precedence
-					# 1 (1<<0) -> 810a, 860
-					# 2 (1<<1) -> 825a, 875, 885, 895
-					# 4 (1<<2) -> 895a, 896, 1510d 
 SYM_SETUP_SCSI_DIFF	opt_sym.h	#-HVD support for 825a, 875, 885
 					# disabled:0 (default), enabled:1
 SYM_SETUP_PCI_PARITY	opt_sym.h	#-PCI parity checking
 					# disabled:0, enabled:1 (default)
 SYM_SETUP_MAX_LUN	opt_sym.h	#-Number of LUNs supported
 					# default:8, range:[1..64]
-
-# Options used only in dev/ncr/*
-SCSI_NCR_DEBUG		opt_ncr.h
-SCSI_NCR_MAX_SYNC	opt_ncr.h
-SCSI_NCR_MAX_WIDE	opt_ncr.h
-SCSI_NCR_MYADDR		opt_ncr.h
 
 # Options used only in dev/isp/*
 ISP_TARGET_MODE		opt_isp.h
@@ -439,7 +427,6 @@ IPFIREWALL		opt_ipfw.h
 IPFIREWALL_DEFAULT_TO_ACCEPT	opt_ipfw.h
 IPFIREWALL_NAT		opt_ipfw.h
 IPFIREWALL_NAT64	opt_ipfw.h
-IPFIREWALL_NAT64_DIRECT_OUTPUT	opt_ipfw.h
 IPFIREWALL_NPTV6	opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
@@ -567,10 +554,6 @@ DRM_DEBUG		opt_drm.h
 
 TI_SF_BUF_JUMBO		opt_ti.h
 TI_JUMBO_HDRSPLIT	opt_ti.h
-
-# DPT driver debug flags
-DPT_MEASURE_PERFORMANCE	opt_dpt.h
-DPT_RESET_HBA		opt_dpt.h
 
 # Misc debug flags.  Most of these should probably be replaced with
 # 'DEBUG', and then let people recompile just the interesting modules

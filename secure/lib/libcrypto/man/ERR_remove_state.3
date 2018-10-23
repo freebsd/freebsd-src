@@ -128,48 +128,49 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "ERR_remove_state 3"
-.TH ERR_remove_state 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "ERR_REMOVE_STATE 3"
+.TH ERR_REMOVE_STATE 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ERR_remove_thread_state, ERR_remove_state \- free a thread's error queue
+ERR_remove_thread_state, ERR_remove_state \- DEPRECATED
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
-.Vb 1
-\& #include <openssl/err.h>
-\&
-\& void ERR_remove_thread_state(const CRYPTO_THREADID *tid);
-.Ve
-.PP
 Deprecated:
 .PP
-.Vb 1
-\& void ERR_remove_state(unsigned long pid);
+.Vb 3
+\& #if OPENSSL_API_COMPAT < 0x10000000L
+\& void ERR_remove_state(unsigned long tid);
+\& #endif
+\&
+\& #if OPENSSL_API_COMPAT < 0x10100000L
+\& void ERR_remove_thread_state(void *tid);
+\& #endif
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fIERR_remove_thread_state()\fR frees the error queue associated with thread \fBtid\fR.
-If \fBtid\fR == \fB\s-1NULL\s0\fR, the current thread will have its error queue removed.
-.PP
-Since error queue data structures are allocated automatically for new
-threads, they must be freed when threads are terminated in order to
-avoid memory leaks.
-.PP
-ERR_remove_state is deprecated and has been replaced by
-ERR_remove_thread_state. Since threads in OpenSSL are no longer identified
-by unsigned long values any argument to this function is ignored. Calling
-ERR_remove_state is equivalent to \fBERR_remove_thread_state(\s-1NULL\s0)\fR.
-.SH "RETURN VALUE"
-.IX Header "RETURN VALUE"
-ERR_remove_thread_state and \fIERR_remove_state()\fR return no value.
+\&\fIERR_remove_state()\fR frees the error queue associated with the specified
+thread, identified by \fBtid\fR.
+\&\fIERR_remove_thread_state()\fR does the same thing, except the identifier is
+an opaque pointer.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fIERR_remove_state()\fR and \fIERR_remove_thread_state()\fR return no value.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIerr\fR\|(3)
+L\fIOPENSSL_init_crypto\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fIERR_remove_state()\fR is available in all versions of SSLeay and OpenSSL. It
-was deprecated in OpenSSL 1.0.0 when ERR_remove_thread_state was introduced
-and thread IDs were introduced to identify threads instead of 'unsigned long'.
+\&\fIERR_remove_state()\fR was deprecated in OpenSSL 1.0.0 and
+\&\fIERR_remove_thread_state()\fR was deprecated in OpenSSL 1.1.0; these functions
+and should not be used.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

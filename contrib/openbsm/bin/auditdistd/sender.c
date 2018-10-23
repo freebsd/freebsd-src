@@ -342,14 +342,7 @@ sender_disconnect(void)
 	pjdlog_warning("Disconnected from %s.", adhost->adh_remoteaddr);
 
 	/* Move all in-flight requests back onto free list. */
-	mtx_lock(&adist_free_list_lock);
-	mtx_lock(&adist_send_list_lock);
-	TAILQ_CONCAT(&adist_free_list, &adist_send_list, adr_next);
-	mtx_unlock(&adist_send_list_lock);
-	mtx_lock(&adist_recv_list_lock);
-	TAILQ_CONCAT(&adist_free_list, &adist_recv_list, adr_next);
-	mtx_unlock(&adist_recv_list_lock);
-	mtx_unlock(&adist_free_list_lock);
+	QUEUE_CONCAT2(&adist_free_list, &adist_send_list, &adist_recv_list);
 }
 
 static void
@@ -519,9 +512,6 @@ keepalive_send(void)
 	pjdlog_debug(3, "keepalive_send: Request sent.");
 }
 
-/*
- * Thread sends request to secondary node.
- */
 static void *
 send_thread(void *arg __unused)
 {
@@ -581,7 +571,7 @@ static void
 adrep_decode_header(struct adrep *adrep)
 {
 
-	/* Byte-swap only is the receiver is using different byte order. */
+	/* Byte-swap only if the receiver is using different byte order. */
 	if (adrep->adrp_byteorder != ADIST_BYTEORDER) {
 		adrep->adrp_byteorder = ADIST_BYTEORDER;
 		adrep->adrp_seq = bswap64(adrep->adrp_seq);
@@ -589,10 +579,6 @@ adrep_decode_header(struct adrep *adrep)
 	}
 }
 
-/*
- * Thread receives answer from secondary node and passes it to ggate_send
- * thread.
- */
 static void *
 recv_thread(void *arg __unused)
 {
@@ -609,9 +595,13 @@ recv_thread(void *arg __unused)
 		if (adhost->adh_remote == NULL) {
 			/*
 			 * Connection is dead.
-			 * XXX: We shouldn't be here.
+			 * There is a short race in sender_disconnect() between
+			 * setting adh_remote to NULL and removing entries from
+			 * the recv list, which can result in us being here.
+			 * To avoid just spinning, wait for 0.1s.
 			 */
 			rw_unlock(&adist_remote_lock);
+			usleep(100000);
 			continue;
 		}
 		if (proto_recv(adhost->adh_remote, &adrep,

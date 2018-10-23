@@ -116,7 +116,16 @@ ccache-print-options: .PHONY
 .endif	# exists(${CCACHE_BIN})
 .endif	# ${MK_CCACHE_BUILD} == "yes"
 
-.for cc X_ in CC $${_empty_var_} XCC X_
+_cc_vars=CC $${_empty_var_}
+.if !empty(_WANT_TOOLCHAIN_CROSS_VARS)
+# Only the toplevel makefile needs to compute the X_COMPILER_* variables.
+# Skipping the computation of the unused X_COMPILER_* in the subdirectory
+# makefiles can save a noticeable amount of time when walking the whole source
+# tree (e.g. during make includes, etc.).
+_cc_vars+=XCC X_
+.endif
+
+.for cc X_ in ${_cc_vars}
 .if ${cc} == "CC" || !empty(XCC)
 # Try to import COMPILER_TYPE and COMPILER_VERSION from parent make.
 # The value is only used/exported for the same environment that impacts

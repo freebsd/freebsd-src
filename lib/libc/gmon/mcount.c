@@ -279,8 +279,7 @@ MCOUNT
 
 #ifdef GUPROF
 void
-mexitcount(selfpc)
-	uintfptr_t selfpc;
+mexitcount(uintfptr_t selfpc)
 {
 	struct gmonparam *p;
 	uintfptr_t selfpcdiff;

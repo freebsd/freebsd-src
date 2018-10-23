@@ -77,6 +77,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -122,6 +123,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/mmuvar.h>
 #include <machine/pmap.h>
 #include <machine/pte.h>
+
+#include <ddb/ddb.h>
 
 #include "mmu_if.h"
 
@@ -221,10 +224,12 @@ static vm_offset_t tlb1_map_base = VM_MAXUSER_ADDRESS + PAGE_SIZE;
 static tlbtid_t tid_alloc(struct pmap *);
 static void tid_flush(tlbtid_t tid);
 
+#ifdef DDB
 #ifdef __powerpc64__
 static void tlb_print_entry(int, uint32_t, uint64_t, uint32_t, uint32_t);
 #else
 static void tlb_print_entry(int, uint32_t, uint32_t, uint32_t, uint32_t);
+#endif
 #endif
 
 static void tlb1_read_entry(tlb_entry_t *, unsigned int);
@@ -3783,45 +3788,6 @@ tid_alloc(pmap_t pmap)
 /* TLB0 handling */
 /**************************************************************************/
 
-static void
-#ifdef __powerpc64__
-tlb_print_entry(int i, uint32_t mas1, uint64_t mas2, uint32_t mas3,
-#else
-tlb_print_entry(int i, uint32_t mas1, uint32_t mas2, uint32_t mas3,
-#endif
-    uint32_t mas7)
-{
-	int as;
-	char desc[3];
-	tlbtid_t tid;
-	vm_size_t size;
-	unsigned int tsize;
-
-	desc[2] = '\0';
-	if (mas1 & MAS1_VALID)
-		desc[0] = 'V';
-	else
-		desc[0] = ' ';
-
-	if (mas1 & MAS1_IPROT)
-		desc[1] = 'P';
-	else
-		desc[1] = ' ';
-
-	as = (mas1 & MAS1_TS_MASK) ? 1 : 0;
-	tid = MAS1_GETTID(mas1);
-
-	tsize = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
-	size = 0;
-	if (tsize)
-		size = tsize2size(tsize);
-
-	debugf("%3d: (%s) [AS=%d] "
-	    "sz = 0x%08x tsz = %d tid = %d mas1 = 0x%08x "
-	    "mas2(va) = 0x%"PRI0ptrX" mas3(pa) = 0x%08x mas7 = 0x%08x\n",
-	    i, desc, as, size, tsize, tid, mas1, mas2, mas3, mas7);
-}
-
 /* Convert TLB0 va and way number to tlb0[] table index. */
 static inline unsigned int
 tlb0_tableidx(vm_offset_t va, unsigned int way)
@@ -3851,40 +3817,6 @@ tlb0_flush_entry(vm_offset_t va)
 	CTR1(KTR_PMAP, "%s: e", __func__);
 }
 
-/* Print out contents of the MAS registers for each TLB0 entry */
-void
-tlb0_print_tlbentries(void)
-{
-	uint32_t mas0, mas1, mas3, mas7;
-#ifdef __powerpc64__
-	uint64_t mas2;
-#else
-	uint32_t mas2;
-#endif
-	int entryidx, way, idx;
-
-	debugf("TLB0 entries:\n");
-	for (way = 0; way < TLB0_WAYS; way ++)
-		for (entryidx = 0; entryidx < TLB0_ENTRIES_PER_WAY; entryidx++) {
-
-			mas0 = MAS0_TLBSEL(0) | MAS0_ESEL(way);
-			mtspr(SPR_MAS0, mas0);
-			__asm __volatile("isync");
-
-			mas2 = entryidx << MAS2_TLB0_ENTRY_IDX_SHIFT;
-			mtspr(SPR_MAS2, mas2);
-
-			__asm __volatile("isync; tlbre");
-
-			mas1 = mfspr(SPR_MAS1);
-			mas2 = mfspr(SPR_MAS2);
-			mas3 = mfspr(SPR_MAS3);
-			mas7 = mfspr(SPR_MAS7);
-
-			idx = tlb0_tableidx(mas2, way);
-			tlb_print_entry(idx, mas1, mas2, mas3, mas7);
-		}
-}
 
 /**************************************************************************/
 /* TLB1 handling */
@@ -4329,36 +4261,6 @@ set_mas4_defaults(void)
 	__asm __volatile("isync");
 }
 
-/*
- * Print out contents of the MAS registers for each TLB1 entry
- */
-void
-tlb1_print_tlbentries(void)
-{
-	uint32_t mas0, mas1, mas3, mas7;
-#ifdef __powerpc64__
-	uint64_t mas2;
-#else
-	uint32_t mas2;
-#endif
-	int i;
-
-	debugf("TLB1 entries:\n");
-	for (i = 0; i < TLB1_ENTRIES; i++) {
-
-		mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(i);
-		mtspr(SPR_MAS0, mas0);
-
-		__asm __volatile("isync; tlbre");
-
-		mas1 = mfspr(SPR_MAS1);
-		mas2 = mfspr(SPR_MAS2);
-		mas3 = mfspr(SPR_MAS3);
-		mas7 = mfspr(SPR_MAS7);
-
-		tlb_print_entry(i, mas1, mas2, mas3, mas7);
-	}
-}
 
 /*
  * Return 0 if the physical IO range is encompassed by one of the
@@ -4454,3 +4356,108 @@ tid_flush(tlbtid_t tid)
 		}
 	mtmsr(msr);
 }
+
+#ifdef DDB
+/* Print out contents of the MAS registers for each TLB0 entry */
+static void
+#ifdef __powerpc64__
+tlb_print_entry(int i, uint32_t mas1, uint64_t mas2, uint32_t mas3,
+#else
+tlb_print_entry(int i, uint32_t mas1, uint32_t mas2, uint32_t mas3,
+#endif
+    uint32_t mas7)
+{
+	int as;
+	char desc[3];
+	tlbtid_t tid;
+	vm_size_t size;
+	unsigned int tsize;
+
+	desc[2] = '\0';
+	if (mas1 & MAS1_VALID)
+		desc[0] = 'V';
+	else
+		desc[0] = ' ';
+
+	if (mas1 & MAS1_IPROT)
+		desc[1] = 'P';
+	else
+		desc[1] = ' ';
+
+	as = (mas1 & MAS1_TS_MASK) ? 1 : 0;
+	tid = MAS1_GETTID(mas1);
+
+	tsize = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
+	size = 0;
+	if (tsize)
+		size = tsize2size(tsize);
+
+	printf("%3d: (%s) [AS=%d] "
+	    "sz = 0x%08x tsz = %d tid = %d mas1 = 0x%08x "
+	    "mas2(va) = 0x%"PRI0ptrX" mas3(pa) = 0x%08x mas7 = 0x%08x\n",
+	    i, desc, as, size, tsize, tid, mas1, mas2, mas3, mas7);
+}
+
+DB_SHOW_COMMAND(tlb0, tlb0_print_tlbentries)
+{
+	uint32_t mas0, mas1, mas3, mas7;
+#ifdef __powerpc64__
+	uint64_t mas2;
+#else
+	uint32_t mas2;
+#endif
+	int entryidx, way, idx;
+
+	printf("TLB0 entries:\n");
+	for (way = 0; way < TLB0_WAYS; way ++)
+		for (entryidx = 0; entryidx < TLB0_ENTRIES_PER_WAY; entryidx++) {
+
+			mas0 = MAS0_TLBSEL(0) | MAS0_ESEL(way);
+			mtspr(SPR_MAS0, mas0);
+			__asm __volatile("isync");
+
+			mas2 = entryidx << MAS2_TLB0_ENTRY_IDX_SHIFT;
+			mtspr(SPR_MAS2, mas2);
+
+			__asm __volatile("isync; tlbre");
+
+			mas1 = mfspr(SPR_MAS1);
+			mas2 = mfspr(SPR_MAS2);
+			mas3 = mfspr(SPR_MAS3);
+			mas7 = mfspr(SPR_MAS7);
+
+			idx = tlb0_tableidx(mas2, way);
+			tlb_print_entry(idx, mas1, mas2, mas3, mas7);
+		}
+}
+
+/*
+ * Print out contents of the MAS registers for each TLB1 entry
+ */
+DB_SHOW_COMMAND(tlb1, tlb1_print_tlbentries)
+{
+	uint32_t mas0, mas1, mas3, mas7;
+#ifdef __powerpc64__
+	uint64_t mas2;
+#else
+	uint32_t mas2;
+#endif
+	int i;
+
+	printf("TLB1 entries:\n");
+	for (i = 0; i < TLB1_ENTRIES; i++) {
+
+		mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(i);
+		mtspr(SPR_MAS0, mas0);
+
+		__asm __volatile("isync; tlbre");
+
+		mas1 = mfspr(SPR_MAS1);
+		mas2 = mfspr(SPR_MAS2);
+		mas3 = mfspr(SPR_MAS3);
+		mas7 = mfspr(SPR_MAS7);
+
+		tlb_print_entry(i, mas1, mas2, mas3, mas7);
+	}
+}
+#endif

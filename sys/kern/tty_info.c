@@ -46,11 +46,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/cons.h>
+#include <sys/kdb.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
+#include <sys/stack.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/tty.h>
 
@@ -209,6 +215,34 @@ proc_compare(struct proc *p1, struct proc *p2)
 	return (p2->p_pid > p1->p_pid);		/* tie - return highest pid */
 }
 
+static int
+sbuf_tty_drain(void *a, const char *d, int len)
+{
+	struct tty *tp;
+	int rc;
+
+	tp = a;
+
+	if (kdb_active) {
+		cnputsn(d, len);
+		return (len);
+	}
+	if (tp != NULL && panicstr == NULL) {
+		rc = tty_putstrn(tp, d, len);
+		if (rc != 0)
+			return (-ENXIO);
+		return (len);
+	}
+	return (-ENXIO);
+}
+
+#ifdef STACK
+static bool tty_info_kstacks = false;
+SYSCTL_BOOL(_kern, OID_AUTO, tty_info_kstacks, CTLFLAG_RWTUN,
+    &tty_info_kstacks, 0,
+    "Enable printing kernel stack(9) traces on ^T (tty info)");
+#endif
+
 /*
  * Report on state of foreground process group.
  */
@@ -216,9 +250,14 @@ void
 tty_info(struct tty *tp)
 {
 	struct timeval rtime, utime, stime;
+#ifdef STACK
+	struct stack stack;
+	int sterr;
+#endif
 	struct proc *p, *ppick;
 	struct thread *td, *tdpick;
 	const char *stateprefix, *state;
+	struct sbuf sb;
 	long rss;
 	int load, pctcpu;
 	pid_t pid;
@@ -230,24 +269,27 @@ tty_info(struct tty *tp)
 	if (tty_checkoutq(tp) == 0)
 		return;
 
+	(void)sbuf_new(&sb, tp->t_prbuf, sizeof(tp->t_prbuf), SBUF_FIXEDLEN);
+	sbuf_set_drain(&sb, sbuf_tty_drain, tp);
+
 	/* Print load average. */
 	load = (averunnable.ldavg[0] * 100 + FSCALE / 2) >> FSHIFT;
-	ttyprintf(tp, "%sload: %d.%02d ", tp->t_column == 0 ? "" : "\n",
+	sbuf_printf(&sb, "%sload: %d.%02d ", tp->t_column == 0 ? "" : "\n",
 	    load / 100, load % 100);
 
 	if (tp->t_session == NULL) {
-		ttyprintf(tp, "not a controlling terminal\n");
-		return;
+		sbuf_printf(&sb, "not a controlling terminal\n");
+		goto out;
 	}
 	if (tp->t_pgrp == NULL) {
-		ttyprintf(tp, "no foreground process group\n");
-		return;
+		sbuf_printf(&sb, "no foreground process group\n");
+		goto out;
 	}
 	PGRP_LOCK(tp->t_pgrp);
 	if (LIST_EMPTY(&tp->t_pgrp->pg_members)) {
 		PGRP_UNLOCK(tp->t_pgrp);
-		ttyprintf(tp, "empty foreground process group\n");
-		return;
+		sbuf_printf(&sb, "empty foreground process group\n");
+		goto out;
 	}
 
 	/*
@@ -292,6 +334,17 @@ tty_info(struct tty *tp)
 	else
 		state = "unknown";
 	pctcpu = (sched_pctcpu(td) * 10000 + FSCALE / 2) >> FSHIFT;
+#ifdef STACK
+	if (tty_info_kstacks) {
+		stack_zero(&stack);
+		if (TD_IS_SWAPPED(td) || TD_IS_RUNNING(td))
+			sterr = stack_save_td_running(&stack, td);
+		else {
+			stack_save_td(&stack, td);
+			sterr = 0;
+		}
+	}
+#endif
 	thread_unlock(td);
 	if (p->p_state == PRS_NEW || p->p_state == PRS_ZOMBIE)
 		rss = 0;
@@ -305,11 +358,20 @@ tty_info(struct tty *tp)
 	PROC_UNLOCK(p);
 
 	/* Print command, pid, state, rtime, utime, stime, %cpu, and rss. */
-	ttyprintf(tp,
+	sbuf_printf(&sb,
 	    " cmd: %s %d [%s%s] %ld.%02ldr %ld.%02ldu %ld.%02lds %d%% %ldk\n",
 	    comm, pid, stateprefix, state,
 	    (long)rtime.tv_sec, rtime.tv_usec / 10000,
 	    (long)utime.tv_sec, utime.tv_usec / 10000,
 	    (long)stime.tv_sec, stime.tv_usec / 10000,
 	    pctcpu / 100, rss);
+
+#ifdef STACK
+	if (tty_info_kstacks && sterr == 0)
+		stack_sbuf_print_flags(&sb, &stack, M_NOWAIT);
+#endif
+
+out:
+	sbuf_finish(&sb);
+	sbuf_delete(&sb);
 }

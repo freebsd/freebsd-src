@@ -54,6 +54,7 @@ local MSG_XENKERNFAIL = "Failed to load Xen kernel '%s'"
 local MSG_XENKERNLOADING = "Loading Xen kernel..."
 local MSG_KERNLOADING = "Loading kernel..."
 local MSG_MODLOADING = "Loading configured modules..."
+local MSG_MODBLACKLIST = "Not loading blacklisted module '%s'"
 local MSG_MODLOADFAIL = "Could not load one or more modules!"
 
 local MODULEEXPR = '([%w-_]+)'
@@ -265,20 +266,37 @@ local function isValidComment(line)
 	return true
 end
 
+local function getBlacklist()
+	local blacklist_str = loader.getenv('module_blacklist')
+	if blacklist_str == nil then
+		return nil
+	end
+
+	local blacklist = {}
+	for mod in blacklist_str:gmatch("[;, ]?([%w-_]+)[;, ]?") do
+		blacklist[mod] = true
+	end
+	return blacklist
+end
+
 local function loadModule(mod, silent)
 	local status = true
+	local blacklist = getBlacklist()
 	local pstatus
 	for k, v in pairs(mod) do
 		if v.load ~= nil and v.load:lower() == "yes" then
+			local module_name = v.name or k
+			if blacklist[module_name] ~= nil then
+				if not silent then
+					print(MSG_MODBLACKLIST:format(module_name))
+				end
+				goto continue
+			end
 			local str = "load "
 			if v.type ~= nil then
 				str = str .. "-t " .. v.type .. " "
 			end
-			if v.name ~= nil then
-				str = str .. v.name
-			else
-				str = str .. k
-			end
+			str = str .. module_name
 			if v.flags ~= nil then
 				str = str .. " " .. v.flags
 			end
@@ -309,6 +327,7 @@ local function loadModule(mod, silent)
 			end
 
 		end
+		::continue::
 	end
 
 	return status

@@ -32,7 +32,6 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-
 #ifndef _IXL_H_
 #define _IXL_H_
 
@@ -136,8 +135,6 @@
 
 #define IXL_MSIX_BAR		3
 #define IXL_ADM_LIMIT		2
-// TODO: Find out which TSO_SIZE to use
-//#define IXL_TSO_SIZE		65535
 #define IXL_TSO_SIZE		((255*1024)-1)
 #define IXL_TX_BUF_SZ		((u32) 1514)
 #define IXL_AQ_BUF_SZ		((u32) 4096)
@@ -145,12 +142,14 @@
 #define IXL_TX_ITR		1
 #define IXL_ITR_NONE		3
 #define IXL_QUEUE_EOL		0x7FF
+#define IXL_MIN_FRAME		17
 #define IXL_MAX_FRAME		9728
 #define IXL_MAX_TX_SEGS		8
 #define IXL_MAX_RX_SEGS		5
 #define IXL_MAX_TSO_SEGS	128
 #define IXL_SPARSE_CHAIN	7
 #define IXL_MIN_TSO_MSS		64
+#define IXL_MAX_TSO_MSS		9668
 #define IXL_MAX_DMA_SEG_SIZE	((16 * 1024) - 1)
 
 #define IXL_RSS_KEY_SIZE_REG		13
@@ -204,21 +203,11 @@
 
 #define IXL_VSI_DATA_PORT	0x01
 
-#define IXLV_MAX_QUEUES		16
+#define IAVF_MAX_QUEUES		16
 #define IXL_MAX_VSI_QUEUES	(2 * (I40E_VSILAN_QTABLE_MAX_INDEX + 1))
 
 #define IXL_RX_CTX_BASE_UNITS	128
 #define IXL_TX_CTX_BASE_UNITS	128
-
-#if 0
-#define IXL_VPINT_LNKLSTN_REG(hw, vector, vf_num) \
-	I40E_VPINT_LNKLSTN(((vector) - 1) + \
-	    (((hw)->func_caps.num_msix_vectors_vf - 1) * (vf_num)))
-
-#define IXL_VFINT_DYN_CTLN_REG(hw, vector, vf_num) \
-	I40E_VFINT_DYN_CTLN(((vector) - 1) + \
-	    (((hw)->func_caps.num_msix_vectors_vf - 1) * (vf_num)))
-#endif
 
 #define IXL_PF_PCI_CIAA_VF_DEVICE_STATUS	0xAA
 
@@ -298,6 +287,9 @@
 #define IXL_SET_OQDROPS(vsi, odrops)	(vsi)->ifp->if_snd.ifq_drops = (odrops)
 #define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
 #endif
+
+/* For stats sysctl naming */
+#define QUEUE_NAME_LEN 32
 
 #define IXL_DEV_ERR(_dev, _format, ...) \
 	device_printf(_dev, "%s: " _format " (%s:%d)\n", __func__, ##__VA_ARGS__, __FILE__, __LINE__)
@@ -415,16 +407,15 @@ struct ixl_vsi {
 	if_ctx_t		ctx;
 	if_softc_ctx_t		shared;
 	struct ifnet		*ifp;
-	//device_t		dev;
+	device_t		dev;
 	struct i40e_hw		*hw;
 	struct ifmedia		*media;
-#define num_rx_queues	shared->isc_nrxqsets
-#define num_tx_queues	shared->isc_ntxqsets
+
+	int			num_rx_queues;
+	int			num_tx_queues;
 
 	void 			*back;
 	enum i40e_vsi_type	type;
-	// TODO: Remove?
-	u64			que_mask;
 	int			id;
 	u32			rx_itr_setting;
 	u32			tx_itr_setting;
@@ -541,9 +532,18 @@ struct ixl_sysctl_info {
 extern const uint8_t ixl_bcast_addr[ETHER_ADDR_LEN];
 
 /* Common function prototypes between PF/VF driver */
+void		ixl_debug_core(device_t dev, u32 enabled_mask, u32 mask, char *fmt, ...);
 void		 ixl_init_tx_ring(struct ixl_vsi *vsi, struct ixl_tx_queue *que);
 void		 ixl_get_default_rss_key(u32 *);
 const char *	i40e_vc_stat_str(struct i40e_hw *hw,
     enum virtchnl_status_code stat_err);
-u64		ixl_max_aq_speed_to_value(u8);
+void		ixl_init_tx_rsqs(struct ixl_vsi *vsi);
+void		ixl_init_tx_cidx(struct ixl_vsi *vsi);
+u64		ixl_max_vc_speed_to_value(u8 link_speeds);
+void		ixl_add_vsi_sysctls(device_t dev, struct ixl_vsi *vsi,
+		    struct sysctl_ctx_list *ctx, const char *sysctl_name);
+void		ixl_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
+		    struct sysctl_oid_list *child,
+		    struct i40e_eth_stats *eth_stats);
+void		ixl_add_queues_sysctls(device_t dev, struct ixl_vsi *vsi);
 #endif /* _IXL_H_ */

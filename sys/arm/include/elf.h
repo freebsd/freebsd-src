@@ -61,39 +61,7 @@ __ElfType(Auxinfo);
  * Relocation types.
  */
 
-/* Values for a_type. */
-#define	AT_NULL		0	/* Terminates the vector. */
-#define	AT_IGNORE	1	/* Ignored entry. */
-#define	AT_EXECFD	2	/* File descriptor of program to load. */
-#define	AT_PHDR		3	/* Program header of program already loaded. */
-#define	AT_PHENT	4	/* Size of each program header entry. */
-#define	AT_PHNUM	5	/* Number of program header entries. */
-#define	AT_PAGESZ	6	/* Page size in bytes. */
-#define	AT_BASE		7	/* Interpreter's base address. */
-#define	AT_FLAGS	8	/* Flags (unused). */
-#define	AT_ENTRY	9	/* Where interpreter should transfer control. */
-#define	AT_NOTELF	10	/* Program is not ELF ?? */
-#define	AT_UID		11	/* Real uid. */
-#define	AT_EUID		12	/* Effective uid. */
-#define	AT_GID		13	/* Real gid. */
-#define	AT_EGID		14	/* Effective gid. */
-#define	AT_EXECPATH	15	/* Path to the executable. */
-#define	AT_CANARY	16	/* Canary for SSP */
-#define	AT_CANARYLEN	17	/* Length of the canary. */
-#define	AT_OSRELDATE	18	/* OSRELDATE. */
-#define	AT_NCPUS	19	/* Number of CPUs. */
-#define	AT_PAGESIZES	20	/* Pagesizes. */
-#define	AT_PAGESIZESLEN	21	/* Number of pagesizes. */
-#define	AT_TIMEKEEP	22	/* Pointer to timehands. */
-#define	AT_STACKPROT	23	/* Initial stack protection. */
-#define	AT_EHDRFLAGS	24	/* e_flags field from elf hdr */
-#define	AT_HWCAP	25	/* CPU feature flags. */
-#define	AT_HWCAP2	26	/* CPU feature flags 2. */
-
-#define	AT_COUNT	27	/* Count of defined aux entry types. */
-
 #define	R_ARM_COUNT	33	/* Count of defined relocation types. */
-
 
 /* Define "machine" characteristics */
 #define	ELF_TARG_CLASS	ELFCLASS32

@@ -13,7 +13,7 @@
 .\"     @(#)vidcontrol.1
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2016
+.Dd October 20, 2018
 .Dt VIDCONTROL 1
 .Os
 .Sh NAME
@@ -53,7 +53,7 @@ utility is used to set various options for the
 or
 .Xr vt 4
 console driver,
-such as video mode, colors, cursor shape, screen output map, font and screen
+such as video mode, colors, cursor shape, screen output map, font, and screen
 saver timeout.
 Only a small subset of options is supported by
 .Xr vt 4 .
@@ -109,10 +109,10 @@ below.
 .It Ar foreground Op Ar background
 Change colors when displaying text.
 Specify the foreground color
-(e.g.\&
+(e.g.,
 .Dq vidcontrol white ) ,
 or both a foreground and background colors
-(e.g.\&
+(e.g.,
 .Dq vidcontrol yellow blue ) .
 Use the
 .Cm show
@@ -128,13 +128,13 @@ Clear the history buffer.
 .It Fl c Ar setting Ns Op , Ns Ar setting ...
 Change the cursor appearance.
 The change is specified by a non-empty comma-separated list of
-.Cm setting Ns s .
+.Ar setting Ns s .
 Each
-.Cm setting
+.Ar setting
 overrides or modifies previous ones in left to right order.
 .Pp
 The following override
-.Cm setting Ns s
+.Ar setting Ns s
 are available:
 .Bl -tag -width indent
 .It Cm normal
@@ -150,22 +150,22 @@ The name
 .Dq destructive
 is bad for backwards compatibility.
 This
-.Cm setting
+.Ar setting
 should not force destructiveness,
 and it now only gives destructiveness in some
 configurations (typically for hardware cursors
 in text mode).
 Blinking limits destructiveness.
 This
-.Cm setting
+.Ar setting
 should now be spelled
 .Cm normal , Ns Cm blink , Ns Cm noblock .
 A non-blinking destructive cursor would be unusable,
 so old versions of
 .Nm
-didn't support it,
-and this version doesn't have an override for it.
-.It Cm base Ns = Ns Ar value, Cm height Ns = Ns Ar value
+did not support it,
+and this version does not have an override for it.
+.It Cm base Ns = Ns Ar value , Cm height Ns = Ns Ar value
 Set the specified scanline parameters.
 These parameters are only active in
 .Cm noblock
@@ -187,7 +187,7 @@ are clamped to fit in the character cell when the cursor is drawn.
 .El
 .Pp
 The following modifier
-.Cm setting Ns s
+.Ar setting Ns s
 are available:
 .Bl -tag -width indent
 .It Cm blink , noblink
@@ -217,7 +217,7 @@ Set or clear the hidden attribute.
 .El
 .Pp
 The following (non-sticky) flags control application of the
-.Cm setting Ns s :
+.Ar setting Ns s :
 .Bl -tag -width indent
 .It Cm charcolors
 Apply
@@ -258,7 +258,7 @@ Together with
 .Cm local ,
 this gives 2 selection bits which select between 4 destinations.
 .It Cm shapeonly
-Ignore any changes to the 
+Ignore any changes to the
 .Cm block
 and
 .Cm hidden
@@ -313,7 +313,7 @@ When using
 both
 .Ar size
 and
-.Ar font
+.Ar file
 can be omitted, and the default font will be loaded.
 .Pp
 Note that older video cards, such as MDA and CGA, do not support
@@ -572,7 +572,7 @@ the output.
 The first 10 bytes are always arranged as follows:
 .Bl -column "Byte range" "Contents" -offset indent
 .It Sy "Byte Range	Contents"
-.It "1 thru 8	Literal text" Dq Li SCRSHOT_
+.It "1 - 8	Literal text" Dq Li SCRSHOT_
 .It "9	File format version number"
 .It "10	Remaining number of bytes in the header"
 .El
@@ -625,7 +625,7 @@ for more details.
 The video card driver may let you change default configuration
 options, such as the default font, so that you do not need to set up
 the options at boot time.
-See video card driver manuals, (e.g.\&
+See video card driver manuals, (e.g.,
 .Xr vga 4 )
 for details.
 .Sh FILES
@@ -662,7 +662,7 @@ Furthermore, you can also omit font size
 .Pp
 .Dl vidcontrol -f iso-8x16
 .Pp
-Moreover, the suffix specifying the font size can be also omitted; in
+Moreover, the suffix specifying the font size can also be omitted; in
 this case,
 .Nm
 will use the size of the currently displayed font to construct the

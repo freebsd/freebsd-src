@@ -215,6 +215,18 @@ static int infra_ratelimit_cfg_insert(struct infra_cache* infra,
 	return 1;
 }
 
+/** setup domain limits tree (0 on failure) */
+static int
+setup_domain_limits(struct infra_cache* infra, struct config_file* cfg)
+{
+	name_tree_init(&infra->domain_limits);
+	if(!infra_ratelimit_cfg_insert(infra, cfg)) {
+		return 0;
+	}
+	name_tree_init_parents(&infra->domain_limits);
+	return 1;
+}
+
 struct infra_cache* 
 infra_create(struct config_file* cfg)
 {
@@ -230,7 +242,6 @@ infra_create(struct config_file* cfg)
 		return NULL;
 	}
 	infra->host_ttl = cfg->host_ttl;
-	name_tree_init(&infra->domain_limits);
 	infra_dp_ratelimit = cfg->ratelimit;
 	infra->domain_rates = slabhash_create(cfg->ratelimit_slabs,
 		INFRA_HOST_STARTSIZE, cfg->ratelimit_size,
@@ -241,11 +252,10 @@ infra_create(struct config_file* cfg)
 		return NULL;
 	}
 	/* insert config data into ratelimits */
-	if(!infra_ratelimit_cfg_insert(infra, cfg)) {
+	if(!setup_domain_limits(infra, cfg)) {
 		infra_delete(infra);
 		return NULL;
 	}
-	name_tree_init_parents(&infra->domain_limits);
 	infra_ip_ratelimit = cfg->ip_ratelimit;
 	infra->client_ip_rates = slabhash_create(cfg->ip_ratelimit_slabs,
 	    INFRA_HOST_STARTSIZE, cfg->ip_ratelimit_size, &ip_rate_sizefunc,
@@ -285,12 +295,28 @@ infra_adjust(struct infra_cache* infra, struct config_file* cfg)
 	if(!infra)
 		return infra_create(cfg);
 	infra->host_ttl = cfg->host_ttl;
+	infra_dp_ratelimit = cfg->ratelimit;
+	infra_ip_ratelimit = cfg->ip_ratelimit;
 	maxmem = cfg->infra_cache_numhosts * (sizeof(struct infra_key)+
 		sizeof(struct infra_data)+INFRA_BYTES_NAME);
-	if(maxmem != slabhash_get_size(infra->hosts) ||
-		cfg->infra_cache_slabs != infra->hosts->size) {
+	/* divide cachesize by slabs and multiply by slabs, because if the
+	 * cachesize is not an even multiple of slabs, that is the resulting
+	 * size of the slabhash */
+	if(!slabhash_is_size(infra->hosts, maxmem, cfg->infra_cache_slabs) ||
+	   !slabhash_is_size(infra->domain_rates, cfg->ratelimit_size,
+	   	cfg->ratelimit_slabs) ||
+	   !slabhash_is_size(infra->client_ip_rates, cfg->ip_ratelimit_size,
+	   	cfg->ip_ratelimit_slabs)) {
 		infra_delete(infra);
 		infra = infra_create(cfg);
+	} else {
+		/* reapply domain limits */
+		traverse_postorder(&infra->domain_limits, domain_limit_free,
+			NULL);
+		if(!setup_domain_limits(infra, cfg)) {
+			infra_delete(infra);
+			return NULL;
+		}
 	}
 	return infra;
 }
@@ -987,8 +1013,8 @@ int infra_ip_ratelimit_inc(struct infra_cache* infra,
 			char client_ip[128];
 			addr_to_str((struct sockaddr_storage *)&repinfo->addr,
 				repinfo->addrlen, client_ip, sizeof(client_ip));
-			verbose(VERB_OPS, "ratelimit exceeded %s %d", client_ip,
-				infra_ip_ratelimit);
+			verbose(VERB_OPS, "ip_ratelimit exceeded %s %d",
+				client_ip, infra_ip_ratelimit);
 		}
 		return (max <= infra_ip_ratelimit);
 	}

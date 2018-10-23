@@ -52,7 +52,6 @@ options 	MSDOSFS			# MSDOS Filesystem
 options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_LABEL		# Provides labelization
 options 	EFIRT			# EFI Runtime Services support
@@ -140,14 +139,8 @@ device		isp			# Qlogic family
 device		mpt			# LSI-Logic MPT-Fusion
 device		mps			# LSI-Logic MPT-Fusion 2
 device		mpr			# LSI-Logic MPT-Fusion 3
-#device		ncr			# NCR/Symbios Logic
-device		sym			# NCR/Symbios Logic (newer chipsets + those of `ncr')
+device		sym			# NCR/Symbios Logic
 device		trm			# Tekram DC395U/UW/F DC315U adapters
-
-device		adv			# Advansys SCSI adapters
-device		adw			# Advansys wide SCSI adapters
-device		aic			# Adaptec 15[012]x SCSI adapters, AIC-6[23]60.
-device		bt			# Buslogic/Mylex MultiMaster SCSI adapters
 device		isci			# Intel C600 SAS controller
 device		ocs_fc			# Emulex FC adapters
 
@@ -165,7 +158,6 @@ device		ses			# Enclosure Services (SES and SAF-TE)
 device		amr			# AMI MegaRAID
 device		arcmsr			# Areca SATA II RAID
 device		ciss			# Compaq Smart RAID 5*
-device		dpt			# DPT Smartcache III, IV - See NOTES for options
 device		hptmv			# Highpoint RocketRAID 182x
 device		hptnr			# Highpoint DC7280, R750
 device		hptrr			# Highpoint RocketRAID 17xx, 22xx, 23xx, 25xx
@@ -241,9 +233,8 @@ device		de			# DEC/Intel DC21x4x (``Tulip'')
 device		em			# Intel PRO/1000 Gigabit Ethernet Family
 device		ix			# Intel PRO/10GbE PCIE PF Ethernet
 device		ixv			# Intel PRO/10GbE PCIE VF Ethernet
-device		ixl			# Intel XL710 40Gbe PCIE Ethernet
-#options		IXL_IW			# Enable iWARP Client Interface in ixl(4)
-#device		ixlv			# Intel XL710 40Gbe VF PCIE Ethernet
+device		ixl			# Intel 700 Series Physical Function
+device		iavf			# Intel Adaptive Virtual Function
 device		le			# AMD Am7900 LANCE and Am79C9xx PCnet
 device		ti			# Alteon Networks Tigon I/II gigabit Ethernet
 device		txp			# 3Com 3cR990 (``Typhoon'')

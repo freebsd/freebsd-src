@@ -33,10 +33,9 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/param.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -98,10 +97,8 @@ static int do_dump;
 static const char *dumpfilename = RTSOL_DUMPFILE;
 #endif
 
-#if 0
-static int ifreconfig(char *);
-#endif
-
+static char **autoifprobe(void);
+static int ifconfig(char *ifname);
 static int make_packet(struct ifinfo *);
 static struct timespec *rtsol_check_timer(void);
 
@@ -217,16 +214,6 @@ main(int argc, char **argv)
 		    pidfilename);
 	}
 
-#if (__FreeBSD_version < 900000)
-	if (Fflag) {
-		setinet6sysctl(IPV6CTL_FORWARDING, 0);
-	} else {
-		/* warn if forwarding is up */
-		if (getinet6sysctl(IPV6CTL_FORWARDING))
-			warnx("kernel is configured as a router, not a host");
-	}
-#endif
-
 #ifndef SMALL
 	/* initialization to dump internal status to a file */
 	signal(SIGUSR1, rtsold_set_dump_file);
@@ -340,7 +327,7 @@ main(int argc, char **argv)
 	return (0);
 }
 
-int
+static int
 ifconfig(char *ifname)
 {
 	struct ifinfo *ifi;
@@ -443,48 +430,6 @@ bad:
 	free(ifi);
 	return (-1);
 }
-
-void
-iflist_init(void)
-{
-	struct ifinfo *ifi;
-
-	while ((ifi = TAILQ_FIRST(&ifinfo_head)) != NULL) {
-		TAILQ_REMOVE(&ifinfo_head, ifi, ifi_next);
-		if (ifi->sdl != NULL)
-			free(ifi->sdl);
-		if (ifi->rs_data != NULL)
-			free(ifi->rs_data);
-		free(ifi);
-	}
-}
-
-#if 0
-static int
-ifreconfig(char *ifname)
-{
-	struct ifinfo *ifi, *prev;
-	int rv;
-
-	prev = NULL;
-	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
-		if (strncmp(ifi->ifname, ifname, sizeof(ifi->ifname)) == 0)
-			break;
-		prev = ifi;
-	}
-	prev->next = ifi->next;
-
-	rv = ifconfig(ifname);
-
-	/* reclaim it after ifconfig() in case ifname is pointer inside ifi */
-	if (ifi->rs_data)
-		free(ifi->rs_data);
-	free(ifi->sdl);
-	free(ifi);
-
-	return (rv);
-}
-#endif
 
 struct rainfo *
 find_rainfo(struct ifinfo *ifi, struct sockaddr_in6 *sin6)
@@ -767,9 +712,6 @@ rtsol_timer_update(struct ifinfo *ifi)
 #undef MILLION
 }
 
-/* timer related utility functions */
-#define MILLION 1000000
-
 #ifndef SMALL
 static void
 rtsold_set_dump_file(int sig __unused)
@@ -817,7 +759,7 @@ warnmsg(int priority, const char *func, const char *msg, ...)
 /*
  * return a list of interfaces which is suitable to sending an RS.
  */
-char **
+static char **
 autoifprobe(void)
 {
 	static char **argv = NULL;

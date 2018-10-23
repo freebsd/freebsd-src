@@ -7,6 +7,7 @@ crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
 dev/ofw/ofw_cpu.c		optional	fdt
 dev/uart/uart_cpu_fdt.c		optional	uart fdt
+dev/uart/uart_dev_lowrisc.c	optional	uart_lowrisc
 dev/xilinx/axi_quad_spi.c	optional	xilinx_spi
 kern/kern_clocksource.c		standard
 kern/msi_if.m			standard

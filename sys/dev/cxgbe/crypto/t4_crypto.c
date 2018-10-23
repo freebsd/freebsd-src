@@ -1667,6 +1667,7 @@ ccr_attach(device_t dev)
 	ccr_sysctls(sc);
 
 	crypto_register(cid, CRYPTO_SHA1_HMAC, 0, 0);
+	crypto_register(cid, CRYPTO_SHA2_224_HMAC, 0, 0);
 	crypto_register(cid, CRYPTO_SHA2_256_HMAC, 0, 0);
 	crypto_register(cid, CRYPTO_SHA2_384_HMAC, 0, 0);
 	crypto_register(cid, CRYPTO_SHA2_512_HMAC, 0, 0);
@@ -1716,6 +1717,10 @@ ccr_copy_partial_hash(void *dst, int cri_alg, union authctx *auth_ctx)
 	case CRYPTO_SHA1_HMAC:
 		for (i = 0; i < SHA1_HASH_LEN / 4; i++)
 			u32[i] = htobe32(auth_ctx->sha1ctx.h.b32[i]);
+		break;
+	case CRYPTO_SHA2_224_HMAC:
+		for (i = 0; i < SHA2_256_HASH_LEN / 4; i++)
+			u32[i] = htobe32(auth_ctx->sha224ctx.state[i]);
 		break;
 	case CRYPTO_SHA2_256_HMAC:
 		for (i = 0; i < SHA2_256_HASH_LEN / 4; i++)
@@ -1897,6 +1902,7 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 	for (c = cri; c != NULL; c = c->cri_next) {
 		switch (c->cri_alg) {
 		case CRYPTO_SHA1_HMAC:
+		case CRYPTO_SHA2_224_HMAC:
 		case CRYPTO_SHA2_256_HMAC:
 		case CRYPTO_SHA2_384_HMAC:
 		case CRYPTO_SHA2_512_HMAC:
@@ -1912,6 +1918,12 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 				auth_mode = CHCR_SCMD_AUTH_MODE_SHA1;
 				mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_160;
 				partial_digest_len = SHA1_HASH_LEN;
+				break;
+			case CRYPTO_SHA2_224_HMAC:
+				auth_hash = &auth_hash_hmac_sha2_224;
+				auth_mode = CHCR_SCMD_AUTH_MODE_SHA224;
+				mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_256;
+				partial_digest_len = SHA2_256_HASH_LEN;
 				break;
 			case CRYPTO_SHA2_256_HMAC:
 				auth_hash = &auth_hash_hmac_sha2_256;

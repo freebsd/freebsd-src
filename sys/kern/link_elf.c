@@ -618,27 +618,29 @@ parse_dynamic(elf_file_t ef)
 static int
 parse_dpcpu(elf_file_t ef)
 {
-	int count;
-	int error;
+	int error, size;
 
 	ef->pcpu_start = 0;
 	ef->pcpu_stop = 0;
 	error = link_elf_lookup_set(&ef->lf, "pcpu", (void ***)&ef->pcpu_start,
-	    (void ***)&ef->pcpu_stop, &count);
+	    (void ***)&ef->pcpu_stop, NULL);
 	/* Error just means there is no pcpu set to relocate. */
 	if (error != 0)
 		return (0);
-	count *= sizeof(void *);
+	size = (uintptr_t)ef->pcpu_stop - (uintptr_t)ef->pcpu_start;
+	/* Empty set? */
+	if (size < 1)
+		return (0);
 	/*
 	 * Allocate space in the primary pcpu area.  Copy in our
 	 * initialization from the data section and then initialize
 	 * all per-cpu storage from that.
 	 */
-	ef->pcpu_base = (Elf_Addr)(uintptr_t)dpcpu_alloc(count);
+	ef->pcpu_base = (Elf_Addr)(uintptr_t)dpcpu_alloc(size);
 	if (ef->pcpu_base == 0)
 		return (ENOSPC);
-	memcpy((void *)ef->pcpu_base, (void *)ef->pcpu_start, count);
-	dpcpu_copy((void *)ef->pcpu_base, count);
+	memcpy((void *)ef->pcpu_base, (void *)ef->pcpu_start, size);
+	dpcpu_copy((void *)ef->pcpu_base, size);
 	elf_set_add(&set_pcpu_list, ef->pcpu_start, ef->pcpu_stop,
 	    ef->pcpu_base);
 
@@ -649,27 +651,29 @@ parse_dpcpu(elf_file_t ef)
 static int
 parse_vnet(elf_file_t ef)
 {
-	int count;
-	int error;
+	int error, size;
 
 	ef->vnet_start = 0;
 	ef->vnet_stop = 0;
 	error = link_elf_lookup_set(&ef->lf, "vnet", (void ***)&ef->vnet_start,
-	    (void ***)&ef->vnet_stop, &count);
+	    (void ***)&ef->vnet_stop, NULL);
 	/* Error just means there is no vnet data set to relocate. */
 	if (error != 0)
 		return (0);
-	count *= sizeof(void *);
+	size = (uintptr_t)ef->vnet_stop - (uintptr_t)ef->vnet_start;
+	/* Empty set? */
+	if (size < 1)
+		return (0);
 	/*
 	 * Allocate space in the primary vnet area.  Copy in our
 	 * initialization from the data section and then initialize
 	 * all per-vnet storage from that.
 	 */
-	ef->vnet_base = (Elf_Addr)(uintptr_t)vnet_data_alloc(count);
+	ef->vnet_base = (Elf_Addr)(uintptr_t)vnet_data_alloc(size);
 	if (ef->vnet_base == 0)
 		return (ENOSPC);
-	memcpy((void *)ef->vnet_base, (void *)ef->vnet_start, count);
-	vnet_data_copy((void *)ef->vnet_base, count);
+	memcpy((void *)ef->vnet_base, (void *)ef->vnet_start, size);
+	vnet_data_copy((void *)ef->vnet_base, size);
 	elf_set_add(&set_vnet_list, ef->vnet_start, ef->vnet_stop,
 	    ef->vnet_base);
 
@@ -1653,7 +1657,7 @@ link_elf_strtab_get(linker_file_t lf, caddr_t *strtab)
 	return (ef->ddbstrcnt);
 }
 
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
 /*
  * Use this lookup routine when performing relocations early during boot.
  * The generic lookup routine depends on kobj, which is not initialized
@@ -1682,14 +1686,10 @@ link_elf_ireloc(caddr_t kmdp)
 {
 	struct elf_file eff;
 	elf_file_t ef;
-	volatile char *c;
-	size_t i;
 
 	ef = &eff;
 
-	/* Do not use bzero/memset before ireloc is done. */
-	for (c = (char *)ef, i = 0; i < sizeof(*ef); i++)
-		c[i] = 0;
+	bzero_early(ef, sizeof(*ef));
 
 	ef->modptr = kmdp;
 	ef->dynamic = (Elf_Dyn *)&_DYNAMIC;
