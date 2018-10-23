@@ -23,6 +23,13 @@ the actual statements in the files are controlling.
 * The following source files are in the public domain:
    libarchive/archive_getdate.c
 
+* The following source files are triple-licensed with the ability to choose
+  from CC0 1.0 Universal, OpenSSL or Apache 2.0 licenses:
+   libarchive/archive_blake2.h
+   libarchive/archive_blake2_impl.h
+   libarchive/archive_blake2s_ref.c
+   libarchive/archive_blake2sp_ref.c
+
 * The build files---including Makefiles, configure scripts,
   and auxiliary scripts used as part of the compile process---have
   widely varying licensing terms.  Please check individual files before
@@ -34,7 +41,7 @@ do use the license below.  The varying licensing of the build scripts
 seems to be an unavoidable mess.
 
 
-Copyright (c) 2003-2009 <author(s)>
+Copyright (c) 2003-2018 <author(s)>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

@@ -100,6 +100,7 @@ SET(libarchive_SOURCES
   archive_read_support_format_lha.c
   archive_read_support_format_mtree.c
   archive_read_support_format_rar.c
+  archive_read_support_format_rar5.c
   archive_read_support_format_raw.c
   archive_read_support_format_tar.c
   archive_read_support_format_warc.c
@@ -214,6 +215,11 @@ IF(WIN32 AND NOT CYGWIN)
   LIST(APPEND libarchive_SOURCES archive_write_disk_windows.c)
   LIST(APPEND libarchive_SOURCES filter_fork_windows.c)
 ENDIF(WIN32 AND NOT CYGWIN)
+
+IF(ARCHIVE_BLAKE2)
+  LIST(APPEND libarchive_SOURCES archive_blake2sp_ref.c)
+  LIST(APPEND libarchive_SOURCES archive_blake2s_ref.c)
+ENDIF(ARCHIVE_BLAKE2)
 
 IF(ARCHIVE_ACL_DARWIN)
   LIST(APPEND libarchive_SOURCES archive_disk_acl_darwin.c)

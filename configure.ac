@@ -340,6 +340,16 @@ if test "x$with_bz2lib" != "xno"; then
   esac
 fi
 
+AC_ARG_WITH([libb2],
+  AS_HELP_STRING([--without-libb2], [Don't build support for BLAKE2 through libb2]))
+
+if test "x$with_libb2" != "xno"; then
+  AC_CHECK_HEADERS([blake2.h])
+  AC_CHECK_LIB(b2,blake2sp_init)
+fi
+
+AM_CONDITIONAL([INC_BLAKE2], [test "x$ac_cv_lib_b2_blake2sp_init" != "xyes"])
+
 AC_ARG_WITH([iconv],
   AS_HELP_STRING([--without-iconv], [Don't try to link against iconv]))
 
