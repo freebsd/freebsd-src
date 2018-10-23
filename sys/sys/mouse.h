@@ -190,7 +190,7 @@ typedef struct mousemode {
  *   GlidePoint, IntelliMouse, Thinking Mouse, MouseRemote, Kidspad,
  *   VersaPad
  * Bus mouse protocols:
- *   bus, InPort
+ *   bus, InPort -- both of these are now obsolete and will be remvoed soon.
  * PS/2 mouse protocol:
  *   PS/2
  */
@@ -200,8 +200,8 @@ typedef struct mousemode {
 #define MOUSE_PROTO_LOGI	2	/* Logitech, 3 bytes */
 #define MOUSE_PROTO_MM		3	/* MM series, 3 bytes */
 #define MOUSE_PROTO_LOGIMOUSEMAN 4	/* Logitech MouseMan 3/4 bytes */
-/* 5 was bus mouse */
-/* 6 was inport mosue */
+#define	MOUSE_PROTO_BUS		5	/* bus mouse -- obsolete */
+#define	MOUSE_PROTO_INPORT	6	/* inport mosue -- obsolete */
 #define MOUSE_PROTO_PS2		7	/* PS/2 mouse, 3 bytes */
 #define MOUSE_PROTO_HITTAB	8	/* Hitachi Tablet 3 bytes */
 #define MOUSE_PROTO_GLIDEPOINT	9	/* ALPS GlidePoint, 3/4 bytes */
