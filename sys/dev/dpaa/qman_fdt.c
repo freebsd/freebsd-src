@@ -68,7 +68,8 @@ static driver_t qman_driver = {
 };
 
 static devclass_t qman_devclass;
-DRIVER_MODULE(qman, simplebus, qman_driver, qman_devclass, 0, 0);
+EARLY_DRIVER_MODULE(qman, simplebus, qman_driver, qman_devclass, 0, 0,
+    BUS_PASS_SUPPORTDEV);
 
 static int
 qman_fdt_probe(device_t dev)
