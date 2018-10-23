@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
+uint32_t calculate_crc32c(uint32_t, const void *, size_t);
 struct malloc_type;
 #define UFS_MALLOC(size, type, flags) malloc(size)
 #define UFS_FREE(ptr, type) free(ptr)
@@ -142,6 +143,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 static off_t sblock_try[] = SBLOCKSEARCH;
 static int readsuper(void *, struct fs **, off_t, int,
 	int (*)(void *, off_t, void **, int));
+static uint32_t calc_sbhash(struct fs *);
 
 /*
  * Read a superblock from the devfd device.
@@ -252,7 +254,8 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
     int (*readfunc)(void *devfd, off_t loc, void **bufp, int size))
 {
 	struct fs *fs;
-	int error;
+	int error, res;
+	uint32_t ckhash;
 
 	error = (*readfunc)(devfd, sblockloc, (void **)fsp, SBLOCKSIZE);
 	if (error != 0)
@@ -267,7 +270,26 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	    fs->fs_ncg >= 1 &&
 	    fs->fs_bsize >= MINBSIZE &&
 	    fs->fs_bsize <= MAXBSIZE &&
-	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE)) {
+	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE) &&
+	    fs->fs_sbsize <= SBLOCKSIZE) {
+		if (fs->fs_ckhash != (ckhash = calc_sbhash(fs))) {
+#ifdef _KERNEL
+			res = uprintf("Superblock check-hash failed: recorded "
+			    "check-hash 0x%x != computed check-hash 0x%x\n",
+			    fs->fs_ckhash, ckhash);
+#else
+			res = 0;
+#endif
+			/*
+			 * Print check-hash failure if no controlling terminal
+			 * in kernel or always if in user-mode (libufs).
+			 */
+			if (res == 0)
+				printf("Superblock check-hash failed: recorded "
+				    "check-hash 0x%x != computed check-hash "
+				    "0x%x\n", fs->fs_ckhash, ckhash);
+			return (EINVAL);
+		}
 		/* Have to set for old filesystems that predate this field */
 		fs->fs_sblockactualloc = sblockloc;
 		/* Not yet any summary information */
@@ -313,9 +335,46 @@ ffs_sbput(void *devfd, struct fs *fs, off_t loc,
 	}
 	fs->fs_fmod = 0;
 	fs->fs_time = UFS_TIME;
+	fs->fs_ckhash = calc_sbhash(fs);
 	if ((error = (*writefunc)(devfd, loc, fs, fs->fs_sbsize)) != 0)
 		return (error);
 	return (0);
+}
+
+/*
+ * Calculate the check-hash for a superblock.
+ */
+static uint32_t
+calc_sbhash(struct fs *fs)
+{
+	uint32_t ckhash, save_ckhash;
+
+	/*
+	 * A filesystem that was using a superblock ckhash may be moved
+	 * to an older kernel that does not support ckhashes. The
+	 * older kernel will clear the FS_METACKHASH flag indicating
+	 * that it does not update hashes. When the disk is moved back
+	 * to a kernel capable of ckhashes it disables them on mount:
+	 *
+	 *	if ((fs->fs_flags & FS_METACKHASH) == 0)
+	 *		fs->fs_metackhash = 0;
+	 *
+	 * This leaves (fs->fs_metackhash & CK_SUPERBLOCK) == 0) with an
+	 * old stale value in the fs->fs_ckhash field. Thus the need to
+	 * just accept what is there.
+	 */
+	if ((fs->fs_metackhash & CK_SUPERBLOCK) == 0)
+		return (fs->fs_ckhash);
+
+	save_ckhash = fs->fs_ckhash;
+	fs->fs_ckhash = 0;
+	/*
+	 * If newly read from disk, the caller is responsible for
+	 * verifying that fs->fs_sbsize <= SBLOCKSIZE.
+	 */
+	ckhash = calculate_crc32c(~0L, (void *)fs, fs->fs_sbsize);
+	fs->fs_ckhash = save_ckhash;
+	return (ckhash);
 }
 
 /*
