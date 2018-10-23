@@ -214,6 +214,12 @@ ipsec_clone_destroy(struct ifnet *ifp)
 	sx_xlock(&ipsec_ioctl_sx);
 	sc = ifp->if_softc;
 	ipsec_delete_tunnel(sc);
+	/*
+	 * Delete softc from idhash on interface destroy, since
+	 * ipsec_delete_tunnel() keeps reqid unchanged.
+	 */
+	if (sc->reqid != 0)
+		CK_LIST_REMOVE(sc, idhash);
 	bpfdetach(ifp);
 	if_detach(ifp);
 	ifp->if_softc = NULL;
@@ -1025,13 +1031,11 @@ ipsec_delete_tunnel(struct ipsec_softc *sc)
 	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	if (sc->family != 0) {
 		CK_LIST_REMOVE(sc, srchash);
-		IPSEC_WAIT();
-
+		sc->family = 0;
 		/*
 		 * Make sure that ipsec_if_input() will not do access
 		 * to softc's policies.
 		 */
-		sc->family = 0;
 		IPSEC_WAIT();
 
 		key_unregister_ifnet(sc->sp, IPSEC_SPCOUNT);
