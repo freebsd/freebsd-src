@@ -2540,6 +2540,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto out;
 	}
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
+	cm_id->provider_data = ep;
 
 	init_timer(&ep->timer);
 	ep->plen = conn_param->private_data_len;
