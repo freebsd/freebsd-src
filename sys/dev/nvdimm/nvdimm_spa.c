@@ -157,6 +157,7 @@ nvdimm_spa_uio(struct SPA_mapping *spa, struct uio *uio)
 	vm_memattr_t mattr;
 	int error, n;
 
+	error = 0;
 	if (spa->spa_kva == NULL) {
 		mattr = nvdimm_spa_memattr(spa);
 		vm_page_initfake(&m, 0, mattr);
