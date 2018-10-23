@@ -179,6 +179,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_support_format_lha.c \
 	libarchive/archive_read_support_format_mtree.c \
 	libarchive/archive_read_support_format_rar.c \
+	libarchive/archive_read_support_format_rar5.c \
 	libarchive/archive_read_support_format_raw.c \
 	libarchive/archive_read_support_format_tar.c \
 	libarchive/archive_read_support_format_warc.c \
@@ -249,6 +250,12 @@ libarchive_la_SOURCES+= \
 	libarchive/archive_windows.c \
 	libarchive/archive_write_disk_windows.c \
 	libarchive/filter_fork_windows.c
+endif
+
+if INC_BLAKE2
+libarchive_la_SOURCES+= \
+	libarchive/archive_blake2s_ref.c \
+	libarchive/archive_blake2sp_ref.c
 endif
 
 if INC_LINUX_ACL
@@ -485,6 +492,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_rar_encryption_partially.c \
 	libarchive/test/test_read_format_rar_encryption_header.c \
 	libarchive/test/test_read_format_rar_invalid1.c \
+	libarchive/test/test_read_format_rar5.c \
 	libarchive/test/test_read_format_raw.c \
 	libarchive/test/test_read_format_tar.c \
 	libarchive/test/test_read_format_tar_concatenated.c \
