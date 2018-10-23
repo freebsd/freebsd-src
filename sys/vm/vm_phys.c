@@ -616,8 +616,6 @@ vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
 
 	for (i = 0; i < vm_ndomains; i++)
 		DOMAINSET_SET(i, &all_domains);
-
-	domainset_init();
 #else
 	(void)ndomains;
 	(void)affinity;
