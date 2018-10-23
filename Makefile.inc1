@@ -2779,7 +2779,7 @@ delete-old-files: .PHONY
 	@exec 3<&0; \
 	cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
+	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | sort | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
@@ -2795,7 +2795,7 @@ delete-old-files: .PHONY
 	done
 # Remove catpages without corresponding manpages.
 	@exec 3<&0; \
-	find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | \
+	find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | sort | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
 	while read catpage; do \
 		read manpage; \
@@ -2819,7 +2819,7 @@ check-old-files: .PHONY
 			  echo "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}"; \
 		  fi; \
 		done; \
-	done
+	done | sort
 # Check for catpages without corresponding manpages.
 	@find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
@@ -2828,7 +2828,7 @@ check-old-files: .PHONY
 		if [ ! -e "$${manpage}" ]; then \
 			echo $${catpage}; \
 	        fi; \
-	done
+	done | sort
 
 delete-old-libs: .PHONY
 	@echo ">>> Removing old libraries"
@@ -2836,7 +2836,7 @@ delete-old-libs: .PHONY
 	@exec 3<&0; \
 	cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_LIBS | xargs -n1 | \
+	    -V OLD_LIBS | xargs -n1 | sort | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
@@ -2866,7 +2866,7 @@ check-old-libs: .PHONY
 			  echo "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}"; \
 		  fi; \
 		done; \
-	done
+	done | sort
 
 delete-old-dirs: .PHONY
 	@echo ">>> Removing old directories"
@@ -2891,7 +2891,7 @@ check-old-dirs: .PHONY
 	@echo ">>> Checking for old directories"
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_DIRS | xargs -n1 | \
+	    -V OLD_DIRS | xargs -n1 | sort -r | \
 	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			echo "${DESTDIR}/$${dir}"; \
