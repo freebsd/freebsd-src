@@ -460,11 +460,13 @@ checkfilesys(char *filesys)
 		if ((sblock.fs_metackhash & CK_CYLGRP) == 0 &&
 		    reply("ADD CYLINDER GROUP CHECK-HASH PROTECTION") != 0)
 			ckhashadd |= CK_CYLGRP;
-#ifdef notyet
 		if ((sblock.fs_metackhash & CK_SUPERBLOCK) == 0 &&
 		    getosreldate() >= P_OSREL_CK_SUPERBLOCK &&
-		    reply("ADD SUPERBLOCK CHECK-HASH PROTECTION") != 0)
-			ckhashadd |= CK_SUPERBLOCK;
+		    reply("ADD SUPERBLOCK CHECK-HASH PROTECTION") != 0) {
+			sblock.fs_metackhash |= CK_SUPERBLOCK;
+			sbdirty();
+		}
+#ifdef notyet
 		if ((sblock.fs_metackhash & CK_INODE) == 0 &&
 		    getosreldate() >= P_OSREL_CK_INODE &&
 		    reply("ADD INODE CHECK-HASH PROTECTION") != 0)
