@@ -2279,8 +2279,8 @@ iflib_timer(void *arg)
 	STATE_LOCK(ctx);
 	if_setdrvflagbits(ctx->ifc_ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 	ctx->ifc_flags |= (IFC_DO_WATCHDOG|IFC_DO_RESET);
-	iflib_admin_intr_deferred(ctx);
 	STATE_UNLOCK(ctx);
+	iflib_admin_intr_deferred(ctx);
 }
 
 static void
@@ -2802,8 +2802,8 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 err:
 	STATE_LOCK(ctx);
 	ctx->ifc_flags |= IFC_DO_RESET;
-	iflib_admin_intr_deferred(ctx);
 	STATE_UNLOCK(ctx);
+	iflib_admin_intr_deferred(ctx);
 	return (false);
 }
 
@@ -5973,7 +5973,10 @@ iflib_admin_intr_deferred(if_ctx_t ctx)
 {
 #ifdef INVARIANTS
 	struct grouptask *gtask;
-
+#endif
+	if (iflib_in_detach(ctx))
+		return;
+#ifdef INVARIANTS
 	gtask = &ctx->ifc_admin_task;
 	MPASS(gtask != NULL && gtask->gt_taskqueue != NULL);
 #endif
@@ -5984,6 +5987,8 @@ iflib_admin_intr_deferred(if_ctx_t ctx)
 void
 iflib_iov_intr_deferred(if_ctx_t ctx)
 {
+	if (iflib_in_detach(ctx))
+		return;
 
 	GROUPTASK_ENQUEUE(&ctx->ifc_vflr_task);
 }
