@@ -99,6 +99,7 @@ device		virtio_mmio		# VirtIO MMIO bus
 
 # Serial (COM) ports
 device		uart		# Generic UART driver
+device		uart_lowrisc	# lowRISC UART driver
 device		uart_ns8250	# ns8250-type UART driver
 
 # Uncomment for memory disk

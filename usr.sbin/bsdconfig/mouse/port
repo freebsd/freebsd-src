@@ -56,7 +56,6 @@ dialog_menu_main()
 		'3 $msg_com2'     '$msg_com2_desc'
 		'4 $msg_com3'     '$msg_com3_desc'
 		'5 $msg_com4'     '$msg_com4_desc'
-		'6 $msg_busmouse' '$msg_busmouse_desc'
 	" # END-QUOTE
 	local defaultitem= # Calculated below
 	local hline=
@@ -75,7 +74,6 @@ dialog_menu_main()
 	/dev/cuau1) defaultitem="3 $msg_com2"     ;;
 	/dev/cuau2) defaultitem="4 $msg_com3"     ;;
 	/dev/cuau3) defaultitem="5 $msg_com4"     ;;
-	/dev/mse0)  defaultitem="6 $msg_busmouse" ;;
 	esac
 
 	local menu_choice
@@ -136,8 +134,6 @@ case "$mtag" in
 	moused_port_to_set="/dev/cuau2" ;;
 "5 $msg_com4") # Serial mouse on COM4 (/dev/cuau3)
 	moused_port_to_set="/dev/cuau3" ;;
-"6 $msg_busmouse") # Logitech, ATI or MS bus mouse (/dev/mse0)
-	moused_port_to_set="/dev/mse0" ;;
 esac
 
 if [ "$moused_port_to_set" ]; then

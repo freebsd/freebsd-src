@@ -450,7 +450,10 @@ do_convert_private_ssh2_from_blob(u_char *blob, u_int blen)
 	u_int magic, i1, i2, i3, i4;
 	size_t slen;
 	u_long e;
-
+	BIGNUM *dsa_p = NULL, *dsa_q = NULL, *dsa_g = NULL;
+	BIGNUM *dsa_pub_key = NULL, *dsa_priv_key = NULL;
+	BIGNUM *rsa_n = NULL, *rsa_e = NULL, *rsa_d = NULL;
+	BIGNUM *rsa_p = NULL, *rsa_q = NULL, *rsa_iqmp = NULL;
 	if ((b = sshbuf_from(blob, blen)) == NULL)
 		fatal("%s: sshbuf_from failed", __func__);
 	if ((r = sshbuf_get_u32(b, &magic)) != 0)
@@ -494,11 +497,23 @@ do_convert_private_ssh2_from_blob(u_char *blob, u_int blen)
 
 	switch (key->type) {
 	case KEY_DSA:
-		buffer_get_bignum_bits(b, key->dsa->p);
-		buffer_get_bignum_bits(b, key->dsa->g);
-		buffer_get_bignum_bits(b, key->dsa->q);
-		buffer_get_bignum_bits(b, key->dsa->pub_key);
-		buffer_get_bignum_bits(b, key->dsa->priv_key);
+		if ((dsa_p = BN_new()) == NULL ||
+		    (dsa_q = BN_new()) == NULL ||
+		    (dsa_g = BN_new()) == NULL ||
+		    (dsa_pub_key = BN_new()) == NULL ||
+		    (dsa_priv_key = BN_new()) == NULL)
+			fatal("%s: BN_new", __func__);
+		buffer_get_bignum_bits(b, dsa_p);
+		buffer_get_bignum_bits(b, dsa_g);
+		buffer_get_bignum_bits(b, dsa_q);
+		buffer_get_bignum_bits(b, dsa_pub_key);
+		buffer_get_bignum_bits(b, dsa_priv_key);
+		if (!DSA_set0_pqg(key->dsa, dsa_p, dsa_q, dsa_g))
+			fatal("%s: DSA_set0_pqg failed", __func__);
+		dsa_p = dsa_q = dsa_g = NULL; /* transferred */
+		if (!DSA_set0_key(key->dsa, dsa_pub_key, dsa_priv_key))
+			fatal("%s: DSA_set0_key failed", __func__);
+		dsa_pub_key = dsa_priv_key = NULL; /* transferred */
 		break;
 	case KEY_RSA:
 		if ((r = sshbuf_get_u8(b, &e1)) != 0 ||
@@ -515,18 +530,34 @@ do_convert_private_ssh2_from_blob(u_char *blob, u_int blen)
 			e += e3;
 			debug("e %lx", e);
 		}
-		if (!BN_set_word(key->rsa->e, e)) {
+		if ((rsa_e = BN_new()) == NULL)
+			fatal("%s: BN_new", __func__);
+		if (!BN_set_word(rsa_e, e)) {
+			BN_clear_free(rsa_e);
 			sshbuf_free(b);
 			sshkey_free(key);
 			return NULL;
 		}
-		buffer_get_bignum_bits(b, key->rsa->d);
-		buffer_get_bignum_bits(b, key->rsa->n);
-		buffer_get_bignum_bits(b, key->rsa->iqmp);
-		buffer_get_bignum_bits(b, key->rsa->q);
-		buffer_get_bignum_bits(b, key->rsa->p);
-		if ((r = ssh_rsa_generate_additional_parameters(key)) != 0)
+		if ((rsa_n = BN_new()) == NULL ||
+		    (rsa_d = BN_new()) == NULL ||
+		    (rsa_p = BN_new()) == NULL ||
+		    (rsa_q = BN_new()) == NULL ||
+		    (rsa_iqmp = BN_new()) == NULL)
+			fatal("%s: BN_new", __func__);
+		buffer_get_bignum_bits(b, rsa_d);
+		buffer_get_bignum_bits(b, rsa_n);
+		buffer_get_bignum_bits(b, rsa_iqmp);
+		buffer_get_bignum_bits(b, rsa_q);
+		buffer_get_bignum_bits(b, rsa_p);
+		if (!RSA_set0_key(key->rsa, rsa_n, rsa_e, rsa_d))
+			fatal("%s: RSA_set0_key failed", __func__);
+		rsa_n = rsa_e = rsa_d = NULL; /* transferred */
+		if (!RSA_set0_factors(key->rsa, rsa_p, rsa_q))
+			fatal("%s: RSA_set0_factors failed", __func__);
+		rsa_p = rsa_q = NULL; /* transferred */
+		if ((r = ssh_rsa_complete_crt_parameters(key, rsa_iqmp)) != 0)
 			fatal("generate RSA parameters failed: %s", ssh_err(r));
+		BN_clear_free(rsa_iqmp);
 		break;
 	}
 	rlen = sshbuf_len(b);
@@ -634,7 +665,7 @@ do_convert_from_pkcs8(struct sshkey **k, int *private)
 		    identity_file);
 	}
 	fclose(fp);
-	switch (EVP_PKEY_type(pubkey->type)) {
+	switch (EVP_PKEY_base_id(pubkey)) {
 	case EVP_PKEY_RSA:
 		if ((*k = sshkey_new(KEY_UNSPEC)) == NULL)
 			fatal("sshkey_new failed");
@@ -658,7 +689,7 @@ do_convert_from_pkcs8(struct sshkey **k, int *private)
 #endif
 	default:
 		fatal("%s: unsupported pubkey type %d", __func__,
-		    EVP_PKEY_type(pubkey->type));
+		    EVP_PKEY_base_id(pubkey));
 	}
 	EVP_PKEY_free(pubkey);
 	return;

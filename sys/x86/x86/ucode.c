@@ -269,7 +269,7 @@ ucode_load_ap(int cpu)
 	KASSERT(cpu_info[cpu_apic_ids[cpu]].cpu_present,
 	    ("cpu %d not present", cpu));
 
-	if (!cpu_info[cpu_apic_ids[cpu]].cpu_hyperthread)
+	if (cpu_info[cpu_apic_ids[cpu]].cpu_hyperthread)
 		return;
 #endif
 
@@ -355,8 +355,7 @@ ucode_load_bsp(uintptr_t free)
 		if (match != NULL) {
 			addr = map_ucode(free, len);
 			/* We can't use memcpy() before ifunc resolution. */
-			for (i = 0; i < len; i++)
-				addr[i] = ((volatile uint8_t *)match)[i];
+			memcpy_early(addr, match, len);
 			match = addr;
 
 			error = ucode_loader->load(match, false, &nrev, &orev);

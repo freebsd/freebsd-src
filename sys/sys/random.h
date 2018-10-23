@@ -57,9 +57,6 @@ read_random(void *a __unused, u_int b __unused)
  * Note: if you add or remove members of random_entropy_source, remember to
  * also update the strings in the static array random_source_descr[] in
  * random_harvestq.c.
- *
- * NOTE: complain loudly to markm@ or on the lists if this enum gets more than 32
- * distinct values (0-31)! ENTROPYSOURCE may be == 32, but not > 32.
  */
 enum random_entropy_source {
 	RANDOM_START = 0,
@@ -92,6 +89,8 @@ enum random_entropy_source {
 	RANDOM_PURE_DARN,
 	ENTROPYSOURCE
 };
+_Static_assert(ENTROPYSOURCE <= 32,
+    "hardcoded assumption that values fit in a typical word-sized bitset");
 
 #define RANDOM_HARVEST_EVERYTHING_MASK ((1 << (RANDOM_ENVIRONMENTAL_END + 1)) - 1)
 #define RANDOM_HARVEST_PURE_MASK (((1 << ENTROPYSOURCE) - 1) & (-1UL << RANDOM_PURE_START))

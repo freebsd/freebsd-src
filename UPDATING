@@ -16,8 +16,8 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
-	FreeBSD 12.x has many debugging features turned on, in both the kernel
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
+	FreeBSD 13.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
 	system primitives, and encourage loud failure through extra sanity
 	checking and fail stop semantics.  They also substantially impact
@@ -30,6 +30,51 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20181015:
+	Ports for the DRM modules have been simplified. Now, amd64 users should
+	just install the drm-kmod port. All others should install
+	drm-legacy-kmod.
+
+	Graphics hardware that's newer than about 2010 usually works with
+	drm-kmod.  For hardware older than 2013, however, some users will need
+	to use drm-legacy-kmod if drm-kmod doesn't work for them. Hardware older
+	than 2008 usually only works in drm-legacy-kmod. The graphics team can
+	only commit to hardware made since 2013 due to the complexity of the
+	market and difficulty to test all the older cards effectively. If you
+	have hardware supported by drm-kmod, you are strongly encouraged to use
+	that as you will get better support.
+
+	Other than KPI chasing, drm-legacy-kmod will not be updated. As outlined
+	elsewhere, the drm and drm2 modules will be eliminated from the src base
+	soon (with a limited exception for arm). Please update to the package asap
+	and report any issues to x11@freebsd.org.
+
+	Generally, anybody using the drm*-kmod packages should add
+	WITHOUT_DRM_MODULE=t and WITHOUT_DRM2_MODULE=t to avoid nasty
+	cross-threading surprises, especially with automatic driver
+	loading from X11 startup. These will become the defaults in 13-current
+	shortly.
+
+20181009:
+	OpenSSL has been updated to version 1.1.1.  This update included
+	additional various API changes througout the base system.  It is
+	important to rebuild third-party software after upgrading.  The value
+	of __FreeBSD_version has been bumped accordingly.
+
+20181006:
+	The legacy DRM modules and drivers have now been added to the loader's
+	module blacklist, in favor of loading them with kld_list in rc.conf(5).
+	The module blacklist may be overridden with the loader.conf(5)
+	'module_blacklist' variable, but loading them via rc.conf(5) is strongly
+	encouraged.
+
+20181002:
+	The cam(4) based nda(4) driver will be used over nvd(4) by default on
+	powerpc64. You may set 'options NVME_USE_NVD=1' in your kernel conf or
+	loader tunable 'hw.nvme.use_nvd=1' if you wish to use the existing
+	driver.  Make sure to edit /boot/etc/kboot.conf and fstab to use the
+	nda device name.
 
 20180913:
 	Reproducible build mode is now on by default, in preparation for

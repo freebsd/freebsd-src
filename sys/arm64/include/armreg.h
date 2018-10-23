@@ -66,6 +66,12 @@
 #define	CTR_ILINE_MASK		(0xf << CTR_ILINE_SHIFT)
 #define	CTR_ILINE_SIZE(reg)	(((reg) & CTR_ILINE_MASK) >> CTR_ILINE_SHIFT)
 
+/* DAIF - Interrupt Mask Bits */
+#define	DAIF_D_MASKED		(1 << 9)
+#define	DAIF_A_MASKED		(1 << 8)
+#define	DAIF_I_MASKED		(1 << 7)
+#define	DAIF_F_MASKED		(1 << 6)
+
 /* DCZID_EL0 - Data Cache Zero ID register */
 #define DCZID_DZP		(1 << 4) /* DC ZVA prohibited if non-0 */
 #define DCZID_BS_SHIFT		0
@@ -254,7 +260,7 @@
 #define	ID_AA64ISAR0_SM4(x)		((x) & ID_AA64ISAR0_SM4_MASK)
 #define	 ID_AA64ISAR0_SM4_NONE		(0x0ul << ID_AA64ISAR0_SM4_SHIFT)
 #define	 ID_AA64ISAR0_SM4_IMPL		(0x1ul << ID_AA64ISAR0_SM4_SHIFT)
-#define	ID_AA64ISAR0_DP_SHIFT		48
+#define	ID_AA64ISAR0_DP_SHIFT		44
 #define	ID_AA64ISAR0_DP_MASK		(0xful << ID_AA64ISAR0_DP_SHIFT)
 #define	ID_AA64ISAR0_DP(x)		((x) & ID_AA64ISAR0_DP_MASK)
 #define	 ID_AA64ISAR0_DP_NONE		(0x0ul << ID_AA64ISAR0_DP_SHIFT)

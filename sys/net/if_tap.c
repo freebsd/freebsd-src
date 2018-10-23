@@ -741,7 +741,7 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 				return (EPROTOTYPE);
 			mtx_lock(&tp->tap_mtx);
 			if (ifp->if_mtu != tapp->mtu) {
-				strncpy(ifr.ifr_name, if_name(ifp), IFNAMSIZ);
+				strlcpy(ifr.ifr_name, if_name(ifp), IFNAMSIZ);
 				ifr.ifr_mtu = tapp->mtu;
 				CURVNET_SET(ifp->if_vnet);
 				error = ifhwioctl(SIOCSIFMTU, ifp,

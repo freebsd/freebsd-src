@@ -128,14 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BN_CTX_new 3"
-.TH BN_CTX_new 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BN_CTX_NEW 3"
+.TH BN_CTX_NEW 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BN_CTX_new, BN_CTX_init, BN_CTX_free \- allocate and free BN_CTX structures
+BN_CTX_new, BN_CTX_secure_new, BN_CTX_free \- allocate and free BN_CTX structures
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -143,13 +143,9 @@ BN_CTX_new, BN_CTX_init, BN_CTX_free \- allocate and free BN_CTX structures
 \&
 \& BN_CTX *BN_CTX_new(void);
 \&
+\& BN_CTX *BN_CTX_secure_new(void);
+\&
 \& void BN_CTX_free(BN_CTX *c);
-.Ve
-.PP
-Deprecated:
-.PP
-.Vb 1
-\& void BN_CTX_init(BN_CTX *c);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -158,29 +154,56 @@ library functions. Since dynamic memory allocation to create \fB\s-1BIGNUM\s0\fR
 is rather expensive when used in conjunction with repeated subroutine
 calls, the \fB\s-1BN_CTX\s0\fR structure is used.
 .PP
-\&\fIBN_CTX_new()\fR allocates and initializes a \fB\s-1BN_CTX\s0\fR
-structure.
+\&\fIBN_CTX_new()\fR allocates and initializes a \fB\s-1BN_CTX\s0\fR structure.
+\&\fIBN_CTX_secure_new()\fR allocates and initializes a \fB\s-1BN_CTX\s0\fR structure
+but uses the secure heap (see \fICRYPTO_secure_malloc\fR\|(3)) to hold the
+\&\fB\s-1BIGNUM\s0\fRs.
 .PP
-\&\fIBN_CTX_free()\fR frees the components of the \fB\s-1BN_CTX\s0\fR, and if it was
-created by \fIBN_CTX_new()\fR, also the structure itself.
-If \fIBN_CTX_start\fR\|(3) has been used on the \fB\s-1BN_CTX\s0\fR,
-\&\fIBN_CTX_end\fR\|(3) must be called before the \fB\s-1BN_CTX\s0\fR
-may be freed by \fIBN_CTX_free()\fR.
+\&\fIBN_CTX_free()\fR frees the components of the \fB\s-1BN_CTX\s0\fR and the structure itself.
+Since \fIBN_CTX_start()\fR is required in order to obtain \fB\s-1BIGNUM\s0\fRs from the
+\&\fB\s-1BN_CTX\s0\fR, in most cases \fIBN_CTX_end()\fR must be called before the \fB\s-1BN_CTX\s0\fR may
+be freed by \fIBN_CTX_free()\fR.  If \fBc\fR is \s-1NULL,\s0 nothing is done.
 .PP
-\&\fIBN_CTX_init()\fR (deprecated) initializes an existing uninitialized \fB\s-1BN_CTX\s0\fR.
-This should not be used for new programs. Use \fIBN_CTX_new()\fR instead.
+A given \fB\s-1BN_CTX\s0\fR must only be used by a single thread of execution.  No
+locking is performed, and the internal pool allocator will not properly handle
+multiple threads of execution.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fIBN_CTX_new()\fR returns a pointer to the \fB\s-1BN_CTX\s0\fR. If the allocation fails,
-it returns \fB\s-1NULL\s0\fR and sets an error code that can be obtained by
+\&\fIBN_CTX_new()\fR and \fIBN_CTX_secure_new()\fR return a pointer to the \fB\s-1BN_CTX\s0\fR.
+If the allocation fails,
+they return \fB\s-1NULL\s0\fR and sets an error code that can be obtained by
 \&\fIERR_get_error\fR\|(3).
 .PP
-\&\fIBN_CTX_init()\fR and \fIBN_CTX_free()\fR have no return values.
+\&\fIBN_CTX_free()\fR has no return values.
+.SH "REMOVED FUNCTIONALITY"
+.IX Header "REMOVED FUNCTIONALITY"
+.Vb 1
+\& void BN_CTX_init(BN_CTX *c);
+.Ve
+.PP
+\&\fIBN_CTX_init()\fR is no longer available as of OpenSSL 1.1.0. Applications should
+replace use of BN_CTX_init with BN_CTX_new instead:
+.PP
+.Vb 6
+\& BN_CTX *ctx;
+\& ctx = BN_CTX_new();
+\& if (!ctx)
+\&     /* error */
+\& ...
+\& BN_CTX_free(ctx);
+.Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIbn\fR\|(3), \fIERR_get_error\fR\|(3), \fIBN_add\fR\|(3),
+\&\fIERR_get_error\fR\|(3), \fIBN_add\fR\|(3),
 \&\fIBN_CTX_start\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fIBN_CTX_new()\fR and \fIBN_CTX_free()\fR are available in all versions on SSLeay
-and OpenSSL. \fIBN_CTX_init()\fR was added in SSLeay 0.9.1b.
+\&\fIBN_CTX_init()\fR was removed in OpenSSL 1.1.0.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

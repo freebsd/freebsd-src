@@ -1,7 +1,6 @@
 /* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from aes-586.pl. */
 #ifdef PIC
-.file	"aes-586.S"
 .text
 .type	_x86_AES_encrypt_compact,@function
 .align	16
@@ -2999,19 +2998,19 @@ _x86_AES_set_encrypt_key:
 	popl	%ebp
 	ret
 .size	_x86_AES_set_encrypt_key,.-_x86_AES_set_encrypt_key
-.globl	private_AES_set_encrypt_key
-.type	private_AES_set_encrypt_key,@function
+.globl	AES_set_encrypt_key
+.type	AES_set_encrypt_key,@function
 .align	16
-private_AES_set_encrypt_key:
-.L_private_AES_set_encrypt_key_begin:
+AES_set_encrypt_key:
+.L_AES_set_encrypt_key_begin:
 	call	_x86_AES_set_encrypt_key
 	ret
-.size	private_AES_set_encrypt_key,.-.L_private_AES_set_encrypt_key_begin
-.globl	private_AES_set_decrypt_key
-.type	private_AES_set_decrypt_key,@function
+.size	AES_set_encrypt_key,.-.L_AES_set_encrypt_key_begin
+.globl	AES_set_decrypt_key
+.type	AES_set_decrypt_key,@function
 .align	16
-private_AES_set_decrypt_key:
-.L_private_AES_set_decrypt_key_begin:
+AES_set_decrypt_key:
+.L_AES_set_decrypt_key_begin:
 	call	_x86_AES_set_encrypt_key
 	cmpl	$0,%eax
 	je	.L054proceed
@@ -3240,13 +3239,12 @@ private_AES_set_decrypt_key:
 	popl	%ebx
 	popl	%ebp
 	ret
-.size	private_AES_set_decrypt_key,.-.L_private_AES_set_decrypt_key_begin
+.size	AES_set_decrypt_key,.-.L_AES_set_decrypt_key_begin
 .byte	65,69,83,32,102,111,114,32,120,56,54,44,32,67,82,89
 .byte	80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114
 .byte	111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .comm	OPENSSL_ia32cap_P,16,4
 #else
-.file	"aes-586.S"
 .text
 .type	_x86_AES_encrypt_compact,@function
 .align	16
@@ -6244,19 +6242,19 @@ _x86_AES_set_encrypt_key:
 	popl	%ebp
 	ret
 .size	_x86_AES_set_encrypt_key,.-_x86_AES_set_encrypt_key
-.globl	private_AES_set_encrypt_key
-.type	private_AES_set_encrypt_key,@function
+.globl	AES_set_encrypt_key
+.type	AES_set_encrypt_key,@function
 .align	16
-private_AES_set_encrypt_key:
-.L_private_AES_set_encrypt_key_begin:
+AES_set_encrypt_key:
+.L_AES_set_encrypt_key_begin:
 	call	_x86_AES_set_encrypt_key
 	ret
-.size	private_AES_set_encrypt_key,.-.L_private_AES_set_encrypt_key_begin
-.globl	private_AES_set_decrypt_key
-.type	private_AES_set_decrypt_key,@function
+.size	AES_set_encrypt_key,.-.L_AES_set_encrypt_key_begin
+.globl	AES_set_decrypt_key
+.type	AES_set_decrypt_key,@function
 .align	16
-private_AES_set_decrypt_key:
-.L_private_AES_set_decrypt_key_begin:
+AES_set_decrypt_key:
+.L_AES_set_decrypt_key_begin:
 	call	_x86_AES_set_encrypt_key
 	cmpl	$0,%eax
 	je	.L054proceed
@@ -6485,7 +6483,7 @@ private_AES_set_decrypt_key:
 	popl	%ebx
 	popl	%ebp
 	ret
-.size	private_AES_set_decrypt_key,.-.L_private_AES_set_decrypt_key_begin
+.size	AES_set_decrypt_key,.-.L_AES_set_decrypt_key_begin
 .byte	65,69,83,32,102,111,114,32,120,56,54,44,32,67,82,89
 .byte	80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114
 .byte	111,64,111,112,101,110,115,115,108,46,111,114,103,62,0

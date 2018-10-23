@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <machine/bootinfo.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #include <bootstrap.h>
 #include <btxv86.h>
@@ -255,10 +256,11 @@ bd_int13probe(struct bdinfo *bd)
 		 * Sector size must be a multiple of 512 bytes.
 		 * An alternate test would be to check power of 2,
 		 * powerof2(params.sector_size).
+		 * 4K is largest read buffer we can use at this time.
 		 */
-		if (params.sector_size % BIOSDISK_SECSIZE)
-			bd->bd_sectorsize = BIOSDISK_SECSIZE;
-		else
+		if (params.sector_size >= 512 &&
+		    params.sector_size <= 4096 &&
+		    (params.sector_size % BIOSDISK_SECSIZE) == 0)
 			bd->bd_sectorsize = params.sector_size;
 
 		total = bd->bd_sectorsize * params.sectors;
@@ -448,15 +450,28 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
     char *buf, size_t *rsize)
 {
 	struct disk_devdesc *dev = (struct disk_devdesc *)devdata;
-	uint64_t		disk_blocks;
-	int			blks, rc;
+	uint64_t disk_blocks, offset;
+	size_t blks, blkoff, bsize, rest;
+	caddr_t bbuf;
+	int rc;
 
-	if (size % BD(dev).bd_sectorsize) {
-		panic("bd_strategy: %d bytes I/O not multiple of block size",
-		    size);
+	/*
+	 * First make sure the IO size is a multiple of 512 bytes. While we do
+	 * process partial reads below, the strategy mechanism is built
+	 * assuming IO is a multiple of 512B blocks. If the request is not
+	 * a multiple of 512B blocks, it has to be some sort of bug.
+	 */
+	if (size == 0 || (size % BIOSDISK_SECSIZE) != 0) {
+		printf("bd_strategy: %d bytes I/O not multiple of %d\n",
+		    size, BIOSDISK_SECSIZE);
+		return (EIO);
 	}
 
 	DEBUG("open_disk %p", dev);
+
+	offset = dblk * BIOSDISK_SECSIZE;
+	dblk = offset / BD(dev).bd_sectorsize;
+	blkoff = offset % BD(dev).bd_sectorsize;
 
 	/*
 	 * Check the value of the size argument. We do have quite small
@@ -465,11 +480,14 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	 * while translating block count to bytes.
 	 */
 	if (size > INT_MAX) {
-		DEBUG("too large read: %zu bytes", size);
+		DEBUG("too large I/O: %zu bytes", size);
 		return (EIO);
 	}
 
 	blks = size / BD(dev).bd_sectorsize;
+	if (blks == 0 || (size % BD(dev).bd_sectorsize) != 0)
+		blks++;
+
 	if (dblk > dblk + blks)
 		return (EIO);
 
@@ -498,36 +516,75 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	if (dblk + blks >= dev->d_offset + disk_blocks) {
 		blks = dev->d_offset + disk_blocks - dblk;
 		size = blks * BD(dev).bd_sectorsize;
-		DEBUG("short read %d", blks);
+		DEBUG("short I/O %d", blks);
 	}
 
-	switch (rw & F_MASK) {
-	case F_READ:
-		DEBUG("read %d from %lld to %p", blks, dblk, buf);
+	if (V86_IO_BUFFER_SIZE / BD(dev).bd_sectorsize == 0)
+		panic("BUG: Real mode buffer is too small\n");
 
-		if (blks && (rc = bd_io(dev, dblk, blks, buf, BD_RD))) {
-			/* Filter out floppy controller errors */
-			if (BD(dev).bd_flags != BD_FLOPPY || rc != 0x20) {
-				printf("read %d from %lld to %p, error: 0x%x\n",
-				    blks, dblk, buf, rc);
+	bbuf = PTOV(V86_IO_BUFFER);
+	rest = size;
+
+	while (blks > 0) {
+		int x = min(blks, V86_IO_BUFFER_SIZE / BD(dev).bd_sectorsize);
+
+		switch (rw & F_MASK) {
+		case F_READ:
+			DEBUG("read %d from %lld to %p", x, dblk, buf);
+			bsize = BD(dev).bd_sectorsize * x - blkoff;
+			if (rest < bsize)
+				bsize = rest;
+
+			if ((rc = bd_io(dev, dblk, x, bbuf, BD_RD)) != 0)
+				return (EIO);
+
+			bcopy(bbuf + blkoff, buf, bsize);
+			break;
+		case F_WRITE :
+			DEBUG("write %d from %lld to %p", x, dblk, buf);
+			if (blkoff != 0) {
+				/*
+				 * We got offset to sector, read 1 sector to
+				 * bbuf.
+				 */
+				x = 1;
+				bsize = BD(dev).bd_sectorsize - blkoff;
+				bsize = min(bsize, rest);
+				rc = bd_io(dev, dblk, x, bbuf, BD_RD);
+			} else if (rest < BD(dev).bd_sectorsize) {
+				/*
+				 * The remaining block is not full
+				 * sector. Read 1 sector to bbuf.
+				 */
+				x = 1;
+				bsize = rest;
+				rc = bd_io(dev, dblk, x, bbuf, BD_RD);
+			} else {
+				/* We can write full sector(s). */
+				bsize = BD(dev).bd_sectorsize * x;
 			}
-			return (EIO);
-		}
-		break;
-	case F_WRITE :
-		DEBUG("write %d from %lld to %p", blks, dblk, buf);
+			/*
+			 * Put your Data In, Put your Data out,
+			 * Put your Data In, and shake it all about
+			 */
+			bcopy(buf, bbuf + blkoff, bsize);
+			if ((rc = bd_io(dev, dblk, x, bbuf, BD_WR)) != 0)
+				return (EIO);
 
-		if (blks && bd_io(dev, dblk, blks, buf, BD_WR)) {
-			DEBUG("write error");
-			return (EIO);
+			break;
+		default:
+			/* DO NOTHING */
+			return (EROFS);
 		}
-		break;
-	default:
-		/* DO NOTHING */
-		return (EROFS);
+
+		blkoff = 0;
+		buf += bsize;
+		rest -= bsize;
+		blks -= x;
+		dblk += x;
 	}
 
-	if (rsize)
+	if (rsize != NULL)
 		*rsize = size;
 	return (0);
 }
@@ -604,20 +661,15 @@ bd_io_workaround(struct disk_devdesc *dev)
 	bd_edd_io(dev, 0xffffffff, 1, (caddr_t)buf, BD_RD);
 }
 
-
 static int
 bd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
     int dowrite)
 {
-	u_int	x, sec, result, resid, retry, maxfer;
-	caddr_t	p, xp, bbuf;
-    
+	int result, retry;
+
 	/* Just in case some idiot actually tries to read/write -1 blocks... */
 	if (blks < 0)
 		return (-1);
-
-	resid = blks;
-	p = dest;
 
 	/*
 	 * Workaround for a problem with some HP ProLiant BIOS failing to work
@@ -627,91 +679,49 @@ bd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
 	 * the bios. The problem is alleviated by doing an extra read before
 	 * the buggy read. It is not immediately known whether other models
 	 * are similarly affected.
+	 * Loop retrying the operation a couple of times.  The BIOS
+	 * may also retry.
 	 */
 	if (dowrite == BD_RD && dblk >= 0x100000000)
 		bd_io_workaround(dev);
-
-	/* Decide whether we have to bounce */
-	if (VTOP(dest) >> 20 != 0 || (BD(dev).bd_unit < 0x80 &&
-	    (VTOP(dest) >> 16) !=
-	    (VTOP(dest + blks * BD(dev).bd_sectorsize) >> 16))) {
-
-		/* 
-		 * There is a 64k physical boundary somewhere in the
-		 * destination buffer, or the destination buffer is above
-		 * first 1MB of physical memory so we have to arrange a
-		 * suitable bounce buffer.  Allocate a buffer twice as large
-		 * as we need to.  Use the bottom half unless there is a break
-		 * there, in which case we use the top half.
-		 */
-		x = V86_IO_BUFFER_SIZE / BD(dev).bd_sectorsize;
-		x = min(x, (unsigned)blks);
-		bbuf = PTOV(V86_IO_BUFFER);
-		maxfer = x;	/* limit transfers to bounce region size */
-	} else {
-		bbuf = NULL;
-		maxfer = 0;
-	}
-    
-	while (resid > 0) {
-		/*
-		 * Play it safe and don't cross track boundaries.
-		 * (XXX this is probably unnecessary)
-		 */
-		sec = dblk % BD(dev).bd_sec;	/* offset into track */
-		x = min(BD(dev).bd_sec - sec, resid);
-		if (maxfer > 0)
-			x = min(x, maxfer);		/* fit bounce buffer */
-
-		/* where do we transfer to? */
-		xp = bbuf == NULL ? p : bbuf;
-
-		/*
-		 * Put your Data In, Put your Data out,
-		 * Put your Data In, and shake it all about 
-		 */
-		if (dowrite == BD_WR && bbuf != NULL)
-			bcopy(p, bbuf, x * BD(dev).bd_sectorsize);
-
-		/*
-		 * Loop retrying the operation a couple of times.  The BIOS
-		 * may also retry.
-		 */
-		for (retry = 0; retry < 3; retry++) {
-			/* if retrying, reset the drive */
-			if (retry > 0) {
-				v86.ctl = V86_FLAGS;
-				v86.addr = 0x13;
-				v86.eax = 0;
-				v86.edx = BD(dev).bd_unit;
-				v86int();
-			}
-
-			if (BD(dev).bd_flags & BD_MODEEDD1)
-				result = bd_edd_io(dev, dblk, x, xp, dowrite);
-			else
-				result = bd_chs_io(dev, dblk, x, xp, dowrite);
-			if (result == 0)
-				break;
+	for (retry = 0; retry < 3; retry++) {
+		/* if retrying, reset the drive */
+		if (retry > 0) {
+			v86.ctl = V86_FLAGS;
+			v86.addr = 0x13;
+			v86.eax = 0;
+			v86.edx = BD(dev).bd_unit;
+			v86int();
 		}
 
-		if (dowrite == BD_WR)
-			DEBUG("Write %d sector(s) from %p (0x%x) to %lld %s", x,
-			    p, VTOP(p), dblk, result ? "failed" : "ok");
+		if (BD(dev).bd_flags & BD_MODEEDD1)
+			result = bd_edd_io(dev, dblk, blks, dest, dowrite);
 		else
-			DEBUG("Read %d sector(s) from %lld to %p (0x%x) %s", x,
-			    dblk, p, VTOP(p), result ? "failed" : "ok");
-		if (result) {
-			return (result);
-		}
-		if (dowrite == BD_RD && bbuf != NULL)
-			bcopy(bbuf, p, x * BD(dev).bd_sectorsize);
-		p += (x * BD(dev).bd_sectorsize);
-		dblk += x;
-		resid -= x;
+			result = bd_chs_io(dev, dblk, blks, dest, dowrite);
+
+		if (result == 0)
+			break;
 	}
 
-	return (0);
+	/*
+	 * 0x20 - Controller failure. This is common error when the
+	 * media is not present.
+	 */
+	if (result != 0 && result != 0x20) {
+		if (dowrite == BD_WR) {
+			printf("%s%d: Write %d sector(s) from %p (0x%x) "
+			    "to %lld: 0x%x\n", dev->dd.d_dev->dv_name,
+			    dev->dd.d_unit, blks, dest, VTOP(dest), dblk,
+			    result);
+		} else {
+			printf("%s%d: Read %d sector(s) from %lld to %p "
+			    "(0x%x): 0x%x\n", dev->dd.d_dev->dv_name,
+			    dev->dd.d_unit, blks, dblk, dest, VTOP(dest),
+			    result);
+		}
+	}
+
+	return (result);
 }
 
 /*

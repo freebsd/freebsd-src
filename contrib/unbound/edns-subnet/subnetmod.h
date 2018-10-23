@@ -61,6 +61,10 @@ struct subnet_env {
 	/** allocation service */
 	struct alloc_cache alloc;
 	lock_rw_type biglock;
+	/** number of messages from cache */
+	size_t num_msg_cache;
+	/** number of messages not from cache */
+	size_t num_msg_nocache;
 };
 
 struct subnet_msg_cache_data {

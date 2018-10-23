@@ -638,9 +638,9 @@ CvAddToFileTree (
             /* delete the .xxx file */
 
             FlDeleteFile (ASL_FILE_AML_OUTPUT);
-            sprintf (MsgBuffer, "\"%s\" - %s", Filename, strerror (errno));
+            sprintf (AslGbl_MsgBuffer, "\"%s\" - %s", Filename, strerror (errno));
             AslCommonError (ASL_ERROR, ASL_MSG_OPEN, 0, 0, 0, 0,
-                NULL, MsgBuffer);
+                NULL, AslGbl_MsgBuffer);
             AslAbort ();
         }
     }

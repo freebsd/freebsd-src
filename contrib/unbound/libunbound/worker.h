@@ -89,15 +89,15 @@ void libworker_handle_control_cmd(struct tube* tube, uint8_t* msg, size_t len,
 
 /** mesh callback with fg results */
 void libworker_fg_done_cb(void* arg, int rcode, sldns_buffer* buf, 
-	enum sec_status s, char* why_bogus);
+	enum sec_status s, char* why_bogus, int was_ratelimited);
 
 /** mesh callback with bg results */
 void libworker_bg_done_cb(void* arg, int rcode, sldns_buffer* buf, 
-	enum sec_status s, char* why_bogus);
+	enum sec_status s, char* why_bogus, int was_ratelimited);
 
 /** mesh callback with event results */
 void libworker_event_done_cb(void* arg, int rcode, struct sldns_buffer* buf, 
-	enum sec_status s, char* why_bogus);
+	enum sec_status s, char* why_bogus, int was_ratelimited);
 
 /**
  * Worker signal handler function. User argument is the worker itself.

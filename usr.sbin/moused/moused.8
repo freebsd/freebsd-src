@@ -297,7 +297,6 @@ information are:
 .It Ar port
 Port (device file) name, i.e.\&
 .Pa /dev/cuau0 ,
-.Pa /dev/mse0
 and
 .Pa /dev/psm0 .
 .It Ar if
@@ -555,10 +554,7 @@ what matters.
 The USB mouse has a flat rectangular connector.
 .Pp
 The next thing to decide is a port to use for the given interface.
-For the bus, InPort and PS/2 mice, there is little choice:
-the bus and InPort mice always use
-.Pa /dev/mse0 ,
-and the PS/2 mouse is always at
+The PS/2 mouse is always at
 .Pa /dev/psm0 .
 There may be more than one serial port to which the serial
 mouse can be attached.
@@ -713,8 +709,6 @@ the mice is combined all together.
 .Bl -tag -width /dev/consolectl -compact
 .It Pa /dev/consolectl
 device to control the console
-.It Pa /dev/mse%d
-bus and InPort mouse driver
 .It Pa /dev/psm%d
 PS/2 mouse driver
 .It Pa /dev/sysmouse
@@ -792,7 +786,6 @@ you keep brushing over the mouse pad while typing.
 .Xr vidcontrol 1 ,
 .Xr xset 1 ,
 .Xr keyboard 4 ,
-.Xr mse 4 ,
 .Xr psm 4 ,
 .Xr screen 4 ,
 .Xr sysmouse 4 ,

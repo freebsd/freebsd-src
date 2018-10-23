@@ -123,7 +123,7 @@ gen_table "rlimit"          "RLIMIT_[A-Z]+[[:space:]]+[0-9]+"              "sys/
 gen_table "rusage"          "RUSAGE_[A-Z]+[[:space:]]+[-0-9]+"             "sys/resource.h"
 gen_table "schedpolicy"     "SCHED_[A-Z]+[[:space:]]+[0-9]+"               "sched.h"
 gen_table "sendfileflags"   "SF_[A-Z]+[[:space:]]+[0-9]+"                  "sys/socket.h"
-gen_table "shmatflags"      "SHM_[A-Z]+[[:space:]]+[0-9]{6}+"              "sys/shm.h"
+gen_table "shmatflags"      "SHM_[A-Z]+[[:space:]]+[0-9]{6}"               "sys/shm.h"
 gen_table "shutdownhow"     "SHUT_[A-Z]+[[:space:]]+[0-9]+"                "sys/socket.h"
 gen_table "sigbuscode"      "BUS_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
 gen_table "sigchldcode"     "CLD_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"

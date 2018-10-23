@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Robert N. M. Watson
+ * Copyright (c) 2016, 2018 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by BAE Systems, the University of Cambridge
@@ -147,8 +147,12 @@ static dtrace_provider_id_t	dtaudit_id;
  * maintain a global flag tracking whether any dtaudit probes are enabled.  If
  * not, don't bother doing all that work whenever potential queries about
  * events turn up during preselection or commit.
+ *
+ * NB: We used to maintain our own variable in dtaudit, but now use the
+ * centralized audit_dtrace_enabled variable imported from the audit code.
+ *
+ * static uint_t		dtaudit_probes_enabled;
  */
-static uint_t		dtaudit_probes_enabled;
 
 /*
  * Check dtaudit policy for the event to see whether this is an event we would
@@ -179,7 +183,7 @@ dtaudit_preselect(au_id_t auid, au_event_t event, au_class_t class)
 	 * NB: Lockless reads here may return a slightly stale value; this is
 	 * considered better than acquiring a lock, however.
 	 */
-	if (!dtaudit_probes_enabled)
+	if (!audit_dtrace_enabled)
 		return (NULL);
 	ene = au_evnamemap_lookup(event);
 	if (ene == NULL)
@@ -457,7 +461,8 @@ dtaudit_enable(void *arg, dtrace_id_t id, void *parg)
 		ene->ene_commit_probe_enabled = 1;
 	else
 		ene->ene_bsm_probe_enabled = 1;
-	refcount_acquire(&dtaudit_probes_enabled);
+	refcount_acquire(&audit_dtrace_enabled);
+	audit_syscalls_enabled_update();
 }
 
 static void
@@ -474,7 +479,8 @@ dtaudit_disable(void *arg, dtrace_id_t id, void *parg)
 		ene->ene_commit_probe_enabled = 0;
 	else
 		ene->ene_bsm_probe_enabled = 0;
-	(void)refcount_release(&dtaudit_probes_enabled);
+	(void)refcount_release(&audit_dtrace_enabled);
+	audit_syscalls_enabled_update();
 }
 
 static void

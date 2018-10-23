@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_f_md 3"
-.TH BIO_f_md 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_F_MD 3"
+.TH BIO_F_MD 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -142,10 +142,10 @@ BIO_f_md, BIO_set_md, BIO_get_md, BIO_get_md_ctx \- message digest BIO filter
 \& #include <openssl/bio.h>
 \& #include <openssl/evp.h>
 \&
-\& BIO_METHOD *   BIO_f_md(void);
-\& int BIO_set_md(BIO *b,EVP_MD *md);
-\& int BIO_get_md(BIO *b,EVP_MD **mdp);
-\& int BIO_get_md_ctx(BIO *b,EVP_MD_CTX **mdcp);
+\& const BIO_METHOD *BIO_f_md(void);
+\& int BIO_set_md(BIO *b, EVP_MD *md);
+\& int BIO_get_md(BIO *b, EVP_MD **mdp);
+\& int BIO_get_md_ctx(BIO *b, EVP_MD_CTX **mdcp);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -154,8 +154,8 @@ BIO_f_md, BIO_set_md, BIO_get_md, BIO_get_md_ctx \- message digest BIO filter
 for the digest routines \fIEVP_DigestInit()\fR, \fIEVP_DigestUpdate()\fR
 and \fIEVP_DigestFinal()\fR.
 .PP
-Any data written or read through a digest \s-1BIO\s0 using \fIBIO_read()\fR and
-\&\fIBIO_write()\fR is digested.
+Any data written or read through a digest \s-1BIO\s0 using \fIBIO_read_ex()\fR and
+\&\fIBIO_write_ex()\fR is digested.
 .PP
 \&\fIBIO_gets()\fR, if its \fBsize\fR parameter is large enough finishes the
 digest calculation and returns the digest value. \fIBIO_puts()\fR is
@@ -190,10 +190,8 @@ If an application needs to call \fIBIO_gets()\fR or \fIBIO_puts()\fR through
 a chain containing digest BIOs then this can be done by prepending
 a buffering \s-1BIO.\s0
 .PP
-Before OpenSSL 1.0.0 the call to \fIBIO_get_md_ctx()\fR would only work if the \s-1BIO\s0
-had been initialized for example by calling \fIBIO_set_md()\fR ). In OpenSSL
-1.0.0 and later the context is always returned and the \s-1BIO\s0 is state is set
-to initialized. This allows applications to initialize the context externally
+Calling \fIBIO_get_md_ctx()\fR will return the context and initialize the \s-1BIO\s0
+state. This allows applications to initialize the context externally
 if the standard calls such as \fIBIO_set_md()\fR are not sufficiently flexible.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
@@ -207,13 +205,15 @@ The following example creates a \s-1BIO\s0 chain containing an \s-1SHA1\s0 and \
 digest \s-1BIO\s0 and passes the string \*(L"Hello World\*(R" through it. Error
 checking has been omitted for clarity.
 .PP
-.Vb 10
+.Vb 2
 \& BIO *bio, *mdtmp;
 \& char message[] = "Hello World";
+\&
 \& bio = BIO_new(BIO_s_null());
 \& mdtmp = BIO_new(BIO_f_md());
 \& BIO_set_md(mdtmp, EVP_sha1());
-\& /* For BIO_push() we want to append the sink BIO and keep a note of
+\& /*
+\&  * For BIO_push() we want to append the sink BIO and keep a note of
 \&  * the start of the chain.
 \&  */
 \& bio = BIO_push(mdtmp, bio);
@@ -226,10 +226,11 @@ checking has been omitted for clarity.
 .PP
 The next example digests data by reading through a chain instead:
 .PP
-.Vb 10
+.Vb 3
 \& BIO *bio, *mdtmp;
 \& char buf[1024];
 \& int rdlen;
+\&
 \& bio = BIO_new_file(file, "rb");
 \& mdtmp = BIO_new(BIO_f_md());
 \& BIO_set_md(mdtmp, EVP_sha1());
@@ -238,31 +239,34 @@ The next example digests data by reading through a chain instead:
 \& BIO_set_md(mdtmp, EVP_md5());
 \& bio = BIO_push(mdtmp, bio);
 \& do {
-\&        rdlen = BIO_read(bio, buf, sizeof(buf));
-\&        /* Might want to do something with the data here */
-\& } while(rdlen > 0);
+\&     rdlen = BIO_read(bio, buf, sizeof(buf));
+\&     /* Might want to do something with the data here */
+\& } while (rdlen > 0);
 .Ve
 .PP
 This next example retrieves the message digests from a \s-1BIO\s0 chain and
 outputs them. This could be used with the examples above.
 .PP
-.Vb 10
+.Vb 4
 \& BIO *mdtmp;
 \& unsigned char mdbuf[EVP_MAX_MD_SIZE];
 \& int mdlen;
 \& int i;
+\&
 \& mdtmp = bio;   /* Assume bio has previously been set up */
 \& do {
-\&        EVP_MD *md;
-\&        mdtmp = BIO_find_type(mdtmp, BIO_TYPE_MD);
-\&        if(!mdtmp) break;
-\&        BIO_get_md(mdtmp, &md);
-\&        printf("%s digest", OBJ_nid2sn(EVP_MD_type(md)));
-\&        mdlen = BIO_gets(mdtmp, mdbuf, EVP_MAX_MD_SIZE);
-\&        for(i = 0; i < mdlen; i++) printf(":%02X", mdbuf[i]);
-\&        printf("\en");
-\&        mdtmp = BIO_next(mdtmp);
-\& } while(mdtmp);
+\&     EVP_MD *md;
+\&
+\&     mdtmp = BIO_find_type(mdtmp, BIO_TYPE_MD);
+\&     if (!mdtmp)
+\&         break;
+\&     BIO_get_md(mdtmp, &md);
+\&     printf("%s digest", OBJ_nid2sn(EVP_MD_type(md)));
+\&     mdlen = BIO_gets(mdtmp, mdbuf, EVP_MAX_MD_SIZE);
+\&     for (i = 0; i < mdlen; i++) printf(":%02X", mdbuf[i]);
+\&     printf("\en");
+\&     mdtmp = BIO_next(mdtmp);
+\& } while (mdtmp);
 \&
 \& BIO_free_all(bio);
 .Ve
@@ -273,6 +277,15 @@ The lack of support for \fIBIO_puts()\fR and the non standard behaviour of
 and \fIBIO_puts()\fR should be passed to the next \s-1BIO\s0 in the chain and digest
 the data passed through and that digests should be retrieved using a
 separate \fIBIO_ctrl()\fR call.
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\s-1TBA\s0
+.SH "HISTORY"
+.IX Header "HISTORY"
+Before OpenSSL 1.0.0., the call to \fIBIO_get_md_ctx()\fR would only work if the
+\&\s-1BIO\s0 was initialized first.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

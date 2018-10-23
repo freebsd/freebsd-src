@@ -60,19 +60,19 @@
 #define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the `DSA_get0_key' function. */
-/* #undef HAVE_DSA_GET0_KEY */
+#define HAVE_DSA_GET0_KEY 1
 
 /* Define to 1 if you have the `DSA_get0_pqg' function. */
-/* #undef HAVE_DSA_GET0_PQG */
+#define HAVE_DSA_GET0_PQG 1
 
 /* Define to 1 if you have the `DSA_SIG_get0' function. */
-/* #undef HAVE_DSA_SIG_GET0 */
+#define HAVE_DSA_SIG_GET0 1
 
 /* Define to 1 if you have the `DSA_SIG_set0' function. */
-/* #undef HAVE_DSA_SIG_SET0 */
+#define HAVE_DSA_SIG_SET0 1
 
 /* Define to 1 if you have the `ECDSA_SIG_get0' function. */
-/* #undef HAVE_ECDSA_SIG_GET0 */
+#define HAVE_ECDSA_SIG_GET0 1
 
 /* Define to 1 if you have the `endprotoent' function. */
 #define HAVE_ENDPROTOENT 1
@@ -84,10 +84,10 @@
 #define HAVE_ENGINE_LOAD_CRYPTODEV 1
 
 /* Define to 1 if you have the `EVP_dss1' function. */
-#define HAVE_EVP_DSS1 1
+/* #undef HAVE_EVP_DSS1 */
 
 /* Define to 1 if you have the `EVP_MD_CTX_new' function. */
-/* #undef HAVE_EVP_MD_CTX_NEW */
+#define HAVE_EVP_MD_CTX_NEW 1
 
 /* Define to 1 if you have the `EVP_PKEY_base_id' function. */
 #define HAVE_EVP_PKEY_BASE_ID 1
@@ -362,7 +362,7 @@
 #define USE_DANE 1
 
 /* Define this to enable DANE-TA usage type support. */
-/* #undef USE_DANE_TA_USAGE */
+#define USE_DANE_TA_USAGE 1
 
 /* Define this to enable DANE verify support. */
 #define USE_DANE_VERIFY 1
@@ -380,7 +380,7 @@
 /* #undef USE_ED448 */
 
 /* Define this to enable GOST support. */
-#define USE_GOST 1
+/* #undef USE_GOST */
 
 /* Define this to enable SHA256 and SHA512 support. */
 #define USE_SHA2 1

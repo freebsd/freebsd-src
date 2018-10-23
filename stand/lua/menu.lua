@@ -29,7 +29,7 @@
 -- $FreeBSD$
 --
 
-
+local cli = require("cli")
 local core = require("core")
 local color = require("color")
 local config = require("config")
@@ -401,8 +401,22 @@ function menu.process(menudef, keypress)
 end
 
 function menu.run()
+	local delay = loader.getenv("autoboot_delay")
+
+	if delay ~= nil and delay:lower() == "no" then
+		delay = nil
+	else
+		delay = tonumber(delay) or 10
+	end
+
+	if delay == -1 then
+		core.boot()
+		return
+	end
+
 	menu.draw(menu.default)
-	local autoboot_key = menu.autoboot()
+
+	local autoboot_key = menu.autoboot(delay)
 
 	menu.process(menu.default, autoboot_key)
 	drawn_menu = nil
@@ -411,19 +425,15 @@ function menu.run()
 	print("Exiting menu!")
 end
 
-function menu.autoboot()
-	local ab = loader.getenv("autoboot_delay")
-	if ab ~= nil and ab:lower() == "no" then
+function menu.autoboot(delay)
+	-- If we've specified a nil delay, we can do nothing but assume that
+	-- we aren't supposed to be autobooting.
+	if delay == nil then
 		return nil
-	elseif tonumber(ab) == -1 then
-		core.boot()
 	end
-	ab = tonumber(ab) or 10
-
 	local x = loader.getenv("loader_menu_timeout_x") or 4
 	local y = loader.getenv("loader_menu_timeout_y") or 23
-
-	local endtime = loader.time() + ab
+	local endtime = loader.time() + delay
 	local time
 	local last
 	repeat
@@ -454,6 +464,11 @@ function menu.autoboot()
 
 	local cmd = loader.getenv("menu_timeout_command") or "boot"
 	cli_execute_unparsed(cmd)
+end
+
+-- CLI commands
+function cli.menu(...)
+	menu.run()
 end
 
 return menu

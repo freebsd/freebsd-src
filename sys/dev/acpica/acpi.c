@@ -2570,6 +2570,98 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     return (AE_OK);
 }
 
+UINT8
+acpi_DSMQuery(ACPI_HANDLE h, uint8_t *uuid, int revision)
+{
+    /*
+     * ACPI spec 9.1.1 defines this.
+     *
+     * "Arg2: Function Index Represents a specific function whose meaning is
+     * specific to the UUID and Revision ID. Function indices should start
+     * with 1. Function number zero is a query function (see the special
+     * return code defined below)."
+     */
+    ACPI_BUFFER buf;
+    ACPI_OBJECT *obj;
+    UINT8 ret = 0;
+
+    if (!ACPI_SUCCESS(acpi_EvaluateDSM(h, uuid, revision, 0, NULL, &buf))) {
+	ACPI_INFO(("Failed to enumerate DSM functions\n"));
+	return (0);
+    }
+
+    obj = (ACPI_OBJECT *)buf.Pointer;
+    KASSERT(obj, ("Object not allowed to be NULL\n"));
+
+    /*
+     * From ACPI 6.2 spec 9.1.1:
+     * If Function Index = 0, a Buffer containing a function index bitfield.
+     * Otherwise, the return value and type depends on the UUID and revision
+     * ID (see below).
+     */
+    switch (obj->Type) {
+    case ACPI_TYPE_BUFFER:
+	ret = *(uint8_t *)obj->Buffer.Pointer;
+	break;
+    case ACPI_TYPE_INTEGER:
+	ACPI_BIOS_WARNING((AE_INFO,
+	    "Possibly buggy BIOS with ACPI_TYPE_INTEGER for function enumeration\n"));
+	ret = obj->Integer.Value & 0xFF;
+	break;
+    default:
+	ACPI_WARNING((AE_INFO, "Unexpected return type %u\n", obj->Type));
+    };
+
+    AcpiOsFree(obj);
+    return ret;
+}
+
+/*
+ * DSM may return multiple types depending on the function. It is therefore
+ * unsafe to use the typed evaluation. It is highly recommended that the caller
+ * check the type of the returned object.
+ */
+ACPI_STATUS
+acpi_EvaluateDSM(ACPI_HANDLE handle, uint8_t *uuid, int revision,
+    uint64_t function, union acpi_object *package, ACPI_BUFFER *out_buf)
+{
+    ACPI_OBJECT arg[4];
+    ACPI_OBJECT_LIST arglist;
+    ACPI_BUFFER buf;
+    ACPI_STATUS status;
+
+    if (out_buf == NULL)
+	return (AE_NO_MEMORY);
+
+    arg[0].Type = ACPI_TYPE_BUFFER;
+    arg[0].Buffer.Length = ACPI_UUID_LENGTH;
+    arg[0].Buffer.Pointer = uuid;
+    arg[1].Type = ACPI_TYPE_INTEGER;
+    arg[1].Integer.Value = revision;
+    arg[2].Type = ACPI_TYPE_INTEGER;
+    arg[2].Integer.Value = function;
+    if (package) {
+	arg[3] = *package;
+    } else {
+	arg[3].Type = ACPI_TYPE_PACKAGE;
+	arg[3].Package.Count = 0;
+	arg[3].Package.Elements = NULL;
+    }
+
+    arglist.Pointer = arg;
+    arglist.Count = 4;
+    buf.Pointer = NULL;
+    buf.Length = ACPI_ALLOCATE_BUFFER;
+    status = AcpiEvaluateObject(handle, "_DSM", &arglist, &buf);
+    if (ACPI_FAILURE(status))
+	return (status);
+
+    KASSERT(ACPI_SUCCESS(status), ("Unexpected status"));
+
+    *out_buf = buf;
+    return (status);
+}
+
 ACPI_STATUS
 acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid, int revision, int count,
     uint32_t *caps_in, uint32_t *caps_out, bool query)

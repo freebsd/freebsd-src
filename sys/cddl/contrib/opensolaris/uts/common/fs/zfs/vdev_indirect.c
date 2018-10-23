@@ -723,7 +723,6 @@ spa_condense_indirect_thread(void *arg, zthr_t *zthr)
 	    ZFS_SPACE_CHECK_EXTRA_RESERVED));
 
 	return (0);
-	thread_exit();
 }
 
 /*
@@ -1148,6 +1147,9 @@ vdev_indirect_child_io_done(zio_t *zio)
 	pio->io_error = zio_worst_error(pio->io_error, zio->io_error);
 	mutex_exit(&pio->io_lock);
 
+#ifdef __FreeBSD__
+	if (zio->io_abd != NULL)
+#endif
 	abd_put(zio->io_abd);
 }
 
@@ -1263,8 +1265,12 @@ vdev_indirect_io_start(zio_t *zio)
 	zio->io_vsd_ops = &vdev_indirect_vsd_ops;
 
 	ASSERT(spa_config_held(spa, SCL_ALL, RW_READER) != 0);
+#ifdef __FreeBSD__
+	if (zio->io_type == ZIO_TYPE_WRITE) {
+#else
 	if (zio->io_type != ZIO_TYPE_READ) {
 		ASSERT3U(zio->io_type, ==, ZIO_TYPE_WRITE);
+#endif
 		/*
 		 * Note: this code can handle other kinds of writes,
 		 * but we don't expect them.
@@ -1296,6 +1302,9 @@ vdev_indirect_io_start(zio_t *zio)
 		ASSERT3P(list_next(&iv->iv_splits, first), ==, NULL);
 		zio_nowait(zio_vdev_child_io(zio, zio->io_bp,
 		    first->is_vdev, first->is_target_offset,
+#ifdef __FreeBSD__
+		    zio->io_abd == NULL ? NULL :
+#endif
 		    abd_get_offset(zio->io_abd, 0),
 		    zio->io_size, zio->io_type, zio->io_priority, 0,
 		    vdev_indirect_child_io_done, zio));
@@ -1322,6 +1331,9 @@ vdev_indirect_io_start(zio_t *zio)
 			    is != NULL; is = list_next(&iv->iv_splits, is)) {
 				zio_nowait(zio_vdev_child_io(zio, NULL,
 				    is->is_vdev, is->is_target_offset,
+#ifdef __FreeBSD__
+				    zio->io_abd == NULL ? NULL :
+#endif
 				    abd_get_offset(zio->io_abd,
 				    is->is_split_offset),
 				    is->is_size, zio->io_type,

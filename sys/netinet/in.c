@@ -520,7 +520,12 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 			&ii->ii_allhosts);
 	}
 
-	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+	/*
+	 * Note: we don't need extra reference for ifa, since we called
+	 * with sx lock held, and ifaddr can not be deleted in concurrent
+	 * thread.
+	 */
+	EVENTHANDLER_INVOKE(ifaddr_event_ext, ifp, ifa, IFADDR_EVENT_ADD);
 
 	return (error);
 
@@ -643,7 +648,8 @@ in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	}
 	IF_ADDR_WUNLOCK(ifp);
 
-	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+	EVENTHANDLER_INVOKE(ifaddr_event_ext, ifp, &ia->ia_ifa,
+	    IFADDR_EVENT_DEL);
 	ifa_free(&ia->ia_ifa);		/* in_ifaddrhead */
 
 	return (0);

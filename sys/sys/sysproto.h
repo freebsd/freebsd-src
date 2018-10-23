@@ -135,23 +135,23 @@ struct recvfrom_args {
 	char buf_l_[PADL_(caddr_t)]; caddr_t buf; char buf_r_[PADR_(caddr_t)];
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
-	char from_l_[PADL_(struct sockaddr *__restrict)]; struct sockaddr *__restrict from; char from_r_[PADR_(struct sockaddr *__restrict)];
-	char fromlenaddr_l_[PADL_(__socklen_t *__restrict)]; __socklen_t *__restrict fromlenaddr; char fromlenaddr_r_[PADR_(__socklen_t *__restrict)];
+	char from_l_[PADL_(struct sockaddr *)]; struct sockaddr * from; char from_r_[PADR_(struct sockaddr *)];
+	char fromlenaddr_l_[PADL_(__socklen_t *)]; __socklen_t * fromlenaddr; char fromlenaddr_r_[PADR_(__socklen_t *)];
 };
 struct accept_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
-	char name_l_[PADL_(struct sockaddr *__restrict)]; struct sockaddr *__restrict name; char name_r_[PADR_(struct sockaddr *__restrict)];
-	char anamelen_l_[PADL_(__socklen_t *__restrict)]; __socklen_t *__restrict anamelen; char anamelen_r_[PADR_(__socklen_t *__restrict)];
+	char name_l_[PADL_(struct sockaddr *)]; struct sockaddr * name; char name_r_[PADR_(struct sockaddr *)];
+	char anamelen_l_[PADL_(__socklen_t *)]; __socklen_t * anamelen; char anamelen_r_[PADR_(__socklen_t *)];
 };
 struct getpeername_args {
 	char fdes_l_[PADL_(int)]; int fdes; char fdes_r_[PADR_(int)];
-	char asa_l_[PADL_(struct sockaddr *__restrict)]; struct sockaddr *__restrict asa; char asa_r_[PADR_(struct sockaddr *__restrict)];
-	char alen_l_[PADL_(__socklen_t *__restrict)]; __socklen_t *__restrict alen; char alen_r_[PADR_(__socklen_t *__restrict)];
+	char asa_l_[PADL_(struct sockaddr *)]; struct sockaddr * asa; char asa_r_[PADR_(struct sockaddr *)];
+	char alen_l_[PADL_(__socklen_t *)]; __socklen_t * alen; char alen_r_[PADR_(__socklen_t *)];
 };
 struct getsockname_args {
 	char fdes_l_[PADL_(int)]; int fdes; char fdes_r_[PADR_(int)];
-	char asa_l_[PADL_(struct sockaddr *__restrict)]; struct sockaddr *__restrict asa; char asa_r_[PADR_(struct sockaddr *__restrict)];
-	char alen_l_[PADL_(__socklen_t *__restrict)]; __socklen_t *__restrict alen; char alen_r_[PADR_(__socklen_t *__restrict)];
+	char asa_l_[PADL_(struct sockaddr *)]; struct sockaddr * asa; char asa_r_[PADR_(struct sockaddr *)];
+	char alen_l_[PADL_(__socklen_t *)]; __socklen_t * alen; char alen_r_[PADR_(__socklen_t *)];
 };
 struct access_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
@@ -1662,8 +1662,8 @@ struct chflagsat_args {
 };
 struct accept4_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
-	char name_l_[PADL_(struct sockaddr *__restrict)]; struct sockaddr *__restrict name; char name_r_[PADR_(struct sockaddr *__restrict)];
-	char anamelen_l_[PADL_(__socklen_t *__restrict)]; __socklen_t *__restrict anamelen; char anamelen_r_[PADR_(__socklen_t *__restrict)];
+	char name_l_[PADL_(struct sockaddr *)]; struct sockaddr * name; char name_r_[PADR_(struct sockaddr *)];
+	char anamelen_l_[PADL_(__socklen_t *)]; __socklen_t * anamelen; char anamelen_r_[PADR_(__socklen_t *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct pipe2_args {

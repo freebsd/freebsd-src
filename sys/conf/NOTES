@@ -1548,15 +1548,9 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 #
 # SCSI host adapters:
 #
-# adv: All Narrow SCSI bus AdvanSys controllers.
-# adw: Second Generation AdvanSys controllers including the ADV940UW.
-# aha: Adaptec 154x/1535/1640
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
-# aic: Adaptec 6260/6360, APA-1460 (PC Card)
-# bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
-#      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
 # esp: Emulex ESP, NCR 53C9x and QLogic FAS families based controllers
 #      including the AMD Am53C974 (found on devices such as the Tekram
 #      DC-390(T)) and the Sun ESP and FAS families of controllers
@@ -1569,27 +1563,12 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # ispfw: Firmware module for Qlogic host adapters
 # mpt: LSI-Logic MPT/Fusion 53c1020 or 53c1030 Ultra4
 #      or FC9x9 Fibre Channel host adapters.
-# ncr: NCR 53C810, 53C825 self-contained SCSI host adapters.
 # sym: Symbios/Logic 53C8XX family of PCI-SCSI I/O processors:
 #      53C810, 53C810A, 53C815, 53C825,  53C825A, 53C860, 53C875,
 #      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D,
 #      53C1010-33, 53C1010-66.
 # trm: Tekram DC395U/UW/F DC315U adapters.
 
-#
-# Note that the order is important in order for Buslogic ISA cards to be
-# probed correctly.
-#
-device		bt
-hint.bt.0.at="isa"
-hint.bt.0.port="0x330"
-device		adv
-hint.adv.0.at="isa"
-device		adw
-device		aha
-hint.aha.0.at="isa"
-device		aic
-hint.aic.0.at="isa"
 device		ahc
 device		ahd
 device		esp
@@ -1612,7 +1591,6 @@ hint.isp.0.portwnn="w50000000aaaa0000"
 hint.isp.0.nodewnn="w50000000aaaa0001"
 device		ispfw
 device		mpt
-device		ncr
 device		sym
 device		trm
 
@@ -1650,10 +1628,6 @@ options 	AHD_REG_PRETTY_PRINT
 # Bitmap of units to enable targetmode operations.
 options 	AHD_TMODE_ENABLE
 
-# The adw driver will attempt to use memory mapped I/O for all PCI
-# controllers that have it configured only if this option is set.
-options 	ADW_ALLOW_MEMIO
-
 # Options used in dev/iscsi (Software iSCSI stack)
 #
 options 	ISCSI_INITIATOR_DEBUG=9
@@ -1674,39 +1648,12 @@ options 	ISP_TARGET_MODE=1
 #
 options 	ISP_DEFAULT_ROLES=0
 
-# Options used in dev/sym/ (Symbios SCSI driver).
-#options 	SYM_SETUP_LP_PROBE_MAP	#-Low Priority Probe Map (bits)
-					# Allows the ncr to take precedence
-					# 1 (1<<0) -> 810a, 860
-					# 2 (1<<1) -> 825a, 875, 885, 895
-					# 4 (1<<2) -> 895a, 896, 1510d
 #options 	SYM_SETUP_SCSI_DIFF	#-HVD support for 825a, 875, 885
 					# disabled:0 (default), enabled:1
 #options 	SYM_SETUP_PCI_PARITY	#-PCI parity checking
 					# disabled:0, enabled:1 (default)
 #options 	SYM_SETUP_MAX_LUN	#-Number of LUNs supported
 					# default:8, range:[1..64]
-
-# The 'dpt' driver provides support for old DPT controllers (http://www.dpt.com/).
-# These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
-# The DPT controllers are commonly re-licensed under other brand-names -
-# some controllers by Olivetti, Dec, HP, AT&T, SNI, AST, Alphatronic, NEC and
-# Compaq are actually DPT controllers.
-#
-# See src/sys/dev/dpt for debugging and other subtle options.
-#  DPT_MEASURE_PERFORMANCE  Enables a set of (semi)invasive metrics. Various
-#                           instruments are enabled.  The tools in
-#                           /usr/sbin/dpt_* assume these to be enabled.
-#  DPT_DEBUG_xxxx           These are controllable from sys/dev/dpt/dpt.h
-#  DPT_RESET_HBA            Make "reset" actually reset the controller
-#                           instead of fudging it.  Only enable this if you
-#			    are 100% certain you need it.
-
-device		dpt
-
-# DPT options
-#!CAM# options 	DPT_MEASURE_PERFORMANCE
-options 	DPT_RESET_HBA
 
 #
 # Compaq "CISS" RAID controllers (SmartRAID 5* series)
@@ -2366,12 +2313,8 @@ options		SND_OLDSTEREO
 # Miscellaneous hardware:
 #
 # bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
-# joy: joystick (including IO DATA PCJOY PC Card joystick)
 # cmx: OmniKey CardMan 4040 pccard smartcard reader
 
-device		joy			# PnP aware, hints for non-PnP only
-hint.joy.0.at="isa"
-hint.joy.0.port="0x201"
 device		cmx
 
 #
@@ -2971,11 +2914,6 @@ options 	MSGSSZ=16	# Size of a message segment
 options 	MSGTQL=41	# Max number of messages in system
 
 options 	NBUF=512	# Number of buffer headers
-
-options 	SCSI_NCR_DEBUG
-options 	SCSI_NCR_MAX_SYNC=10000
-options 	SCSI_NCR_MAX_WIDE=1
-options 	SCSI_NCR_MYADDR=7
 
 options 	SC_DEBUG_LEVEL=5	# Syscons debug level
 options 	SC_RENDER_DEBUG	# syscons rendering debugging

@@ -1,7 +1,14 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2006-2018 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -69,7 +76,7 @@
 # dsa 1024 bits 0.001346s 0.001595s    742.7    627.0
 # dsa 2048 bits 0.004745s 0.005582s    210.7    179.1
 #
-# Conclusions: 
+# Conclusions:
 # - VIA SDK leaves a *lot* of room for improvement (which this
 #   implementation successfully fills:-);
 # - 'rep montmul' gives up to >3x performance improvement depending on
@@ -81,7 +88,10 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
 
-&asm_init($ARGV[0],"via-mont.pl");
+$output = pop;
+open STDOUT,">$output";
+
+&asm_init($ARGV[0]);
 
 # int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp, const BN_ULONG *np,const BN_ULONG *n0, int num);
 $func="bn_mul_mont_padlock";
@@ -237,3 +247,5 @@ $sp=&DWP(28,"esp");
 &asciz("Padlock Montgomery Multiplication, CRYPTOGAMS by <appro\@openssl.org>");
 
 &asm_finish();
+
+close STDOUT;

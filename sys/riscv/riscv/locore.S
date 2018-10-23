@@ -94,7 +94,7 @@ _start:
 	add	t3, t4, t2
 	li	t5, 0
 2:
-	li	t0, (PTE_V | PTE_RWX | PTE_D)
+	li	t0, (PTE_KERN)
 	slli	t2, t4, PTE_PPN1_S	/* << PTE_PPN1_S */
 	or	t5, t0, t2
 	sd	t5, (s1)		/* Store PTE entry to position */
@@ -126,7 +126,7 @@ _start:
 	mv	s2, s11
 	srli	s2, s2, PAGE_SHIFT
 
-	li	t0, (PTE_V | PTE_RWX | PTE_D)
+	li	t0, (PTE_KERN)
 	slli	t2, s2, PTE_PPN0_S	/* << PTE_PPN0_S */
 	or	t0, t0, t2
 

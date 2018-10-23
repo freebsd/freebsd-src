@@ -41,6 +41,7 @@ extern int	hw_lower_amd64_sharedpage;
 extern int	hw_ibrs_disable;
 extern int	hw_ssb_disable;
 extern int	nmi_flush_l1d_sw;
+extern int	syscall_ret_l1d_flush_mode;
 
 /*
  * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its
@@ -55,8 +56,11 @@ void	amd64_conf_fast_syscall(void);
 void	amd64_db_resume_dbreg(void);
 void	amd64_lower_shared_page(struct sysentvec *);
 void	amd64_syscall(struct thread *td, int traced);
+void	amd64_syscall_ret_flush_l1d(int error);
+void	amd64_syscall_ret_flush_l1d_recalc(void);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
+void	flush_l1d_sw_abi(void);
 void	ld_ds(void) __asm(__STRING(ld_ds));
 void	ld_es(void) __asm(__STRING(ld_es));
 void	ld_fs(void) __asm(__STRING(ld_fs));

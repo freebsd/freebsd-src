@@ -129,43 +129,49 @@
 .\" ========================================================================
 .\"
 .IX Title "PKEY 1"
-.TH PKEY 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH PKEY 1 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-openssl\-pkey,
-pkey \- public or private key processing tool
+openssl\-pkey, pkey \- public or private key processing tool
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBopenssl\fR \fBpkey\fR
+[\fB\-help\fR]
 [\fB\-inform PEM|DER\fR]
 [\fB\-outform PEM|DER\fR]
 [\fB\-in filename\fR]
 [\fB\-passin arg\fR]
 [\fB\-out filename\fR]
 [\fB\-passout arg\fR]
-[\fB\-cipher\fR]
+[\fB\-traditional\fR]
+[\fB\-\f(BIcipher\fB\fR]
 [\fB\-text\fR]
 [\fB\-text_pub\fR]
 [\fB\-noout\fR]
 [\fB\-pubin\fR]
 [\fB\-pubout\fR]
 [\fB\-engine id\fR]
+[\fB\-check\fR]
+[\fB\-pubcheck\fR]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \fBpkey\fR command processes public or private keys. They can be converted
 between various forms and their components printed out.
-.SH "COMMAND OPTIONS"
-.IX Header "COMMAND OPTIONS"
+.SH "OPTIONS"
+.IX Header "OPTIONS"
+.IP "\fB\-help\fR" 4
+.IX Item "-help"
+Print out a usage message.
 .IP "\fB\-inform DER|PEM\fR" 4
 .IX Item "-inform DER|PEM"
-This specifies the input format \s-1DER\s0 or \s-1PEM.\s0
+This specifies the input format \s-1DER\s0 or \s-1PEM.\s0 The default format is \s-1PEM.\s0
 .IP "\fB\-outform DER|PEM\fR" 4
 .IX Item "-outform DER|PEM"
-This specifies the output format, the options have the same meaning as the 
-\&\fB\-inform\fR option.
+This specifies the output format, the options have the same meaning and default
+as the \fB\-inform\fR option.
 .IP "\fB\-in filename\fR" 4
 .IX Item "-in filename"
 This specifies the input filename to read a key from or standard input if this
@@ -173,7 +179,7 @@ option is not specified. If the key is encrypted a pass phrase will be
 prompted for.
 .IP "\fB\-passin arg\fR" 4
 .IX Item "-passin arg"
-the input file password source. For more information about the format of \fBarg\fR
+The input file password source. For more information about the format of \fBarg\fR
 see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section in \fIopenssl\fR\|(1).
 .IP "\fB\-out filename\fR" 4
 .IX Item "-out filename"
@@ -183,37 +189,50 @@ will be prompted for. The output filename should \fBnot\fR be the same as the in
 filename.
 .IP "\fB\-passout password\fR" 4
 .IX Item "-passout password"
-the output file password source. For more information about the format of \fBarg\fR
+The output file password source. For more information about the format of \fBarg\fR
 see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section in \fIopenssl\fR\|(1).
-.IP "\fB\-cipher\fR" 4
+.IP "\fB\-traditional\fR" 4
+.IX Item "-traditional"
+Normally a private key is written using standard format: this is PKCS#8 form
+with the appropriate encryption algorithm (if any). If the \fB\-traditional\fR
+option is specified then the older \*(L"traditional\*(R" format is used instead.
+.IP "\fB\-\f(BIcipher\fB\fR" 4
 .IX Item "-cipher"
 These options encrypt the private key with the supplied cipher. Any algorithm
 name accepted by \fIEVP_get_cipherbyname()\fR is acceptable such as \fBdes3\fR.
 .IP "\fB\-text\fR" 4
 .IX Item "-text"
-prints out the various public or private key components in
+Prints out the various public or private key components in
 plain text in addition to the encoded version.
 .IP "\fB\-text_pub\fR" 4
 .IX Item "-text_pub"
-print out only public key components even if a private key is being processed.
+Print out only public key components even if a private key is being processed.
 .IP "\fB\-noout\fR" 4
 .IX Item "-noout"
-do not output the encoded version of the key.
+Do not output the encoded version of the key.
 .IP "\fB\-pubin\fR" 4
 .IX Item "-pubin"
-by default a private key is read from the input file: with this
+By default a private key is read from the input file: with this
 option a public key is read instead.
 .IP "\fB\-pubout\fR" 4
 .IX Item "-pubout"
-by default a private key is output: with this option a public
+By default a private key is output: with this option a public
 key will be output instead. This option is automatically set if
 the input is a public key.
 .IP "\fB\-engine id\fR" 4
 .IX Item "-engine id"
-specifying an engine (by its unique \fBid\fR string) will cause \fBpkey\fR
+Specifying an engine (by its unique \fBid\fR string) will cause \fBpkey\fR
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
+.IP "\fB\-check\fR" 4
+.IX Item "-check"
+This option checks the consistency of a key pair for both public and private
+components.
+.IP "\fB\-pubcheck\fR" 4
+.IX Item "-pubcheck"
+This option checks the correctness of either a public key or the public component
+of a key pair.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 To remove the pass phrase on an \s-1RSA\s0 private key:
@@ -255,3 +274,11 @@ To just output the public part of a private key:
 .IX Header "SEE ALSO"
 \&\fIgenpkey\fR\|(1), \fIrsa\fR\|(1), \fIpkcs8\fR\|(1),
 \&\fIdsa\fR\|(1), \fIgenrsa\fR\|(1), \fIgendsa\fR\|(1)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2006\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

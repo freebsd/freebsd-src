@@ -23,13 +23,10 @@ MAN=	aac.4 \
 	${_acpi_wmi.4} \
 	ada.4 \
 	adm6996fc.4 \
-	adv.4 \
-	adw.4 \
 	ae.4 \
 	${_aesni.4} \
 	age.4 \
 	agp.4 \
-	aha.4 \
 	ahc.4 \
 	ahci.4 \
 	ahd.4 \
@@ -135,7 +132,6 @@ MAN=	aac.4 \
 	disc.4 \
 	divert.4 \
 	${_dpms.4} \
-	dpt.4 \
 	ds1307.4 \
 	ds3231.4 \
 	${_dtrace_provs} \
@@ -196,6 +192,7 @@ MAN=	aac.4 \
 	${_hv_vmbus.4} \
 	${_hv_vss.4} \
 	hwpmc.4 \
+	iavf.4 \
 	ichsmb.4 \
 	${_ichwd.4} \
 	icmp.4 \
@@ -240,10 +237,8 @@ MAN=	aac.4 \
 	iwnfw.4 \
 	ixgbe.4 \
 	ixl.4 \
-	ixlv.4 \
 	jedec_dimm.4 \
 	jme.4 \
-	joy.4 \
 	kbdmux.4 \
 	keyboard.4 \
 	kld.4 \
@@ -309,8 +304,6 @@ MAN=	aac.4 \
 	my.4 \
 	nand.4 \
 	nandsim.4 \
-	ncr.4 \
-	ncv.4 \
 	${_ndis.4} \
 	net80211.4 \
 	netdump.4 \
@@ -378,7 +371,6 @@ MAN=	aac.4 \
 	ng_vjc.4 \
 	ng_vlan.4 \
 	nmdm.4 \
-	nsp.4 \
 	${_ntb.4} \
 	${_ntb_hw_intel.4} \
 	${_ntb_hw_plx.4} \
@@ -511,7 +503,6 @@ MAN=	aac.4 \
 	sppp.4 \
 	ste.4 \
 	stf.4 \
-	stg.4 \
 	stge.4 \
 	sym.4 \
 	syncache.4 \
@@ -669,7 +660,7 @@ MLINKS+=ixgbe.4 ix.4
 MLINKS+=ixgbe.4 if_ix.4
 MLINKS+=ixgbe.4 if_ixgbe.4
 MLINKS+=ixl.4 if_ixl.4
-MLINKS+=ixlv.4 if_ixlv.4
+MLINKS+=iavf.4 if_iavf.4
 MLINKS+=jme.4 if_jme.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lagg.4 trunk.4

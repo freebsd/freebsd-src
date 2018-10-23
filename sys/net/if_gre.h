@@ -82,6 +82,7 @@ struct gre_softc {
 	} gre_uhdr;
 
 	CK_LIST_ENTRY(gre_softc) chain;
+	CK_LIST_ENTRY(gre_softc) srchash;
 };
 CK_LIST_HEAD(gre_list, gre_softc);
 MALLOC_DECLARE(M_GRE);
@@ -91,7 +92,8 @@ MALLOC_DECLARE(M_GRE);
 #endif
 
 #define	GRE2IFP(sc)		((sc)->gre_ifp)
-#define	GRE_RLOCK()		struct epoch_tracker gre_et; epoch_enter_preempt(net_epoch_preempt, &gre_et)
+#define	GRE_RLOCK_TRACKER	struct epoch_tracker gre_et
+#define	GRE_RLOCK()		epoch_enter_preempt(net_epoch_preempt, &gre_et)
 #define	GRE_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt, &gre_et)
 #define	GRE_WAIT()		epoch_wait_preempt(net_epoch_preempt)
 

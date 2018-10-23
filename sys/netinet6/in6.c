@@ -712,7 +712,8 @@ aifaddr_out:
 			ND6_WUNLOCK();
 			nd6_prefix_del(pr);
 		}
-		EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+		EVENTHANDLER_INVOKE(ifaddr_event_ext, ifp, &ia->ia_ifa,
+		    IFADDR_EVENT_DEL);
 		break;
 	}
 
@@ -1456,7 +1457,10 @@ done:
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "Invoking IPv6 network device address event may sleep");
 
-	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+	ifa_ref(&ia->ia_ifa);
+	EVENTHANDLER_INVOKE(ifaddr_event_ext, ifp, &ia->ia_ifa,
+	    IFADDR_EVENT_ADD);
+	ifa_free(&ia->ia_ifa);
 
 	return (error);
 }

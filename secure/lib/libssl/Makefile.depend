@@ -4,7 +4,6 @@
 DIRDEPS = \
 	gnu/lib/csu \
 	include \
-	include/arpa \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \

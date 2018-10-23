@@ -202,6 +202,7 @@ static int bxe_attach(device_t);
 static int bxe_detach(device_t);
 static int bxe_shutdown(device_t);
 
+
 /*
  * FreeBSD KLD module/device interface event handler method.
  */
@@ -705,6 +706,9 @@ static void    bxe_interrupt_detach(struct bxe_softc *sc);
 static void    bxe_set_rx_mode(struct bxe_softc *sc);
 static int     bxe_init_locked(struct bxe_softc *sc);
 static int     bxe_stop_locked(struct bxe_softc *sc);
+static void    bxe_sp_err_timeout_task(void *arg, int pending);
+void           bxe_parity_recover(struct bxe_softc *sc);
+void           bxe_handle_error(struct bxe_softc *sc);
 static __noinline int bxe_nic_load(struct bxe_softc *sc,
                                    int              load_mode);
 static __noinline int bxe_nic_unload(struct bxe_softc *sc,
@@ -3486,15 +3490,11 @@ bxe_watchdog(struct bxe_softc    *sc,
     }
 
     BLOGE(sc, "TX watchdog timeout on fp[%02d], resetting!\n", fp->index);
-    if(sc->trigger_grcdump) {
-         /* taking grcdump */
-         bxe_grc_dump(sc);
-    }
 
     BXE_FP_TX_UNLOCK(fp);
-
-    atomic_store_rel_long(&sc->chip_tq_flags, CHIP_TQ_REINIT);
-    taskqueue_enqueue(sc->chip_tq, &sc->chip_tq_task);
+    BXE_SET_ERROR_BIT(sc, BXE_ERR_TXQ_STUCK);
+    taskqueue_enqueue_timeout(taskqueue_thread,
+        &sc->sp_err_timeout_task, hz/10);
 
     return (-1);
 }
@@ -4250,6 +4250,7 @@ bxe_nic_unload(struct bxe_softc *sc,
         struct bxe_fastpath *fp;
 
         fp = &sc->fp[i];
+	fp->watchdog_timer = 0;
         BXE_FP_TX_LOCK(fp);
         BXE_FP_TX_UNLOCK(fp);
     }
@@ -4265,20 +4266,22 @@ bxe_nic_unload(struct bxe_softc *sc,
 
     if (IS_PF(sc) && sc->recovery_state != BXE_RECOVERY_DONE &&
         (sc->state == BXE_STATE_CLOSED || sc->state == BXE_STATE_ERROR)) {
-        /*
-         * We can get here if the driver has been unloaded
-         * during parity error recovery and is either waiting for a
-         * leader to complete or for other functions to unload and
-         * then ifconfig down has been issued. In this case we want to
-         * unload and let other functions to complete a recovery
-         * process.
-         */
-        sc->recovery_state = BXE_RECOVERY_DONE;
-        sc->is_leader = 0;
-        bxe_release_leader_lock(sc);
-        mb();
 
-        BLOGD(sc, DBG_LOAD, "Releasing a leadership...\n");
+	if(CHIP_PORT_MODE(sc) == CHIP_4_PORT_MODE) {
+            /*
+             * We can get here if the driver has been unloaded
+             * during parity error recovery and is either waiting for a
+             * leader to complete or for other functions to unload and
+             * then ifconfig down has been issued. In this case we want to
+             * unload and let other functions to complete a recovery
+             * process.
+             */
+            sc->recovery_state = BXE_RECOVERY_DONE;
+            sc->is_leader = 0;
+            bxe_release_leader_lock(sc);
+            mb();
+            BLOGD(sc, DBG_LOAD, "Releasing a leadership...\n");
+	}
         BLOGE(sc, "Can't unload in closed or error state recover_state 0x%x"
             " state = 0x%x\n", sc->recovery_state, sc->state);
         return (-1);
@@ -7570,6 +7573,10 @@ bxe_parity_attn(struct bxe_softc *sc,
         if (print)
             BLOGI(sc, "\n");
 
+	if( *global == TRUE ) {
+                BXE_SET_ERROR_BIT(sc, BXE_ERR_GLOBAL);
+        }
+
         return (TRUE);
     }
 
@@ -7583,6 +7590,9 @@ bxe_chk_parity_attn(struct bxe_softc *sc,
 {
     struct attn_route attn = { {0} };
     int port = SC_PORT(sc);
+
+    if(sc->state != BXE_STATE_OPEN)
+        return FALSE;
 
     attn.sig[0] = REG_RD(sc, MISC_REG_AEU_AFTER_INVERT_1_FUNC_0 + port*4);
     attn.sig[1] = REG_RD(sc, MISC_REG_AEU_AFTER_INVERT_2_FUNC_0 + port*4);
@@ -7610,10 +7620,12 @@ bxe_attn_int_deasserted4(struct bxe_softc *sc,
                          uint32_t         attn)
 {
     uint32_t val;
+    boolean_t err_flg = FALSE;
 
     if (attn & AEU_INPUTS_ATTN_BITS_PGLUE_HW_INTERRUPT) {
         val = REG_RD(sc, PGLUE_B_REG_PGLUE_B_INT_STS_CLR);
         BLOGE(sc, "PGLUE hw attention 0x%08x\n", val);
+        err_flg = TRUE;
         if (val & PGLUE_B_PGLUE_B_INT_STS_REG_ADDRESS_ERROR)
             BLOGE(sc, "PGLUE_B_PGLUE_B_INT_STS_REG_ADDRESS_ERROR\n");
         if (val & PGLUE_B_PGLUE_B_INT_STS_REG_INCORRECT_RCV_BEHAVIOR)
@@ -7637,6 +7649,7 @@ bxe_attn_int_deasserted4(struct bxe_softc *sc,
     if (attn & AEU_INPUTS_ATTN_BITS_ATC_HW_INTERRUPT) {
         val = REG_RD(sc, ATC_REG_ATC_INT_STS_CLR);
         BLOGE(sc, "ATC hw attention 0x%08x\n", val);
+	err_flg = TRUE;
         if (val & ATC_ATC_INT_STS_REG_ADDRESS_ERROR)
             BLOGE(sc, "ATC_ATC_INT_STS_REG_ADDRESS_ERROR\n");
         if (val & ATC_ATC_INT_STS_REG_ATC_TCPL_TO_NOT_PEND)
@@ -7656,7 +7669,14 @@ bxe_attn_int_deasserted4(struct bxe_softc *sc,
         BLOGE(sc, "FATAL parity attention set4 0x%08x\n",
               (uint32_t)(attn & (AEU_INPUTS_ATTN_BITS_PGLUE_PARITY_ERROR |
                                  AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR)));
+	err_flg = TRUE;
     }
+    if (err_flg) {
+	BXE_SET_ERROR_BIT(sc, BXE_ERR_MISC);
+	taskqueue_enqueue_timeout(taskqueue_thread,
+	    &sc->sp_err_timeout_task, hz/10);
+    }
+
 }
 
 static void
@@ -8011,13 +8031,20 @@ bxe_attn_int_deasserted3(struct bxe_softc *sc,
             REG_WR(sc, MISC_REG_AEU_GENERAL_ATTN_9, 0);
             REG_WR(sc, MISC_REG_AEU_GENERAL_ATTN_8, 0);
             REG_WR(sc, MISC_REG_AEU_GENERAL_ATTN_7, 0);
-            bxe_panic(sc, ("MC assert!\n"));
-
+            bxe_int_disable(sc);
+            BXE_SET_ERROR_BIT(sc, BXE_ERR_MC_ASSERT);
+            taskqueue_enqueue_timeout(taskqueue_thread,
+                &sc->sp_err_timeout_task, hz/10);
+	
         } else if (attn & BXE_MCP_ASSERT) {
 
             BLOGE(sc, "MCP assert!\n");
             REG_WR(sc, MISC_REG_AEU_GENERAL_ATTN_11, 0);
-            // XXX bxe_fw_dump(sc);
+            BXE_SET_ERROR_BIT(sc, BXE_ERR_MCP_ASSERT);
+            taskqueue_enqueue_timeout(taskqueue_thread,
+                &sc->sp_err_timeout_task, hz/10);
+            bxe_int_disable(sc);  /*avoid repetive assert alert */
+
 
         } else {
             BLOGE(sc, "Unknown HW assert! (attn 0x%08x)\n", attn);
@@ -8046,6 +8073,7 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
     int reg_offset;
     uint32_t val0, mask0, val1, mask1;
     uint32_t val;
+    boolean_t err_flg = FALSE;
 
     if (attn & AEU_INPUTS_ATTN_BITS_CFC_HW_INTERRUPT) {
         val = REG_RD(sc, CFC_REG_CFC_INT_STS_CLR);
@@ -8053,6 +8081,7 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
         /* CFC error attention */
         if (val & 0x2) {
             BLOGE(sc, "FATAL error from CFC\n");
+	    err_flg = TRUE;
         }
     }
 
@@ -8062,11 +8091,13 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
         /* RQ_USDMDP_FIFO_OVERFLOW */
         if (val & 0x18000) {
             BLOGE(sc, "FATAL error from PXP\n");
+	    err_flg = TRUE;
         }
 
         if (!CHIP_IS_E1x(sc)) {
             val = REG_RD(sc, PXP_REG_PXP_INT_STS_CLR_1);
             BLOGE(sc, "PXP hw attention-1 0x%08x\n", val);
+	    err_flg = TRUE;
         }
     }
 
@@ -8103,6 +8134,7 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
              */
             if (val0 & PXP2_EOP_ERROR_BIT) {
                 BLOGE(sc, "PXP2_WR_PGLUE_EOP_ERROR\n");
+		err_flg = TRUE;
 
                 /*
                  * if only PXP2_PXP2_INT_STS_0_REG_WR_PGLUE_EOP_ERROR is
@@ -8125,8 +8157,15 @@ bxe_attn_int_deasserted2(struct bxe_softc *sc,
 
         BLOGE(sc, "FATAL HW block attention set2 0x%x\n",
               (uint32_t)(attn & HW_INTERRUT_ASSERT_SET_2));
+	err_flg = TRUE;
         bxe_panic(sc, ("HW block attention set2\n"));
     }
+    if(err_flg) {
+        BXE_SET_ERROR_BIT(sc, BXE_ERR_GLOBAL);
+        taskqueue_enqueue_timeout(taskqueue_thread,
+           &sc->sp_err_timeout_task, hz/10);
+    }
+
 }
 
 static void
@@ -8136,6 +8175,7 @@ bxe_attn_int_deasserted1(struct bxe_softc *sc,
     int port = SC_PORT(sc);
     int reg_offset;
     uint32_t val;
+    boolean_t err_flg = FALSE;
 
     if (attn & AEU_INPUTS_ATTN_BITS_DOORBELLQ_HW_INTERRUPT) {
         val = REG_RD(sc, DORQ_REG_DORQ_INT_STS_CLR);
@@ -8143,6 +8183,7 @@ bxe_attn_int_deasserted1(struct bxe_softc *sc,
         /* DORQ discard attention */
         if (val & 0x2) {
             BLOGE(sc, "FATAL error from DORQ\n");
+	    err_flg = TRUE;
         }
     }
 
@@ -8156,8 +8197,15 @@ bxe_attn_int_deasserted1(struct bxe_softc *sc,
 
         BLOGE(sc, "FATAL HW block attention set1 0x%08x\n",
               (uint32_t)(attn & HW_INTERRUT_ASSERT_SET_1));
+        err_flg = TRUE;
         bxe_panic(sc, ("HW block attention set1\n"));
     }
+    if(err_flg) {
+        BXE_SET_ERROR_BIT(sc, BXE_ERR_MISC);
+        taskqueue_enqueue_timeout(taskqueue_thread,
+           &sc->sp_err_timeout_task, hz/10);
+    }
+
 }
 
 static void
@@ -8194,6 +8242,11 @@ bxe_attn_int_deasserted0(struct bxe_softc *sc,
         val &= ~(attn & HW_INTERRUT_ASSERT_SET_0);
         REG_WR(sc, reg_offset, val);
 
+
+        BXE_SET_ERROR_BIT(sc, BXE_ERR_MISC);
+        taskqueue_enqueue_timeout(taskqueue_thread,
+           &sc->sp_err_timeout_task, hz/10);
+
         bxe_panic(sc, ("FATAL HW block attention set0 0x%lx\n",
                        (attn & HW_INTERRUT_ASSERT_SET_0)));
     }
@@ -8223,10 +8276,12 @@ bxe_attn_int_deasserted(struct bxe_softc *sc,
          * In case of parity errors don't handle attentions so that
          * other function would "see" parity errors.
          */
-        sc->recovery_state = BXE_RECOVERY_INIT;
         // XXX schedule a recovery task...
         /* disable HW interrupts */
         bxe_int_disable(sc);
+        BXE_SET_ERROR_BIT(sc, BXE_ERR_PARITY);
+        taskqueue_enqueue_timeout(taskqueue_thread,
+           &sc->sp_err_timeout_task, hz/10);
         bxe_release_alr(sc);
         return;
     }
@@ -12356,6 +12411,259 @@ bxe_periodic_stop(struct bxe_softc *sc)
     callout_drain(&sc->periodic_callout);
 }
 
+void
+bxe_parity_recover(struct bxe_softc *sc)
+{
+    uint8_t global = FALSE;
+    uint32_t error_recovered, error_unrecovered;
+    bool is_parity;
+
+
+    if ((sc->recovery_state == BXE_RECOVERY_FAILED) &&
+        (sc->state == BXE_STATE_ERROR)) {
+        BLOGE(sc, "RECOVERY failed, "
+            "stack notified driver is NOT running! "
+            "Please reboot/power cycle the system.\n");
+        return;
+    }
+
+    while (1) {
+        BLOGD(sc, DBG_SP,
+           "%s sc=%p state=0x%x rec_state=0x%x error_status=%x\n",
+            __func__, sc, sc->state, sc->recovery_state, sc->error_status);
+
+        switch(sc->recovery_state) {
+
+        case BXE_RECOVERY_INIT:
+            is_parity = bxe_chk_parity_attn(sc, &global, FALSE);
+
+            if ((CHIP_PORT_MODE(sc) == CHIP_4_PORT_MODE) ||
+                (sc->error_status & BXE_ERR_MCP_ASSERT) ||
+                (sc->error_status & BXE_ERR_GLOBAL)) {
+
+                BXE_CORE_LOCK(sc);
+                if (if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) {
+                    bxe_periodic_stop(sc);
+                }
+                bxe_nic_unload(sc, UNLOAD_RECOVERY, false);
+                sc->state = BXE_STATE_ERROR;
+                sc->recovery_state = BXE_RECOVERY_FAILED;
+                BLOGE(sc, " No Recovery tried for error 0x%x"
+                    " stack notified driver is NOT running!"
+                    " Please reboot/power cycle the system.\n",
+                    sc->error_status);
+                BXE_CORE_UNLOCK(sc);
+                return;
+            }
+
+
+           /* Try to get a LEADER_LOCK HW lock */
+            if (bxe_trylock_leader_lock(sc)) {
+
+                bxe_set_reset_in_progress(sc);
+                /*
+                 * Check if there is a global attention and if
+                 * there was a global attention, set the global
+                 * reset bit.
+                 */
+                if (global) {
+                    bxe_set_reset_global(sc);
+                }
+                sc->is_leader = 1;
+            }
+
+            /* If interface has been removed - break */
+
+            if (if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) {
+                bxe_periodic_stop(sc);
+            }
+
+            BXE_CORE_LOCK(sc);
+            bxe_nic_unload(sc,UNLOAD_RECOVERY, false);
+            sc->recovery_state = BXE_RECOVERY_WAIT;
+            BXE_CORE_UNLOCK(sc);
+
+            /*
+             * Ensure "is_leader", MCP command sequence and
+             * "recovery_state" update values are seen on other
+             * CPUs.
+             */
+            mb();
+            break;
+        case BXE_RECOVERY_WAIT:
+
+            if (sc->is_leader) {
+                int other_engine = SC_PATH(sc) ? 0 : 1;
+                bool other_load_status =
+                    bxe_get_load_status(sc, other_engine);
+                bool load_status =
+                    bxe_get_load_status(sc, SC_PATH(sc));
+                global = bxe_reset_is_global(sc);
+
+                /*
+                 * In case of a parity in a global block, let
+                 * the first leader that performs a
+                 * leader_reset() reset the global blocks in
+                 * order to clear global attentions. Otherwise
+                 * the gates will remain closed for that
+                 * engine.
+                 */
+                if (load_status ||
+                    (global && other_load_status)) {
+                    /*
+                     * Wait until all other functions get
+                     * down.
+                     */
+                    taskqueue_enqueue_timeout(taskqueue_thread,
+                        &sc->sp_err_timeout_task, hz/10);
+                    return;
+                } else {
+                    /*
+                     * If all other functions got down
+                     * try to bring the chip back to
+                     * normal. In any case it's an exit
+                     * point for a leader.
+                     */
+                    if (bxe_leader_reset(sc)) {
+                        BLOGE(sc, "RECOVERY failed, "
+                            "stack notified driver is NOT running!\n");
+                        sc->recovery_state = BXE_RECOVERY_FAILED;
+                        sc->state = BXE_STATE_ERROR;
+                        mb();
+                        return;
+                    }
+
+                    /*
+                     * If we are here, means that the
+                     * leader has succeeded and doesn't
+                     * want to be a leader any more. Try
+                     * to continue as a none-leader.
+                     */
+                break;
+                }
+
+            } else { /* non-leader */
+                if (!bxe_reset_is_done(sc, SC_PATH(sc))) {
+                    /*
+                     * Try to get a LEADER_LOCK HW lock as
+                     * long as a former leader may have
+                     * been unloaded by the user or
+                     * released a leadership by another
+                     * reason.
+                     */
+                    if (bxe_trylock_leader_lock(sc)) {
+                        /*
+                         * I'm a leader now! Restart a
+                         * switch case.
+                         */
+                        sc->is_leader = 1;
+                        break;
+                    }
+
+                    taskqueue_enqueue_timeout(taskqueue_thread,
+                        &sc->sp_err_timeout_task, hz/10);
+                    return;
+
+                } else {
+                    /*
+                     * If there was a global attention, wait
+                     * for it to be cleared.
+                     */
+                    if (bxe_reset_is_global(sc)) {
+                        taskqueue_enqueue_timeout(taskqueue_thread,
+                            &sc->sp_err_timeout_task, hz/10);
+                        return;
+                     }
+
+                     error_recovered =
+                         sc->eth_stats.recoverable_error;
+                     error_unrecovered =
+                         sc->eth_stats.unrecoverable_error;
+                     BXE_CORE_LOCK(sc);
+                     sc->recovery_state =
+                         BXE_RECOVERY_NIC_LOADING;
+                     if (bxe_nic_load(sc, LOAD_NORMAL)) {
+                         error_unrecovered++;
+                         sc->recovery_state = BXE_RECOVERY_FAILED;
+                         sc->state = BXE_STATE_ERROR;
+                         BLOGE(sc, "Recovery is NOT successfull, "
+                            " state=0x%x recovery_state=0x%x error=%x\n",
+                            sc->state, sc->recovery_state, sc->error_status);
+                         sc->error_status = 0;
+                     } else {
+                         sc->recovery_state =
+                             BXE_RECOVERY_DONE;
+                         error_recovered++;
+                         BLOGI(sc, "Recovery is successfull from errors %x,"
+                            " state=0x%x"
+                            " recovery_state=0x%x \n", sc->error_status,
+                            sc->state, sc->recovery_state);
+                         mb();
+                     }
+                     sc->error_status = 0;
+                     BXE_CORE_UNLOCK(sc);
+                     sc->eth_stats.recoverable_error =
+                         error_recovered;
+                     sc->eth_stats.unrecoverable_error =
+                         error_unrecovered;
+
+                     return;
+                 }
+             }
+         default:
+             return;
+         }
+    }
+}
+void
+bxe_handle_error(struct bxe_softc * sc)
+{
+
+    if(sc->recovery_state == BXE_RECOVERY_WAIT) {
+        return;
+    }
+    if(sc->error_status) {
+        if (sc->state == BXE_STATE_OPEN)  {
+            bxe_int_disable(sc);
+        }
+        if (sc->link_vars.link_up) {
+            if_link_state_change(sc->ifp, LINK_STATE_DOWN);
+        }
+        sc->recovery_state = BXE_RECOVERY_INIT;
+        BLOGI(sc, "bxe%d: Recovery started errors 0x%x recovery state 0x%x\n",
+            sc->unit, sc->error_status, sc->recovery_state);
+        bxe_parity_recover(sc);
+   }
+}
+
+static void
+bxe_sp_err_timeout_task(void *arg, int pending)
+{
+
+    struct bxe_softc *sc = (struct bxe_softc *)arg;
+
+    BLOGD(sc, DBG_SP,
+        "%s state = 0x%x rec state=0x%x error_status=%x\n",
+        __func__, sc->state, sc->recovery_state, sc->error_status);
+
+    if((sc->recovery_state == BXE_RECOVERY_FAILED) &&
+       (sc->state == BXE_STATE_ERROR)) {
+        return;
+    }
+    /* if can be taken */
+    if ((sc->error_status) && (sc->trigger_grcdump)) {
+        bxe_grc_dump(sc);
+    }
+    if (sc->recovery_state != BXE_RECOVERY_DONE) {
+        bxe_handle_error(sc);
+        bxe_parity_recover(sc);
+    } else if (sc->error_status) {
+        bxe_handle_error(sc);
+    }
+
+    return;
+}
+
 /* start the controller */
 static __noinline int
 bxe_nic_load(struct bxe_softc *sc,
@@ -12636,6 +12944,15 @@ bxe_init_locked(struct bxe_softc *sc)
         BLOGD(sc, DBG_LOAD, "Init called while driver is running!\n");
         return (0);
     }
+
+    if((sc->state == BXE_STATE_ERROR) &&
+        (sc->recovery_state == BXE_RECOVERY_FAILED)) {
+        BLOGE(sc, "Initialization not done, "
+                  "as previous recovery failed."
+                  "Reboot/Power-cycle the system\n" );
+        return (ENXIO);
+    }
+
 
     bxe_set_power_state(sc, PCI_PM_D0);
 
@@ -16037,6 +16354,10 @@ bxe_attach(device_t dev)
     taskqueue_start_threads(&sc->chip_tq, 1, PWAIT, /* lower priority */
                             "%s", sc->chip_tq_name);
 
+    TIMEOUT_TASK_INIT(taskqueue_thread,
+        &sc->sp_err_timeout_task, 0, bxe_sp_err_timeout_task,  sc);
+
+
     /* get device info and set params */
     if (bxe_get_device_info(sc) != 0) {
         BLOGE(sc, "getting device info\n");
@@ -16212,6 +16533,8 @@ bxe_detach(device_t dev)
         taskqueue_drain(sc->chip_tq, &sc->chip_tq_task);
         taskqueue_free(sc->chip_tq);
         sc->chip_tq = NULL;
+        taskqueue_drain_timeout(taskqueue_thread,
+            &sc->sp_err_timeout_task);
     }
 
     /* stop and reset the controller if it was open */

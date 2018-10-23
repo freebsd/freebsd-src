@@ -643,7 +643,6 @@ static NAT64NOINLINE int
 nat64lsn_periodic_chkhost(struct nat64lsn_host *nh,
     struct nat64lsn_periodic_data *d)
 {
-	char a[INET6_ADDRSTRLEN];
 	struct nat64lsn_portgroup *pg;
 	struct nat64lsn_job_item *ji;
 	uint64_t delmask[NAT64LSN_PGPTRNMASK];
@@ -652,9 +651,13 @@ nat64lsn_periodic_chkhost(struct nat64lsn_host *nh,
 	delcount = 0;
 	memset(delmask, 0, sizeof(delmask));
 
-	inet_ntop(AF_INET6, &nh->addr, a, sizeof(a));
-	DPRINTF(DP_JQUEUE, "Checking %s host %s on cpu %d",
-	    stale_nh(d->cfg, nh) ? "stale" : "non-stale", a, curcpu);
+	if (V_nat64_debug & DP_JQUEUE) {
+		char a[INET6_ADDRSTRLEN];
+
+		inet_ntop(AF_INET6, &nh->addr, a, sizeof(a));
+		DPRINTF(DP_JQUEUE, "Checking %s host %s on cpu %d",
+		    stale_nh(d->cfg, nh) ? "stale" : "non-stale", a, curcpu);
+	}
 	if (!stale_nh(d->cfg, nh)) {
 		/* Non-stale host. Inspect internals */
 		NAT64_LOCK(nh);
@@ -1527,9 +1530,9 @@ nat64lsn_translate6(struct nat64lsn_cfg *cfg, struct ipfw_flow_id *f_id,
 		if (k++ > 1000) {
 			DPRINTF(DP_ALL, "XXX: too long %d/%d %d/%d\n",
 			    sidx.idx, sidx.off, st->next.idx, st->next.off);
-			inet_ntop(AF_INET6, &nh->addr, a, sizeof(a));
 			DPRINTF(DP_GENERIC, "TR host %s %p on cpu %d",
-			    a, nh, curcpu);
+			    inet_ntop(AF_INET6, &nh->addr, a, sizeof(a)),
+			    nh, curcpu);
 			k = 0;
 		}
 		sidx = st->next;
@@ -1542,10 +1545,10 @@ nat64lsn_translate6(struct nat64lsn_cfg *cfg, struct ipfw_flow_id *f_id,
 			/* No free states. Request more if we can */
 			if (nh->pg_used >= cfg->max_chunks) {
 				/* Limit reached */
-				inet_ntop(AF_INET6, &nh->addr, a, sizeof(a));
 				DPRINTF(DP_DROPS, "PG limit reached "
 				    " for host %s (used %u, allocated %u, "
-				    "limit %u)", a,
+				    "limit %u)", inet_ntop(AF_INET6,
+				    &nh->addr, a, sizeof(a)),
 				    nh->pg_used * NAT64_CHUNK_SIZE,
 				    nh->pg_allocated * NAT64_CHUNK_SIZE,
 				    cfg->max_chunks * NAT64_CHUNK_SIZE);

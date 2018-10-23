@@ -65,8 +65,6 @@ static int	ixl_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx,
 				      qidx_t budget);
 static int	ixl_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri);
 
-extern int	ixl_intr(void *arg);
-
 struct if_txrx ixl_txrx_hwb = {
 	ixl_isc_txd_encap,
 	ixl_isc_txd_flush,
@@ -75,7 +73,7 @@ struct if_txrx ixl_txrx_hwb = {
 	ixl_isc_rxd_pkt_get,
 	ixl_isc_rxd_refill,
 	ixl_isc_rxd_flush,
-	ixl_intr
+	NULL
 };
 
 struct if_txrx ixl_txrx_dwb = {
@@ -86,7 +84,7 @@ struct if_txrx ixl_txrx_dwb = {
 	ixl_isc_rxd_pkt_get,
 	ixl_isc_rxd_refill,
 	ixl_isc_rxd_flush,
-	ixl_intr
+	NULL
 };
 
 /*
@@ -131,6 +129,21 @@ i40e_vc_stat_str(struct i40e_hw *hw, enum virtchnl_status_code stat_err)
 
 	snprintf(hw->err_str, sizeof(hw->err_str), "%d", stat_err);
 	return hw->err_str;
+}
+
+void
+ixl_debug_core(device_t dev, u32 enabled_mask, u32 mask, char *fmt, ...)
+{
+	va_list args;
+
+	if (!(mask & enabled_mask))
+		return;
+
+	/* Re-implement device_printf() */
+	device_print_prettyname(dev);
+	va_start(args, fmt);
+	vprintf(fmt, args);
+	va_end(args);
 }
 
 static bool
@@ -236,6 +249,8 @@ ixl_tx_setup_offload(struct ixl_tx_queue *que,
 				*cmd |= I40E_TX_DESC_CMD_L4T_EOFT_TCP;
 				*off |= (pi->ipi_tcp_hlen >> 2) <<
 				    I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
+				/* Check for NO_HEAD MDD event */
+				MPASS(pi->ipi_tcp_hlen != 0);
 			}
 			break;
 		case IPPROTO_UDP:
@@ -268,22 +283,36 @@ ixl_tso_setup(struct tx_ring *txr, if_pkt_info_t pi)
 	if_softc_ctx_t			scctx;
 	struct i40e_tx_context_desc	*TXD;
 	u32				cmd, mss, type, tsolen;
-	int				idx;
+	int				idx, total_hdr_len;
 	u64				type_cmd_tso_mss;
 
 	idx = pi->ipi_pidx;
 	TXD = (struct i40e_tx_context_desc *) &txr->tx_base[idx];
-	tsolen = pi->ipi_len - (pi->ipi_ehdrlen + pi->ipi_ip_hlen + pi->ipi_tcp_hlen);
+	total_hdr_len = pi->ipi_ehdrlen + pi->ipi_ip_hlen + pi->ipi_tcp_hlen;
+	tsolen = pi->ipi_len - total_hdr_len;
 	scctx = txr->que->vsi->shared;
 
 	type = I40E_TX_DESC_DTYPE_CONTEXT;
 	cmd = I40E_TX_CTX_DESC_TSO;
-	/* TSO MSS must not be less than 64 */
+	/*
+	 * TSO MSS must not be less than 64; this prevents a
+	 * BAD_LSO_MSS MDD event when the MSS is too small.
+	 */
 	if (pi->ipi_tso_segsz < IXL_MIN_TSO_MSS) {
 		txr->mss_too_small++;
 		pi->ipi_tso_segsz = IXL_MIN_TSO_MSS;
 	}
 	mss = pi->ipi_tso_segsz;
+
+	/* Check for BAD_LS0_MSS MDD event (mss too large) */
+	MPASS(mss <= IXL_MAX_TSO_MSS);
+	/* Check for NO_HEAD MDD event (header lengths are 0) */
+	MPASS(pi->ipi_ehdrlen != 0);
+	MPASS(pi->ipi_ip_hlen != 0);
+	/* Partial check for BAD_LSO_LEN MDD event */
+	MPASS(tsolen != 0);
+	/* Partial check for WRONG_SIZE MDD event (during TSO) */
+	MPASS(total_hdr_len + mss <= IXL_MAX_FRAME);
 
 	type_cmd_tso_mss = ((u64)type << I40E_TXD_CTX_QW1_DTYPE_SHIFT) |
 	    ((u64)cmd << I40E_TXD_CTX_QW1_CMD_SHIFT) |
@@ -319,20 +348,16 @@ ixl_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	int             	i, j, mask, pidx_last;
 	u32			cmd, off, tx_intr;
 
-	// device_printf(iflib_get_dev(vsi->ctx), "%s: begin\n", __func__);
-
 	cmd = off = 0;
 	i = pi->ipi_pidx;
 
 	tx_intr = (pi->ipi_flags & IPI_TX_INTR);
-#if 0
-	device_printf(iflib_get_dev(vsi->ctx), "%s: tx_intr %d\n", __func__, tx_intr);
-#endif
 
 	/* Set up the TSO/CSUM offload */
 	if (pi->ipi_csum_flags & CSUM_OFFLOAD) {
 		/* Set up the TSO context descriptor if required */
 		if (pi->ipi_csum_flags & CSUM_TSO) {
+			/* Prevent MAX_BUFF MDD event (for TSO) */
 			if (ixl_tso_detect_sparse(segs, nsegs, pi))
 				return (EFBIG);
 			i = ixl_tso_setup(txr, pi);
@@ -344,11 +369,20 @@ ixl_isc_txd_encap(void *arg, if_pkt_info_t pi)
 
 	cmd |= I40E_TX_DESC_CMD_ICRC;
 	mask = scctx->isc_ntxd[0] - 1;
+	/* Check for WRONG_SIZE MDD event */
+	MPASS(pi->ipi_len >= IXL_MIN_FRAME);
+#ifdef INVARIANTS
+	if (!(pi->ipi_csum_flags & CSUM_TSO))
+		MPASS(pi->ipi_len <= IXL_MAX_FRAME);
+#endif
 	for (j = 0; j < nsegs; j++) {
 		bus_size_t seglen;
 
 		txd = &txr->tx_base[i];
 		seglen = segs[j].ds_len;
+
+		/* Check for ZERO_BSIZE MDD event */
+		MPASS(seglen != 0);
 
 		txd->buffer_addr = htole64(segs[j].ds_addr);
 		txd->cmd_type_offset_bsz =
@@ -387,6 +421,8 @@ ixl_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 	 * Advance the Transmit Descriptor Tail (Tdt), this tells the
 	 * hardware that this frame is available to transmit.
  	 */
+	/* Check for ENDLESS_TX MDD event */
+	MPASS(pidx < vsi->shared->isc_ntxd[0]);
 	wr32(vsi->hw, txr->tail, pidx);
 }
 
@@ -406,9 +442,7 @@ ixl_init_tx_ring(struct ixl_vsi *vsi, struct ixl_tx_queue *que)
 	      (sizeof(struct i40e_tx_desc)) *
 	      (vsi->shared->isc_ntxd[0] + (vsi->enable_head_writeback ? 1 : 0)));
 
-	// TODO: Write max descriptor index instead of 0?
 	wr32(vsi->hw, txr->tail, 0);
-	wr32(vsi->hw, I40E_QTX_HEAD(txr->me), 0);
 }
 
 /*
@@ -470,8 +504,13 @@ ixl_isc_txd_credits_update_dwb(void *arg, uint16_t txqid, bool clear)
 	MPASS(cur != QIDX_INVALID);
 	is_done = ixl_is_tx_desc_done(txr, cur);
 
-	if (clear == false || !is_done)
+	if (!is_done)
 		return (0);
+
+	/* If clear is false just let caller know that there
+	 * are descriptors to reclaim */
+	if (!clear)
+		return (1);
 
 	prev = txr->tx_cidx_processed;
 	ntxd = scctx->isc_ntxd[0];
@@ -546,14 +585,6 @@ ixl_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 	int cnt, i, nrxd;
 
 	nrxd = vsi->shared->isc_nrxd[0];
-
-	if (budget == 1) {
-		rxd = &rxr->rx_base[idx];
-		qword = le64toh(rxd->wb.qword1.status_error_len);
-		status = (qword & I40E_RXD_QW1_STATUS_MASK)
-			>> I40E_RXD_QW1_STATUS_SHIFT;
-		return !!(status & (1 << I40E_RX_DESC_STATUS_DD_SHIFT));
- 	}
 
 	for (cnt = 0, i = idx; cnt < nrxd - 1 && cnt <= budget;) {
 		rxd = &rxr->rx_base[i];
@@ -657,7 +688,7 @@ ixl_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		MPASS((status & (1 << I40E_RX_DESC_STATUS_DD_SHIFT)) != 0);
 
 		ri->iri_len += plen;
-		rxr->bytes += plen;
+		rxr->rx_bytes += plen;
 
 		cur->wb.qword1.status_error_len = 0;
 		eop = (status & (1 << I40E_RX_DESC_STATUS_EOF_SHIFT));
@@ -745,25 +776,179 @@ ixl_rx_checksum(if_rxd_info_t ri, u32 status, u32 error, u8 ptype)
 	ri->iri_csum_data |= htons(0xffff);
 }
 
+/* Set Report Status queue fields to 0 */
+void
+ixl_init_tx_rsqs(struct ixl_vsi *vsi)
+{
+	if_softc_ctx_t scctx = vsi->shared;
+	struct ixl_tx_queue *tx_que;
+	int i, j;
+
+	for (i = 0, tx_que = vsi->tx_queues; i < vsi->num_tx_queues; i++, tx_que++) {
+		struct tx_ring *txr = &tx_que->txr;
+
+		txr->tx_rs_cidx = txr->tx_rs_pidx = txr->tx_cidx_processed = 0;
+
+		for (j = 0; j < scctx->isc_ntxd[0]; j++)
+			txr->tx_rsq[j] = QIDX_INVALID;
+	}
+}
+
+void
+ixl_init_tx_cidx(struct ixl_vsi *vsi)
+{
+	struct ixl_tx_queue *tx_que;
+	int i;
+	
+	for (i = 0, tx_que = vsi->tx_queues; i < vsi->num_tx_queues; i++, tx_que++) {
+		struct tx_ring *txr = &tx_que->txr;
+
+		txr->tx_cidx_processed = 0;
+	}
+}
+
 /*
- * Input: bitmap of enum i40e_aq_link_speed
+ * Input: bitmap of enum virtchnl_link_speed
  */
 u64
-ixl_max_aq_speed_to_value(u8 link_speeds)
+ixl_max_vc_speed_to_value(u8 link_speeds)
 {
-	if (link_speeds & I40E_LINK_SPEED_40GB)
+	if (link_speeds & VIRTCHNL_LINK_SPEED_40GB)
 		return IF_Gbps(40);
-	if (link_speeds & I40E_LINK_SPEED_25GB)
+	if (link_speeds & VIRTCHNL_LINK_SPEED_25GB)
 		return IF_Gbps(25);
-	if (link_speeds & I40E_LINK_SPEED_20GB)
+	if (link_speeds & VIRTCHNL_LINK_SPEED_20GB)
 		return IF_Gbps(20);
-	if (link_speeds & I40E_LINK_SPEED_10GB)
+	if (link_speeds & VIRTCHNL_LINK_SPEED_10GB)
 		return IF_Gbps(10);
-	if (link_speeds & I40E_LINK_SPEED_1GB)
+	if (link_speeds & VIRTCHNL_LINK_SPEED_1GB)
 		return IF_Gbps(1);
-	if (link_speeds & I40E_LINK_SPEED_100MB)
+	if (link_speeds & VIRTCHNL_LINK_SPEED_100MB)
 		return IF_Mbps(100);
 	else
 		/* Minimum supported link speed */
 		return IF_Mbps(100);
+}
+
+void
+ixl_add_vsi_sysctls(device_t dev, struct ixl_vsi *vsi,
+    struct sysctl_ctx_list *ctx, const char *sysctl_name)
+{
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child;
+	struct sysctl_oid_list *vsi_list;
+
+	tree = device_get_sysctl_tree(dev);
+	child = SYSCTL_CHILDREN(tree);
+	vsi->vsi_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, sysctl_name,
+				   CTLFLAG_RD, NULL, "VSI Number");
+	vsi_list = SYSCTL_CHILDREN(vsi->vsi_node);
+
+	ixl_add_sysctls_eth_stats(ctx, vsi_list, &vsi->eth_stats);
+}
+
+void
+ixl_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
+	struct sysctl_oid_list *child,
+	struct i40e_eth_stats *eth_stats)
+{
+	struct ixl_sysctl_info ctls[] =
+	{
+		{&eth_stats->rx_bytes, "good_octets_rcvd", "Good Octets Received"},
+		{&eth_stats->rx_unicast, "ucast_pkts_rcvd",
+			"Unicast Packets Received"},
+		{&eth_stats->rx_multicast, "mcast_pkts_rcvd",
+			"Multicast Packets Received"},
+		{&eth_stats->rx_broadcast, "bcast_pkts_rcvd",
+			"Broadcast Packets Received"},
+		{&eth_stats->rx_discards, "rx_discards", "Discarded RX packets"},
+		{&eth_stats->tx_bytes, "good_octets_txd", "Good Octets Transmitted"},
+		{&eth_stats->tx_unicast, "ucast_pkts_txd", "Unicast Packets Transmitted"},
+		{&eth_stats->tx_multicast, "mcast_pkts_txd",
+			"Multicast Packets Transmitted"},
+		{&eth_stats->tx_broadcast, "bcast_pkts_txd",
+			"Broadcast Packets Transmitted"},
+		// end
+		{0,0,0}
+	};
+
+	struct ixl_sysctl_info *entry = ctls;
+	while (entry->stat != 0)
+	{
+		SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, entry->name,
+				CTLFLAG_RD, entry->stat,
+				entry->description);
+		entry++;
+	}
+}
+
+void
+ixl_add_queues_sysctls(device_t dev, struct ixl_vsi *vsi)
+{
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid_list *vsi_list, *queue_list;
+	struct sysctl_oid *queue_node;
+	char queue_namebuf[32];
+
+	struct ixl_rx_queue *rx_que;
+	struct ixl_tx_queue *tx_que;
+	struct tx_ring *txr;
+	struct rx_ring *rxr;
+
+	vsi_list = SYSCTL_CHILDREN(vsi->vsi_node);
+
+	/* Queue statistics */
+	for (int q = 0; q < vsi->num_rx_queues; q++) {
+		bzero(queue_namebuf, sizeof(queue_namebuf));
+		snprintf(queue_namebuf, QUEUE_NAME_LEN, "rxq%02d", q);
+		queue_node = SYSCTL_ADD_NODE(ctx, vsi_list,
+		    OID_AUTO, queue_namebuf, CTLFLAG_RD, NULL, "RX Queue #");
+		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		rx_que = &(vsi->rx_queues[q]);
+		rxr = &(rx_que->rxr);
+
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irqs",
+				CTLFLAG_RD, &(rx_que->irqs),
+				"irqs on this queue (both Tx and Rx)");
+
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "packets",
+				CTLFLAG_RD, &(rxr->rx_packets),
+				"Queue Packets Received");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "bytes",
+				CTLFLAG_RD, &(rxr->rx_bytes),
+				"Queue Bytes Received");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "desc_err",
+				CTLFLAG_RD, &(rxr->desc_errs),
+				"Queue Rx Descriptor Errors");
+		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "itr",
+				CTLFLAG_RD, &(rxr->itr), 0,
+				"Queue Rx ITR Interval");
+	}
+	for (int q = 0; q < vsi->num_tx_queues; q++) {
+		bzero(queue_namebuf, sizeof(queue_namebuf));
+		snprintf(queue_namebuf, QUEUE_NAME_LEN, "txq%02d", q);
+		queue_node = SYSCTL_ADD_NODE(ctx, vsi_list,
+		    OID_AUTO, queue_namebuf, CTLFLAG_RD, NULL, "TX Queue #");
+		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		tx_que = &(vsi->tx_queues[q]);
+		txr = &(tx_que->txr);
+
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tso",
+				CTLFLAG_RD, &(tx_que->tso),
+				"TSO");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "mss_too_small",
+				CTLFLAG_RD, &(txr->mss_too_small),
+				"TSO sends with an MSS less than 64");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "packets",
+				CTLFLAG_RD, &(txr->tx_packets),
+				"Queue Packets Transmitted");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "bytes",
+				CTLFLAG_RD, &(txr->tx_bytes),
+				"Queue Bytes Transmitted");
+		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "itr",
+				CTLFLAG_RD, &(txr->itr), 0,
+				"Queue Tx ITR Interval");
+	}
 }

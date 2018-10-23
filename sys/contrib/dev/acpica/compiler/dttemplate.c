@@ -546,7 +546,7 @@ DtCreateOneTemplate (
 
         AcpiOsPrintf (" (static data table)\n");
 
-        if (Gbl_VerboseTemplates)
+        if (AslGbl_VerboseTemplates)
         {
             AcpiOsPrintf (" * Format: [HexOffset DecimalOffset ByteLength]"
                 "  FieldName : HexFieldValue\n */\n\n");

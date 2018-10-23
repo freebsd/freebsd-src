@@ -615,6 +615,7 @@ struct ip_fw_rule {
 	ipfw_insn	cmd[1];		/* storage for commands		*/
 };
 #define	IPFW_RULE_NOOPT		0x01	/* Has no options in body	*/
+#define	IPFW_RULE_JUSTOPTS	0x02	/* new format of rule body	*/
 
 /* Unaligned version */
 

@@ -65,7 +65,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/vm.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
+#include <vm/vm_pagequeue.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -114,6 +119,8 @@ __FBSDID("$FreeBSD$");
  */
 
 LIST_HEAD(domainlist, domainset);
+struct domainset __read_mostly domainset_prefer[MAXMEMDOM];
+struct domainset __read_mostly domainset_roundrobin;
 
 static uma_zone_t cpuset_zone;
 static uma_zone_t domainset_zone;
@@ -451,6 +458,12 @@ _domainset_create(struct domainset *domain, struct domainlist *freelist)
 	struct domainset *ndomain;
 	int i, j, max;
 
+	KASSERT(domain->ds_cnt <= vm_ndomains,
+	    ("invalid domain count in domainset %p", domain));
+	KASSERT(domain->ds_policy != DOMAINSET_POLICY_PREFER ||
+	    domain->ds_prefer < vm_ndomains,
+	    ("invalid preferred domain in domains %p", domain));
+
 	mtx_lock_spin(&cpuset_lock);
 	LIST_FOREACH(ndomain, &cpuset_domains, ds_link)
 		if (domainset_equal(ndomain, domain))
@@ -476,6 +489,26 @@ _domainset_create(struct domainset *domain, struct domainlist *freelist)
 		uma_zfree(domainset_zone, domain);
 	return (ndomain);
 	
+}
+
+/*
+ * Are any of the domains in the mask empty? If so, silently
+ * remove them.  If only empty domains are present, we must
+ * return failure.
+ */
+static bool
+domainset_empty_vm(struct domainset *domain)
+{
+	int i, max;
+
+	max = DOMAINSET_FLS(&domain->ds_mask) + 1;
+	for (i = 0; i < max; i++) {
+		if (DOMAINSET_ISSET(i, &domain->ds_mask) &&
+		    VM_DOMAIN_EMPTY(i))
+			DOMAINSET_CLR(i, &domain->ds_mask);
+	}
+
+	return (DOMAINSET_EMPTY(&domain->ds_mask));
 }
 
 /*
@@ -1344,20 +1377,42 @@ cpuset_setithread(lwpid_t id, int cpu)
 }
 
 /*
+ * Initialize static domainsets after NUMA information is available.  This is
+ * called very early during boot.
+ */
+void
+domainset_init(void)
+{
+	struct domainset *dset;
+	int i;
+
+	dset = &domainset_roundrobin;
+	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
+	dset->ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
+	dset->ds_prefer = -1;
+	_domainset_create(dset, NULL);
+
+	for (i = 0; i < vm_ndomains; i++) {
+		dset = &domainset_prefer[i];
+		DOMAINSET_COPY(&all_domains, &dset->ds_mask);
+		dset->ds_policy = DOMAINSET_POLICY_PREFER;
+		dset->ds_prefer = i;
+		_domainset_create(dset, NULL);
+	}
+}
+
+/*
  * Create the domainset for cpuset 0, 1 and cpuset 2.
  */
 void
 domainset_zero(void)
 {
 	struct domainset *dset;
-	int i;
 
 	mtx_init(&cpuset_lock, "cpuset", NULL, MTX_SPIN | MTX_RECURSE);
 
 	dset = &domainset0;
-	DOMAINSET_ZERO(&dset->ds_mask);
-	for (i = 0; i < vm_ndomains; i++)
-		DOMAINSET_SET(i, &dset->ds_mask);
+	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
 	dset->ds_policy = DOMAINSET_POLICY_FIRSTTOUCH;
 	dset->ds_prefer = -1;
 	curthread->td_domain.dr_policy = _domainset_create(dset, NULL);
@@ -1365,6 +1420,10 @@ domainset_zero(void)
 	domainset_copy(dset, &domainset2);
 	domainset2.ds_policy = DOMAINSET_POLICY_INTERLEAVE;
 	kernel_object->domain.dr_policy = _domainset_create(&domainset2, NULL);
+
+	/* Remove empty domains from the global policies. */
+	LIST_FOREACH(dset, &cpuset_domains, ds_link)
+		(void)domainset_empty_vm(dset);
 }
 
 /*
@@ -2086,6 +2145,13 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		/* This will be constrained by domainset_shadow(). */
 		DOMAINSET_FILL(&domain.ds_mask);
 	}
+
+	/*
+	 *  When given an impossible policy, fall back to interleaving
+	 *  across all domains
+	 */
+	if (domainset_empty_vm(&domain))
+		domainset_copy(&domainset2, &domain);
 
 	switch (level) {
 	case CPU_LEVEL_ROOT:

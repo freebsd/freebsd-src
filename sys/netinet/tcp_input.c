@@ -800,7 +800,7 @@ findpcb:
 	if (ti_locked == TI_RLOCKED) {
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	} else {
-		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+		INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 	}
 #endif
 #ifdef INET6
@@ -1165,7 +1165,7 @@ tfo_socket_result:
 		 * causes.
 		 */
 		if (thflags & TH_RST) {
-			syncache_chkrst(&inc, th);
+			syncache_chkrst(&inc, th, m);
 			goto dropunlock;
 		}
 		/*
@@ -1358,7 +1358,7 @@ tfo_socket_result:
 			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
 			ti_locked = TI_UNLOCKED;
 		}
-		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+		INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 		return (IPPROTO_DONE);
 	} else if (tp->t_state == TCPS_LISTEN) {
 		/*
@@ -1405,7 +1405,7 @@ dropwithreset:
 	else {
 		KASSERT(ti_locked == TI_UNLOCKED, ("%s: dropwithreset "
 		    "ti_locked: %d", __func__, ti_locked));
-		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+		INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 	}
 #endif
 
@@ -1429,7 +1429,7 @@ dropunlock:
 	else {
 		KASSERT(ti_locked == TI_UNLOCKED, ("%s: dropunlock "
 		    "ti_locked: %d", __func__, ti_locked));
-		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+		INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 	}
 #endif
 
@@ -1437,7 +1437,7 @@ dropunlock:
 		INP_WUNLOCK(inp);
 
 drop:
-	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 	if (s != NULL)
 		free(s, M_TCPLOG);
 	if (m != NULL)

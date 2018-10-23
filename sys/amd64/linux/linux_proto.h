@@ -11,6 +11,7 @@
 #include <sys/signal.h>
 #include <sys/acl.h>
 #include <sys/cpuset.h>
+#include <sys/domainset.h>
 #include <sys/_ffcounter.h>
 #include <sys/_semaphore.h>
 #include <sys/ucontext.h>
@@ -66,8 +67,8 @@ struct linux_mmap2_args {
 };
 struct linux_mprotect_args {
 	char addr_l_[PADL_(caddr_t)]; caddr_t addr; char addr_r_[PADR_(caddr_t)];
-	char len_l_[PADL_(int)]; int len; char len_r_[PADR_(int)];
-	char prot_l_[PADL_(int)]; int prot; char prot_r_[PADR_(int)];
+	char len_l_[PADL_(l_int)]; l_int len; char len_r_[PADR_(l_int)];
+	char prot_l_[PADL_(l_int)]; l_int prot; char prot_r_[PADR_(l_int)];
 };
 struct linux_brk_args {
 	char dsend_l_[PADL_(l_ulong)]; l_ulong dsend; char dsend_r_[PADR_(l_ulong)];
@@ -173,8 +174,8 @@ struct linux_getpid_args {
 	register_t dummy;
 };
 struct linux_sendfile_args {
-	char out_l_[PADL_(int)]; int out; char out_r_[PADR_(int)];
-	char in_l_[PADL_(int)]; int in; char in_r_[PADR_(int)];
+	char out_l_[PADL_(l_int)]; l_int out; char out_r_[PADR_(l_int)];
+	char in_l_[PADL_(l_int)]; l_int in; char in_r_[PADR_(l_int)];
 	char offset_l_[PADL_(l_long *)]; l_long * offset; char offset_r_[PADR_(l_long *)];
 	char count_l_[PADL_(l_size_t)]; l_size_t count; char count_r_[PADR_(l_size_t)];
 };
@@ -281,7 +282,7 @@ struct linux_execve_args {
 	char envp_l_[PADL_(char **)]; char ** envp; char envp_r_[PADR_(char **)];
 };
 struct linux_exit_args {
-	char rval_l_[PADL_(int)]; int rval; char rval_r_[PADR_(int)];
+	char rval_l_[PADL_(l_int)]; l_int rval; char rval_r_[PADR_(l_int)];
 };
 struct linux_wait4_args {
 	char pid_l_[PADL_(l_pid_t)]; l_pid_t pid; char pid_r_[PADR_(l_pid_t)];
@@ -518,8 +519,8 @@ struct linux_sysfs_args {
 	char arg2_l_[PADL_(l_ulong)]; l_ulong arg2; char arg2_r_[PADR_(l_ulong)];
 };
 struct linux_getpriority_args {
-	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
-	char who_l_[PADL_(int)]; int who; char who_r_[PADR_(int)];
+	char which_l_[PADL_(l_int)]; l_int which; char which_r_[PADR_(l_int)];
+	char who_l_[PADL_(l_int)]; l_int who; char who_r_[PADR_(l_int)];
 };
 struct linux_sched_setparam_args {
 	char pid_l_[PADL_(l_pid_t)]; l_pid_t pid; char pid_r_[PADR_(l_pid_t)];
@@ -654,19 +655,19 @@ struct linux_fremovexattr_args {
 	register_t dummy;
 };
 struct linux_tkill_args {
-	char tid_l_[PADL_(int)]; int tid; char tid_r_[PADR_(int)];
-	char sig_l_[PADL_(int)]; int sig; char sig_r_[PADR_(int)];
+	char tid_l_[PADL_(l_int)]; l_int tid; char tid_r_[PADR_(l_int)];
+	char sig_l_[PADL_(l_int)]; l_int sig; char sig_r_[PADR_(l_int)];
 };
 struct linux_time_args {
 	char tm_l_[PADL_(l_time_t *)]; l_time_t * tm; char tm_r_[PADR_(l_time_t *)];
 };
 struct linux_sys_futex_args {
 	char uaddr_l_[PADL_(void *)]; void * uaddr; char uaddr_r_[PADR_(void *)];
-	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
-	char val_l_[PADL_(int)]; int val; char val_r_[PADR_(int)];
+	char op_l_[PADL_(l_int)]; l_int op; char op_r_[PADR_(l_int)];
+	char val_l_[PADL_(l_int)]; l_int val; char val_r_[PADR_(l_int)];
 	char timeout_l_[PADL_(struct l_timespec *)]; struct l_timespec * timeout; char timeout_r_[PADR_(struct l_timespec *)];
 	char uaddr2_l_[PADL_(void *)]; void * uaddr2; char uaddr2_r_[PADR_(void *)];
-	char val3_l_[PADL_(int)]; int val3; char val3_r_[PADR_(int)];
+	char val3_l_[PADL_(l_int)]; l_int val3; char val3_r_[PADR_(l_int)];
 };
 struct linux_sched_setaffinity_args {
 	char pid_l_[PADL_(l_pid_t)]; l_pid_t pid; char pid_r_[PADR_(l_pid_t)];
@@ -693,16 +694,16 @@ struct linux_getdents64_args {
 	char count_l_[PADL_(l_uint)]; l_uint count; char count_r_[PADR_(l_uint)];
 };
 struct linux_set_tid_address_args {
-	char tidptr_l_[PADL_(int *)]; int * tidptr; char tidptr_r_[PADR_(int *)];
+	char tidptr_l_[PADL_(l_int *)]; l_int * tidptr; char tidptr_r_[PADR_(l_int *)];
 };
 struct linux_semtimedop_args {
 	register_t dummy;
 };
 struct linux_fadvise64_args {
-	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
 	char offset_l_[PADL_(l_loff_t)]; l_loff_t offset; char offset_r_[PADR_(l_loff_t)];
 	char len_l_[PADL_(l_size_t)]; l_size_t len; char len_r_[PADR_(l_size_t)];
-	char advice_l_[PADL_(int)]; int advice; char advice_r_[PADR_(int)];
+	char advice_l_[PADL_(l_int)]; l_int advice; char advice_r_[PADR_(l_int)];
 };
 struct linux_timer_create_args {
 	char clock_id_l_[PADL_(clockid_t)]; clockid_t clock_id; char clock_id_r_[PADR_(clockid_t)];
@@ -744,7 +745,7 @@ struct linux_clock_nanosleep_args {
 	char rmtp_l_[PADL_(struct l_timespec *)]; struct l_timespec * rmtp; char rmtp_r_[PADR_(struct l_timespec *)];
 };
 struct linux_exit_group_args {
-	char error_code_l_[PADL_(int)]; int error_code; char error_code_r_[PADR_(int)];
+	char error_code_l_[PADL_(l_int)]; l_int error_code; char error_code_r_[PADR_(l_int)];
 };
 struct linux_epoll_wait_args {
 	char epfd_l_[PADL_(l_int)]; l_int epfd; char epfd_r_[PADR_(l_int)];
@@ -759,9 +760,9 @@ struct linux_epoll_ctl_args {
 	char event_l_[PADL_(struct epoll_event *)]; struct epoll_event * event; char event_r_[PADR_(struct epoll_event *)];
 };
 struct linux_tgkill_args {
-	char tgid_l_[PADL_(int)]; int tgid; char tgid_r_[PADR_(int)];
-	char pid_l_[PADL_(int)]; int pid; char pid_r_[PADR_(int)];
-	char sig_l_[PADL_(int)]; int sig; char sig_r_[PADR_(int)];
+	char tgid_l_[PADL_(l_int)]; l_int tgid; char tgid_r_[PADR_(l_int)];
+	char pid_l_[PADL_(l_int)]; l_int pid; char pid_r_[PADR_(l_int)];
+	char sig_l_[PADL_(l_int)]; l_int sig; char sig_r_[PADR_(l_int)];
 };
 struct linux_utimes_args {
 	char fname_l_[PADL_(char *)]; char * fname; char fname_r_[PADR_(char *)];
@@ -798,10 +799,10 @@ struct linux_kexec_load_args {
 	register_t dummy;
 };
 struct linux_waitid_args {
-	char idtype_l_[PADL_(int)]; int idtype; char idtype_r_[PADR_(int)];
+	char idtype_l_[PADL_(l_int)]; l_int idtype; char idtype_r_[PADR_(l_int)];
 	char id_l_[PADL_(l_pid_t)]; l_pid_t id; char id_r_[PADR_(l_pid_t)];
 	char info_l_[PADL_(l_siginfo_t *)]; l_siginfo_t * info; char info_r_[PADR_(l_siginfo_t *)];
-	char options_l_[PADL_(int)]; int options; char options_r_[PADR_(int)];
+	char options_l_[PADL_(l_int)]; l_int options; char options_r_[PADR_(l_int)];
 	char rusage_l_[PADL_(struct rusage *)]; struct rusage * rusage; char rusage_r_[PADR_(struct rusage *)];
 };
 struct linux_add_key_args {
@@ -1512,6 +1513,13 @@ int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
 #define	nosys	linux_nosys
 
 #endif /* COMPAT_FREEBSD10 */
+
+
+#ifdef COMPAT_FREEBSD11
+
+#define	nosys	linux_nosys
+
+#endif /* COMPAT_FREEBSD11 */
 
 #define	LINUX_SYS_AUE_linux_open	AUE_OPEN_RWTC
 #define	LINUX_SYS_AUE_linux_newstat	AUE_STAT

@@ -936,6 +936,8 @@ struct pmc_sample {
 	uint16_t		ps_flags;	/* other flags */
 	lwpid_t			ps_tid;		/* thread id */
 	pid_t			ps_pid;		/* process PID or -1 */
+	int		ps_ticks; /* ticks at sample time */
+	/* pad */
 	struct thread		*ps_td;		/* which thread */
 	struct pmc		*ps_pmc;	/* interrupting PMC */
 	uintptr_t		*ps_pc;		/* (const) callchain start */
@@ -943,16 +945,23 @@ struct pmc_sample {
 };
 
 #define 	PMC_SAMPLE_FREE		((uint16_t) 0)
-#define 	PMC_SAMPLE_INUSE	((uint16_t) 0xFFFF)
+#define 	PMC_USER_CALLCHAIN_PENDING	((uint16_t) 0xFFFF)
 
 struct pmc_samplebuffer {
-	struct pmc_sample * volatile ps_read;	/* read pointer */
-	struct pmc_sample * volatile ps_write;	/* write pointer */
+	volatile uint64_t		ps_prodidx; /* producer index */
+	volatile uint64_t		ps_considx; /* consumer index */
 	uintptr_t		*ps_callchains;	/* all saved call chains */
-	struct pmc_sample	*ps_fence;	/* one beyond ps_samples[] */
 	struct pmc_sample	ps_samples[];	/* array of sample entries */
 };
 
+#define PMC_CONS_SAMPLE(psb)					\
+	(&(psb)->ps_samples[(psb)->ps_considx & pmc_sample_mask])
+
+#define PMC_CONS_SAMPLE_OFF(psb, off)							\
+	(&(psb)->ps_samples[(off) & pmc_sample_mask])
+
+#define PMC_PROD_SAMPLE(psb)					\
+	(&(psb)->ps_samples[(psb)->ps_prodidx & pmc_sample_mask])
 
 /*
  * struct pmc_cpustate
@@ -1216,7 +1225,6 @@ int	pmc_save_user_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
 struct pmc_mdep *pmc_mdep_alloc(int nclasses);
 void pmc_mdep_free(struct pmc_mdep *md);
-void pmc_flush_samples(int cpu);
 uint64_t pmc_rdtsc(void);
 #endif /* _KERNEL */
 #endif /* _SYS_PMC_H_ */

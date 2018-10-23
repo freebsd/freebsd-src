@@ -285,7 +285,8 @@ random_fortuna_reseed_internal(uint32_t *entropy_data, u_int blockcount)
 	 */
 	randomdev_hash_init(&context);
 	randomdev_hash_iterate(&context, zero_region, RANDOM_ZERO_BLOCKSIZE);
-	randomdev_hash_iterate(&context, &fortuna_state.fs_key, sizeof(fortuna_state.fs_key));
+	randomdev_hash_iterate(&context, &fortuna_state.fs_key.key.keyMaterial,
+	    fortuna_state.fs_key.key.keyLen / 8);
 	randomdev_hash_iterate(&context, entropy_data, RANDOM_KEYSIZE*blockcount);
 	randomdev_hash_finish(&context, hash);
 	randomdev_hash_init(&context);
@@ -309,6 +310,8 @@ random_fortuna_genblocks(uint8_t *buf, u_int blockcount)
 	u_int i;
 
 	RANDOM_RESEED_ASSERT_LOCK_OWNED();
+	KASSERT(!uint128_is_zero(fortuna_state.fs_counter), ("FS&K: C != 0"));
+
 	for (i = 0; i < blockcount; i++) {
 		/*-
 		 * FS&K - r = r|E(K,C)
@@ -330,7 +333,7 @@ random_fortuna_genblocks(uint8_t *buf, u_int blockcount)
 static __inline void
 random_fortuna_genrandom(uint8_t *buf, u_int bytecount)
 {
-	static uint8_t temp[RANDOM_BLOCKSIZE*(RANDOM_KEYS_PER_BLOCK)];
+	uint8_t temp[RANDOM_BLOCKSIZE * RANDOM_KEYS_PER_BLOCK];
 	u_int blockcount;
 
 	RANDOM_RESEED_ASSERT_LOCK_OWNED();
@@ -365,11 +368,11 @@ random_fortuna_pre_read(void)
 	u_int i;
 
 	KASSERT(fortuna_state.fs_minpoolsize > 0, ("random: Fortuna threshold must be > 0"));
+	RANDOM_RESEED_LOCK();
 #ifdef _KERNEL
 	/* FS&K - Use 'getsbinuptime()' to prevent reseed-spamming. */
 	now = getsbinuptime();
 #endif
-	RANDOM_RESEED_LOCK();
 
 	if (fortuna_state.fs_pool[0].fsp_length >= fortuna_state.fs_minpoolsize
 #ifdef _KERNEL

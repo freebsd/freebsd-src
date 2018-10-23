@@ -8387,8 +8387,7 @@ sym_pci_probe(device_t dev)
 	chip = sym_find_pci_chip(dev);
 	if (chip && sym_find_firmware(chip)) {
 		device_set_desc(dev, chip->name);
-		return (chip->lp_probe_bit & SYM_SETUP_LP_PROBE_MAP)?
-		  BUS_PROBE_LOW_PRIORITY : BUS_PROBE_DEFAULT;
+		return BUS_PROBE_DEFAULT;
 	}
 	return ENXIO;
 }

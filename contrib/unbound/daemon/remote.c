@@ -275,12 +275,13 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 	struct addrinfo hints;
 	struct addrinfo* res;
 	struct listen_port* n;
-	int noproto;
+	int noproto = 0;
 	int fd, r;
 	char port[15];
 	snprintf(port, sizeof(port), "%d", nr);
 	port[sizeof(port)-1]=0;
 	memset(&hints, 0, sizeof(hints));
+	log_assert(ip);
 
 	if(ip[0] == '/') {
 		/* This looks like a local socket */
@@ -966,6 +967,8 @@ print_ext(RES* ssl, struct ub_stats_info* s)
 		(unsigned long)s->svr.qtcp)) return 0;
 	if(!ssl_printf(ssl, "num.query.tcpout"SQ"%lu\n", 
 		(unsigned long)s->svr.qtcp_outgoing)) return 0;
+	if(!ssl_printf(ssl, "num.query.tls"SQ"%lu\n", 
+		(unsigned long)s->svr.qtls)) return 0;
 	if(!ssl_printf(ssl, "num.query.ipv6"SQ"%lu\n", 
 		(unsigned long)s->svr.qipv6)) return 0;
 	/* flags */
@@ -1050,6 +1053,12 @@ print_ext(RES* ssl, struct ub_stats_info* s)
 		(unsigned long)s->svr.num_query_authzone_up)) return 0;
 	if(!ssl_printf(ssl, "num.query.authzone.down"SQ"%lu\n",
 		(unsigned long)s->svr.num_query_authzone_down)) return 0;
+#ifdef CLIENT_SUBNET
+	if(!ssl_printf(ssl, "num.query.subnet"SQ"%lu\n",
+		(unsigned long)s->svr.num_query_subnet)) return 0;
+	if(!ssl_printf(ssl, "num.query.subnet_cache"SQ"%lu\n",
+		(unsigned long)s->svr.num_query_subnet_cache)) return 0;
+#endif /* CLIENT_SUBNET */
 	return 1;
 }
 
@@ -1061,6 +1070,7 @@ do_stats(RES* ssl, struct daemon_remote* rc, int reset)
 	struct ub_stats_info total;
 	struct ub_stats_info s;
 	int i;
+	memset(&total, 0, sizeof(total));
 	log_assert(daemon->num > 0);
 	/* gather all thread statistics in one place */
 	for(i=0; i<daemon->num; i++) {
@@ -1625,6 +1635,7 @@ zone_del_msg(struct lruhash_entry* e, void* arg)
 		if(d->ttl > inf->expired) {
 			d->ttl = inf->expired;
 			d->prefetch_ttl = inf->expired;
+			d->serve_expired_ttl = inf->expired;
 			inf->num_msgs++;
 		}
 	}
@@ -1948,6 +1959,11 @@ parse_delegpt(RES* ssl, char* args, uint8_t* nm, int allow_names)
 				return NULL;
 			}
 		} else {
+#ifndef HAVE_SSL_SET1_HOST
+			if(auth_name)
+			  log_err("no name verification functionality in "
+				"ssl library, ignored name for %s", todo);
+#endif
 			/* add address */
 			if(!delegpt_add_addr_mlc(dp, &addr, addrlen, 0, 0,
 				auth_name)) {
@@ -2416,6 +2432,57 @@ do_log_reopen(RES* ssl, struct worker* worker)
 	log_init(cfg->logfile, cfg->use_syslog, cfg->chrootdir);
 }
 
+/** do the auth_zone_reload command */
+static void
+do_auth_zone_reload(RES* ssl, struct worker* worker, char* arg)
+{
+	size_t nmlen;
+	int nmlabs;
+	uint8_t* nm = NULL;
+	struct auth_zones* az = worker->env.auth_zones;
+	struct auth_zone* z = NULL;
+	if(!parse_arg_name(ssl, arg, &nm, &nmlen, &nmlabs))
+		return;
+	if(az) {
+		lock_rw_rdlock(&az->lock);
+		z = auth_zone_find(az, nm, nmlen, LDNS_RR_CLASS_IN);
+		if(z) {
+			lock_rw_wrlock(&z->lock);
+		}
+		lock_rw_unlock(&az->lock);
+	}
+	free(nm);
+	if(!z) {
+		(void)ssl_printf(ssl, "error no auth-zone %s\n", arg);
+		return;
+	}
+	if(!auth_zone_read_zonefile(z)) {
+		lock_rw_unlock(&z->lock);
+		(void)ssl_printf(ssl, "error failed to read %s\n", arg);
+		return;
+	}
+	lock_rw_unlock(&z->lock);
+	send_ok(ssl);
+}
+
+/** do the auth_zone_transfer command */
+static void
+do_auth_zone_transfer(RES* ssl, struct worker* worker, char* arg)
+{
+	size_t nmlen;
+	int nmlabs;
+	uint8_t* nm = NULL;
+	struct auth_zones* az = worker->env.auth_zones;
+	if(!parse_arg_name(ssl, arg, &nm, &nmlen, &nmlabs))
+		return;
+	if(!az || !auth_zones_startprobesequence(az, &worker->env, nm, nmlen,
+		LDNS_RR_CLASS_IN)) {
+		(void)ssl_printf(ssl, "error zone xfr task not found %s\n", arg);
+		return;
+	}
+	send_ok(ssl);
+}
+	
 /** do the set_option command */
 static void
 do_set_option(RES* ssl, struct worker* worker, char* arg)
@@ -2805,6 +2872,12 @@ execute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd,
 		return;
 	} else if(cmdcmp(p, "list_auth_zones", 15)) {
 		do_list_auth_zones(ssl, worker->env.auth_zones);
+		return;
+	} else if(cmdcmp(p, "auth_zone_reload", 16)) {
+		do_auth_zone_reload(ssl, worker, skipwhite(p+16));
+		return;
+	} else if(cmdcmp(p, "auth_zone_transfer", 18)) {
+		do_auth_zone_transfer(ssl, worker, skipwhite(p+18));
 		return;
 	} else if(cmdcmp(p, "stub_add", 8)) {
 		/* must always distribute this cmd */

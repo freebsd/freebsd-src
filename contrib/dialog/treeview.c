@@ -1,9 +1,9 @@
 /*
- *  $Id: treeview.c,v 1.24 2013/09/02 17:13:33 tom Exp $
+ *  $Id: treeview.c,v 1.32 2018/06/19 22:57:01 tom Exp $
  *
  *  treeview.c -- implements the treeview dialog
  *
- *  Copyright 2012,2013	Thomas E. Dickey
+ *  Copyright 2012-2016,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -67,19 +67,19 @@ print_item(ALL_DATA * data,
 			: item->text);
 
     /* Clear 'residue' of last item */
-    (void) wattrset(win, menubox_attr);
+    dlg_attrset(win, menubox_attr);
     (void) wmove(win, choice, 0);
     for (i = 0; i < data->use_width; i++)
 	(void) waddch(win, ' ');
 
     (void) wmove(win, choice, data->check_x);
-    (void) wattrset(win, selected ? check_selected_attr : check_attr);
+    dlg_attrset(win, selected ? check_selected_attr : check_attr);
     (void) wprintw(win,
 		   data->is_check ? "[%c]" : "(%c)",
 		   states[item->state]);
-    (void) wattrset(win, menubox_attr);
+    dlg_attrset(win, menubox_attr);
 
-    (void) wattrset(win, selected ? item_selected_attr : item_attr);
+    dlg_attrset(win, selected ? item_selected_attr : item_attr);
     for (i = 0; i < depths; ++i) {
 	int j;
 	(void) wmove(win, choice, data->item_x + INDENT * i);
@@ -94,7 +94,7 @@ print_item(ALL_DATA * data,
     if (selected) {
 	dlg_item_help(item->help);
     }
-    (void) wattrset(win, save);
+    dlg_attrset(win, save);
 }
 
 static void
@@ -185,6 +185,7 @@ dlg_treeview(const char *title,
 	DLG_KEYS_DATA( DLGK_PAGE_NEXT,	DLGK_MOUSE(KEY_NPAGE) ),
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,	KEY_PPAGE ),
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,	DLGK_MOUSE(KEY_PPAGE) ),
+	TOGGLEKEY_BINDINGS,
 	END_KEYS_BINDING
     };
     /* *INDENT-ON* */
@@ -214,6 +215,8 @@ dlg_treeview(const char *title,
     if (states == 0 || strlen(states) < 2)
 	states = " *";
     num_states = (int) strlen(states);
+
+    dialog_state.plain_buttons = TRUE;
 
     memset(&all, 0, sizeof(all));
     all.items = items;
@@ -276,7 +279,7 @@ dlg_treeview(const char *title,
     dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
     dlg_print_autowrap(dialog, prompt, height, width);
 
     all.use_width = width - 4;
@@ -372,7 +375,7 @@ dlg_treeview(const char *title,
 		choice = (key - KEY_MAX);
 		print_list(&all, choice, scrollamt, max_choice);
 
-		key = ' ';	/* force the selected item to toggle */
+		key = DLGK_TOGGLE;	/* force the selected item to toggle */
 	    } else {
 		beep();
 		continue;
@@ -385,7 +388,7 @@ dlg_treeview(const char *title,
 	/*
 	 * A space toggles the item status.
 	 */
-	if (key == ' ') {
+	if (key == DLGK_TOGGLE) {
 	    int current = scrollamt + choice;
 	    int next = items[current].state + 1;
 
@@ -529,6 +532,7 @@ dlg_treeview(const char *title,
 		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
+		dlg_will_resize(dialog);
 		/* reset data */
 		height = old_height;
 		width = old_width;
@@ -580,6 +584,16 @@ dialog_treeview(const char *title,
     bool show_status = FALSE;
     int current = 0;
     char *help_result;
+
+    DLG_TRACE(("# treeview args:\n"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("message", cprompt);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+    DLG_TRACE2N("lheight", list_height);
+    DLG_TRACE2N("llength", item_no);
+    /* FIXME dump the items[][] too */
+    DLG_TRACE2N("flag", flag);
 
     listitems = dlg_calloc(DIALOG_LISTITEM, (size_t) item_no + 1);
     assert_ptr(listitems, "dialog_treeview");

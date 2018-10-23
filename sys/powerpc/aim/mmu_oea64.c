@@ -2882,7 +2882,7 @@ moea64_scan_init(mmu_t mmu)
 			if (va == kmi.buffer_sva)
 				break;
 			pvo = moea64_pvo_find_va(kernel_pmap, va & ~ADDR_POFF);
-			if (pvo != NULL && !(pvo->pvo_vaddr & PVO_DEAD))
+			if (pvo == NULL || (pvo->pvo_vaddr & PVO_DEAD))
 				break;
 			va += PAGE_SIZE;
 		}

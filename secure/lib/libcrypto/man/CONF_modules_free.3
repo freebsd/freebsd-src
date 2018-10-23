@@ -128,30 +128,36 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "CONF_modules_free 3"
-.TH CONF_modules_free 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "CONF_MODULES_FREE 3"
+.TH CONF_MODULES_FREE 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-.Vb 2
-\& CONF_modules_free, CONF_modules_finish, CONF_modules_unload \-
-\& OpenSSL configuration cleanup functions
-.Ve
+CONF_modules_free, CONF_modules_finish, CONF_modules_unload \- OpenSSL configuration cleanup functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/conf.h>
 \&
-\& void CONF_modules_free(void);
 \& void CONF_modules_finish(void);
 \& void CONF_modules_unload(int all);
+.Ve
+.PP
+Deprecated:
+.PP
+.Vb 3
+\& #if OPENSSL_API_COMPAT < 0x10100000L
+\& void CONF_modules_free(void)
+\& #endif
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fICONF_modules_free()\fR closes down and frees up all memory allocated by all
-configuration modules.
+configuration modules.  Normally, in versions of OpenSSL prior to 1.1.0,
+applications called
+\&\fICONF_modules_free()\fR at exit to tidy up any configuration performed.
 .PP
 \&\fICONF_modules_finish()\fR calls each configuration modules \fBfinish\fR handler
 to free up any configuration that module may have performed.
@@ -159,18 +165,22 @@ to free up any configuration that module may have performed.
 \&\fICONF_modules_unload()\fR finishes and unloads configuration modules. If
 \&\fBall\fR is set to \fB0\fR only modules loaded from DSOs will be unloads. If
 \&\fBall\fR is \fB1\fR all modules, including builtin modules will be unloaded.
-.SH "NOTES"
-.IX Header "NOTES"
-Normally applications will only call \fICONF_modules_free()\fR at application to
-tidy up any configuration performed.
-.SH "RETURN VALUE"
-.IX Header "RETURN VALUE"
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
 None of the functions return a value.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIconf\fR\|(5), \fIOPENSSL_config\fR\|(3),
+\&\fIconfig\fR\|(5), \fIOPENSSL_config\fR\|(3),
 \&\fICONF_modules_load_file\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fICONF_modules_free()\fR, \fICONF_modules_unload()\fR, and \fICONF_modules_finish()\fR
-first appeared in OpenSSL 0.9.7.
+\&\fICONF_modules_free()\fR was deprecated in OpenSSL 1.1.0; do not use it.
+For more information see \fIOPENSSL_init_crypto\fR\|(3).
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2004\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

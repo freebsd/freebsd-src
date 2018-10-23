@@ -275,8 +275,9 @@ zstdio_init(size_t maxiosize, int level)
 	ZSTD_CCtx *dump_compressor;
 	struct zstdio_stream *s;
 	void *wkspc, *owkspc, *buffer;
-	size_t wkspc_size, buf_size;
+	size_t wkspc_size, buf_size, rc;
 
+	s = NULL;
 	wkspc_size = ZSTD_estimateCStreamSize(level);
 	owkspc = wkspc = malloc(wkspc_size + 8, M_COMPRESS,
 	    M_WAITOK | M_NODUMP);
@@ -286,12 +287,23 @@ zstdio_init(size_t maxiosize, int level)
 
 	dump_compressor = ZSTD_initStaticCCtx(wkspc, wkspc_size);
 	if (dump_compressor == NULL) {
-		free(owkspc, M_COMPRESS);
 		printf("%s: workspace too small.\n", __func__);
-		return (NULL);
+		goto out;
 	}
 
-	(void)ZSTD_CCtx_setParameter(dump_compressor, ZSTD_p_checksumFlag, 1);
+	rc = ZSTD_CCtx_setParameter(dump_compressor, ZSTD_p_checksumFlag, 1);
+	if (ZSTD_isError(rc)) {
+		printf("%s: error setting checksumFlag: %s\n", __func__,
+		    ZSTD_getErrorName(rc));
+		goto out;
+	}
+	rc = ZSTD_CCtx_setParameter(dump_compressor, ZSTD_p_compressionLevel,
+	    level);
+	if (ZSTD_isError(rc)) {
+		printf("%s: error setting compressLevel: %s\n", __func__,
+		    ZSTD_getErrorName(rc));
+		goto out;
+	}
 
 	buf_size = ZSTD_CStreamOutSize() * 2;
 	buffer = malloc(buf_size, M_COMPRESS, M_WAITOK | M_NODUMP);
@@ -306,6 +318,9 @@ zstdio_init(size_t maxiosize, int level)
 
 	zstdio_reset(s);
 
+out:
+	if (s == NULL)
+		free(owkspc, M_COMPRESS);
 	return (s);
 }
 

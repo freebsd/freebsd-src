@@ -1,7 +1,6 @@
 /* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from rmd-586.pl. */
 #ifdef PIC
-.file	"rmd-586.S"
 .text
 .globl	ripemd160_block_asm_data_order
 .type	ripemd160_block_asm_data_order,@function
@@ -1967,7 +1966,6 @@ ripemd160_block_asm_data_order:
 	ret
 .size	ripemd160_block_asm_data_order,.-.L_ripemd160_block_asm_data_order_begin
 #else
-.file	"rmd-586.S"
 .text
 .globl	ripemd160_block_asm_data_order
 .type	ripemd160_block_asm_data_order,@function

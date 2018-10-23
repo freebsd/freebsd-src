@@ -729,9 +729,9 @@ ig4iic_intr(void *cookie)
 	 * Workaround to trigger pending interrupt if IG4_REG_INTR_STAT
 	 * is changed after clearing it
 	 */
-	if(sc->access_intr_mask) {
+	if (sc->access_intr_mask != 0) {
 		status = reg_read(sc, IG4_REG_INTR_MASK);
-		if(status) {
+		if (status != 0) {
 			reg_write(sc, IG4_REG_INTR_MASK, 0);
 			reg_write(sc, IG4_REG_INTR_MASK, status);
 		}

@@ -270,11 +270,17 @@ nm_os_send_up(struct ifnet *ifp, struct mbuf *m, struct mbuf *prev)
 }
 
 int
-nm_os_mbuf_has_offld(struct mbuf *m)
+nm_os_mbuf_has_csum_offld(struct mbuf *m)
 {
 	return m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_SCTP |
 					 CSUM_TCP_IPV6 | CSUM_UDP_IPV6 |
-					 CSUM_SCTP_IPV6 | CSUM_TSO);
+					 CSUM_SCTP_IPV6);
+}
+
+int
+nm_os_mbuf_has_seg_offld(struct mbuf *m)
+{
+	return m->m_pkthdr.csum_flags & CSUM_TSO;
 }
 
 static void
@@ -632,7 +638,7 @@ struct nm_os_extmem {
 void
 nm_os_extmem_delete(struct nm_os_extmem *e)
 {
-	D("freeing %jx bytes", (uintmax_t)e->size);
+	D("freeing %zx bytes", (size_t)e->size);
 	vm_map_remove(kernel_map, e->kva, e->kva + e->size);
 	nm_os_free(e);
 }
@@ -701,7 +707,7 @@ nm_os_extmem_create(unsigned long p, struct nmreq_pools_info *pi, int *perror)
 			VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 			VM_PROT_READ | VM_PROT_WRITE, 0);
 	if (rv != KERN_SUCCESS) {
-		D("vm_map_find(%jx) failed", (uintmax_t)e->size);
+		D("vm_map_find(%zx) failed", (size_t)e->size);
 		goto out_rel;
 	}
 	rv = vm_map_wire(kernel_map, e->kva, e->kva + e->size,
@@ -1538,6 +1544,30 @@ out:
 	CURVNET_RESTORE();
 
 	return error;
+}
+
+void
+nm_os_onattach(struct ifnet *ifp)
+{
+}
+
+void
+nm_os_onenter(struct ifnet *ifp)
+{
+	struct netmap_adapter *na = NA(ifp);
+
+	na->if_transmit = ifp->if_transmit;
+	ifp->if_transmit = netmap_transmit;
+	ifp->if_capenable |= IFCAP_NETMAP;
+}
+
+void
+nm_os_onexit(struct ifnet *ifp)
+{
+	struct netmap_adapter *na = NA(ifp);
+
+	ifp->if_transmit = na->if_transmit;
+	ifp->if_capenable &= ~IFCAP_NETMAP;
 }
 
 extern struct cdevsw netmap_cdevsw; /* XXX used in netmap.c, should go elsewhere */

@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #define	SBUFLEN	128
 #define	USAGE \
-	"usage: ktrdump [-cfqrtH] [-i ktrfile] [-M core] [-N system] [-o outfile]\n"
+	"usage: ktrdump [-cflqrtH] [-i ktrfile] [-M core] [-N system] [-o outfile]\n"
 
 static void usage(void);
 
@@ -65,6 +65,7 @@ static struct nlist nl[] = {
 
 static int cflag;
 static int fflag;
+static int lflag;
 static int Mflag;
 static int Nflag;
 static int qflag;
@@ -111,7 +112,7 @@ main(int ac, char **av)
 	 * Parse commandline arguments.
 	 */
 	out = stdout;
-	while ((c = getopt(ac, av, "cfqrtHe:i:m:M:N:o:")) != -1)
+	while ((c = getopt(ac, av, "cflqrtHe:i:m:M:N:o:")) != -1)
 		switch (c) {
 		case 'c':
 			cflag = 1;
@@ -135,6 +136,9 @@ main(int ac, char **av)
 			    errno != ENOSYS)
 				err(1, "unable to limit rights for %s",
 				    optarg);
+			break;
+		case 'l':
+			lflag = 1;
 			break;
 		case 'M':
 		case 'm':
@@ -169,9 +173,10 @@ main(int ac, char **av)
 	if (ac != 0)
 		usage();
 
-	cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
-	if (cap_rights_limit(fileno(out), &rights) < 0 && errno != ENOSYS)
+	if (caph_limit_stream(fileno(out), CAPH_WRITE) < 0)
 		err(1, "unable to limit rights for %s", outfile);
+	if (caph_limit_stderr() < 0)
+		err(1, "unable to limit rights for stderr");
 
 	/*
 	 * Open our execfile and corefile, resolve needed symbols and read in
@@ -258,15 +263,29 @@ main(int ac, char **av)
 		fprintf(out, "\n");
 	}
 
+	tlast = -1;
 	/*
 	 * Now tear through the trace buffer.
+	 *
+	 * In "live" mode, find the oldest entry (first non-NULL entry
+	 * after index2) and walk forward.  Otherwise, start with the
+	 * most recent entry and walk backwards.
 	 */
 	if (!iflag) {
-		i = index - 1;
-		if (i < 0)
-			i = entries - 1;
+		if (lflag) {
+			i = index2 + 1 % entries;
+			while (buf[i].ktr_desc == NULL && i != index) {
+				i++;
+				if (i == entries)
+					i = 0;
+			}
+		} else {
+			i = index - 1;
+			if (i < 0)
+				i = entries - 1;
+		}
 	}
-	tlast = -1;
+dump_entries:
 	for (;;) {
 		if (buf[i].ktr_desc == NULL)
 			break;
@@ -338,14 +357,40 @@ next:			if ((c = *p++) == '\0')
 			 * 'index2' were in flux while the KTR buffer was
 			 * being copied to userspace we don't dump them.
 			 */
-			if (i == index2)
-				break;
-			if (--i < 0)
-				i = entries - 1;
+			if (lflag) {
+				if (++i == entries)
+					i = 0;
+				if (i == index)
+					break;
+			} else {
+				if (i == index2)
+					break;
+				if (--i < 0)
+					i = entries - 1;
+			}
 		} else {
 			if (++i == entries)
 				break;
 		}
+	}
+
+	/*
+	 * In "live" mode, poll 'ktr_idx' periodically and dump any
+	 * new entries since our last pass through the ring.
+	 */
+	if (lflag && !iflag) {
+		while (index == index2) {
+			usleep(50 * 1000);
+			if (kvm_read(kd, nl[2].n_value, &index2,
+			    sizeof(index2)) == -1)
+				errx(1, "%s", kvm_geterr(kd));
+		}
+		i = index;
+		index = index2;
+		if (kvm_read(kd, bufptr, buf, sizeof(*buf) * entries) == -1 ||
+		    kvm_read(kd, nl[2].n_value, &index2, sizeof(index2)) == -1)
+			errx(1, "%s", kvm_geterr(kd));
+		goto dump_entries;
 	}
 
 	return (0);

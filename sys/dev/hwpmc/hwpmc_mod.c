@@ -211,7 +211,7 @@ static int	pmc_debugflags_parse(char *newstr, char *fence);
 #endif
 
 static int	load(struct module *module, int cmd, void *arg);
-static int	pmc_add_sample(int ring, struct pmc *pm, struct trapframe *tf);
+static int	pmc_add_sample(ring_type_t ring, struct pmc *pm, struct trapframe *tf);
 static void	pmc_add_thread_descriptors_from_proc(struct proc *p,
     struct pmc_process *pp);
 static int	pmc_attach_process(struct proc *p, struct pmc *pm);
@@ -249,7 +249,7 @@ static void	pmc_process_csw_out(struct thread *td);
 static void	pmc_process_exit(void *arg, struct proc *p);
 static void	pmc_process_fork(void *arg, struct proc *p1,
     struct proc *p2, int n);
-static void	pmc_process_samples(int cpu, int soft);
+static void	pmc_process_samples(int cpu, ring_type_t soft);
 static void	pmc_release_pmc_descriptor(struct pmc *pmc);
 static void	pmc_process_thread_add(struct thread *td);
 static void	pmc_process_thread_delete(struct thread *td);
@@ -342,6 +342,7 @@ static int pmc_nsamples = PMC_NSAMPLES;
 SYSCTL_INT(_kern_hwpmc, OID_AUTO, nsamples, CTLFLAG_RDTUN,
     &pmc_nsamples, 0, "number of PC samples per CPU");
 
+static uint64_t pmc_sample_mask = PMC_NSAMPLES-1;
 
 /*
  * kern.hwpmc.mtxpoolsize -- number of mutexes in the mutex pool.
@@ -1402,6 +1403,10 @@ pmc_process_csw_in(struct thread *td)
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;
 
+		KASSERT(counter_u64_fetch(pm->pm_runcount) >= 0,
+	    ("[pmc,%d] pm=%p runcount %ld", __LINE__, (void *) pm,
+		 (unsigned long)counter_u64_fetch(pm->pm_runcount)));
+
 		/* increment PMC runcount */
 		counter_u64_add(pm->pm_runcount, 1);
 
@@ -1595,6 +1600,10 @@ pmc_process_csw_out(struct thread *td)
 		pm->pm_pcpu_state[cpu].pps_cpustate = 0;
 		if (pm->pm_pcpu_state[cpu].pps_stalled == 0)
 			pcd->pcd_stop_pmc(cpu, adjri);
+
+		KASSERT(counter_u64_fetch(pm->pm_runcount) > 0,
+			("[pmc,%d] pm=%p runcount %ld", __LINE__, (void *) pm,
+			 (unsigned long)counter_u64_fetch(pm->pm_runcount)));
 
 		/* reduce this PMC's runcount */
 		counter_u64_add(pm->pm_runcount, -1);
@@ -2725,7 +2734,7 @@ pmc_destroy_pmc_descriptor(struct pmc *pm)
 static void
 pmc_wait_for_pmc_idle(struct pmc *pm)
 {
-#ifdef HWPMC_DEBUG
+#ifdef INVARIANTS
 	volatile int maxloop;
 
 	maxloop = 100 * pmc_cpu_max();
@@ -2737,7 +2746,7 @@ pmc_wait_for_pmc_idle(struct pmc *pm)
 	pmclog_flush(pm->pm_owner, 1);
 	while (counter_u64_fetch(pm->pm_runcount) > 0) {
 		pmclog_flush(pm->pm_owner, 1);
-#ifdef HWPMC_DEBUG
+#ifdef INVARIANTS
 		maxloop--;
 		KASSERT(maxloop > 0,
 		    ("[pmc,%d] (ri%d, rc%ld) waiting too long for "
@@ -4657,7 +4666,7 @@ pmc_post_callchain_callback(void)
  */
 
 static int
-pmc_add_sample(int ring, struct pmc *pm, struct trapframe *tf)
+pmc_add_sample(ring_type_t ring, struct pmc *pm, struct trapframe *tf)
 {
 	int error, cpu, callchaindepth, inuserspace;
 	struct thread *td;
@@ -4672,18 +4681,15 @@ pmc_add_sample(int ring, struct pmc *pm, struct trapframe *tf)
 	cpu = curcpu;
 	psb = pmc_pcpu[cpu]->pc_sb[ring];
 	inuserspace = TRAPF_USERMODE(tf);
-	ps = psb->ps_write;
-	if (ps->ps_nsamples == PMC_SAMPLE_INUSE) {
-		counter_u64_add(ps->ps_pmc->pm_runcount, -1);
-		counter_u64_add(pmc_stats.pm_overwrites, 1);
-		ps->ps_nsamples = 0;
-	} else if (ps->ps_nsamples) {	/* in use, reader hasn't caught up */
+	ps = PMC_PROD_SAMPLE(psb);
+	if (psb->ps_considx != psb->ps_prodidx &&
+		ps->ps_nsamples) {	/* in use, reader hasn't caught up */
 		pm->pm_pcpu_state[cpu].pps_stalled = 1;
 		counter_u64_add(pmc_stats.pm_intr_bufferfull, 1);
 		PMCDBG6(SAM,INT,1,"(spc) cpu=%d pm=%p tf=%p um=%d wr=%d rd=%d",
 		    cpu, pm, (void *) tf, inuserspace,
-		    (int) (psb->ps_write - psb->ps_samples),
-		    (int) (psb->ps_read - psb->ps_samples));
+		    (int) (psb->ps_prodidx & pmc_sample_mask),
+		    (int) (psb->ps_considx & pmc_sample_mask));
 		callchaindepth = 1;
 		error = ENOMEM;
 		goto done;
@@ -4692,14 +4698,8 @@ pmc_add_sample(int ring, struct pmc *pm, struct trapframe *tf)
 	/* Fill in entry. */
 	PMCDBG6(SAM,INT,1,"cpu=%d pm=%p tf=%p um=%d wr=%d rd=%d", cpu, pm,
 	    (void *) tf, inuserspace,
-	    (int) (psb->ps_write - psb->ps_samples),
-	    (int) (psb->ps_read - psb->ps_samples));
-
-	KASSERT(counter_u64_fetch(pm->pm_runcount) >= 0,
-	    ("[pmc,%d] pm=%p runcount %ld", __LINE__, (void *) pm,
-		 (unsigned long)counter_u64_fetch(pm->pm_runcount)));
-
-	counter_u64_add(pm->pm_runcount, 1);	/* hold onto PMC */
+	    (int) (psb->ps_prodidx & pmc_sample_mask),
+	    (int) (psb->ps_considx & pmc_sample_mask));
 
 	td = curthread;
 	ps->ps_pmc = pm;
@@ -4707,13 +4707,14 @@ pmc_add_sample(int ring, struct pmc *pm, struct trapframe *tf)
 	ps->ps_pid = td->td_proc->p_pid;
 	ps->ps_tid = td->td_tid;
 	ps->ps_tsc = pmc_rdtsc();
-
+	ps->ps_ticks = ticks;
 	ps->ps_cpu = cpu;
 	ps->ps_flags = inuserspace ? PMC_CC_F_USERSPACE : 0;
 
 	callchaindepth = (pm->pm_flags & PMC_F_CALLCHAIN) ?
 	    pmc_callchaindepth : 1;
 
+	MPASS(ps->ps_pc != NULL);
 	if (callchaindepth == 1)
 		ps->ps_pc[0] = PMC_TRAPFRAME_TO_PC(tf);
 	else {
@@ -4727,26 +4728,27 @@ pmc_add_sample(int ring, struct pmc *pm, struct trapframe *tf)
 				callchaindepth, tf);
 		} else {
 			pmc_post_callchain_callback();
-			callchaindepth = PMC_SAMPLE_INUSE;
+			callchaindepth = PMC_USER_CALLCHAIN_PENDING;
 		}
 	}
 
 	ps->ps_nsamples = callchaindepth;	/* mark entry as in use */
 	if (ring == PMC_UR) {
 		ps->ps_nsamples_actual = callchaindepth;	/* mark entry as in use */
-		ps->ps_nsamples = PMC_SAMPLE_INUSE;
+		ps->ps_nsamples = PMC_USER_CALLCHAIN_PENDING;
 	} else
 		ps->ps_nsamples = callchaindepth;	/* mark entry as in use */
-	/* increment write pointer, modulo ring buffer size */
-	ps++;
-	if (ps == psb->ps_fence)
-		psb->ps_write = psb->ps_samples;
-	else
-		psb->ps_write = ps;
 
+	KASSERT(counter_u64_fetch(pm->pm_runcount) >= 0,
+	    ("[pmc,%d] pm=%p runcount %ld", __LINE__, (void *) pm,
+		 (unsigned long)counter_u64_fetch(pm->pm_runcount)));
+
+	counter_u64_add(pm->pm_runcount, 1);	/* hold onto PMC */
+	/* increment write pointer */
+	psb->ps_prodidx++;
  done:
 	/* mark CPU as needing processing */
-	if (callchaindepth != PMC_SAMPLE_INUSE)
+	if (callchaindepth != PMC_USER_CALLCHAIN_PENDING)
 		DPCPU_SET(pmc_sampled, 1);
 
 	return (error);
@@ -4785,14 +4787,15 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 {
 	struct pmc *pm;
 	struct thread *td;
-	struct pmc_sample *ps, *ps_end;
+	struct pmc_sample *ps;
 	struct pmc_samplebuffer *psb;
-	int nsamples, nrecords, pass;
+	uint64_t considx, prodidx;
+	int nsamples, nrecords, pass, iter;
 #ifdef	INVARIANTS
 	int ncallchains;
 	int nfree;
+	int start_ticks = ticks;
 #endif
-
 	psb = pmc_pcpu[cpu]->pc_sb[ring];
 	td = curthread;
 
@@ -4810,29 +4813,30 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 	if (ring == PMC_UR)
 		nrecords = atomic_readandclear_32(&td->td_pmcpend);
 
+	for (iter = 0, considx = psb->ps_considx, prodidx = psb->ps_prodidx;
+	    considx < prodidx && iter < pmc_nsamples; considx++, iter++) {
+		ps = PMC_CONS_SAMPLE_OFF(psb, considx);
+
 	/*
 	 * Iterate through all deferred callchain requests.
 	 * Walk from the current read pointer to the current
 	 * write pointer.
 	 */
 
-	ps = psb->ps_read;
-	ps_end = psb->ps_write;
-	do {
 #ifdef	INVARIANTS
 		if (ps->ps_nsamples == PMC_SAMPLE_FREE) {
 			nfree++;
-			goto next;
+			continue;
 		}
 
 		if ((ps->ps_pmc == NULL) ||
 		    (ps->ps_pmc->pm_state != PMC_STATE_RUNNING))
 			nfree++;
 #endif
-		if (ps->ps_nsamples != PMC_SAMPLE_INUSE)
-			goto next;
-		if (ps->ps_td != td)
-			goto next;
+		if (ps->ps_td != td ||
+		   ps->ps_nsamples == PMC_USER_CALLCHAIN_PENDING ||
+		   ps->ps_pmc->pm_state != PMC_STATE_RUNNING)
+			continue;
 
 		KASSERT(ps->ps_cpu == cpu,
 		    ("[pmc,%d] cpu mismatch ps_cpu=%d pcpu=%d", __LINE__,
@@ -4865,15 +4869,28 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 		if (__predict_true(nsamples < pmc_callchaindepth - 1))
 			nsamples += pmc_save_user_callchain(ps->ps_pc + nsamples,
 		       pmc_callchaindepth - nsamples - 1, tf);
-		wmb();
-		ps->ps_nsamples = nsamples;
+
+		/*
+		 * We have to prevent hardclock from potentially overwriting
+		 * this sample between when we read the value and when we set
+		 * it
+		 */
+		spinlock_enter();
+		/*
+		 * Verify that the sample hasn't been dropped in the meantime
+		 */
+		if (ps->ps_nsamples == PMC_USER_CALLCHAIN_PENDING) {
+			ps->ps_nsamples = nsamples;
+			/*
+			 * If we couldn't get a sample, simply drop the reference
+			 */
+			if (nsamples == 0)
+				counter_u64_add(pm->pm_runcount, -1);
+		}
+		spinlock_exit();
 		if (nrecords-- == 1)
 			break;
-next:
-		/* increment the pointer, modulo sample ring size */
-		if (++ps == psb->ps_fence)
-			ps = psb->ps_samples;
-	} while (ps != ps_end);
+	}
 	if (__predict_false(ring == PMC_UR && td->td_pmcpend)) {
 		if (pass == 0) {
 			pass = 1;
@@ -4884,60 +4901,20 @@ next:
 	}
 
 #ifdef INVARIANTS
-	if (ring == PMC_HR)
-		KASSERT(ncallchains > 0 || nfree > 0,
-		    ("[pmc,%d] cpu %d didn't find a sample to collect", __LINE__,
-			    cpu));
+	if ((ticks - start_ticks) > hz)
+		log(LOG_ERR, "%s took %d ticks\n", __func__, (ticks - start_ticks));
 #endif
 
 	/* mark CPU as needing processing */
 	DPCPU_SET(pmc_sampled, 1);
 }
 
-
-static void
-pmc_flush_ring(int cpu, int ring)
-{
-	struct pmc *pm;
-	struct pmc_sample *ps;
-	struct pmc_samplebuffer *psb;
-	int n;
-
-	psb = pmc_pcpu[cpu]->pc_sb[ring];
-
-	for (n = 0; n < pmc_nsamples; n++) { /* bound on #iterations */
-
-		ps = psb->ps_read;
-		if (ps->ps_nsamples == PMC_SAMPLE_FREE)
-			goto next;
-		pm = ps->ps_pmc;
-		counter_u64_add(pm->pm_runcount, -1);
-		ps->ps_nsamples = PMC_SAMPLE_FREE;
-		/* increment read pointer, modulo sample size */
-	next:
-		if (++ps == psb->ps_fence)
-			psb->ps_read = psb->ps_samples;
-		else
-			psb->ps_read = ps;
-	}
-}
-
-void
-pmc_flush_samples(int cpu)
-{
-	int n;
-
-	for (n = 0; n < PMC_NUM_SR; n++)
-		pmc_flush_ring(cpu, n);
-}
-
-
 /*
  * Process saved PC samples.
  */
 
 static void
-pmc_process_samples(int cpu, int ring)
+pmc_process_samples(int cpu, ring_type_t ring)
 {
 	struct pmc *pm;
 	int adjri, n;
@@ -4946,20 +4923,25 @@ pmc_process_samples(int cpu, int ring)
 	struct pmc_sample *ps;
 	struct pmc_classdep *pcd;
 	struct pmc_samplebuffer *psb;
+	uint64_t delta;
 
 	KASSERT(PCPU_GET(cpuid) == cpu,
 	    ("[pmc,%d] not on the correct CPU pcpu=%d cpu=%d", __LINE__,
 		PCPU_GET(cpuid), cpu));
 
 	psb = pmc_pcpu[cpu]->pc_sb[ring];
+	delta = psb->ps_prodidx - psb->ps_considx;
+	MPASS(delta <= pmc_nsamples);
+	MPASS(psb->ps_considx <= psb->ps_prodidx);
+	for (n = 0; psb->ps_considx < psb->ps_prodidx; psb->ps_considx++, n++) {
+		ps = PMC_CONS_SAMPLE(psb);
 
-	for (n = 0; n < pmc_nsamples; n++) { /* bound on #iterations */
-
-		ps = psb->ps_read;
-		if (ps->ps_nsamples == PMC_SAMPLE_FREE)
-			break;
-
+		if (__predict_false(ps->ps_nsamples == PMC_SAMPLE_FREE))
+			continue;
 		pm = ps->ps_pmc;
+		/* skip non-running samples */
+		if (pm->pm_state != PMC_STATE_RUNNING)
+			goto entrydone;
 
 		KASSERT(counter_u64_fetch(pm->pm_runcount) > 0,
 		    ("[pmc,%d] pm=%p runcount %ld", __LINE__, (void *) pm,
@@ -4971,12 +4953,19 @@ pmc_process_samples(int cpu, int ring)
 		    ("[pmc,%d] pmc=%p non-sampling mode=%d", __LINE__,
 			pm, PMC_TO_MODE(pm)));
 
-		/* Ignore PMCs that have been switched off */
-		if (pm->pm_state != PMC_STATE_RUNNING)
-			goto entrydone;
 
 		/* If there is a pending AST wait for completion */
-		if (ps->ps_nsamples == PMC_SAMPLE_INUSE) {
+		if (ps->ps_nsamples == PMC_USER_CALLCHAIN_PENDING) {
+			/* if sample is more than 65 ms old, drop it */
+			if (ticks - ps->ps_ticks > (hz >> 4)) {
+				/*
+				 * track how often we hit this as it will
+				 * preferentially lose user samples
+				 * for long running system calls 
+				 */
+				counter_u64_add(pmc_stats.pm_overwrites, 1);
+				goto entrydone;
+			}
 			/* Need a rescan at a later time. */
 			DPCPU_SET(pmc_sampled, 1);
 			break;
@@ -4984,8 +4973,8 @@ pmc_process_samples(int cpu, int ring)
 
 		PMCDBG6(SAM,OPS,1,"cpu=%d pm=%p n=%d fl=%x wr=%d rd=%d", cpu,
 		    pm, ps->ps_nsamples, ps->ps_flags,
-		    (int) (psb->ps_write - psb->ps_samples),
-		    (int) (psb->ps_read - psb->ps_samples));
+		    (int) (psb->ps_prodidx & pmc_sample_mask),
+		    (int) (psb->ps_considx & pmc_sample_mask));
 
 		/*
 		 * If this is a process-mode PMC that is attached to
@@ -5008,13 +4997,11 @@ pmc_process_samples(int cpu, int ring)
 
 	entrydone:
 		ps->ps_nsamples = 0; /* mark entry as free */
-		counter_u64_add(pm->pm_runcount, -1);
+		KASSERT(counter_u64_fetch(pm->pm_runcount) > 0,
+				("[pmc,%d] pm=%p runcount %ld", __LINE__, (void *) pm,
+				 (unsigned long)counter_u64_fetch(pm->pm_runcount)));
 
-		/* increment read pointer, modulo sample size */
-		if (++ps == psb->ps_fence)
-			psb->ps_read = psb->ps_samples;
-		else
-			psb->ps_read = ps;
+		counter_u64_add(pm->pm_runcount, -1);
 	}
 
 	counter_u64_add(pmc_stats.pm_log_sweeps, 1);
@@ -5197,10 +5184,10 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 				}
 			}
 
-			counter_u64_add(pm->pm_runcount, -1);
-
-			KASSERT((int) counter_u64_fetch(pm->pm_runcount) >= 0,
+			KASSERT((int64_t) counter_u64_fetch(pm->pm_runcount) > 0,
 			    ("[pmc,%d] runcount is %d", __LINE__, ri));
+
+			counter_u64_add(pm->pm_runcount, -1);
 
 			(void) pcd->pcd_config_pmc(cpu, adjri, NULL);
 		}
@@ -5583,6 +5570,7 @@ pmc_initialize(void)
 		    "range.\n", pmc_nsamples);
 		pmc_nsamples = PMC_NSAMPLES;
 	}
+	pmc_sample_mask = pmc_nsamples-1;
 
 	if (pmc_callchaindepth <= 0 ||
 	    pmc_callchaindepth > PMC_CALLCHAIN_DEPTH_MAX) {
@@ -5658,8 +5646,6 @@ pmc_initialize(void)
 		sb = malloc_domain(sizeof(struct pmc_samplebuffer) +
 			pmc_nsamples * sizeof(struct pmc_sample), M_PMC, domain,
 		    M_WAITOK|M_ZERO);
-		sb->ps_read = sb->ps_write = sb->ps_samples;
-		sb->ps_fence = sb->ps_samples + pmc_nsamples;
 
 		KASSERT(pmc_pcpu[cpu] != NULL,
 		    ("[pmc,%d] cpu=%d Null per-cpu data", __LINE__, cpu));
@@ -5676,8 +5662,6 @@ pmc_initialize(void)
 		sb = malloc_domain(sizeof(struct pmc_samplebuffer) +
 			pmc_nsamples * sizeof(struct pmc_sample), M_PMC, domain,
 		    M_WAITOK|M_ZERO);
-		sb->ps_read = sb->ps_write = sb->ps_samples;
-		sb->ps_fence = sb->ps_samples + pmc_nsamples;
 
 		KASSERT(pmc_pcpu[cpu] != NULL,
 		    ("[pmc,%d] cpu=%d Null per-cpu data", __LINE__, cpu));
@@ -5694,8 +5678,6 @@ pmc_initialize(void)
 		sb = malloc_domain(sizeof(struct pmc_samplebuffer) +
 			pmc_nsamples * sizeof(struct pmc_sample), M_PMC, domain,
 		    M_WAITOK|M_ZERO);
-		sb->ps_read = sb->ps_write = sb->ps_samples;
-		sb->ps_fence = sb->ps_samples + pmc_nsamples;
 
 		KASSERT(pmc_pcpu[cpu] != NULL,
 		    ("[pmc,%d] cpu=%d Null per-cpu data", __LINE__, cpu));

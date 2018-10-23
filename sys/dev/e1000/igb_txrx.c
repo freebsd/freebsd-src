@@ -152,7 +152,6 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *
 	u32 vlan_macip_lens, type_tucmd_mlhl;
 	u32 mss_l4len_idx;
 	mss_l4len_idx = vlan_macip_lens = type_tucmd_mlhl = 0;
-	int offload = TRUE; 
 
 	/* First check if TSO is to be used */
 	if (pi->ipi_csum_flags & CSUM_TSO)
@@ -186,7 +185,6 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *
 		type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_IPV6;
 		break;
 	default:
-		offload = FALSE;
 		break;
 	}
 
@@ -195,24 +193,26 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *
 
 	switch (pi->ipi_ipproto) {
 	case IPPROTO_TCP:
-		if (pi->ipi_csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP))
+		if (pi->ipi_csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP)) {
 			type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_TCP;
+			*olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+		}
 		break;
 	case IPPROTO_UDP:
-		if (pi->ipi_csum_flags & (CSUM_IP_UDP | CSUM_IP6_UDP))
+		if (pi->ipi_csum_flags & (CSUM_IP_UDP | CSUM_IP6_UDP)) {
 			type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_UDP;
+			*olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+		}
 		break;
 	case IPPROTO_SCTP:
-		if (pi->ipi_csum_flags & (CSUM_IP_SCTP | CSUM_IP6_SCTP))
+		if (pi->ipi_csum_flags & (CSUM_IP_SCTP | CSUM_IP6_SCTP)) {
 			type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_SCTP;
+			*olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+		}
 		break;
 	default:
-		offload = FALSE;
 		break;
 	}
-
-	if (offload) /* For the TX descriptor setup */
-		*olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
 
 	/* 82575 needs the queue index added */
 	if (adapter->hw.mac.type == e1000_82575)
@@ -321,8 +321,13 @@ igb_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 	status = ((union e1000_adv_tx_desc *)&txr->tx_base[cur])->wb.status;
 	updated = !!(status & E1000_TXD_STAT_DD);
 
-	if (!clear || !updated)
-		return (updated);
+	if (!updated)
+		return (0);
+
+	/* If clear is false just let caller know that there
+	 * are descriptors to reclaim */
+	if (!clear)
+		return (1);
 
 	prev = txr->tx_cidx_processed;
 	ntxd = scctx->isc_ntxd[0];
@@ -392,28 +397,18 @@ igb_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 	struct rx_ring *rxr = &que->rxr;
 	union e1000_adv_rx_desc *rxd;
 	u32 staterr = 0;
-	int cnt, i, iter;
+	int cnt, i;
 
-	if (budget == 1) {
-		rxd = (union e1000_adv_rx_desc *)&rxr->rx_base[idx];
-		staterr = le32toh(rxd->wb.upper.status_error);
-		return (staterr & E1000_RXD_STAT_DD);
-	}
-
-	for (iter = cnt = 0, i = idx; iter < scctx->isc_nrxd[0] && iter <= budget;) {
+	for (cnt = 0, i = idx; cnt < scctx->isc_nrxd[0] && cnt <= budget;) {
 		rxd = (union e1000_adv_rx_desc *)&rxr->rx_base[i];
 		staterr = le32toh(rxd->wb.upper.status_error);
 
 		if ((staterr & E1000_RXD_STAT_DD) == 0)
 			break;
-
-		if (++i == scctx->isc_nrxd[0]) {
+		if (++i == scctx->isc_nrxd[0])
 			i = 0;
-		}
-
 		if (staterr & E1000_RXD_STAT_EOP)
 			cnt++;
-		iter++;
 	}
 	return (cnt);
 }

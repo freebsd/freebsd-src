@@ -579,7 +579,10 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	vm_offset_t va;
 	pt_entry_t *pte, *unused;
 	struct pcpu *pc;
+	u_long res;
 	int i;
+
+	res = atop(firstaddr - (vm_paddr_t)KERNLOAD);
 
 	/*
 	 * Add a physical memory segment (vm_phys_seg) corresponding to the
@@ -598,11 +601,12 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	 * unused virtual address in addition to "firstaddr".
 	 */
 	virtual_avail = (vm_offset_t)firstaddr;
-
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
+	 * Count bootstrap data as being resident in case any of this data is
+	 * later unmapped (using pmap_remove()) and freed.
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_pdir = IdlePTD;
@@ -610,6 +614,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	kernel_pmap->pm_pdpt = IdlePDPT;
 #endif
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
+	kernel_pmap->pm_stats.resident_count = res;
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 
  	/*
@@ -1456,6 +1461,7 @@ pmap_force_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 		return;
 	}
 
+#ifdef DEV_APIC
 	/*
 	 * XXX: Some CPUs fault, hang, or trash the local APIC
 	 * registers if we use CLFLUSH on the local APIC
@@ -1464,6 +1470,7 @@ pmap_force_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 	 */
 	if (pmap_kextract(sva) == lapic_paddr)
 		return;
+#endif
 
 	if ((cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT) != 0) {
 		/*
@@ -3813,6 +3820,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			if ((origpte & PG_A) != 0)
 				vm_page_aflag_set(om, PGA_REFERENCED);
 			pv = pmap_pvh_remove(&om->md, pmap, va);
+			KASSERT(pv != NULL,
+			    ("pmap_enter: no PV entry for %#x", va));
 			if ((newpte & PG_MANAGED) == 0)
 				free_pv_entry(pmap, pv);
 			if ((om->aflags & PGA_WRITEABLE) != 0 &&

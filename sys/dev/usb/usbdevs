@@ -2762,6 +2762,8 @@ product LEADTEK 9531		0x2101	9531 GPS
 product LENOVO GIGALAN		0x304b	USB 3.0 Ethernet
 product LENOVO ETHERNET		0x7203	USB 2.0 Ethernet
 product LENOVO RTL8153		0x7205	USB 3.0 Ethernet
+product LENOVO TBT3LAN		0x3069	LAN port in Thinkpad TB3 dock
+product LENOVO USBCLAN		0x3062	LAN port in Thinkpad USB-C dock
 
 /* Lexar products */
 product LEXAR JUMPSHOT		0x0001	jumpSHOT CompactFlash Reader

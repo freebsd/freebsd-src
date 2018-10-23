@@ -63,6 +63,9 @@
 #include "services/authzone.h"
 #include "validator/val_kcache.h"
 #include "validator/val_neg.h"
+#ifdef CLIENT_SUBNET
+#include "edns-subnet/subnetmod.h"
+#endif
 
 /** add timers and the values do not overflow or become negative */
 static void
@@ -123,6 +126,33 @@ void server_stats_log(struct ub_server_stats* stats, struct worker* worker,
 		(unsigned)worker->env.mesh->stats_dropped,
 		(unsigned)worker->env.mesh->stats_jostled);
 }
+
+
+#ifdef CLIENT_SUBNET
+/** Set the EDNS Subnet stats. */
+static void
+set_subnet_stats(struct worker* worker, struct ub_server_stats* svr,
+	int reset)
+{
+	int m = modstack_find(&worker->env.mesh->mods, "subnet");
+	struct subnet_env* sne;
+	if(m == -1)
+		return;
+	sne = (struct subnet_env*)worker->env.modinfo[m];
+	if(reset && !worker->env.cfg->stat_cumulative) {
+		lock_rw_wrlock(&sne->biglock);
+	} else {
+		lock_rw_rdlock(&sne->biglock);
+	}
+	svr->num_query_subnet = (long long)(sne->num_msg_nocache + sne->num_msg_cache);
+	svr->num_query_subnet_cache = (long long)sne->num_msg_cache;
+	if(reset && !worker->env.cfg->stat_cumulative) {
+		sne->num_msg_cache = 0;
+		sne->num_msg_nocache = 0;
+	}
+	lock_rw_unlock(&sne->biglock);
+}
+#endif /* CLIENT_SUBNET */
 
 /** Set the neg cache stats. */
 static void
@@ -301,6 +331,13 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 
 	/* Set neg cache usage numbers */
 	set_neg_cache_stats(worker, &s->svr, reset);
+#ifdef CLIENT_SUBNET
+	/* EDNS Subnet usage numbers */
+	set_subnet_stats(worker, &s->svr, reset);
+#else
+	s->svr.num_query_subnet = 0;
+	s->svr.num_query_subnet_cache = 0;
+#endif
 
 	/* get tcp accept usage */
 	s->svr.tcp_accept_usage = 0;
@@ -374,6 +411,7 @@ void server_stats_add(struct ub_stats_info* total, struct ub_stats_info* a)
 		total->svr.qclass_big += a->svr.qclass_big;
 		total->svr.qtcp += a->svr.qtcp;
 		total->svr.qtcp_outgoing += a->svr.qtcp_outgoing;
+		total->svr.qtls += a->svr.qtls;
 		total->svr.qipv6 += a->svr.qipv6;
 		total->svr.qbit_QR += a->svr.qbit_QR;
 		total->svr.qbit_AA += a->svr.qbit_AA;
@@ -428,8 +466,11 @@ void server_stats_insquery(struct ub_server_stats* stats, struct comm_point* c,
 		stats->qclass[qclass]++;
 	else	stats->qclass_big++;
 	stats->qopcode[ LDNS_OPCODE_WIRE(sldns_buffer_begin(c->buffer)) ]++;
-	if(c->type != comm_udp)
+	if(c->type != comm_udp) {
 		stats->qtcp++;
+		if(c->ssl != NULL)
+			stats->qtls++;
+	}
 	if(repinfo && addr_is_ip6(&repinfo->addr, repinfo->addrlen))
 		stats->qipv6++;
 	if( (flags&BIT_QR) )

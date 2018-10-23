@@ -128,31 +128,35 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "X509_NAME_ENTRY_get_object 3"
-.TH X509_NAME_ENTRY_get_object 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "X509_NAME_ENTRY_GET_OBJECT 3"
+.TH X509_NAME_ENTRY_GET_OBJECT 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_NAME_ENTRY_get_object, X509_NAME_ENTRY_get_data,
-X509_NAME_ENTRY_set_object, X509_NAME_ENTRY_set_data,
-X509_NAME_ENTRY_create_by_txt, X509_NAME_ENTRY_create_by_NID,
-X509_NAME_ENTRY_create_by_OBJ \- X509_NAME_ENTRY utility functions
+X509_NAME_ENTRY_get_object, X509_NAME_ENTRY_get_data, X509_NAME_ENTRY_set_object, X509_NAME_ENTRY_set_data, X509_NAME_ENTRY_create_by_txt, X509_NAME_ENTRY_create_by_NID, X509_NAME_ENTRY_create_by_OBJ \- X509_NAME_ENTRY utility functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/x509.h>
 \&
-\& ASN1_OBJECT * X509_NAME_ENTRY_get_object(X509_NAME_ENTRY *ne);
-\& ASN1_STRING * X509_NAME_ENTRY_get_data(X509_NAME_ENTRY *ne);
+\& ASN1_OBJECT *X509_NAME_ENTRY_get_object(const X509_NAME_ENTRY *ne);
+\& ASN1_STRING *X509_NAME_ENTRY_get_data(const X509_NAME_ENTRY *ne);
 \&
-\& int X509_NAME_ENTRY_set_object(X509_NAME_ENTRY *ne, ASN1_OBJECT *obj);
-\& int X509_NAME_ENTRY_set_data(X509_NAME_ENTRY *ne, int type, const unsigned char *bytes, int len);
+\& int X509_NAME_ENTRY_set_object(X509_NAME_ENTRY *ne, const ASN1_OBJECT *obj);
+\& int X509_NAME_ENTRY_set_data(X509_NAME_ENTRY *ne, int type,
+\&                              const unsigned char *bytes, int len);
 \&
-\& X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_txt(X509_NAME_ENTRY **ne, const char *field, int type, const unsigned char *bytes, int len);
-\& X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_NID(X509_NAME_ENTRY **ne, int nid, int type,unsigned char *bytes, int len);
-\& X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_OBJ(X509_NAME_ENTRY **ne, ASN1_OBJECT *obj, int type, const unsigned char *bytes, int len);
+\& X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_txt(X509_NAME_ENTRY **ne, const char *field,
+\&                                                int type, const unsigned char *bytes,
+\&                                                int len);
+\& X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_NID(X509_NAME_ENTRY **ne, int nid,
+\&                                                int type, const unsigned char *bytes,
+\&                                                int len);
+\& X509_NAME_ENTRY *X509_NAME_ENTRY_create_by_OBJ(X509_NAME_ENTRY **ne,
+\&                                                const ASN1_OBJECT *obj, int type,
+\&                                                const unsigned char *bytes, int len);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -168,12 +172,12 @@ and \fB\s-1ASN1_STRING\s0\fR structure.
 \&\fBtype\fR and value determined by \fBbytes\fR and \fBlen\fR.
 .PP
 \&\fIX509_NAME_ENTRY_create_by_txt()\fR, \fIX509_NAME_ENTRY_create_by_NID()\fR
-and \fIX509_NAME_ENTRY_create_by_OBJ()\fR create and return an 
+and \fIX509_NAME_ENTRY_create_by_OBJ()\fR create and return an
 \&\fBX509_NAME_ENTRY\fR structure.
 .SH "NOTES"
 .IX Header "NOTES"
 \&\fIX509_NAME_ENTRY_get_object()\fR and \fIX509_NAME_ENTRY_get_data()\fR can be
-used to examine an \fBX509_NAME_ENTRY\fR function as returned by 
+used to examine an \fBX509_NAME_ENTRY\fR function as returned by
 \&\fIX509_NAME_get_entry()\fR for example.
 .PP
 \&\fIX509_NAME_ENTRY_create_by_txt()\fR, \fIX509_NAME_ENTRY_create_by_NID()\fR,
@@ -193,10 +197,27 @@ named ones of the corresponding \fBX509_NAME\fR functions such as
 set first so the relevant field information can be looked up internally.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
+\&\fIX509_NAME_ENTRY_get_object()\fR returns a valid \fB\s-1ASN1_OBJECT\s0\fR structure if it is
+set or \s-1NULL\s0 if an error occurred.
+.PP
+\&\fIX509_NAME_ENTRY_get_data()\fR returns a valid \fB\s-1ASN1_STRING\s0\fR structure if it is set
+or \s-1NULL\s0 if an error occurred.
+.PP
+\&\fIX509_NAME_ENTRY_set_object()\fR and \fIX509_NAME_ENTRY_set_data()\fR return 1 on success
+or 0 on error.
+.PP
+\&\fIX509_NAME_ENTRY_create_by_txt()\fR, \fIX509_NAME_ENTRY_create_by_NID()\fR and
+\&\fIX509_NAME_ENTRY_create_by_OBJ()\fR return a valid \fBX509_NAME_ENTRY\fR on success or
+\&\s-1NULL\s0 if an error occurred.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIERR_get_error\fR\|(3), \fId2i_X509_NAME\fR\|(3),
 \&\fIOBJ_nid2obj\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\s-1TBA\s0
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.
