@@ -812,7 +812,6 @@ taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask)
 	qgroup->tqg_queue[i].tgc_cnt--;
 	LIST_REMOVE(gtask, gt_list);
 	mtx_unlock(&qgroup->tqg_lock);
-	gtaskqueue_drain(gtask->gt_taskqueue, &gtask->gt_task);
 	gtask->gt_taskqueue = NULL;
 }
 
