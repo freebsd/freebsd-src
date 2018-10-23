@@ -107,7 +107,7 @@ MLINKS+=sysdecode_mask.3 sysdecode_accessmode.3 \
 	sysdecode_mask.3 sysdecode_wait4_options.3 \
 	sysdecode_mask.3 sysdecode_wait6_options.3
 
-CLEANFILES= ioctl.c tables.h
+CLEANFILES= ioctl.c ioctl.c.tmp tables.h tables.h.tmp
 
 .if defined(COMPAT_32BIT)
 CPP+=	-m32
@@ -124,7 +124,8 @@ CFLAGS.gcc+=	${CFLAGS.gcc.${.IMPSRC}}
 
 DEPENDOBJS+=	tables.h
 tables.h: mktables
-	sh ${.CURDIR}/mktables ${SYSROOT:U${DESTDIR}}${INCLUDEDIR} ${.TARGET}
+	sh ${.CURDIR}/mktables ${SYSROOT:U${DESTDIR}}${INCLUDEDIR} ${.TARGET}.tmp && \
+	    mv -f ${.TARGET}.tmp ${.TARGET}
 
 # mkioctls runs find(1) for headers so needs to rebuild every time.  This used
 # to be a hack only done in buildworld.
