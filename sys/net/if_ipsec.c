@@ -273,6 +273,13 @@ vnet_ipsec_uninit(const void *unused __unused)
 
 	if_clone_detach(V_ipsec_cloner);
 	free(V_ipsec_idhtbl, M_IPSEC);
+	/*
+	 * Use V_ipsec_idhtbl pointer as indicator that VNET is going to be
+	 * destroyed, it is used by ipsec_srcaddr() callback.
+	 */
+	V_ipsec_idhtbl = NULL;
+	IPSEC_WAIT();
+
 #ifdef INET
 	if (IS_DEFAULT_VNET(curvnet))
 		ip_encap_unregister_srcaddr(ipsec4_srctab);
@@ -784,6 +791,10 @@ ipsec_srcaddr(void *arg __unused, const struct sockaddr *sa,
 {
 	struct ipsec_softc *sc;
 	struct secasindex *saidx;
+
+	/* Check that VNET is ready */
+	if (V_ipsec_idhtbl == NULL)
+		return;
 
 	MPASS(in_epoch(net_epoch_preempt));
 	CK_LIST_FOREACH(sc, ipsec_srchash(sa), srchash) {
