@@ -161,6 +161,7 @@ me_hashinit(void)
 static void
 vnet_me_init(const void *unused __unused)
 {
+
 	V_me_cloner = if_clone_simple(mename, me_clone_create,
 	    me_clone_destroy, 0);
 }
@@ -173,6 +174,8 @@ vnet_me_uninit(const void *unused __unused)
 
 	if (V_me_hashtbl != NULL) {
 		free(V_me_hashtbl, M_IFME);
+		V_me_hashtbl = NULL;
+		ME_WAIT();
 		free(V_me_srchashtbl, M_IFME);
 	}
 	if_clone_detach(V_me_cloner);
@@ -363,7 +366,8 @@ me_srcaddr(void *arg __unused, const struct sockaddr *sa,
 	const struct sockaddr_in *sin;
 	struct me_softc *sc;
 
-	if (V_me_srchashtbl == NULL)
+	/* Check that VNET is ready */
+	if (V_me_hashtbl == NULL)
 		return;
 
 	MPASS(in_epoch(net_epoch_preempt));

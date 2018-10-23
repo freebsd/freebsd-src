@@ -148,7 +148,8 @@ in_gif_srcaddr(void *arg __unused, const struct sockaddr *sa,
 	const struct sockaddr_in *sin;
 	struct gif_softc *sc;
 
-	if (V_ipv4_srchashtbl == NULL)
+	/* Check that VNET is ready */
+	if (V_ipv4_hashtbl == NULL)
 		return;
 
 	MPASS(in_epoch(net_epoch_preempt));
@@ -457,6 +458,8 @@ in_gif_uninit(void)
 	}
 	if (V_ipv4_hashtbl != NULL) {
 		gif_hashdestroy(V_ipv4_hashtbl);
+		V_ipv4_hashtbl = NULL;
+		GIF_WAIT();
 		gif_hashdestroy(V_ipv4_srchashtbl);
 	}
 }
