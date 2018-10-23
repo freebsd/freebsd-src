@@ -521,6 +521,9 @@ int netmap_generic_txqdisc = 1;
 int netmap_generic_ringsize = 1024;
 int netmap_generic_rings = 1;
 
+/* Non-zero to enable checksum offloading in NIC drivers */
+int netmap_generic_hwcsum = 0;
+
 /* Non-zero if ptnet devices are allowed to use virtio-net headers. */
 int ptnet_vnet_hdr = 1;
 
@@ -549,6 +552,9 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, fwd, CTLFLAG_RW, &netmap_fwd, 0,
 SYSCTL_INT(_dev_netmap, OID_AUTO, admode, CTLFLAG_RW, &netmap_admode, 0,
 		"Adapter mode. 0 selects the best option available,"
 		"1 forces native adapter, 2 forces emulated adapter");
+SYSCTL_INT(_dev_netmap, OID_AUTO, generic_hwcsum, CTLFLAG_RW, &netmap_generic_hwcsum,
+		0, "Hardware checksums. 0 to disable checksum generation by the NIC (default),"
+		"1 to enable checksum generation by the NIC");
 SYSCTL_INT(_dev_netmap, OID_AUTO, generic_mit, CTLFLAG_RW, &netmap_generic_mit,
 		0, "RX notification interval in nanoseconds");
 SYSCTL_INT(_dev_netmap, OID_AUTO, generic_ringsize, CTLFLAG_RW,
@@ -827,8 +833,8 @@ netmap_krings_create(struct netmap_adapter *na, u_int tailroom)
 	}
 
 	/* account for the (possibly fake) host rings */
-	n[NR_TX] = na->num_tx_rings + 1;
-	n[NR_RX] = na->num_rx_rings + 1;
+	n[NR_TX] = netmap_all_rings(na, NR_TX);
+	n[NR_RX] = netmap_all_rings(na, NR_RX);
 
 	len = (n[NR_TX] + n[NR_RX]) *
 		(sizeof(struct netmap_kring) + sizeof(struct netmap_kring *))
@@ -930,11 +936,14 @@ netmap_krings_delete(struct netmap_adapter *na)
 void
 netmap_hw_krings_delete(struct netmap_adapter *na)
 {
-	struct mbq *q = &na->rx_rings[na->num_rx_rings]->rx_queue;
+	u_int lim = netmap_real_rings(na, NR_RX), i;
 
-	ND("destroy sw mbq with len %d", mbq_len(q));
-	mbq_purge(q);
-	mbq_safe_fini(q);
+	for (i = nma_get_nrings(na, NR_RX); i < lim; i++) {
+		struct mbq *q = &NMR(na, NR_RX)[i]->rx_queue;
+		ND("destroy sw mbq with len %d", mbq_len(q));
+		mbq_purge(q);
+		mbq_safe_fini(q);
+	}
 	netmap_krings_delete(na);
 }
 
@@ -1535,7 +1544,7 @@ netmap_get_na(struct nmreq_header *hdr,
 		goto out;
 
 	/* try to see if this is a bridge port */
-	error = netmap_get_bdg_na(hdr, na, nmd, create);
+	error = netmap_get_vale_na(hdr, na, nmd, create);
 	if (error)
 		goto out;
 
@@ -1827,7 +1836,7 @@ netmap_interp_ringid(struct netmap_priv_d *priv, uint32_t nr_mode,
 			}
 			priv->np_qfirst[t] = (nr_mode == NR_REG_SW ?
 				nma_get_nrings(na, t) : 0);
-			priv->np_qlast[t] = nma_get_nrings(na, t) + 1;
+			priv->np_qlast[t] = netmap_all_rings(na, t);
 			ND("%s: %s %d %d", nr_mode == NR_REG_SW ? "SW" : "NIC+SW",
 				nm_txrx2str(t),
 				priv->np_qfirst[t], priv->np_qlast[t]);
@@ -2543,7 +2552,7 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 			NMG_LOCK();
 			hdr->nr_reqtype = NETMAP_REQ_REGISTER;
 			hdr->nr_body = (uintptr_t)&regreq;
-			error = netmap_get_bdg_na(hdr, &na, NULL, 0);
+			error = netmap_get_vale_na(hdr, &na, NULL, 0);
 			hdr->nr_reqtype = NETMAP_REQ_PORT_HDR_SET;
 			hdr->nr_body = (uintptr_t)req;
 			if (na && !error) {
@@ -3336,6 +3345,12 @@ netmap_attach_common(struct netmap_adapter *na)
 	}
 	na->pdev = na; /* make sure netmap_mem_map() is called */
 #endif /* __FreeBSD__ */
+	if (na->na_flags & NAF_HOST_RINGS) {
+		if (na->num_host_rx_rings == 0)
+			na->num_host_rx_rings = 1;
+		if (na->num_host_tx_rings == 0)
+			na->num_host_tx_rings = 1;
+	}
 	if (na->nm_krings_create == NULL) {
 		/* we assume that we have been called by a driver,
 		 * since other port types all provide their own
@@ -3357,7 +3372,7 @@ netmap_attach_common(struct netmap_adapter *na)
 		/* no special nm_bdg_attach callback. On VALE
 		 * attach, we need to interpose a bwrap
 		 */
-		na->nm_bdg_attach = netmap_bwrap_attach;
+		na->nm_bdg_attach = netmap_default_bdg_attach;
 #endif
 
 	return 0;
@@ -3399,10 +3414,10 @@ out:
 static void
 netmap_hw_dtor(struct netmap_adapter *na)
 {
-	if (nm_iszombie(na) || na->ifp == NULL)
+	if (na->ifp == NULL)
 		return;
 
-	WNA(na->ifp) = NULL;
+	NM_DETACH_NA(na->ifp);
 }
 
 
@@ -3426,10 +3441,10 @@ netmap_attach_ext(struct netmap_adapter *arg, size_t size, int override_reg)
 	}
 
 	if (arg == NULL || arg->ifp == NULL)
-		goto fail;
+		return EINVAL;
 
 	ifp = arg->ifp;
-	if (NA(ifp) && !NM_NA_VALID(ifp)) {
+	if (NM_NA_CLASH(ifp)) {
 		/* If NA(ifp) is not null but there is no valid netmap
 		 * adapter it means that someone else is using the same
 		 * pointer (e.g. ax25_ptr on linux). This happens for
@@ -3456,28 +3471,8 @@ netmap_attach_ext(struct netmap_adapter *arg, size_t size, int override_reg)
 
 	NM_ATTACH_NA(ifp, &hwna->up);
 
-#ifdef linux
-	if (ifp->netdev_ops) {
-		/* prepare a clone of the netdev ops */
-#ifndef NETMAP_LINUX_HAVE_NETDEV_OPS
-		hwna->nm_ndo.ndo_start_xmit = ifp->netdev_ops;
-#else
-		hwna->nm_ndo = *ifp->netdev_ops;
-#endif /* NETMAP_LINUX_HAVE_NETDEV_OPS */
-	}
-	hwna->nm_ndo.ndo_start_xmit = linux_netmap_start_xmit;
-	hwna->nm_ndo.ndo_change_mtu = linux_netmap_change_mtu;
-	if (ifp->ethtool_ops) {
-		hwna->nm_eto = *ifp->ethtool_ops;
-	}
-	hwna->nm_eto.set_ringparam = linux_netmap_set_ringparam;
-#ifdef NETMAP_LINUX_HAVE_SET_CHANNELS
-	hwna->nm_eto.set_channels = linux_netmap_set_channels;
-#endif /* NETMAP_LINUX_HAVE_SET_CHANNELS */
-	if (arg->nm_config == NULL) {
-		hwna->up.nm_config = netmap_linux_config;
-	}
-#endif /* linux */
+	nm_os_onattach(ifp);
+
 	if (arg->nm_dtor == NULL) {
 		hwna->up.nm_dtor = netmap_hw_dtor;
 	}
@@ -3545,7 +3540,10 @@ netmap_hw_krings_create(struct netmap_adapter *na)
 	int ret = netmap_krings_create(na, 0);
 	if (ret == 0) {
 		/* initialize the mbq for the sw rx ring */
-		mbq_safe_init(&na->rx_rings[na->num_rx_rings]->rx_queue);
+		u_int lim = netmap_real_rings(na, NR_RX), i;
+		for (i = na->num_rx_rings; i < lim; i++) {
+			mbq_safe_init(&NMR(na, NR_RX)[i]->rx_queue);
+		}
 		ND("initialized sw rx queue %d", na->num_rx_rings);
 	}
 	return ret;
@@ -3608,8 +3606,14 @@ netmap_transmit(struct ifnet *ifp, struct mbuf *m)
 	unsigned int txr;
 	struct mbq *q;
 	int busy;
+	u_int i;
 
-	kring = na->rx_rings[na->num_rx_rings];
+	i = MBUF_TXQ(m);
+	if (i >= na->num_host_rx_rings) {
+		i = i % na->num_host_rx_rings;
+	}
+	kring = NMR(na, NR_RX)[nma_get_nrings(na, NR_RX) + i];
+
 	// XXX [Linux] we do not need this lock
 	// if we follow the down/configure/up protocol -gl
 	// mtx_lock(&na->core_lock);
@@ -3639,8 +3643,15 @@ netmap_transmit(struct ifnet *ifp, struct mbuf *m)
 		goto done;
 	}
 
-	if (nm_os_mbuf_has_offld(m)) {
-		RD(1, "%s drop mbuf that needs offloadings", na->name);
+	if (!netmap_generic_hwcsum) {
+		if (nm_os_mbuf_has_csum_offld(m)) {
+			RD(1, "%s drop mbuf that needs checksum offload", na->name);
+			goto done;
+		}
+	}
+
+	if (nm_os_mbuf_has_seg_offld(m)) {
+		RD(1, "%s drop mbuf that needs generic segmentation offload", na->name);
 		goto done;
 	}
 
@@ -3843,6 +3854,40 @@ netmap_rx_irq(struct ifnet *ifp, u_int q, u_int *work_done)
 	}
 
 	return netmap_common_irq(na, q, work_done);
+}
+
+/* set/clear native flags and if_transmit/netdev_ops */
+void
+nm_set_native_flags(struct netmap_adapter *na)
+{
+	struct ifnet *ifp = na->ifp;
+
+	/* We do the setup for intercepting packets only if we are the
+	 * first user of this adapapter. */
+	if (na->active_fds > 0) {
+		return;
+	}
+
+	na->na_flags |= NAF_NETMAP_ON;
+	nm_os_onenter(ifp);
+	nm_update_hostrings_mode(na);
+}
+
+void
+nm_clear_native_flags(struct netmap_adapter *na)
+{
+	struct ifnet *ifp = na->ifp;
+
+	/* We undo the setup for intercepting packets only if we are the
+	 * last user of this adapapter. */
+	if (na->active_fds > 0) {
+		return;
+	}
+
+	nm_update_hostrings_mode(na);
+	nm_os_onexit(ifp);
+
+	na->na_flags &= ~NAF_NETMAP_ON;
 }
 
 
