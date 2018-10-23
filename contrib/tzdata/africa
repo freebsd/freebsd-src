@@ -1,3 +1,5 @@
+# tzdb data for Africa and environs
+
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -6,7 +8,7 @@
 # tz@iana.org for general use in the future).  For more, please see
 # the file CONTRIBUTING in the tz distribution.
 
-# From Paul Eggert (2017-04-09):
+# From Paul Eggert (2018-05-27):
 #
 # Unless otherwise specified, the source for data through 1990 is:
 # Thomas G. Shanks and Rique Pottenger, The International Atlas (6th edition),
@@ -51,13 +53,15 @@
 # I vaguely recall 'WAT' also being used for -01 in the past but
 # cannot now come up with solid citations.
 #
-# I invented the following abbreviations; corrections are welcome!
-#	 +02	WAST	West Africa Summer Time (no longer used)
-#	 +03	CAST	Central Africa Summer Time (no longer used)
-#	 +03	SAST	South Africa Summer Time (no longer used)
+# I invented the following abbreviations in the 1990s:
+#	 +02	WAST	West Africa Summer Time
+#	 +03	CAST	Central Africa Summer Time
+#	 +03	SAST	South Africa Summer Time
 #	 +03	EAT	East Africa Time
-# 'EAT' also seems to have caught on; the others are rare but are paired
-# with better-attested non-DST abbreviations.
+# 'EAT' seems to have caught on and is in current timestamps, and though
+# the other abbreviations are rarer and are only in past timestamps,
+# they are paired with better-attested non-DST abbreviations.
+# Corrections are welcome.
 
 # Algeria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -362,6 +366,13 @@ Zone	Africa/Cairo	2:05:09 -	LMT	1900 Oct
 # Eritrea
 # Ethiopia
 # See Africa/Nairobi.
+#
+# Unfortunately tzdb records only Western clock time in use in Ethiopia,
+# as the tzdb format is not up to properly recording a common Ethiopian
+# timekeeping practice that is based on solar time.  See:
+# Mortada D. If you have a meeting in Ethiopia, you'd better double
+# check the time. PRI's The World. 2015-01-30 15:15 -05.
+# https://www.pri.org/stories/2015-01-30/if-you-have-meeting-ethiopia-you-better-double-check-time
 
 # Gabon
 # See Africa/Lagos.
