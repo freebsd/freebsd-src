@@ -904,6 +904,9 @@ pfi_detach_group_event(void *arg __unused, struct ifg_group *ifg)
 static void
 pfi_ifaddr_event(void *arg __unused, struct ifnet *ifp)
 {
+
+	KASSERT(ifp, ("ifp == NULL"));
+
 	if (ifp->if_pf_kif == NULL)
 		return;
 
@@ -912,7 +915,7 @@ pfi_ifaddr_event(void *arg __unused, struct ifnet *ifp)
 		return;
 	}
 	PF_RULES_WLOCK();
-	if (ifp && ifp->if_pf_kif) {
+	if (ifp->if_pf_kif) {
 		V_pfi_update++;
 		pfi_kif_update(ifp->if_pf_kif);
 	}
