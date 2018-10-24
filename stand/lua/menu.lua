@@ -373,7 +373,9 @@ function menu.process(menudef, keypress)
 			break
 		elseif key == core.KEY_ENTER then
 			core.boot()
-			-- Should not return
+			-- Should not return.  If it does, escape menu handling
+			-- and drop to loader prompt.
+			return false
 		end
 
 		key = string.char(key)
@@ -404,6 +406,7 @@ function menu.process(menudef, keypress)
 end
 
 function menu.run()
+	local autoboot_key
 	local delay = loader.getenv("autoboot_delay")
 
 	if delay ~= nil and delay:lower() == "no" then
@@ -419,7 +422,16 @@ function menu.run()
 
 	menu.draw(menu.default)
 
-	local autoboot_key = menu.autoboot(delay)
+	if delay ~= nil then
+		autoboot_key = menu.autoboot(delay)
+
+		-- autoboot_key should return the key pressed.  It will only
+		-- return nil if we hit the timeout and executed the timeout
+		-- command.  Bail out.
+		if autoboot_key == nil then
+			return
+		end
+	end
 
 	menu.process(menu.default, autoboot_key)
 	drawn_menu = nil
@@ -429,11 +441,6 @@ function menu.run()
 end
 
 function menu.autoboot(delay)
-	-- If we've specified a nil delay, we can do nothing but assume that
-	-- we aren't supposed to be autobooting.
-	if delay == nil then
-		return nil
-	end
 	local x = loader.getenv("loader_menu_timeout_x") or 4
 	local y = loader.getenv("loader_menu_timeout_y") or 23
 	local endtime = loader.time() + delay
@@ -467,6 +474,7 @@ function menu.autoboot(delay)
 
 	local cmd = loader.getenv("menu_timeout_command") or "boot"
 	cli_execute_unparsed(cmd)
+	return nil
 end
 
 -- CLI commands
