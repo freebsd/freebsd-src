@@ -312,6 +312,9 @@ menu.welcome = {
 				    #all_choices .. ")"
 			end,
 			func = function(_, choice, _)
+				if loader.getenv("kernelname") ~= nil then
+					loader.perform("unload")
+				end
 				config.selectKernel(choice)
 			end,
 			alias = {"k", "K"},
