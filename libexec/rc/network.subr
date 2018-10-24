@@ -1469,38 +1469,11 @@ clone_down()
 #	Create and configure child interfaces.  Return 0 if child
 #	interfaces are created.
 #
-#	XXXGL: the wlan code in this functions is superseded by wlan_up(),
-#	and will go away soon.
-#
 childif_create()
 {
-	local cfg child child_vlans child_wlans create_args debug_flags ifn i
+	local cfg child child_vlans create_args debug_flags ifn i
 	cfg=1
 	ifn=$1
-
-	# Create wireless interfaces
-	child_wlans=`get_if_var $ifn wlans_IF`
-
-	for child in ${child_wlans}; do
-		create_args="wlandev $ifn `get_if_var $child create_args_IF`"
-		debug_flags="`get_if_var $child wlandebug_IF`"
-
-		if expr $child : 'wlan[0-9][0-9]*$' >/dev/null 2>&1; then
-			${IFCONFIG_CMD} $child create ${create_args} && cfg=0
-			if [ -n "${debug_flags}" ]; then
-				wlandebug -i $child ${debug_flags}
-			fi
-		else
-			i=`${IFCONFIG_CMD} wlan create ${create_args}`
-			if [ -n "${debug_flags}" ]; then
-				wlandebug -i $i ${debug_flags}
-			fi
-			${IFCONFIG_CMD} $i name $child && cfg=0
-		fi
-		if autoif $child; then
-			ifn_start $child
-		fi
-	done
 
 	# Create vlan interfaces
 	child_vlans=`get_if_var $ifn vlans_IF`
@@ -1536,16 +1509,8 @@ childif_create()
 #
 childif_destroy()
 {
-	local cfg child child_vlans child_wlans ifn
+	local cfg child child_vlans ifn
 	cfg=1
-
-	child_wlans=`get_if_var $ifn wlans_IF`
-	for child in ${child_wlans}; do
-		if ! ifexists $child; then
-			continue
-		fi
-		${IFCONFIG_CMD} -n $child destroy && cfg=0
-	done
 
 	child_vlans=`get_if_var $ifn vlans_IF`
 	for child in ${child_vlans}; do
