@@ -351,4 +351,12 @@ vm_domainset_iter_policy_init(struct vm_domainset_iter *di,
 	*domain = 0;
 }
 
+void
+vm_domainset_iter_policy_ref_init(struct vm_domainset_iter *di,
+    struct domainset_ref *dr, int *domain, int *flags)
+{
+
+	*domain = 0;
+}
+
 #endif /* NUMA */
