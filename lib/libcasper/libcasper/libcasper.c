@@ -100,12 +100,12 @@ cap_init(void)
 
 	pid = pdfork(&pfd, 0);
 	if (pid == 0) {
-		/* Parent. */
+		/* Child. */
 		close(sock[0]);
 		casper_main_loop(sock[1]);
 		/* NOTREACHED. */
 	} else if (pid > 0) {
-		/* Child. */
+		/* Parent. */
 		close(sock[1]);
 		chan = cap_wrap(sock[0], 0);
 		if (chan == NULL) {
