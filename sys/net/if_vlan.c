@@ -1302,8 +1302,13 @@ vlan_lladdr_fn(void *arg, int pending __unused)
 
 	ifv = (struct ifvlan *)arg;
 	ifp = ifv->ifv_ifp;
+
+	CURVNET_SET(ifp->if_vnet);
+
 	/* The ifv_ifp already has the lladdr copied in. */
 	if_setlladdr(ifp, IF_LLADDR(ifp), ifp->if_addrlen);
+
+	CURVNET_RESTORE();
 }
 
 static int
