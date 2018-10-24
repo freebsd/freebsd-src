@@ -808,8 +808,10 @@ sys_mount(struct thread *td, struct mount_args *uap)
 	free(fstype, M_TEMP);
 	if (vfsp == NULL)
 		return (ENOENT);
-	if (vfsp->vfc_vfsops->vfs_cmount == NULL || ((vfsp->vfc_flags &
-	    VFCF_SBDRY) != 0 && (vfsp->vfc_vfsops_sd->vfs_cmount == NULL)))
+	if (((vfsp->vfc_flags & VFCF_SBDRY) != 0 &&
+	    vfsp->vfc_vfsops_sd->vfs_cmount == NULL) ||
+	    ((vfsp->vfc_flags & VFCF_SBDRY) == 0 &&
+	    vfsp->vfc_vfsops->vfs_cmount == NULL))
 		return (EOPNOTSUPP);
 
 	ma = mount_argsu(ma, "fstype", uap->type, MFSNAMELEN);
