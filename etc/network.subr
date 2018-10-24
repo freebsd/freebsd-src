@@ -1335,7 +1335,7 @@ clone_up()
 			_list="$_list $ifn"
 		fi
 		tmpargs=$(get_if_var $ifn gifconfig_IF)
-		eval ifconfig_${ifn}=\"tunnel \$tmpargs\"
+		eval ifconfig_${ifn}=\"\$ifconfig_${ifn} tunnel \$tmpargs\"
 	done
 	if [ -n "${_list# }" ]; then
 		echo "Created clone interfaces: ${_list# }."
