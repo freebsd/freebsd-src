@@ -415,6 +415,11 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	if (rc != 0)
 		if_printf(ifp, "netmap rss_config failed: %d\n", rc);
 
+	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, vi->hashen,
+	    vi->nm_rss[0], 0, 0);
+	if (rc != 0)
+		if_printf(ifp, "netmap rss hash/defaultq config failed: %d\n", rc);
+
 	return (rc);
 }
 
@@ -436,6 +441,9 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	    vi->rss, vi->rss_size);
 	if (rc != 0)
 		if_printf(ifp, "failed to restore RSS config: %d\n", rc);
+	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, vi->hashen, vi->rss[0], 0, 0);
+	if (rc != 0)
+		if_printf(ifp, "failed to restore RSS hash/defaultq: %d\n", rc);
 	nm_clear_native_flags(na);
 
 	for_each_nm_txq(vi, i, nm_txq) {
