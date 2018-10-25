@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd October 20, 2018
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -142,6 +142,7 @@ O_TTY_INIT	ignored
 O_DIRECTORY	error if file is not a directory
 O_CLOEXEC	set FD_CLOEXEC upon open
 O_VERIFY	verify the contents of the file
+O_BENEATH	require path to be strictly relative to starting directory
 .Ed
 .Pp
 Opening a file with
@@ -268,6 +269,23 @@ The details of what
 means is implementation specific.
 The run-time linker (rtld) uses this flag to ensure shared objects have
 been verified before operating on them.
+.Pp
+.Dv O_BENEATH
+returns
+.Er ENOTCAPABLE
+if the specified path, after resolving all symlinks and ".." references
+in it, does not reside in the directory hierarchy of children beneath
+the starting directory, or is an absolute path.
+Starting directory is the process current directory if relative
+.Fa path
+is used for
+.Fn open ,
+and the directory referenced by the
+.Fa fd
+argument when specifying relative
+.Fa path
+for
+.Fn openat .
 .Pp
 If successful,
 .Fn open
@@ -487,9 +505,13 @@ is specified and the process is in capability mode.
 was called and the process is in capability mode.
 .It Bq Er ENOTCAPABLE
 .Fa path
-is an absolute path or contained a ".." component leading to a
+is an absolute path,
+or contained a ".." component leading to a
 directory outside of the directory hierarchy specified by
-.Fa fd .
+.Fa fd ,
+and the process is in capability mode or the
+.Dv O_BENEATH
+flag was provided.
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,
