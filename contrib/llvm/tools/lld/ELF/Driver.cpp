@@ -339,7 +339,7 @@ static bool getZFlag(opt::InputArgList &Args, StringRef K1, StringRef K2,
 static bool isKnown(StringRef S) {
   return S == "combreloc" || S == "copyreloc" || S == "defs" ||
          S == "execstack" || S == "hazardplt" || S == "ifunc-noplt" ||
-         S == "initfirst" ||
+         S == "initfirst" || S == "interpose" ||
          S == "keep-text-section-prefix" || S == "lazy" || S == "muldefs" ||
          S == "nocombreloc" || S == "nocopyreloc" || S == "nodelete" ||
          S == "nodlopen" || S == "noexecstack" ||
