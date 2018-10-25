@@ -86,7 +86,7 @@ Currently, the library automatically detects and reads the following fomats:
   * 7-Zip archives
   * Microsoft CAB format
   * LHA and LZH archives
-  * RAR archives (with some limitations due to RAR's proprietary status)
+  * RAR and RAR 5.0 archives (with some limitations due to RAR's proprietary status)
   * XAR archives
 
 The library also detects and handles any of the following before evaluating the archive:
