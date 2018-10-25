@@ -615,6 +615,12 @@ static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
 		return "High Temperature";
 	case MLX5_MODULE_EVENT_ERROR_CABLE_IS_SHORTED:
 		return "Cable is shorted";
+	case MLX5_MODULE_EVENT_ERROR_PCIE_SYSTEM_POWER_SLOT_EXCEEDED:
+		return "One or more network ports have been powered "
+			"down due to insufficient/unadvertised power on "
+			"the PCIe slot. Please refer to the card's user "
+			"manual for power specifications or contact "
+			"Mellanox support.";
 
 	default:
 		return "Unknown error type";
