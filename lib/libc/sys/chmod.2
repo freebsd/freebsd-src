@@ -28,7 +28,7 @@
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd October 20, 2018
 .Dt CHMOD 2
 .Os
 .Sh NAME
@@ -101,6 +101,9 @@ in
 If
 .Fa path
 names a symbolic link, then the mode of the symbolic link is changed.
+.It Dv AT_BENEATH
+Only allow to change permissions of a file which is beneath of
+the starting directory.
 .El
 .Pp
 If
@@ -285,6 +288,15 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was specified but
+.Fa path
+is not strictly relative to the starting directory.
+For example,
+.Fa path
+is absolute or includes a ".." component that escapes the starting directory.
 .El
 .Sh SEE ALSO
 .Xr chmod 1 ,
