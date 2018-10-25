@@ -737,7 +737,7 @@ static int
 seq_fetch_mid(struct seq_softc *scp, int unit, kobj_t *md)
 {
 
-	if (unit > scp->midi_number || unit < 0)
+	if (unit >= scp->midi_number || unit < 0)
 		return EINVAL;
 
 	*md = scp->midis[unit];
