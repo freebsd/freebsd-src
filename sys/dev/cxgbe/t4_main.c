@@ -4156,6 +4156,11 @@ set_params__post_init(struct adapter *sc)
 	if (t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val) == 0)
 		sc->params.port_caps32 = 1;
 
+	/* Let filter + maskhash steer to a part of the VI's RSS region. */
+	val = 1 << (G_MASKSIZE(t4_read_reg(sc, A_TP_RSS_CONFIG_TNL)) - 1);
+	t4_set_reg_field(sc, A_TP_RSS_CONFIG_TNL, V_MASKFILTER(M_MASKFILTER),
+	    V_MASKFILTER(val - 1));
+
 #ifdef TCP_OFFLOAD
 	/*
 	 * Override the TOE timers with user provided tunables.  This is not the
