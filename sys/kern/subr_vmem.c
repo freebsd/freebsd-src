@@ -283,7 +283,7 @@ bt_fill(vmem_t *vm, int flags)
 			VMEM_UNLOCK(vm);
 			bt = uma_zalloc(vmem_bt_zone, flags);
 			VMEM_LOCK(vm);
-			if (bt == NULL && (flags & M_NOWAIT) != 0)
+			if (bt == NULL)
 				break;
 		}
 		LIST_INSERT_HEAD(&vm->vm_freetags, bt, bt_freelist);
