@@ -28,7 +28,7 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd October 20, 2018
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -100,6 +100,13 @@ defined in
 If
 .Fa path
 names a symbolic link, the status of the symbolic link is returned.
+.It Dv AT_BENEATH
+Only stat files and directories below the starting directory.
+See the description of the
+.Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
 .El
 .Pp
 If
@@ -397,6 +404,15 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was specified but
+.Fa path
+is not strictly relative to the starting directory.
+For example,
+.Fa path
+is absolute or includes a ".." component that escapes the starting directory.
 .El
 .Sh SEE ALSO
 .Xr access 2 ,
