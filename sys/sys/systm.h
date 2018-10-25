@@ -542,6 +542,9 @@ void _gone_in_dev(struct device *dev, int major, const char *msg);
 #endif
 #define gone_in(major, msg)		__gone_ok(major, msg) _gone_in(major, msg)
 #define gone_in_dev(dev, major, msg)	__gone_ok(major, msg) _gone_in_dev(dev, major, msg)
+#define	gone_by_fcp101_dev(dev)						\
+	gone_in_dev((dev), 13,						\
+	    "see https://github.com/freebsd/fcp/blob/master/fcp-0101.md")
 
 __NULLABILITY_PRAGMA_POP
 

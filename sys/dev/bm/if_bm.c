@@ -483,6 +483,8 @@ bm_attach(device_t dev)
 	ether_ifattach(ifp, sc->sc_enaddr);
 	ifp->if_hwassist = 0;
 
+	gone_by_fcp101_dev(dev);
+
 	return (0);
 }
 
