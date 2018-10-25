@@ -839,10 +839,13 @@ getenv_quad(const char *name, quad_t *data)
 	switch (vtp[0]) {
 	case 't': case 'T':
 		iv *= 1024;
+		/* FALLTHROUGH */
 	case 'g': case 'G':
 		iv *= 1024;
+		/* FALLTHROUGH */
 	case 'm': case 'M':
 		iv *= 1024;
+		/* FALLTHROUGH */
 	case 'k': case 'K':
 		iv *= 1024;
 	case '\0':
