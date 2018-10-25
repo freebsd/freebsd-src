@@ -126,16 +126,6 @@ device		mpr			# LSI-Logic MPT-Fusion 3
 #device		ncr			# NCR/Symbios Logic
 device		sym			# NCR/Symbios Logic (newer chipsets + those of `ncr')
 device		trm			# Tekram DC395U/UW/F DC315U adapters
-
-device		adv			# Advansys SCSI adapters
-device		adw			# Advansys wide SCSI adapters
-device		aha			# Adaptec 154x SCSI adapters
-device		aic			# Adaptec 15[012]x SCSI adapters, AIC-6[23]60.
-device		bt			# Buslogic/Mylex MultiMaster SCSI adapters
-
-device		ncv			# NCR 53C500
-device		nsp			# Workbit Ninja SCSI-3
-device		stg			# TMC 18C30/18C50
 device		isci			# Intel C600 SAS controller
 
 # ATA/SCSI peripherals
