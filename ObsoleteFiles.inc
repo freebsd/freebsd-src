@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20181025: OpenSSL libraries version bump to avoid conflict with ports
+OLD_LIBS+=lib/libcrypto.so.9
+OLD_LIBS+=usr/lib/libssl.so.9
+OLD_LIBS+=usr/lib32/libcrypto.so.9
+OLD_LIBS+=usr/lib32/libssl.so.9
 # 20181021: mse(4) removal
 OLD_FILES+=usr/share/man/man4/mse.4.gz
 # 20181021: joy(4) removal
