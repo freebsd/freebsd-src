@@ -928,7 +928,9 @@ seq_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 
 		SEQ_DEBUG(8, printf("midiread: uiomove cc=%d\n", used));
 		MIDIQ_DEQ(scp->in_q, buf, used);
+		mtx_unlock(&scp->seq_lock);
 		retval = uiomove(buf, used, uio);
+		mtx_lock(&scp->seq_lock);
 		if (retval)
 			goto err1;
 	}
@@ -1003,7 +1005,9 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 			retval = ENXIO;
 			goto err0;
 		}
+		mtx_unlock(&scp->seq_lock);
 		retval = uiomove(event, used, uio);
+		mtx_lock(&scp->seq_lock);
 		if (retval)
 			goto err0;
 
@@ -1041,7 +1045,9 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 			SEQ_DEBUG(2,
 			   printf("seq_write: SEQ_FULLSIZE flusing buffer.\n"));
 			while (uio->uio_resid > 0) {
-				retval = uiomove(event, EV_SZ, uio);
+				mtx_unlock(&scp->seq_lock);
+				retval = uiomove(event, MIN(EV_SZ, uio->uio_resid), uio);
+				mtx_lock(&scp->seq_lock);
 				if (retval)
 					goto err0;
 
@@ -1052,6 +1058,7 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 		}
 		retval = EINVAL;
 		if (ev_code >= 128) {
+			int error;
 
 			/*
 			 * Some sort of an extended event. The size is eight
@@ -1061,7 +1068,13 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 				SEQ_DEBUG(2, printf("seq_write: invalid level two event %x.\n", ev_code));
 				goto err0;
 			}
-			if (uiomove((caddr_t)&event[4], 4, uio)) {
+			mtx_unlock(&scp->seq_lock);
+			if (uio->uio_resid < 4)
+				error = EINVAL;
+			else
+				error = uiomove((caddr_t)&event[4], 4, uio);
+			mtx_lock(&scp->seq_lock);
+			if (error) {
 				SEQ_DEBUG(2,
 				   printf("seq_write: user memory mangled?\n"));
 				goto err0;
