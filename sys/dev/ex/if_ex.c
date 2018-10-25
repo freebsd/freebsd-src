@@ -276,6 +276,8 @@ ex_attach(device_t dev)
 		return (error);
 	}
 
+	gone_by_fcp101_dev(dev);
+
 	return(0);
 }
 
