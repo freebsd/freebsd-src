@@ -737,11 +737,11 @@ static void dist_cache_push(struct rar5* rar, int value) {
     q[0] = value;
 }
 
-static int dist_cache_touch(struct rar5* rar, int index) {
+static int dist_cache_touch(struct rar5* rar, int idx) {
     int* q = rar->cstate.dist_cache;
-    int i, dist = q[index];
+    int i, dist = q[idx];
 
-    for(i = index; i > 0; i--)
+    for(i = idx; i > 0; i--)
         q[i] = q[i - 1];
 
     q[0] = dist;
@@ -1500,10 +1500,10 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
     (void) entry;
 
     int ret;
-    size_t extra_data_size,
-        extra_field_size,
-        extra_field_id,
-        archive_flags;
+    size_t extra_data_size = 0;
+    size_t extra_field_size = 0;
+    size_t extra_field_id = 0;
+    size_t archive_flags = 0;
 
     if(block_flags & HFL_EXTRA_DATA) {
         if(!read_var_sized(a, &extra_data_size, NULL))
@@ -1528,7 +1528,7 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
     rar->main.solid = (archive_flags & SOLID) > 0;
 
     if(archive_flags & VOLUME_NUMBER) {
-        size_t v;
+        size_t v = 0;
         if(!read_var_sized(a, &v, NULL)) {
             return ARCHIVE_EOF;
         }
@@ -1644,7 +1644,8 @@ static int process_base_block(struct archive_read* a,
     struct rar5* rar = get_context(a);
     uint32_t hdr_crc, computed_crc;
     size_t raw_hdr_size, hdr_size_len, hdr_size;
-    size_t header_id, header_flags;
+    size_t header_id = 0;
+    size_t header_flags = 0;
     const uint8_t* p;
     int ret;
 
@@ -2529,8 +2530,8 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 
             continue;
         } else if(num < 262) {
-            const int index = num - 258;
-            const int dist = dist_cache_touch(rar, index);
+            const int idx = num - 258;
+            const int dist = dist_cache_touch(rar, idx);
 
             uint16_t len_slot;
             int len;
