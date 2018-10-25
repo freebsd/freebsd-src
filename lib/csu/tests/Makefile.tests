@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+ATF_TESTS_C+=	init_test
+ATF_TESTS_C+=	fini_test
+ATF_TESTS_CXX+=	cxx_constructors
+
+.if exists(${.CURDIR:H:H}/${MACHINE_ARCH})
+CFLAGS+= -I${.CURDIR:H:H}/${MACHINE_ARCH}
+.else
+CFLAGS+= -I${.CURDIR:H:H}/${MACHINE_CPUARCH}
+.endif
