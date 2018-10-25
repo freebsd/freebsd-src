@@ -684,6 +684,8 @@ fail:
 	if (error)
 		pcn_detach(dev);
 
+	gone_by_fcp101_dev(dev);
+
 	return(error);
 }
 

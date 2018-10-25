@@ -350,6 +350,8 @@ ep_attach(struct ep_softc *sc)
 	epstop(sc);
 	EP_UNLOCK(sc);
 
+	gone_by_fcp101_dev(sc->dev);
+
 	return (0);
 }
 
