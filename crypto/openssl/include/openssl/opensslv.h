@@ -92,7 +92,7 @@ extern "C" {
  * should only keep the versions that are binary compatible with the current.
  */
 # define SHLIB_VERSION_HISTORY ""
-# define SHLIB_VERSION_NUMBER "9"
+# define SHLIB_VERSION_NUMBER "111"
 
 
 #ifdef  __cplusplus
