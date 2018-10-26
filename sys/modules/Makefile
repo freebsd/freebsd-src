@@ -205,6 +205,7 @@ SUBDIR=	\
 	${_ixv} \
 	${_ixl} \
 	jme \
+	joy \
 	kbdmux \
 	kgssapi \
 	kgssapi_krb5 \

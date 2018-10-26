@@ -45,9 +45,6 @@ OLD_LIBS+=usr/lib32/libcrypto.so.9
 OLD_LIBS+=usr/lib32/libssl.so.9
 # 20181021: mse(4) removal
 OLD_FILES+=usr/share/man/man4/mse.4.gz
-# 20181021: joy(4) removal
-OLD_FILES+=usr/share/man/man4/joy.4.gz
-OLD_FILES+=usr/include/sys/joystick.h
 # 20181015: Stale libcasper(3) files following r329452
 OLD_LIBS+=lib/casper/libcap_sysctl.so.0
 OLD_LIBS+=lib/casper/libcap_grp.so.0
