@@ -56,6 +56,12 @@ msg_please_choose_a_hostname="Please choose a hostname for this machine.\n\nIf y
 msg_ok="OK"
 msg_freebsd_installer="FreeBSD Installer"
 
+#
+# Command strings for various tasks
+#
+ECHO_OVERWRITE='echo "%s" > "%s"'
+SET_HOSTNAME='hostname -s "%s"'
+
 ############################################################ FUNCTIONS
 
 # dialog_hostname
@@ -100,14 +106,15 @@ HOSTNAME=$( dialog_hostname "$HOSTNAME" )
 #
 # Store the user's choice
 #
-echo "hostname=\"$HOSTNAME\"" > "$HOSTNAMEFILE"
+f_eval_catch "$pgm" echo "$ECHO_OVERWRITE" \
+	'hostname=\"$HOSTNAME\"' "$HOSTNAMEFILE"
 retval=$?
 
 #
 # Activate entry if configured
 #
 if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
-	hostname -s "$HOSTNAME"
+	f_eval_catch "$pgm" hostname "$SET_HOSTNAME" "$HOSTNAME"
 	retval=$?
 fi
 
