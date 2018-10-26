@@ -37,14 +37,17 @@
 #define	AMD_PMC_EVSEL_1		0xC0010001
 #define	AMD_PMC_EVSEL_2		0xC0010002
 #define	AMD_PMC_EVSEL_3		0xC0010003
+#define	AMD_PMC_EVSEL_4		0xC0010208
+#define	AMD_PMC_EVSEL_5		0xC001020A
 
 #define	AMD_PMC_PERFCTR_0	0xC0010004
 #define	AMD_PMC_PERFCTR_1	0xC0010005
 #define	AMD_PMC_PERFCTR_2	0xC0010006
 #define	AMD_PMC_PERFCTR_3	0xC0010007
+#define	AMD_PMC_PERFCTR_4	0xC0010209
+#define	AMD_PMC_PERFCTR_5	0xC001020B
 
-
-#define	AMD_NPMCS		4
+#define	AMD_NPMCS		6
 
 #define	AMD_PMC_COUNTERMASK	0xFF000000
 #define	AMD_PMC_TO_COUNTER(x)	(((x) << 24) & AMD_PMC_COUNTERMASK)
@@ -62,12 +65,19 @@
 #define	AMD_PMC_UNITMASK_S	0x02
 #define	AMD_PMC_UNITMASK_I	0x01
 #define	AMD_PMC_UNITMASK_MOESI	0x1F
-
 #define	AMD_PMC_UNITMASK	0xFF00
-#define	AMD_PMC_EVENTMASK 	0x00FF
-
-#define	AMD_PMC_TO_UNITMASK(x)	(((x) << 8) & AMD_PMC_UNITMASK)
+#if	defined(__i386__)
+#define	AMD_PMC_EVENTMASK	0x00FF
 #define	AMD_PMC_TO_EVENTMASK(x)	((x) & 0xFF)
+#elif defined(__amd64__)
+#define	AMD_PMC_EVENTMASK	0xF000000FF
+#define	AMD_PMC_TO_EVENTMASK(x)	((x) & 0x0FFF)
+#define AMD_PMC_EXTENDEDEVBIT	24
+#define AMD_PMC_EVENTMASK_EXT	0x0FF
+#define AMD_PMC_EXTENDEDEVMASK	0xF00
+#endif
+#define	AMD_PMC_TO_UNITMASK(x)	(((x) << 8) & AMD_PMC_UNITMASK)
+
 #define	AMD_VALID_BITS		(AMD_PMC_COUNTERMASK | AMD_PMC_INVERT |	\
 	AMD_PMC_ENABLE | AMD_PMC_INT | AMD_PMC_PC | AMD_PMC_EDGE | 	\
 	AMD_PMC_OS | AMD_PMC_USR | AMD_PMC_UNITMASK | AMD_PMC_EVENTMASK)
@@ -81,16 +91,25 @@
 
 #define	AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(V)	(-(V))
 #define	AMD_PERFCTR_VALUE_TO_RELOAD_COUNT(P)	(-(P))
-
+#define AMD_LEGACY_COUNTERS	4
+#define AMD_FAM17H_COUNTERS	6
 struct pmc_md_amd_op_pmcallocate {
+#if	defined(__i386__)
 	uint32_t	pm_amd_config;
+#elif	defined(__amd64__)
+	uint64_t	pm_amd_config;
+#endif
 };
 
 #ifdef _KERNEL
 
 /* MD extension for 'struct pmc' */
 struct pmc_md_amd_pmc {
+#if	defined(__i386__)
 	uint32_t	pm_amd_evsel;
+#elif	defined(__amd64__)
+	uint64_t	pm_amd_evsel;
+#endif
 };
 
 #endif /* _KERNEL */
