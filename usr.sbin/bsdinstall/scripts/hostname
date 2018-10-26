@@ -79,13 +79,13 @@ dialog_hostname()
 		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$prompt" "$value" "$hline"
 
 	$DIALOG \
-		--title "$DIALOG_TITLE" \
+		--title "$DIALOG_TITLE"         \
 		--backtitle "$DIALOG_BACKTITLE" \
-		--hline "$hline" \
-		--ok-label "$msg_ok" \
-		--no-cancel \
-		--inputbox "$prompt" \
-		$height $width "$value" \
+		--hline "$hline"                \
+		--ok-label "$msg_ok"            \
+		--no-cancel                     \
+		--inputbox "$prompt"            \
+		$height $width "$value"         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 }
 
