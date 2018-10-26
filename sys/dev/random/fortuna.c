@@ -408,7 +408,7 @@ random_fortuna_pre_read(void)
 		SDT_PROBE2(random, fortuna, event_processor, debug, fortuna_state.fs_reseedcount, fortuna_state.fs_pool);
 #endif
 		/* FS&K */
-		random_fortuna_reseed_internal(s, i < RANDOM_FORTUNA_NPOOLS ? i + 1 : RANDOM_FORTUNA_NPOOLS);
+		random_fortuna_reseed_internal(s, i);
 		/* Clean up and secure */
 		explicit_bzero(s, sizeof(s));
 		explicit_bzero(temp, sizeof(temp));
