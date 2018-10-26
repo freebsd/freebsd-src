@@ -174,8 +174,8 @@ handle_file(FTS *ftsp, FTSENT *file)
 	} else if (ret == 0) {
 		if (acl_type == ACL_TYPE_NFS4)
 			acl_type = ACL_TYPE_ACCESS;
-	} else if (ret < 0 && errno != EINVAL) {
-		warn("%s: pathconf(..., _PC_ACL_NFS4) failed",
+	} else if (ret < 0 && errno != EINVAL && errno != ENOENT) {
+		warn("%s: pathconf(_PC_ACL_NFS4) failed",
 		    file->fts_path);
 	}
 
