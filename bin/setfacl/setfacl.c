@@ -27,9 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/acl.h>
 #include <sys/queue.h>
 
@@ -73,6 +71,7 @@ static bool need_mask;
 static acl_type_t acl_type = ACL_TYPE_ACCESS;
 
 static int	handle_file(FTS *ftsp, FTSENT *file);
+static acl_t	clear_inheritance_flags(acl_t acl);
 static char	**stdin_files(void);
 static void	usage(void);
 
@@ -124,10 +123,57 @@ stdin_files(void)
 	return (files_list);
 }
 
+/*
+ * Remove any inheritance flags from NFSv4 ACLs when running in recursive
+ * mode.  This is to avoid files being assigned identical ACLs to their
+ * parent directory while also being set to inherit them.
+ *
+ * The acl argument is assumed to be valid.
+ */
+static acl_t
+clear_inheritance_flags(acl_t acl)
+{
+	acl_t nacl;
+	acl_entry_t acl_entry;
+	acl_flagset_t acl_flagset;
+	int acl_brand, entry_id;
+
+	(void)acl_get_brand_np(acl, &acl_brand);
+	if (acl_brand != ACL_BRAND_NFS4)
+		return (acl);
+
+	nacl = acl_dup(acl);
+	if (nacl == NULL) {
+		warn("acl_dup() failed");
+		return (acl);
+	}
+
+	entry_id = ACL_FIRST_ENTRY;
+	while (acl_get_entry(nacl, entry_id, &acl_entry) == 1) {
+		entry_id = ACL_NEXT_ENTRY;
+		if (acl_get_flagset_np(acl_entry, &acl_flagset) != 0) {
+			warn("acl_get_flagset_np() failed");
+			continue;
+		}
+		if (acl_get_flag_np(acl_flagset, ACL_ENTRY_INHERIT_ONLY) == 1) {
+			if (acl_delete_entry(nacl, acl_entry) != 0)
+				warn("acl_delete_entry() failed");
+			continue;
+		}
+		if (acl_delete_flag_np(acl_flagset,
+		    ACL_ENTRY_FILE_INHERIT |
+		    ACL_ENTRY_DIRECTORY_INHERIT |
+		    ACL_ENTRY_NO_PROPAGATE_INHERIT) != 0)
+			warn("acl_delete_flag_np() failed");
+	}
+
+	return (nacl);
+}
+
 static int
 handle_file(FTS *ftsp, FTSENT *file)
 {
-	acl_t acl;
+	acl_t acl, nacl;
 	acl_entry_t unused_entry;
 	int local_error, ret;
 	struct sf_entry *entry;
@@ -193,17 +239,20 @@ handle_file(FTS *ftsp, FTSENT *file)
 
 	/* Cycle through each option. */
 	TAILQ_FOREACH(entry, &entrylist, next) {
-		if (local_error)
-			continue;
-
-		switch(entry->op) {
+		nacl = entry->acl;
+		switch (entry->op) {
 		case OP_ADD_ACL:
-			local_error += add_acl(entry->acl, entry->entry_number,
-			    &acl, file->fts_path);
+			if (R_flag && file->fts_info != FTS_D &&
+			    acl_type == ACL_TYPE_NFS4)
+				nacl = clear_inheritance_flags(nacl);
+			local_error += add_acl(nacl, entry->entry_number, &acl,
+			    file->fts_path);
 			break;
 		case OP_MERGE_ACL:
-			local_error += merge_acl(entry->acl, &acl,
-			    file->fts_path);
+			if (R_flag && file->fts_info != FTS_D &&
+			    acl_type == ACL_TYPE_NFS4)
+				nacl = clear_inheritance_flags(nacl);
+			local_error += merge_acl(nacl, &acl, file->fts_path);
 			need_mask = true;
 			break;
 		case OP_REMOVE_EXT:
@@ -240,8 +289,7 @@ handle_file(FTS *ftsp, FTSENT *file)
 			need_mask = false;
 			break;
 		case OP_REMOVE_ACL:
-			local_error += remove_acl(entry->acl, &acl,
-			    file->fts_path);
+			local_error += remove_acl(nacl, &acl, file->fts_path);
 			need_mask = true;
 			break;
 		case OP_REMOVE_BY_NUMBER:
@@ -250,6 +298,13 @@ handle_file(FTS *ftsp, FTSENT *file)
 			need_mask = true;
 			break;
 		}
+
+		if (nacl != entry->acl) {
+			acl_free(nacl);
+			nacl = NULL;
+		}
+		if (local_error)
+			break;
 	}
 
 	ret = 0;
