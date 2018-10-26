@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
 # Copyright (c) 2013-2016 Allan Jude
-# Copyright (c) 2013-2015 Devin Teske
+# Copyright (c) 2013-2018 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -627,7 +627,7 @@ dialog_menu_layout()
 			# Not enough disks selected
 			f_dprintf "$funcname: %s: %s (%u < %u minimum)" \
 				  "$ZFSBOOT_VDEV_TYPE" \
-			          "Not enough disks selected." \
+				  "Not enough disks selected." \
 				  $ndisks $want_disks
 			f_interactive || return $FAILURE
 			msg_yes="$msg_change_selection" msg_no="$msg_cancel" \
@@ -843,15 +843,17 @@ zfs_create_diskpart()
 		#
 		# 2. Add small freebsd-boot and/or efi partition
 		#
-		if [ "$ZFSBOOT_BOOT_TYPE" = "UEFI" -o "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
+		if [ "$ZFSBOOT_BOOT_TYPE" = "UEFI" -o \
+		     "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]
+		then
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
 			             "$align_small" efiboot$index efi 200M \
-				     $disk ||
-			             return $FAILURE
+			             $disk || return $FAILURE
 
 			f_eval_catch $funcname mkdir "$MKDIR_P" \
-				     "$BSDINSTALL_TMPETC/esp" || return $FAILURE
+				     "$BSDINSTALL_TMPETC/esp" ||
+				     return $FAILURE
 			f_eval_catch $funcname newfs_msdos "$NEWFS_ESP" "16" \
 				     "EFISYS" "/dev/${disk}p1" ||
 				     return $FAILURE
@@ -874,19 +876,23 @@ zfs_create_diskpart()
 				     return $FAILURE
 		fi
 
-		if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS" -o "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]; then
+		if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS" -o \
+		     "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]
+		then
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
-			             "$align_small" gptboot$index freebsd-boot \
-			             512k $disk || return $FAILURE
+			             "$align_small" gptboot$index \
+			             freebsd-boot 512k $disk || return $FAILURE
 			if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS" ]; then
-				f_eval_catch $funcname gpart "$GPART_BOOTCODE_PART" \
-				             /boot/pmbr /boot/gptzfsboot 1 $disk ||
-				             return $FAILURE
+				f_eval_catch $funcname gpart \
+				             "$GPART_BOOTCODE_PART" \
+				             /boot/pmbr /boot/gptzfsboot 1 \
+				             $disk || return $FAILURE
 			else
-				f_eval_catch $funcname gpart "$GPART_BOOTCODE_PART" \
-				             /boot/pmbr /boot/gptzfsboot 2 $disk ||
-				             return $FAILURE
+				f_eval_catch $funcname gpart \
+				             "$GPART_BOOTCODE_PART" \
+				             /boot/pmbr /boot/gptzfsboot 2 \
+				             $disk || return $FAILURE
 			fi
 		fi
 
@@ -918,8 +924,7 @@ zfs_create_diskpart()
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
 			             "$align_big" boot$index freebsd-zfs \
-			             ${bootsize}b $disk ||
-			             return $FAILURE
+			             ${bootsize}b $disk || return $FAILURE
 			# Pedantically nuke any old labels
 			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
 			                /dev/$disk$bootpart
@@ -938,8 +943,7 @@ zfs_create_diskpart()
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
 			             "$align_big" swap$index freebsd-swap \
-			             ${swapsize}b $disk ||
-			             return $FAILURE
+			             ${swapsize}b $disk || return $FAILURE
 			# Pedantically nuke any old labels on the swap
 			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
 			                /dev/$disk$swappart
@@ -971,9 +975,8 @@ zfs_create_diskpart()
 		#
 		# 2. Add freebsd slice with all available space
 		#
-		f_eval_catch $funcname gpart "$GPART_ADD_ALIGN" "$align_small" \
-		             freebsd $disk ||
-		             return $FAILURE
+		f_eval_catch $funcname gpart "$GPART_ADD_ALIGN" \
+		             "$align_small" freebsd $disk || return $FAILURE
 		f_eval_catch $funcname gpart "$GPART_SET_ACTIVE" 1 $disk ||
 		             return $FAILURE
 		# Pedantically nuke any old labels
@@ -1016,8 +1019,8 @@ zfs_create_diskpart()
 		if [ ${swapsize:-0} -gt 0 ]; then
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_ALIGN_INDEX_WITH_SIZE" \
-			             "$align_small" 2 freebsd-swap ${swapsize}b ${disk}s1 ||
-			             return $FAILURE
+			             "$align_small" 2 freebsd-swap \
+			             ${swapsize}b ${disk}s1 || return $FAILURE
 			# Pedantically nuke any old labels on the swap
 			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
 			                /dev/${disk}s1b
@@ -1027,7 +1030,8 @@ zfs_create_diskpart()
 		# 5. Add freebsd-zfs partition for zroot
 		#
 		f_eval_catch $funcname gpart "$GPART_ADD_ALIGN_INDEX" \
-		             "$align_small" $mbrindex freebsd-zfs ${disk}s1 || return $FAILURE
+		             "$align_small" $mbrindex freebsd-zfs ${disk}s1 ||
+		             return $FAILURE
 		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
 		                /dev/$disk$targetpart # Pedantic
 		f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
@@ -1047,25 +1051,21 @@ zfs_create_diskpart()
 	elif [ "$ZFSBOOT_SWAP_ENCRYPTION" -a "$ZFSBOOT_SWAP_MIRROR" ]; then
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 		             /dev/mirror/swap.eli none swap sw 0 0 \
-		             $BSDINSTALL_TMPETC/fstab ||
-		             return $FAILURE
+		             $BSDINSTALL_TMPETC/fstab || return $FAILURE
 		isswapmirror=1
 	elif [ "$ZFSBOOT_SWAP_MIRROR" ]; then
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 		             /dev/mirror/swap none swap sw 0 0 \
-		             $BSDINSTALL_TMPETC/fstab ||
-		             return $FAILURE
+		             $BSDINSTALL_TMPETC/fstab || return $FAILURE
 		isswapmirror=1
 	elif [ "$ZFSBOOT_SWAP_ENCRYPTION" ]; then
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 		             /dev/$disk${swappart}.eli none swap sw 0 0 \
-		             $BSDINSTALL_TMPETC/fstab ||
-		             return $FAILURE
+		             $BSDINSTALL_TMPETC/fstab || return $FAILURE
 	else
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 		             /dev/$disk$swappart none swap sw 0 0 \
-		             $BSDINSTALL_TMPETC/fstab ||
-		             return $FAILURE
+		             $BSDINSTALL_TMPETC/fstab || return $FAILURE
 	fi
 
 	return $SUCCESS
@@ -1272,8 +1272,8 @@ zfs_create_boot()
 				# the key files, use only a password
 				if ! echo "$pw_password" | f_eval_catch \
 					$funcname geli \
-					"$GELI_PASSWORD_GELIBOOT_INIT" AES-XTS \
-					$disk$targetpart
+					"$GELI_PASSWORD_GELIBOOT_INIT" \
+					AES-XTS $disk$targetpart
 				then
 					f_interactive || f_die
 					unset pw_password # Sensitive info
@@ -1326,8 +1326,7 @@ zfs_create_boot()
 		done
 		f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
 			"-o altroot=$BSDINSTALL_CHROOT $create_options -m none -f" \
-			"$zroot_name" "" "$raid10_vdevs" ||
-			return $FAILURE
+			"$zroot_name" "" "$raid10_vdevs" || return $FAILURE
 	else
 		f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
 			"-o altroot=$BSDINSTALL_CHROOT $create_options -m none -f" \
@@ -1366,8 +1365,7 @@ zfs_create_boot()
 	#
 	f_dprintf "$funcname: Setting mountpoint for root of the pool..."
 	f_eval_catch $funcname zfs "$ZFS_SET" \
-		"mountpoint=/$zroot_name" "$zroot_name" ||
-		return $FAILURE
+		"mountpoint=/$zroot_name" "$zroot_name" || return $FAILURE
 
 	# Touch up permissions on the tmp directories
 	f_dprintf "$funcname: Modifying directory permissions..."
@@ -1409,11 +1407,12 @@ zfs_create_boot()
 		# Re-import the ZFS pool(s)
 		f_dprintf "$funcname: Re-importing ZFS pool(s)..."
 		f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
-			     "-o altroot=\"$BSDINSTALL_CHROOT\"" "$zroot_name" ||
-			     return $FAILURE
+			     "-o altroot=\"$BSDINSTALL_CHROOT\"" \
+			     "$zroot_name" || return $FAILURE
 		if [ "$ZFSBOOT_BOOT_POOL" ]; then
 			# Import the bootpool, but do not mount it yet
-			f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
+			f_eval_catch $funcname zpool \
+				     "$ZPOOL_IMPORT_WITH_OPTIONS" \
 				     "-o altroot=\"$BSDINSTALL_CHROOT\" -N" \
 				     "$bootpool_name" || return $FAILURE
 		fi
@@ -1438,12 +1437,13 @@ zfs_create_boot()
 
 	if [ "$ZFSBOOT_BOOT_POOL" ]; then
 		f_eval_catch $funcname printf "$PRINTF_CONF" \
-			vfs.root.mountfrom "\"zfs:$zroot_name/$zroot_bootfs\"" \
+			vfs.root.mountfrom \
+			"\"zfs:$zroot_name/$zroot_bootfs\"" \
 			$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
 	fi
 	#
-	# Set canmount=noauto so that the default Boot Environment (BE) does not
-	# get mounted if a different BE is selected from the beastie menu
+	# Set canmount=noauto so that the default Boot Environment (BE) does
+	# not get mounted if a different BE is selected from the beastie menu
 	#
 	f_dprintf "$funcname: Set canmount=noauto for the root of the pool..."
 	f_eval_catch $funcname zfs "$ZFS_SET" "canmount=noauto" \
@@ -1729,10 +1729,14 @@ while :; do
 		;;
 	?" $msg_partition_scheme")
 		# Toggle between GPT (BIOS), GPT (UEFI) and MBR
-		if [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" -a "$ZFSBOOT_BOOT_TYPE" = "BIOS" ]; then
+		if [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" -a \
+		     "$ZFSBOOT_BOOT_TYPE" = "BIOS" ]
+		then
 			ZFSBOOT_PARTITION_SCHEME="GPT"
 			ZFSBOOT_BOOT_TYPE="UEFI"
-		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" -a "$ZFSBOOT_BOOT_TYPE" = "UEFI" ]; then
+		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" -a \
+		       "$ZFSBOOT_BOOT_TYPE" = "UEFI" ]
+		then
 			ZFSBOOT_PARTITION_SCHEME="GPT"
 			ZFSBOOT_BOOT_TYPE="BIOS+UEFI"
 		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" ]; then
