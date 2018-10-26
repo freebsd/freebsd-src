@@ -226,7 +226,7 @@ $ ls -l xxx yyy zzz | cut -d' ' -f1
 > -rw-r--r--
 
 $ setfacl -m u:42:x,g:43:w nnn xxx yyy zzz
-> setfacl: nnn: stat() failed: No such file or directory
+> setfacl: nnn: acl_get_file() failed: No such file or directory
 
 $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > ls: nnn: No such file or directory
@@ -258,7 +258,7 @@ $ getfacl -nq nnn xxx yyy zzz
 > other::r--
 
 $ setfacl -b nnn xxx yyy zzz
-> setfacl: nnn: stat() failed: No such file or directory
+> setfacl: nnn: acl_get_file() failed: No such file or directory
 
 $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > ls: nnn: No such file or directory
@@ -267,7 +267,7 @@ $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > -rw-r--r--+
 
 $ setfacl -bn nnn xxx yyy zzz
-> setfacl: nnn: stat() failed: No such file or directory
+> setfacl: nnn: acl_get_file() failed: No such file or directory
 
 $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > ls: nnn: No such file or directory
