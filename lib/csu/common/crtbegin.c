@@ -30,6 +30,14 @@ __FBSDID("$FreeBSD$");
 
 typedef void (*crt_func)(void);
 
+extern void *__dso_handle __hidden;
+
+#ifdef SHARED
+void *__dso_handle = &__dso_handle;
+#else
+void *__dso_handle = 0;
+#endif
+
 /*
  * On some architectures and toolchains we may need to call the .dtors.
  * These are called in the order they are in the ELF file.
