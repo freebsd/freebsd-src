@@ -334,6 +334,9 @@ struct da_softc {
 	uint32_t		unmap_gran;
 	uint32_t		unmap_gran_align;
 	uint64_t		ws_max_blks;
+	uint64_t		trim_count;
+	uint64_t		trim_ranges;
+	uint64_t		trim_lbas;
 	da_delete_methods	delete_method_pref;
 	da_delete_methods	delete_method;
 	da_delete_func_t	*delete_func;
@@ -2182,6 +2185,18 @@ dasysctlinit(void *context, int pending)
 		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
 		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
 		"Minimum CDB size");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_count", CTLFLAG_RD, &softc->trim_count,
+		"Total number of unmap/dsm commands sent");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_ranges", CTLFLAG_RD, &softc->trim_ranges,
+		"Total number of ranges in unmap/dsm commands");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_lbas", CTLFLAG_RD, &softc->trim_lbas,
+		"Total lbas in the unmap/dsm commands sent");
 
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "zone_mode", CTLTYPE_STRING | CTLFLAG_RD,
@@ -3934,6 +3949,9 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 		   da_default_timeout * 1000);
 	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
 	ccb->ccb_h.flags |= CAM_UNLOCKED;
+	softc->trim_count++;
+	softc->trim_ranges += ranges;
+	softc->trim_lbas += totalcount;
 	cam_iosched_submit_trim(softc->cam_iosched);
 }
 

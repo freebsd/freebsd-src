@@ -105,12 +105,14 @@ struct nda_softc {
 	nda_quirks		quirks;
 	int			unmappedio;
 	quad_t			deletes;
-	quad_t			dsm_req;
 	uint32_t		nsid;			/* Namespace ID for this nda device */
 	struct disk		*disk;
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
+	uint64_t		trim_count;
+	uint64_t		trim_ranges;
+	uint64_t		trim_lbas;
 #ifdef CAM_TEST_FAILURE
 	int			force_read_error;
 	int			force_write_error;
@@ -637,9 +639,18 @@ ndasysctlinit(void *context, int pending)
 	    OID_AUTO, "deletes", CTLFLAG_RD,
 	    &softc->deletes, "Number of BIO_DELETE requests");
 
-	SYSCTL_ADD_QUAD(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "dsm_req", CTLFLAG_RD,
-	    &softc->dsm_req, "Number of DSM requests sent to SIM");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_count", CTLFLAG_RD, &softc->trim_count,
+		"Total number of unmap/dsm commands sent");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_ranges", CTLFLAG_RD, &softc->trim_ranges,
+		"Total number of ranges in unmap/dsm commands");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_lbas", CTLFLAG_RD, &softc->trim_lbas,
+		"Total lbas in the unmap/dsm commands sent");
 
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "rotating", CTLFLAG_RD, &nda_rotating_media, 1,
@@ -939,6 +950,7 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 			struct nda_trim_request *trim;
 			struct bio *bp1;
 			int ents;
+			uint32_t totalcount = 0, ranges = 0;
 
 			trim = malloc(sizeof(*trim), M_NVMEDA, M_ZERO | M_NOWAIT);
 			if (trim == NULL) {
@@ -959,6 +971,8 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 				    htole32(bp1->bio_bcount / softc->disk->d_sectorsize);
 				dsm_range->starting_lba =
 				    htole64(bp1->bio_offset / softc->disk->d_sectorsize);
+				ranges++;
+				totalcount += dsm_range->length;
 				dsm_range++;
 				if (dsm_range >= dsm_end)
 					break;
@@ -967,10 +981,12 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 				/* XXX -- Could limit based on total payload size */
 			} while (bp1 != NULL);
 			start_ccb->ccb_trim = trim;
-			softc->dsm_req++;
 			nda_nvme_trim(softc, &start_ccb->nvmeio, &trim->dsm,
 			    dsm_range - &trim->dsm);
 			start_ccb->ccb_state = NDA_CCB_TRIM;
+			softc->trim_count++;
+			softc->trim_ranges += ranges;
+			softc->trim_lbas += totalcount;
 			/*
 			 * Note: We can have multiple TRIMs in flight, so we don't call
 			 * cam_iosched_submit_trim(softc->cam_iosched);
