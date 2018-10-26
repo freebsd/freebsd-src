@@ -374,47 +374,50 @@ random_fortuna_pre_read(void)
 	now = getsbinuptime();
 #endif
 
-	if (fortuna_state.fs_pool[0].fsp_length >= fortuna_state.fs_minpoolsize
+	if (fortuna_state.fs_pool[0].fsp_length < fortuna_state.fs_minpoolsize
 #ifdef _KERNEL
 	    /* FS&K - Use 'getsbinuptime()' to prevent reseed-spamming. */
-	    && (now - fortuna_state.fs_lasttime > SBT_1S/10)
+	    || (now - fortuna_state.fs_lasttime <= SBT_1S/10)
 #endif
 	) {
+		RANDOM_RESEED_UNLOCK();
+		return;
+	}
+
 #ifdef _KERNEL
-		fortuna_state.fs_lasttime = now;
+	fortuna_state.fs_lasttime = now;
 #endif
 
-		/* FS&K - ReseedCNT = ReseedCNT + 1 */
-		fortuna_state.fs_reseedcount++;
-		/* s = \epsilon at start */
-		for (i = 0; i < RANDOM_FORTUNA_NPOOLS; i++) {
-			/* FS&K - if Divides(ReseedCnt, 2^i) ... */
-			if ((fortuna_state.fs_reseedcount % (1 << i)) == 0) {
-				/*-
-				 * FS&K - temp = (P_i)
-				 *      - P_i = \epsilon
-				 *      - s = s|H(temp)
-				 */
-				randomdev_hash_finish(&fortuna_state.fs_pool[i].fsp_hash, temp);
-				randomdev_hash_init(&fortuna_state.fs_pool[i].fsp_hash);
-				fortuna_state.fs_pool[i].fsp_length = 0;
-				randomdev_hash_init(&context);
-				randomdev_hash_iterate(&context, temp, RANDOM_KEYSIZE);
-				randomdev_hash_finish(&context, s + i*RANDOM_KEYSIZE_WORDS);
-			} else
-				break;
-		}
-#ifdef _KERNEL
-		SDT_PROBE2(random, fortuna, event_processor, debug, fortuna_state.fs_reseedcount, fortuna_state.fs_pool);
-#endif
-		/* FS&K */
-		random_fortuna_reseed_internal(s, i);
-		/* Clean up and secure */
-		explicit_bzero(s, sizeof(s));
-		explicit_bzero(temp, sizeof(temp));
-		explicit_bzero(&context, sizeof(context));
+	/* FS&K - ReseedCNT = ReseedCNT + 1 */
+	fortuna_state.fs_reseedcount++;
+	/* s = \epsilon at start */
+	for (i = 0; i < RANDOM_FORTUNA_NPOOLS; i++) {
+		/* FS&K - if Divides(ReseedCnt, 2^i) ... */
+		if ((fortuna_state.fs_reseedcount % (1 << i)) == 0) {
+			/*-
+			    * FS&K - temp = (P_i)
+			    *      - P_i = \epsilon
+			    *      - s = s|H(temp)
+			    */
+			randomdev_hash_finish(&fortuna_state.fs_pool[i].fsp_hash, temp);
+			randomdev_hash_init(&fortuna_state.fs_pool[i].fsp_hash);
+			fortuna_state.fs_pool[i].fsp_length = 0;
+			randomdev_hash_init(&context);
+			randomdev_hash_iterate(&context, temp, RANDOM_KEYSIZE);
+			randomdev_hash_finish(&context, s + i*RANDOM_KEYSIZE_WORDS);
+		} else
+			break;
 	}
+#ifdef _KERNEL
+	SDT_PROBE2(random, fortuna, event_processor, debug, fortuna_state.fs_reseedcount, fortuna_state.fs_pool);
+#endif
+	/* FS&K */
+	random_fortuna_reseed_internal(s, i);
 	RANDOM_RESEED_UNLOCK();
+
+	/* Clean up and secure */
+	explicit_bzero(s, sizeof(s));
+	explicit_bzero(temp, sizeof(temp));
 }
 
 /*-
