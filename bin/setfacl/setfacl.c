@@ -252,6 +252,8 @@ handle_file(FTS *ftsp, FTSENT *file)
 		}
 	}
 
+	ret = 0;
+
 	/*
 	 * Don't try to set an empty default ACL; it will always fail.
 	 * Use acl_delete_def_file(3) instead.
@@ -261,34 +263,33 @@ handle_file(FTS *ftsp, FTSENT *file)
 		if (acl_delete_def_file(file->fts_accpath) == -1) {
 			warn("%s: acl_delete_def_file() failed",
 			    file->fts_path);
-			return (1);
+			ret = 1;
 		}
-		return (0);
+		goto out;
 	}
 
 	/* Don't bother setting the ACL if something is broken. */
 	if (local_error) {
-		return (1);
-	}
-
-	if (acl_type != ACL_TYPE_NFS4 && need_mask &&
+		ret = 1;
+	} else if (acl_type != ACL_TYPE_NFS4 && need_mask &&
 	    set_acl_mask(&acl, file->fts_path) == -1) {
 		warnx("%s: failed to set ACL mask", file->fts_path);
-		return (1);
+		ret = 1;
 	} else if (follow_symlink) {
 		if (acl_set_file(file->fts_accpath, acl_type, acl) == -1) {
 			warn("%s: acl_set_file() failed", file->fts_path);
-			return (1);
+			ret = 1;
 		}
 	} else {
 		if (acl_set_link_np(file->fts_accpath, acl_type, acl) == -1) {
 			warn("%s: acl_set_link_np() failed", file->fts_path);
-			return (1);
+			ret = 1;
 		}
 	}
 
+out:
 	acl_free(acl);
-	return (0);
+	return (ret);
 }
 
 int
