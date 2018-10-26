@@ -816,11 +816,12 @@ amd_intr(int cpu, struct trapframe *tf)
 		v       = pm->pm_sc.pm_reloadcount;
 		config  = rdmsr(evsel);
 
+
 		KASSERT((config & ~AMD_PMC_ENABLE) ==
 		    (pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_ENABLE),
-		    ("[amd,%d] config mismatch reg=0x%x pm=0x%x", __LINE__,
-			config, pm->pm_md.pm_amd.pm_amd_evsel));
-
+		    ("[amd,%d] config mismatch reg=0x%jx pm=0x%jx", __LINE__,
+			 (uintmax_t)config, (uintmax_t)pm->pm_md.pm_amd.pm_amd_evsel));
+		
 		wrmsr(evsel, config & ~AMD_PMC_ENABLE);
 		wrmsr(perfctr, AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(v));
 
@@ -1195,9 +1196,12 @@ pmc_amd_finalize(struct pmc_mdep *md)
 		} else if (AMD_cpufamily == 0x17)  {
 			classindex = PMC_MDEP_CLASS_INDEX_F17H;
 			pmcclass = PMC_CLASS_F17H;
-		} else
+		} else {
+			classindex = PMC_MDEP_CLASS_INDEX_K8;
+			pmcclass = PMC_CLASS_K8;
 			(void) printf("pmc:AMD CPU family unknown.\n");
-
+		}
+			
 	}
 
 	KASSERT(md->pmd_classdep[classindex].pcd_class == pmcclass,
