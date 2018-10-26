@@ -130,11 +130,7 @@ static  struct amd_descr amd_pmcdesc[AMD_NPMCS] =
 
 struct amd_event_code_map {
 	enum pmc_event	pe_ev;	 /* enum value */
-#if	defined(__i386__)
-	uint8_t		pe_code; /* encoded event mask */
-#elif	defined(__amd64__)
 	uint16_t	pe_code; /* encoded event mask */
-#endif
 	uint8_t		pe_mask; /* bits allowed in unit mask */
 };
 
@@ -532,7 +528,6 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 {
 	int i;
 	uint32_t allowed_unitmask, caps, unitmask;
-	uint16_t eventval, extevent;
 	enum pmc_event pe;
 	const struct pmc_descr *pd;
 
@@ -541,6 +536,7 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	uint32_t config;
 #elif	defined(__amd64__)
 	uint64_t config;
+	uint16_t eventval, extevent;
 #endif
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
