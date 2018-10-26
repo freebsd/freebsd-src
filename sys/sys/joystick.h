@@ -49,4 +49,6 @@ struct joystick {
 #define JOY_GET_X_OFFSET  _IOR('J', 5, int)    /* get offset on X-axis */
 #define JOY_GET_Y_OFFSET  _IOR('J', 6, int)    /* get offset on Y-axis */
 
+#warning "This interface is for obsolete hardware and will be removed in FreeBSD 13"
+
 #endif /* !_SYS_JOYSTICK_H_ */
