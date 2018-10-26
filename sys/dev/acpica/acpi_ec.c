@@ -362,7 +362,10 @@ acpi_ec_probe(device_t dev)
     if (params != NULL) {
 	ecdt = 1;
 	ret = 0;
-    } else if (ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids)) {
+    } else {
+	ret = ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids, NULL);
+	if (ret > 0)
+	    goto out;
 	params = malloc(sizeof(struct acpi_ec_params), M_TEMP,
 			M_WAITOK | M_ZERO);
 	h = acpi_get_handle(dev);
@@ -422,14 +425,14 @@ acpi_ec_probe(device_t dev)
 	 * this device.
 	 */
 	peer = devclass_get_device(acpi_ec_devclass, params->uid);
-	if (peer == NULL || !device_is_alive(peer))
-	    ret = 0;
-	else
+	if (peer != NULL && device_is_alive(peer)){
+	    ret = ENXIO;
 	    device_disable(dev);
+	}
     }
 
 out:
-    if (ret == 0) {
+    if (ret <= 0) {
 	snprintf(desc, sizeof(desc), "Embedded Controller: GPE %#x%s%s",
 		 params->gpe_bit, (params->glk) ? ", GLK" : "",
 		 ecdt ? ", ECDT" : "");
