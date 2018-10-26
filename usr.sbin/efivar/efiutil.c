@@ -159,7 +159,7 @@ efi_print_load_option(uint8_t *data, size_t datalen, int Aflag, int bflag, int u
 	ucs2_to_utf8(descr, &str);
 	printf("%s", str);
 	free(str);
-	while (dp < edp) {
+	while (dp < edp && (size_t)(edp - dp) > sizeof(efidp_header)) {
 		efidp_format_device_path(buf, sizeof(buf), dp,
 		    (intptr_t)(void *)edp - (intptr_t)(void *)dp);
 		dp = (efidp)((char *)dp + efidp_size(dp));
