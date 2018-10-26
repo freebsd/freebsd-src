@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20181026: joy(4) removal
+OLD_FILES+=usr/share/man/man4/joy.4.gz
 # 20181025: OpenSSL libraries version bump to avoid conflict with ports
 OLD_LIBS+=lib/libcrypto.so.9
 OLD_LIBS+=usr/lib/libssl.so.9
