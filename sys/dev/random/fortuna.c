@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include <sys/param.h>
+#include <sys/fail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -385,6 +386,18 @@ random_fortuna_pre_read(void)
 	}
 
 #ifdef _KERNEL
+	/*
+	 * When set, pretend we do not have enough entropy to reseed yet.
+	 */
+	KFAIL_POINT_CODE(DEBUG_FP, random_fortuna_pre_read, {
+		if (RETURN_VALUE != 0) {
+			RANDOM_RESEED_UNLOCK();
+			return;
+		}
+	});
+#endif
+
+#ifdef _KERNEL
 	fortuna_state.fs_lasttime = now;
 #endif
 
@@ -441,6 +454,14 @@ random_fortuna_read(uint8_t *buf, u_int bytecount)
 bool
 random_fortuna_seeded(void)
 {
+
+#ifdef _KERNEL
+	/* When set, act as if we are not seeded. */
+	KFAIL_POINT_CODE(DEBUG_FP, random_fortuna_seeded, {
+		if (RETURN_VALUE != 0)
+			fortuna_state.fs_counter = UINT128_ZERO;
+	});
+#endif
 
 	return (!uint128_is_zero(fortuna_state.fs_counter));
 }
