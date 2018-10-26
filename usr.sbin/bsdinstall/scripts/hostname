@@ -51,10 +51,10 @@ f_include $BSDCFG_SHARE/dialog.subr
 #
 # Strings that should be moved to an i18n file and loaded with f_include_lang()
 #
-msg_set_hostname="Set Hostname"
-msg_please_choose_a_hostname="Please choose a hostname for this machine.\n\nIf you are running on a managed network, please ask\nyour network administrator for an appropriate name."
-msg_ok="OK"
 msg_freebsd_installer="FreeBSD Installer"
+msg_ok="OK"
+msg_please_choose_a_hostname="Please choose a hostname for this machine.\n\nIf you are running on a managed network, please ask\nyour network administrator for an appropriate name."
+msg_set_hostname="Set Hostname"
 
 #
 # Command strings for various tasks
