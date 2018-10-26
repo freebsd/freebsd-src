@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2018
+.Dd October 26, 2018
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -348,3 +348,15 @@ is taken, it is not possible to send crash dumps directly to a file.
 It is currently not possible to configure both compression and encryption.
 The encrypted dump format assumes that the kernel dump size is a multiple
 of the cipher block size, which may not be true when the dump is compressed.
+.Sh SECURITY CONSIDERATIONS
+RSA keys smaller than 1024 bits are practical to factor and therefore weak.
+Even 1024 bit keys may not be large enough to ensure privacy for many
+years, so NIST recommends a minimum of 2048 bit RSA keys.
+As a seatbelt,
+.Nm
+prevents users from configuring encrypted kernel dumps with weak RSA keys.
+If you do not care for cryptographic privacy guarantees, just use
+.Nm
+without specifying a
+.Fl k Ar pubkey
+option.
