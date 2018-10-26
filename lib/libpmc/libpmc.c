@@ -61,6 +61,8 @@ static int ucp_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 static int k8_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
+static int f17h_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+		struct pmc_op_pmcallocate *_pmc_config);
 static int p4_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
@@ -157,6 +159,7 @@ struct pmc_class_descr {
 PMC_CLASSDEP_TABLE(iaf, IAF);
 PMC_CLASSDEP_TABLE(k7, K7);
 PMC_CLASSDEP_TABLE(k8, K8);
+PMC_CLASSDEP_TABLE(f17h, F17H);
 PMC_CLASSDEP_TABLE(p4, P4);
 PMC_CLASSDEP_TABLE(p5, P5);
 PMC_CLASSDEP_TABLE(p6, P6);
@@ -342,6 +345,7 @@ PMC_MDEP_TABLE(westmere, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_
 PMC_MDEP_TABLE(westmere_ex, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(k7, K7, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(k8, K8, PMC_CLASS_SOFT, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(f17h, F17H, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p4, P4, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p5, P5, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p6, P6, PMC_CLASS_SOFT, PMC_CLASS_TSC);
@@ -408,6 +412,7 @@ PMC_CLASS_TABLE_DESC(k7, K7, k7, k7);
 #endif
 #if	defined(__i386__) || defined(__amd64__)
 PMC_CLASS_TABLE_DESC(k8, K8, k8, k8);
+PMC_CLASS_TABLE_DESC(f17h, F17H, f17h, f17h);
 PMC_CLASS_TABLE_DESC(p4, P4, p4, p4);
 #endif
 #if	defined(__i386__)
@@ -1158,7 +1163,717 @@ ucp_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 	return (0);
 }
+/* AMD Fam17H PMCs */
+static struct pmc_event_alias f17h_aliases[] = {
+	EV_ALIAS("branches",		"ex_ret_brn_tkn"),
+	EV_ALIAS("branch-mispredicts",
+	    "ex_ret_brn_tkn_misp"),
+	EV_ALIAS("cycles",		"tsc"),
+	EV_ALIAS("dc-access",		"ls_dc_access"),
+	EV_ALIAS("ic-misses",		"ic_fw32_miss"),
+	EV_ALIAS("instructions",	"ex_ret_inst"),
+	EV_ALIAS("unhalted-cycles",	"ls_not_halted_cycle"),
+	EV_ALIAS(NULL, NULL)
+};
+#define	__F17HMASK(N, V) PMCMASK(N, (1 << (V)))
+static const struct pmc_masks f17h_mask_FPU_PIPEASSIGMENT[] = {
+	__F17HMASK(FPU_PIPEASSIGMENT_uOP_P0,	0),
+	__F17HMASK(FPU_PIPEASSIGMENT_uOP_P1,	1),
+	__F17HMASK(FPU_PIPEASSIGMENT_uOP_P2,	2),
+	__F17HMASK(FPU_PIPEASSIGMENT_uOP_P3,	3),
+	__F17HMASK(FPU_PIPEASSIGMENT_MultiuOP_P0,	4),
+	__F17HMASK(FPU_PIPEASSIGMENT_MultiuOP_P1,	5),
+	__F17HMASK(FPU_PIPEASSIGMENT_MultiuOP_P2,	6),
+	__F17HMASK(FPU_PIPEASSIGMENT_MultiuOP_P3,	7),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_FP_SCHED_EMPTY[] = {
+	__F17HMASK(FP_SCHED_EMPTY,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_FP_RET_X87_FPOPS[] = {
+	__F17HMASK(FP_RET_X87_ADDSUBOPS,   0),
+	__F17HMASK(FP_RET_X87_MULOPS,      1),
+	__F17HMASK(FP_RET_X87_DIVSQRTOPS,  2),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_FP_RET_SSEAVX_OPS[] = {
+	__F17HMASK(FP_RET_SSEAVX_SPADDSUBOPS,	0),
+	__F17HMASK(FP_RET_SSEAVX_SPMULOPS,	1),
+	__F17HMASK(FP_RET_SSEAVX_SPDIVOPS,	2),
+	__F17HMASK(FP_RET_SSEAVX_SPMULADDOPS,	3),
+	__F17HMASK(FP_RET_SSEAVX_DPADDSUBOPS,	4),
+	__F17HMASK(FP_RET_SSEAVX_DPMULOPS,	5),
+	__F17HMASK(FP_RET_SSEAVX_DPDIVOPS,	6),
+	__F17HMASK(FP_RET_SSEAVX_DPMULADDOPS,	7),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_FP_NUM_MOVELIM_SCAL_OPT[] = {
+	__F17HMASK(FP_NUM_SSEMOV_OPS,	0),
+	__F17HMASK(FP_NUM_SSEMOV_ELIM,	1),
+	__F17HMASK(FP_NUM_OPS_OPTPOT,	2),
+	__F17HMASK(FP_NUM_OPS_OPT,	3),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_FP_RET_SEROPS[] = {
+	__F17HMASK(FP_RET_SSE_BOTEXEC,	0),
+	__F17HMASK(FP_RET_SSE_CTRL,	1),
+	__F17HMASK(FP_RET_BOTEXEC,	2),
+	__F17HMASK(FP_RET_X87_CTRL,	3),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_BAD_STATUS2[] = {
+	__F17HMASK(LS_BAD_STATUS2_STLI_NOSTATE,	0),
+	__F17HMASK(LS_BAD_STATUS2_STLI_OTHER,	1),
+	__F17HMASK(LS_BAD_STATUS2_STLF_NODATA,	2),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_LOCKS[] = {
+	__F17HMASK(LS_LOCKS_BUSLOCKS,	         0),
+	__F17HMASK(LS_LOCKS_NONSPECLOCK,	 1),
+	__F17HMASK(LS_SPECLOCK,			 2),
+	__F17HMASK(LS_SPECLCOK_MAPCOMMIT,	 3),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_RET_CLFLUSH_INST[] = {
+	__F17HMASK(LS_RET_CLFLUSH_INST,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_RET_CPUID_INST[] = {
+	__F17HMASK(LS_RET_CPUID_INST,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_DISPATCH[] = {
+	__F17HMASK(LS_DISPATCH_LD,	0),
+	__F17HMASK(LS_DISPATCH_STR,	1),
+	__F17HMASK(LS_DISPATCH_LDSTR,	2),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_SMI_RX[] = {
+	__F17HMASK(LS_SMI_RX,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_STLF[] = {
+	__F17HMASK(LS_STLF,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_STLF_COMMITCANCEL[] = {
+	__F17HMASK(LS_STLF_COMMITCANCEL,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_DC_ACCESS[] = {
+	__F17HMASK(LS_DC_ACCESS,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_MAB_ALLOCPIPE[] = {
+	__F17HMASK(LS_MAB_ALLOCPIPE_DATAPIPE,	  0),
+	__F17HMASK(LS_MAB_ALLOCPIPE_STPIPE,	  1),
+	__F17HMASK(LS_MAB_ALLOCPIPE_TLBPIPELATE,  2),
+	__F17HMASK(LS_MAB_ALLOCPIPE_HWPF,	  3),
+	__F17HMASK(LS_MAB_ALLOCPIPE_TLPPIPEEARLY, 4),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_REFFILS_FROM_SYS[] = {
+	__F17HMASK(LS_MABRESP_LCL_L2,	     0),
+	__F17HMASK(LS_MABRESP_LCL_CACHE,     1),
+	__F17HMASK(LS_MABRESP_LCL_DRAM,	     3),
+	__F17HMASK(LS_MABRESP_LCL_RMT_CACHE, 4),
+	__F17HMASK(LS_MABRESP_LCL_RMT_DRAM,  6),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_L1_DTLBMISS[] = {
+	__F17HMASK(LS_TLBRELOAD_4KL2HIT,	 0),
+	__F17HMASK(LS_TLBRELOAD_32KL2HIT,	 1),
+	__F17HMASK(LS_TLBRELOAD_2ML2HIT,	 2),
+	__F17HMASK(LS_TLBRELOAD_1GL2HIT,	 3),
+	__F17HMASK(LS_TLBRELOAD_4KL2MISS,	 4),
+	__F17HMASK(LS_TLBRELOAD_32KML2MISS,	 5),
+	__F17HMASK(LS_TLBRELOAD_2ML2MISS,	 6),
+	__F17HMASK(LS_TLBRELOAD_1GL2MISS,	 7),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_TABLEWALKER[] = {
+	__F17HMASK(LS_PERFMON_TW_ALLOCDSIDE0,	0),
+	__F17HMASK(LS_PERFMON_TW_ALLOCDSIDE1,	1),
+	__F17HMASK(LS_PERFMON_TW_ALLOCISIDE0,	2),
+	__F17HMASK(LS_PERFMON_TW_ALLOCISIDE1,	3),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_MISAL_ACCESS[] = {
+	__F17HMASK(LS_MISAL_ACCESS,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_PREF_INST_DISPATCH[] = {
+	__F17HMASK(LS_LOAD_PREF_W,	 0),
+	__F17HMASK(LS_STORE_PREF_W,	 1),
+	__F17HMASK(LS_PREF_PREFETCH_NTA, 2),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_HWPF_ALLOCATED[] = {
+	__F17HMASK(LS_ALLOC_STREAM_PF,	0),
+	__F17HMASK(LS_ALLOC_STRIDE_PF,	1),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_HWPF_HIT[] = {
+	__F17HMASK(LS_HIT_STREAM_PF,	0),
+	__F17HMASK(LS_HIT_STRIDE_PF,	1),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_TW_INPROG_DSIDE[] = {
+	__F17HMASK(LS_TW_INPROG_DSIDE0,	0),
+	__F17HMASK(LS_TW_INPROG_ISIDE0,	1),
+	__F17HMASK(LS_TW_INPROG_DSIDE1,	2),
+	__F17HMASK(LS_TW_INPROG_ISIDE1,	3),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_INEF_SW_PREF[] = {
+	__F17HMASK(LS_INEF_SW_PREF_DATAPIPE_SW_PF_DCHIT,	0),
+	__F17HMASK(LS_INEF_SW_PREF_MAB_MCH_CNT,	                1),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_MAB_MCH_CNT[] = {
+	__F17HMASK(LS_MAB_MCH_CNT,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_HW_PF_MABALLOC[] = {
+	__F17HMASK(LS_MABALLOC_HW_PFSTREAM,	0),
+	__F17HMASK(LS_MABALLOC_HW_PFSTRIDE,	1),
+	__F17HMASK(LS_MABALLOC_PFREGION,	2),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_HW_PF_MATCH[] = {
+	__F17HMASK(LS_MATCH_HW_PFSTREAM,	0),
+	__F17HMASK(LS_MATCH_HW_PFSTRIDE,	1),
+	__F17HMASK(LS_MATCH_HW_PFREGION,	2),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_SW_PF_DCFILLS[] = {
+	__F17HMASK(LS_SW_PF_MABRESP_LCL_L2,	  0),
+	__F17HMASK(LS_SW_PF_MABRESP_LCL_L2_CACHE, 1),
+	__F17HMASK(LS_SW_PF_MABRESP_LCL_DRM,	  3),
+	__F17HMASK(LS_SW_PF_MABRESP_RMT_CACHE,	  4),
+	__F17HMASK(LS_SW_PF_MABRESP_RMT_DRAM,	  6),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_HW_PF_DCFILLS[] = {
+	__F17HMASK(LS_HW_PF_MABRESP_LCL_L2,	  0),
+	__F17HMASK(LS_HW_PF_MABRESP_LCL_CACHE,    1),
+	__F17HMASK(LS_HW_PF_MABRESP_LCL_DRAM,	  3),
+	__F17HMASK(LS_HW_PF_MABRESP_RMT_CACHE,	  4),
+	__F17HMASK(LS_HW_PF_MABRESP_RMT_DRAM,	  6),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_TW_DCFILLS[] = {
+	__F17HMASK(LS_TW_MABRESP_LCL_L2,	0),
+	__F17HMASK(LS_TW_MABRESP_LCL_CACHE,	1),
+	__F17HMASK(LS_TW_MABRESP_LCL_DRAM,	3),
+	__F17HMASK(LS_TW_MABRESP_RMT_CACHE,	4),
+	__F17HMASK(LS_TW_MABRESP_RMT_DRAM,	6),
+	NULLMASK
+};
 
+static const struct pmc_masks f17h_mask_LS_ALLOC_MAB_COUNT[] = {
+	__F17HMASK(LS_ALLOC_MAB_COUNT,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_TW_INITLEVEL[] = {
+	__F17HMASK(LS_TW_INITLGH_NATIVE_PDPT,	0),
+	__F17HMASK(LS_TW_INITLGH_NATIVE_PDT,	1),
+	__F17HMASK(LS_TW_INITLGH_NATIVE_PFT,	2),
+	__F17HMASK(LS_TW_INITLGH_NATIVE_PG,	3),
+	__F17HMASK(LS_TW_INITL_NESTED_PDPT,	4),
+	__F17HMASK(LS_TW_INITL_NESTED_PDT,	5),
+	__F17HMASK(LS_TW_INITL_NESTED_PFT,	6),
+	__F17HMASK(LS_TW_INITL_NESTED_PG,	7),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_NOT_HALTED_CYCLE[] = {
+	__F17HMASK(LS_NOT_HALTED_CYCLE,	0x00),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_LS_TW_RETURN_TYPES[] = {
+	__F17HMASK(LS_TWC_RET_TYPE_SPEC_VALID,		0),
+	__F17HMASK(LS_TWC_RET_TYPE_SPEC_FAULT_NAB,	2),
+	__F17HMASK(LS_TWC_RET_TYPE_SPEC_FAULT_AB,	3),
+	__F17HMASK(LS_TWC_RET_TYPE_NONSPEC_VALID,	6),
+	__F17HMASK(LS_TWC_RET_TYPE_NONSPEC_FAULT,	7),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_IC_FW32[] = {
+	__F17HMASK(IC_FW32,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_IC_FW32_MISS[] = {
+	__F17HMASK(IC_FW32_MISS,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_IC_CACHEFILL_L2[] = {
+	__F17HMASK(IC_CACHEFILL_L2,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_IC_CACHEFILL_SYS[] = {
+	__F17HMASK(IC_CACHEFILL_SYS,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_BP_L1TLBMISS_L2HIT[] = {
+	__F17HMASK(BP_L1TLBMISS_L2HIT,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_BP_L1TLBMISS_L2MISS[] = {
+	__F17HMASK(BP_L1TLBMISS_L2MISS,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_IC_FETCHSTALL[] = {
+	__F17HMASK(IC_FETCHSTALL_BACKPRESSURE,	0),
+	__F17HMASK(IC_FETCHSTALL_DQEMPTY,	1),
+	__F17HMASK(IC_FETCHSTALL_ANY,	        2),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_BP_L1_BTBCORRECT[] = {
+	__F17HMASK(BP_L1_BTBCORRECT,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_BP_L2_BTBCORRECT[] = {
+	__F17HMASK(BP_L2_BTBCORRECT,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_IC_CACHEINVAL[] = {
+	__F17HMASK(IC_CACHEINVAL_FILLINV,	0),
+	__F17HMASK(IC_CACHEINVAL_L2_INV_PROVBE,	1),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_BP_TLB_REL[] = {
+	__F17HMASK(BP_TLB_REL,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_ICOC_MODE_SWITCH[] = {
+	__F17HMASK(IC2OC_MODE_SWITCH,	0),
+	__F17HMASK(OC2IC_MODE_SWITCH,	1),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_DE_DISPATCH_TOKEN_STALLS[] = {
+	__F17HMASK(DE_ALSQ1_TOKEN_STALL,	0),
+	__F17HMASK(DE_ALSQ2_TOKEN_STALL,	1),
+	__F17HMASK(DE_ALSQ3_TOKEN_STALL,	2),
+	__F17HMASK(DE_ALSQ3_0_TOKEN_STALL,	3),
+	__F17HMASK(DE_ALU_TOKEN_STALL,		4),
+	__F17HMASK(DE_AGSQ_TOKEN_STALL,		5),
+	__F17HMASK(DE_RETIRE_TOKEN_STALLS,	6),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_INST[] = {
+	__F17HMASK(EX_RET_INST,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_COPS[] = {
+	__F17HMASK(EX_RET_COPS,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_BRN[] = {
+	__F17HMASK(EX_RET_BRN,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_BRN_MISP[] = {
+	__F17HMASK(EX_RET_BRN_MISP,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_BRN_TKN[] = {
+	__F17HMASK(EX_RET_BRN_TKN,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_BRN_TKN_MISP[] = {
+	__F17HMASK(EX_RET_BRN_TKN_MISP,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_BRN_FAR[] = {
+	__F17HMASK(EX_RET_BRN_FAR,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_BRN_RESYNC[] = {
+	__F17HMASK(EX_RET_BRN_RESYNC,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_BRN_NEAR_RET[] = {
+	__F17HMASK(EX_RET_BRN_NEAR_RET,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_BRN_NEAR_RET_MISPRED[] = {
+	__F17HMASK(EX_RET_BRN_NEAR_RET_MISPRED,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_BRN_IND_MISP[] = {
+	__F17HMASK(EX_RET_BRN_IND_MISP,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_MMX_FP_INSTR[] = {
+	__F17HMASK(EX_RET_MMX_X87_INST,	0),
+	__F17HMASK(EX_RET_MMX_INSTR,	1),
+	__F17HMASK(EX_RET_MMX_SSE_INSTR,	2),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_COND_BRN[] = {
+	__F17HMASK(EX_RET_COND_BRN,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_DIV_BUSY[] = {
+	__F17HMASK(EX_DIV_BUSY,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_DIV_COUNT[] = {
+	__F17HMASK(EX_DIV_COUNT,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_L2_REQUEST_G1[] = {
+	__F17HMASK(L2_REQUEST_G1_OTHERREQ,	0),
+	__F17HMASK(L2_REQUEST_G1_HWPF,		1),
+	__F17HMASK(L2_REQUEST_G1_PREFETCHL2,	2),
+	__F17HMASK(L2_REQUEST_G1_CHANGETOX,	3),
+	__F17HMASK(L2_REQUEST_G1_CACHEABLEICRD,	4),
+	__F17HMASK(L2_REQUEST_G1_LSRDBLKC,	5),
+	__F17HMASK(L2_REQUEST_G1_RDBLKX,	6),
+	__F17HMASK(L2_REQUEST_G1_RDBLKL,	7),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_L2_REQUEST_G2[] = {
+	__F17HMASK(L2_REQUEST_G2_BUSLOCKRESP,	0),
+	__F17HMASK(L2_REQUEST_G2_BUSLOCKORIG,	1),
+	__F17HMASK(L2_REQUEST_G2_SMCINV,	2),
+	__F17HMASK(L2_REQUEST_G2_ICRDSIZENC,	3),
+	__F17HMASK(L2_REQUEST_G2_ICRDSIZE,	4),
+	__F17HMASK(L2_REQUEST_G2_LSRDSIZENC,	5),
+	__F17HMASK(L2_REQUEST_G2_LSRDSIZE,	6),
+	__F17HMASK(L2_REQUEST_G2_GROUP1,	7),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_L2_LATENCY[] = {
+	__F17HMASK(L2_LATENCY_CYC_WAITINGONFILLS,	0x0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_L2_WBCREQ[] = {
+	__F17HMASK(L2_WBCREQ_CLZERO,		0),
+	__F17HMASK(L2_WBCREQ_LOCALICCLR,	1),
+	__F17HMASK(L2_WBCREQ_ZEROBYTESTORE,	2),
+	__F17HMASK(L2_WBCREQ_ILINEFLUSH,	3),
+	__F17HMASK(L2_WBCREQ_CACHELINEFLUSH,	4),
+	__F17HMASK(L2_WBCREQ_WBCCLOSE,		5),
+	__F17HMASK(L2_WBCREQ_WCBWRITE,		6),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_L2_CACHEREQSTAT[] = {
+	__F17HMASK(L2_CACHEREQSTAT_ICFILLMISS,	0),
+	__F17HMASK(L2_CACHEREQSTAT_ICFILLHITS,	1),
+	__F17HMASK(L2_CACHEREQSTAT_ICFILLHITX,	2),
+	__F17HMASK(L2_CACHEREQSTAT_LSRDBLKC,	3),
+	__F17HMASK(L2_CACHEREQSTAT_LSRDBLKX,	4),
+	__F17HMASK(L2_CACHEREQSTAT_LSRDBLKLHITS, 5),
+	__F17HMASK(L2_CACHEREQSTAT_LSRDBLKLHITX, 6),
+	__F17HMASK(L2_CACHEREQSTAT_LSRDBLKCS,	 7),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_L2_SMCEVENTS[] = {
+	__F17HMASK(L2_SMCEVENTS_ICFILLSTQCAMMATOT,      0),
+	__F17HMASK(L2_SMCEVENTS_ICFILLSTQCAMMATTT,	1),
+	__F17HMASK(L2_SMCEVENTS_LSRDBLKLSXCHGTOX,	2),
+	__F17HMASK(L2_SMCEVENTS_RDBLKXCHGTOX,	        3),
+	__F17HMASK(L2_SMCEVENTS_LSRDBLKLSCHITL2ICVAL,	4),
+	__F17HMASK(L2_SMCEVENTS_ICFETCHHITL2,           5),
+	__F17HMASK(L2_SMCEVENTS_ICFETCHHITL2DCVAL,      6),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_L2_FILLPENDING[] = {
+	__F17HMASK(L2_FILLPENDING_L2FILLBUSY,	0),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_TAGGED_IBSOPS[] = {
+	__F17HMASK(EX_TAGGED_IBSOPS,		0x0),
+	__F17HMASK(EX_TAGGED_IBSOPS_RET,	0x1),
+	__F17HMASK(EX_TAGGED_IBSOPS_CNT_RLOVER,	0x2),
+	NULLMASK
+};
+static const struct pmc_masks f17h_mask_EX_RET_FUSED_BRNCH_INST[] = {
+	__F17HMASK(EX_RET_FUSED_BRNCH_INST,	0x0),
+	NULLMASK
+};
+
+#define	F17H_KW_COUNT	"count"
+#define	F17H_KW_EDGE	"edge"
+#define	F17H_KW_INV	"inv"
+#define	F17H_KW_MASK	"mask"
+#define	F17H_KW_OS	"os"
+#define	F17H_KW_USR	"usr"
+
+static int
+f17h_allocate_pmc(enum pmc_event pe, char *ctrspec,
+		struct pmc_op_pmcallocate *pmc_config)
+{
+	char		*e, *p, *q;
+	int		n;
+	uint32_t	count;
+	const struct pmc_masks	 *pmask;
+	uint64_t	evmask = 0;
+	(void)ctrspec;
+
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
+	pmc_config->pm_md.pm_amd.pm_amd_config = 0;
+
+
+#define	__F17HSETMASK(M) pmask = f17h_mask_##M
+	switch (pe) {
+	case PMC_EV_F17H_FPU_PIPEASSIGMENT:
+		__F17HSETMASK(FPU_PIPEASSIGMENT);
+		break;
+	case PMC_EV_F17H_FP_SCHED_EMPTY:
+		__F17HSETMASK(FP_SCHED_EMPTY);
+		break;
+	case PMC_EV_F17H_FP_RET_X87_FPOPS:
+		__F17HSETMASK(FP_RET_X87_FPOPS);
+		break;
+	case PMC_EV_F17H_FP_RET_SSEAVX_OPS:
+		__F17HSETMASK(FP_RET_SSEAVX_OPS);
+		break;
+	case PMC_EV_F17H_FP_NUM_MOVELIM_SCAL_OPT:
+		__F17HSETMASK(FP_NUM_MOVELIM_SCAL_OPT);
+		break;
+	case PMC_EV_F17H_FP_RET_SEROPS:
+		__F17HSETMASK(FP_RET_SEROPS);
+		break;
+	case PMC_EV_F17H_LS_BAD_STATUS2:
+		__F17HSETMASK(LS_BAD_STATUS2);
+		break;
+	case PMC_EV_F17H_LS_LOCKS:
+		__F17HSETMASK(LS_LOCKS);
+		break;
+	case PMC_EV_F17H_LS_RET_CLFLUSH_INST:
+		__F17HSETMASK(LS_RET_CLFLUSH_INST);
+		break;
+	case PMC_EV_F17H_LS_RET_CPUID_INST:
+		__F17HSETMASK(LS_RET_CPUID_INST);
+		break;
+	case PMC_EV_F17H_LS_DISPATCH:
+		__F17HSETMASK(LS_DISPATCH);
+		break;
+	case PMC_EV_F17H_LS_SMI_RX:
+		__F17HSETMASK(LS_SMI_RX);
+		break;
+	case PMC_EV_F17H_LS_STLF:
+		__F17HSETMASK(LS_STLF);
+		break;
+	case PMC_EV_F17H_LS_STLF_COMMITCANCEL:
+		__F17HSETMASK(LS_STLF_COMMITCANCEL);
+		break;
+	case PMC_EV_F17H_LS_DC_ACCESS:
+		__F17HSETMASK(LS_DC_ACCESS);
+		break;
+	case PMC_EV_F17H_LS_MAB_ALLOCPIPE:
+		__F17HSETMASK(LS_MAB_ALLOCPIPE);
+		break;
+	case PMC_EV_F17H_LS_REFFILS_FROM_SYS:
+		__F17HSETMASK(LS_REFFILS_FROM_SYS);
+		break;
+	case PMC_EV_F17H_LS_L1_DTLBMISS:
+		__F17HSETMASK(LS_L1_DTLBMISS);
+		break;
+	case PMC_EV_F17H_LS_TABLEWALKER:
+		__F17HSETMASK(LS_TABLEWALKER);
+		break;
+	case PMC_EV_F17H_LS_MISAL_ACCESS:
+		__F17HSETMASK(LS_MISAL_ACCESS);
+		break;
+	case PMC_EV_F17H_LS_PREF_INST_DISPATCH:
+		__F17HSETMASK(LS_PREF_INST_DISPATCH);
+		break;
+	case PMC_EV_F17H_LS_HWPF_ALLOCATED:
+		__F17HSETMASK(LS_HWPF_ALLOCATED);
+		break;
+	case PMC_EV_F17H_LS_HWPF_HIT:
+		__F17HSETMASK(LS_HWPF_HIT);
+		break;
+	case PMC_EV_F17H_LS_TW_INPROG_DSIDE:
+		__F17HSETMASK(LS_TW_INPROG_DSIDE);
+		break;
+	case PMC_EV_F17H_LS_INEF_SW_PREF:
+		__F17HSETMASK(LS_INEF_SW_PREF);
+		break;
+	case PMC_EV_F17H_LS_MAB_MCH_CNT:
+		__F17HSETMASK(LS_MAB_MCH_CNT);
+		break;
+	case PMC_EV_F17H_LS_HW_PF_MABALLOC:
+		__F17HSETMASK(LS_HW_PF_MABALLOC);
+		break;
+	case PMC_EV_F17H_LS_HW_PF_MATCH:
+		__F17HSETMASK(LS_HW_PF_MATCH);
+		break;
+	case PMC_EV_F17H_LS_SW_PF_DCFILLS:
+		__F17HSETMASK(LS_SW_PF_DCFILLS);
+		break;
+	case PMC_EV_F17H_LS_HW_PF_DCFILLS:
+		__F17HSETMASK(LS_HW_PF_DCFILLS);
+		break;
+	case PMC_EV_F17H_LS_TW_DCFILLS:
+	__F17HSETMASK(LS_TW_DCFILLS);
+		break;
+	case PMC_EV_F17H_LS_ALLOC_MAB_COUNT:
+		__F17HSETMASK(LS_ALLOC_MAB_COUNT);
+		break;
+	case PMC_EV_F17H_LS_TW_INITLEVEL:
+		__F17HSETMASK(LS_TW_INITLEVEL);
+		break;
+	case PMC_EV_F17H_LS_NOT_HALTED_CYCLE:
+		__F17HSETMASK(LS_NOT_HALTED_CYCLE);
+		break;
+	case PMC_EV_F17H_LS_TW_RETURN_TYPES:
+		__F17HSETMASK(LS_TW_RETURN_TYPES);
+		break;
+	case PMC_EV_F17H_IC_FW32:
+		__F17HSETMASK(IC_FW32);
+		break;
+	case PMC_EV_F17H_IC_FW32_MISS:
+		__F17HSETMASK(IC_FW32_MISS);
+		break;
+	case PMC_EV_F17H_IC_CACHEFILL_L2:
+		__F17HSETMASK(IC_CACHEFILL_L2);
+		break;
+	case PMC_EV_F17H_IC_CACHEFILL_SYS:
+		__F17HSETMASK(IC_CACHEFILL_SYS);
+		break;
+	case PMC_EV_F17H_BP_L1TLBMISS_L2HIT:
+		__F17HSETMASK(BP_L1TLBMISS_L2HIT);
+		break;
+	case PMC_EV_F17H_BP_L1TLBMISS_L2MISS:
+		__F17HSETMASK(BP_L1TLBMISS_L2MISS);
+		break;
+	case PMC_EV_F17H_IC_FETCHSTALL:
+		__F17HSETMASK(IC_FETCHSTALL);
+		break;
+	case PMC_EV_F17H_BP_L1_BTBCORRECT:
+		__F17HSETMASK(BP_L1_BTBCORRECT);
+		break;
+	case PMC_EV_F17H_BP_L2_BTBCORRECT:
+		__F17HSETMASK(BP_L2_BTBCORRECT);
+		break;
+	case PMC_EV_F17H_IC_CACHEINVAL:
+		__F17HSETMASK(IC_CACHEINVAL);
+		break;
+	case PMC_EV_F17H_BP_TLB_REL:
+		__F17HSETMASK(BP_TLB_REL);
+		break;
+	case PMC_EV_F17H_ICOC_MODE_SWITCH:
+		__F17HSETMASK(ICOC_MODE_SWITCH);
+		break;
+	case PMC_EV_F17H_DE_DISPATCH_TOKEN_STALLS:
+		__F17HSETMASK(DE_DISPATCH_TOKEN_STALLS);
+		break;
+	case PMC_EV_F17H_EX_RET_INST:
+		__F17HSETMASK(EX_RET_INST);
+		break;
+	case PMC_EV_F17H_EX_RET_COPS:
+		__F17HSETMASK(EX_RET_COPS);
+		break;
+	case PMC_EV_F17H_EX_RET_BRN:
+		__F17HSETMASK(EX_RET_BRN);
+		break;
+	case PMC_EV_F17H_EX_RET_BRN_MISP:
+		__F17HSETMASK(EX_RET_BRN_MISP);
+		break;
+	case PMC_EV_F17H_EX_RET_BRN_TKN:
+		__F17HSETMASK(EX_RET_BRN_TKN);
+		break;
+	case PMC_EV_F17H_EX_RET_BRN_TKN_MISP:
+		__F17HSETMASK(EX_RET_BRN_TKN_MISP);
+		break;
+	case PMC_EV_F17H_EX_RET_BRN_FAR:
+		__F17HSETMASK(EX_RET_BRN_FAR);
+		break;
+	case PMC_EV_F17H_EX_RET_BRN_RESYNC:
+		__F17HSETMASK(EX_RET_BRN_RESYNC);
+		break;
+	case PMC_EV_F17H_EX_RET_BRN_NEAR_RET:
+		__F17HSETMASK(EX_RET_BRN_NEAR_RET);
+		break;
+	case PMC_EV_F17H_EX_RET_BRN_NEAR_RET_MISPRED:
+		__F17HSETMASK(EX_RET_BRN_NEAR_RET_MISPRED);
+		break;
+	case PMC_EV_F17H_EX_RET_BRN_IND_MISP:
+		__F17HSETMASK(EX_RET_BRN_IND_MISP);
+		break;
+	case PMC_EV_F17H_EX_RET_MMX_FP_INSTR:
+		__F17HSETMASK(EX_RET_MMX_FP_INSTR);
+		break;
+	case PMC_EV_F17H_EX_RET_COND_BRN:
+		__F17HSETMASK(EX_RET_COND_BRN);
+		break;
+	case PMC_EV_F17H_EX_DIV_BUSY:
+		__F17HSETMASK(EX_DIV_BUSY);
+		break;
+	case PMC_EV_F17H_EX_DIV_COUNT:
+		__F17HSETMASK(EX_DIV_COUNT);
+		break;
+	case PMC_EV_F17H_L2_REQUEST_G1:
+		__F17HSETMASK(L2_REQUEST_G1);
+		break;
+	case PMC_EV_F17H_L2_REQUEST_G2:
+		__F17HSETMASK(L2_REQUEST_G2);
+		break;
+	case PMC_EV_F17H_L2_LATENCY:
+		__F17HSETMASK(L2_LATENCY);
+		break;
+	case PMC_EV_F17H_L2_WBCREQ:
+		__F17HSETMASK(L2_WBCREQ);
+		break;
+	case PMC_EV_F17H_L2_CACHEREQSTAT:
+		__F17HSETMASK(L2_CACHEREQSTAT);
+		break;
+	case PMC_EV_F17H_L2_SMCEVENTS:
+		__F17HSETMASK(L2_SMCEVENTS);
+		break;
+	case PMC_EV_F17H_L2_FILLPENDING:
+		__F17HSETMASK(L2_FILLPENDING);
+		break;
+	case PMC_EV_F17H_EX_TAGGED_IBSOPS:
+		__F17HSETMASK(EX_TAGGED_IBSOPS);
+		break;
+	case PMC_EV_F17H_EX_RET_FUSED_BRNCH_INST:
+		__F17HSETMASK(EX_RET_FUSED_BRNCH_INST);
+		break;
+	default:
+		printf(" %s failed, event not supported\n", __FUNCTION__);
+		return -1;
+	}
+	while ((p = strsep(&ctrspec, ",")) != NULL) {
+		if (KWPREFIXMATCH(p, F17H_KW_COUNT "=")) {
+			q = strchr(p, '=');
+			if (*++q == '\0') /* skip '=' */
+				return (-1);
+
+			count = strtol(q, &e, 0);
+			if (e == q || *e != '\0')
+				return (-1);
+
+			pmc_config->pm_caps |= PMC_CAP_THRESHOLD;
+			pmc_config->pm_md.pm_amd.pm_amd_config |=
+			    AMD_PMC_TO_COUNTER(count);
+
+		} else if (KWMATCH(p, F17H_KW_EDGE)) {
+			pmc_config->pm_caps |= PMC_CAP_EDGE;
+		} else if (KWMATCH(p, F17H_KW_INV)) {
+			pmc_config->pm_caps |= PMC_CAP_INVERT;
+		} else if (KWPREFIXMATCH(p, F17H_KW_MASK "=")) {
+			if ((n = pmc_parse_mask(pmask, p, &evmask)) < 0)
+				return (-1);
+			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
+		} else if (KWMATCH(p, F17H_KW_OS)) {
+			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
+		} else if (KWMATCH(p, F17H_KW_USR)) {
+			pmc_config->pm_caps |= PMC_CAP_USER;
+		} else
+			return (-1);
+}
+	if (pmc_config->pm_caps & PMC_CAP_QUALIFIER) {
+		pmc_config->pm_md.pm_amd.pm_amd_config =
+		    AMD_PMC_TO_UNITMASK(evmask);
+	}
+	return 0;
+}
 /*
  * AMD K8 PMCs.
  *
@@ -3092,6 +3807,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = k8_event_table;
 		count = PMC_EVENT_TABLE_SIZE(k8);
 		break;
+	case PMC_CLASS_F17H:
+		ev = f17h_event_table;
+		count = PMC_EVENT_TABLE_SIZE(f17h);
+		break;
 	case PMC_CLASS_P4:
 		ev = p4_event_table;
 		count = PMC_EVENT_TABLE_SIZE(p4);
@@ -3359,6 +4078,10 @@ pmc_init(void)
 	case PMC_CPU_AMD_K8:
 		PMC_MDEP_INIT(k8);
 		pmc_class_table[n] = &k8_class_table_descr;
+		break;
+	case PMC_CPU_AMD_F17H:
+		PMC_MDEP_INIT(f17h);
+		pmc_class_table[n] = &f17h_class_table_descr;
 		break;
 	case PMC_CPU_INTEL_ATOM:
 		PMC_MDEP_INIT_INTEL_V2(atom);
@@ -3675,6 +4398,10 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	} else if (pe >= PMC_EV_K8_FIRST && pe <= PMC_EV_K8_LAST) {
 		ev = k8_event_table;
 		evfence = k8_event_table + PMC_EVENT_TABLE_SIZE(k8);
+	} else if ((int)pe >= PMC_EV_F17H_FIRST &&
+			(int)pe <= PMC_EV_F17H_LAST) {
+		ev = f17h_event_table;
+		evfence = f17h_event_table + PMC_EVENT_TABLE_SIZE(f17h);
 	} else if (pe >= PMC_EV_P4_FIRST && pe <= PMC_EV_P4_LAST) {
 		ev = p4_event_table;
 		evfence = p4_event_table + PMC_EVENT_TABLE_SIZE(p4);
