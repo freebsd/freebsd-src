@@ -1934,7 +1934,8 @@ update: .PHONY
 # r310724 fixed PR 215350, a crash in libdwarf with objects built by GCC 6.2.
 # r334881 added libdwarf constants used by ctfconvert.
 # r338478 fixed a crash in objcopy for mips64el objects
-.if ${BOOTSTRAPPING} < 1200084
+# r339083 libelf: correct mips64el test to use ELF header
+.if ${BOOTSTRAPPING} < 1200085
 _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
