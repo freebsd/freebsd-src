@@ -1281,8 +1281,12 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
         struct archive_entry* entry, size_t block_flags)
 {
     ssize_t extra_data_size = 0;
-    size_t data_size, file_flags, file_attr, compression_info, host_os,
-           name_size;
+    size_t data_size = 0;
+    size_t file_flags = 0;
+    size_t file_attr = 0;
+    size_t compression_info = 0;
+    size_t host_os = 0;
+    size_t name_size = 0;
     uint64_t unpacked_size;
     uint32_t mtime = 0, crc;
     int c_method = 0, c_version = 0, is_dir;
@@ -1297,7 +1301,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     }
 
     if(block_flags & HFL_EXTRA_DATA) {
-        size_t edata_size;
+        size_t edata_size = 0;
         if(!read_var_sized(a, &edata_size, NULL))
             return ARCHIVE_EOF;
 
