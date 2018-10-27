@@ -468,7 +468,8 @@ evalredir(union node *n, int flags)
 		popredir();
 		if (e == EXERROR || e == EXEXEC) {
 			if (in_redirect) {
-				exitstatus = 2;
+				if (e == EXERROR)
+					exitstatus = 2;
 				FORCEINTON;
 				return;
 			}
@@ -669,8 +670,10 @@ evalbackcmd(union node *n, struct backcmd *result)
 		forcelocal++;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
-			if (exception == EXERROR || exception == EXEXEC)
+			if (exception == EXERROR)
 				exitstatus = 2;
+			else if (exception == EXEXEC)
+				/* nothing */;
 			else if (exception != 0) {
 				handler = savehandler;
 				forcelocal--;
@@ -1089,7 +1092,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			e = exception;
 			if (e == EXINT)
 				exitstatus = SIGINT+128;
-			else if (e != EXEXIT)
+			else if (e != EXEXEC && e != EXEXIT)
 				exitstatus = 2;
 			goto cmddone;
 		}
