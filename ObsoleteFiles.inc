@@ -174,11 +174,15 @@ OLD_FILES+=usr/lib/clang/6.0.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/6.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/6.0.1/lib
 OLD_DIRS+=usr/lib/clang/6.0.1
+# 20181026: joy(4) removal
+OLD_FILES+=usr/share/man/man4/joy.4.gz
+# 20181025: OpenSSL libraries version bump to avoid conflict with ports
+OLD_LIBS+=lib/libcrypto.so.9
+OLD_LIBS+=usr/lib/libssl.so.9
+OLD_LIBS+=usr/lib32/libcrypto.so.9
+OLD_LIBS+=usr/lib32/libssl.so.9
 # 20181021: mse(4) removal
 OLD_FILES+=usr/share/man/man4/mse.4.gz
-# 20181021: joy(4) removal
-OLD_FILES+=usr/share/man/man4/joy.4.gz
-OLD_FILES+=usr/include/sys/joystick.h
 # 20181015: Stale libcasper(3) files following r329452
 OLD_LIBS+=lib/casper/libcap_sysctl.so.0
 OLD_LIBS+=lib/casper/libcap_grp.so.0

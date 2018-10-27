@@ -98,22 +98,20 @@ static char *make_rsid(const char *, const char *, struct rainfo *);
 #define	_ARGS_RESADD	resolvconf_script, "-a", rsid
 #define	_ARGS_RESDEL	resolvconf_script, "-d", rsid
 
-#define	CALL_SCRIPT(name, sm_head)					\
-	do {								\
-		const char *const sarg[] = { _ARGS_##name, NULL };	\
-		call_script(sizeof(sarg), sarg, sm_head);		\
-	} while(0)
+#define	CALL_SCRIPT(name, sm_head) do {				\
+	const char *const sarg[] = { _ARGS_##name, NULL };	\
+	call_script(sizeof(sarg), sarg, sm_head);		\
+} while (0)
 
-#define	ELM_MALLOC(p,error_action)					\
-	do {								\
-		p = malloc(sizeof(*p));					\
-		if (p == NULL) {					\
-			warnmsg(LOG_ERR, __func__, "malloc failed: %s", \
-				strerror(errno));			\
-			error_action;					\
-		}							\
-		memset(p, 0, sizeof(*p));				\
-	} while(0)
+#define	ELM_MALLOC(p, error_action) do {			\
+	p = malloc(sizeof(*p));					\
+	if (p == NULL) {					\
+		warnmsg(LOG_ERR, __func__, "malloc failed: %s", \
+		    strerror(errno));				\
+		error_action;					\
+	}							\
+	memset(p, 0, sizeof(*p));				\
+} while (0)
 
 int
 sockopen(void)
@@ -697,13 +695,12 @@ make_rsid(const char *ifname, const char *origin, struct rainfo *rai)
 }
 
 int
-ra_opt_rdnss_dispatch(struct ifinfo *ifi,
-    struct rainfo *rai,
+ra_opt_rdnss_dispatch(struct ifinfo *ifi, struct rainfo *rai,
     struct script_msg_head_t *sm_rdnss_head,
     struct script_msg_head_t *sm_dnssl_head)
 {
-	const char *r;
 	struct script_msg *smp1;
+	const char *r;
 	int error;
 
 	error = 0;
@@ -715,10 +712,7 @@ ra_opt_rdnss_dispatch(struct ifinfo *ifi,
 	}
 	TAILQ_CONCAT(sm_rdnss_head, sm_dnssl_head, sm_next);
 
-	if (rai != NULL && uflag)
-		r = make_rsid(ifi->ifname, DNSINFO_ORIGIN_LABEL, rai);
-	else
-		r = make_rsid(ifi->ifname, DNSINFO_ORIGIN_LABEL, NULL);
+	r = make_rsid(ifi->ifname, DNSINFO_ORIGIN_LABEL, uflag ? rai : NULL);
 	if (r == NULL) {
 		warnmsg(LOG_ERR, __func__, "make_rsid() failed.  "
 		    "Script was not invoked.");

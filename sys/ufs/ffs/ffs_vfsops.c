@@ -814,7 +814,7 @@ ffs_mountfs(devvp, mp, td)
 	if ((fs->fs_flags & FS_METACKHASH) == 0)
 		fs->fs_metackhash = 0;
 	/* none of these types of check-hashes are maintained by this kernel */
-	fs->fs_metackhash &= ~(CK_SUPERBLOCK | CK_INODE | CK_INDIR | CK_DIR);
+	fs->fs_metackhash &= ~(CK_INODE | CK_INDIR | CK_DIR);
 	/* no support for any undefined flags */
 	fs->fs_flags &= FS_SUPPORTED;
 	fs->fs_flags &= ~FS_UNCLEAN;

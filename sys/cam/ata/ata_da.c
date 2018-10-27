@@ -251,6 +251,9 @@ struct ada_softc {
 	struct sysctl_oid	*sysctl_tree;
 	struct callout		sendordered_c;
 	struct trim_request	trim_req;
+	uint64_t		trim_count;
+	uint64_t		trim_ranges;
+	uint64_t		trim_lbas;
 #ifdef CAM_IO_STATS
 	struct sysctl_ctx_list	sysctl_stats_ctx;
 	struct sysctl_oid	*sysctl_stats_tree;
@@ -1440,6 +1443,18 @@ adasysctlinit(void *context, int pending)
 		OID_AUTO, "delete_method", CTLTYPE_STRING | CTLFLAG_RW,
 		softc, 0, adadeletemethodsysctl, "A",
 		"BIO_DELETE execution method");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_count", CTLFLAG_RD, &softc->trim_count,
+		"Total number of dsm commands sent");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_ranges", CTLFLAG_RD, &softc->trim_ranges,
+		"Total number of ranges in dsm commands");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_lbas", CTLFLAG_RD, &softc->trim_lbas,
+		"Total lbas in the dsm commands sent");
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "read_ahead", CTLFLAG_RW | CTLFLAG_MPSAFE,
 		&softc->read_ahead, 0, "Enable disk read ahead.");
@@ -1918,7 +1933,7 @@ adaregister(struct cam_periph *periph, void *arg)
 static int
 ada_dsmtrim_req_create(struct ada_softc *softc, struct bio *bp, struct trim_request *req)
 {
-	uint64_t lastlba = (uint64_t)-1;
+	uint64_t lastlba = (uint64_t)-1, lbas = 0;
 	int c, lastcount = 0, off, ranges = 0;
 
 	bzero(req, sizeof(*req));
@@ -1937,6 +1952,7 @@ ada_dsmtrim_req_create(struct ada_softc *softc, struct bio *bp, struct trim_requ
 				(lastcount >> 8) & 0xff;
 			count -= c;
 			lba += c;
+			lbas += c;
 		}
 
 		while (count > 0) {
@@ -1951,6 +1967,7 @@ ada_dsmtrim_req_create(struct ada_softc *softc, struct bio *bp, struct trim_requ
 			req->data[off + 6] = c & 0xff;
 			req->data[off + 7] = (c >> 8) & 0xff;
 			lba += c;
+			lbas += c;
 			count -= c;
 			lastcount = c;
 			ranges++;
@@ -1972,6 +1989,9 @@ ada_dsmtrim_req_create(struct ada_softc *softc, struct bio *bp, struct trim_requ
 			break;
 		}
 	} while (1);
+	softc->trim_count++;
+	softc->trim_ranges += ranges;
+	softc->trim_lbas += lbas;
 
 	return (ranges);
 }

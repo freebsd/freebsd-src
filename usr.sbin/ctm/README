@@ -82,4 +82,8 @@ Why is CTM not being maintained?
 Because CVSUP has improved on the concept quite a bit, and is now
 the method of choice.
 
+Is there a pointer to this whole glorious saga?
+-----------------------------------------------
+You bet! http://phk.freebsd.dk/sagas/ctm.html
+
 Poul-Henning
