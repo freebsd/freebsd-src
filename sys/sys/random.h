@@ -92,9 +92,6 @@ enum random_entropy_source {
 _Static_assert(ENTROPYSOURCE <= 32,
     "hardcoded assumption that values fit in a typical word-sized bitset");
 
-#define RANDOM_HARVEST_EVERYTHING_MASK ((1 << (RANDOM_ENVIRONMENTAL_END + 1)) - 1)
-#define RANDOM_HARVEST_PURE_MASK (((1 << ENTROPYSOURCE) - 1) & (-1UL << RANDOM_PURE_START))
-
 #define RANDOM_LEGACY_BOOT_ENTROPY_MODULE	"/boot/entropy"
 #define RANDOM_CACHED_BOOT_ENTROPY_MODULE	"boot_entropy_cache"
 #define	RANDOM_CACHED_SKIP_START	256

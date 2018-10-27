@@ -64,6 +64,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/randomdev.h>
 #include <dev/random/random_harvestq.h>
 
+#if defined(RANDOM_ENABLE_ETHER)
+#define _RANDOM_HARVEST_ETHER_OFF 0
+#else
+#define _RANDOM_HARVEST_ETHER_OFF (1u << RANDOM_NET_ETHER)
+#endif
+#if defined(RANDOM_ENABLE_UMA)
+#define _RANDOM_HARVEST_UMA_OFF 0
+#else
+#define _RANDOM_HARVEST_UMA_OFF (1u << RANDOM_UMA)
+#endif
+
 static void random_kthread(void);
 static void random_sources_feed(void);
 
@@ -254,6 +265,10 @@ read_rate_increment(u_int chunk)
 static int
 random_check_uint_harvestmask(SYSCTL_HANDLER_ARGS)
 {
+	static const u_int user_immutable_mask =
+	    (((1 << ENTROPYSOURCE) - 1) & (-1UL << RANDOM_PURE_START)) |
+	    _RANDOM_HARVEST_ETHER_OFF | _RANDOM_HARVEST_UMA_OFF;
+
 	int error;
 	u_int value, orig_value;
 
@@ -268,8 +283,8 @@ random_check_uint_harvestmask(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Disallow userspace modification of pure entropy sources.
 	 */
-	hc_source_mask = (value & ~RANDOM_HARVEST_PURE_MASK) |
-	    (orig_value & RANDOM_HARVEST_PURE_MASK);
+	hc_source_mask = (value & ~user_immutable_mask) |
+	    (orig_value & user_immutable_mask);
 	return (0);
 }
 
@@ -351,13 +366,17 @@ random_print_harvestmask_symbolic(SYSCTL_HANDLER_ARGS)
 static void
 random_harvestq_init(void *unused __unused)
 {
+	static const u_int almost_everything_mask =
+	    (((1 << (RANDOM_ENVIRONMENTAL_END + 1)) - 1) &
+	    ~_RANDOM_HARVEST_ETHER_OFF & ~_RANDOM_HARVEST_UMA_OFF);
+
 	struct sysctl_oid *random_sys_o;
 
 	random_sys_o = SYSCTL_ADD_NODE(&random_clist,
 	    SYSCTL_STATIC_CHILDREN(_kern_random),
 	    OID_AUTO, "harvest", CTLFLAG_RW, 0,
 	    "Entropy Device Parameters");
-	hc_source_mask = RANDOM_HARVEST_EVERYTHING_MASK;
+	hc_source_mask = almost_everything_mask;
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_o),
 	    OID_AUTO, "mask", CTLTYPE_UINT | CTLFLAG_RW,
