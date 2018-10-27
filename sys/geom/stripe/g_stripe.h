@@ -76,7 +76,7 @@ struct g_stripe_softc {
 	uint32_t	 sc_id;		/* stripe unique ID */
 	struct g_consumer **sc_disks;
 	uint16_t	 sc_ndisks;
-	uint32_t	 sc_stripesize;
+	off_t		 sc_stripesize;
 	uint32_t	 sc_stripebits;
 	struct mtx	 sc_lock;
 };
