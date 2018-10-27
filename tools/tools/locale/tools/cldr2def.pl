@@ -857,7 +857,8 @@ sub make_makefile {
 	my $SRCOUT4 = "";
 	my $MAPLOC;
 	if ($TYPE eq "colldef") {
-		$SRCOUT = "localedef -D -U -i \${.IMPSRC} \\\n" .
+		$SRCOUT = "localedef \${LOCALEDEF_ENDIAN} -D -U " .
+			"-i \${.IMPSRC} \\\n" .
 			"\t-f \${MAPLOC}/map.\${.TARGET:T:R:E:C/@.*//} " .
 			"\${.OBJDIR}/\${.IMPSRC:T:R}";
 		$MAPLOC = "MAPLOC=\t\t\${.CURDIR}/../../tools/tools/" .
@@ -868,14 +869,16 @@ sub make_makefile {
 			"FILES+=\t\$t.LC_COLLATE\n" .
 			"FILESDIR_\$t.LC_COLLATE=\t\${LOCALEDIR}/\$t\n" .
 			"\$t.LC_COLLATE: \${.CURDIR}/\$f.src\n" .
-			"\tlocaledef -D -U -i \${.ALLSRC} \\\n" .
+			"\tlocaledef \${LOCALEDEF_ENDIAN} -D -U " .
+			"-i \${.ALLSRC} \\\n" .
 			"\t\t-f \${MAPLOC}/map.\${.TARGET:T:R:E:C/@.*//} \\\n" .
 			"\t\t\${.OBJDIR}/\${.TARGET:T:R}\n" .
 			".endfor\n\n";
 		$SRCOUT4 = "## LOCALES_MAPPED\n";
 	}
 	elsif ($TYPE eq "ctypedef") {
-		$SRCOUT = "localedef -D -U -c -w \${MAPLOC}/widths.txt \\\n" .
+		$SRCOUT = "localedef \${LOCALEDEF_ENDIAN} -D -U -c " .
+			"-w \${MAPLOC}/widths.txt \\\n" .
 			"\t-f \${MAPLOC}/map.\${.IMPSRC:T:R:E} " .
 			"\\\n\t-i \${.IMPSRC} \${.OBJDIR}/\${.IMPSRC:T:R} " .
 			" || true";
@@ -886,7 +889,8 @@ sub make_makefile {
 			".for s t in \${SYMPAIRS}\n" .
 			"\${t:S/src\$/LC_CTYPE/}: " .
 			"\$s\n" .
-			"\tlocaledef -D -U -c -w \${MAPLOC}/widths.txt \\\n" .
+			"\tlocaledef \${LOCALEDEF_ENDIAN} -D -U -c " .
+			"-w \${MAPLOC}/widths.txt \\\n" .
 			"\t-f \${MAPLOC}/map.\${.TARGET:T:R:C/^.*\\.//} " .
 			"\\\n\t-i \${.ALLSRC} \${.OBJDIR}/\${.TARGET:T:R} " .
 			" || true\n" .
@@ -907,6 +911,8 @@ LOCALEDIR=	\${SHAREDIR}/locale
 FILESNAME=	$FILESNAMES{$TYPE}
 .SUFFIXES:	.src .${SRCOUT2}
 ${MAPLOC}
+.include <bsd.endian.mk>
+
 .src.${SRCOUT2}:
 	$SRCOUT
 
