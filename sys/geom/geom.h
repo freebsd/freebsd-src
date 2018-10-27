@@ -215,8 +215,8 @@ struct g_provider {
 	TAILQ_ENTRY(g_provider)	orphan;
 	off_t			mediasize;
 	u_int			sectorsize;
-	u_int			stripesize;
-	u_int			stripeoffset;
+	off_t			stripesize;
+	off_t			stripeoffset;
 	struct devstat		*stat;
 	u_int			nstart, nend;
 	u_int			flags;

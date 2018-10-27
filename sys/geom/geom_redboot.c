@@ -246,7 +246,7 @@ g_redboot_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	int error, sectorsize, i;
 	struct fis_image_desc *fd, *head;
 	uint32_t offmask;
-	u_int blksize;		/* NB: flash block size stored as stripesize */
+	off_t blksize;		/* NB: flash block size stored as stripesize */
 	u_char *buf;
 	off_t offset;
 	const char *value;
@@ -283,9 +283,9 @@ g_redboot_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	else
 		offmask = 0xffffffff;		/* XXX */
 	if (bootverbose)
-		printf("%s: mediasize %ld secsize %d blksize %d offmask 0x%x\n",
+		printf("%s: mediasize %ld secsize %d blksize %ju offmask 0x%x\n",
 		    __func__, (long) cp->provider->mediasize, sectorsize,
-		    blksize, offmask);
+		    (uintmax_t)blksize, offmask);
 	if (sectorsize < sizeof(struct fis_image_desc) ||
 	    (sectorsize % sizeof(struct fis_image_desc)))
 		return (NULL);
