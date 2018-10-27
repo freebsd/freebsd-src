@@ -7,8 +7,10 @@ FILESNAME=	LC_CTYPE
 .SUFFIXES:	.src .LC_CTYPE
 MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
 
+.include <bsd.endian.mk>
+
 .src.LC_CTYPE:
-	localedef -D -U -c -w ${MAPLOC}/widths.txt \
+	localedef ${LOCALEDEF_ENDIAN} -D -U -c -w ${MAPLOC}/widths.txt \
 	-f ${MAPLOC}/map.${.IMPSRC:T:R:E} \
 	-i ${.IMPSRC} ${.OBJDIR}/${.IMPSRC:T:R}  || true
 
@@ -238,7 +240,7 @@ SYMPAIRS+=	be_BY.CP1131.src ru_RU.KOI8-R.src
 
 .for s t in ${SYMPAIRS}
 ${t:S/src$/LC_CTYPE/}: $s
-	localedef -D -U -c -w ${MAPLOC}/widths.txt \
+	localedef ${LOCALEDEF_ENDIAN} -D -U -c -w ${MAPLOC}/widths.txt \
 	-f ${MAPLOC}/map.${.TARGET:T:R:C/^.*\.//} \
 	-i ${.ALLSRC} ${.OBJDIR}/${.TARGET:T:R}  || true
 .endfor
