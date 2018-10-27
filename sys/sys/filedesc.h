@@ -219,7 +219,7 @@ fdeget_locked(struct filedesc *fdp, int fd)
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
-	if ((u_int)fd > fdp->fd_lastfile)
+	if (fd < 0 || fd > fdp->fd_lastfile)
 		return (NULL);
 
 	fde = &fdp->fd_ofiles[fd];
