@@ -117,6 +117,10 @@ struct evdev_dev
 	bitstr_t		bit_decl(ev_sw_states, SW_CNT);
 	bool			ev_report_opened;
 
+	/* KDB state: */
+	bool			ev_kdb_active;
+	bitstr_t		bit_decl(ev_kdb_led_states, LED_CNT);
+
 	/* Multitouch protocol type B state: */
 	struct evdev_mt *	ev_mt;
 
@@ -190,6 +194,7 @@ int evdev_cdev_destroy(struct evdev_dev *);
 bool evdev_event_supported(struct evdev_dev *, uint16_t);
 void evdev_set_abs_bit(struct evdev_dev *, uint16_t);
 void evdev_set_absinfo(struct evdev_dev *, uint16_t, struct input_absinfo *);
+void evdev_restore_after_kdb(struct evdev_dev *);
 
 /* Client interface: */
 int evdev_register_client(struct evdev_dev *, struct evdev_client *);
