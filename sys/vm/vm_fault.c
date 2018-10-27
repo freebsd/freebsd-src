@@ -1181,6 +1181,16 @@ readrest:
 			 */
 			vm_object_pip_wakeup(fs.object);
 			VM_OBJECT_WUNLOCK(fs.object);
+
+			/*
+			 * We only try to prefault read-only mappings to the
+			 * neighboring pages when this copy-on-write fault is
+			 * a hard fault.  In other cases, trying to prefault
+			 * is typically wasted effort.
+			 */
+			if (faultcount == 0)
+				faultcount = 1;
+
 			/*
 			 * Only use the new page below...
 			 */
