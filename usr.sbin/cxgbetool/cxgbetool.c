@@ -924,7 +924,7 @@ do_show_one_filter_info(struct t4_filter *t, uint32_t mode)
 		if (t->fs.dirsteer == 0) {
 			printf("RSS");
 			if (t->fs.maskhash)
-				printf("(TCB=hash)");
+				printf("(region %d)", t->fs.iq << 1);
 		} else {
 			printf("%d", t->fs.iq);
 			if (t->fs.dirsteerhash == 0)
@@ -1263,11 +1263,19 @@ set_filter(uint32_t idx, int argc, const char *argv[], int hash)
 		} else if (!parse_val("rpttid", args, &val)) {
 			t.fs.rpttid = 1;
 		} else if (!parse_val("queue", args, &val)) {
-			t.fs.dirsteer = 1;
-			t.fs.iq = val;
+			t.fs.dirsteer = 1;	/* direct steer */
+			t.fs.iq = val;		/* to the iq with this cntxt_id */
 		} else if (!parse_val("tcbhash", args, &val)) {
-			t.fs.maskhash = 1;
-			t.fs.dirsteerhash = 1;
+			t.fs.dirsteerhash = 1;	/* direct steer */
+			/* XXX: use (val << 1) as the rss_hash? */
+			t.fs.iq = val;
+		} else if (!parse_val("tcbrss", args, &val)) {
+			t.fs.maskhash = 1;	/* steer to RSS region */
+			/*
+			 * val = start idx of the region but the internal TCB
+			 * field is 10b only and is left shifted by 1 before use.
+			 */
+			t.fs.iq = val >> 1;
 		} else if (!parse_val("eport", args, &val)) {
 			t.fs.eport = val;
 		} else if (!parse_val("swapmac", args, &val)) {
