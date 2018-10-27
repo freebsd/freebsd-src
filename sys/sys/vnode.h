@@ -484,6 +484,7 @@ typedef int vop_bypass_t(struct vop_generic_args *);
 struct vnodeop_desc {
 	char	*vdesc_name;		/* a readable name for debugging */
 	int	 vdesc_flags;		/* VDESC_* flags */
+	int	vdesc_vop_offset;
 	vop_bypass_t	*vdesc_call;	/* Function to call */
 
 	/*
@@ -785,6 +786,7 @@ void	vop_rmdir_post(void *a, int rc);
 void	vop_setattr_post(void *a, int rc);
 void	vop_setextattr_post(void *a, int rc);
 void	vop_symlink_post(void *a, int rc);
+int	vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a);
 
 #ifdef DEBUG_VFS_LOCKS
 void	vop_strategy_pre(void *a);

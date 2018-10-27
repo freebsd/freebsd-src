@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2016
+.Dd October 25, 2018
 .Dt LIBEFIVAR 3
 .Os
 .Sh NAME
 .Nm libefivar
-.Nd EFI Non Volatile Variable Suppoert
+.Nd EFI Non Volatile Variable Support
 .Sh SYNOPSIS
 .In efivar.h
 .Ft int
@@ -55,15 +55,17 @@
 .Ft int
 .Fn efi_set_variable "efi_guid_t guid" "const char *name" "void *data" "size_t data_size" "uint32_t attributes"
 .Ft int
-.Fn efi_str_to_guid "const char *s" "efi_guid_t *guid";
+.Fn efi_str_to_guid "const char *s" "efi_guid_t *guid"
 .Ft int
-.Fn efi_variables_supported "void";
+.Fn efi_variables_supported "void"
 .Sh DESCRIPTION
 The
 .Nm
 library implements access to EFI Variables via the EFI Runtime
-Serivces.
-All char * strings are converted to 16-bit UTF strings before passing
+Services.
+All
+.Vt "char *"
+strings are converted to 16-bit UTF strings before passing
 them to EFI.
 .Pp
 .Fn efi_variables_supported
@@ -73,28 +75,48 @@ Otherwise zero is returned.
 .Pp
 .Fn efi_del_variable
 deletes the EFI variable selected by
-.Dv guid
+.Va guid
 and
-.Dv name .
+.Va name .
 .Pp
-.Fn efi_get_variable
-.Fn efi_get_variable_attributes
-.Fn efi_get_variable_size
+The following functions have not been implemented yet:
+.Bl -dash -offset indent -compact
+.It
 .Fn efi_append_variable
-.Fn efi_set_variable
+.It
 .Fn efi_get_next_variable_name
-.Fn efi_str_to_guid
-.Fn efi_guid_to_str
-.Fn efi_name_to_guid
+.It
+.Fn efi_get_variable
+.It
+.Fn efi_get_variable_attributes
+.It
+.Fn efi_get_variable_size
+.It
 .Fn efi_guid_to_name
+.It
+.Fn efi_guid_to_str
+.It
 .Fn efi_guid_to_symbol
-This function is not actually implemented.
-.Sh BUGS
-No facilities exist to process the strings as native UTF.
-This is a limitation in the Linux libefivar library interface.
+.It
+.Fn efi_name_to_guid
+.It
+.Fn efi_set_variable
+.It
+.Fn efi_str_to_guid
+.El
 .Sh SEE ALSO
 .Xr efidev 4
+.Sh HISTORY
+The
+.Nm
+library first appeared in
+.Fx 12.0 .
 .Sh AUTHORS
 .An -nosplit
 This software was originally written by
 .An Warner Losh .
+.Sh BUGS
+No facilities exist to process the strings as native UTF.
+This is a limitation in the Linux
+.Nm
+library interface.

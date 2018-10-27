@@ -247,7 +247,8 @@ struct nvme_controller {
 
 	uint32_t		ready_timeout_in_ms;
 	uint32_t		quirks;
-#define QUIRK_DELAY_B4_CHK_RDY 1		/* Can't touch MMIO on disable */
+#define	QUIRK_DELAY_B4_CHK_RDY	1		/* Can't touch MMIO on disable */
+#define	QUIRK_DISABLE_TIMEOUT	2		/* Disable broken completion timeout feature */
 
 	bus_space_tag_t		bus_tag;
 	bus_space_handle_t	bus_handle;

@@ -385,6 +385,13 @@ BROKEN_OPTIONS+=HYPERV
 BROKEN_OPTIONS+=NVME
 .endif
 
+.if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "i386" || \
+    ${__T} == "powerpc64"
+__DEFAULT_NO_OPTIONS+=BSD_CRTBEGIN
+.else
+BROKEN_OPTIONS+=BSD_CRTBEGIN
+.endif
+
 .include <bsd.mkopt.mk>
 
 #

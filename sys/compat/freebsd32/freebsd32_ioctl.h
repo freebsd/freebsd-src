@@ -38,11 +38,6 @@
 
 typedef __uint32_t caddr_t32;
 
-struct fiodgname_arg32 {
-	int		len;
-	caddr_t32	buf;
-};
-
 struct mem_range_op32
 {
 	caddr_t32	mo_desc;
@@ -60,7 +55,6 @@ struct pci_bar_mmap32 {
 	int		pbm_memattr;
 };
 
-#define	FIODGNAME_32	_IOW('f', 120, struct fiodgname_arg32)
 #define	MEMRANGE_GET32	_IOWR('m', 50, struct mem_range_op32)
 #define	MEMRANGE_SET32	_IOW('m', 51, struct mem_range_op32)
 #define	SG_IO_32	_IOWR(SGIOC, 0x85, struct sg_io_hdr32)

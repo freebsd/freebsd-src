@@ -374,11 +374,13 @@ static int
 asmc_probe(device_t dev)
 {
 	struct asmc_model *model;
+	int rv;
 
 	if (resource_disabled("asmc", 0))
 		return (ENXIO);
-	if (ACPI_ID_PROBE(device_get_parent(dev), dev, asmc_ids) == NULL)
-		return (ENXIO);
+	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, asmc_ids, NULL);
+	if (rv > 0)
+		return (rv);
 
 	model = asmc_match(dev);
 	if (!model) {
@@ -387,7 +389,7 @@ asmc_probe(device_t dev)
 	}
 	device_set_desc(dev, model->smc_desc);
 
-	return (BUS_PROBE_DEFAULT);
+	return (rv);
 }
 
 static int

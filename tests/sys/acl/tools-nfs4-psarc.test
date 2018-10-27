@@ -186,7 +186,7 @@ $ ls -l xxx yyy zzz | cut -d' ' -f1
 > -rw-r--r--
 
 $ setfacl -m u:42:x:allow,g:43:w:allow nnn xxx yyy zzz
-> setfacl: nnn: stat() failed: No such file or directory
+> setfacl: nnn: acl_get_file() failed: No such file or directory
 
 $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > ls: nnn: No such file or directory
@@ -215,7 +215,7 @@ $ getfacl -nq nnn xxx yyy zzz
 >          everyone@:r-----a-R-c--s:-------:allow
 
 $ setfacl -b nnn xxx yyy zzz
-> setfacl: nnn: stat() failed: No such file or directory
+> setfacl: nnn: acl_get_file() failed: No such file or directory
 
 $ ls -l nnn xxx yyy zzz | cut -d' ' -f1
 > ls: nnn: No such file or directory
@@ -557,6 +557,29 @@ $ rmdir yyy
 $ rm xxx
 $ cd ..
 $ rmdir ddd
-
 $ rm xxx
 
+# Test basic recursive setting of ACLs.
+$ mkdir ddd
+$ touch ddd/xxx
+$ mkdir ddd/eee
+$ touch ddd/eee/yyy
+$ setfacl -R -m owner@:full_set:f:allow,group@:full_set::allow,everyone@:full_set::allow ddd
+$ getfacl -q ddd
+>             owner@:rwxpDdaARWcCos:f------:allow
+>             group@:rwxpDdaARWcCos:-------:allow
+>          everyone@:rwxpDdaARWcCos:-------:allow
+$ getfacl -q ddd/xxx
+>             owner@:rwxpDdaARWcCos:-------:allow
+>             group@:rwxpDdaARWcCos:-------:allow
+>          everyone@:rwxpDdaARWcCos:-------:allow
+$ getfacl -q ddd/eee
+>             owner@:rwxpDdaARWcCos:f------:allow
+>             group@:rwxpDdaARWcCos:-------:allow
+>          everyone@:rwxpDdaARWcCos:-------:allow
+$ getfacl -q ddd/eee/yyy
+>             owner@:rwxpDdaARWcCos:-------:allow
+>             group@:rwxpDdaARWcCos:-------:allow
+>          everyone@:rwxpDdaARWcCos:-------:allow
+
+$ rm -r ddd

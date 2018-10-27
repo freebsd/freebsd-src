@@ -206,6 +206,8 @@ vx_attach(device_t dev)
 	vx_stop(sc);
 	VX_UNLOCK(sc);
 
+	gone_by_fcp101_dev(dev);
+
 	return 1;
 }
 

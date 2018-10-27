@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		ssl
-SHLIB_MAJOR=	9
+SHLIB_MAJOR=	111
 VERSION_MAP=	${.CURDIR}/Version.map
 
 NO_LINT=

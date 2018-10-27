@@ -106,6 +106,7 @@ static struct _pcsid
 	{ 0x05401c5f,		0, 0, "Memblaze Pblaze4", QUIRK_DELAY_B4_CHK_RDY },
 	{ 0xa821144d,		0, 0, "Samsung PM1725", QUIRK_DELAY_B4_CHK_RDY },
 	{ 0xa822144d,		0, 0, "Samsung PM1725a", QUIRK_DELAY_B4_CHK_RDY },
+	{ 0x01161179,		0, 0, "Toshiba XG5", QUIRK_DISABLE_TIMEOUT },
 	{ 0x00000000,		0, 0, NULL  }
 };
 
@@ -276,6 +277,25 @@ nvme_attach(device_t dev)
 	if (status != 0) {
 		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
+	}
+
+	/*
+	 * Some drives do not implement the completion timeout feature
+	 * correctly. There's a WAR from the manufacturer to just disable it.
+	 * The driver wouldn't respond correctly to a timeout anyway.
+	 */
+	if (ep->quirks & QUIRK_DISABLE_TIMEOUT) {
+		int ptr;
+		uint16_t devctl2;
+
+		status = pci_find_cap(dev, PCIY_EXPRESS, &ptr);
+		if (status) {
+			device_printf(dev, "Can't locate PCIe capability?");
+			return (status);
+		}
+		devctl2 = pci_read_config(dev, ptr + PCIER_DEVICE_CTL2, sizeof(devctl2));
+		devctl2 |= PCIEM_CTL2_COMP_TIMO_DISABLE;
+		pci_write_config(dev, ptr + PCIER_DEVICE_CTL2, devctl2, sizeof(devctl2));
 	}
 
 	/*

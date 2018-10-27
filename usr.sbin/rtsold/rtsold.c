@@ -334,16 +334,16 @@ ifconfig(char *ifname)
 	struct sockaddr_dl *sdl;
 	int flags;
 
+	ifi = NULL;
 	if ((sdl = if_nametosdl(ifname)) == NULL) {
 		warnmsg(LOG_ERR, __func__,
 		    "failed to get link layer information for %s", ifname);
-		return (-1);
+		goto bad;
 	}
 	if (find_ifinfo(sdl->sdl_index)) {
 		warnmsg(LOG_ERR, __func__,
 		    "interface %s was already configured", ifname);
-		free(sdl);
-		return (-1);
+		goto bad;
 	}
 
 	if (Fflag) {
@@ -352,30 +352,29 @@ ifconfig(char *ifname)
 
 		if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 			warnmsg(LOG_ERR, __func__, "socket() failed.");
-			return (-1);
+			goto bad;
 		}
 		memset(&nd, 0, sizeof(nd));
 		strlcpy(nd.ifname, ifname, sizeof(nd.ifname));
 		if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
 			warnmsg(LOG_ERR, __func__,
 			    "cannot get accept_rtadv flag");
-			close(s);
-			return (-1);
+			(void)close(s);
+			goto bad;
 		}
 		nd.ndi.flags |= ND6_IFF_ACCEPT_RTADV;
 		if (ioctl(s, SIOCSIFINFO_IN6, (caddr_t)&nd) < 0) {
 			warnmsg(LOG_ERR, __func__,
 			    "cannot set accept_rtadv flag");
-			close(s);
-			return (-1);
+			(void)close(s);
+			goto bad;
 		}
-		close(s);
+		(void)close(s);
 	}
 
 	if ((ifi = malloc(sizeof(*ifi))) == NULL) {
 		warnmsg(LOG_ERR, __func__, "memory allocation failed");
-		free(sdl);
-		return (-1);
+		goto bad;
 	}
 	memset(ifi, 0, sizeof(*ifi));
 	ifi->sdl = sdl;
@@ -426,7 +425,7 @@ ifconfig(char *ifname)
 	return (0);
 
 bad:
-	free(ifi->sdl);
+	free(sdl);
 	free(ifi);
 	return (-1);
 }

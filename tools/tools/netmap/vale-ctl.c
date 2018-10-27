@@ -82,7 +82,7 @@ void parse_nmr_config(const char* conf, struct nmreq *nmr)
 }
 
 static int
-bdg_ctl(const char *name, int nr_cmd, int nr_arg, char *nmr_config)
+bdg_ctl(const char *name, int nr_cmd, int nr_arg, char *nmr_config, int nr_arg2)
 {
 	struct nmreq nmr;
 	int error = 0;
@@ -96,9 +96,10 @@ bdg_ctl(const char *name, int nr_cmd, int nr_arg, char *nmr_config)
 	bzero(&nmr, sizeof(nmr));
 	nmr.nr_version = NETMAP_API;
 	if (name != NULL) /* might be NULL */
-		strncpy(nmr.nr_name, name, sizeof(nmr.nr_name));
+		strncpy(nmr.nr_name, name, sizeof(nmr.nr_name)-1);
 	nmr.nr_cmd = nr_cmd;
 	parse_nmr_config(nmr_config, &nmr);
+	nmr.nr_arg2 = nr_arg2;
 
 	switch (nr_cmd) {
 	case NETMAP_BDG_DELIF:
@@ -195,42 +196,44 @@ bdg_ctl(const char *name, int nr_cmd, int nr_arg, char *nmr_config)
 	return error;
 }
 
+static void
+usage(int errcode)
+{
+	fprintf(stderr,
+	    "Usage:\n"
+	    "vale-ctl arguments\n"
+	    "\t-g interface	interface name to get info\n"
+	    "\t-d interface	interface name to be detached\n"
+	    "\t-a interface	interface name to be attached\n"
+	    "\t-h interface	interface name to be attached with the host stack\n"
+	    "\t-n interface	interface name to be created\n"
+	    "\t-r interface	interface name to be deleted\n"
+	    "\t-l list all or specified bridge's interfaces (default)\n"
+	    "\t-C string ring/slot setting of an interface creating by -n\n"
+	    "\t-p interface start polling. Additional -C x,y,z configures\n"
+	    "\t\t x: 0 (REG_ALL_NIC) or 1 (REG_ONE_NIC),\n"
+	    "\t\t y: CPU core id for ALL_NIC and core/ring for ONE_NIC\n"
+	    "\t\t z: (ONE_NIC only) num of total cores/rings\n"
+	    "\t-P interface stop polling\n"
+	    "\t-m memid to use when creating a new interface\n");
+	exit(errcode);
+}
+
 int
 main(int argc, char *argv[])
 {
 	int ch, nr_cmd = 0, nr_arg = 0;
-	const char *command = basename(argv[0]);
 	char *name = NULL, *nmr_config = NULL;
+	int nr_arg2 = 0;
 
-	if (argc > 5) {
-usage:
-		fprintf(stderr,
-			"Usage:\n"
-			"%s arguments\n"
-			"\t-g interface	interface name to get info\n"
-			"\t-d interface	interface name to be detached\n"
-			"\t-a interface	interface name to be attached\n"
-			"\t-h interface	interface name to be attached with the host stack\n"
-			"\t-n interface	interface name to be created\n"
-			"\t-r interface	interface name to be deleted\n"
-			"\t-l list all or specified bridge's interfaces (default)\n"
-			"\t-C string ring/slot setting of an interface creating by -n\n"
-			"\t-p interface start polling. Additional -C x,y,z configures\n"
-			"\t\t x: 0 (REG_ALL_NIC) or 1 (REG_ONE_NIC),\n"
-			"\t\t y: CPU core id for ALL_NIC and core/ring for ONE_NIC\n"
-			"\t\t z: (ONE_NIC only) num of total cores/rings\n"
-			"\t-P interface stop polling\n"
-			"", command);
-		return 0;
-	}
-
-	while ((ch = getopt(argc, argv, "d:a:h:g:l:n:r:C:p:P:")) != -1) {
-		if (ch != 'C')
+	while ((ch = getopt(argc, argv, "d:a:h:g:l:n:r:C:p:P:m:")) != -1) {
+		if (ch != 'C' && ch != 'm')
 			name = optarg; /* default */
 		switch (ch) {
 		default:
 			fprintf(stderr, "bad option %c %s", ch, optarg);
-			goto usage;
+			usage(-1);
+			break;
 		case 'd':
 			nr_cmd = NETMAP_BDG_DETACH;
 			break;
@@ -252,8 +255,6 @@ usage:
 			break;
 		case 'l':
 			nr_cmd = NETMAP_BDG_LIST;
-			if (optind < argc && argv[optind][0] == '-')
-				name = NULL;
 			break;
 		case 'C':
 			nmr_config = strdup(optarg);
@@ -264,13 +265,18 @@ usage:
 		case 'P':
 			nr_cmd = NETMAP_BDG_POLLING_OFF;
 			break;
+		case 'm':
+			nr_arg2 = atoi(optarg);
+			break;
 		}
 	}
 	if (optind != argc) {
 		// fprintf(stderr, "optind %d argc %d\n", optind, argc);
-		goto usage;
+		usage(-1);
 	}
-	if (argc == 1)
+	if (argc == 1) {
 		nr_cmd = NETMAP_BDG_LIST;
-	return bdg_ctl(name, nr_cmd, nr_arg, nmr_config) ? 1 : 0;
+		name = NULL;
+	}
+	return bdg_ctl(name, nr_cmd, nr_arg, nmr_config, nr_arg2) ? 1 : 0;
 }

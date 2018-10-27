@@ -140,7 +140,7 @@ static void	acpi_delete_resource(device_t bus, device_t child, int type,
 		    int rid);
 static uint32_t	acpi_isa_get_logicalid(device_t dev);
 static int	acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count);
-static char	*acpi_device_id_probe(device_t bus, device_t dev, char **ids);
+static int	acpi_device_id_probe(device_t bus, device_t dev, char **ids, char **match);
 static ACPI_STATUS acpi_device_eval_obj(device_t bus, device_t dev,
 		    ACPI_STRING pathname, ACPI_OBJECT_LIST *parameters,
 		    ACPI_BUFFER *ret);
@@ -1183,7 +1183,7 @@ acpi_sysres_alloc(device_t dev)
     if (device_get_children(dev, &children, &child_count) != 0)
 	return (ENXIO);
     for (i = 0; i < child_count; i++) {
-	if (ACPI_ID_PROBE(dev, children[i], sysres_ids) != NULL)
+	if (ACPI_ID_PROBE(dev, children[i], sysres_ids, NULL) <= 0)
 	    device_probe_and_attach(children[i]);
     }
     free(children, M_TEMP);
@@ -1242,7 +1242,7 @@ acpi_reserve_resources(device_t dev)
 	rl = &ad->ad_rl;
 
 	/* Don't reserve system resources. */
-	if (ACPI_ID_PROBE(dev, children[i], sysres_ids) != NULL)
+	if (ACPI_ID_PROBE(dev, children[i], sysres_ids, NULL) <= 0)
 	    continue;
 
 	STAILQ_FOREACH(rle, rl, link) {
@@ -1292,7 +1292,8 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
     rman_res_t end;
     
     /* Ignore IRQ resources for PCI link devices. */
-    if (type == SYS_RES_IRQ && ACPI_ID_PROBE(dev, child, pcilink_ids) != NULL)
+    if (type == SYS_RES_IRQ &&
+	ACPI_ID_PROBE(dev, child, pcilink_ids, NULL) <= 0)
 	return (0);
 
     /*
@@ -1335,7 +1336,7 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 	return (0);
 
     /* Don't reserve system resources. */
-    if (ACPI_ID_PROBE(dev, child, sysres_ids) != NULL)
+    if (ACPI_ID_PROBE(dev, child, sysres_ids, NULL) <= 0)
 	return (0);
 
     /*
@@ -1640,26 +1641,34 @@ acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count)
     return_VALUE (valid);
 }
 
-static char *
-acpi_device_id_probe(device_t bus, device_t dev, char **ids) 
+static int
+acpi_device_id_probe(device_t bus, device_t dev, char **ids, char **match) 
 {
     ACPI_HANDLE h;
     ACPI_OBJECT_TYPE t;
+    int rv;
     int i;
 
     h = acpi_get_handle(dev);
     if (ids == NULL || h == NULL)
-	return (NULL);
+	return (ENXIO);
     t = acpi_get_type(dev);
     if (t != ACPI_TYPE_DEVICE && t != ACPI_TYPE_PROCESSOR)
-	return (NULL);
+	return (ENXIO);
 
     /* Try to match one of the array of IDs with a HID or CID. */
     for (i = 0; ids[i] != NULL; i++) {
-	if (acpi_MatchHid(h, ids[i]))
-	    return (ids[i]);
+	rv = acpi_MatchHid(h, ids[i]);
+	if (rv == ACPI_MATCHHID_NOMATCH)
+	    continue;
+	
+	if (match != NULL) {
+	    *match = ids[i];
+	}
+	return ((rv == ACPI_MATCHHID_HID)?
+		    BUS_PROBE_DEFAULT : BUS_PROBE_LOW_PRIORITY);
     }
-    return (NULL);
+    return (ENXIO);
 }
 
 static ACPI_STATUS
@@ -2222,10 +2231,10 @@ acpi_DeviceIsPresent(device_t dev)
 	status = acpi_GetInteger(h, "_STA", &s);
 
 	/*
-	 * Onboard serial ports on certain AMD motherboards have an invalid _STA
-	 * method that always returns 0.  Force them to always be treated as present.
-	 *
-	 * This may solely be a quirk of a preproduction BIOS.
+	 * Certain Treadripper boards always returns 0 for FreeBSD because it
+	 * only returns non-zero for the OS string "Windows 2015". Otherwise it
+	 * will return zero. Force them to always be treated as present.
+	 * Beata versions were worse: they always returned 0.
 	 */
 	if (acpi_MatchHid(h, "AMDI0020") || acpi_MatchHid(h, "AMDI0010"))
 		return (TRUE);
@@ -2285,8 +2294,11 @@ acpi_has_hid(ACPI_HANDLE h)
 
 /*
  * Match a HID string against a handle
+ * returns ACPI_MATCHHID_HID if _HID match
+ *         ACPI_MATCHHID_CID if _CID match and not _HID match.
+ *         ACPI_MATCHHID_NOMATCH=0 if no match.
  */
-BOOLEAN
+int
 acpi_MatchHid(ACPI_HANDLE h, const char *hid) 
 {
     ACPI_DEVICE_INFO	*devinfo;
@@ -2295,16 +2307,16 @@ acpi_MatchHid(ACPI_HANDLE h, const char *hid)
 
     if (hid == NULL || h == NULL ||
 	ACPI_FAILURE(AcpiGetObjectInfo(h, &devinfo)))
-	return (FALSE);
+	return (ACPI_MATCHHID_NOMATCH);
 
     ret = FALSE;
     if ((devinfo->Valid & ACPI_VALID_HID) != 0 &&
 	strcmp(hid, devinfo->HardwareId.String) == 0)
-	    ret = TRUE;
+	    ret = ACPI_MATCHHID_HID;
     else if ((devinfo->Valid & ACPI_VALID_CID) != 0)
 	for (i = 0; i < devinfo->CompatibleIdList.Count; i++) {
 	    if (strcmp(hid, devinfo->CompatibleIdList.Ids[i].String) == 0) {
-		ret = TRUE;
+		ret = ACPI_MATCHHID_CID;
 		break;
 	    }
 	}
