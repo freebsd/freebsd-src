@@ -266,12 +266,12 @@ local function isValidComment(line)
 end
 
 local function getBlacklist()
+	local blacklist = {}
 	local blacklist_str = loader.getenv('module_blacklist')
 	if blacklist_str == nil then
-		return nil
+		return blacklist
 	end
 
-	local blacklist = {}
 	for mod in blacklist_str:gmatch("[;, ]?([%w-_]+)[;, ]?") do
 		blacklist[mod] = true
 	end
