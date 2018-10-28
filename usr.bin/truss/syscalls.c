@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #define	_WANT_FREEBSD11_KEVENT
 #include <sys/event.h>
 #include <sys/ioccom.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
@@ -462,7 +463,7 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { Sockoptlevel, 1 }, { Sockoptname, 2 },
 		    { Ptr | IN, 3 }, { Socklent, 4 } } },
 	{ .name = "shm_open", .ret_type = 1, .nargs = 3,
-	  .args = { { Name | IN, 0 }, { Open, 1 }, { Octal, 2 } } },
+	  .args = { { ShmName | IN, 0 }, { Open, 1 }, { Octal, 2 } } },
 	{ .name = "shm_unlink", .ret_type = 1, .nargs = 1,
 	  .args = { { Name | IN, 0 } } },
 	{ .name = "shutdown", .ret_type = 1, .nargs = 2,
@@ -1593,6 +1594,13 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Sizet:
 		fprintf(fp, "%zu", (size_t)args[sc->offset]);
 		break;
+	case ShmName:
+		/* Handle special SHM_ANON value. */
+		if ((char *)args[sc->offset] == SHM_ANON) {
+			fprintf(fp, "SHM_ANON");
+			break;
+		}
+		/* FALLTHROUGH */
 	case Name: {
 		/* NULL-terminated string. */
 		char *tmp2;
