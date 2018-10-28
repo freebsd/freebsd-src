@@ -1946,7 +1946,7 @@ print_action_instruction(struct buf_pr *bp, const struct format_opts *fo,
 		if (s != NULL)
 			bprintf(bp, "setdscp %s", s);
 		else
-			bprintf(bp, "setdscp %s", cmd->arg1 & 0x3F);
+			bprintf(bp, "setdscp %u", cmd->arg1 & 0x3F);
 		break;
 	case O_REASS:
 		bprintf(bp, "reass");
