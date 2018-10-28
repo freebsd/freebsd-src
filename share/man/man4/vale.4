@@ -59,18 +59,18 @@ API.
 .Pp
 .Nm
 ports are named
-.Pa vale[bdg:][port]
+.Pa valeSSS:PPP
 where
 .Pa vale
 is the prefix indicating a VALE switch rather than a standard interface,
-.Pa bdg
+.Pa SSS
 indicates a specific switch (the colon is a separator),
 and
-.Pa port
+.Pa PPP
 indicates a port within the switch.
-Bridge and port names are arbitrary strings, the only
-constraint being that the full name must fit within 16
-characters.
+Both SSS and PPP have the form [0-9a-zA-Z_]+ , the string cannot
+exceed IFNAMSIZ characters, and PPP cannot be the name of any
+existing OS network interface.
 .Pp
 See
 .Xr netmap 4
@@ -97,22 +97,20 @@ Set to non-zero values to enable in-kernel diagnostics.
 Create one switch, with a traffic generator connected to one
 port, and a netmap-enabled tcpdump instance on another port:
 .Bd -literal -offset indent
-tcpdump -ni vale-a:1 &
-pkt-gen  -i vale-a:0 -f tx &
+tcpdump -ni valea:1 &
+pkt-gen  -i valea:0 -f tx &
 .Ed
 .Pp
 Create two switches,
 each connected to two qemu machines on different ports.
 .Bd -literal -offset indent
-qemu -net nic -net netmap,ifname=vale-1:a ... &
-qemu -net nic -net netmap,ifname=vale-1:b ... &
-qemu -net nic -net netmap,ifname=vale-2:c ... &
-qemu -net nic -net netmap,ifname=vale-2:d ... &
+qemu -net nic -net netmap,ifname=vale1:a ... &
+qemu -net nic -net netmap,ifname=vale1:b ... &
+qemu -net nic -net netmap,ifname=vale2:c ... &
+qemu -net nic -net netmap,ifname=vale2:d ... &
 .Ed
 .Sh SEE ALSO
 .Xr netmap 4
-.Pp
-.Xr http://info.iet.unipi.it/~luigi/vale/
 .Pp
 Luigi Rizzo, Giuseppe Lettieri: VALE, a switched ethernet for virtual machines,
 June 2012, http://info.iet.unipi.it/~luigi/vale/
