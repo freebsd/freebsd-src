@@ -80,6 +80,13 @@ DATAFORM != "main" {
   if (comment_out) {
     sub(/^/, "#")
   }
+
+  # In rearguard format, change the Japan rule line with "Sat>=8 25:00"
+  # to "Sun>=9 1:00", to cater to zic before 2007 and to older Java.
+  if (!vanguard && $1 == "Rule" && $7 == "Sat>=8" && $8 == "25:00") {
+    sub(/Sat>=8/, "Sun>=9")
+    sub(/25:00/, " 1:00")
+  }
 }
 
 # If a Link line is followed by a Zone line for the same data, comment
