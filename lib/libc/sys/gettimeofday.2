@@ -89,6 +89,11 @@ structure indicates the local time zone
 and a flag that, if nonzero, indicates that
 Daylight Saving time applies locally during
 the appropriate part of the year.
+The kernel generally does not track these values and they
+are usually returned as zero.
+Use
+.Xr localtime 3
+to find the offset for the currently active timezone.
 .Pp
 Only the super-user may set the time of day or time zone.
 If the system is running at securelevel >= 2 (see
