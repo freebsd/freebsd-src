@@ -84,8 +84,54 @@ v6_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "noalias" "cleanup"
+noalias_head()
+{
+	atf_set descr 'Test the :0 noalias option'
+	atf_set require.user root
+}
+
+noalias_body()
+{
+	pft_init
+
+	epair=$(pft_mkepair)
+	ifconfig ${epair}a inet6 2001:db8:42::1/64 up no_dad
+
+	pft_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b inet6 2001:db8:42::2/64 up no_dad
+
+	linklocaladdr=$(jexec alcatraz ifconfig ${epair}b inet6 \
+		| grep %${epair}b \
+		| awk '{ print $2; }' \
+		| cut -d % -f 1)
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping6 -c 1 -x 1 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping6 -c 1 -x 1 ${linklocaladdr}%${epair}a
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz "block out inet6 from (epair0b:0) to any"
+
+	atf_check -s exit:2 -o ignore ping6 -c 1 -x 1 2001:db8:42::2
+
+	# We should still be able to ping the link-local address
+	atf_check -s exit:0 -o ignore ping6 -c 1 -x 1 ${linklocaladdr}%${epair}a
+
+	pft_set_rules alcatraz "block out inet6 from (epair0b) to any"
+
+	# We cannot ping to the link-local address
+	atf_check -s exit:2 -o ignore ping6 -c 1 -x 1 ${linklocaladdr}%${epair}a
+}
+
+noalias_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
 	atf_add_test_case "v6"
+	atf_add_test_case "noalias"
 }
