@@ -1366,6 +1366,9 @@ ifa_lookup(const char *ifa_name, int flags)
 		last_if = p->ifname;
 		if ((flags & PFI_AFLAG_NOALIAS) && p->af == AF_INET && got4)
 			continue;
+		if ((flags & PFI_AFLAG_NOALIAS) && p->af == AF_INET6 &&
+		    IN6_IS_ADDR_LINKLOCAL(&p->addr.v.a.addr.v6))
+			continue;
 		if ((flags & PFI_AFLAG_NOALIAS) && p->af == AF_INET6 && got6)
 			continue;
 		if (p->af == AF_INET)
