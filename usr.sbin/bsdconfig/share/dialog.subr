@@ -646,7 +646,7 @@ f_dialog_infobox_size()
 		# Xdialog(1)).
 		#
 		if [ ! "$USE_XDIALOG" ]; then
-			__n=$(( ${#__hline} + 10 ))
+			__n=$(( ${#__hline} + 12 ))
 			[ $__n -gt $__width ] && __width=$__n
 		fi
 
