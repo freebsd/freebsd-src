@@ -52,7 +52,9 @@ int	gtaskqueue_cancel(struct gtaskqueue *queue, struct gtask *gtask);
 void	gtaskqueue_drain(struct gtaskqueue *queue, struct gtask *task);
 void	gtaskqueue_drain_all(struct gtaskqueue *queue);
 
-int grouptaskqueue_enqueue(struct gtaskqueue *queue, struct gtask *task);
+void	grouptask_block(struct grouptask *grouptask);
+void	grouptask_unblock(struct grouptask *grouptask);
+int	grouptaskqueue_enqueue(struct gtaskqueue *queue, struct gtask *task);
 void	taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *grptask,
 	    void *uniq, int irq, const char *name);
 int		taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *grptask,
@@ -67,6 +69,7 @@ void	taskqgroup_config_gtask_deinit(struct grouptask *gtask);
 
 #define TASK_ENQUEUED			0x1
 #define TASK_SKIP_WAKEUP		0x2
+#define TASK_NOENQUEUE			0x4
 
 
 #define GTASK_INIT(task, flags, priority, func, context) do {	\
