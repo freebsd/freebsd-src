@@ -2601,22 +2601,24 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto fail;
 
 	setiwsockopt(ep->com.so);
+	init_iwarp_socket(ep->com.so, &ep->com);
 	err = -soconnect(ep->com.so, (struct sockaddr *)&ep->com.remote_addr,
 		ep->com.thread);
-	if (!err) {
-		init_iwarp_socket(ep->com.so, &ep->com);
-		goto out;
-	} else
+	if (err)
 		goto fail_free_so;
+	CTR2(KTR_IW_CXGBE, "%s:ccE, ep %p", __func__, ep);
+	return 0;
 
 fail_free_so:
+	uninit_iwarp_socket(ep->com.so);
+	ep->com.state = DEAD;
 	sock_release(ep->com.so);
 fail:
 	deref_cm_id(&ep->com);
 	c4iw_put_ep(&ep->com);
 	ep = NULL;
 out:
-	CTR2(KTR_IW_CXGBE, "%s:ccE ret:%d", __func__, err);
+	CTR2(KTR_IW_CXGBE, "%s:ccE Error %d", __func__, err);
 	return err;
 }
 
