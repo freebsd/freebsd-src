@@ -134,11 +134,19 @@ SYSCTL_INT(_hw_usb_uplcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UPLCOM_SET_CRTSCTS		0x41
 #define	UPLCOM_SET_CRTSCTS_PL2303X	0x61
 #define	RSAQ_STATUS_CTS			0x80
+#define	RSAQ_STATUS_OVERRUN_ERROR	0x40
+#define	RSAQ_STATUS_PARITY_ERROR	0x20 
+#define	RSAQ_STATUS_FRAME_ERROR	0x10
+#define	RSAQ_STATUS_RING		0x08
+#define	RSAQ_STATUS_BREAK_ERROR	0x04
 #define	RSAQ_STATUS_DSR			0x02
 #define	RSAQ_STATUS_DCD			0x01
 
 #define	TYPE_PL2303			0
 #define	TYPE_PL2303HX			1
+#define	TYPE_PL2303HXD			2
+
+#define	UPLCOM_STATE_INDEX		8
 
 enum {
 	UPLCOM_BULK_DT_WR,
@@ -369,18 +377,49 @@ uplcom_attach(device_t dev)
 
 	sc->sc_udev = uaa->device;
 
-	/* Determine the chip type.  This algorithm is taken from Linux. */
 	dd = usbd_get_device_descriptor(sc->sc_udev);
-	if (dd->bDeviceClass == 0x02)
-		sc->sc_chiptype = TYPE_PL2303;
-	else if (dd->bMaxPacketSize == 0x40)
-		sc->sc_chiptype = TYPE_PL2303HX;
-	else
-		sc->sc_chiptype = TYPE_PL2303;
 
-	DPRINTF("chiptype: %s\n",
-	    (sc->sc_chiptype == TYPE_PL2303HX) ?
-	    "2303X" : "2303");
+	switch (UGETW(dd->bcdDevice)) {
+	case 0x0300:
+		sc->sc_chiptype = TYPE_PL2303HX;
+		/* or TA, that is HX with external crystal */
+		break;
+	case 0x0400:
+		sc->sc_chiptype = TYPE_PL2303HXD;
+		/* or EA, that is HXD with ESD protection */
+		/* or RA, that has internal voltage level converter that works only up to 1Mbaud (!) */
+		break;
+	case 0x0500:
+		sc->sc_chiptype = TYPE_PL2303HXD;
+		/* in fact it's TB, that is HXD with external crystal */
+		break;
+	default:
+		/* NOTE: I have no info about the bcdDevice for the base PL2303 (up to 1.2Mbaud,
+		   only fixed rates) and for PL2303SA (8-pin chip, up to 115200 baud */
+		/* Determine the chip type.  This algorithm is taken from Linux. */
+		if (dd->bDeviceClass == 0x02)
+			sc->sc_chiptype = TYPE_PL2303;
+		else if (dd->bMaxPacketSize == 0x40)
+			sc->sc_chiptype = TYPE_PL2303HX;
+		else
+			sc->sc_chiptype = TYPE_PL2303;
+		break;
+	}
+
+	switch (sc->sc_chiptype) {
+	case TYPE_PL2303:
+		DPRINTF("chiptype: 2303\n");
+		break;
+	case TYPE_PL2303HX:
+		DPRINTF("chiptype: 2303HX/TA\n");
+		break;
+	case TYPE_PL2303HXD:
+		DPRINTF("chiptype: 2303HXD/TB/RA/EA\n");
+		break;
+	default:
+		DPRINTF("chiptype: unknown %d\n", sc->sc_chiptype);
+		break;
+	}
 
 	/*
 	 * USB-RSAQ1 has two interface
@@ -429,13 +468,14 @@ uplcom_attach(device_t dev)
 		goto detach;
 	}
 
-	if (sc->sc_chiptype != TYPE_PL2303HX) {
+	if (sc->sc_chiptype == TYPE_PL2303) {
 		/* HX variants seem to lock up after a clear stall request. */
 		mtx_lock(&sc->sc_mtx);
 		usbd_xfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_WR]);
 		usbd_xfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_RD]);
 		mtx_unlock(&sc->sc_mtx);
 	} else {
+		/* reset upstream data pipes */
 		if (uplcom_pl2303_do(sc->sc_udev, UT_WRITE_VENDOR_DEVICE,
 		    UPLCOM_SET_REQUEST, 8, 0, 0) ||
 		    uplcom_pl2303_do(sc->sc_udev, UT_WRITE_VENDOR_DEVICE,
@@ -554,7 +594,7 @@ uplcom_pl2303_init(struct usb_device *udev, uint8_t chiptype)
 	    || uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 1, 0, 0))
 		return (EIO);
 
-	if (chiptype == TYPE_PL2303HX)
+	if (chiptype != TYPE_PL2303)
 		err = uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 2, 0x44, 0);
 	else
 		err = uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 2, 0x24, 0);
@@ -634,23 +674,52 @@ uplcom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	    &req, NULL, 0, 1000);
 }
 
+/*
+ * NOTE: These baud rates are officially supported, they can be written
+ * directly into dwDTERate register.
+ *
+ * Free baudrate setting is not supported by the base PL2303, and on
+ * other models it requires writing a divisor value to dwDTERate instead
+ * of the raw baudrate. The formula for divisor calculation is not published
+ * by the vendor, so it is speculative, though the official product homepage
+ * refers to the Linux module source as a reference implementation.
+ */
 static const uint32_t uplcom_rates[] = {
-	75, 150, 300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600, 14400,
-	19200, 28800, 38400, 57600, 115200,
 	/*
-	 * Higher speeds are probably possible. PL2303X supports up to
-	 * 6Mb and can set any rate
+	 * Basic 'standard' speed rates, supported by all models
+	 * NOTE: 900 and 56000 actually works as well
 	 */
-	230400, 460800, 614400, 921600, 1228800
+	75, 150, 300, 600, 900, 1200, 1800, 2400, 3600, 4800, 7200, 9600, 14400,
+	19200, 28800, 38400, 56000, 57600, 115200,
+	/*
+	 * Advanced speed rates up to 6Mbs, supported by HX/TA and HXD/TB/EA/RA
+     * NOTE: regardless of the spec, 256000 does not work
+	 */
+	128000, 134400, 161280, 201600, 230400, 268800, 403200, 460800, 614400,
+	806400, 921600, 1228800, 2457600, 3000000, 6000000,
+	/*
+	 * Advanced speed rates up to 12, supported by HXD/TB/EA/RA
+	 */
+	12000000
 };
 
 #define	N_UPLCOM_RATES	nitems(uplcom_rates)
 
 static int
+uplcom_baud_supported(unsigned int speed)
+{
+	int i;
+	for (i = 0; i < N_UPLCOM_RATES; i++) {
+		if (uplcom_rates[i] == speed)
+			return 1;
+	}
+	return 0;
+}
+
+static int
 uplcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uplcom_softc *sc = ucom->sc_parent;
-	uint8_t i;
 
 	DPRINTF("\n");
 
@@ -658,26 +727,75 @@ uplcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 	 * Check requested baud rate.
 	 *
 	 * The PL2303 can only set specific baud rates, up to 1228800 baud.
-	 * The PL2303X can set any baud rate up to 6Mb.
+	 * The PL2303HX can set any baud rate up to 6Mb.
 	 * The PL2303HX rev. D can set any baud rate up to 12Mb.
 	 *
-	 * XXX: We currently cannot identify the PL2303HX rev. D, so treat
-	 *      it the same as the PL2303X.
 	 */
-	if (sc->sc_chiptype != TYPE_PL2303HX) {
-		for (i = 0; i < N_UPLCOM_RATES; i++) {
-			if (uplcom_rates[i] == t->c_ospeed)
+
+	/* accept raw divisor data, if someone wants to do the math in user domain */
+	if (t->c_ospeed & 0x80000000)
+		return 0;
+	switch (sc->sc_chiptype) {
+		case TYPE_PL2303HXD:
+			if (t->c_ospeed <= 12000000)
 				return (0);
-		}
- 	} else {
-		if (t->c_ospeed <= 6000000)
-			return (0);
+			break;
+		case TYPE_PL2303HX:
+			if (t->c_ospeed <= 6000000)
+				return (0);
+			break;
+		default:
+			if (uplcom_baud_supported(t->c_ospeed))
+				return (0);
+			break;
 	}
 
 	DPRINTF("uplcom_param: bad baud rate (%d)\n", t->c_ospeed);
 	return (EIO);
 }
 
+static unsigned int
+uplcom_encode_baud_rate_divisor(uint8_t *buf, unsigned int baud)
+{
+	unsigned int baseline, mantissa, exponent;
+
+	/* Determine the baud rate divisor. This algorithm is taken from Linux. */
+	/*
+	 * Apparently the formula is:
+	 *   baudrate = baseline / (mantissa * 4^exponent)
+	 * where
+	 *   mantissa = buf[8:0]
+	 *   exponent = buf[11:9]
+	 */
+	if (baud == 0)
+		baud = 1;
+	baseline = 383385600;
+	mantissa = baseline / baud;
+	if (mantissa == 0)
+		mantissa = 1;
+	exponent = 0;
+	while (mantissa >= 512) {
+		if (exponent < 7) {
+			mantissa >>= 2;	/* divide by 4 */
+			exponent++;
+		} else {
+			/* Exponent is maxed. Trim mantissa and leave. This gives approx. 45.8 baud */
+			mantissa = 511;
+			break;
+		}
+	}
+
+	buf[3] = 0x80;
+	buf[2] = 0;
+	buf[1] = exponent << 1 | mantissa >> 8;
+	buf[0] = mantissa & 0xff;
+
+	/* Calculate and return the exact baud rate. */
+	baud = (baseline / mantissa) >> (exponent << 1);
+	DPRINTF("real baud rate will be %u\n", baud);
+
+	return baud;
+}
 static void
 uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
@@ -689,10 +807,24 @@ uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 
 	memset(&ls, 0, sizeof(ls));
 
-	USETDW(ls.dwDTERate, t->c_ospeed);
+	/*
+	 * NOTE: If unsupported baud rates are set directly, the PL2303* uses 9600 baud.
+	 */
+	if ((t->c_ospeed & 0x80000000) || uplcom_baud_supported(t->c_ospeed))
+		USETDW(ls.dwDTERate, t->c_ospeed);
+	else
+		t->c_ospeed = uplcom_encode_baud_rate_divisor((uint8_t*)&ls.dwDTERate, t->c_ospeed);
 
 	if (t->c_cflag & CSTOPB) {
-		ls.bCharFormat = UCDC_STOP_BIT_2;
+		if ((t->c_cflag & CSIZE) == CS5) {
+			/*
+			 * NOTE: Comply with "real" UARTs / RS232:
+			 *       use 1.5 instead of 2 stop bits with 5 data bits
+			 */
+			ls.bCharFormat = UCDC_STOP_BIT_1_5;
+		} else {
+			ls.bCharFormat = UCDC_STOP_BIT_2;
+		}
 	} else {
 		ls.bCharFormat = UCDC_STOP_BIT_1;
 	}
@@ -722,7 +854,7 @@ uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 		break;
 	}
 
-	DPRINTF("rate=%d fmt=%d parity=%d bits=%d\n",
+	DPRINTF("rate=0x%08x fmt=%d parity=%d bits=%d\n",
 	    UGETDW(ls.dwDTERate), ls.bCharFormat,
 	    ls.bParityType, ls.bDataBits);
 
@@ -743,7 +875,7 @@ uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 		req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 		req.bRequest = UPLCOM_SET_REQUEST;
 		USETW(req.wValue, 0);
-		if (sc->sc_chiptype == TYPE_PL2303HX)
+		if (sc->sc_chiptype != TYPE_PL2303)
 			USETW(req.wIndex, UPLCOM_SET_CRTSCTS_PL2303X);
 		else
 			USETW(req.wIndex, UPLCOM_SET_CRTSCTS);
@@ -809,7 +941,6 @@ uplcom_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 
 	DPRINTF("\n");
 
-	/* XXX Note: sc_lsr is always zero */
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
 }
@@ -834,18 +965,33 @@ uplcom_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_out(pc, 0, buf, sizeof(buf));
 
-			DPRINTF("status = 0x%02x\n", buf[8]);
+			DPRINTF("status = 0x%02x\n", buf[UPLCOM_STATE_INDEX]);
 
 			sc->sc_lsr = 0;
 			sc->sc_msr = 0;
 
-			if (buf[8] & RSAQ_STATUS_CTS) {
+			if (buf[UPLCOM_STATE_INDEX] & RSAQ_STATUS_CTS) {
 				sc->sc_msr |= SER_CTS;
 			}
-			if (buf[8] & RSAQ_STATUS_DSR) {
+			if (buf[UPLCOM_STATE_INDEX] & RSAQ_STATUS_OVERRUN_ERROR) {
+				sc->sc_lsr |= ULSR_OE;
+			}
+			if (buf[UPLCOM_STATE_INDEX] & RSAQ_STATUS_PARITY_ERROR) {
+				sc->sc_lsr |= ULSR_PE;
+			}
+			if (buf[UPLCOM_STATE_INDEX] & RSAQ_STATUS_FRAME_ERROR) {
+				sc->sc_lsr |= ULSR_FE;
+			}
+			if (buf[UPLCOM_STATE_INDEX] & RSAQ_STATUS_RING) {
+				sc->sc_msr |= SER_RI;
+			}
+			if (buf[UPLCOM_STATE_INDEX] & RSAQ_STATUS_BREAK_ERROR) {
+				sc->sc_lsr |= ULSR_BI;
+			}
+			if (buf[UPLCOM_STATE_INDEX] & RSAQ_STATUS_DSR) {
 				sc->sc_msr |= SER_DSR;
 			}
-			if (buf[8] & RSAQ_STATUS_DCD) {
+			if (buf[UPLCOM_STATE_INDEX] & RSAQ_STATUS_DCD) {
 				sc->sc_msr |= SER_DCD;
 			}
 			ucom_status_change(&sc->sc_ucom);
