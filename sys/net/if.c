@@ -964,12 +964,18 @@ if_attachdomain1(struct ifnet *ifp)
 void
 if_purgeaddrs(struct ifnet *ifp)
 {
-	struct ifaddr *ifa, *next;
+	struct ifaddr *ifa;
 
-	NET_EPOCH_ENTER();
-	CK_STAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
-		if (ifa->ifa_addr->sa_family == AF_LINK)
-			continue;
+	while (1) {
+		NET_EPOCH_ENTER();
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != AF_LINK)
+				break;
+		}
+		NET_EPOCH_EXIT();
+
+		if (ifa == NULL)
+			break;
 #ifdef INET
 		/* XXX: Ugly!! ad hoc just for INET */
 		if (ifa->ifa_addr->sa_family == AF_INET) {
@@ -996,7 +1002,6 @@ if_purgeaddrs(struct ifnet *ifp)
 		IF_ADDR_WUNLOCK(ifp);
 		ifa_free(ifa);
 	}
-	NET_EPOCH_EXIT();
 }
 
 /*
