@@ -151,7 +151,6 @@ botch(s)
  * must contain at least one page size.  The page sizes must be stored in
  * increasing order.
  */
-extern size_t *pagesizes;
 
 void *
 malloc(size_t nbytes)
@@ -256,8 +255,7 @@ calloc(size_t num, size_t size)
  * Allocate more memory to the indicated bucket.
  */
 static void
-morecore(bucket)
-	int bucket;
+morecore(int bucket)
 {
 	union overhead *op;
 	int sz;		/* size of desired block */
@@ -300,8 +298,7 @@ morecore(bucket)
 }
 
 void
-free(cp)
-	void *cp;
+free(void * cp)
 {
 	int size;
 	union overhead *op;
@@ -339,12 +336,10 @@ free(cp)
  * is extern so the caller can modify it).  If that fails we just copy
  * however many bytes was given to realloc() and hope it's not huge.
  */
-int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
+static int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
 
 void *
-realloc(cp, nbytes)
-	void *cp;
-	size_t nbytes;
+realloc(void *cp, size_t nbytes)
 {
 	u_int onb;
 	int i;
@@ -413,9 +408,7 @@ realloc(cp, nbytes)
  * Return bucket number, or -1 if not found.
  */
 static int
-findbucket(freep, srchlen)
-	union overhead *freep;
-	int srchlen;
+findbucket(union overhead *freep, int srchlen)
 {
 	union overhead *p;
 	int i, j;
@@ -439,8 +432,7 @@ findbucket(freep, srchlen)
  * for each size category, the second showing the number of mallocs -
  * frees for each size category.
  */
-mstats(s)
-	char *s;
+mstats(char * s)
 {
 	int i, j;
 	union overhead *p;
@@ -466,8 +458,7 @@ mstats(s)
 
 
 static int
-morepages(n)
-int	n;
+morepages(int n)
 {
 	int	fd = -1;
 	int	offset;
