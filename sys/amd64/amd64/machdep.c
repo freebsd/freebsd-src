@@ -2616,15 +2616,14 @@ set_pcb_flags_raw(struct pcb *pcb, const u_int flags)
  * the PCB_FULL_IRET flag is set.  We disable interrupts to sync with
  * context switches.
  */
-void
-set_pcb_flags(struct pcb *pcb, const u_int flags)
+static void
+set_pcb_flags_fsgsbase(struct pcb *pcb, const u_int flags)
 {
 	register_t r;
 
 	if (curpcb == pcb &&
 	    (flags & PCB_FULL_IRET) != 0 &&
-	    (pcb->pcb_flags & PCB_FULL_IRET) == 0 &&
-	    (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0) {
+	    (pcb->pcb_flags & PCB_FULL_IRET) == 0) {
 		r = intr_disable();
 		if ((pcb->pcb_flags & PCB_FULL_IRET) == 0) {
 			if (rfs() == _ufssel)
@@ -2637,6 +2636,13 @@ set_pcb_flags(struct pcb *pcb, const u_int flags)
 	} else {
 		set_pcb_flags_raw(pcb, flags);
 	}
+}
+
+DEFINE_IFUNC(, void, set_pcb_flags, (struct pcb *, const u_int), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0 ?
+	    set_pcb_flags_fsgsbase : set_pcb_flags_raw);
 }
 
 void
