@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #include "notes.h"
 
 /* Types. */
-typedef void (*func_ptr_type)();
+typedef void (*func_ptr_type)(void);
 typedef void * (*path_enum_proc) (const char *path, size_t len, void *arg);
 
 /*
@@ -236,6 +236,13 @@ int _rtld_get_stack_prot(void) __exported;
 int _rtld_is_dlopened(void *) __exported;
 void _rtld_error(const char *, ...) __exported;
 
+/* Only here to fix -Wmissing-prototypes warnings */
+int __getosreldate(void);
+void __pthread_cxa_finalize(struct dl_phdr_info *a);
+func_ptr_type _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp);
+Elf_Addr _rtld_bind(Obj_Entry *obj, Elf_Size reloff);
+
+
 int npagesizes, osreldate;
 size_t *pagesizes;
 
@@ -262,7 +269,7 @@ size_t tls_last_offset;		/* Static TLS offset of last module */
 size_t tls_last_size;		/* Static TLS size of last module */
 size_t tls_static_space;	/* Static TLS space allocated */
 size_t tls_static_max_align;
-int tls_dtv_generation = 1;	/* Used to detect when dtv size changes  */
+Elf_Addr tls_dtv_generation = 1;	/* Used to detect when dtv size changes */
 int tls_max_index = 1;		/* Largest module index allocated */
 
 bool ld_library_path_rpath = false;
@@ -4846,7 +4853,7 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
     char *tls;
     Elf_Addr *dtv, *olddtv;
     Elf_Addr segbase, oldsegbase, addr;
-    int i;
+    size_t i;
 
     ralign = tcbalign;
     if (tls_static_max_align > ralign)

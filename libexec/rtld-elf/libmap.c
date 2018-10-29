@@ -199,8 +199,7 @@ lmc_parse(char *lm_p, size_t lm_len)
 	char prog[MAXPATHLEN];
 	/* allow includedir + full length path */
 	char line[MAXPATHLEN + 13];
-	size_t cnt;
-	int i;
+	size_t cnt, i;
 
 	cnt = 0;
 	p = NULL;
@@ -403,7 +402,7 @@ lm_find(const char *p, const char *f)
  * replacement library, or NULL.
  */
 char *
-lm_findn(const char *p, const char *f, const int n)
+lm_findn(const char *p, const char *f, const size_t n)
 {
 	char pathbuf[64], *s, *t;
 

@@ -340,7 +340,7 @@ get_elf_header(int fd, const char *path, const struct stat *sbp)
 	Elf_Ehdr *hdr;
 
 	/* Make sure file has enough data for the ELF header */
-	if (sbp != NULL && sbp->st_size < sizeof(Elf_Ehdr)) {
+	if (sbp != NULL && sbp->st_size < (off_t)sizeof(Elf_Ehdr)) {
 		_rtld_error("%s: invalid file format", path);
 		return (NULL);
 	}
