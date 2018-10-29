@@ -75,7 +75,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 
 	assert(dstobj->mainprog);	/* COPY relocations are invalid elsewhere */
 
-   	rellim = (const Elf_Rel *) ((caddr_t) dstobj->rel + dstobj->relsize);
+	rellim = (const Elf_Rel *)((const char *) dstobj->rel + dstobj->relsize);
 	for (rel = dstobj->rel;  rel < rellim;  rel++) {
 		if (ELF_R_TYPE(rel->r_info) == R_ARM_COPY) {
 	    		void *dstaddr;
@@ -88,7 +88,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 			SymLook req;
 			int res;
 			
-			dstaddr = (void *) (dstobj->relocbase + rel->r_offset);
+			dstaddr = (void *)(dstobj->relocbase + rel->r_offset);
 			dstsym = dstobj->symtab + ELF_R_SYM(rel->r_info);
 			name = dstobj->strtab + dstsym->st_name;
 			size = dstsym->st_size;
@@ -125,8 +125,6 @@ do_copy_relocations(Obj_Entry *dstobj)
 void _rtld_bind_start(void);
 void _rtld_relocate_nonplt_self(Elf_Dyn *, Elf_Addr);
 
-int open();
-int _open();
 void
 _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 {
@@ -145,7 +143,7 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 			break;
 		}
 	}
-	rellim = (const Elf_Rel *)((caddr_t)rel + relsz);
+	rellim = (const Elf_Rel *)((const char *)rel + relsz);
 	size = (rellim - 1)->r_offset - rel->r_offset;
 	for (; rel < rellim; rel++) {
 		where = (Elf_Addr *)(relocbase + rel->r_offset);
@@ -375,7 +373,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	cache = calloc(obj->dynsymcount, sizeof(SymCache));
 	/* No need to check for NULL here */
 
-	rellim = (const Elf_Rel *)((caddr_t)obj->rel + obj->relsize);
+	rellim = (const Elf_Rel *)((const char *)obj->rel + obj->relsize);
 	for (rel = obj->rel; rel < rellim; rel++) {
 		if (reloc_nonplt_object(obj, rel, cache, flags, lockstate) < 0)
 			goto done;
@@ -396,7 +394,7 @@ reloc_plt(Obj_Entry *obj)
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
 		
-	rellim = (const Elf_Rel *)((char *)obj->pltrel +
+	rellim = (const Elf_Rel *)((const char *)obj->pltrel +
 	    obj->pltrelsize);
 	for (rel = obj->pltrel;  rel < rellim;  rel++) {
 		Elf_Addr *where;
@@ -423,7 +421,7 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 	Elf_Addr *where;
 	Elf_Addr target;
 	
-	rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+	rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
 	for (rel = obj->pltrel; rel < rellim; rel++) {
 		assert(ELF_R_TYPE(rel->r_info) == R_ARM_JUMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
@@ -445,7 +443,8 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 }
 
 int
-reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+reloc_iresolve(Obj_Entry *obj __unused,
+    struct Struct_RtldLockState *lockstate __unused)
 {
 
 	/* XXX not implemented */
@@ -453,8 +452,8 @@ reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
 }
 
 int
-reloc_gnu_ifunc(Obj_Entry *obj, int flags,
-    struct Struct_RtldLockState *lockstate)
+reloc_gnu_ifunc(Obj_Entry *obj __unused, int flags __unused,
+    struct Struct_RtldLockState *lockstate __unused)
 {
 
 	/* XXX not implemented */
@@ -462,8 +461,9 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags,
 }
 
 Elf_Addr
-reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
-    const Obj_Entry *obj, const Elf_Rel *rel)
+reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
+    const Obj_Entry *defobj __unused, const Obj_Entry *obj __unused,
+    const Elf_Rel *rel)
 {
 
 	assert(ELF_R_TYPE(rel->r_info) == R_ARM_JUMP_SLOT);
