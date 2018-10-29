@@ -119,11 +119,22 @@ ATF_TC_BODY(fini_array_test, tc)
 	}
 }
 
+extern void *__dso_handle;
+
+ATF_TC_WITHOUT_HEAD(dso_handle_test);
+ATF_TC_BODY(dso_handle_test, tc)
+{
+
+	ATF_REQUIRE_MSG(__dso_handle == NULL,
+	    "Invalid __dso_handle in non-DSO");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, dtors_test);
 	ATF_TP_ADD_TC(tp, fini_array_test);
+	ATF_TP_ADD_TC(tp, dso_handle_test);
 
 	return (atf_no_error());
 }
