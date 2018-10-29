@@ -35,10 +35,10 @@ typedef void (*crt_func)(void);
  */
 static void __do_global_ctors_aux(void) __used;
 
-crt_func __CTOR_END__[] __section(".ctors") __used __hidden = {
+static crt_func __CTOR_END__[] __section(".ctors") __used = {
 	(crt_func)0
 };
-crt_func __DTOR_END__[] __section(".dtors") __used __hidden = {
+static crt_func __DTOR_END__[] __section(".dtors") __used = {
 	(crt_func)0
 };
 
