@@ -66,23 +66,15 @@ end
 
 
 -- Globals
--- try_include will return the loaded module on success, or nil on failure.
--- A message will also be printed on failure, with one exception: non-verbose
--- loading will suppress 'module not found' errors.
+-- try_include will return the loaded module on success, or false and the error
+-- message on failure.
 function try_include(module)
 	local status, ret = pcall(require, module)
 	-- ret is the module if we succeeded.
 	if status then
 		return ret
 	end
-	-- Otherwise, ret is just a message; filter out ENOENT unless we're
-	-- doing a verbose load. As a consequence, try_include prior to loading
-	-- configuration will not display 'module not found'. All other errors
-	-- in loading will be printed.
-	if config.verbose or ret:match("^module .+ not found") == nil then
-		error(ret, 2)
-	end
-	return nil
+	return false, ret
 end
 
 -- Module exports
