@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #define	RELOC_ALIGNED_P(x) \
 	(((uintptr_t)(x) & (sizeof(void *) - 1)) == 0)
 
-void _exit(int);
-
 uint64_t
 set_gp(Obj_Entry *obj)
 {
