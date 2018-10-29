@@ -45,10 +45,10 @@ void *__dso_handle = 0;
 #ifdef HAVE_CTORS
 static void __do_global_dtors_aux(void) __used;
 
-crt_func __CTOR_LIST__[] __section(".ctors") __hidden = {
+static crt_func __CTOR_LIST__[] __section(".ctors") = {
 	(crt_func)-1
 };
-crt_func __DTOR_LIST__[] __section(".dtors") __hidden = {
+static crt_func __DTOR_LIST__[] __section(".dtors") = {
 	(crt_func)-1
 };
 
@@ -81,7 +81,7 @@ asm (
 extern void _Jv_RegisterClasses(void *) __weak_symbol;
 static void register_classes(void) __used;
 
-crt_func __JCR_LIST__[] __section(".jcr") __used __hidden = { };
+static crt_func __JCR_LIST__[] __section(".jcr") __used = { };
 
 #ifndef CTORS_CONSTRUCTORS
 __attribute__((constructor))
