@@ -34,7 +34,7 @@
 */
 
 
-#include <sys/stddef.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -54,8 +54,6 @@
 #include "json.h"
 #include "jevents.h"
 
-int	 snprintf(char * __restrict, size_t, const char * __restrict,
-	    ...) __printflike(3, 4);
 _Noreturn void	 _Exit(int);
 
 int verbose;
@@ -859,8 +857,11 @@ static int get_maxfds(void)
 {
 	struct rlimit rlim;
 
-	if (getrlimit(RLIMIT_NOFILE, &rlim) == 0)
-		return min((int)rlim.rlim_max / 2, 512);
+	if (getrlimit(RLIMIT_NOFILE, &rlim) == 0) {
+		if (rlim.rlim_max == RLIM_INFINITY)
+			return 512;
+		return min((unsigned)rlim.rlim_max / 2, 512);
+	}
 
 	return 512;
 }
@@ -1121,8 +1122,8 @@ int main(int argc, char *argv[])
 	mapfile = NULL;
 	rc = nftw(ldirname, preprocess_arch_std_files, maxfds, 0);
 	if (rc && verbose) {
-		pr_info("%s: Error preprocessing arch standard files %s\n",
-			prog, ldirname);
+		pr_info("%s: Error preprocessing arch standard files %s: %s\n",
+			prog, ldirname, strerror(errno));
 		goto empty_map;
 	} else if (rc < 0) {
 		/* Make build fail */
