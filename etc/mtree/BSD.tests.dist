@@ -270,6 +270,12 @@
             test-programs
             ..
         ..
+        csu
+            dynamic
+            ..
+            static
+            ..
+        ..
         libarchive
         ..
         libc
