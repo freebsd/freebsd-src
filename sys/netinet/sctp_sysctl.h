@@ -212,7 +212,7 @@ struct sctp_sysctl {
 #define SCTPCTL_MAXBURST_DEFAULT	SCTP_DEF_MAX_BURST
 
 /* fr_maxburst: Default max burst for sctp endpoints when fast retransmitting */
-#define SCTPCTL_FRMAXBURST_DESC		"Default fr max burst for sctp endpoints"
+#define SCTPCTL_FRMAXBURST_DESC		"Default max burst for SCTP endpoints when fast retransmitting"
 #define SCTPCTL_FRMAXBURST_MIN		0
 #define SCTPCTL_FRMAXBURST_MAX		0xFFFFFFFF
 #define SCTPCTL_FRMAXBURST_DEFAULT	SCTP_DEF_FRMAX_BURST
@@ -243,7 +243,7 @@ struct sctp_sysctl {
 #define SCTPCTL_MIN_SPLIT_POINT_DEFAULT	SCTP_DEFAULT_SPLIT_POINT_MIN
 
 /* chunkscale: Tunable for Scaling of number of chunks and messages */
-#define SCTPCTL_CHUNKSCALE_DESC		"Tunable for Scaling of number of chunks and messages"
+#define SCTPCTL_CHUNKSCALE_DESC		"Tunable for scaling of number of chunks and messages"
 #define SCTPCTL_CHUNKSCALE_MIN		1
 #define SCTPCTL_CHUNKSCALE_MAX		0xFFFFFFFF
 #define SCTPCTL_CHUNKSCALE_DEFAULT	SCTP_CHUNKQUEUE_SCALE
@@ -327,7 +327,7 @@ struct sctp_sysctl {
 #define SCTPCTL_VALID_COOKIE_LIFE_DEFAULT	SCTP_DEFAULT_COOKIE_LIFE
 
 /* init_rtx_max: Default maximum number of retransmission for INIT chunks */
-#define SCTPCTL_INIT_RTX_MAX_DESC	"Default maximum number of retransmission for INIT chunks"
+#define SCTPCTL_INIT_RTX_MAX_DESC	"Default maximum number of retransmissions for INIT chunks"
 #define SCTPCTL_INIT_RTX_MAX_MIN	0
 #define SCTPCTL_INIT_RTX_MAX_MAX	0xFFFFFFFF
 #define SCTPCTL_INIT_RTX_MAX_DEFAULT	SCTP_DEF_MAX_INIT
@@ -380,8 +380,8 @@ struct sctp_sysctl {
 #define SCTPCTL_CMT_USE_DAC_MAX		1
 #define SCTPCTL_CMT_USE_DAC_DEFAULT    	0
 
-/* cwnd_maxburst: Use a CWND adjusting maxburst */
-#define SCTPCTL_CWND_MAXBURST_DESC	"Use a CWND adjusting maxburst"
+/* cwnd_maxburst: Use a CWND adjusting to implement maxburst */
+#define SCTPCTL_CWND_MAXBURST_DESC	"Adjust congestion control window to limit maximum burst when sending"
 #define SCTPCTL_CWND_MAXBURST_MIN	0
 #define SCTPCTL_CWND_MAXBURST_MAX	1
 #define SCTPCTL_CWND_MAXBURST_DEFAULT	1
@@ -417,7 +417,7 @@ struct sctp_sysctl {
 #define SCTPCTL_HB_MAX_BURST_DEFAULT	SCTP_DEF_HBMAX_BURST
 
 /* abort_at_limit: When one-2-one hits qlimit abort */
-#define SCTPCTL_ABORT_AT_LIMIT_DESC	"When one-2-one hits qlimit abort"
+#define SCTPCTL_ABORT_AT_LIMIT_DESC	"Abort when one-to-one hits qlimit"
 #define SCTPCTL_ABORT_AT_LIMIT_MIN	0
 #define SCTPCTL_ABORT_AT_LIMIT_MAX	1
 #define SCTPCTL_ABORT_AT_LIMIT_DEFAULT	0
@@ -429,7 +429,7 @@ struct sctp_sysctl {
 #define SCTPCTL_MIN_RESIDUAL_DEFAULT	1452
 
 /* max_retran_chunk: max chunk retransmissions */
-#define SCTPCTL_MAX_RETRAN_CHUNK_DESC	"Maximum times an unlucky chunk can be retran'd before assoc abort"
+#define SCTPCTL_MAX_RETRAN_CHUNK_DESC	"Maximum times an unlucky chunk can be retransmitted before assoc abort"
 #define SCTPCTL_MAX_RETRAN_CHUNK_MIN	0
 #define SCTPCTL_MAX_RETRAN_CHUNK_MAX	65535
 #define SCTPCTL_MAX_RETRAN_CHUNK_DEFAULT	30
@@ -477,63 +477,63 @@ struct sctp_sysctl {
 #define SCTPCTL_UDP_TUNNELING_PORT_DEFAULT	0
 
 /* Enable sending of the SACK-IMMEDIATELY bit */
-#define SCTPCTL_SACK_IMMEDIATELY_ENABLE_DESC	"Enable sending of the SACK-IMMEDIATELY-bit."
+#define SCTPCTL_SACK_IMMEDIATELY_ENABLE_DESC	"Enable sending of the SACK-IMMEDIATELY-bit"
 #define SCTPCTL_SACK_IMMEDIATELY_ENABLE_MIN	0
 #define SCTPCTL_SACK_IMMEDIATELY_ENABLE_MAX	1
 #define SCTPCTL_SACK_IMMEDIATELY_ENABLE_DEFAULT	SCTPCTL_SACK_IMMEDIATELY_ENABLE_MAX
 
 /* Enable sending of the NAT-FRIENDLY message */
-#define SCTPCTL_NAT_FRIENDLY_INITS_DESC	"Enable sending of the nat-friendly SCTP option on INITs."
+#define SCTPCTL_NAT_FRIENDLY_INITS_DESC	"Enable sending of the nat-friendly SCTP option on INITs"
 #define SCTPCTL_NAT_FRIENDLY_INITS_MIN	0
 #define SCTPCTL_NAT_FRIENDLY_INITS_MAX	1
 #define SCTPCTL_NAT_FRIENDLY_INITS_DEFAULT	SCTPCTL_NAT_FRIENDLY_INITS_MIN
 
 /* Vtag time wait in seconds */
-#define SCTPCTL_TIME_WAIT_DESC	"Vtag time wait time in seconds, 0 disables it."
+#define SCTPCTL_TIME_WAIT_DESC	"Vtag time wait time in seconds, 0 disables it"
 #define SCTPCTL_TIME_WAIT_MIN	0
 #define SCTPCTL_TIME_WAIT_MAX	0xffffffff
 #define SCTPCTL_TIME_WAIT_DEFAULT	SCTP_TIME_WAIT
 
 /* Enable Send/Receive buffer splitting */
-#define SCTPCTL_BUFFER_SPLITTING_DESC		"Enable send/receive buffer splitting."
+#define SCTPCTL_BUFFER_SPLITTING_DESC		"Enable send/receive buffer splitting"
 #define SCTPCTL_BUFFER_SPLITTING_MIN		0
 #define SCTPCTL_BUFFER_SPLITTING_MAX		0x3
 #define SCTPCTL_BUFFER_SPLITTING_DEFAULT	SCTPCTL_BUFFER_SPLITTING_MIN
 
-/* Initial congestion window in MTU */
-#define SCTPCTL_INITIAL_CWND_DESC	"Initial congestion window in MTUs"
+/* Initial congestion window in MTUs */
+#define SCTPCTL_INITIAL_CWND_DESC	"Defines the initial congestion window size in MTUs"
 #define SCTPCTL_INITIAL_CWND_MIN	0
 #define SCTPCTL_INITIAL_CWND_MAX	0xffffffff
 #define SCTPCTL_INITIAL_CWND_DEFAULT	3
 
 /* rttvar smooth avg for bw calc  */
-#define SCTPCTL_RTTVAR_BW_DESC	"Shift amount for bw smoothing on rtt calc"
+#define SCTPCTL_RTTVAR_BW_DESC	"Shift amount DCCC uses for bw smoothing on rtt calc"
 #define SCTPCTL_RTTVAR_BW_MIN	0
 #define SCTPCTL_RTTVAR_BW_MAX	32
 #define SCTPCTL_RTTVAR_BW_DEFAULT	4
 
 /* rttvar smooth avg for bw calc  */
-#define SCTPCTL_RTTVAR_RTT_DESC	"Shift amount for rtt smoothing on rtt calc"
+#define SCTPCTL_RTTVAR_RTT_DESC	"Shift amount DCCC uses for rtt smoothing on rtt calc"
 #define SCTPCTL_RTTVAR_RTT_MIN	0
 #define SCTPCTL_RTTVAR_RTT_MAX	32
 #define SCTPCTL_RTTVAR_RTT_DEFAULT	5
 
-#define SCTPCTL_RTTVAR_EQRET_DESC	"What to return when rtt and bw are unchanged"
+#define SCTPCTL_RTTVAR_EQRET_DESC	"Whether DCCC increases cwnd when the rtt and bw are unchanged"
 #define SCTPCTL_RTTVAR_EQRET_MIN	0
 #define SCTPCTL_RTTVAR_EQRET_MAX	1
 #define SCTPCTL_RTTVAR_EQRET_DEFAULT	0
 
-#define SCTPCTL_RTTVAR_STEADYS_DESC	"How many the sames it takes to try step down of cwnd"
+#define SCTPCTL_RTTVAR_STEADYS_DESC	"Number of identical bw measurements DCCC takes to try step down of cwnd"
 #define SCTPCTL_RTTVAR_STEADYS_MIN	0
 #define SCTPCTL_RTTVAR_STEADYS_MAX	0xFFFF
 #define SCTPCTL_RTTVAR_STEADYS_DEFAULT	20	/* 0 means disable feature */
 
-#define SCTPCTL_RTTVAR_DCCCECN_DESC	"Enable for RTCC CC datacenter ECN"
+#define SCTPCTL_RTTVAR_DCCCECN_DESC	"Enable ECN for DCCC."
 #define SCTPCTL_RTTVAR_DCCCECN_MIN	0
 #define SCTPCTL_RTTVAR_DCCCECN_MAX	1
 #define SCTPCTL_RTTVAR_DCCCECN_DEFAULT	1	/* 0 means disable feature */
 
-#define SCTPCTL_BLACKHOLE_DESC		"Enable SCTP blackholing. See blackhole(4) for more details."
+#define SCTPCTL_BLACKHOLE_DESC		"Enable SCTP blackholing, see blackhole(4) for more details"
 #define SCTPCTL_BLACKHOLE_MIN		0
 #define SCTPCTL_BLACKHOLE_MAX		2
 #define SCTPCTL_BLACKHOLE_DEFAULT	SCTPCTL_BLACKHOLE_MIN
@@ -553,7 +553,7 @@ struct sctp_sysctl {
 
 
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-#define SCTPCTL_OUTPUT_UNLOCKED_DESC	"Unlock socket when sending packets down to IP."
+#define SCTPCTL_OUTPUT_UNLOCKED_DESC	"Unlock socket when sending packets down to IP"
 #define SCTPCTL_OUTPUT_UNLOCKED_MIN	0
 #define SCTPCTL_OUTPUT_UNLOCKED_MAX	1
 #define SCTPCTL_OUTPUT_UNLOCKED_DEFAULT	SCTPCTL_OUTPUT_UNLOCKED_MIN
