@@ -54,7 +54,7 @@ typedef unsigned char bool;
 extern size_t tls_last_offset;
 extern size_t tls_last_size;
 extern size_t tls_static_space;
-extern int tls_dtv_generation;
+extern Elf_Addr tls_dtv_generation;
 extern int tls_max_index;
 
 extern int npagesizes;
