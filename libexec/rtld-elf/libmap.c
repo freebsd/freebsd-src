@@ -25,7 +25,7 @@ struct lm {
 	TAILQ_ENTRY(lm)	lm_link;
 };
 
-TAILQ_HEAD(lmp_list, lmp) lmp_head = TAILQ_HEAD_INITIALIZER(lmp_head);
+static TAILQ_HEAD(lmp_list, lmp) lmp_head = TAILQ_HEAD_INITIALIZER(lmp_head);
 struct lmp {
 	char *p;
 	enum { T_EXACT=0, T_BASENAME, T_DIRECTORY } type;

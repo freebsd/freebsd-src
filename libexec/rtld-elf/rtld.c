@@ -73,6 +73,14 @@ __FBSDID("$FreeBSD$");
 typedef void (*func_ptr_type)(void);
 typedef void * (*path_enum_proc) (const char *path, size_t len, void *arg);
 
+
+/* Variables that cannot be static: */
+extern struct r_debug r_debug; /* For GDB */
+extern int _thread_autoinit_dummy_decl;
+extern char* __progname;
+extern void (*__cleanup)(void);
+
+
 /*
  * Function declarations.
  */
@@ -243,7 +251,8 @@ func_ptr_type _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp);
 Elf_Addr _rtld_bind(Obj_Entry *obj, Elf_Size reloff);
 
 
-int npagesizes, osreldate;
+int npagesizes;
+static int osreldate;
 size_t *pagesizes;
 
 static int stack_prot = PROT_READ | PROT_WRITE | RTLD_DEFAULT_STACK_EXEC;
@@ -268,11 +277,11 @@ char **main_argv;
 size_t tls_last_offset;		/* Static TLS offset of last module */
 size_t tls_last_size;		/* Static TLS size of last module */
 size_t tls_static_space;	/* Static TLS space allocated */
-size_t tls_static_max_align;
+static size_t tls_static_max_align;
 Elf_Addr tls_dtv_generation = 1;	/* Used to detect when dtv size changes */
 int tls_max_index = 1;		/* Largest module index allocated */
 
-bool ld_library_path_rpath = false;
+static bool ld_library_path_rpath = false;
 
 /*
  * Globals for path names, and such

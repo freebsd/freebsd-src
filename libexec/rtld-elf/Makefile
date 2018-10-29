@@ -33,7 +33,7 @@ LDFLAGS+=	-nostdlib -e .rtld_start
 .endif
 
 NO_WCAST_ALIGN=	yes
-WARNS?=		4
+WARNS?=		6
 INSTALLFLAGS=	-C -b
 PRECIOUSPROG=
 BINDIR=		/libexec
@@ -98,7 +98,12 @@ SUBDIR.${MK_TESTS}+= tests
 ${PROG_FULL}:	${VERSION_MAP}
 .include <bsd.symver.mk>
 
-.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} < 40300
+.if ${COMPILER_TYPE} == "gcc"
+# GCC warns about redeclarations even though they have __exported
+# and are therefore not identical to the ones from the system headers.
+CFLAGS+=	-Wno-redundant-decls
+.if ${COMPILER_VERSION} < 40300
 # Silence -Wshadow false positives in ancient GCC
 CFLAGS+=	-Wno-shadow
+.endif
 .endif
