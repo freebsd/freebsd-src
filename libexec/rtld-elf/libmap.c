@@ -44,8 +44,8 @@ struct lmc {
 static int lm_count;
 
 static void lmc_parse(char *, size_t);
-static void lmc_parse_file(char *);
-static void lmc_parse_dir(char *);
+static void lmc_parse_file(const char *);
+static void lmc_parse_dir(const char *);
 static void lm_add(const char *, const char *, const char *);
 static void lm_free(struct lm_list *);
 static char *lml_find(struct lm_list *, const char *);
@@ -96,7 +96,7 @@ lm_init(char *libmap_override)
 }
 
 static void
-lmc_parse_file(char *path)
+lmc_parse_file(const char *path)
 {
 	struct lmc *p;
 	char *lm_map;
@@ -149,7 +149,7 @@ lmc_parse_file(char *path)
 }
 
 static void
-lmc_parse_dir(char *idir)
+lmc_parse_dir(const char *idir)
 {
 	DIR *d;
 	struct dirent *dp;
