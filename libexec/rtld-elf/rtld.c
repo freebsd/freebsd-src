@@ -1390,13 +1390,15 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    if (nsegs == 0) {	/* First load segment */
 		obj->vaddrbase = trunc_page(ph->p_vaddr);
 		obj->mapbase = obj->vaddrbase + obj->relocbase;
-		obj->textsize = round_page(ph->p_vaddr + ph->p_memsz) -
-		  obj->vaddrbase;
 	    } else {		/* Last load segment */
 		obj->mapsize = round_page(ph->p_vaddr + ph->p_memsz) -
 		  obj->vaddrbase;
 	    }
 	    nsegs++;
+	    if ((ph->p_flags & PF_X) == PF_X) {
+		obj->textsize = MAX(obj->textsize,
+		    round_page(ph->p_vaddr + ph->p_memsz) - obj->vaddrbase);
+	    }
 	    break;
 
 	case PT_DYNAMIC:
