@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2006
+.Dd October 10, 2018
 .Dt SCTP 4
 .Os
 .Sh NAME
@@ -145,7 +145,7 @@ with no regard to the ordering of any other message.
 The FreeBSD implementation of
 .Tn SCTP
 also supports the following extensions:
-.Bl -hang -width indent
+.Bl -tag -width "sctp partial reliability"
 .It "sctp partial reliability"
 This extension allows one to have message be skipped and
 not delivered based on some user specified parameters.
@@ -168,7 +168,7 @@ utilization.
 This extension allows a user on either side to reset the
 stream sequence numbers used by any or all streams.
 .El
-.Pp
+.Ss Socket Options
 .Tn SCTP
 supports a number of socket options which can be set with
 .Xr setsockopt 2
@@ -176,7 +176,7 @@ and tested with
 .Xr getsockopt 2
 or
 .Xr sctp_opt_info 3 :
-.Bl -tag -width ".Dv SCTP_SET_PEER_PRIMARY_ADDR"
+.Bl -tag -indent
 .It Dv SCTP_NODELAY
 Under most circumstances,
 .Tn SCTP
@@ -409,6 +409,191 @@ Note that the peer
 endpoint must also support the stream reset extension
 as well.
 .El
+.Ss MIB Variables
+The
+.Tn SCTP
+protocol implements a number of variables in the
+.Va net.inet.sctp
+branch of the
+.Xr sysctl 3
+MIB.
+.Bl -ohang
+.It Sy Congestion Control
+.Bl -tag -width indent
+.It Va default_cc_module
+Default congestion control module.
+Default value is 0.
+The minimum is 0, and the maximum is 3.
+A value of 0 enables the default congestion control algorithm.
+A value of 1 enables the High Speed congestion control algorithm.
+A value of 2 enables the HTCP congestion control algorithm.
+A value of 3 enables the data center congestion control (DCCC) algorithm.
+.It Va initial_cwnd
+Defines the initial congestion window size in MTUs.
+.It Va cwnd_maxburst
+Use congestion control instead of 'blind' logic to limit maximum burst when sending.
+Default value is 1. May be set to 0 or 1.
+.It Va ecn_enable
+Enable Explicit Congestion Notification (ECN).
+Default value is 1. May be set to 0 or 1.
+.It Va rttvar_steady_step
+Number of identical bandwidth measurements DCCC takes to try step down the congestion window.
+Default value is 20.
+The minimum is 0, and the maximum is 65535.
+.It Va rttvar_eqret
+Whether DCCC reduces the congestion window size when round-trip time and bandwidth remain unchanged.
+Default value is 0.
+May be set to 0 or 1.
+.It Va rttvar_bw
+Shift amount DCCC uses for bandwidth smoothing on round-trip-time calculation.
+Default value is 4.
+The minimum is 0, and the maximum is 32.
+.It Va rttvar_rtt
+Shift amount DCCC uses for round-trip-time smoothing on round-trip-time calculation.
+Default value is 5.
+The minimum is 0, and the maximum is 32.
+.It Va use_dcccecn
+Enable ECN when using DCCC.
+Default value is 1.
+May be set to 0 or 1.
+.El
+.It Sy Misc
+.Bl -tag -width indent
+.It Va getcred
+Get the ucred of a SCTP connection.
+.It Va assoclist
+List of active SCTP associations.
+.It Va stats
+SCTP statistics (struct sctp_stat).
+.It Va diag_info_code
+Diagnostic information error cause code.
+.It Va blackhole
+Enable SCTP blackholing.
+See
+.Xr blackhole 4
+for more details.
+.It Va buffer_splitting
+Enable send/receive buffer splitting.
+.It Va vtag_time_wait
+Vtag wait time in seconds, 0 to disable.
+.It Va nat_friendly_init
+Enable sending of the NAT-friendly SCTP option on INITs.
+.It Va enable_sack_immediately
+Enable sending of the SACK-IMMEDIATELY bit.
+.It Va udp_tunneling_port
+Set the SCTP/UDP tunneling port.
+.It Va mobility_fasthandoff
+Enable SCTP fast handoff.
+.It Va mobility_base
+Enable SCTP base mobility
+.It Va default_frag_interleave
+Default fragment interleave level.
+.It Va default_ss_module
+Default stream scheduling module.
+.It Va log_level
+Ltrace/KTR trace logging level.
+.It Va max_retran_chunk
+Number of retransmissions of a DATA chunk before an association is aborted.
+.It Va min_residual
+Minimum residual data chunk in second part of split.
+.It Va strict_data_order
+Enforce strict data ordering, abort if control inside data.
+.It Va abort_at_limit
+Abort when one-to-one hits qlimit.
+.It Va hb_max_burst
+Confirmation heartbeat max burst.
+.It Va do_sctp_drain
+Flush chunks in receive queues with TSN higher than the cumulative TSN if the
+system is low on mbufs.
+.It Va max_chained_mbufs
+Default max number of small mbufs on a chain.
+.It Va abc_l_var
+SCTP ABC max increase per SACK (L).
+.It Va nat_friendly
+SCTP NAT friendly operation.
+.It Va cmt_use_dac
+CMT DAC on/off flag.
+.It Va cmt_on_off
+CMT settings.
+.It Va outgoing_streams
+Default number of outgoing streams.
+.It Va incoming_streams
+Default number of incoming streams.
+.It Va add_more_on_output
+When space-wise is it worthwhile to try to add more to a socket send buffer.
+.It Va path_pf_threshold
+Default potentially failed threshold.
+.It Va path_rtx_max
+Default maximum of retransmissions per path.
+.It Va assoc_rtx_max
+Default maximum number of retransmissions per association.
+.It Va init_rtx_max
+Default maximum number of retransmissions for INIT chunks.
+.It Va valid_cookie_life
+Default cookie lifetime in seconds.
+.It Va init_rto_max
+Default maximum retransmission timeout during association setup in ms.
+.It Va rto_initial
+Default initial retransmission timeout in ms.
+.It Va rto_min
+Default minimum retransmission timeout in ms.
+.It Va rto_max
+Default maximum retransmission timeout in ms.
+.It Va secret_lifetime
+Default secret lifetime in seconds.
+.It Va shutdown_guard_time
+Shutdown guard timer in seconds (0 means 5 times RTO.Max).
+.It Va pmtu_raise_time
+Default PMTU raise timer in seconds.
+.It Va heartbeat_interval
+Default heartbeat interval in ms.
+.It Va asoc_resource
+Max number of cached resources in an association.
+.It Va sys_resource
+Max number of cached resources in the system.
+.It Va sack_freq
+Default SACK frequency.
+.It Va delayed_sack_time
+Default delayed SACK timer in ms.
+.It Va chunkscale
+Tunable for scaling of number of chunks and messages.
+.It Va min_split_point
+Minimum size when splitting a chunk.
+.It Va pcbhashsize
+Tunable for PCB hash table sizes.
+.It Va tcbhashsize
+Tunable for TCB hash table sizes.
+.It Va maxchunks
+Default max chunks on queue per association.
+.It Va fr_maxburst
+Default max burst for SCTP endpoints when fast retransmitting.
+.It Va maxburst
+Default max burst for SCTP endpoints.
+.It Va peer_chkoh
+Amount to debit peers rwnd per chunk sent.
+.It Va strict_sacks
+Enable SCTP Strict SACK checking.
+.It Va pktdrop_enable
+Enable SCTP PKTDROP.
+.It Va nrsack_enable
+Enable SCTP NR-SACK.
+.It Va reconfig_enable
+Enable SCTP RE-CONFIG.
+.It Va asconf_enable
+Enable SCTP ASCONF.
+.It Va auth_enable
+Enable SCTP AUTH.
+.It Va pr_enable
+Enable PR-SCTP.
+.It Va auto_asconf
+Enable SCTP Auto-ASCONF.
+.It Va recvspace
+Maximum incoming SCTP buffer size.
+.It Va sendspace
+Maximum outgoing SCTP buffer size.
+.El
+.El
+
 .Sh SEE ALSO
 .Xr accept 2 ,
 .Xr bind 2 ,
@@ -418,4 +603,5 @@ as well.
 .Xr sctp_connectx 3 ,
 .Xr sctp_opt_info 3 ,
 .Xr sctp_recvmsg 3 ,
-.Xr sctp_sendmsg 3
+.Xr sctp_sendmsg 3 ,
+.Xr blackhole 4
