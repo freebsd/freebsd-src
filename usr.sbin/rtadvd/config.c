@@ -437,6 +437,10 @@ getconfig(struct ifinfo *ifi)
 			}
 			val |= ND_RA_FLAG_RTPREF_LOW;
 		}
+#ifdef DRAFT_IETF_6MAN_IPV6ONLY_FLAG
+		if (strchr(flagstr, '6'))
+			val |= ND_RA_FLAG_IPV6_ONLY;
+#endif
 	} else
 		MAYHAVE(val, "raflags", 0);
 
@@ -452,6 +456,9 @@ getconfig(struct ifinfo *ifi)
 		    __func__, rai->rai_rtpref, ifi->ifi_ifname);
 		goto getconfig_free_rai;
 	}
+#ifdef DRAFT_IETF_6MAN_IPV6ONLY_FLAG
+	rai->rai_ipv6onlyflg = val & ND_RA_FLAG_IPV6_ONLY;
+#endif
 
 	MAYHAVE(val, "rltime", rai->rai_maxinterval * 3);
 	if ((uint16_t)val && ((uint16_t)val < rai->rai_maxinterval ||
@@ -1406,6 +1413,10 @@ make_packet(struct rainfo *rai)
 		rai->rai_managedflg ? ND_RA_FLAG_MANAGED : 0;
 	ra->nd_ra_flags_reserved |=
 		rai->rai_otherflg ? ND_RA_FLAG_OTHER : 0;
+#ifdef DRAFT_IETF_6MAN_IPV6ONLY_FLAG
+	ra->nd_ra_flags_reserved |=
+		rai->rai_ipv6onlyflg ? ND_RA_FLAG_IPV6_ONLY : 0;
+#endif
 	ra->nd_ra_router_lifetime = htons(rai->rai_lifetime);
 	ra->nd_ra_reachable = htonl(rai->rai_reachabletime);
 	ra->nd_ra_retransmit = htonl(rai->rai_retranstimer);

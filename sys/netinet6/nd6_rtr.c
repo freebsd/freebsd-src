@@ -204,6 +204,37 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	m_freem(m);
 }
 
+#ifdef EXPERIMENTAL
+/*
+ * An initial update routine for draft-ietf-6man-ipv6only-flag.
+ * We need to iterate over all default routers for the given
+ * interface to see whether they are all advertising the "6"
+ * (IPv6-Only) flag.  If they do set, otherwise unset, the
+ * interface flag we later use to filter on.
+ */
+static void
+defrtr_ipv6_only_ifp(struct ifnet *ifp)
+{
+	struct nd_defrouter *dr;
+	bool ipv6_only;
+
+	ipv6_only = true;
+	ND6_RLOCK();
+	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry)
+		if (dr->ifp == ifp &&
+		    (dr->raflags & ND_RA_FLAG_IPV6_ONLY) == 0)
+			ipv6_only = false;
+	ND6_RUNLOCK();
+
+	IF_AFDATA_WLOCK(ifp);
+	if (ipv6_only)
+		ND_IFINFO(ifp)->flags |= ND6_IFF_IPV6_ONLY;
+	else
+		ND_IFINFO(ifp)->flags &= ~ND6_IFF_IPV6_ONLY;
+	IF_AFDATA_WUNLOCK(ifp);
+}
+#endif
+
 /*
  * Receive Router Advertisement Message.
  *
@@ -319,6 +350,9 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		}
 	}
 	dr = defrtrlist_update(&dr0);
+#ifdef EXPERIMENTAL
+	defrtr_ipv6_only_ifp(ifp);
+#endif
     }
 
 	/*
@@ -691,6 +725,10 @@ defrouter_del(struct nd_defrouter *dr)
 	 */
 	if (ND_IFINFO(dr->ifp)->flags & ND6_IFF_ACCEPT_RTADV)
 		rt6_flush(&dr->rtaddr, dr->ifp);
+
+#ifdef EXPERIMENTAL
+	defrtr_ipv6_only_ifp(dr->ifp);
+#endif
 
 	if (dr->installed) {
 		deldr = dr;

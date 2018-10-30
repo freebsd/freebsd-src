@@ -90,6 +90,9 @@ struct nd_ifinfo {
 #define	ND6_IFF_NO_RADR		0x40
 #define ND6_IFF_NO_PREFER_IFACE	0x80 /* XXX: not related to ND. */
 #define ND6_IFF_NO_DAD		0x100
+#ifdef EXPERIMENTAL
+#define	ND6_IFF_IPV6_ONLY	0x200 /* draft-ietf-6man-ipv6only-flag */
+#endif
 
 #ifdef _KERNEL
 #define ND_IFINFO(ifp) \
