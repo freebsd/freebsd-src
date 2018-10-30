@@ -59,8 +59,8 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 	struct g_provider *pp;
 	const char *name;
 	u_char *key, mkey[G_ELI_DATAIVKEYLEN];
-	int *nargs, *detach, *readonly, *dryrun;
-	int keysize, error, nkey;
+	int *nargs, *detach, *readonly, *dryrunp;
+	int keysize, error, nkey, dryrun, dummy;
 	intmax_t *valp;
 
 	g_topology_assert();
@@ -81,12 +81,14 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
-	valp = gctl_get_paraml(req, "keyno", sizeof(*valp));
-	if (valp == NULL) {
-		gctl_error(req, "No '%s' argument.", "keyno");
-		return;
+	/* "keyno" is optional for backward compatibility */
+	nkey = -1;
+	valp = gctl_get_param(req, "keyno", &dummy);
+	if (valp != NULL) {
+		valp = gctl_get_paraml(req, "keyno", sizeof(*valp));
+		if (valp != NULL)
+			nkey = *valp;
 	}
-	nkey = *valp;
 	if (nkey < -1 || nkey >= G_ELI_MAXMKEYS) {
 		gctl_error(req, "Invalid '%s' argument.", "keyno");
 		return;
@@ -98,10 +100,13 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
-	dryrun = gctl_get_paraml(req, "dryrun", sizeof(*dryrun));
-	if (dryrun == NULL) {
-		gctl_error(req, "No '%s' argument.", "dryrun");
-		return;
+	/* "dryrun" is optional for backward compatibility */
+	dryrun = 0;
+	dryrunp = gctl_get_param(req, "dryrun", &dummy);
+	if (dryrunp != NULL) {
+		dryrunp = gctl_get_paraml(req, "dryrun", sizeof(*dryrunp));
+		if (dryrunp != NULL)
+			dryrun = *dryrunp;
 	}
 
 	if (*detach && *readonly) {
@@ -161,7 +166,7 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		md.md_flags |= G_ELI_FLAG_WO_DETACH;
 	if (*readonly)
 		md.md_flags |= G_ELI_FLAG_RO;
-	if (!*dryrun)
+	if (!dryrun)
 		g_eli_create(req, mp, pp, &md, mkey, nkey);
 	explicit_bzero(mkey, sizeof(mkey));
 	explicit_bzero(&md, sizeof(md));
