@@ -24,7 +24,8 @@ SRCS+=	bus_if.h \
 	pci_if.h \
 	vnode_if.h \
 	usb_if.h \
-	opt_usb.h
+	opt_usb.h \
+	opt_stack.h
 
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
