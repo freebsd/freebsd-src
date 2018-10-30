@@ -107,7 +107,7 @@ ATF_TC_BODY(ctors_test, tc)
 }
 #endif
 
-#ifndef DSO_BASE
+#if !defined(DSO_BASE) && !defined(DSO_LIB)
 static void
 preinit_array_handler(void)
 {
