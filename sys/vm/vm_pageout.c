@@ -2072,41 +2072,41 @@ vm_pageout_init(void)
 static void
 vm_pageout(void)
 {
-	int error;
-	int i;
+	struct proc *p;
+	struct thread *td;
+	int error, first, i;
+
+	p = curproc;
+	td = curthread;
 
 	swap_pager_swap_init();
-	snprintf(curthread->td_name, sizeof(curthread->td_name), "dom0");
-	error = kthread_add(vm_pageout_laundry_worker, NULL, curproc, NULL,
-	    0, 0, "laundry: dom0");
-	if (error != 0)
-		panic("starting laundry for domain 0, error %d", error);
-	for (i = 1; i < vm_ndomains; i++) {
+	for (first = -1, i = 0; i < vm_ndomains; i++) {
 		if (VM_DOMAIN_EMPTY(i)) {
 			if (bootverbose)
 				printf("domain %d empty; skipping pageout\n",
 				    i);
 			continue;
 		}
-
-		error = kthread_add(vm_pageout_worker, (void *)(uintptr_t)i,
-		    curproc, NULL, 0, 0, "dom%d", i);
-		if (error != 0) {
-			panic("starting pageout for domain %d, error %d\n",
-			    i, error);
+		if (first == -1)
+			first = i;
+		else {
+			error = kthread_add(vm_pageout_worker,
+			    (void *)(uintptr_t)i, p, NULL, 0, 0, "dom%d", i);
+			if (error != 0)
+				panic("starting pageout for domain %d: %d\n",
+				    i, error);
 		}
 		error = kthread_add(vm_pageout_laundry_worker,
-		    (void *)(uintptr_t)i, curproc, NULL, 0, 0,
-		    "laundry: dom%d", i);
+		    (void *)(uintptr_t)i, p, NULL, 0, 0, "laundry: dom%d", i);
 		if (error != 0)
-			panic("starting laundry for domain %d, error %d",
-			    i, error);
+			panic("starting laundry for domain %d: %d", i, error);
 	}
-	error = kthread_add(uma_reclaim_worker, NULL, curproc, NULL,
-	    0, 0, "uma");
+	error = kthread_add(uma_reclaim_worker, NULL, p, NULL, 0, 0, "uma");
 	if (error != 0)
 		panic("starting uma_reclaim helper, error %d\n", error);
-	vm_pageout_worker((void *)(uintptr_t)0);
+
+	snprintf(td->td_name, sizeof(td->td_name), "dom%d", first);
+	vm_pageout_worker((void *)(uintptr_t)first);
 }
 
 /*
