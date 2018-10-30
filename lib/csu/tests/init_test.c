@@ -60,7 +60,7 @@ volatile int init_array_state = -1;
 
 void _Jv_RegisterClasses(const func_ptr *);
 
-__section(".jcr") __used func_ptr static jcr_func = (func_ptr)1;
+__section(".jcr") __used static func_ptr jcr_func = (func_ptr)1;
 const void *jcr_func_ptr = &jcr_func;
 
 void
