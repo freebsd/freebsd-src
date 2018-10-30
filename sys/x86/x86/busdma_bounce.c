@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/domainset.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
@@ -294,9 +295,9 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	error = 0;
 
 	if (dmat->segments == NULL) {
-		dmat->segments = (bus_dma_segment_t *)malloc_domain(
+		dmat->segments = (bus_dma_segment_t *)malloc_domainset(
 		    sizeof(bus_dma_segment_t) * dmat->common.nsegments,
-		    M_DEVBUF, dmat->common.domain, M_NOWAIT);
+		    M_DEVBUF, DOMAINSET_PREF(dmat->common.domain), M_NOWAIT);
 		if (dmat->segments == NULL) {
 			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 			    __func__, dmat, ENOMEM);
@@ -317,8 +318,8 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		}
 		bz = dmat->bounce_zone;
 
-		*mapp = (bus_dmamap_t)malloc_domain(sizeof(**mapp), M_DEVBUF,
-		    dmat->common.domain, M_NOWAIT | M_ZERO);
+		*mapp = (bus_dmamap_t)malloc_domainset(sizeof(**mapp), M_DEVBUF,
+		    DOMAINSET_PREF(dmat->common.domain), M_NOWAIT | M_ZERO);
 		if (*mapp == NULL) {
 			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 			    __func__, dmat, ENOMEM);
@@ -411,9 +412,9 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	*mapp = NULL;
 
 	if (dmat->segments == NULL) {
-		dmat->segments = (bus_dma_segment_t *)malloc_domain(
+		dmat->segments = (bus_dma_segment_t *)malloc_domainset(
 		    sizeof(bus_dma_segment_t) * dmat->common.nsegments,
-		    M_DEVBUF, dmat->common.domain, mflags);
+		    M_DEVBUF, DOMAINSET_PREF(dmat->common.domain), mflags);
 		if (dmat->segments == NULL) {
 			CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 			    __func__, dmat, dmat->common.flags, ENOMEM);
@@ -452,20 +453,21 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	   (dmat->common.alignment <= dmat->common.maxsize) &&
 	    dmat->common.lowaddr >= ptoa((vm_paddr_t)Maxmem) &&
 	    attr == VM_MEMATTR_DEFAULT) {
-		*vaddr = malloc_domain(dmat->common.maxsize, M_DEVBUF,
-		    dmat->common.domain, mflags);
+		*vaddr = malloc_domainset(dmat->common.maxsize, M_DEVBUF,
+		    DOMAINSET_PREF(dmat->common.domain), mflags);
 	} else if (dmat->common.nsegments >=
 	    howmany(dmat->common.maxsize, MIN(dmat->common.maxsegsz, PAGE_SIZE)) &&
 	    dmat->common.alignment <= PAGE_SIZE &&
 	    (dmat->common.boundary % PAGE_SIZE) == 0) {
 		/* Page-based multi-segment allocations allowed */
-		*vaddr = (void *)kmem_alloc_attr_domain(dmat->common.domain,
-		    dmat->common.maxsize, mflags, 0ul, dmat->common.lowaddr,
-		    attr);
+		*vaddr = (void *)kmem_alloc_attr_domainset(
+		    DOMAINSET_PREF(dmat->common.domain), dmat->common.maxsize,
+		    mflags, 0ul, dmat->common.lowaddr, attr);
 		dmat->bounce_flags |= BUS_DMA_KMEM_ALLOC;
 	} else {
-		*vaddr = (void *)kmem_alloc_contig_domain(dmat->common.domain,
-		    dmat->common.maxsize, mflags, 0ul, dmat->common.lowaddr,
+		*vaddr = (void *)kmem_alloc_contig_domainset(
+		    DOMAINSET_PREF(dmat->common.domain), dmat->common.maxsize,
+		    mflags, 0ul, dmat->common.lowaddr,
 		    dmat->common.alignment != 0 ? dmat->common.alignment : 1ul,
 		    dmat->common.boundary, attr);
 		dmat->bounce_flags |= BUS_DMA_KMEM_ALLOC;
@@ -1149,14 +1151,14 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 	while (numpages > 0) {
 		struct bounce_page *bpage;
 
-		bpage = (struct bounce_page *)malloc_domain(sizeof(*bpage),
-		    M_DEVBUF, dmat->common.domain, M_NOWAIT | M_ZERO);
+		bpage = malloc_domainset(sizeof(*bpage), M_DEVBUF,
+		    DOMAINSET_PREF(dmat->common.domain), M_NOWAIT | M_ZERO);
 
 		if (bpage == NULL)
 			break;
-		bpage->vaddr = (vm_offset_t)contigmalloc_domain(PAGE_SIZE,
-		    M_DEVBUF, dmat->common.domain, M_NOWAIT, 0ul,
-		    bz->lowaddr, PAGE_SIZE, 0);
+		bpage->vaddr = (vm_offset_t)contigmalloc_domainset(PAGE_SIZE,
+		    M_DEVBUF, DOMAINSET_PREF(dmat->common.domain), M_NOWAIT,
+		    0ul, bz->lowaddr, PAGE_SIZE, 0);
 		if (bpage->vaddr == 0) {
 			free_domain(bpage, M_DEVBUF);
 			break;
