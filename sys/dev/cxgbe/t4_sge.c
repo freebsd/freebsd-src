@@ -2089,12 +2089,13 @@ drain_wrq_wr_list(struct adapter *sc, struct sge_wrq *wrq)
 
 		if (available < eq->sidx / 4 &&
 		    atomic_cmpset_int(&eq->equiq, 0, 1)) {
+				/*
+				 * XXX: This is not 100% reliable with some
+				 * types of WRs.  But this is a very unusual
+				 * situation for an ofld/ctrl queue anyway.
+				 */
 			dst->equiq_to_len16 |= htobe32(F_FW_WR_EQUIQ |
 			    F_FW_WR_EQUEQ);
-			eq->equeqidx = eq->pidx;
-		} else if (IDXDIFF(eq->pidx, eq->equeqidx, eq->sidx) >= 32) {
-			dst->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ);
-			eq->equeqidx = eq->pidx;
 		}
 
 		dbdiff += n;
@@ -2644,12 +2645,13 @@ commit_wrq_wr(struct sge_wrq *wrq, void *w, struct wrq_cookie *cookie)
 			available = IDXDIFF(eq->cidx, eq->pidx, eq->sidx) - 1;
 			if (available < eq->sidx / 4 &&
 			    atomic_cmpset_int(&eq->equiq, 0, 1)) {
+				/*
+				 * XXX: This is not 100% reliable with some
+				 * types of WRs.  But this is a very unusual
+				 * situation for an ofld/ctrl queue anyway.
+				 */
 				dst->equiq_to_len16 |= htobe32(F_FW_WR_EQUIQ |
 				    F_FW_WR_EQUEQ);
-				eq->equeqidx = pidx;
-			} else if (IDXDIFF(eq->pidx, eq->equeqidx, eq->sidx) >= 32) {
-				dst->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ);
-				eq->equeqidx = pidx;
 			}
 
 			ring_eq_db(wrq->adapter, eq, ndesc);
@@ -3584,6 +3586,23 @@ free_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 }
 #endif
 
+/*
+ * Returns a reasonable automatic cidx flush threshold for a given queue size.
+ */
+static u_int
+qsize_to_fthresh(int qsize)
+{
+	u_int fthresh;
+
+	while (!powerof2(qsize))
+		qsize++;
+	fthresh = ilog2(qsize);
+	if (fthresh > X_CIDXFLUSHTHRESH_128)
+		fthresh = X_CIDXFLUSHTHRESH_128;
+
+	return (fthresh);
+}
+
 static int
 ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
 {
@@ -3607,7 +3626,7 @@ ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_CTRL_CMD_FBMIN(X_FETCHBURSTMIN_64B) |
 		V_FW_EQ_CTRL_CMD_FBMAX(X_FETCHBURSTMAX_512B) |
-		V_FW_EQ_CTRL_CMD_CIDXFTHRESH(X_CIDXFLUSHTHRESH_32) |
+		V_FW_EQ_CTRL_CMD_CIDXFTHRESH(qsize_to_fthresh(qsize)) |
 		V_FW_EQ_CTRL_CMD_EQSIZE(qsize));
 	c.eqaddr = htobe64(eq->ba);
 
@@ -3689,12 +3708,13 @@ ofld_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 	c.alloc_to_len16 = htonl(F_FW_EQ_OFLD_CMD_ALLOC |
 	    F_FW_EQ_OFLD_CMD_EQSTART | FW_LEN16(c));
 	c.fetchszm_to_iqid =
-		htonl(V_FW_EQ_OFLD_CMD_HOSTFCMODE(X_HOSTFCMODE_NONE) |
+		htonl(V_FW_EQ_OFLD_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
 		    V_FW_EQ_OFLD_CMD_PCIECHN(eq->tx_chan) |
 		    F_FW_EQ_OFLD_CMD_FETCHRO | V_FW_EQ_OFLD_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize =
 	    htobe32(V_FW_EQ_OFLD_CMD_FBMIN(X_FETCHBURSTMIN_64B) |
 		V_FW_EQ_OFLD_CMD_FBMAX(X_FETCHBURSTMAX_512B) |
+		V_FW_EQ_OFLD_CMD_CIDXFTHRESH(qsize_to_fthresh(qsize)) |
 		V_FW_EQ_OFLD_CMD_EQSIZE(qsize));
 	c.eqaddr = htobe64(eq->ba);
 
@@ -3732,8 +3752,9 @@ alloc_eq(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq)
 	if (rc)
 		return (rc);
 
-	eq->pidx = eq->cidx = 0;
-	eq->equeqidx = eq->dbidx = 0;
+	eq->pidx = eq->cidx = eq->dbidx = 0;
+	/* Note that equeqidx is not used with sge_wrq (OFLD/CTRL) queues. */
+	eq->equeqidx = 0;
 	eq->doorbells = sc->doorbells;
 
 	switch (eq->flags & EQ_TYPEMASK) {
