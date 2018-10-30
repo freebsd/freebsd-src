@@ -51,7 +51,7 @@ void _Jv_RegisterClasses(const func_ptr *);
 __section(".jcr") __used static func_ptr jcr_func = (func_ptr)1;
 
 void
-_Jv_RegisterClasses(const func_ptr *jcr __unused)
+_Jv_RegisterClasses(const func_ptr *jcr)
 {
 
 	jcr_run = 1;
