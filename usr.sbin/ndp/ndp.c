@@ -1096,6 +1096,9 @@ rtrlist()
 		printf(", flags=%s%s",
 		    p->flags & ND_RA_FLAG_MANAGED ? "M" : "",
 		    p->flags & ND_RA_FLAG_OTHER   ? "O" : "");
+#ifdef DRAFT_IETF_6MAN_IPV6ONLY_FLAG
+		printf("%s", p->flags & ND_RA_FLAG_IPV6_ONLY ? "6" : "");
+#endif
 		rtpref = ((p->flags & ND_RA_FLAG_RTPREF_MASK) >> 3) & 0xff;
 		printf(", pref=%s", rtpref_str[rtpref]);
 
