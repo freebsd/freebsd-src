@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2016
+.Dd October 23, 2018
 .Dt PKT-GEN 8
 .Os
 .Sh NAME
@@ -170,10 +170,9 @@ packets to be received by the target host.
 .Dl
 .Nm
 -i netmap:ncxl0 -f tx -s 172.16.0.1:53 -d 172.16.1.3:53 -D 00:07:43:29:2a:e0 
-.Sh FILES
-.Xr netmap 4
 .Sh SEE ALSO
-.Xr netmap 4
+.Xr netmap 4 ,
+.Xr bridge 8
 .Sh AUTHORS
 This manual page was written by
 .An George V. Neville-Neil Aq gnn@FreeBSD.org .
