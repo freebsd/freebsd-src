@@ -127,6 +127,9 @@ svm_rdmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t *result,
 	case MSR_AMDK8_IPM:
 		*result = 0;
 		break;
+	case MSR_EXTFEATURES:
+		*result = 0;
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -162,6 +165,8 @@ svm_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val, bool *retu)
 		/*
 		 * Ignore writes to microcode update register.
 		 */
+		break;
+	case MSR_EXTFEATURES:
 		break;
 	default:
 		error = EINVAL;
