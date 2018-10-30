@@ -390,7 +390,6 @@ register const int	doextend;
 	res = -1;
 	sp->goback = sp->goahead = FALSE;
 
-	/* XXX The following is from OpenBSD, and I'm not sure it is correct */
 	if (name != NULL && issetugid() != 0)
 		if ((name[0] == ':' && name[1] == '/') || 
 		    name[0] == '/' || strchr(name, '.'))
