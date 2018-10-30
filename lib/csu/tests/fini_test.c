@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -43,10 +44,16 @@ __FBSDID("$FreeBSD$");
 
 #include <crt.h>
 
+extern bool run_dtors_test;
+extern bool run_fini_array_test;
+void dso_handle_check(void);
+
+
+#ifndef DSO_BASE
 typedef void (*func_ptr)(void);
 
-static bool run_dtors_test = false;
-static bool run_fini_array_test = false;
+bool run_dtors_test = false;
+bool run_fini_array_test = false;
 
 static void
 dtors_handler(void)
@@ -57,7 +64,9 @@ dtors_handler(void)
 }
 __section(".dtors") __used static func_ptr dtors_func =
     &dtors_handler;
+#endif
 
+#ifndef DSO_LIB
 ATF_TC_WITHOUT_HEAD(dtors_test);
 ATF_TC_BODY(dtors_test, tc)
 {
@@ -85,7 +94,9 @@ ATF_TC_BODY(dtors_test, tc)
 		break;
 	}
 }
+#endif
 
+#ifndef DSO_BASE
 static void
 fini_array_handler(void)
 {
@@ -95,7 +106,9 @@ fini_array_handler(void)
 }
 __section(".fini_array") __used static func_ptr fini_array_func =
     &fini_array_handler;
+#endif
 
+#ifndef DSO_LIB
 ATF_TC_WITHOUT_HEAD(fini_array_test);
 ATF_TC_BODY(fini_array_test, tc)
 {
@@ -118,15 +131,32 @@ ATF_TC_BODY(fini_array_test, tc)
 		break;
 	}
 }
+#endif
 
+#ifndef DSO_BASE
 extern void *__dso_handle;
 
+void
+dso_handle_check(void)
+{
+	void *dso = __dso_handle;
+
+#ifdef DSO_LIB
+	ATF_REQUIRE_MSG(dso != NULL,
+	    "Null __dso_handle in DSO");
+#else
+	ATF_REQUIRE_MSG(dso == NULL,
+	    "Invalid __dso_handle in non-DSO");
+#endif
+}
+#endif
+
+#ifndef DSO_LIB
 ATF_TC_WITHOUT_HEAD(dso_handle_test);
 ATF_TC_BODY(dso_handle_test, tc)
 {
 
-	ATF_REQUIRE_MSG(__dso_handle == NULL,
-	    "Invalid __dso_handle in non-DSO");
+	dso_handle_check();
 }
 
 ATF_TP_ADD_TCS(tp)
@@ -138,3 +168,4 @@ ATF_TP_ADD_TCS(tp)
 
 	return (atf_no_error());
 }
+#endif
