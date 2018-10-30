@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/domainset.h>
 #include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -1231,8 +1232,8 @@ pmclog_process_userlog(struct pmc_owner *po, struct pmc_op_writelog *wl)
 void
 pmclog_initialize()
 {
-	int domain;
 	struct pmclog_buffer *plb;
+	int domain, ncpus, total;
 
 	if (pmclog_buffer_size <= 0 || pmclog_buffer_size > 16*1024) {
 		(void) printf("hwpmc: tunable logbuffersize=%d must be "
@@ -1253,16 +1254,17 @@ pmclog_initialize()
 		pmclog_buffer_size = PMC_LOG_BUFFER_SIZE;
 	}
 	for (domain = 0; domain < vm_ndomains; domain++) {
-		int ncpus = pmc_dom_hdrs[domain]->pdbh_ncpus;
-		int total = ncpus*pmc_nlogbuffers_pcpu;
+		ncpus = pmc_dom_hdrs[domain]->pdbh_ncpus;
+		total = ncpus * pmc_nlogbuffers_pcpu;
 
-		plb = malloc_domain(sizeof(struct pmclog_buffer)*total, M_PMC, domain, M_WAITOK|M_ZERO);
+		plb = malloc_domainset(sizeof(struct pmclog_buffer) * total,
+		    M_PMC, DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
 		pmc_dom_hdrs[domain]->pdbh_plbs = plb;
-		for (int i = 0; i < total; i++, plb++) {
+		for (; total > 0; total--, plb++) {
 			void *buf;
 
-			buf = malloc_domain(1024 * pmclog_buffer_size, M_PMC, domain,
-								M_WAITOK|M_ZERO);
+			buf = malloc_domainset(1024 * pmclog_buffer_size, M_PMC,
+			    DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
 			PMCLOG_INIT_BUFFER_DESCRIPTOR(plb, buf, domain);
 			pmc_plb_rele_unlocked(plb);
 		}
