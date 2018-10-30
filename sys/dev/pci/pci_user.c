@@ -406,6 +406,14 @@ pci_conf_match_old32(struct pci_match_conf_old32 *matches, int num_matches,
 #endif	/* COMPAT_FREEBSD32 */
 #endif	/* PRE7_COMPAT */
 
+/*
+ * Like PVE_NEXT but takes an explicit length since 'pve' is a user
+ * pointer that cannot be dereferenced.
+ */
+#define	PVE_NEXT_LEN(pve, datalen)					\
+	((struct pci_vpd_element *)((char *)(pve) +			\
+	    sizeof(struct pci_vpd_element) + (datalen)))
+
 static int
 pci_list_vpd(device_t dev, struct pci_list_vpd_io *lvio)
 {
@@ -454,7 +462,7 @@ pci_list_vpd(device_t dev, struct pci_list_vpd_io *lvio)
 	    strlen(vpd->vpd_ident));
 	if (error)
 		return (error);
-	vpd_user = PVE_NEXT(vpd_user);
+	vpd_user = PVE_NEXT_LEN(vpd_user, vpd_element.pve_datalen);
 	vpd_element.pve_flags = 0;
 	for (i = 0; i < vpd->vpd_rocnt; i++) {
 		vpd_element.pve_keyword[0] = vpd->vpd_ros[i].keyword[0];
@@ -467,7 +475,7 @@ pci_list_vpd(device_t dev, struct pci_list_vpd_io *lvio)
 		    vpd->vpd_ros[i].len);
 		if (error)
 			return (error);
-		vpd_user = PVE_NEXT(vpd_user);
+		vpd_user = PVE_NEXT_LEN(vpd_user, vpd_element.pve_datalen);
 	}
 	vpd_element.pve_flags = PVE_FLAG_RW;
 	for (i = 0; i < vpd->vpd_wcnt; i++) {
@@ -481,7 +489,7 @@ pci_list_vpd(device_t dev, struct pci_list_vpd_io *lvio)
 		    vpd->vpd_w[i].len);
 		if (error)
 			return (error);
-		vpd_user = PVE_NEXT(vpd_user);
+		vpd_user = PVE_NEXT_LEN(vpd_user, vpd_element.pve_datalen);
 	}
 	KASSERT((char *)vpd_user - (char *)lvio->plvi_data == len,
 	    ("length mismatch"));
