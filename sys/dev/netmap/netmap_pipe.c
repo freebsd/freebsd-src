@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (C) 2014-2016 Giuseppe Lettieri
+ * Copyright (C) 2014-2018 Giuseppe Lettieri
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -185,14 +185,18 @@ int
 netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
 {
 	struct netmap_kring *rxkring = txkring->pipe;
-	u_int k, lim = txkring->nkr_num_slots - 1;
+	u_int k, lim = txkring->nkr_num_slots - 1, nk;
 	int m; /* slots to transfer */
+	int complete; /* did we see a complete packet ? */
 	struct netmap_ring *txring = txkring->ring, *rxring = rxkring->ring;
 
 	ND("%p: %s %x -> %s", txkring, txkring->name, flags, rxkring->name);
 	ND(20, "TX before: hwcur %d hwtail %d cur %d head %d tail %d",
 		txkring->nr_hwcur, txkring->nr_hwtail,
 		txkring->rcur, txkring->rhead, txkring->rtail);
+
+	/* update the hwtail */
+	txkring->nr_hwtail = txkring->pipe_tail;
 
 	m = txkring->rhead - txkring->nr_hwcur; /* new slots */
 	if (m < 0)
@@ -203,29 +207,29 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
 		return 0;
 	}
 
-	for (k = txkring->nr_hwcur; m; m--, k = nm_next(k, lim)) {
+	for (k = txkring->nr_hwcur, nk = lim + 1, complete = 0; m;
+			m--, k = nm_next(k, lim), nk = (complete ? k : nk)) {
 		struct netmap_slot *rs = &rxring->slot[k];
 		struct netmap_slot *ts = &txring->slot[k];
 
-		rs->len = ts->len;
-		rs->ptr = ts->ptr;
-
+		*rs = *ts;
 		if (ts->flags & NS_BUF_CHANGED) {
-			rs->buf_idx = ts->buf_idx;
-			rs->flags |= NS_BUF_CHANGED;
 			ts->flags &= ~NS_BUF_CHANGED;
 		}
+		complete = !(ts->flags & NS_MOREFRAG);
 	}
 
-	mb(); /* make sure the slots are updated before publishing them */
-	rxkring->nr_hwtail = k;
 	txkring->nr_hwcur = k;
 
 	ND(20, "TX after : hwcur %d hwtail %d cur %d head %d tail %d k %d",
 		txkring->nr_hwcur, txkring->nr_hwtail,
 		txkring->rcur, txkring->rhead, txkring->rtail, k);
 
-	rxkring->nm_notify(rxkring, 0);
+	if (likely(nk <= lim)) {
+		mb(); /* make sure the slots are updated before publishing them */
+		rxkring->pipe_tail = nk; /* only publish complete packets */
+		rxkring->nm_notify(rxkring, 0);
+	}
 
 	return 0;
 }
@@ -242,6 +246,9 @@ netmap_pipe_rxsync(struct netmap_kring *rxkring, int flags)
 	ND(20, "RX before: hwcur %d hwtail %d cur %d head %d tail %d",
 		rxkring->nr_hwcur, rxkring->nr_hwtail,
 		rxkring->rcur, rxkring->rhead, rxkring->rtail);
+
+	/* update the hwtail */
+	rxkring->nr_hwtail = rxkring->pipe_tail;
 
 	m = rxkring->rhead - rxkring->nr_hwcur; /* released slots */
 	if (m < 0)
@@ -264,7 +271,7 @@ netmap_pipe_rxsync(struct netmap_kring *rxkring, int flags)
 	}
 
 	mb(); /* make sure the slots are updated before publishing them */
-	txkring->nr_hwtail = nm_prev(k, lim);
+	txkring->pipe_tail = nm_prev(k, lim);
 	rxkring->nr_hwcur = k;
 
 	ND(20, "RX after : hwcur %d hwtail %d cur %d head %d tail %d k %d",
@@ -346,14 +353,19 @@ netmap_pipe_krings_create(struct netmap_adapter *na)
 		if (error)
 			goto del_krings1;
 
-		/* cross link the krings */
+		/* cross link the krings and initialize the pipe_tails */
 		for_rx_tx(t) {
 			enum txrx r = nm_txrx_swap(t); /* swap NR_TX <-> NR_RX */
 			for (i = 0; i < nma_get_nrings(na, t); i++) {
-				NMR(na, t)[i]->pipe = NMR(ona, r)[i];
-				NMR(ona, r)[i]->pipe = NMR(na, t)[i];
+				struct netmap_kring *k1 = NMR(na, t)[i],
+					            *k2 = NMR(ona, r)[i];
+				k1->pipe = k2;
+				k2->pipe = k1;
 				/* mark all peer-adapter rings as fake */
-				NMR(ona, r)[i]->nr_kflags |= NKR_FAKERING;
+				k2->nr_kflags |= NKR_FAKERING;
+				/* init tails */
+				k1->pipe_tail = k1->nr_hwtail;
+				k2->pipe_tail = k2->nr_hwtail;
 			}
 		}
 
@@ -435,6 +447,16 @@ netmap_pipe_reg(struct netmap_adapter *na, int onoff)
 				struct netmap_kring *kring = NMR(na, t)[i];
 				if (nm_kring_pending_on(kring)) {
 					struct netmap_kring *sring, *dring;
+
+					kring->nr_mode = NKR_NETMAP_ON;
+					if ((kring->nr_kflags & NKR_FAKERING) &&
+					    (kring->pipe->nr_kflags & NKR_FAKERING)) {
+						/* this is a re-open of a pipe
+						 * end-point kept alive by the other end.
+						 * We need to leave everything as it is
+						 */
+						continue;
+					}
 
 					/* copy the buffers from the non-fake ring */
 					if (kring->nr_kflags & NKR_FAKERING) {
@@ -556,10 +578,10 @@ cleanup:
 			if (ring == NULL)
 				continue;
 
-			if (kring->nr_hwtail == kring->nr_hwcur)
-				ring->slot[kring->nr_hwtail].buf_idx = 0;
+			if (kring->tx == NR_RX)
+				ring->slot[kring->pipe_tail].buf_idx = 0;
 
-			for (j = nm_next(kring->nr_hwtail, lim);
+			for (j = nm_next(kring->pipe_tail, lim);
 			     j != kring->nr_hwcur;
 			     j = nm_next(j, lim))
 			{
