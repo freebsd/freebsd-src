@@ -43,7 +43,7 @@ LOCAL_MODULES_DIR?= ${LOCALBASE}/sys/modules
 
 # Default to installing all modules installed by ports unless overridden
 # by the user.
-.if !defined(LOCAL_MODULES)
+.if !defined(LOCAL_MODULES) && exists($LOCAL_MODULES_DIR)
 LOCAL_MODULES!= ls ${LOCAL_MODULES_DIR}
 .endif
 .endif
