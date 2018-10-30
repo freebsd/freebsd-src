@@ -103,6 +103,7 @@ static struct {
 	const char *name;
 	long offs;
 } zt[] = {
+#ifndef __FreeBSD__
 	{ "Z",				0 },
 	{ "UT",				0 },
 	{ "UTC",			0 },
@@ -173,6 +174,7 @@ static struct {
 	{ "EST4EDT",			-14400 },
 
 	{ "Bogus",			-1 },
+#endif
 };
 
 static void
@@ -188,9 +190,11 @@ ztest1(const char *name, const char *fmt, long value)
 		value = 0;
 
 	switch (value) {
+#ifndef __FreeBSD__
 	case -2:
 		value = -timezone;
 		break;
+#endif
 	case -1:
 		if (fmt[1] == 'Z')
 			value = 0;
@@ -210,9 +214,11 @@ static void
 ztest(const char *fmt)
 {
 	setenv("TZ", "US/Eastern", 1);
+#ifndef __FreeBSD__
 	ztest1("GMT", fmt, 0);
 	ztest1("UTC", fmt, 0);
 	ztest1("US/Eastern", fmt, -18000);
+#endif
 	for (size_t i = 0; i < __arraycount(zt); i++)
 		ztest1(zt[i].name, fmt, zt[i].offs);
 }
@@ -227,10 +233,6 @@ ATF_TC_HEAD(common, tc)
 
 ATF_TC_BODY(common, tc)
 {
-
-#ifdef __FreeBSD__
-	atf_tc_expect_fail("There are various issues with strptime on FreeBSD");
-#endif
 
 	h_pass("Tue Jan 20 23:27:46 1998", "%a %b %d %T %Y",
 		24, 46, 27, 23, 20, 0, 98, 2, 19);
@@ -305,6 +307,10 @@ ATF_TC_BODY(day, tc)
 #else
 	h_pass("SaturDay", "%OA", 8, -1, -1, -1, -1, -1, -1, 6, -1);
 #endif
+
+#ifdef __FreeBSD__
+	h_fail("00", "%d");
+#endif
 }
 
 ATF_TC(hour);
@@ -313,7 +319,11 @@ ATF_TC_HEAD(hour, tc)
 {
 
 	atf_tc_set_md_var(tc, "descr",
+#ifdef __FreeBSD__
+			  "Checks strptime(3) hour conversions [HIkl]");
+#else
 			  "Checks strptime(3) hour conversions [IH]");
+#endif
 }
 
 ATF_TC_BODY(hour, tc)
@@ -321,6 +331,10 @@ ATF_TC_BODY(hour, tc)
 
 	h_fail("00", "%I");
 	h_fail("13", "%I");
+#ifdef __FreeBSD__
+	h_fail("00", "%l");
+	h_fail("13", "%l");
+#endif
 
 	h_pass("00", "%H", 2, -1, -1, 0, -1, -1, -1, -1, -1);
 	h_pass("12", "%H", 2, -1, -1, 12, -1, -1, -1, -1, -1);
@@ -413,7 +427,18 @@ ATF_TC_BODY(seconds, tc)
 	h_pass("0", "%S", 1, 0, -1, -1, -1, -1, -1, -1, -1);
 	h_pass("59", "%S", 2, 59, -1, -1, -1, -1, -1, -1, -1);
 	h_pass("60", "%S", 2, 60, -1, -1, -1, -1, -1, -1, -1);
+#ifdef __FreeBSD__
+	/*
+	 * (Much) older versions of the standard (up to the Issue 6) allowed for
+	 * [0;61] range in %S conversion for double-leap seconds, and it's
+	 * apparently what NetBSD and glibc are expecting, however current
+	 * version defines allowed values to be [0;60], and that is what our
+	 * strptime() implementation expects.
+	 */
+	h_fail("61", "%S");
+#else
 	h_pass("61", "%S", 2, 61, -1, -1, -1, -1, -1, -1, -1);
+#endif
 	h_fail("62", "%S");
 }
 
@@ -434,7 +459,9 @@ ATF_TC_BODY(year, tc)
 	h_pass("x2084y", "x%C%yy", 6, -1, -1, -1, -1, -1, 184, -1, -1);
 	h_pass("x8420y", "x%y%Cy", 6, -1, -1, -1, -1, -1, 184, -1, -1);
 	h_pass("%20845", "%%%C%y5", 6, -1, -1, -1, -1, -1, 184, -1, -1);
+#ifndef __FreeBSD__
 	h_fail("%", "%E%");
+#endif
 
 	h_pass("1980", "%Y", 4, -1, -1, -1, -1, -1, 80, -1, -1);
 	h_pass("1980", "%EY", 4, -1, -1, -1, -1, -1, 80, -1, -1);
@@ -467,7 +494,7 @@ ATF_TC_HEAD(Zone, tc)
 
 ATF_TC_BODY(Zone, tc)
 {
-	ztest("%z");
+	ztest("%Z");
 }
 
 ATF_TP_ADD_TCS(tp)
