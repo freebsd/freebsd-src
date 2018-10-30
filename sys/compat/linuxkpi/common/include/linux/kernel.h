@@ -131,6 +131,7 @@
 #undef PTR_ALIGN
 #define	PTR_ALIGN(p, a)		((__typeof(p))ALIGN((uintptr_t)(p), (a)))
 #define	DIV_ROUND_UP(x, n)	howmany(x, n)
+#define	__KERNEL_DIV_ROUND_UP(x, n)	howmany(x, n)
 #define	DIV_ROUND_UP_ULL(x, n)	DIV_ROUND_UP((unsigned long long)(x), (n))
 #define	FIELD_SIZEOF(t, f)	sizeof(((t *)0)->f)
 
