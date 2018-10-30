@@ -3608,29 +3608,30 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 void
 uma_prealloc(uma_zone_t zone, int items)
 {
+	struct vm_domainset_iter di;
 	uma_domain_t dom;
 	uma_slab_t slab;
 	uma_keg_t keg;
-	int domain, slabs;
+	int domain, flags, slabs;
 
 	keg = zone_first_keg(zone);
 	if (keg == NULL)
 		return;
 	KEG_LOCK(keg);
 	slabs = items / keg->uk_ipers;
-	domain = 0;
 	if (slabs * keg->uk_ipers < items)
 		slabs++;
+	flags = M_WAITOK;
+	vm_domainset_iter_policy_ref_init(&di, &keg->uk_dr, &domain, &flags);
 	while (slabs-- > 0) {
-		slab = keg_alloc_slab(keg, zone, domain, M_WAITOK);
+		slab = keg_alloc_slab(keg, zone, domain, flags);
 		if (slab == NULL)
 			return;
 		MPASS(slab->us_keg == keg);
 		dom = &keg->uk_domain[slab->us_domain];
 		LIST_INSERT_HEAD(&dom->ud_free_slab, slab, us_link);
-		do {
-			domain = (domain + 1) % vm_ndomains;
-		} while (VM_DOMAIN_EMPTY(domain));
+		if (vm_domainset_iter_policy(&di, &domain) != 0)
+			break;
 	}
 	KEG_UNLOCK(keg);
 }
