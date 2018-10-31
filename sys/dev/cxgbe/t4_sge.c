@@ -5610,10 +5610,6 @@ write_ethofld_wr(struct cxgbe_snd_tag *cst, struct fw_eth_tx_eo_wr *wr,
 	    m0->m_pkthdr.l4hlen > 0,
 	    ("%s: ethofld mbuf %p is missing header lengths", __func__, m0));
 
-	if (needs_udp_csum(m0)) {
-		CXGBE_UNIMPLEMENTED("UDP ethofld");
-	}
-
 	len16 = mbuf_eo_len16(m0);
 	nsegs = mbuf_eo_nsegs(m0);
 	pktlen = m0->m_pkthdr.len;
@@ -5628,37 +5624,52 @@ write_ethofld_wr(struct cxgbe_snd_tag *cst, struct fw_eth_tx_eo_wr *wr,
 	wr->equiq_to_len16 = htobe32(V_FW_WR_LEN16(len16) |
 	    V_FW_WR_FLOWID(cst->etid));
 	wr->r3 = 0;
-	wr->u.tcpseg.type = FW_ETH_TX_EO_TYPE_TCPSEG;
-	wr->u.tcpseg.ethlen = m0->m_pkthdr.l2hlen;
-	wr->u.tcpseg.iplen = htobe16(m0->m_pkthdr.l3hlen);
-	wr->u.tcpseg.tcplen = m0->m_pkthdr.l4hlen;
-	wr->u.tcpseg.tsclk_tsoff = mbuf_eo_tsclk_tsoff(m0);
-	wr->u.tcpseg.r4 = 0;
-	wr->u.tcpseg.r5 = 0;
-	wr->u.tcpseg.plen = htobe32(pktlen - immhdrs);
-
-	if (needs_tso(m0)) {
-		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
-
-		wr->u.tcpseg.mss = htobe16(m0->m_pkthdr.tso_segsz);
-
-		ctrl = V_LSO_OPCODE(CPL_TX_PKT_LSO) | F_LSO_FIRST_SLICE |
-		    F_LSO_LAST_SLICE | V_LSO_IPHDR_LEN(m0->m_pkthdr.l3hlen >> 2)
-		    | V_LSO_TCPHDR_LEN(m0->m_pkthdr.l4hlen >> 2);
-		if (m0->m_pkthdr.l2hlen == sizeof(struct ether_vlan_header))
-			ctrl |= V_LSO_ETHHDR_LEN(1);
-		if (m0->m_pkthdr.l3hlen == sizeof(struct ip6_hdr))
-			ctrl |= F_LSO_IPV6;
-		lso->lso_ctrl = htobe32(ctrl);
-		lso->ipid_ofst = htobe16(0);
-		lso->mss = htobe16(m0->m_pkthdr.tso_segsz);
-		lso->seqno_offset = htobe32(0);
-		lso->len = htobe32(pktlen);
-
-		cpl = (void *)(lso + 1);
-	} else {
-		wr->u.tcpseg.mss = htobe16(0xffff);
+	if (needs_udp_csum(m0)) {
+		wr->u.udpseg.type = FW_ETH_TX_EO_TYPE_UDPSEG;
+		wr->u.udpseg.ethlen = m0->m_pkthdr.l2hlen;
+		wr->u.udpseg.iplen = htobe16(m0->m_pkthdr.l3hlen);
+		wr->u.udpseg.udplen = m0->m_pkthdr.l4hlen;
+		wr->u.udpseg.rtplen = 0;
+		wr->u.udpseg.r4 = 0;
+		wr->u.udpseg.mss = htobe16(pktlen - immhdrs);
+		wr->u.udpseg.schedpktsize = wr->u.udpseg.mss;
+		wr->u.udpseg.plen = htobe32(pktlen - immhdrs);
 		cpl = (void *)(wr + 1);
+	} else {
+		MPASS(needs_tcp_csum(m0));
+		wr->u.tcpseg.type = FW_ETH_TX_EO_TYPE_TCPSEG;
+		wr->u.tcpseg.ethlen = m0->m_pkthdr.l2hlen;
+		wr->u.tcpseg.iplen = htobe16(m0->m_pkthdr.l3hlen);
+		wr->u.tcpseg.tcplen = m0->m_pkthdr.l4hlen;
+		wr->u.tcpseg.tsclk_tsoff = mbuf_eo_tsclk_tsoff(m0);
+		wr->u.tcpseg.r4 = 0;
+		wr->u.tcpseg.r5 = 0;
+		wr->u.tcpseg.plen = htobe32(pktlen - immhdrs);
+
+		if (needs_tso(m0)) {
+			struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
+
+			wr->u.tcpseg.mss = htobe16(m0->m_pkthdr.tso_segsz);
+
+			ctrl = V_LSO_OPCODE(CPL_TX_PKT_LSO) |
+			    F_LSO_FIRST_SLICE | F_LSO_LAST_SLICE |
+			    V_LSO_IPHDR_LEN(m0->m_pkthdr.l3hlen >> 2) |
+			    V_LSO_TCPHDR_LEN(m0->m_pkthdr.l4hlen >> 2);
+			if (m0->m_pkthdr.l2hlen == sizeof(struct ether_vlan_header))
+				ctrl |= V_LSO_ETHHDR_LEN(1);
+			if (m0->m_pkthdr.l3hlen == sizeof(struct ip6_hdr))
+				ctrl |= F_LSO_IPV6;
+			lso->lso_ctrl = htobe32(ctrl);
+			lso->ipid_ofst = htobe16(0);
+			lso->mss = htobe16(m0->m_pkthdr.tso_segsz);
+			lso->seqno_offset = htobe32(0);
+			lso->len = htobe32(pktlen);
+
+			cpl = (void *)(lso + 1);
+		} else {
+			wr->u.tcpseg.mss = htobe16(0xffff);
+			cpl = (void *)(wr + 1);
+		}
 	}
 
 	/* Checksum offload must be requested for ethofld. */
@@ -5677,7 +5688,7 @@ write_ethofld_wr(struct cxgbe_snd_tag *cst, struct fw_eth_tx_eo_wr *wr,
 	cpl->len = htobe16(pktlen);
 	cpl->ctrl1 = htobe64(ctrl1);
 
-	/* Copy Ethernet, IP & TCP hdrs as immediate data */
+	/* Copy Ethernet, IP & TCP/UDP hdrs as immediate data */
 	p = (uintptr_t)(cpl + 1);
 	m_copydata(m0, 0, immhdrs, (void *)p);
 
