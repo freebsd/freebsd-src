@@ -525,6 +525,7 @@ cpu_mp_start(void)
 	switch(arm64_bus_method) {
 #ifdef DEV_ACPI
 	case ARM64_BUS_ACPI:
+		mp_quirks = MP_QUIRK_CPULIST;
 		KASSERT(cpu0 >= 0, ("Current CPU was not found"));
 		cpu_init_acpi();
 		break;
