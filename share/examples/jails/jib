@@ -51,7 +51,7 @@
 # 	#     arguments given to `jib addm xxx' in exec.prestart value.
 # 	#
 # 	vnet;
-# 	vnet.interface = "e0b_xxx e1b_xxx ...";
+# 	vnet.interface = e0b_xxx, e1b_xxx, ...;
 # 
 # 	exec.clean;
 # 	exec.system_user = "root";
