@@ -819,5 +819,10 @@ vhpet_restore(struct vhpet *vhpet, void *buffer, size_t buf_size)
 		vhpet->timer[i].callout_sbt = old_vhpet->timer[i].callout_sbt;
 	}
 
+	if (vhpet_counter_enabled(vhpet))
+		vhpet_start_counting(vhpet);
+	else
+		vhpet->countbase_sbt = sbinuptime();
+
 	return (0);
 }
