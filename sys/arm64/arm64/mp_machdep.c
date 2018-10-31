@@ -113,10 +113,6 @@ static void intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *,
 
 extern struct pcpu __pcpu[];
 
-static device_identify_t arm64_cpu_identify;
-static device_probe_t arm64_cpu_probe;
-static device_attach_t arm64_cpu_attach;
-
 static void ipi_ast(void *);
 static void ipi_hardclock(void *);
 static void ipi_preempt(void *);
