@@ -317,6 +317,12 @@ cpu_startup(dummy)
 	printf("avail memory = %ju (%ju MB)\n",
 	    ptoa((uintmax_t)vm_free_count()),
 	    ptoa((uintmax_t)vm_free_count()) / 1048576);
+#ifdef DEV_PCI
+	if (bootverbose && intel_graphics_stolen_base != 0)
+		printf("intel stolen mem: base %#jx size %ju MB\n",
+		    (uintmax_t)intel_graphics_stolen_base,
+		    (uintmax_t)intel_graphics_stolen_size / 1024 / 1024);
+#endif
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -1791,6 +1797,11 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	init_param2(physmem);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
+
+#ifdef DEV_PCI
+        /* This call might adjust phys_avail[]. */
+        pci_early_quirks();
+#endif
 
 	if (late_console)
 		cninit();
