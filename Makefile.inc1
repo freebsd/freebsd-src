@@ -183,7 +183,7 @@ CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 # support the target architecture), provide a default cross-binutils prefix.
 # This allows riscv64 builds, for example, to automatically use the
 # riscv64-binutils port or package.
-.if !make(showconfig)
+.if !make(showconfig) && !defined(_NO_INCLUDE_COMPILERMK)
 .if !empty(BROKEN_OPTIONS:MBINUTILS_BOOTSTRAP) && \
     ${MK_LLD_BOOTSTRAP} == "no" && \
     !defined(CROSS_BINUTILS_PREFIX)
