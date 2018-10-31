@@ -153,10 +153,6 @@ parse_slit(void)
 	acpi_unmap_table(slit);
 	slit = NULL;
 
-#ifdef NUMA
-	/* Tell the VM about it! */
-	mem_locality = vm_locality_table;
-#endif
 	return (0);
 }
 
@@ -481,13 +477,6 @@ parse_srat(void)
 		return (-1);
 	}
 
-#ifdef NUMA
-	vm_ndomains = ndomain;
-	for (int i = 0; i < vm_ndomains; i++)
-		DOMAINSET_SET(i, &all_domains);
-	mem_affinity = mem_info;
-#endif
-
 	return (0);
 }
 
@@ -511,7 +500,8 @@ parse_acpi_tables(void *dummy)
 	if (parse_srat() < 0)
 		return;
 	init_mem_locality();
-	(void) parse_slit();
+	(void)parse_slit();
+	vm_phys_register_domains(ndomain, mem_info, vm_locality_table);
 }
 SYSINIT(parse_acpi_tables, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_acpi_tables,
     NULL);
