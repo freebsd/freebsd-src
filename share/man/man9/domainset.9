@@ -24,14 +24,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2018
+.Dd October 20, 2018
 .Dt DOMAINSET 9
 .Os
 .Sh NAME
 .Nm domainset(9)
-\(em
-.Nm domainset_create ,
-.Nm sysctl_handle_domainset .
 .Nd domainset functions and operation
 .Sh SYNOPSIS
 .In sys/_domainset.h
@@ -46,6 +43,8 @@ struct domainset {
 };
 .Ed
 .Pp
+.Fn DOMAINSET_RR
+.Fn DOMAINSET_PREF domain
 .Ft struct domainset *
 .Fn domainset_create "const struct domainset *key"
 .Ft int
@@ -98,6 +97,12 @@ This gives good distribution among memory domains while keeping system
 efficiency higher and is preferential to round-robin for general use.
 .El
 .Pp
+The
+.Fn DOMAINSET_RR
+and
+.Fn DOMAINSET_PREF
+provide pointers to global pre-defined policies for use when the
+desired policy is known at compile time.
 The
 .Fn domainset_create
 function takes a partially filled in domainset as a key and returns a

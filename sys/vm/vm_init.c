@@ -68,6 +68,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/domainset.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
@@ -115,6 +116,11 @@ SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL);
 static void
 vm_mem_init(void *dummy)
 {
+
+	/*
+	 * Initialize static domainsets, used by various allocators.
+	 */
+	domainset_init();
 
 	/*
 	 * Initializes resident memory structures. From here on, all physical
