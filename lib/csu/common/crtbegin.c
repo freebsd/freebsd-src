@@ -45,10 +45,10 @@ void *__dso_handle = 0;
 #ifdef HAVE_CTORS
 static void __do_global_dtors_aux(void) __used;
 
-static crt_func __CTOR_LIST__[] __section(".ctors") = {
+static crt_func __CTOR_LIST__[] __section(".ctors") __used = {
 	(crt_func)-1
 };
-static crt_func __DTOR_LIST__[] __section(".dtors") = {
+static crt_func __DTOR_LIST__[] __section(".dtors") __used = {
 	(crt_func)-1
 };
 
