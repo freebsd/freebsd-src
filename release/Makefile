@@ -174,6 +174,7 @@ reldoc:
 	cd ${DOCDIR}/en_US.ISO8859-1/htdocs/releases/${REVISION}R && \
 	    env MAN4DIR=${WORLDDIR}/share/man/man4 \
 	    SVN=${SVN} \
+	    _BRANCH=${BRANCH} \
 	    ${MAKE} all install clean "FORMATS=html txt" \
 	    INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${.OBJDIR}/rdoc \
 	    WEBDIR=${DOCDIR} DESTDIR=${.OBJDIR}/rdoc
