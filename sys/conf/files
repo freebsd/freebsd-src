@@ -310,6 +310,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/lua/lzio.c			optional zfs compile-wit
 # dtrace specific
 cddl/contrib/opensolaris/uts/common/dtrace/dtrace.c	optional dtrace compile-with "${DTRACE_C}" \
 							warning "kernel contains CDDL licensed DTRACE"
+cddl/contrib/opensolaris/uts/common/dtrace/dtrace_xoroshiro128_plus.c	optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/dtmalloc/dtmalloc.c		optional dtmalloc        | dtraceall compile-with "${CDDL_C}"
 cddl/dev/profile/profile.c		optional dtrace_profile  | dtraceall compile-with "${CDDL_C}"
 cddl/dev/sdt/sdt.c			optional dtrace_sdt      | dtraceall compile-with "${CDDL_C}"
