@@ -1543,7 +1543,7 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 	if (is_ethoffload(vi->pi->adapter) && vi->nofldtxq != 0)
 		ifp->if_hw_tsomaxsegcount = TX_SGL_SEGS_EO_TSO;
 #endif
-	ifp->if_hw_tsomaxsegsize = 0;
+	ifp->if_hw_tsomaxsegsize = 65536;
 
 	ether_ifattach(ifp, vi->hw_addr);
 #ifdef DEV_NETMAP
