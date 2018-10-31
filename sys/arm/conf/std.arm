@@ -20,6 +20,7 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options 	ALT_BREAK_TO_DEBUGGER	# Enter debugger on keyboard escape sequence
 options 	USB_DEBUG		# Enable usb debug support code
+options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
 
 # Optional extras, never enabled by default:
 #options 	BOOTVERBOSE
@@ -31,7 +32,6 @@ options 	USB_DEBUG		# Enable usb debug support code
 #options 	KTR_VERBOSE=0
 #options 	USB_REQ_DEBUG
 #options 	USB_VERBOSE
-#options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
 
 
 
