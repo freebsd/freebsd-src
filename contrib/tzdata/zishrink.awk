@@ -172,11 +172,6 @@ function process_input_line(line, field, end, i, n, startdef)
     if (line ~ /^R /) return
     line = substr(line, 1, RSTART) substr(line, RSTART + 5)
   }
-  # Replace SpainAfrica rules with Morocco, as they are duplicates.
-  if (match(line, / SpainAfrica /)) {
-    if (line ~ /^R /) return
-    line = substr(line, 1, RSTART) "Morocco" substr(line, RSTART + RLENGTH - 1)
-  }
 
   # Abbreviate times.
   while (match(line, /[: ]0+[0-9]/))
