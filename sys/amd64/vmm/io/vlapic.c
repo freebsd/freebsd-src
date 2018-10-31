@@ -1666,27 +1666,51 @@ vlapic_snapshot(void *arg, void *buffer, size_t buf_size, size_t *snapshot_size)
 {
 	int i, error;
 	struct vm *vm = arg;
+	size_t snap_len;
+	uint8_t *buf;
+	struct vlapic *vlapic;
+	uint32_t ccr;
 
 	KASSERT(vm != NULL, ("%s: arg was NULL", __func__));
 
-	if (buf_size < VM_MAXCPU * sizeof(struct vlapic)) {
-		printf("%s: buffer size too small: %lu < %lu\n", __func__,
-				buf_size, VM_MAXCPU * sizeof(struct vlapic));
+	snap_len = VM_MAXCPU * (sizeof(struct vlapic) + sizeof(ccr));
+	buf = buffer;
+
+	if (buf_size < snap_len) {
+		printf("%s: buffer size too small: %lu < %lu\n",
+		       __func__, buf_size, snap_len);
 		return (EINVAL);
 	}
 
 	for (i = 0; i < VM_MAXCPU; i++) {
-		error = copyout(vm_lapic(vm, i), (struct vlapic *)buffer + i,
-				sizeof(struct vlapic));
+		vlapic = vm_lapic(vm, i);
+
+		error = copyout(vlapic, buf, sizeof(struct vlapic));
 		if (error) {
 			printf("%s: failed to copy vlapic data to user buffer",
 					__func__);
 			*snapshot_size = 0;
 			return (error);
 		}
+
+		buf += sizeof(struct vlapic);
+
+		/* Save the value of the current count register; reset the
+		 * callouts based on this value in the restore function
+		 */
+		ccr = vlapic_get_ccr(vlapic);
+		error = copyout(&ccr, buf, sizeof(ccr));
+		if (error) {
+			printf("%s: failed to copy ccr value to user buffer",
+					__func__);
+			*snapshot_size = 0;
+			return (error);
+		}
+
+		buf += sizeof(ccr);
 	}
 
-	*snapshot_size = VM_MAXCPU * sizeof(struct vlapic);
+	*snapshot_size = snap_len;
 	return (0);
 }
 
@@ -1722,10 +1746,49 @@ vlapic_lapic_snapshot(void *arg, void *buffer, size_t buf_size, size_t *snapshot
 	return (0);
 }
 
+static void vlapic_restore_callout(struct vlapic *vlapic, uint32_t ccr)
+{
+	/* The implementation is similar to the one in the
+	 * `vlapic_icrtmr_write_handler` function
+	 */
+	sbintime_t sbt;
+
+	VLAPIC_TIMER_LOCK(vlapic);
+
+	vlapic->timer_period_bt = vlapic->timer_freq_bt;
+	bintime_mul(&vlapic->timer_period_bt, ccr);
+
+	if (ccr != 0) {
+		binuptime(&vlapic->timer_fire_bt);
+		bintime_add(&vlapic->timer_fire_bt, &vlapic->timer_period_bt);
+
+		sbt = bttosbt(vlapic->timer_period_bt);
+		callout_reset_sbt(&vlapic->callout, sbt, 0,
+		    vlapic_callout_handler, vlapic, 0);
+	} else {
+		callout_stop(&vlapic->callout);
+	}
+
+	VLAPIC_TIMER_UNLOCK(vlapic);
+}
+
 int
 vlapic_restore(struct vlapic *vlapic, void *buffer, int vcpu)
 {
-	struct vlapic *old_vlapic = (struct vlapic *)buffer + vcpu;
+	struct vlapic *old_vlapic;
+	uint8_t *buf;
+	size_t vlapic_snap_len;
+	uint32_t ccr;
+
+	buf = buffer;
+	/* For each vlapic, an object of type 'struct vlapic' and the value
+	 * of the current count register are saved
+	 */
+	vlapic_snap_len = sizeof(struct vlapic) + sizeof(ccr);
+	/* Skip previous vlapics */
+	buf += vcpu * vlapic_snap_len;
+
+	old_vlapic = (struct vlapic *)buf;
 
 	if (vlapic->vcpuid != old_vlapic->vcpuid) {
 		printf("%s: vcpuid mismatch %d != %d.\n", __func__,
@@ -1736,16 +1799,22 @@ vlapic_restore(struct vlapic *vlapic, void *buffer, int vcpu)
 	vlapic->esr_pending = old_vlapic->esr_pending;
 	vlapic->esr_firing = old_vlapic->esr_firing;
 
-	vlapic->timer_fire_bt = old_vlapic->timer_fire_bt;
 	vlapic->timer_freq_bt = old_vlapic->timer_freq_bt;
-	vlapic->timer_period_bt = old_vlapic->timer_period_bt;
 
 	memcpy(vlapic->isrvec_stk, old_vlapic->isrvec_stk, ISRVEC_STK_SIZE * sizeof(uint8_t));
 	vlapic->isrvec_stk_top = old_vlapic->isrvec_stk_top;
-	vlapic->boot_state = vlapic->boot_state;
+	vlapic->boot_state = old_vlapic->boot_state;
 
 	vlapic->svr_last = old_vlapic->svr_last;
 	memcpy(vlapic->lvt_last, old_vlapic->lvt_last, (VLAPIC_MAXLVT_INDEX + 1) * sizeof(uint32_t));
+
+	buf += sizeof(struct vlapic);
+	memcpy(&ccr, buf, sizeof(ccr));
+
+	/* Reset the value of the 'timer_fire_bt' and the vlapic callout based
+	 * on the value of the current count register saved at snapshot time
+	 */
+	vlapic_restore_callout(vlapic, ccr);
 
 	return (0);
 }
