@@ -1732,7 +1732,7 @@ ipw_start(struct ipw_softc *sc)
 
 	IPW_LOCK_ASSERT(sc);
 
-	while (sc->txfree < 1 + IPW_MAX_NSEG &&
+	while (sc->txfree >= 1 + IPW_MAX_NSEG &&
 	    (m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (ipw_tx_start(sc, m, ni) != 0) {
