@@ -33,6 +33,16 @@ __<bsd.compiler.mk>__:
 
 .include <bsd.opts.mk>
 
+.if defined(_NO_INCLUDE_COMPILERMK)
+# If _NO_INCLUDE_COMPILERMK is set we are doing a make obj/cleandir/cleanobj
+# and might not have a valid compiler in $PATH yet. In this case just set the
+# variables that are expected by the other .mk files and return
+COMPILER_TYPE=none
+X_COMPILER_TYPE=none
+COMPILER_VERSION=0
+X_COMPILER_VERSION=0
+COMPILER_FEATURES=none
+.else
 # command = /usr/local/bin/ccache cc ...
 # wrapper = /usr/local/libexec/ccache/cc ...
 CCACHE_BUILD_TYPE?=	command
@@ -220,4 +230,5 @@ ${var}.${${X_}_cc_hash}:=	${${var}}
 .if !defined(_NO_INCLUDE_LINKERMK)
 .include <bsd.linker.mk>
 .endif
+.endif	# defined(_NO_INCLUDE_COMPILERMK)
 .endif	# !target(__<bsd.compiler.mk>__)
