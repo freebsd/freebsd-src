@@ -8,5 +8,3 @@ SRCS=	smapi.c smapi_bios.S \
 	bus_if.h device_if.h
 
 .include <bsd.kmod.mk>
-
-CFLAGS.smapi_bios.S=	${CLANG_NO_IAS34}
