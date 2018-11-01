@@ -181,7 +181,7 @@ riscv64_cpu_attach(device_t dev)
 static void
 release_aps(void *dummy __unused)
 {
-	uintptr_t mask;
+	u_long mask;
 	int cpu, i;
 
 	if (mp_ncpus == 1)
