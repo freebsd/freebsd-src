@@ -89,11 +89,16 @@ CTASSERT(APIC_TIMER_INT < APIC_LOCAL_INTS);
 CTASSERT(APIC_LOCAL_INTS == 240);
 CTASSERT(IPI_STOP < APIC_SPURIOUS_INT);
 
-/* Magic IRQ values for the timer and syscalls. */
-#define	IRQ_TIMER	(NUM_IO_INTS + 1)
-#define	IRQ_SYSCALL	(NUM_IO_INTS + 2)
-#define	IRQ_DTRACE_RET	(NUM_IO_INTS + 3)
-#define	IRQ_EVTCHN	(NUM_IO_INTS + 4)
+/*
+ * I/O interrupts use non-negative IRQ values.  These values are used
+ * to mark unused IDT entries or IDT entries reserved for a non-I/O
+ * interrupt.
+ */
+#define	IRQ_FREE	-1
+#define	IRQ_TIMER	-2
+#define	IRQ_SYSCALL	-3
+#define	IRQ_DTRACE_RET	-4
+#define	IRQ_EVTCHN	-5
 
 enum lat_timer_mode {
 	LAT_MODE_UNDEF =	0,
@@ -644,7 +649,7 @@ native_lapic_create(u_int apic_id, int boot_cpu)
 		lapics[apic_id].la_elvts[i].lvt_active = 0;
 	}
 	for (i = 0; i <= APIC_NUM_IOINTS; i++)
-	    lapics[apic_id].la_ioint_irqs[i] = -1;
+	    lapics[apic_id].la_ioint_irqs[i] = IRQ_FREE;
 	lapics[apic_id].la_ioint_irqs[IDT_SYSCALL - APIC_IO_INTS] = IRQ_SYSCALL;
 	lapics[apic_id].la_ioint_irqs[APIC_TIMER_INT - APIC_IO_INTS] =
 	    IRQ_TIMER;
@@ -747,7 +752,6 @@ native_lapic_setup(int boot)
 	uint32_t version;
 	uint32_t maxlvt;
 	register_t saveintr;
-	char buf[MAXCOMLEN + 1];
 	int elvt_count;
 	int i;
 
@@ -776,15 +780,11 @@ native_lapic_setup(int boot)
 		    LAPIC_LVT_PCINT));
 	}
 
-	/* Program timer LVT and setup handler. */
+	/* Program timer LVT. */
 	la->lvt_timer_base = lvt_mode(la, APIC_LVT_TIMER,
 	    lapic_read32(LAPIC_LVT_TIMER));
 	la->lvt_timer_last = la->lvt_timer_base;
 	lapic_write32(LAPIC_LVT_TIMER, la->lvt_timer_base);
-	if (boot) {
-		snprintf(buf, sizeof(buf), "cpu%d:timer", PCPU_GET(cpuid));
-		intrcnt_add(buf, &la->la_timer_count);
-	}
 
 	/* Calibrate the timer parameters using BSP. */
 	if (boot && IS_BSP()) {
@@ -837,6 +837,25 @@ native_lapic_setup(int boot)
 
 	intr_restore(saveintr);
 }
+
+static void
+native_lapic_intrcnt(void *dummy __unused)
+{
+	struct pcpu *pc;
+	struct lapic *la;
+	char buf[MAXCOMLEN + 1];
+
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+		la = &lapics[pc->pc_apic_id];
+		if (!la->la_present)
+		    continue;
+
+		snprintf(buf, sizeof(buf), "cpu%d:timer", pc->pc_cpuid);
+		intrcnt_add(buf, &la->la_timer_count);
+	}
+}
+SYSINIT(native_lapic_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, native_lapic_intrcnt,
+    NULL);
 
 static void
 native_lapic_reenable_pmc(void)
@@ -1488,7 +1507,7 @@ native_apic_alloc_vector(u_int apic_id, u_int irq)
 {
 	u_int vector;
 
-	KASSERT(irq < NUM_IO_INTS, ("Invalid IRQ %u", irq));
+	KASSERT(irq < num_io_irqs, ("Invalid IRQ %u", irq));
 
 	/*
 	 * Search for a free vector.  Currently we just use a very simple
@@ -1496,7 +1515,7 @@ native_apic_alloc_vector(u_int apic_id, u_int irq)
 	 */
 	mtx_lock_spin(&icu_lock);
 	for (vector = 0; vector < APIC_NUM_IOINTS; vector++) {
-		if (lapics[apic_id].la_ioint_irqs[vector] != -1)
+		if (lapics[apic_id].la_ioint_irqs[vector] != IRQ_FREE)
 			continue;
 		lapics[apic_id].la_ioint_irqs[vector] = irq;
 		mtx_unlock_spin(&icu_lock);
@@ -1522,7 +1541,7 @@ native_apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
 	KASSERT(align >= count, ("align < count"));
 #ifdef INVARIANTS
 	for (run = 0; run < count; run++)
-		KASSERT(irqs[run] < NUM_IO_INTS, ("Invalid IRQ %u at index %u",
+		KASSERT(irqs[run] < num_io_irqs, ("Invalid IRQ %u at index %u",
 		    irqs[run], run));
 #endif
 
@@ -1536,7 +1555,7 @@ native_apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
 	for (vector = 0; vector < APIC_NUM_IOINTS; vector++) {
 
 		/* Vector is in use, end run. */
-		if (lapics[apic_id].la_ioint_irqs[vector] != -1) {
+		if (lapics[apic_id].la_ioint_irqs[vector] != IRQ_FREE) {
 			run = 0;
 			first = 0;
 			continue;
@@ -1617,7 +1636,7 @@ native_apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
 	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
 	    ("Vector %u does not map to an IRQ line", vector));
-	KASSERT(irq < NUM_IO_INTS, ("Invalid IRQ %u", irq));
+	KASSERT(irq < num_io_irqs, ("Invalid IRQ %u", irq));
 	KASSERT(lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] ==
 	    irq, ("IRQ mismatch"));
 #ifdef KDTRACE_HOOKS
@@ -1638,7 +1657,7 @@ native_apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 		thread_unlock(td);
 	}
 	mtx_lock_spin(&icu_lock);
-	lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] = -1;
+	lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] = IRQ_FREE;
 	mtx_unlock_spin(&icu_lock);
 	if (!rebooting) {
 		thread_lock(td);
@@ -1689,7 +1708,7 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 		db_printf("Interrupts bound to lapic %u\n", apic_id);
 		for (i = 0; i < APIC_NUM_IOINTS + 1 && !db_pager_quit; i++) {
 			irq = lapics[apic_id].la_ioint_irqs[i];
-			if (irq == -1 || irq == IRQ_SYSCALL)
+			if (irq == IRQ_FREE || irq == IRQ_SYSCALL)
 				continue;
 #ifdef KDTRACE_HOOKS
 			if (irq == IRQ_DTRACE_RET)
@@ -1702,7 +1721,7 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 			db_printf("vec 0x%2x -> ", i + APIC_IO_INTS);
 			if (irq == IRQ_TIMER)
 				db_printf("lapic timer\n");
-			else if (irq < NUM_IO_INTS) {
+			else if (irq < num_io_irqs) {
 				isrc = intr_lookup_source(irq);
 				if (isrc == NULL || verbose == 0)
 					db_printf("IRQ %u\n", irq);
@@ -1926,6 +1945,10 @@ apic_setup_io(void *dummy __unused)
 
 	/* Enable the MSI "pic". */
 	init_ops.msi_init();
+
+#ifdef XENHVM
+	xen_intr_alloc_irqs();
+#endif
 }
 SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_THIRD, apic_setup_io, NULL);
 

@@ -44,15 +44,20 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <dev/pci/pcivar.h>
 
+#include <xen/xen-os.h>
 #include <xen/xen_intr.h>
 #include <xen/xen_msi.h>
 
 static struct mtx msi_lock;
-static int msi_last_irq;
+static u_int msi_last_irq;
 
 void
 xen_msi_init(void)
 {
+
+	MPASS(num_io_irqs > 0);
+	first_msi_irq = min(MINIMUM_MSI_INT, num_io_irqs);
+	num_io_irqs = first_msi_irq + NUM_MSI_INTS;
 
 	mtx_init(&msi_lock, "msi", NULL, MTX_DEF);
 }
@@ -75,7 +80,7 @@ xen_msi_alloc(device_t dev, int count, int maxcount, int *irqs)
 
 	/* Allocate MSI vectors */
 	for (i = 0; i < count; i++)
-		irqs[i] = FIRST_MSI_INT + msi_last_irq++;
+		irqs[i] = first_msi_irq + msi_last_irq++;
 
 	mtx_unlock(&msi_lock);
 
