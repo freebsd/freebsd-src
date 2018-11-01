@@ -222,7 +222,7 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 		regs->fp_sr = pcb->pcb_fpsr;
 	} else
 #endif
-		memset(regs->fp_q, 0, sizeof(regs->fp_q));
+		memset(regs, 0, sizeof(*regs));
 	return (0);
 }
 
