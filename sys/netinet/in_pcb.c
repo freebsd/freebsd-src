@@ -322,9 +322,6 @@ in_pcbinslbgrouphash(struct inpcb *inp)
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
-	if (pcbinfo->ipi_lbgrouphashbase == NULL)
-		return (0);
-
 	/*
 	 * Don't allow jailed socket to join local group.
 	 */
@@ -398,9 +395,6 @@ in_pcbremlbgrouphash(struct inpcb *inp)
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
-
-	if (pcbinfo->ipi_lbgrouphashbase == NULL)
-		return;
 
 	hdr = &pcbinfo->ipi_lbgrouphashbase[
 	    INP_PCBLBGROUP_PORTHASH(inp->inp_lport,
@@ -2276,13 +2270,11 @@ in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	/*
 	 * Then look in lb group (for wildcard match).
 	 */
-	if (pcbinfo->ipi_lbgrouphashbase != NULL &&
-		(lookupflags & INPLOOKUP_WILDCARD)) {
+	if ((lookupflags & INPLOOKUP_WILDCARD) != 0) {
 		inp = in_pcblookup_lbgroup(pcbinfo, &laddr, lport, &faddr,
 		    fport, lookupflags);
-		if (inp != NULL) {
+		if (inp != NULL)
 			return (inp);
-		}
 	}
 
 	/*
