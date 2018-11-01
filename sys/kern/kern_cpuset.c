@@ -458,6 +458,12 @@ _domainset_create(struct domainset *domain, struct domainlist *freelist)
 	struct domainset *ndomain;
 	int i, j, max;
 
+	KASSERT(domain->ds_cnt <= vm_ndomains,
+	    ("invalid domain count in domainset %p", domain));
+	KASSERT(domain->ds_policy != DOMAINSET_POLICY_PREFER ||
+	    domain->ds_prefer < vm_ndomains,
+	    ("invalid preferred domain in domains %p", domain));
+
 	mtx_lock_spin(&cpuset_lock);
 	LIST_FOREACH(ndomain, &cpuset_domains, ds_link)
 		if (domainset_equal(ndomain, domain))
