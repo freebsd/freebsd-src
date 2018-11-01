@@ -498,10 +498,18 @@ tftp_read(struct open_file *f, void *addr, size_t size,
     size_t *resid /* out */)
 {
 	struct tftp_handle *tftpfile;
+	size_t res;
 	int rc;
 
 	rc = 0;
+	res = size;
 	tftpfile = (struct tftp_handle *) f->f_fsdata;
+
+	/* Make sure we will not read past file end */
+	if (tftpfile->tftp_tsize > 0 &&
+	    tftpfile->off + size > tftpfile->tftp_tsize) {
+		size = tftpfile->tftp_tsize - tftpfile->off;
+	}
 
 	while (size > 0) {
 		int needblock, count;
@@ -550,6 +558,7 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 			addr = (char *)addr + count;
 			tftpfile->off += count;
 			size -= count;
+			res -= count;
 
 			if ((tftpfile->islastblock) && (count == inbuffer))
 				break;	/* EOF */
@@ -562,8 +571,8 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 
 	}
 
-	if (resid)
-		*resid = size;
+	if (resid != NULL)
+		*resid = res;
 	return (rc);
 }
 
