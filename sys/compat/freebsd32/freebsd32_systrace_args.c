@@ -54,7 +54,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct open_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
 		iarg[1] = p->flags; /* int */
-		iarg[2] = p->mode; /* int */
+		iarg[2] = p->mode; /* mode_t */
 		*n_args = 3;
 		break;
 	}
@@ -108,7 +108,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 15: {
 		struct chmod_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->mode; /* int */
+		iarg[1] = p->mode; /* mode_t */
 		*n_args = 2;
 		break;
 	}
@@ -396,7 +396,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* umask */
 	case 60: {
 		struct umask_args *p = params;
-		iarg[0] = p->newmask; /* int */
+		iarg[0] = p->newmask; /* mode_t */
 		*n_args = 1;
 		break;
 	}
@@ -692,7 +692,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 124: {
 		struct fchmod_args *p = params;
 		iarg[0] = p->fd; /* int */
-		iarg[1] = p->mode; /* int */
+		iarg[1] = p->mode; /* mode_t */
 		*n_args = 2;
 		break;
 	}
@@ -732,7 +732,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 132: {
 		struct mkfifo_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->mode; /* int */
+		iarg[1] = p->mode; /* mode_t */
 		*n_args = 2;
 		break;
 	}
@@ -770,7 +770,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 136: {
 		struct mkdir_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->mode; /* int */
+		iarg[1] = p->mode; /* mode_t */
 		*n_args = 2;
 		break;
 	}
@@ -3329,7 +3329,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "int";
+			p = "mode_t";
 			break;
 		default:
 			break;
@@ -3414,7 +3414,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 1:
-			p = "int";
+			p = "mode_t";
 			break;
 		default:
 			break;
@@ -3864,7 +3864,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 60:
 		switch(ndx) {
 		case 0:
-			p = "int";
+			p = "mode_t";
 			break;
 		default:
 			break;
@@ -4353,7 +4353,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "int";
+			p = "mode_t";
 			break;
 		default:
 			break;
@@ -4418,7 +4418,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 1:
-			p = "int";
+			p = "mode_t";
 			break;
 		default:
 			break;
@@ -4488,7 +4488,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 1:
-			p = "int";
+			p = "mode_t";
 			break;
 		default:
 			break;
