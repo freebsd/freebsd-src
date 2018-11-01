@@ -2088,13 +2088,15 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pa = VM_PAGE_TO_PHYS(m);
 	pn = (pa / PAGE_SIZE);
 
-	new_l3 = PTE_V | PTE_R | PTE_X;
+	new_l3 = PTE_V | PTE_R | PTE_X | PTE_A;
+	if (flags & VM_PROT_WRITE)
+		new_l3 |= PTE_D;
 	if (prot & VM_PROT_WRITE)
 		new_l3 |= PTE_W;
 	if ((va >> 63) == 0)
 		new_l3 |= PTE_U;
-	else
-		new_l3 |= PTE_A | PTE_D;
+	else if (prot & VM_PROT_WRITE)
+		new_l3 |= PTE_D;
 
 	new_l3 |= (pn << PTE_PPN0_S);
 	if ((flags & PMAP_ENTER_WIRED) != 0)
