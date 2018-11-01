@@ -56,7 +56,7 @@ struct write_args {
 struct open_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
-	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
+	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct close_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -82,7 +82,7 @@ struct fchdir_args {
 };
 struct chmod_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
-	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
+	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct chown_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
@@ -242,7 +242,7 @@ struct execve_args {
 	char envv_l_[PADL_(char **)]; char ** envv; char envv_r_[PADR_(char **)];
 };
 struct umask_args {
-	char newmask_l_[PADL_(int)]; int newmask; char newmask_r_[PADR_(int)];
+	char newmask_l_[PADL_(mode_t)]; mode_t newmask; char newmask_r_[PADR_(mode_t)];
 };
 struct chroot_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
@@ -406,7 +406,7 @@ struct fchown_args {
 };
 struct fchmod_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
+	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct setreuid_args {
 	char ruid_l_[PADL_(int)]; int ruid; char ruid_r_[PADR_(int)];
@@ -426,7 +426,7 @@ struct flock_args {
 };
 struct mkfifo_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
-	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
+	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct sendto_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
@@ -448,7 +448,7 @@ struct socketpair_args {
 };
 struct mkdir_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
-	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
+	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct rmdir_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
