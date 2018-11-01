@@ -448,6 +448,15 @@ AcpiDsLoad2BeginOp (
         }
 #endif
 
+        /*
+         * For name creation opcodes, the full namepath prefix must
+         * exist, except for the final (new) nameseg.
+         */
+        if (WalkState->OpInfo->Flags & AML_NAMED)
+        {
+            Flags |= ACPI_NS_PREFIX_MUST_EXIST;
+        }
+
         /* Add new entry or lookup existing entry */
 
         Status = AcpiNsLookup (WalkState->ScopeInfo, BufferPtr, ObjectType,
