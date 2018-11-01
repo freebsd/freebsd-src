@@ -448,11 +448,10 @@ tftp_open(const char *path, struct open_file *f)
 	if (is_open)
 		return (EBUSY);
 
-	tftpfile = (struct tftp_handle *) malloc(sizeof(*tftpfile));
+	tftpfile = calloc(1, sizeof(*tftpfile));
 	if (!tftpfile)
 		return (ENOMEM);
 
-	memset(tftpfile, 0, sizeof(*tftpfile));
 	tftpfile->tftp_blksize = TFTP_REQUESTED_BLKSIZE;
 	tftpfile->iodesc = io = socktodesc(*(int *) (f->f_devdata));
 	if (io == NULL) {
