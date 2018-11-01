@@ -256,7 +256,7 @@ no_pmap_fault:
 			printf(" esr:         %.8lx\n", esr);
 
 #ifdef KDB
-			if (debugger_on_panic) {
+			if (debugger_on_trap) {
 				kdb_why = KDB_WHY_TRAP;
 				handled = kdb_trap(ESR_ELx_EXCEPTION(esr), 0,
 				    frame);
