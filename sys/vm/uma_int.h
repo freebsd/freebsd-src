@@ -31,6 +31,7 @@
  */
 
 #include <sys/_bitset.h>
+#include <sys/_domainset.h>
 #include <sys/_task.h>
 
 /* 
