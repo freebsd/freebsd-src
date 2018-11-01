@@ -136,12 +136,14 @@ are 137.
 Path to mount point.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa ~/.nsmbrc" -compact
+.Bl -tag -width ".Pa /etc/nsmb.conf" -compact
 .It Pa ~/.nsmbrc
-Keeps static parameters for connections and other information.
+Keeps user-specific static parameters for connections and other information.
 See
 .Pa /usr/share/examples/smbfs/dot.nsmbrc
 for details.
+.It Pa /etc/nsmb.conf
+Keeps system-wide static parameters for connections and other information.
 .El
 .Sh EXAMPLES
 The following example illustrates how to connect to SMB server
@@ -163,7 +165,11 @@ for smbfs mounts (the example below does not prompt for a password):
 .Pp
 .Dl "//guest@samba/public    /smb/public     smbfs  rw,noauto,-N 0   0"
 .Sh SEE ALSO
-.Bl -dash
+.Xr smbutil 1 ,
+.Xr nsmb.conf 5
+.Pp
+Other resources:
+.Bl -dash -compact
 .It
 Chapter dedicated to Samba configuration in the
 .Fx
