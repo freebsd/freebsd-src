@@ -240,7 +240,6 @@ main (
     /* Set flags so that the interpreter is not used */
 
     AcpiGbl_ExecuteTablesAsMethods = FALSE;
-    AcpiGbl_GroupModuleLevelCode = TRUE;
 
     Status = AcpiInitializeSubsystem ();
     ACPI_CHECK_OK (AcpiInitializeSubsystem, Status);

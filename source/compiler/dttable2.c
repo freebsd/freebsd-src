@@ -1878,6 +1878,62 @@ DtCompileTcpa (
 
 /******************************************************************************
  *
+ * FUNCTION:    DtCompileTpm2Rev3
+ *
+ * PARAMETERS:  PFieldList          - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile TPM2 revision 3
+ *
+ *****************************************************************************/
+static ACPI_STATUS
+DtCompileTpm2Rev3 (
+    void                    **List)
+{
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+    DT_SUBTABLE             *Subtable;
+    ACPI_TABLE_TPM23        *Tpm23Header;
+    DT_SUBTABLE             *ParentTable;
+    ACPI_STATUS             Status = AE_OK;
+
+
+    Status = DtCompileTable (PFieldList, AcpiDmTableInfoTpm23,
+        &Subtable);
+
+    ParentTable = DtPeekSubtable ();
+    DtInsertSubtable (ParentTable, Subtable);
+    Tpm23Header = ACPI_CAST_PTR (ACPI_TABLE_TPM23, ParentTable->Buffer);
+
+    /* Subtable type depends on the StartMethod */
+
+    switch (Tpm23Header->StartMethod)
+    {
+    case ACPI_TPM23_ACPI_START_METHOD:
+
+        /* Subtable specific to to ARM_SMC */
+
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoTpm23a,
+            &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+        break;
+
+    default:
+        break;
+    }
+
+    return (Status);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    DtCompileTpm2
  *
  * PARAMETERS:  PFieldList          - Current field list pointer
@@ -1897,7 +1953,17 @@ DtCompileTpm2 (
     ACPI_TABLE_TPM2         *Tpm2Header;
     DT_SUBTABLE             *ParentTable;
     ACPI_STATUS             Status = AE_OK;
+    ACPI_TABLE_HEADER       *Header;
 
+
+    ParentTable = DtPeekSubtable ();
+
+    Header = ACPI_CAST_PTR (ACPI_TABLE_HEADER, ParentTable->Buffer);
+
+    if (Header->Revision == 3)
+    {
+        return (DtCompileTpm2Rev3 (List));
+    }
 
     /* Compile the main table */
 

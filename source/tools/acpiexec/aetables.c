@@ -675,18 +675,10 @@ AeLoadTables (
      * for an existing name.
      */
     Status = AcpiInstallMethod (MethodCode);
-    if (ACPI_FAILURE (Status))
-    {
-        AcpiOsPrintf ("%s, Could not install method\n",
-            AcpiFormatException (Status));
-    }
+    ACPI_CHECK_OK (AcpiInstallMethod, Status);
 
     Status = AcpiInstallMethod (MethodCode);
-    if (ACPI_FAILURE (Status))
-    {
-        AcpiOsPrintf ("%s, Could not install method\n",
-            AcpiFormatException (Status));
-    }
+    ACPI_CHECK_OK (AcpiInstallMethod, Status);
 
     return (AE_OK);
 }

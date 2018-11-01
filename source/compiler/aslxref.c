@@ -718,11 +718,34 @@ XfNamespaceLocateBegin (
             }
             else
             {
-                /* Check for a fully qualified path */
+                /* The NamePath contains multiple NameSegs */
 
-                if (Path[0] == AML_ROOT_PREFIX)
+                if ((OpInfo->Flags & AML_CREATE) ||
+                    (OpInfo->ObjectType == ACPI_TYPE_LOCAL_ALIAS))
                 {
-                    /* Gave full path, the object does not exist */
+                    /*
+                     * The new name is the last parameter. For the
+                     * CreateXXXXField and Alias operators
+                     */
+                    NextOp = Op->Asl.Child;
+                    while (!(NextOp->Asl.CompileFlags & OP_IS_NAME_DECLARATION))
+                    {
+                        NextOp = NextOp->Asl.Next;
+                    }
+
+                    AslError (ASL_ERROR, ASL_MSG_PREFIX_NOT_EXIST, NextOp,
+                        NextOp->Asl.ExternalName);
+                }
+                else if (OpInfo->Flags & AML_NAMED)
+                {
+                    /* The new name is the first parameter */
+
+                    AslError (ASL_ERROR, ASL_MSG_PREFIX_NOT_EXIST, Op,
+                        Op->Asl.ExternalName);
+                }
+                else if (Path[0] == AML_ROOT_PREFIX)
+                {
+                    /* Full namepath from root, the object does not exist */
 
                     AslError (ASL_ERROR, ASL_MSG_NOT_EXIST, Op,
                         Op->Asl.ExternalName);
@@ -730,11 +753,20 @@ XfNamespaceLocateBegin (
                 else
                 {
                     /*
-                     * We can't tell whether it doesn't exist or just
-                     * can't be reached.
+                     * Generic "not found" error. Cannot determine whether it
+                     * doesn't exist or just can't be reached. However, we
+                     * can differentiate between a NameSeg vs. NamePath.
                      */
-                    AslError (ASL_ERROR, ASL_MSG_NOT_FOUND, Op,
-                        Op->Asl.ExternalName);
+                    if (strlen (Op->Asl.ExternalName) == ACPI_NAME_SIZE)
+                    {
+                        AslError (ASL_ERROR, ASL_MSG_NOT_FOUND, Op,
+                            Op->Asl.ExternalName);
+                    }
+                    else
+                    {
+                        AslError (ASL_ERROR, ASL_MSG_NAMEPATH_NOT_EXIST, Op,
+                            Op->Asl.ExternalName);
+                    }
                 }
             }
 

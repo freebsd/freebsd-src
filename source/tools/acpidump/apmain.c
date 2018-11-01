@@ -268,7 +268,7 @@ ApInsertAction (
     CurrentAction++;
     if (CurrentAction > AP_MAX_ACTIONS)
     {
-        fprintf (stderr, "Too many table options (max %u)\n", AP_MAX_ACTIONS);
+        fprintf (stderr, "Too many table options (max %d)\n", AP_MAX_ACTIONS);
         return (-1);
     }
 

@@ -858,7 +858,7 @@ CmCleanupAndExit (
 
     if (AslGbl_ExceptionCount[ASL_ERROR] > ASL_MAX_ERROR_COUNT)
     {
-        printf ("\nMaximum error count (%u) exceeded\n",
+        printf ("\nMaximum error count (%d) exceeded\n",
             ASL_MAX_ERROR_COUNT);
     }
 

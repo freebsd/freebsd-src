@@ -329,7 +329,7 @@ AslSignalHandler (
 
     default:
 
-        printf (ASL_PREFIX "Unknown interrupt signal (%u)\n", Sig);
+        printf (ASL_PREFIX "Unknown interrupt signal (%d)\n", Sig);
         break;
     }
 
