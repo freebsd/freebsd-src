@@ -470,6 +470,12 @@ cam_periph_release(struct cam_periph *periph)
 	mtx_unlock(mtx);
 }
 
+/*
+ * hold/unhold act as mutual exclusion for sections of the code that
+ * need to sleep and want to make sure that other sections that
+ * will interfere are held off. This only protects exclusive sections
+ * from each other.
+ */
 int
 cam_periph_hold(struct cam_periph *periph, int priority)
 {

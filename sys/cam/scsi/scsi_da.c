@@ -2697,9 +2697,10 @@ daregister(struct cam_periph *periph, void *arg)
 	TASK_INIT(&softc->sysctl_task, 0, dasysctlinit, periph);
 
 	/*
-	 * Take an exclusive refcount on the periph while dastart is called
-	 * to finish the probe.  The reference will be dropped in dadone at
-	 * the end of probe.
+	 * Take an exclusive section lock qon the periph while dastart is called
+	 * to finish the probe.  The lock will be dropped in dadone at the end
+	 * of probe. This locks out daopen and daclose from racing with the
+	 * probe.
 	 *
 	 * XXX if cam_periph_hold returns an error, we don't hold a refcount.
 	 */
