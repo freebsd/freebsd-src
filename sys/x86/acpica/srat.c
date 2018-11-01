@@ -535,11 +535,7 @@ srat_set_cpus(void *dummy)
 		if (!cpu->enabled)
 			panic("SRAT: CPU with APIC ID %u is not known",
 			    pc->pc_apic_id);
-#ifdef NUMA
-		pc->pc_domain = cpu->domain;
-#else
-		pc->pc_domain = 0;
-#endif
+		pc->pc_domain = vm_ndomains > 1 ? cpu->domain : 0;
 		CPU_SET(i, &cpuset_domain[pc->pc_domain]);
 		if (bootverbose)
 			printf("SRAT: CPU %u has memory domain %d\n", i,
@@ -564,7 +560,7 @@ acpi_map_pxm_to_vm_domainid(int pxm)
 
 	for (i = 0; i < ndomain; i++) {
 		if (domain_pxm[i] == pxm)
-			return (i);
+			return (vm_ndomains > 1 ? i : 0);
 	}
 
 	return (-1);
