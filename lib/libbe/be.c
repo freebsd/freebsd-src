@@ -928,7 +928,8 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 {
 	char be_path[BE_MAXPATHLEN];
 	char buf[BE_MAXPATHLEN];
-	nvlist_t *config, *vdevs;
+	nvlist_t *config, *dsprops, *vdevs;
+	char *origin;
 	uint64_t pool_guid;
 	zfs_handle_t *zhp;
 	int err;
@@ -969,7 +970,18 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 		if (zhp == NULL)
 			return (-1);
 
-		err = zfs_promote(zhp);
+		if (be_prop_list_alloc(&dsprops) != 0)
+			return (-1);
+
+		if (be_get_dataset_props(lbh, be_path, dsprops) != 0) {
+			nvlist_free(dsprops);
+			return (-1);
+		}
+
+		if (nvlist_lookup_string(dsprops, "origin", &origin) == 0)
+			err = zfs_promote(zhp);
+		nvlist_free(dsprops);
+
 		zfs_close(zhp);
 
 		if (err)
