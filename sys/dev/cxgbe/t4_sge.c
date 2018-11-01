@@ -4725,8 +4725,11 @@ add_to_txpkts(struct mbuf *m, struct txpkts *txp, u_int available)
 
 	MPASS(txp->wr_type == 0 || txp->wr_type == 1);
 
+	if (cannot_use_txpkts(m))
+		return (1);
+
 	nsegs = mbuf_nsegs(m);
-	if (needs_tso(m) || (txp->wr_type == 1 && nsegs != 1))
+	if (txp->wr_type == 1 && nsegs != 1)
 		return (1);
 
 	plen = txp->plen + m->m_pkthdr.len;
