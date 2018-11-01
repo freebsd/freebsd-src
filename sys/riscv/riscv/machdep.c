@@ -254,7 +254,7 @@ int
 ptrace_set_pc(struct thread *td, u_long addr)
 {
 
-	panic("ptrace_set_pc");
+	td->td_frame->tf_sepc = addr;
 	return (0);
 }
 
@@ -263,7 +263,7 @@ ptrace_single_step(struct thread *td)
 {
 
 	/* TODO; */
-	return (0);
+	return (EOPNOTSUPP);
 }
 
 int
@@ -271,7 +271,7 @@ ptrace_clear_single_step(struct thread *td)
 {
 
 	/* TODO; */
-	return (0);
+	return (EOPNOTSUPP);
 }
 
 void
