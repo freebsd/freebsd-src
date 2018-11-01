@@ -32,9 +32,6 @@ S=	../../..
 
 INCLUDES+= -I$S/contrib/libfdt
 
-ASM_CFLAGS.acpi_wakecode.S=	${CLANG_NO_IAS34}
-ASM_CFLAGS.mpboot.s=		${CLANG_NO_IAS34}
-
 %BEFORE_DEPEND
 
 %OBJS
