@@ -1744,7 +1744,6 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch,
 		th->th_seq = htonl(sc->sc_iss);
 	else
 		th->th_seq = htonl(sc->sc_iss + 1);
-printf("SEG.SEQ=0x%x, ISS=0x%x.\n", ntohl(th->th_seq), sc->sc_iss);
 	th->th_ack = htonl(sc->sc_irs + 1);
 	th->th_off = sizeof(struct tcphdr) >> 2;
 	th->th_x2 = 0;
