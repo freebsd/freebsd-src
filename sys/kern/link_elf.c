@@ -630,8 +630,12 @@ parse_dpcpu(elf_file_t ef)
 	 * all per-cpu storage from that.
 	 */
 	ef->pcpu_base = (Elf_Addr)(uintptr_t)dpcpu_alloc(size);
-	if (ef->pcpu_base == 0)
+	if (ef->pcpu_base == 0) {
+		printf("%s: pcpu module space is out of space; "
+		    "cannot allocate %d for %s\n",
+		    __func__, size, ef->lf.pathname);
 		return (ENOSPC);
+	}
 	memcpy((void *)ef->pcpu_base, (void *)ef->pcpu_start, size);
 	dpcpu_copy((void *)ef->pcpu_base, size);
 	elf_set_add(&set_pcpu_list, ef->pcpu_start, ef->pcpu_stop,
@@ -663,8 +667,12 @@ parse_vnet(elf_file_t ef)
 	 * all per-vnet storage from that.
 	 */
 	ef->vnet_base = (Elf_Addr)(uintptr_t)vnet_data_alloc(size);
-	if (ef->vnet_base == 0)
+	if (ef->vnet_base == 0) {
+		printf("%s: vnet module space is out of space; "
+		    "cannot allocate %d for %s\n",
+		    __func__, size, ef->lf.pathname);
 		return (ENOSPC);
+	}
 	memcpy((void *)ef->vnet_base, (void *)ef->vnet_start, size);
 	vnet_data_copy((void *)ef->vnet_base, size);
 	elf_set_add(&set_vnet_list, ef->vnet_start, ef->vnet_stop,
