@@ -1205,6 +1205,12 @@ struct pf_divert {
 #define PFR_KENTRY_HIWAT	200000	/* Number of table entries */
 
 /*
+ * Limit the length of the fragment queue traversal.  Remember
+ * search entry points based on the fragment offset.
+ */
+#define PF_FRAG_ENTRY_POINTS		16
+
+/*
  * ioctl parameter structures
  */
 
