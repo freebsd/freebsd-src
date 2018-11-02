@@ -350,6 +350,7 @@ static const struct {
 	{0x01861039, 0x00, "SiS 968",		0},
 	{0xa01c177d, 0x00, "ThunderX",		AHCI_Q_ABAR0|AHCI_Q_1MSI},
 	{0x00311c36, 0x00, "Annapurna",		AHCI_Q_FORCE_PI|AHCI_Q_RESTORE_CAP|AHCI_Q_NOMSIX},
+	{0x1600144d, 0x00, "Samsung",		AHCI_Q_NOMSI},
 	{0x00000000, 0x00, NULL,		0}
 };
 
