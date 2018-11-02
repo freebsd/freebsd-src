@@ -834,6 +834,9 @@ pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 {
 	struct pfi_kif *kif = (struct pfi_kif *)ifp->if_pf_kif;
 
+	if (pfsync_detach_ifnet_ptr)
+		pfsync_detach_ifnet_ptr(ifp);
+
 	if (kif == NULL)
 		return;
 
@@ -841,6 +844,7 @@ pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 		/* Avoid teardown race in the least expensive way. */
 		return;
 	}
+
 	PF_RULES_WLOCK();
 	V_pfi_update++;
 	pfi_kif_update(kif);
