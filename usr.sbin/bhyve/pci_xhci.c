@@ -2700,6 +2700,8 @@ pci_xhci_parse_opts(struct pci_xhci_softc *sc, char *opts)
 
 		sc->ndevices++;
 	}
+	if (uopt != NULL)
+		free(uopt);
 
 portsfinal:
 	sc->portregs = calloc(XHCI_MAX_DEVS, sizeof(struct pci_xhci_portregs));
@@ -2729,6 +2731,7 @@ done:
 			free(devices);
 		}
 	}
+	free(uopt);
 	return (sc->ndevices);
 }
 
