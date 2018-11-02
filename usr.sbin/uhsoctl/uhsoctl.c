@@ -360,7 +360,7 @@ logger(int pri, const char *fmt, ...)
 
 /* Add/remove IP address from an interface */
 static int
-ifaddr_ad(int d, const char *ifnam, struct sockaddr *sa, struct sockaddr *mask)
+ifaddr_ad(unsigned long d, const char *ifnam, struct sockaddr *sa, struct sockaddr *mask)
 {
 	struct ifaliasreq req;
 	int fd, error;
