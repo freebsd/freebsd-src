@@ -2362,11 +2362,8 @@ vnet_pfsync_uninit(const void *unused __unused)
 	if_clone_detach(V_pfsync_cloner);
 	swi_remove(V_pfsync_swi_cookie);
 }
-/*
- * Detach after pf is gone; otherwise we might touch pfsync memory
- * from within pf after freeing pfsync.
- */
-VNET_SYSUNINIT(vnet_pfsync_uninit, SI_SUB_INIT_IF, SI_ORDER_SECOND,
+
+VNET_SYSUNINIT(vnet_pfsync_uninit, SI_SUB_PROTO_FIREWALL, SI_ORDER_FOURTH,
     vnet_pfsync_uninit, NULL);
 
 static int
