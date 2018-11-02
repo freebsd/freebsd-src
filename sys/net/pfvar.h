@@ -1211,6 +1211,13 @@ struct pf_divert {
 #define PF_FRAG_ENTRY_POINTS		16
 
 /*
+ * The number of entries in the fragment queue must be limited
+ * to avoid DoS by linear seaching.  Instead of a global limit,
+ * use a limit per entry point.  For large packets these sum up.
+ */
+#define PF_FRAG_ENTRY_LIMIT		64
+
+/*
  * ioctl parameter structures
  */
 
