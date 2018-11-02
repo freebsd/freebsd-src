@@ -1,4 +1,54 @@
 ----------------------------------------
+31 October 2018. Summary of changes for version 20181031:
+
+This release is available at https://acpica.org/downloads
+
+
+An Operation Region regression was fixed by properly adding address 
+ranges to a global list during initialization. This allows OS to 
+accurately check for overlapping regions between native devices (such as 
+PCI) and Operation regions as well as checking for region conflicts 
+between two Operation Regions.
+
+Added support for the 2-byte extended opcodes in the code/feature that 
+attempts to continue parsing during the table load phase. Skip parsing 
+Device declarations (and other extended opcodes) when an error occurs 
+during parsing. Previously, only single-byte opcodes were supported.
+
+Cleanup: Simplified the module-level code support by eliminating a 
+useless global variable (AcpiGbl_GroupModuleLeveCode).
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/Preprocessor: Fixed a regression where an incorrect use of ACPI_FREE 
+could cause a fault in the preprocessor. This was an inadvertent side-
+effect from moving more allocations/frees to the local cache/memory 
+mechanism.
+
+iASL: Enhanced error detection by validating that all NameSeg elements 
+within a NamePatch actually exist. The previous behavior was spotty at 
+best, and such errors could be improperly ignored at compiler time (never 
+at runtime, however. There are two new error messages, as shown in the 
+examples below:
+
+dsdt.asl     33:     CreateByteField (TTTT.BXXX, 1, CBF1)
+Error    6161 -                              ^ One or more objects within 
+the Pathname do not exist (TTTT.BXXX)
+
+dsdt.asl     34:     CreateByteField (BUF1, UUUU.INT1, BBBB.CBF1)
+Error    6160 -        One or more prefix Scopes do not exist ^  
+(BBBB.CBF1)
+
+iASL: Disassembler/table-compiler: Added support for the static data 
+table TPM2 revision 3 (an older version of TPM2). The support has been 
+added for the compiler and the disassembler.
+
+Fixed compilation of DOS format data table file on Unix/Linux systems. 
+iASL now properly detects line continuations (\) for DOS format data 
+table definition language files on when executing on Unix/Linux.
+
+----------------------------------------
 03 October 2018. Summary of changes for version 20181003:
 
 
