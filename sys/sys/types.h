@@ -400,10 +400,10 @@ __minor(dev_t _d)
 }
 #define	makedev(M, m)	__makedev((M), (m))
 static __inline dev_t
-__makedev(int _M, int _m)
+__makedev(int _Major, int _Minor)
 {
-	return (((dev_t)(_M & 0xffffff00) << 32) | ((_M & 0xff) << 8) |
-	    ((dev_t)(_m & 0xff00) << 24) | (_m & 0xffff00ff));
+	return (((dev_t)(_Major & 0xffffff00) << 32) | ((_Major & 0xff) << 8) |
+	    ((dev_t)(_Minor & 0xff00) << 24) | (_Minor & 0xffff00ff));
 }
 
 /*
