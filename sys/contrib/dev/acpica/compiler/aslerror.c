@@ -1097,7 +1097,7 @@ AslExpectException (
 
     if (AslGbl_ExpectedMessagesIndex >= ASL_MAX_EXPECTED_MESSAGES)
     {
-        printf ("Too many messages have been registered as expected (max %u)\n",
+        printf ("Too many messages have been registered as expected (max %d)\n",
             ASL_MAX_DISABLED_MESSAGES);
         return (AE_LIMIT);
     }
@@ -1144,7 +1144,7 @@ AslDisableException (
 
     if (AslGbl_DisabledMessagesIndex >= ASL_MAX_DISABLED_MESSAGES)
     {
-        printf ("Too many messages have been disabled (max %u)\n",
+        printf ("Too many messages have been disabled (max %d)\n",
             ASL_MAX_DISABLED_MESSAGES);
         return (AE_LIMIT);
     }

@@ -285,7 +285,7 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_NON_ASCII */                  "Invalid characters found in file",
 /*    ASL_MSG_NON_ZERO */                   "Operand evaluates to zero",
 /*    ASL_MSG_NOT_EXIST */                  "Object does not exist",
-/*    ASL_MSG_NOT_FOUND */                  "Object not found or not accessible from scope",
+/*    ASL_MSG_NOT_FOUND */                  "Object not found or not accessible from current scope",
 /*    ASL_MSG_NOT_METHOD */                 "Not a control method, cannot invoke",
 /*    ASL_MSG_NOT_PARAMETER */              "Not a parameter, used as local only",
 /*    ASL_MSG_NOT_REACHABLE */              "Object is not accessible from this scope",
@@ -359,7 +359,9 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_OEM_ID */                     "Invalid OEM ID",
 /*    ASL_MSG_UNLOAD */                     "Unload is not supported by all operating systems",
 /*    ASL_MSG_OFFSET */                     "Unnecessary/redundant use of Offset operator",
-/*    ASL_MSG_LONG_SLEEP */                 "Very long Sleep, greater than 1 second"
+/*    ASL_MSG_LONG_SLEEP */                 "Very long Sleep, greater than 1 second",
+/*    ASL_MSG_PREFIX_NOT_EXIST */           "One or more prefix Scopes do not exist",
+/*    ASL_MSG_NAMEPATH_NOT_EXIST */         "One or more objects within the Pathname do not exist"
 };
 
 /* Table compiler */

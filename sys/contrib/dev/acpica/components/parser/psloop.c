@@ -298,7 +298,7 @@ AcpiPsGetArguments (
          * future. Use of this option can cause problems with AML code that
          * depends upon in-order immediate execution of module-level code.
          */
-        if (AcpiGbl_GroupModuleLevelCode &&
+        if (!AcpiGbl_ExecuteTablesAsMethods &&
             (WalkState->PassNumber <= ACPI_IMODE_LOAD_PASS2) &&
             ((WalkState->ParseFlags & ACPI_PARSE_DISASSEMBLE) == 0))
         {
@@ -566,6 +566,7 @@ AcpiPsParseLoop (
     ACPI_PARSE_OBJECT       *Op = NULL;     /* current op */
     ACPI_PARSE_STATE        *ParserState;
     UINT8                   *AmlOpStart = NULL;
+    UINT8                   OpcodeLength;
 
 
     ACPI_FUNCTION_TRACE_PTR (PsParseLoop, WalkState);
@@ -654,7 +655,7 @@ AcpiPsParseLoop (
                  * status to AE_OK to proceed with the table load.
                  */
                 if ((WalkState->ParseFlags & ACPI_PARSE_MODULE_LEVEL) &&
-                    Status == AE_ALREADY_EXISTS)
+                    ((Status == AE_ALREADY_EXISTS) || (Status == AE_NOT_FOUND)))
                 {
                     Status = AE_OK;
                 }
@@ -686,9 +687,20 @@ AcpiPsParseLoop (
                      * the scope op because the parse failure indicates that
                      * the device may not exist.
                      */
-                    ACPI_ERROR ((AE_INFO, "Skip parsing opcode %s",
-                        AcpiPsGetOpcodeName (WalkState->Opcode)));
-                    WalkState->ParserState.Aml = WalkState->Aml + 1;
+                    ACPI_INFO (("Skipping parse of AML opcode: %s (0x%4.4X)",
+                        AcpiPsGetOpcodeName (WalkState->Opcode), WalkState->Opcode));
+
+                    /*
+                     * Determine the opcode length before skipping the opcode.
+                     * An opcode can be 1 byte or 2 bytes in length.
+                     */
+                    OpcodeLength = 1;
+                    if ((WalkState->Opcode & 0xFF00) == AML_EXTENDED_OPCODE)
+                    {
+                        OpcodeLength = 2;
+                    }
+                    WalkState->ParserState.Aml = WalkState->Aml + OpcodeLength;
+
                     WalkState->ParserState.Aml =
                         AcpiPsGetNextPackageEnd(&WalkState->ParserState);
                     WalkState->Aml = WalkState->ParserState.Aml;
