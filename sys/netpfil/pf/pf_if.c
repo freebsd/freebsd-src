@@ -165,8 +165,10 @@ pfi_cleanup_vnet(void)
 		RB_REMOVE(pfi_ifhead, &V_pfi_ifs, kif);
 		if (kif->pfik_group)
 			kif->pfik_group->ifg_pf_kif = NULL;
-		if (kif->pfik_ifp)
+		if (kif->pfik_ifp) {
+			if_rele(kif->pfik_ifp);
 			kif->pfik_ifp->if_pf_kif = NULL;
+		}
 		free(kif, PFI_MTYPE);
 	}
 
@@ -321,6 +323,8 @@ pfi_attach_ifnet(struct ifnet *ifp)
 	PF_RULES_WLOCK();
 	V_pfi_update++;
 	kif = pfi_kif_attach(kif, ifp->if_xname);
+
+	if_ref(ifp);
 
 	kif->pfik_ifp = ifp;
 	ifp->if_pf_kif = kif;
@@ -848,6 +852,8 @@ pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 	PF_RULES_WLOCK();
 	V_pfi_update++;
 	pfi_kif_update(kif);
+
+	if_rele(kif->pfik_ifp);
 
 	kif->pfik_ifp = NULL;
 	ifp->if_pf_kif = NULL;
