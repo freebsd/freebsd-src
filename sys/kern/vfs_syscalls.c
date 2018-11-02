@@ -298,7 +298,7 @@ sys_statfs(struct thread *td, struct statfs_args *uap)
 }
 
 int
-kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
+kern_statfs(struct thread *td, const char *path, enum uio_seg pathseg,
     struct statfs *buf)
 {
 	struct mount *mp;
@@ -876,7 +876,7 @@ sys_chdir(struct thread *td, struct chdir_args *uap)
 }
 
 int
-kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
+kern_chdir(struct thread *td, const char *path, enum uio_seg pathseg)
 {
 	struct nameidata nd;
 	int error;
@@ -1032,7 +1032,7 @@ sys_openat(struct thread *td, struct openat_args *uap)
 }
 
 int
-kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
+kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
     int flags, int mode)
 {
 	struct proc *p = td->td_proc;
@@ -1229,7 +1229,7 @@ freebsd11_mknodat(struct thread *td,
 #endif /* COMPAT_FREEBSD11 */
 
 int
-kern_mknodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
+kern_mknodat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
     int mode, dev_t dev)
 {
 	struct vnode *vp;
@@ -1358,8 +1358,8 @@ sys_mkfifoat(struct thread *td, struct mkfifoat_args *uap)
 }
 
 int
-kern_mkfifoat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    int mode)
+kern_mkfifoat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, int mode)
 {
 	struct mount *mp;
 	struct vattr vattr;
@@ -1491,8 +1491,8 @@ can_hardlink(struct vnode *vp, struct ucred *cred)
 }
 
 int
-kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
-    enum uio_seg segflg, int follow)
+kern_linkat(struct thread *td, int fd1, int fd2, const char *path1,
+    const char *path2, enum uio_seg segflg, int follow)
 {
 	struct vnode *vp;
 	struct mount *mp;
@@ -1608,21 +1608,23 @@ sys_symlinkat(struct thread *td, struct symlinkat_args *uap)
 }
 
 int
-kern_symlinkat(struct thread *td, char *path1, int fd, char *path2,
+kern_symlinkat(struct thread *td, const char *path1, int fd, const char *path2,
     enum uio_seg segflg)
 {
 	struct mount *mp;
 	struct vattr vattr;
-	char *syspath;
+	const char *syspath;
+	char *tmppath;
 	struct nameidata nd;
 	int error;
 
 	if (segflg == UIO_SYSSPACE) {
 		syspath = path1;
 	} else {
-		syspath = uma_zalloc(namei_zone, M_WAITOK);
-		if ((error = copyinstr(path1, syspath, MAXPATHLEN, NULL)) != 0)
+		tmppath = uma_zalloc(namei_zone, M_WAITOK);
+		if ((error = copyinstr(path1, tmppath, MAXPATHLEN, NULL)) != 0)
 			goto out;
+		syspath = tmppath;
 	}
 	AUDIT_ARG_TEXT(syspath);
 restart:
@@ -1669,7 +1671,7 @@ out2:
 	vn_finished_write(mp);
 out:
 	if (segflg != UIO_SYSSPACE)
-		uma_zfree(namei_zone, syspath);
+		uma_zfree(namei_zone, tmppath);
 	return (error);
 }
 
@@ -1746,7 +1748,7 @@ int
 sys_unlinkat(struct thread *td, struct unlinkat_args *uap)
 {
 	int fd, flag;
-	char *path;
+	const char *path;
 
 	flag = uap->flag;
 	fd = uap->fd;
@@ -1762,8 +1764,8 @@ sys_unlinkat(struct thread *td, struct unlinkat_args *uap)
 }
 
 int
-kern_unlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    int flag, ino_t oldinum)
+kern_unlinkat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, int flag, ino_t oldinum)
 {
 	struct mount *mp;
 	struct vnode *vp;
@@ -1957,8 +1959,8 @@ sys_faccessat(struct thread *td, struct faccessat_args *uap)
 }
 
 int
-kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    int flag, int amode)
+kern_accessat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, int flag, int amode)
 {
 	struct ucred *cred, *usecred;
 	struct vnode *vp;
@@ -2270,7 +2272,7 @@ sys_fstatat(struct thread *td, struct fstatat_args *uap)
 }
 
 int
-kern_statat(struct thread *td, int flag, int fd, char *path,
+kern_statat(struct thread *td, int flag, int fd, const char *path,
     enum uio_seg pathseg, struct stat *sbp,
     void (*hook)(struct vnode *vp, struct stat *sbp))
 {
@@ -2429,8 +2431,8 @@ sys_lpathconf(struct thread *td, struct lpathconf_args *uap)
 }
 
 int
-kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg, int name,
-    u_long flags, long *valuep)
+kern_pathconf(struct thread *td, const char *path, enum uio_seg pathseg,
+    int name, u_long flags, long *valuep)
 {
 	struct nameidata nd;
 	int error;
@@ -2480,8 +2482,8 @@ sys_readlinkat(struct thread *td, struct readlinkat_args *uap)
 }
 
 int
-kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    char *buf, enum uio_seg bufseg, size_t count)
+kern_readlinkat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, char *buf, enum uio_seg bufseg, size_t count)
 {
 	struct vnode *vp;
 	struct iovec aiov;
@@ -2749,8 +2751,8 @@ sys_lchmod(struct thread *td, struct lchmod_args *uap)
 }
 
 int
-kern_fchmodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    mode_t mode, int flag)
+kern_fchmodat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, mode_t mode, int flag)
 {
 	struct nameidata nd;
 	int error, follow;
@@ -2861,8 +2863,8 @@ sys_fchownat(struct thread *td, struct fchownat_args *uap)
 }
 
 int
-kern_fchownat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    int uid, int gid, int flag)
+kern_fchownat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, int uid, int gid, int flag)
 {
 	struct nameidata nd;
 	int error, follow;
@@ -3074,8 +3076,8 @@ sys_futimesat(struct thread *td, struct futimesat_args *uap)
 }
 
 int
-kern_utimesat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    struct timeval *tptr, enum uio_seg tptrseg)
+kern_utimesat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, struct timeval *tptr, enum uio_seg tptrseg)
 {
 	struct nameidata nd;
 	struct timespec ts[2];
@@ -3112,7 +3114,7 @@ sys_lutimes(struct thread *td, struct lutimes_args *uap)
 }
 
 int
-kern_lutimes(struct thread *td, char *path, enum uio_seg pathseg,
+kern_lutimes(struct thread *td, const char *path, enum uio_seg pathseg,
     struct timeval *tptr, enum uio_seg tptrseg)
 {
 	struct timespec ts[2];
@@ -3214,8 +3216,9 @@ sys_utimensat(struct thread *td, struct utimensat_args *uap)
 }
 
 int
-kern_utimensat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    struct timespec *tptr, enum uio_seg tptrseg, int flag)
+kern_utimensat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, struct timespec *tptr, enum uio_seg tptrseg,
+    int flag)
 {
 	struct nameidata nd;
 	struct timespec ts[2];
@@ -3262,7 +3265,8 @@ sys_truncate(struct thread *td, struct truncate_args *uap)
 }
 
 int
-kern_truncate(struct thread *td, char *path, enum uio_seg pathseg, off_t length)
+kern_truncate(struct thread *td, const char *path, enum uio_seg pathseg,
+    off_t length)
 {
 	struct mount *mp;
 	struct vnode *vp;
@@ -3437,8 +3441,8 @@ sys_renameat(struct thread *td, struct renameat_args *uap)
 }
 
 int
-kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
-    enum uio_seg pathseg)
+kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
+    const char *new, enum uio_seg pathseg)
 {
 	struct mount *mp = NULL;
 	struct vnode *tvp, *fvp, *tdvp;
@@ -3599,7 +3603,7 @@ sys_mkdirat(struct thread *td, struct mkdirat_args *uap)
 }
 
 int
-kern_mkdirat(struct thread *td, int fd, char *path, enum uio_seg segflg,
+kern_mkdirat(struct thread *td, int fd, const char *path, enum uio_seg segflg,
     int mode)
 {
 	struct mount *mp;
@@ -3676,7 +3680,7 @@ sys_rmdir(struct thread *td, struct rmdir_args *uap)
 }
 
 int
-kern_rmdirat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
+kern_rmdirat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
     int flag)
 {
 	struct mount *mp;
