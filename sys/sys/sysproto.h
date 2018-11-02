@@ -54,7 +54,7 @@ struct write_args {
 	char nbyte_l_[PADL_(size_t)]; size_t nbyte; char nbyte_r_[PADR_(size_t)];
 };
 struct open_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
@@ -68,24 +68,24 @@ struct wait4_args {
 	char rusage_l_[PADL_(struct rusage *)]; struct rusage * rusage; char rusage_r_[PADR_(struct rusage *)];
 };
 struct link_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
-	char link_l_[PADL_(char *)]; char * link; char link_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+	char link_l_[PADL_(const char *)]; const char * link; char link_r_[PADR_(const char *)];
 };
 struct unlink_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
 struct chdir_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
 struct fchdir_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 };
 struct chmod_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct chown_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char uid_l_[PADL_(int)]; int uid; char uid_r_[PADR_(int)];
 	char gid_l_[PADL_(int)]; int gid; char gid_r_[PADR_(int)];
 };
@@ -96,13 +96,13 @@ struct getpid_args {
 	register_t dummy;
 };
 struct mount_args {
-	char type_l_[PADL_(char *)]; char * type; char type_r_[PADR_(char *)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char type_l_[PADL_(const char *)]; const char * type; char type_r_[PADR_(const char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 	char data_l_[PADL_(caddr_t)]; caddr_t data; char data_r_[PADR_(caddr_t)];
 };
 struct unmount_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct setuid_args {
@@ -154,7 +154,7 @@ struct getsockname_args {
 	char alen_l_[PADL_(__socklen_t *)]; __socklen_t * alen; char alen_r_[PADR_(__socklen_t *)];
 };
 struct access_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char amode_l_[PADL_(int)]; int amode; char amode_r_[PADR_(int)];
 };
 struct chflags_args {
@@ -204,10 +204,10 @@ struct getlogin_args {
 	char namelen_l_[PADL_(u_int)]; u_int namelen; char namelen_r_[PADR_(u_int)];
 };
 struct setlogin_args {
-	char namebuf_l_[PADL_(char *)]; char * namebuf; char namebuf_r_[PADR_(char *)];
+	char namebuf_l_[PADL_(const char *)]; const char * namebuf; char namebuf_r_[PADR_(const char *)];
 };
 struct acct_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
 struct osigpending_args {
 	register_t dummy;
@@ -225,19 +225,19 @@ struct reboot_args {
 	char opt_l_[PADL_(int)]; int opt; char opt_r_[PADR_(int)];
 };
 struct revoke_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
 struct symlink_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
-	char link_l_[PADL_(char *)]; char * link; char link_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+	char link_l_[PADL_(const char *)]; const char * link; char link_r_[PADR_(const char *)];
 };
 struct readlink_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
 	char count_l_[PADL_(size_t)]; size_t count; char count_r_[PADR_(size_t)];
 };
 struct execve_args {
-	char fname_l_[PADL_(char *)]; char * fname; char fname_r_[PADR_(char *)];
+	char fname_l_[PADL_(const char *)]; const char * fname; char fname_r_[PADR_(const char *)];
 	char argv_l_[PADL_(char **)]; char ** argv; char argv_r_[PADR_(char **)];
 	char envv_l_[PADL_(char **)]; char ** envv; char envv_r_[PADR_(char **)];
 };
@@ -245,7 +245,7 @@ struct umask_args {
 	char newmask_l_[PADL_(mode_t)]; mode_t newmask; char newmask_r_[PADR_(mode_t)];
 };
 struct chroot_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
 struct getpagesize_args {
 	register_t dummy;
@@ -307,7 +307,7 @@ struct owait_args {
 	register_t dummy;
 };
 struct swapon_args {
-	char name_l_[PADL_(char *)]; char * name; char name_r_[PADR_(char *)];
+	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
 };
 struct getitimer_args {
 	char which_l_[PADL_(u_int)]; u_int which; char which_r_[PADR_(u_int)];
@@ -417,15 +417,15 @@ struct setregid_args {
 	char egid_l_[PADL_(int)]; int egid; char egid_r_[PADR_(int)];
 };
 struct rename_args {
-	char from_l_[PADL_(char *)]; char * from; char from_r_[PADR_(char *)];
-	char to_l_[PADL_(char *)]; char * to; char to_r_[PADR_(char *)];
+	char from_l_[PADL_(const char *)]; const char * from; char from_r_[PADR_(const char *)];
+	char to_l_[PADL_(const char *)]; const char * to; char to_r_[PADR_(const char *)];
 };
 struct flock_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char how_l_[PADL_(int)]; int how; char how_r_[PADR_(int)];
 };
 struct mkfifo_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct sendto_args {
@@ -447,14 +447,14 @@ struct socketpair_args {
 	char rsv_l_[PADL_(int *)]; int * rsv; char rsv_r_[PADR_(int *)];
 };
 struct mkdir_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct rmdir_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
 struct utimes_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char tptr_l_[PADL_(struct timeval *)]; struct timeval * tptr; char tptr_r_[PADR_(struct timeval *)];
 };
 struct adjtime_args {
@@ -468,7 +468,7 @@ struct setsid_args {
 	register_t dummy;
 };
 struct quotactl_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
 	char uid_l_[PADL_(int)]; int uid; char uid_r_[PADR_(int)];
 	char arg_l_[PADL_(caddr_t)]; caddr_t arg; char arg_r_[PADR_(caddr_t)];
@@ -487,11 +487,11 @@ struct nfssvc_args {
 	char argp_l_[PADL_(caddr_t)]; caddr_t argp; char argp_r_[PADR_(caddr_t)];
 };
 struct lgetfh_args {
-	char fname_l_[PADL_(char *)]; char * fname; char fname_r_[PADR_(char *)];
+	char fname_l_[PADL_(const char *)]; const char * fname; char fname_r_[PADR_(const char *)];
 	char fhp_l_[PADL_(struct fhandle *)]; struct fhandle * fhp; char fhp_r_[PADR_(struct fhandle *)];
 };
 struct getfh_args {
-	char fname_l_[PADL_(char *)]; char * fname; char fname_r_[PADR_(char *)];
+	char fname_l_[PADL_(const char *)]; const char * fname; char fname_r_[PADR_(const char *)];
 	char fhp_l_[PADL_(struct fhandle *)]; struct fhandle * fhp; char fhp_r_[PADR_(struct fhandle *)];
 };
 struct sysarch_args {
@@ -540,7 +540,7 @@ struct seteuid_args {
 	char euid_l_[PADL_(uid_t)]; uid_t euid; char euid_r_[PADR_(uid_t)];
 };
 struct pathconf_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char name_l_[PADL_(int)]; int name; char name_r_[PADR_(int)];
 };
 struct fpathconf_args {
@@ -572,7 +572,7 @@ struct munlock_args {
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
 };
 struct undelete_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
 struct futimes_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
@@ -698,7 +698,7 @@ struct issetugid_args {
 	register_t dummy;
 };
 struct lchown_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char uid_l_[PADL_(int)]; int uid; char uid_r_[PADR_(int)];
 	char gid_l_[PADL_(int)]; int gid; char gid_r_[PADR_(int)];
 };
@@ -715,11 +715,11 @@ struct lio_listio_args {
 	char sig_l_[PADL_(struct sigevent *)]; struct sigevent * sig; char sig_r_[PADR_(struct sigevent *)];
 };
 struct lchmod_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct lutimes_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char tptr_l_[PADL_(struct timeval *)]; struct timeval * tptr; char tptr_r_[PADR_(struct timeval *)];
 };
 struct preadv_args {
@@ -983,7 +983,7 @@ struct __setugid_args {
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 };
 struct eaccess_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char amode_l_[PADL_(int)]; int amode; char amode_r_[PADR_(int)];
 };
 struct afs3_syscall_args {
@@ -1115,7 +1115,7 @@ struct extattr_delete_link_args {
 	char attrname_l_[PADL_(const char *)]; const char * attrname; char attrname_r_[PADR_(const char *)];
 };
 struct __mac_execve_args {
-	char fname_l_[PADL_(char *)]; char * fname; char fname_r_[PADR_(char *)];
+	char fname_l_[PADL_(const char *)]; const char * fname; char fname_r_[PADR_(const char *)];
 	char argv_l_[PADL_(char **)]; char ** argv; char argv_r_[PADR_(char **)];
 	char envv_l_[PADL_(char **)]; char ** envv; char envv_r_[PADR_(char **)];
 	char mac_p_l_[PADL_(struct mac *)]; struct mac * mac_p; char mac_p_r_[PADR_(struct mac *)];
@@ -1244,7 +1244,7 @@ struct setaudit_addr_args {
 	char length_l_[PADL_(u_int)]; u_int length; char length_r_[PADR_(u_int)];
 };
 struct auditctl_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
 struct _umtx_op_args {
 	char obj_l_[PADL_(void *)]; void * obj; char obj_r_[PADR_(void *)];
@@ -1369,7 +1369,7 @@ struct lseek_args {
 	char whence_l_[PADL_(int)]; int whence; char whence_r_[PADR_(int)];
 };
 struct truncate_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char length_l_[PADL_(off_t)]; off_t length; char length_r_[PADR_(off_t)];
 };
 struct ftruncate_args {
@@ -1419,19 +1419,19 @@ struct cpuset_setaffinity_args {
 };
 struct faccessat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char amode_l_[PADL_(int)]; int amode; char amode_r_[PADR_(int)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 };
 struct fchmodat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 };
 struct fchownat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char uid_l_[PADL_(uid_t)]; uid_t uid; char uid_r_[PADR_(uid_t)];
 	char gid_l_[PADL_(gid_t)]; gid_t gid; char gid_r_[PADR_(gid_t)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
@@ -1443,59 +1443,59 @@ struct fexecve_args {
 };
 struct futimesat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char times_l_[PADL_(struct timeval *)]; struct timeval * times; char times_r_[PADR_(struct timeval *)];
 };
 struct linkat_args {
 	char fd1_l_[PADL_(int)]; int fd1; char fd1_r_[PADR_(int)];
-	char path1_l_[PADL_(char *)]; char * path1; char path1_r_[PADR_(char *)];
+	char path1_l_[PADL_(const char *)]; const char * path1; char path1_r_[PADR_(const char *)];
 	char fd2_l_[PADL_(int)]; int fd2; char fd2_r_[PADR_(int)];
-	char path2_l_[PADL_(char *)]; char * path2; char path2_r_[PADR_(char *)];
+	char path2_l_[PADL_(const char *)]; const char * path2; char path2_r_[PADR_(const char *)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 };
 struct mkdirat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct mkfifoat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct openat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 };
 struct readlinkat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
 	char bufsize_l_[PADL_(size_t)]; size_t bufsize; char bufsize_r_[PADR_(size_t)];
 };
 struct renameat_args {
 	char oldfd_l_[PADL_(int)]; int oldfd; char oldfd_r_[PADR_(int)];
-	char old_l_[PADL_(char *)]; char * old; char old_r_[PADR_(char *)];
+	char old_l_[PADL_(const char *)]; const char * old; char old_r_[PADR_(const char *)];
 	char newfd_l_[PADL_(int)]; int newfd; char newfd_r_[PADR_(int)];
-	char new_l_[PADL_(char *)]; char * new; char new_r_[PADR_(char *)];
+	char new_l_[PADL_(const char *)]; const char * new; char new_r_[PADR_(const char *)];
 };
 struct symlinkat_args {
-	char path1_l_[PADL_(char *)]; char * path1; char path1_r_[PADR_(char *)];
+	char path1_l_[PADL_(const char *)]; const char * path1; char path1_r_[PADR_(const char *)];
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path2_l_[PADL_(char *)]; char * path2; char path2_r_[PADR_(char *)];
+	char path2_l_[PADL_(const char *)]; const char * path2; char path2_r_[PADR_(const char *)];
 };
 struct unlinkat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 };
 struct posix_openpt_args {
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct gssd_syscall_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
 struct jail_get_args {
 	char iovp_l_[PADL_(struct iovec *)]; struct iovec * iovp; char iovp_r_[PADR_(struct iovec *)];
@@ -1530,7 +1530,7 @@ struct shmctl_args {
 	char buf_l_[PADL_(struct shmid_ds *)]; struct shmid_ds * buf; char buf_r_[PADR_(struct shmid_ds *)];
 };
 struct lpathconf_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char name_l_[PADL_(int)]; int name; char name_r_[PADR_(int)];
 };
 struct __cap_rights_get_args {
@@ -1691,7 +1691,7 @@ struct futimens_args {
 };
 struct utimensat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char times_l_[PADL_(struct timespec *)]; struct timespec * times; char times_r_[PADR_(struct timespec *)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 };
@@ -1704,7 +1704,7 @@ struct fstat_args {
 };
 struct fstatat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char buf_l_[PADL_(struct stat *)]; struct stat * buf; char buf_r_[PADR_(struct stat *)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 };
@@ -1719,7 +1719,7 @@ struct getdirentries_args {
 	char basep_l_[PADL_(off_t *)]; off_t * basep; char basep_r_[PADR_(off_t *)];
 };
 struct statfs_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char buf_l_[PADL_(struct statfs *)]; struct statfs * buf; char buf_r_[PADR_(struct statfs *)];
 };
 struct fstatfs_args {
@@ -1737,7 +1737,7 @@ struct fhstatfs_args {
 };
 struct mknodat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 	char dev_l_[PADL_(dev_t)]; dev_t dev; char dev_r_[PADR_(dev_t)];
 };
@@ -2154,7 +2154,7 @@ int	sys_getrandom(struct thread *, struct getrandom_args *);
 #ifdef COMPAT_43
 
 struct ocreat_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
 };
 struct olseek_args {
@@ -2163,11 +2163,11 @@ struct olseek_args {
 	char whence_l_[PADL_(int)]; int whence; char whence_r_[PADR_(int)];
 };
 struct ostat_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char ub_l_[PADL_(struct ostat *)]; struct ostat * ub; char ub_r_[PADR_(struct ostat *)];
 };
 struct olstat_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char ub_l_[PADL_(struct ostat *)]; struct ostat * ub; char ub_r_[PADR_(struct ostat *)];
 };
 struct osigaction_args {
@@ -2249,7 +2249,7 @@ struct osendmsg_args {
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
 struct otruncate_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char length_l_[PADL_(long)]; long length; char length_r_[PADR_(long)];
 };
 struct oftruncate_args {
@@ -2331,7 +2331,7 @@ struct freebsd4_getfsstat_args {
 	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
 };
 struct freebsd4_statfs_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char buf_l_[PADL_(struct ostatfs *)]; struct ostatfs * buf; char buf_r_[PADR_(struct ostatfs *)];
 };
 struct freebsd4_fstatfs_args {
@@ -2416,7 +2416,7 @@ struct freebsd6_lseek_args {
 	char whence_l_[PADL_(int)]; int whence; char whence_r_[PADR_(int)];
 };
 struct freebsd6_truncate_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char pad_l_[PADL_(int)]; int pad; char pad_r_[PADR_(int)];
 	char length_l_[PADL_(off_t)]; off_t length; char length_r_[PADR_(off_t)];
 };
@@ -2485,7 +2485,7 @@ int	freebsd10_pipe(struct thread *, struct freebsd10_pipe_args *);
 #ifdef COMPAT_FREEBSD11
 
 struct freebsd11_mknod_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
 	char dev_l_[PADL_(int)]; int dev; char dev_r_[PADR_(int)];
 };
@@ -2493,7 +2493,7 @@ struct freebsd11_vadvise_args {
 	char anom_l_[PADL_(int)]; int anom; char anom_r_[PADR_(int)];
 };
 struct freebsd11_stat_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char ub_l_[PADL_(struct freebsd11_stat *)]; struct freebsd11_stat * ub; char ub_r_[PADR_(struct freebsd11_stat *)];
 };
 struct freebsd11_fstat_args {
@@ -2501,7 +2501,7 @@ struct freebsd11_fstat_args {
 	char sb_l_[PADL_(struct freebsd11_stat *)]; struct freebsd11_stat * sb; char sb_r_[PADR_(struct freebsd11_stat *)];
 };
 struct freebsd11_lstat_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char ub_l_[PADL_(struct freebsd11_stat *)]; struct freebsd11_stat * ub; char ub_r_[PADR_(struct freebsd11_stat *)];
 };
 struct freebsd11_getdirentries_args {
@@ -2516,7 +2516,7 @@ struct freebsd11_getdents_args {
 	char count_l_[PADL_(size_t)]; size_t count; char count_r_[PADR_(size_t)];
 };
 struct freebsd11_nstat_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char ub_l_[PADL_(struct nstat *)]; struct nstat * ub; char ub_r_[PADR_(struct nstat *)];
 };
 struct freebsd11_nfstat_args {
@@ -2524,7 +2524,7 @@ struct freebsd11_nfstat_args {
 	char sb_l_[PADL_(struct nstat *)]; struct nstat * sb; char sb_r_[PADR_(struct nstat *)];
 };
 struct freebsd11_nlstat_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char ub_l_[PADL_(struct nstat *)]; struct nstat * ub; char ub_r_[PADR_(struct nstat *)];
 };
 struct freebsd11_fhstat_args {
@@ -2545,7 +2545,7 @@ struct freebsd11_getfsstat_args {
 	char mode_l_[PADL_(int)]; int mode; char mode_r_[PADR_(int)];
 };
 struct freebsd11_statfs_args {
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char buf_l_[PADL_(struct freebsd11_statfs *)]; struct freebsd11_statfs * buf; char buf_r_[PADR_(struct freebsd11_statfs *)];
 };
 struct freebsd11_fstatfs_args {
@@ -2558,13 +2558,13 @@ struct freebsd11_fhstatfs_args {
 };
 struct freebsd11_fstatat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char buf_l_[PADL_(struct freebsd11_stat *)]; struct freebsd11_stat * buf; char buf_r_[PADR_(struct freebsd11_stat *)];
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 };
 struct freebsd11_mknodat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 	char dev_l_[PADL_(uint32_t)]; uint32_t dev; char dev_r_[PADR_(uint32_t)];
 };
