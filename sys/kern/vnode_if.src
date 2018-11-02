@@ -325,7 +325,7 @@ vop_symlink {
 	OUT struct vnode **vpp;
 	IN struct componentname *cnp;
 	IN struct vattr *vap;
-	IN char *target;
+	IN const char *target;
 };
 
 

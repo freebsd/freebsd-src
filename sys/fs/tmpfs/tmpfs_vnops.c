@@ -1176,7 +1176,7 @@ tmpfs_symlink(struct vop_symlink_args *v)
 	struct vnode **vpp = v->a_vpp;
 	struct componentname *cnp = v->a_cnp;
 	struct vattr *vap = v->a_vap;
-	char *target = v->a_target;
+	const char *target = v->a_target;
 
 #ifdef notyet /* XXX FreeBSD BUG: kern_symlink is not setting VLNK */
 	MPASS(vap->va_type == VLNK);
