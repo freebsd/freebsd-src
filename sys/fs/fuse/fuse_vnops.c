@@ -1708,7 +1708,7 @@ fuse_vnop_symlink(struct vop_symlink_args *ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
-	char *target = ap->a_target;
+	const char *target = ap->a_target;
 
 	struct fuse_dispatcher fdi;
 
