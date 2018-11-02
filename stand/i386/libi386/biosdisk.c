@@ -418,6 +418,9 @@ bd_print(int verbose)
 		if ((ret = pager_output(line)) != 0)
 			break;
 
+		if ((bdinfo[i].bd_flags & BD_NO_MEDIA) == BD_NO_MEDIA)
+			continue;
+
 		dev.dd.d_dev = &biosdisk;
 		dev.dd.d_unit = i;
 		dev.d_slice = -1;
@@ -463,6 +466,8 @@ bd_open(struct open_file *f, ...)
 
 	if ((BD(dev).bd_flags & BD_NO_MEDIA) == BD_NO_MEDIA) {
 		if (!bd_int13probe(&BD(dev)))
+			return (EIO);
+		if ((BD(dev).bd_flags & BD_NO_MEDIA) == BD_NO_MEDIA)
 			return (EIO);
 	}
 	BD(dev).bd_open++;
@@ -568,6 +573,9 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	size_t blks, blkoff, bsize, rest;
 	caddr_t bbuf;
 	int rc;
+
+	if ((BD(dev).bd_flags & BD_NO_MEDIA) == BD_NO_MEDIA)
+		return (EIO);
 
 	/*
 	 * First make sure the IO size is a multiple of 512 bytes. While we do
