@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 9, 2018
+.Dd October 31, 2018
 .Dt CLI.LUA 8
 .Os
 .Sh NAME
@@ -80,10 +80,11 @@ Arguments may be passed to it as usual, space-delimited.
 As of present, the
 .Nm
 module by default provides commands for
-.Ic autoboot
+.Ic autoboot ,
+.Ic boot ,
 and
-.Ic boot .
-In both cases, the
+.Ic boot-conf.
+In all three cases, the
 .Xr core.lua 8
 module will load all ELF modules as-needed before executing the equivalent
 built-in loader commands.
