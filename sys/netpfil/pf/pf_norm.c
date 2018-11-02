@@ -87,7 +87,10 @@ struct pf_fragment {
 #define fr_af	fr_key.frc_af
 #define fr_proto	fr_key.frc_proto
 
+	/* pointers to queue element */
 	struct pf_frent	*fr_firstoff[PF_FRAG_ENTRY_POINTS];
+	/* count entries between pointers */
+	uint8_t	fr_entries[PF_FRAG_ENTRY_POINTS];
 	RB_ENTRY(pf_fragment) fr_entry;
 	TAILQ_ENTRY(pf_fragment) frag_next;
 	uint32_t	fr_timeout;
@@ -138,7 +141,7 @@ static int	pf_frent_holes(struct pf_frent *frent);
 static struct pf_fragment *pf_find_fragment(struct pf_fragment_cmp *key,
 		    struct pf_frag_tree *tree);
 static inline int	pf_frent_index(struct pf_frent *);
-static void	pf_frent_insert(struct pf_fragment *,
+static int	pf_frent_insert(struct pf_fragment *,
 			    struct pf_frent *, struct pf_frent *);
 void			pf_frent_remove(struct pf_fragment *,
 			    struct pf_frent *);
@@ -392,11 +395,23 @@ pf_frent_index(struct pf_frent *frent)
 	return frent->fe_off / (0x10000 / PF_FRAG_ENTRY_POINTS);
 }
 
-static void
+static int
 pf_frent_insert(struct pf_fragment *frag, struct pf_frent *frent,
     struct pf_frent *prev)
 {
 	int index;
+
+	CTASSERT(PF_FRAG_ENTRY_LIMIT <= 0xff);
+
+	/*
+	 * A packet has at most 65536 octets.  With 16 entry points, each one
+	 * spawns 4096 octets.  We limit these to 64 fragments each, which
+	 * means on average every fragment must have at least 64 octets.
+	 */
+	index = pf_frent_index(frent);
+	if (frag->fr_entries[index] >= PF_FRAG_ENTRY_LIMIT)
+		return ENOBUFS;
+	frag->fr_entries[index]++;
 
 	if (prev == NULL) {
 		TAILQ_INSERT_HEAD(&frag->fr_queue, frent, fr_next);
@@ -406,7 +421,6 @@ pf_frent_insert(struct pf_fragment *frag, struct pf_frent *frent,
 		TAILQ_INSERT_AFTER(&frag->fr_queue, prev, frent, fr_next);
 	}
 
-	index = pf_frent_index(frent);
 	if (frag->fr_firstoff[index] == NULL) {
 		KASSERT(prev == NULL || pf_frent_index(prev) < index,
 		    ("prev == NULL || pf_frent_index(pref) < index"));
@@ -424,6 +438,8 @@ pf_frent_insert(struct pf_fragment *frag, struct pf_frent *frent,
 	}
 
 	frag->fr_holes += pf_frent_holes(frent);
+
+	return 0;
 }
 
 void
@@ -460,6 +476,9 @@ pf_frent_remove(struct pf_fragment *frag, struct pf_frent *frent)
 	}
 
 	TAILQ_REMOVE(&frag->fr_queue, frent, fr_next);
+
+	KASSERT(frag->fr_entries[index] > 0, ("No fragments remaining"));
+	frag->fr_entries[index]--;
 }
 
 struct pf_frent *
@@ -567,6 +586,7 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 
 		*(struct pf_fragment_cmp *)frag = *key;
 		memset(frag->fr_firstoff, 0, sizeof(frag->fr_firstoff));
+		memset(frag->fr_entries, 0, sizeof(frag->fr_entries));
 		frag->fr_timeout = time_uptime;
 		frag->fr_maxlen = frent->fe_len;
 		frag->fr_holes = 1;
@@ -575,7 +595,7 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		RB_INSERT(pf_frag_tree, &V_pf_frag_tree, frag);
 		TAILQ_INSERT_HEAD(&V_pf_fragqueue, frag, frag_next);
 
-		/* We do not have a previous fragment. */
+		/* We do not have a previous fragment, cannot fail. */
 		pf_frent_insert(frag, frent, NULL);
 
 		return (frag);
@@ -646,7 +666,11 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		uma_zfree(V_pf_frent_z, after);
 	}
 
-	pf_frent_insert(frag, frent, prev);
+	/* If part of the queue gets too long, there is not way to recover. */
+	if (pf_frent_insert(frag, frent, prev)) {
+		DPFPRINTF(("fragment queue limit exceeded"));
+		goto bad_fragment;
+	}
 
 	return (frag);
 
