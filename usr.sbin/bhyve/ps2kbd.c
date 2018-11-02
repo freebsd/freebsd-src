@@ -319,7 +319,6 @@ ps2kbd_keysym_queue(struct ps2kbd_softc *sc,
 	const struct extended_translation *trans;
 
 	found = 0;
-	printf("keysym 0x%x\n", keysym);
 	if (keysym < 0x80) {
 		code = ascii_translations[keysym];
 		e0_prefix = 0;
