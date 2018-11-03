@@ -143,8 +143,6 @@ fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av, int cblen)
        uint8_t type;
 
        CHECK_LENGTH(cblen, F_INSN_SIZE(ipfw_insn_icmp6));
-
-       bzero(cmd, sizeof(*cmd));
        while (*av) {
 	       if (*av == ',')
 		       av++;
