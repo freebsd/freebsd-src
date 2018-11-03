@@ -8,6 +8,8 @@
 # Modified by John Marino to suit DragonFly needs
 #
 
+.OBJDIR:	.
+
 .if !defined(CLDRDIR)
 CLDRDIR!=	grep ^cldr etc/unicode.conf | cut -f 2 -d " "
 .endif
