@@ -150,7 +150,8 @@ epoch_ctor(epoch_t epoch)
 	CPU_FOREACH(cpu) {
 		er = zpcpu_get_cpu(epoch->e_pcpu_record, cpu);
 		bzero(er, sizeof(*er));
-		ck_epoch_register(&epoch->e_epoch, &er->er_record, NULL);
+		ck_epoch_register(&epoch->e_epoch, &er->er_read_record, NULL);
+		ck_epoch_register(&epoch->e_epoch, &er->er_write_record, NULL);
 		TAILQ_INIT((struct threadlist *)(uintptr_t)&er->er_tdlist);
 		er->er_cpuid = cpu;
 	}
@@ -235,7 +236,7 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused, ck_epoch_record_t 
 	int spincount, gen;
 	int locksheld __unused;
 
-	record = __containerof(cr, struct epoch_record, er_record);
+	record = __containerof(cr, struct epoch_record, er_read_record);
 	td = curthread;
 	locksheld = td->td_locks;
 	spincount = 0;
@@ -461,7 +462,7 @@ epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t
 	critical_enter();
 	*DPCPU_PTR(epoch_cb_count) += 1;
 	er = epoch_currecord(epoch);
-	ck_epoch_call(&er->er_record, cb, (ck_epoch_cb_t *)callback);
+	ck_epoch_call(&er->er_write_record, cb, (ck_epoch_cb_t *)callback);
 	critical_exit();
 	return;
 boottime:
@@ -485,7 +486,7 @@ epoch_call_task(void *arg __unused)
 		if (__predict_false((epoch = allepochs[i]) == NULL))
 			continue;
 		er = epoch_currecord(epoch);
-		record = &er->er_record;
+		record = &er->er_write_record;
 		if ((npending = record->n_pending) == 0)
 			continue;
 		ck_epoch_poll_deferred(record, &cb_stack);
