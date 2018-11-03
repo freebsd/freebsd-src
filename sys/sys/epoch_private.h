@@ -89,7 +89,8 @@ typedef struct epoch_thread {
 TAILQ_HEAD (epoch_tdlist, epoch_thread);
 
 typedef struct epoch_record {
-	ck_epoch_record_t er_record;
+	ck_epoch_record_t er_read_record;
+	ck_epoch_record_t er_write_record;
 	volatile struct epoch_tdlist er_tdlist;
 	volatile uint32_t er_gen;
 	uint32_t er_cpuid;
@@ -138,7 +139,7 @@ epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
 	td->td_pre_epoch_prio = td->td_priority;
 	er = epoch_currecord(epoch);
 	TAILQ_INSERT_TAIL(&er->er_tdlist, etd, et_link);
-	ck_epoch_begin(&er->er_record, (ck_epoch_section_t *)&etd->et_section);
+	ck_epoch_begin(&er->er_read_record, (ck_epoch_section_t *)&etd->et_section);
 	critical_exit_sa(td);
 }
 
@@ -155,7 +156,7 @@ epoch_enter(epoch_t epoch)
 	td->td_epochnest++;
 	critical_enter_sa(td);
 	er = epoch_currecord(epoch);
-	ck_epoch_begin(&er->er_record, NULL);
+	ck_epoch_begin(&er->er_read_record, NULL);
 }
 
 static __inline void
@@ -183,7 +184,7 @@ epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
 	etd->et_magic_post = 0;
 #endif
 	etd->et_td = (void*)0xDEADBEEF;
-	ck_epoch_end(&er->er_record,
+	ck_epoch_end(&er->er_read_record,
 		(ck_epoch_section_t *)&etd->et_section);
 	TAILQ_REMOVE(&er->er_tdlist, etd, et_link);
 	er->er_gen++;
@@ -203,7 +204,7 @@ epoch_exit(epoch_t epoch)
 	MPASS(td->td_epochnest);
 	td->td_epochnest--;
 	er = epoch_currecord(epoch);
-	ck_epoch_end(&er->er_record, NULL);
+	ck_epoch_end(&er->er_read_record, NULL);
 	critical_exit_sa(td);
 }
 #endif /* _KERNEL */
