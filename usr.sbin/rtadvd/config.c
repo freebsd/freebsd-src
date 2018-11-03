@@ -438,7 +438,7 @@ getconfig(struct ifinfo *ifi)
 			val |= ND_RA_FLAG_RTPREF_LOW;
 		}
 #ifdef DRAFT_IETF_6MAN_IPV6ONLY_FLAG
-		if (strchr(flagstr, '6'))
+		if (strchr(flagstr, 'S'))
 			val |= ND_RA_FLAG_IPV6_ONLY;
 #endif
 	} else
