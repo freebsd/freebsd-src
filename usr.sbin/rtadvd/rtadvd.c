@@ -1161,11 +1161,11 @@ ra_input(int len, struct nd_router_advert *nra,
 		inconsistent++;
 	}
 #ifdef DRAFT_IETF_6MAN_IPV6ONLY_FLAG
-	/* 6 flag */
+	/* S "IPv6-Only" (Six, Silence-IPv4) flag */
 	if ((nra->nd_ra_flags_reserved & ND_RA_FLAG_IPV6_ONLY) !=
 	    rai->rai_ipv6onlyflg) {
 		syslog(LOG_NOTICE,
-		    "6 flag inconsistent on %s:"
+		    "S flag inconsistent on %s:"
 		    " %s from %s, %s from us",
 		    ifi->ifi_ifname, on_off[!rai->rai_ipv6onlyflg],
 		    inet_ntop(AF_INET6, &from->sin6_addr, ntopbuf,
