@@ -272,17 +272,24 @@ label:
 		case 'k':
 		case 'l':
 			/*
-			 * Of these, %l is the only specifier explicitly
-			 * documented as not being zero-padded.  However,
-			 * there is no harm in allowing zero-padding.
+			 * %k and %l specifiers are documented as being
+			 * blank-padded.  However, there is no harm in
+			 * allowing zero-padding.
 			 *
-			 * XXX The %l specifier may gobble one too many
+			 * XXX %k and %l specifiers may gobble one too many
 			 * digits if used incorrectly.
 			 */
+
+			len = 2;
+			if ((c == 'k' || c == 'l') &&
+			    isblank_l((unsigned char)*buf, locale)) {
+				buf++;
+				len = 1;
+			}
+
 			if (!isdigit_l((unsigned char)*buf, locale))
 				return (NULL);
 
-			len = 2;
 			for (i = 0; len && *buf != 0 &&
 			     isdigit_l((unsigned char)*buf, locale); buf++) {
 				i *= 10;
