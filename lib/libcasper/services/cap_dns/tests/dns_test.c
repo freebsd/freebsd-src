@@ -393,7 +393,8 @@ main(void)
 	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
 
 	CHECK(runtest(capdns) ==
-	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETHOSTBYNAME2_AF_INET6));
+	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETHOSTBYNAME2_AF_INET6 |
+	    GETADDRINFO_AF_INET | GETADDRINFO_AF_INET6));
 
 	cap_close(capdns);
 
@@ -419,9 +420,7 @@ main(void)
 	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
 
 	CHECK(runtest(capdns) ==
-	    (GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6 |
-	    GETADDRINFO_AF_INET | GETADDRINFO_AF_INET6));
-
+	    (GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6));
 	cap_close(capdns);
 
 	/*
@@ -512,7 +511,8 @@ main(void)
 	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 
-	CHECK(runtest(capdns) == (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET));
+	CHECK(runtest(capdns) ==
+	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETADDRINFO_AF_INET));
 
 	cap_close(capdns);
 
@@ -548,7 +548,8 @@ main(void)
 	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 
-	CHECK(runtest(capdns) == GETHOSTBYNAME2_AF_INET6);
+	CHECK(runtest(capdns) ==
+	    (GETHOSTBYNAME2_AF_INET6 | GETADDRINFO_AF_INET6));
 
 	cap_close(capdns);
 
@@ -584,7 +585,7 @@ main(void)
 	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 
-	CHECK(runtest(capdns) == (GETHOSTBYADDR_AF_INET | GETADDRINFO_AF_INET));
+	CHECK(runtest(capdns) == GETHOSTBYADDR_AF_INET);
 
 	cap_close(capdns);
 
@@ -620,8 +621,7 @@ main(void)
 	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
 	    errno == ENOTCAPABLE);
 
-	CHECK(runtest(capdns) == (GETHOSTBYADDR_AF_INET6 |
-	    GETADDRINFO_AF_INET6));
+	CHECK(runtest(capdns) == GETHOSTBYADDR_AF_INET6);
 
 	cap_close(capdns);
 
@@ -657,7 +657,8 @@ main(void)
 	    errno == ENOTCAPABLE);
 
 	/* Do the limits still hold? */
-	CHECK(runtest(capdns) == (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET));
+	CHECK(runtest(capdns) == (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET |
+	    GETADDRINFO_AF_INET));
 
 	cap_close(capdns);
 
@@ -691,8 +692,7 @@ main(void)
 	    errno == ENOTCAPABLE);
 
 	/* Do the limits still hold? */
-	CHECK(runtest(capdns) == (GETHOSTBYADDR_AF_INET6 |
-	    GETADDRINFO_AF_INET6));
+	CHECK(runtest(capdns) == GETHOSTBYADDR_AF_INET6);
 
 	cap_close(capdns);
 
