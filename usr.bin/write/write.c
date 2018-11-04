@@ -97,7 +97,7 @@ main(int argc, char **argv)
 		err(1, "open(/dev)");
 	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_IOCTL, CAP_LOOKUP,
 	    CAP_PWRITE);
-	if (cap_rights_limit(devfd, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(devfd, &rights) < 0)
 		err(1, "can't limit devfd rights");
 
 	/*
@@ -106,15 +106,15 @@ main(int argc, char **argv)
 	 */
 	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_IOCTL, CAP_READ,
 	    CAP_WRITE);
-	if ((cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS) ||
-	    (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS) ||
-	    (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS) ||
-	    (cap_ioctls_limit(STDIN_FILENO, cmds, nitems(cmds)) < 0 && errno != ENOSYS) ||
-	    (cap_ioctls_limit(STDOUT_FILENO, cmds, nitems(cmds)) < 0 && errno != ENOSYS) ||
-	    (cap_ioctls_limit(STDERR_FILENO, cmds, nitems(cmds)) < 0 && errno != ENOSYS) ||
-	    (cap_fcntls_limit(STDIN_FILENO, CAP_FCNTL_GETFL) < 0 && errno != ENOSYS) ||
-	    (cap_fcntls_limit(STDOUT_FILENO, CAP_FCNTL_GETFL) < 0 && errno != ENOSYS) ||
-	    (cap_fcntls_limit(STDERR_FILENO, CAP_FCNTL_GETFL) < 0 && errno != ENOSYS))
+	if (caph_rights_limit(STDIN_FILENO, &rights) < 0 ||
+	    caph_rights_limit(STDOUT_FILENO, &rights) < 0 ||
+	    caph_rights_limit(STDERR_FILENO, &rights) < 0 ||
+	    caph_ioctls_limit(STDIN_FILENO, cmds, nitems(cmds)) < 0 ||
+	    caph_ioctls_limit(STDOUT_FILENO, cmds, nitems(cmds)) < 0 ||
+	    caph_ioctls_limit(STDERR_FILENO, cmds, nitems(cmds)) < 0 ||
+	    caph_fcntls_limit(STDIN_FILENO, CAP_FCNTL_GETFL) < 0 ||
+	    caph_fcntls_limit(STDOUT_FILENO, CAP_FCNTL_GETFL) < 0 ||
+	    caph_fcntls_limit(STDERR_FILENO, CAP_FCNTL_GETFL) < 0)
 		err(1, "can't limit stdio rights");
 
 	caph_cache_catpages();
