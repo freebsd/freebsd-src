@@ -511,6 +511,27 @@ ipfw add 10 skipto 4000 all from any to any layer2 out
 .Pp
 (yes, at the moment there is no way to differentiate between
 ether_demux and bdg_forward).
+.Pp
+Also note that only actions
+.Cm allow,
+.Cm deny,
+.Cm netgraph,
+.Cm ngtee
+and related to
+.Cm dummynet
+are processed for
+.Cm layer2
+frames and all other actions act as if they were
+.Cm allow
+for such frames.
+Full set of actions is supported for IP packets without
+.Cm layer2
+headers only.
+For example,
+.Cm divert
+action does not divert
+.Cm layer2
+frames.
 .Sh SYNTAX
 In general, each keyword or argument must be provided as
 a separate command line argument, with no leading or trailing
