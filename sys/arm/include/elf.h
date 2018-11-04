@@ -84,7 +84,7 @@ __ElfType(Auxinfo);
  */
 #define	MAGIC_TRAMP_NUMBER	0x5c000003
 
-#define	ET_DYN_LOAD_ADDR	0x12000
+#define	ET_DYN_LOAD_ADDR	0x500000
 
 /* Flags passed in AT_HWCAP. */
 #define	HWCAP_SWP		0x00000001	/* Unsupported, never set.    */
