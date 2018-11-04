@@ -557,7 +557,7 @@ main(int ac, char **av)
 			if ((out = fopen(optarg, "w")) == NULL)
 				err(1, "%s", optarg);
 			cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
-			if (cap_rights_limit(fileno(out), &rights) < 0 && errno != ENOSYS)
+			if (caph_rights_limit(fileno(out), &rights) < 0)
 				err(1, "unable to limit rights for %s", optarg);
 			break;
 		case '?':
@@ -572,10 +572,10 @@ main(int ac, char **av)
 	    fstat(fd, &sb) < 0)
 		err(1, "%s", *av);
 	cap_rights_init(&rights, CAP_MMAP_R);
-	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(fd, &rights) < 0)
 		err(1, "unable to limit rights for %s", *av);
 	cap_rights_init(&rights);
-	if ((cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS) ||
+	if (caph_rights_limit(STDIN_FILENO, &rights) < 0 ||
 	    caph_limit_stdout() < 0 || caph_limit_stderr() < 0) {
                 err(1, "unable to limit rights for stdio");
 	}

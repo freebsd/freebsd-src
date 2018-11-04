@@ -245,10 +245,10 @@ main(int argc, char **argv)
 
     /* Restrict input/output descriptors and enter Capsicum sandbox. */
     cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
-    if (cap_rights_limit(fileno(output), &rights) < 0 && errno != ENOSYS)
+    if (caph_rights_limit(fileno(output), &rights) < 0)
 	err(EXIT_FAILURE, "unable to limit rights for %s", out_name);
     cap_rights_init(&rights, CAP_FSTAT, CAP_READ);
-    if (cap_rights_limit(fileno(input), &rights) < 0 && errno != ENOSYS)
+    if (caph_rights_limit(fileno(input), &rights) < 0)
 	err(EXIT_FAILURE, "unable to limit rights for %s", in_name);
     if (caph_enter() < 0)
 	err(EXIT_FAILURE, "unable to enter capability mode");
