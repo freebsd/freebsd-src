@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2008
+.Dd November 4, 2018
 .Dt CSQRT 3
 .Os
 .Sh NAME
@@ -78,7 +78,7 @@ k + \*(Na*I	\*(Na + \*(Na*I	\&
 .Pp
 For numbers with negative imaginary parts, the above special cases
 apply given the identity:
-.Dl csqrt(conj(z) = conj(sqrt(z))
+.Dl csqrt(conj(z)) = conj(csqrt(z))
 Note that the sign of \*(Na is indeterminate.
 Also, if the real or imaginary part of the input is finite and
 an \*(Na is generated, an invalid exception will be thrown.
