@@ -4,6 +4,8 @@
 .include <src.opts.mk>
 
 FILESGROUPS=	FILES
+NLS_ALIASES=	POSIX C \
+		en_US.US_ASCII C
 
 # No need as it is empty and just causes rebuilds since this file does so much.
 UPDATE_DEPENDFILE=	no
@@ -182,11 +184,9 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 .endfor
 .endif
 .if ${MK_NLS} != "no"
-	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
-	while [ $$# -gt 0 ] ; do \
-		${INSTALL_SYMLINK} "$$2" "${DESTDIR}${SHAREDIR}/nls/$$1"; \
-		shift; shift; \
-	done
+.for alias nls in ${NLS_ALIASES}
+	${INSTALL_SYMLINK} "${nls}" "${DESTDIR}${SHAREDIR}/nls/${alias}"
+.endfor
 .endif
 
 etc-examples: ${META_DEPS}
