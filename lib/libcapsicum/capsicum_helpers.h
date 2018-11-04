@@ -160,7 +160,7 @@ static __inline int
 caph_fcntls_limit(int fd, uint32_t fcntlrights)
 {
 
-	if (caph_fcntls_limit(fd, fcntlrights) < 0 && errno != ENOSYS)
+	if (cap_fcntls_limit(fd, fcntlrights) < 0 && errno != ENOSYS)
 		return (-1);
 
 	return (0);
