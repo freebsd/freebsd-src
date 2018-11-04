@@ -416,6 +416,9 @@ sub get_languages {
 }
 
 sub transform_ctypes {
+	# Add the C.UTF-8
+	$languages{"C"}{"x"}{data}{"x"}{$DEFENCODING} = undef;
+
 	foreach my $l (sort keys(%languages)) {
 	foreach my $f (sort keys(%{$languages{$l}})) {
 	foreach my $c (sort keys(%{$languages{$l}{$f}{data}})) {
@@ -424,13 +427,12 @@ sub transform_ctypes {
 		next if (defined $languages{$l}{$f}{definitions}
 		    && $languages{$l}{$f}{definitions} !~ /$TYPE/);
 		$languages{$l}{$f}{data}{$c}{$DEFENCODING} = 0;	# unread
-		my $file;
-		$file = $l . "_";
-		$file .= $f . "_" if ($f ne "x");
-		$file .= $c;
+		my $file = $l;
+		$file .= "_" . $f if ($f ne "x");
+		$file .= "_" . $c if ($c ne "x");
 		my $actfile = $file;
 
-		my $filename = "$CLDRDIR/posix/xx_Comm_US.UTF-8.src";
+		my $filename = "$CLDRDIR/posix/xx_Comm_C.UTF-8.src";
 		if (! -f $filename) {
 			print STDERR "Cannot open $filename\n";
 			next;
@@ -939,8 +941,8 @@ EOF
 				} keys(%{$hashtable{$hash}});
 		} elsif ($TYPE eq "ctypedef") {
 			@files = sort {
-				if ($a eq 'en_x_US.UTF-8') { return -1; }
-				elsif ($b eq 'en_x_US.UTF-8') { return 1; }
+				if ($a eq 'C_x_x.UTF-8') { return -1; }
+				elsif ($b eq 'C_x_x.UTF-8') { return 1; }
 				if ($a =~ /^en_x_US/) { return -1; }
 				elsif ($b =~ /^en_x_US/) { return 1; }
 
@@ -962,6 +964,7 @@ EOF
 		}
 		if ($#files > 0) {
 			my $link = shift(@files);
+			$link =~ s/_x_x//;	# special case for C
 			$link =~ s/_x_/_/;	# strip family if none there
 			foreach my $file (@files) {
 				my @a = split(/_/, $file);
@@ -987,9 +990,9 @@ EOF
 			next;
 		}
 		foreach my $e (sort keys(%{$languages{$l}{$f}{data}{$c}})) {
-			my $file = $l . "_";
-			$file .= $f . "_" if ($f ne "x");
-			$file .= $c;
+			my $file = $l;
+			$file .= "_" . $f if ($f ne "x");
+			$file .= "_" . $c if ($c ne "x");
 			next if (!defined $languages{$l}{$f}{data}{$c}{$e});
 			print FOUT "LOCALES+=\t$file.$e\n";
 		}
