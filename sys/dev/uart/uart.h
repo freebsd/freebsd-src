@@ -41,9 +41,12 @@ struct uart_bas {
 	u_int	chan;
 	u_int	rclk;
 	u_int	regshft;
+	u_int	regiowidth;
+	u_int	busy_detect;
 };
 
 #define	uart_regofs(bas, reg)		((reg) << (bas)->regshft)
+#define	uart_regiowidth(bas)		((bas)->regiowidth)
 
 #define	uart_getreg(bas, reg)		\
 	bus_space_read_1((bas)->bst, (bas)->bsh, uart_regofs(bas, reg))

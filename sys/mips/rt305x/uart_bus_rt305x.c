@@ -87,7 +87,7 @@ uart_rt305x_probe(device_t dev)
 	sc->sc_bas.bsh = 
 	    MIPS_PHYS_TO_KSEG1(device_get_unit(dev)?UARTLITE_BASE:UART_BASE);
 
-	return (uart_bus_probe(dev, 2, SYSTEM_CLOCK, 0, 0));
+	return (uart_bus_probe(dev, 2, 0, SYSTEM_CLOCK, 0, 0, 0));
 }
 
 DRIVER_MODULE(uart, obio, uart_rt305x_driver, uart_devclass, 0, 0);

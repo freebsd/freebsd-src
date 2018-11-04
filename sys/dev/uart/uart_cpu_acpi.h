@@ -1,6 +1,10 @@
 /*-
- * Copyright 2015 Michal Meloun
+ * Copyright (c) 2015 Michal Meloun
+ * Copyright (c) 2016 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * This software was developed by Andrew Turner under
+ * sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,34 +30,40 @@
  * $FreeBSD$
  */
 
-#ifndef _DEV_UART_CPU_FDT_H_
-#define _DEV_UART_CPU_FDT_H_
+#ifndef _DEV_UART_CPU_ACPI_H_
+#define _DEV_UART_CPU_ACPI_H_
 
 #include <sys/linker_set.h>
 
-#include <dev/ofw/ofw_bus_subr.h>
+struct uart_class;
+
+struct acpi_uart_compat_data {
+	const char *cd_hid;
+	struct uart_class *cd_class;
+
+	uint16_t cd_port_subtype;
+	int cd_regshft;
+	int cd_regiowidth;
+	int cd_rclk;
+	int cd_quirks;
+	const char *cd_desc;
+};
 
 /*
- * If your UART driver implements only uart_class and uses uart_cpu_fdt.c
- * for device instantiation, then use UART_FDT_CLASS_AND_DEVICE for its
+ * If your UART driver implements only uart_class and uses uart_cpu_acpi.c
+ * for device instantiation, then use UART_ACPI_CLASS_AND_DEVICE for its
  * declaration
  */
-SET_DECLARE(uart_fdt_class_and_device_set, struct ofw_compat_data );
-#define UART_FDT_CLASS_AND_DEVICE(data)				\
-	DATA_SET(uart_fdt_class_and_device_set, data)
+SET_DECLARE(uart_acpi_class_and_device_set, struct acpi_uart_compat_data);
+#define UART_ACPI_CLASS_AND_DEVICE(data)				\
+	DATA_SET(uart_acpi_class_and_device_set, data)
 
 /*
  * If your UART driver implements uart_class and custom device layer,
- * then use UART_FDT_CLASS for its declaration
+ * then use UART_ACPI_CLASS for its declaration
  */
-SET_DECLARE(uart_fdt_class_set, struct ofw_compat_data );
-#define UART_FDT_CLASS(data)				\
-	DATA_SET(uart_fdt_class_set, data)
+SET_DECLARE(uart_acpi_class_set, struct acpi_uart_compat_data);
+#define UART_ACPI_CLASS(data)				\
+	DATA_SET(uart_acpi_class_set, data)
 
-int uart_cpu_fdt_probe(struct uart_class **, bus_space_tag_t *,
-    bus_space_handle_t *, int *, u_int *, u_int *);
-int uart_fdt_get_clock(phandle_t node, pcell_t *cell);
-int uart_fdt_get_shift(phandle_t node, pcell_t *cell);
-int uart_fdt_get_io_width(phandle_t node, pcell_t *cell);
-
-#endif /* _DEV_UART_CPU_FDT_H_ */
+#endif /* _DEV_UART_CPU_ACPI_H_ */

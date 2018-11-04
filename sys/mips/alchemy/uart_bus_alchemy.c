@@ -81,7 +81,7 @@ uart_alchemy_probe(device_t dev)
 	sc->sc_class = &uart_ns8250_class;
 	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
 
-	return (uart_bus_probe(dev, 0, 0, 0, 0));
+	return (uart_bus_probe(dev, 0, 0, 0, 0, 0, 0));
 }
 
 DRIVER_MODULE(uart, obio, uart_alchemy_driver, uart_devclass, 0, 0);

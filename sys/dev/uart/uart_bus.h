@@ -54,6 +54,9 @@
 #define	UART_IOCTL_OFLOW	3
 #define	UART_IOCTL_BAUD		4
 
+/* UART quirk flag */
+#define	UART_F_BUSY_DETECT	0x1
+
 /*
  * UART class & instance (=softc)
  */
@@ -63,6 +66,7 @@ struct uart_class {
 	u_int	uc_range;		/* Bus space address range. */
 	u_int	uc_rclk;		/* Default rclk for this device. */
 	u_int	uc_rshift;		/* Default regshift for this device. */
+	u_int	uc_riowidth;		/* Default reg io width for this device. */
 };
 
 struct uart_softc {
@@ -137,7 +141,7 @@ int uart_bus_detach(device_t dev);
 int uart_bus_resume(device_t dev);
 serdev_intr_t *uart_bus_ihand(device_t dev, int ipend);
 int uart_bus_ipend(device_t dev);
-int uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan);
+int uart_bus_probe(device_t dev, int regshft, int regiowidth, int rclk, int rid, int chan, int quirks);
 int uart_bus_sysdev(device_t dev);
 
 void uart_sched_softih(struct uart_softc *, uint32_t);
