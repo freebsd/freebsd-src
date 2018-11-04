@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2018mmdd: new clang import which bumps version from 6.0.1 to 7.0.0.
+# 2018mmdd: new clang import which bumps version from 6.0.1 to 7.0.1.
 OLD_FILES+=usr/lib/clang/6.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/6.0.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/6.0.1/include/sanitizer/common_interface_defs.h
