@@ -747,7 +747,7 @@ writeRandomBytes_dev_urandom(void * target, size_t count) {
 #endif  /* ! defined(HAVE_ARC4RANDOM_BUF) && ! defined(HAVE_ARC4RANDOM) */
 
 
-#if defined(HAVE_ARC4RANDOM)
+#if defined(HAVE_ARC4RANDOM) && ! defined(HAVE_ARC4RANDOM_BUF)
 
 static void
 writeRandomBytes_arc4random(void * target, size_t count) {
@@ -765,7 +765,7 @@ writeRandomBytes_arc4random(void * target, size_t count) {
   }
 }
 
-#endif  /* defined(HAVE_ARC4RANDOM) */
+#endif  /* defined(HAVE_ARC4RANDOM) && ! defined(HAVE_ARC4RANDOM_BUF) */
 
 
 #ifdef _WIN32
