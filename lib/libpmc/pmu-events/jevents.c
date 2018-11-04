@@ -184,6 +184,8 @@ static struct field {
 	{ "SampleAfterValue", "period=" },
 	{ "FCMask",	"fc_mask=" },
 	{ "PortMask",	"ch_mask=" },
+	{ "L3ThreadMask", "l3_thread_mask=" },
+	{ "L3SliceMask", "l3_slice_mask=" },
 	{ NULL, NULL }
 };
 
