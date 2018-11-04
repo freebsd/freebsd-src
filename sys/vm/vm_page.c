@@ -855,11 +855,6 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	vm_reserv_init();
 #endif
-	/*
-	 * Set an initial domain policy for thread0 so that allocations
-	 * can work.
-	 */
-	domainset_zero();
 
 	return (vaddr);
 }

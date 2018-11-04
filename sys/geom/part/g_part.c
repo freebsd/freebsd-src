@@ -367,9 +367,9 @@ g_part_check_integrity(struct g_part_table *table, struct g_consumer *cp)
 				offset = e1->gpe_offset;
 			if ((offset + pp->stripeoffset) % pp->stripesize) {
 				DPRINTF("partition %d on (%s, %s) is not "
-				    "aligned on %u bytes\n", e1->gpe_index,
+				    "aligned on %ju bytes\n", e1->gpe_index,
 				    pp->name, table->gpt_scheme->name,
-				    pp->stripesize);
+				    (uintmax_t)pp->stripesize);
 				/* Don't treat this as a critical failure */
 			}
 		}
@@ -820,7 +820,7 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 		G_PART_FULLNAME(table, entry, sb, gp->name);
 		if (pp->stripesize > 0 && entry->gpe_pp->stripeoffset != 0)
 			sbuf_printf(sb, " added, but partition is not "
-			    "aligned on %u bytes\n", pp->stripesize);
+			    "aligned on %ju bytes\n", (uintmax_t)pp->stripesize);
 		else
 			sbuf_cat(sb, " added\n");
 		sbuf_finish(sb);

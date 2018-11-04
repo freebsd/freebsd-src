@@ -106,10 +106,6 @@ main(int argc, char *argv[])
 	state = 0;
 	if (setjmp(main_handler.loc)) {
 		switch (exception) {
-		case EXEXEC:
-			exitstatus = exerrno;
-			break;
-
 		case EXERROR:
 			exitstatus = 2;
 			break;

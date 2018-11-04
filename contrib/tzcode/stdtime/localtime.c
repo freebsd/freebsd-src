@@ -390,7 +390,6 @@ register const int	doextend;
 	res = -1;
 	sp->goback = sp->goahead = FALSE;
 
-	/* XXX The following is from OpenBSD, and I'm not sure it is correct */
 	if (name != NULL && issetugid() != 0)
 		if ((name[0] == ':' && name[1] == '/') || 
 		    name[0] == '/' || strchr(name, '.'))
@@ -398,7 +397,6 @@ register const int	doextend;
 	if (name == NULL && (name = TZDEFAULT) == NULL)
 		return -1;
 	{
-		int	doaccess;
 		struct stat	stab;
 		/*
 		** Section 4.9.1 of the C standard says that
@@ -415,8 +413,7 @@ register const int	doextend;
 
 		if (name[0] == ':')
 			++name;
-		doaccess = name[0] == '/';
-		if (!doaccess) {
+		if (name[0] != '/') {
 			if ((p = TZDIR) == NULL) {
 				free(fullname);
 				return -1;
@@ -428,16 +425,7 @@ register const int	doextend;
 			(void) strcpy(fullname, p);
 			(void) strcat(fullname, "/");
 			(void) strcat(fullname, name);
-			/*
-			** Set doaccess if '.' (as in "../") shows up in name.
-			*/
-			if (strchr(name, '.') != NULL)
-				doaccess = TRUE;
 			name = fullname;
-		}
-		if (doaccess && access(name, R_OK) != 0) {
-			free(fullname);
-		     	return -1;
 		}
 		if ((fid = _open(name, OPEN_MODE)) == -1) {
 			free(fullname);

@@ -1,5 +1,40 @@
 News for the tz database
 
+Release 2018g - 2018-10-26 22:22:45 -0700
+
+  Briefly:
+    Morocco switches to permanent +01 on 2018-10-27.
+
+  Changes to future timestamps
+
+    Morocco switches from +00/+01 to permanent +01 effective 2018-10-27,
+    so its clocks will not fall back on 2018-10-28 as previously scheduled.
+    (Thanks to Mohamed Essedik Najd and Brian Inglis.)
+
+  Changes to code
+
+    When generating TZif files with leap seconds, zic no longer uses a
+    format that trips up older 32-bit clients, fixing a bug introduced
+    in 2018f.  (Reported by Daniel Fischer.)  Also, the zic workaround
+    for QTBUG-53071 now also works for TZif files with leap seconds.
+
+    The translator to rearguard format now rewrites the line
+    "Rule Japan 1948 1951 - Sep Sat>=8 25:00 0 S" to
+    "Rule Japan 1948 1951 - Sep Sun>=9  1:00 0 S".
+    This caters to zic before 2007 and to Oracle TZUpdater 2.2.0
+    and earlier.  (Reported by Christos Zoulas.)
+
+  Changes to past time zone abbreviations
+
+    Change HDT to HWT/HPT for WWII-era abbreviations in Hawaii.
+    This reverts to 2011h, as the abbreviation change in 2011i was
+    likely inadvertent.
+
+  Changes to documentation
+
+    tzfile.5 has new sections on interoperability issues.
+
+
 Release 2018f - 2018-10-18 00:14:18 -0700
 
   Briefly:

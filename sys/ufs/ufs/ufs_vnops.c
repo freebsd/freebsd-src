@@ -2095,7 +2095,7 @@ ufs_symlink(ap)
 		struct vnode **a_vpp;
 		struct componentname *a_cnp;
 		struct vattr *a_vap;
-		char *a_target;
+		const char *a_target;
 	} */ *ap;
 {
 	struct vnode *vp, **vpp = ap->a_vpp;
@@ -2116,8 +2116,8 @@ ufs_symlink(ap)
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		error = UFS_UPDATE(vp, 0);
 	} else
-		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
-		    UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
+		error = vn_rdwr(UIO_WRITE, vp, __DECONST(void *, ap->a_target),
+		    len, (off_t)0, UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
 		    ap->a_cnp->cn_cred, NOCRED, NULL, NULL);
 	if (error)
 		vput(vp);

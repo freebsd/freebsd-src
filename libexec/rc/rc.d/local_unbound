@@ -92,7 +92,7 @@ local_unbound_prestart()
 	fi
 
 	# Retrieve DNSSEC root key
-	if [ ! -f ${local_unbound_anchor} ] ; then
+	if [ ! -s ${local_unbound_anchor} ] ; then
 		run_rc_command anchor
 	fi
 }

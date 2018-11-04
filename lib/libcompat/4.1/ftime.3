@@ -28,7 +28,7 @@
 .\"     @(#)ftime.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd August 4, 2018
 .Dt FTIME 3
 .Os
 .Sh NAME
@@ -67,9 +67,8 @@ struct timeb
 .Pp
 The structure contains the time since the epoch in seconds,
 up to 1000 milliseconds of more-precise interval,
-the local time zone (measured in minutes of time westward from Greenwich),
-and a flag that, if nonzero, indicates that
-Daylight Saving time applies locally during the appropriate part of the year.
+The kernel no longer maintains the timezone and dstflag info, so 0 is
+always returned for these fields.
 .Sh SEE ALSO
 .Xr gettimeofday 2 ,
 .Xr settimeofday 2 ,
@@ -79,4 +78,4 @@ Daylight Saving time applies locally during the appropriate part of the year.
 The
 .Nm
 function appeared in
-.Bx 4.2 .
+.At v7 .

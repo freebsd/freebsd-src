@@ -32,41 +32,58 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifndef DSO_LIB
 #include <atf-c.h>
+#endif
 
 #include <crt.h>
 
 typedef void (*func_ptr)(void);
 
-static volatile int jcr_run;
-static const func_ptr *jcr_ptr;
-static volatile int ctors_run;
-static volatile int preinit_array_run;
-static volatile int preinit_array_state = -1;
-static volatile int init_array_run;
-static volatile int init_array_state = -1;
+extern volatile int jcr_run;
+extern const func_ptr *jcr_ptr;
+extern const void *jcr_func_ptr;
+extern volatile int ctors_run;
+extern volatile int preinit_array_run;
+extern volatile int preinit_array_state;
+extern volatile int init_array_run;
+extern volatile int init_array_state;
+
+#ifndef DSO_BASE
+volatile int jcr_run;
+const func_ptr *jcr_ptr;
+volatile int ctors_run;
+volatile int preinit_array_run;
+volatile int preinit_array_state = -1;
+volatile int init_array_run;
+volatile int init_array_state = -1;
 
 void _Jv_RegisterClasses(const func_ptr *);
 
 __section(".jcr") __used static func_ptr jcr_func = (func_ptr)1;
+const void *jcr_func_ptr = &jcr_func;
 
 void
-_Jv_RegisterClasses(const func_ptr *jcr __unused)
+_Jv_RegisterClasses(const func_ptr *jcr)
 {
 
 	jcr_run = 1;
 	jcr_ptr = jcr;
 }
+#endif
 
+#ifndef DSO_LIB
 ATF_TC_WITHOUT_HEAD(jcr_test);
 ATF_TC_BODY(jcr_test, tc)
 {
 
 	ATF_REQUIRE_MSG(jcr_run == 1, ".jcr not run");
-	ATF_REQUIRE_MSG(jcr_ptr == &jcr_func,
+	ATF_REQUIRE_MSG(jcr_ptr == jcr_func_ptr,
 	    "Incorrect pointer passed to _Jv_RegisterClasses");
 }
+#endif
 
+#ifndef DSO_BASE
 static void
 ctors_handler(void)
 {
@@ -75,7 +92,9 @@ ctors_handler(void)
 }
 __section(".ctors") __used static func_ptr ctors_func =
     &ctors_handler;
+#endif
 
+#ifndef DSO_LIB
 ATF_TC_WITHOUT_HEAD(ctors_test);
 ATF_TC_BODY(ctors_test, tc)
 {
@@ -86,7 +105,9 @@ ATF_TC_BODY(ctors_test, tc)
 	ATF_REQUIRE_MSG(ctors_run == 0, ".ctors run");
 #endif
 }
+#endif
 
+#if !defined(DSO_BASE) && !defined(DSO_LIB)
 static void
 preinit_array_handler(void)
 {
@@ -96,16 +117,25 @@ preinit_array_handler(void)
 }
 __section(".preinit_array") __used static func_ptr preinit_array_func =
     &preinit_array_handler;
+#endif
 
+#ifndef DSO_LIB
 ATF_TC_WITHOUT_HEAD(preinit_array_test);
 ATF_TC_BODY(preinit_array_test, tc)
 {
 
+#ifdef DSO_BASE
+	/* Check .preinit_array wasn't run in a DSO */
+	ATF_REQUIRE_MSG(preinit_array_run == 0, ".preinit_array run in DSO");
+#else
 	ATF_REQUIRE_MSG(preinit_array_run == 1, ".preinit_array not run");
 	ATF_REQUIRE_MSG(preinit_array_state == 0,
 	    ".preinit_array was not run before .init_array");
+#endif
 }
+#endif
 
+#ifndef DSO_BASE
 static void
 init_array_handler(void)
 {
@@ -115,14 +145,18 @@ init_array_handler(void)
 }
 __section(".init_array") __used static func_ptr init_array_func =
     &init_array_handler;
+#endif
 
+#ifndef DSO_LIB
 ATF_TC_WITHOUT_HEAD(init_array_test);
 ATF_TC_BODY(init_array_test, tc)
 {
 
 	ATF_REQUIRE_MSG(init_array_run == 1, ".init_array not run");
+#ifndef DSO_BASE
 	ATF_REQUIRE_MSG(init_array_state == 1,
 	    ".init_array was not run after .preinit_array");
+#endif
 }
 
 ATF_TP_ADD_TCS(tp)
@@ -135,3 +169,4 @@ ATF_TP_ADD_TCS(tp)
 
 	return (atf_no_error());
 }
+#endif

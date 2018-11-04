@@ -236,12 +236,12 @@ ENTRY(fork_trampoline)
 	msr	daifset, #2
 
 	/* Restore sp and lr */
-	ldp	x0, x1, [sp]
+	ldp	x0, x1, [sp, #TF_SP]
 	msr	sp_el0, x0
 	mov	lr, x1
 
 	/* Restore elr and spsr */
-	ldp	x0, x1, [sp, #16]
+	ldp	x0, x1, [sp, #TF_ELR]
 	msr	elr_el1, x0
 	msr	spsr_el1, x1
 

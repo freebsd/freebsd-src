@@ -270,7 +270,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 			if (reply("CLEAR") == 1) {
 				dp = ginode(inumber);
 				clearinode(dp);
-				inodirty();
+				inodirty(dp);
 			}
 		}
 		inoinfo(inumber)->ino_state = USTATE;
@@ -293,7 +293,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		dp = ginode(inumber);
 		DIP_SET(dp, di_size, sblock.fs_fsize);
 		DIP_SET(dp, di_mode, IFREG|0600);
-		inodirty();
+		inodirty(dp);
 	}
 	if ((mode == IFBLK || mode == IFCHR || mode == IFIFO ||
 	     mode == IFSOCK) && DIP(dp, di_size) != 0) {
@@ -410,7 +410,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		if (bkgrdflag == 0) {
 			dp = ginode(inumber);
 			DIP_SET(dp, di_blocks, idesc->id_entryno);
-			inodirty();
+			inodirty(dp);
 		} else {
 			cmd.value = idesc->id_number;
 			cmd.size = idesc->id_entryno - DIP(dp, di_blocks);
@@ -430,7 +430,7 @@ unknown:
 		inoinfo(inumber)->ino_state = USTATE;
 		dp = ginode(inumber);
 		clearinode(dp);
-		inodirty();
+		inodirty(dp);
 	}
 	return (1);
 }

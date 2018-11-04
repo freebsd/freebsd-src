@@ -399,6 +399,8 @@ i386_zfs_probe(void)
     for (unit = 0; unit < MAXBDDEV; unit++) {
 	if (bd_unit2bios(unit) == -1)
 	    break;
+	if (bd_unit2bios(unit) < 0x80)
+	    continue;
 	sprintf(devname, "disk%d:", unit);
 	zfs_probe_dev(devname, NULL);
     }

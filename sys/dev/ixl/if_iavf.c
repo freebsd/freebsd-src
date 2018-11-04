@@ -1946,10 +1946,10 @@ iavf_config_rss_reg(struct iavf_sc *sc)
 		/*
 		 * Fetch the RSS bucket id for the given indirection entry.
 		 * Cap it at the number of configured buckets (which is
-		 * num_queues.)
+		 * num_rx_queues.)
 		 */
 		que_id = rss_get_indirection_to_bucket(i);
-		que_id = que_id % vsi->num_queues;
+		que_id = que_id % vsi->num_rx_queues;
 #else
 		que_id = j;
 #endif

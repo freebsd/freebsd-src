@@ -126,7 +126,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 	 */
 	assert(dstobj->mainprog);
 
-	rellim = (const Elf_Rel *)((caddr_t)dstobj->rel + dstobj->relsize);
+	rellim = (const Elf_Rel *)((const char *)dstobj->rel + dstobj->relsize);
 	for (rel = dstobj->rel; rel < rellim; rel++) {
 		if (ELF_R_TYPE(rel->r_info) != R_MIPS_COPY)
 			continue;
@@ -265,7 +265,7 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 		++got;
 	}
 
-	rellim = (const Elf_Rel *)((caddr_t)rel + relsz);
+	rellim = (const Elf_Rel *)((const char *)rel + relsz);
 	for (; rel < rellim; rel++) {
 		Elf_Word r_symndx, r_type;
 
@@ -469,7 +469,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	}
 
 	got = obj->pltgot;
-	rellim = (const Elf_Rel *)((caddr_t)obj->rel + obj->relsize);
+	rellim = (const Elf_Rel *)((const char *)obj->rel + obj->relsize);
 	for (rel = obj->rel; rel < rellim; rel++) {
 		Elf_Word	r_symndx, r_type;
 		void		*where;
@@ -657,7 +657,7 @@ reloc_plt(Obj_Entry *obj)
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
 
-	rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+	rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
 	for (rel = obj->pltrel; rel < rellim; rel++) {
 		Elf_Addr *where;
 
@@ -687,7 +687,7 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 	const Elf_Rel *rel;
 	const Elf_Sym *def;
 
-	rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+	rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
 	for (rel = obj->pltrel; rel < rellim; rel++) {
 		Elf_Addr *where;
 
@@ -714,7 +714,8 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 }
 
 int
-reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+reloc_iresolve(Obj_Entry *obj __unused,
+    struct Struct_RtldLockState *lockstate __unused)
 {
 
 	/* XXX not implemented */
@@ -722,8 +723,8 @@ reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
 }
 
 int
-reloc_gnu_ifunc(Obj_Entry *obj, int flags,
-    struct Struct_RtldLockState *lockstate)
+reloc_gnu_ifunc(Obj_Entry *obj __unused, int flags __unused,
+    struct Struct_RtldLockState *lockstate __unused)
 {
 
 	/* XXX not implemented */
@@ -731,8 +732,9 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags,
 }
 
 Elf_Addr
-reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
-    		const Obj_Entry *obj, const Elf_Rel *rel)
+reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
+    const Obj_Entry *defobj __unused, const Obj_Entry *obj __unused,
+    const Elf_Rel *rel)
 {
 
 	assert(ELF_R_TYPE(rel->r_info) == R_MIPS_JUMP_SLOT);

@@ -2627,7 +2627,7 @@ nfsmout:
  * nfs symbolic link create rpc
  */
 APPLESTATIC int
-nfsrpc_symlink(vnode_t dvp, char *name, int namelen, char *target,
+nfsrpc_symlink(vnode_t dvp, char *name, int namelen, const char *target,
     struct vattr *vap, struct ucred *cred, NFSPROC_T *p, struct nfsvattr *dnap,
     struct nfsvattr *nnap, struct nfsfh **nfhpp, int *attrflagp,
     int *dattrflagp, void *dstuff)

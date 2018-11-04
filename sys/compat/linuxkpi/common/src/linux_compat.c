@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_stack.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -46,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/rwlock.h>
 #include <sys/mman.h>
+#include <sys/stack.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -2205,6 +2208,18 @@ __unregister_chrdev(unsigned int major, unsigned int baseminor,
 		if (cdevp != NULL)
 			cdev_del(cdevp);
 	}
+}
+
+void
+linux_dump_stack(void)
+{
+#ifdef STACK
+	struct stack st;
+
+	stack_zero(&st);
+	stack_save(&st);
+	stack_print(&st);
+#endif
 }
 
 #if defined(__i386__) || defined(__amd64__)

@@ -1361,7 +1361,7 @@ ukbd_attach(device_t dev)
 	if (sc->sc_flags & UKBD_FLAG_SCROLLLOCK)
 		evdev_support_led(evdev, LED_SCROLLL);
 
-	if (evdev_register(evdev))
+	if (evdev_register_mtx(evdev, &Giant))
 		evdev_free(evdev);
 	else
 		sc->sc_evdev = evdev;

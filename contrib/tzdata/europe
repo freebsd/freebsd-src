@@ -3440,7 +3440,8 @@ Rule	Spain	1978	only	-	Oct	 1	 2:00s	0	-
 #Rule NatSpain	1937	only	-	May	22	23:00	1:00	S
 #Rule NatSpain	1937	1938	-	Oct	Sat>=1	24:00s	0	-
 #Rule NatSpain	1938	only	-	Mar	26	23:00	1:00	S
-# The following rules are copied from Morocco from 1967 through 1978.
+# The following rules are copied from Morocco from 1967 through 1978,
+# except with "S" letters.
 Rule SpainAfrica 1967	only	-	Jun	 3	12:00	1:00	S
 Rule SpainAfrica 1967	only	-	Oct	 1	 0:00	0	-
 Rule SpainAfrica 1974	only	-	Jun	24	 0:00	1:00	S

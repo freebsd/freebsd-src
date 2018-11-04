@@ -39,10 +39,18 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 
+#ifndef DSO_LIB
 #include <atf-c++.hpp>
+#endif
 
-static volatile int constructor_run;
-static bool run_destructor_test = false;
+extern volatile int constructor_run;
+extern bool run_destructor_test;
+
+#ifndef DSO_BASE
+volatile int constructor_run;
+bool run_destructor_test = false;
+#endif
+
 struct Foo {
 	Foo() {
 		constructor_run = 1;
@@ -53,8 +61,12 @@ struct Foo {
 	}
 };
 extern Foo foo;
-Foo foo;
 
+#ifndef DSO_BASE
+Foo foo;
+#endif
+
+#ifndef DSO_LIB
 ATF_TEST_CASE_WITHOUT_HEAD(cxx_constructor);
 ATF_TEST_CASE_BODY(cxx_constructor)
 {
@@ -90,3 +102,4 @@ ATF_INIT_TEST_CASES(tcs)
 	ATF_ADD_TEST_CASE(tcs, cxx_constructor);
 	ATF_ADD_TEST_CASE(tcs, cxx_destructor);
 }
+#endif

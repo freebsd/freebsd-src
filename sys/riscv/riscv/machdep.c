@@ -178,7 +178,6 @@ set_regs(struct thread *td, struct reg *regs)
 
 	frame = td->td_frame;
 	frame->tf_sepc = regs->sepc;
-	frame->tf_sstatus = regs->sstatus;
 	frame->tf_ra = regs->ra;
 	frame->tf_sp = regs->sp;
 	frame->tf_gp = regs->gp;
@@ -254,7 +253,7 @@ int
 ptrace_set_pc(struct thread *td, u_long addr)
 {
 
-	panic("ptrace_set_pc");
+	td->td_frame->tf_sepc = addr;
 	return (0);
 }
 
@@ -263,7 +262,7 @@ ptrace_single_step(struct thread *td)
 {
 
 	/* TODO; */
-	return (0);
+	return (EOPNOTSUPP);
 }
 
 int
@@ -271,7 +270,7 @@ ptrace_clear_single_step(struct thread *td)
 {
 
 	/* TODO; */
-	return (0);
+	return (EOPNOTSUPP);
 }
 
 void

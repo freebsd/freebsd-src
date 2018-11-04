@@ -123,11 +123,17 @@ vm_mem_init(void *dummy)
 	domainset_init();
 
 	/*
-	 * Initializes resident memory structures. From here on, all physical
+	 * Initialize resident memory structures.  From here on, all physical
 	 * memory is accounted for, and we use only virtual addresses.
 	 */
 	vm_set_page_size();
 	virtual_avail = vm_page_startup(virtual_avail);
+
+	/*
+	 * Set an initial domain policy for thread0 so that allocations
+	 * can work.
+	 */
+	domainset_zero();
 
 #ifdef	UMA_MD_SMALL_ALLOC
 	/* Announce page availability to UMA. */

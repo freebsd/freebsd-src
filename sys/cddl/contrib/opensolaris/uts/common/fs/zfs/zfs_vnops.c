@@ -5314,7 +5314,7 @@ zfs_freebsd_symlink(ap)
 	vattr_init_mask(vap);
 
 	return (zfs_symlink(ap->a_dvp, ap->a_vpp, cnp->cn_nameptr, vap,
-	    ap->a_target, cnp->cn_cred, cnp->cn_thread));
+	    __DECONST(char *, ap->a_target), cnp->cn_cred, cnp->cn_thread));
 }
 
 static int

@@ -720,10 +720,6 @@ iavf_update_stats_counters(struct iavf_sc *sc, struct i40e_eth_stats *es)
 	uint64_t tx_discards;
 
 	tx_discards = es->tx_discards;
-#if 0
-	for (int i = 0; i < vsi->num_queues; i++)
-		tx_discards += sc->vsi.queues[i].txr.br->br_drops;
-#endif
 
 	/* Update ifnet stats */
 	IXL_SET_IPACKETS(vsi, es->rx_unicast +
@@ -826,7 +822,7 @@ iavf_config_rss_lut(struct iavf_sc *sc)
 		/*
 		 * Fetch the RSS bucket id for the given indirection entry.
 		 * Cap it at the number of configured buckets (which is
-		 * num_queues.)
+		 * num_rx_queues.)
 		 */
 		que_id = rss_get_indirection_to_bucket(i);
 		que_id = que_id % sc->vsi.num_rx_queues;

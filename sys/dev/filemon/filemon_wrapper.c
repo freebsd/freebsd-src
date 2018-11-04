@@ -149,7 +149,8 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 }
 
 static void
-_filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
+_filemon_wrapper_openat(struct thread *td, const char *upath, int flags,
+    int fd)
 {
 	int error;
 	struct file *fp;
@@ -262,7 +263,8 @@ copyfail:
 }
 
 static void
-_filemon_wrapper_link(struct thread *td, char *upath1, char *upath2)
+_filemon_wrapper_link(struct thread *td, const char *upath1,
+    const char *upath2)
 {
 	struct filemon *filemon;
 	int error;

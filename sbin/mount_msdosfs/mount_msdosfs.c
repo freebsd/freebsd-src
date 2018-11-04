@@ -46,6 +46,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <grp.h>
 #include <locale.h>
 #include <pwd.h>
@@ -308,17 +309,17 @@ set_charset(struct iovec **iov, int *iovlen, const char *cs_local, const char *c
 
 	build_iovec_argf(iov, iovlen, "cs_win", ENCODING_UNICODE);
 	error = kiconv_add_xlat16_cspairs(ENCODING_UNICODE, cs_local);
-	if (error)
+	if (error && errno != EEXIST)
 		return (-1);
 	if (cs_dos != NULL) {
 		error = kiconv_add_xlat16_cspairs(cs_dos, cs_local);
-		if (error)
+		if (error && errno != EEXIST)
 			return (-1);
 	} else {
 		build_iovec_argf(iov, iovlen, "cs_dos", cs_local);
 		error = kiconv_add_xlat16_cspair(cs_local, cs_local,
 				KICONV_FROM_UPPER | KICONV_LOWER);
-		if (error)
+		if (error && errno != EEXIST)
 			return (-1);
 	}
 

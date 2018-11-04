@@ -1475,6 +1475,22 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	if (qhp->attr.state == attrs->next_state)
 		goto out;
 
+	/* Return EINPROGRESS if QP is already in transition state.
+	 * Eg: CLOSING->IDLE transition or *->ERROR transition.
+	 * This can happen while connection is switching(due to rdma_fini)
+	 * from iWARP/RDDP to TOE mode and any inflight RDMA RX data will
+	 * reach TOE driver -> TCP stack -> iWARP driver. In this way
+	 * iWARP driver keep receiving inflight RDMA RX data until socket
+	 * is closed or aborted. And if iWARP CM is in FPDU sate, then
+	 * it tries to put QP in TERM state and disconnects endpoint.
+	 * But as QP is already in transition state, this event is ignored.
+	 */
+	if ((qhp->attr.state >= C4IW_QP_STATE_ERROR) &&
+		(attrs->next_state == C4IW_QP_STATE_TERMINATE)) {
+		ret = -EINPROGRESS;
+		goto out;
+	}
+
 	switch (qhp->attr.state) {
 	case C4IW_QP_STATE_IDLE:
 		switch (attrs->next_state) {

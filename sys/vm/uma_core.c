@@ -1172,7 +1172,7 @@ page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	void *p;	/* Returned page */
 
 	*pflag = UMA_SLAB_KERNEL;
-	p = (void *) kmem_malloc_domain(domain, bytes, wait);
+	p = (void *)kmem_malloc_domainset(DOMAINSET_FIXED(domain), bytes, wait);
 
 	return (p);
 }
@@ -3608,29 +3608,30 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 void
 uma_prealloc(uma_zone_t zone, int items)
 {
+	struct vm_domainset_iter di;
 	uma_domain_t dom;
 	uma_slab_t slab;
 	uma_keg_t keg;
-	int domain, slabs;
+	int domain, flags, slabs;
 
 	keg = zone_first_keg(zone);
 	if (keg == NULL)
 		return;
 	KEG_LOCK(keg);
 	slabs = items / keg->uk_ipers;
-	domain = 0;
 	if (slabs * keg->uk_ipers < items)
 		slabs++;
+	flags = M_WAITOK;
+	vm_domainset_iter_policy_ref_init(&di, &keg->uk_dr, &domain, &flags);
 	while (slabs-- > 0) {
-		slab = keg_alloc_slab(keg, zone, domain, M_WAITOK);
+		slab = keg_alloc_slab(keg, zone, domain, flags);
 		if (slab == NULL)
 			return;
 		MPASS(slab->us_keg == keg);
 		dom = &keg->uk_domain[slab->us_domain];
 		LIST_INSERT_HEAD(&dom->ud_free_slab, slab, us_link);
-		do {
-			domain = (domain + 1) % vm_ndomains;
-		} while (VM_DOMAIN_EMPTY(domain));
+		if (vm_domainset_iter_policy(&di, &domain) != 0)
+			break;
 	}
 	KEG_UNLOCK(keg);
 }
@@ -3717,6 +3718,7 @@ uma_zone_exhausted_nolock(uma_zone_t zone)
 void *
 uma_large_malloc_domain(vm_size_t size, int domain, int wait)
 {
+	struct domainset *policy;
 	vm_offset_t addr;
 	uma_slab_t slab;
 
@@ -3728,10 +3730,9 @@ uma_large_malloc_domain(vm_size_t size, int domain, int wait)
 	slab = zone_alloc_item(slabzone, NULL, domain, wait);
 	if (slab == NULL)
 		return (NULL);
-	if (domain == UMA_ANYDOMAIN)
-		addr = kmem_malloc(size, wait);
-	else
-		addr = kmem_malloc_domain(domain, size, wait);
+	policy = (domain == UMA_ANYDOMAIN) ? DOMAINSET_RR() :
+	    DOMAINSET_FIXED(domain);
+	addr = kmem_malloc_domainset(policy, size, wait);
 	if (addr != 0) {
 		vsetslab(addr, slab);
 		slab->us_data = (void *)addr;
