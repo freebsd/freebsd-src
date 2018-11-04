@@ -24,14 +24,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2018
+.Dd November 4, 2018
 .Dt CAP_DNS 3
 .Os
 .Sh NAME
+.Nm cap_getaddrinfo ,
+.Nm cap_getnameinfo ,
 .Nm cap_gethostbyname ,
 .Nm cap_gethostbyname2 ,
 .Nm cap_gethostbyaddr ,
-.Nm cap_getnameinfo ,
 .Nm cap_dns_type_limit ,
 .Nm cap_dns_family_limit
 .Nd "library for getting network host entry in capability mode"
@@ -41,6 +42,10 @@
 .In sys/nv.h
 .In libcasper.h
 .In casper/cap_dns.h
+.Ft int
+.Fn cap_getaddrinfo "cap_channel_t *chan" "const char *hostname" "const char *servname" "const struct addrinfo *hints" "struct addrinfo **res"
+.Ft int
+.Fn cap_getnameinfo "cap_channel_t *chan" "const struct sockaddr *sa" "socklen_t salen" "char *host" "size_t hostlen" "char *serv" "size_t servlen" "int flags"
 .Ft "struct hostent *"
 .Fn cap_gethostbyname "const cap_channel_t *chan" "const char *name"
 .Ft "struct hostent *"
@@ -48,12 +53,23 @@
 .Ft "struct hostent *"
 .Fn cap_gethostbyaddr "const cap_channel_t *chan" "const void *addr" "socklen_t len" "int af"
 .Ft "int"
-.Fn cap_getnameinfo "const cap_channel_t *chan" "const void *name" "int namelen"
-.Ft "int"
 .Fn cap_dns_type_limit "cap_channel_t *chan" "const char * const *types" "size_t ntypes"
 .Ft "int"
 .Fn cap_dns_family_limit "const cap_channel_t *chan" "const int *families" "size_t nfamilies"
 .Sh DESCRIPTION
+.Bf -symbolic
+The
+.Fn cap_getaddrinfo ,
+and
+.Fn cap_getnameinfo ,
+functions are preferred over the
+.Fn cap_gethostbyname ,
+.Fn cap_gethostbyname2 ,
+and
+.Fn cap_gethostbyaddr
+functions.
+.Ef
+.Pp
 The functions
 .Fn cap_gethostbyname ,
 .Fn cap_gethostbyname2 ,
