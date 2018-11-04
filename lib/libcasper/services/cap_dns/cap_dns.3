@@ -134,19 +134,21 @@ or
 .Dv NAME .
 The
 .Dv ADDR
-means that functions
-.Fn cap_gethostbyname ,
-.Fn cap_gethostbyname2
+means that reverse DNS lookups are allowed with
+.Fn cap_getnameinfo
 and
 .Fn cap_gethostbyaddr
-are allowed.
+functions.
 In case when
 .Va type
 is set to
 .Dv NAME
-the
-.Fn cap_getnameinfo
-function is allowed.
+the name resolution is allowed with
+.Fn cap_getaddrinfo ,
+.Fn cap_gethostbyname ,
+and
+.Fn cap_gethostbyname2
+functions.
 .It family ( NV_TYPE_NUMBER )
 The
 .Va family
