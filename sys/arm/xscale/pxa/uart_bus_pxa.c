@@ -97,7 +97,7 @@ uart_pxa_probe(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_ns8250_class;
 
-	return(uart_bus_probe(dev, 2, PXA2X0_COM_FREQ, 0, 0));
+	return(uart_bus_probe(dev, 2, 0, PXA2X0_COM_FREQ, 0, 0, 0));
 }
 
 DRIVER_MODULE(uart, pxa, uart_pxa_driver, uart_devclass, 0, 0);

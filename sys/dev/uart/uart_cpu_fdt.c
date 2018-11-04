@@ -70,53 +70,6 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 	return ((pmap_kextract(b1->bsh) == pmap_kextract(b2->bsh)) ? 1 : 0);
 }
 
-static int
-phandle_chosen_propdev(phandle_t chosen, const char *name, phandle_t *node)
-{
-	char buf[64];
-
-	if (OF_getprop(chosen, name, buf, sizeof(buf)) <= 0)
-		return (ENXIO);
-	if ((*node = OF_finddevice(buf)) == -1)
-		return (ENXIO);
-	
-	return (0);
-}
-
-static const struct ofw_compat_data *
-uart_fdt_find_compatible(phandle_t node, const struct ofw_compat_data *cd)
-{
-	const struct ofw_compat_data *ocd;
-
-	for (ocd = cd; ocd->ocd_str != NULL; ocd++) {
-		if (fdt_is_compatible(node, ocd->ocd_str))
-			return (ocd);
-	}
-	return (NULL);
-}
-
-static uintptr_t
-uart_fdt_find_by_node(phandle_t node, int class_list)
-{
-	struct ofw_compat_data **cd;
-	const struct ofw_compat_data *ocd;
-
-	if (class_list) {
-		SET_FOREACH(cd, uart_fdt_class_set) {
-			ocd = uart_fdt_find_compatible(node, *cd);
-			if ((ocd != NULL) && (ocd->ocd_data != 0))
-				return (ocd->ocd_data);
-		}
-	} else {
-		SET_FOREACH(cd, uart_fdt_class_and_device_set) {
-			ocd = uart_fdt_find_compatible(node, *cd);
-			if ((ocd != NULL) && (ocd->ocd_data != 0))
-				return (ocd->ocd_data);
-		}
-	}
-	return (0);
-}
-
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {

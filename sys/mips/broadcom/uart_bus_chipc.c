@@ -63,7 +63,7 @@ uart_chipc_probe(device_t dev)
 	/* TODO: UART rate should be calculated from CPU clock speed
 	 * as fetched from bhnd bus */
 	socinfo = bcm_get_socinfo();
-	return (uart_bus_probe(dev, 0, socinfo->uartrate, 0, 0));
+	return (uart_bus_probe(dev, 0, 0, socinfo->uartrate, 0, 0, 0));
 }
 
 static device_method_t uart_chipc_methods[] = {

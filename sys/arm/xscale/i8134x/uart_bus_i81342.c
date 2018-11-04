@@ -83,7 +83,7 @@ uart_i81342_probe(device_t dev)
 	    0x40 | 0x10);
         bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
 
-	err = uart_bus_probe(dev, 2, 33334000, 0, device_get_unit(dev));
+	err = uart_bus_probe(dev, 2, 0, 33334000, 0, device_get_unit(dev), 0);
 	sc->sc_rxfifosz = sc->sc_txfifosz = 1;
 	return (err);
 }

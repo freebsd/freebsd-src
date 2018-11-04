@@ -104,7 +104,7 @@ usart_at91_probe(device_t dev)
 	sc->sc_class = &at91_usart_class;
 	if (sc->sc_class->uc_rclk == 0)
 		sc->sc_class->uc_rclk = at91_master_clock;
-	return (uart_bus_probe(dev, 0, 0, 0, device_get_unit(dev)));
+	return (uart_bus_probe(dev, 0, 0, 0, 0, device_get_unit(dev), 0));
 }
 
 

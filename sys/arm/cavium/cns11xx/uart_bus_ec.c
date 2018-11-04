@@ -69,7 +69,7 @@ uart_ec_probe(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_ns8250_class;
-	status = uart_bus_probe(dev, EC_UART_REGSHIFT, EC_UART_CLOCK, 0, 0);
+	status = uart_bus_probe(dev, EC_UART_REGSHIFT, 0, EC_UART_CLOCK, 0, 0, 0);
 	return (status);
 }
 
