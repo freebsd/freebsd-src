@@ -147,7 +147,7 @@ add(int fd, const char *name)
 			err(EXIT_FAILURE, "unable to limit stdout");
 	} else {
 		cap_rights_init(&rights, CAP_WRITE, CAP_FSTAT);
-		if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
+		if (caph_rights_limit(fd, &rights) < 0)
 			err(EXIT_FAILURE, "unable to limit rights");
 	}
 
