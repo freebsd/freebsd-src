@@ -2423,7 +2423,7 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			sbuf_printf(sb, "r%d(%s):%d@%ju",
 			    sd->sd_volume->v_global_id,
 			    sd->sd_volume->v_name,
-			    sd->sd_pos, sd->sd_offset);
+			    sd->sd_pos, (uintmax_t)sd->sd_offset);
 			if (TAILQ_NEXT(sd, sd_next))
 				sbuf_printf(sb, ", ");
 		}

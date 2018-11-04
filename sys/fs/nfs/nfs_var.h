@@ -474,7 +474,7 @@ int nfsrpc_rename(vnode_t, vnode_t, char *, int, vnode_t, vnode_t, char *, int,
 int nfsrpc_link(vnode_t, vnode_t, char *, int,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
     int *, int *, void *);
-int nfsrpc_symlink(vnode_t, char *, int, char *, struct vattr *,
+int nfsrpc_symlink(vnode_t, char *, int, const char *, struct vattr *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
     struct nfsfh **, int *, int *, void *);
 int nfsrpc_mkdir(vnode_t, char *, int, struct vattr *,

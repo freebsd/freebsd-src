@@ -352,9 +352,13 @@ Patterns are arbitrary Boolean combinations
 of regular expressions and
 relational expressions.
 Regular expressions are as in
-.IR egrep ; 
-see
-.IR grep (1).
+.IR egrep (1) 
+except numeric quantifiers are not supported beyond the basic
+.B +
+and
+.B ?
+for quantities \&\f(CW"0 or 1"\fP and \&\f(CW"1 or more"\fP
+respectively.
 Isolated regular expressions
 in a pattern apply to the entire line.
 Regular expressions may also occur in

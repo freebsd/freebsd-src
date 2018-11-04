@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2016
+.Dd November 2, 2018
 .Dt NSMB.CONF 5
 .Os
 .Sh NAME
@@ -40,6 +40,21 @@ file contains information about the computers, users, and shares
 or mount points for the
 .Tn SMB
 network protocol.
+.Pp
+The configuration files are loaded in the following order:
+.Pp
+.Bl -enum -offset indent -width "" -compact
+.It
+.Pa ~/.nsmbrc
+.It
+.Pa /etc/nsmb.conf
+.El
+.Pp
+As a result,
+.Pa /etc/nsmb.conf
+settings
+override those in
+.Pa ~/.nsmbrc .
 .Pp
 The configuration hierarchy is made up of several sections,
 each section containing a few or several lines of parameters

@@ -43,6 +43,9 @@ extern int	hw_ssb_disable;
 extern int	nmi_flush_l1d_sw;
 extern int	syscall_ret_l1d_flush_mode;
 
+extern vm_paddr_t intel_graphics_stolen_base;
+extern vm_paddr_t intel_graphics_stolen_size;
+
 /*
  * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its
  * value is the physical address at which the kernel is loaded.
@@ -79,5 +82,6 @@ void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int ist);
 void	sse2_pagezero(void *addr);
 struct savefpu *get_pcb_user_save_td(struct thread *td);
 struct savefpu *get_pcb_user_save_pcb(struct pcb *pcb);
+void	pci_early_quirks(void);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

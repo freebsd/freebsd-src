@@ -664,6 +664,9 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
 
+/* if REUSEPORT is enabled by default */
+#define REUSEPORT_DEFAULT 0
+
 /* default rootkey location */
 #define ROOT_ANCHOR_FILE "/var/unbound/root.key"
 

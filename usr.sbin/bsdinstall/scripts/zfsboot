@@ -246,8 +246,8 @@ msg_configure_options="Configure Options:"
 msg_detailed_disk_info="gpart(8) show %s:\n%s\n\ncamcontrol(8) inquiry %s:\n%s\n\n\ncamcontrol(8) identify %s:\n%s\n"
 msg_disk_info="Disk Info"
 msg_disk_info_help="Get detailed information on disk device(s)"
-msg_disk_singular="disk"
 msg_disk_plural="disks"
+msg_disk_singular="disk"
 msg_encrypt_disks="Encrypt Disks?"
 msg_encrypt_disks_help="Use geli(8) to encrypt all data partitions"
 msg_error="Error"
@@ -347,8 +347,8 @@ dialog_menu_main()
 		'>>> $msg_install'      '$msg_install_desc'
 		                        '$msg_install_help'
 		'T $msg_pool_type_disks'
-		                        '$ZFSBOOT_VDEV_TYPE: $n $disks_grammar'
-		                        '$msg_pool_type_disks_help'
+		               '$ZFSBOOT_VDEV_TYPE: $n $disks_grammar'
+		               '$msg_pool_type_disks_help'
 		'- $msg_rescan_devices' '*'
 		                        '$msg_rescan_devices_help'
 		'- $msg_disk_info'      '*'
@@ -361,8 +361,8 @@ dialog_menu_main()
 		'E $msg_encrypt_disks'  '$usegeli'
 		                        '$msg_encrypt_disks_help'
 		'P $msg_partition_scheme'
-		                        '$ZFSBOOT_PARTITION_SCHEME ($ZFSBOOT_BOOT_TYPE)'
-		                        '$msg_partition_scheme_help'
+		               '$ZFSBOOT_PARTITION_SCHEME ($ZFSBOOT_BOOT_TYPE)'
+		               '$msg_partition_scheme_help'
 		'S $msg_swap_size'      '$ZFSBOOT_SWAP_SIZE'
 		                        '$msg_swap_size_help'
 		'M $msg_swap_mirror'    '$swapmirror'

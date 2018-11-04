@@ -332,7 +332,7 @@ freebsd32_sigaltstack(struct thread *td,
  * the pointers.
  */
 int
-freebsd32_exec_copyin_args(struct image_args *args, char *fname,
+freebsd32_exec_copyin_args(struct image_args *args, const char *fname,
     enum uio_seg segflg, u_int32_t *argv, u_int32_t *envv)
 {
 	char *argp, *envp;

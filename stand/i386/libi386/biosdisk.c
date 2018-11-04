@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <machine/bootinfo.h>
 #include <stdarg.h>
-#include <stdbool.h>
 
 #include <bootstrap.h>
 #include <btxv86.h>
@@ -81,8 +80,10 @@ static struct bdinfo
 #define	BD_MODEINT13	0x0000
 #define	BD_MODEEDD1	0x0001
 #define	BD_MODEEDD3	0x0002
+#define	BD_MODEEDD	(BD_MODEEDD1 | BD_MODEEDD3)
 #define	BD_MODEMASK	0x0003
 #define	BD_FLOPPY	0x0004
+#define	BD_NO_MEDIA	0x0008
 	int		bd_type;	/* BIOS 'drive type' (floppy only) */
 	uint16_t	bd_sectorsize;	/* Sector size */
 	uint64_t	bd_sectors;	/* Disk size */
@@ -188,60 +189,83 @@ bd_init(void)
 }
 
 /*
- * Try to detect a device supported by the legacy int13 BIOS
+ * Return EDD version or 0 if EDD is not supported on this drive.
  */
 static int
-bd_int13probe(struct bdinfo *bd)
+bd_check_extensions(int unit)
 {
-	struct edd_params params;
-	int ret = 1;	/* assume success */
+	/* Determine if we can use EDD with this device. */
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x13;
+	v86.eax = 0x4100;
+	v86.edx = unit;
+	v86.ebx = 0x55aa;
+	v86int();
 
+	if (V86_CY(v86.efl) ||			/* carry set */
+	    (v86.ebx & 0xffff) != 0xaa55)	/* signature */
+		return (0);
+
+	/* extended disk access functions (AH=42h-44h,47h,48h) supported */
+	if ((v86.ecx & EDD_INTERFACE_FIXED_DISK) == 0)
+		return (0);
+
+	return ((v86.eax >> 8) & 0xff);
+}
+
+static void
+bd_reset_disk(int unit)
+{
+	/* reset disk */
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x13;
+	v86.eax = 0;
+	v86.edx = unit;
+	v86int();
+}
+
+/*
+ * Read CHS info. Return 0 on success, error otherwise.
+ */
+static int
+bd_get_diskinfo_std(struct bdinfo *bd)
+{
+	bzero(&v86, sizeof(v86));
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x13;
 	v86.eax = 0x800;
 	v86.edx = bd->bd_unit;
 	v86int();
 
-	/* Don't error out if we get bad sector number, try EDD as well */
-	if (V86_CY(v86.efl) ||	/* carry set */
-	    (v86.edx & 0xff) <= (unsigned)(bd->bd_unit & 0x7f))	/* unit # bad */
-		return (0);	/* skip device */
+	if (V86_CY(v86.efl) && ((v86.eax & 0xff00) != 0))
+		return ((v86.eax & 0xff00) >> 8);
 
-	if ((v86.ecx & 0x3f) == 0)	/* absurd sector number */
-		ret = 0;	/* set error */
+	/* return custom error on absurd sector number */
+	if ((v86.ecx & 0x3f) == 0)
+		return (0x60);
 
-	/* Convert max cyl # -> # of cylinders */
 	bd->bd_cyl = ((v86.ecx & 0xc0) << 2) + ((v86.ecx & 0xff00) >> 8) + 1;
 	/* Convert max head # -> # of heads */
 	bd->bd_hds = ((v86.edx & 0xff00) >> 8) + 1;
 	bd->bd_sec = v86.ecx & 0x3f;
-	bd->bd_type = v86.ebx & 0xff;
-	bd->bd_flags |= BD_MODEINT13;
+	bd->bd_type = v86.ebx;
+	bd->bd_sectors = (uint64_t)bd->bd_cyl * bd->bd_hds * bd->bd_sec;
 
-	/* Calculate sectors count from the geometry */
-	bd->bd_sectors = bd->bd_cyl * bd->bd_hds * bd->bd_sec;
-	bd->bd_sectorsize = BIOSDISK_SECSIZE;
-	DEBUG("unit 0x%x geometry %d/%d/%d", bd->bd_unit, bd->bd_cyl,
-	    bd->bd_hds, bd->bd_sec);
+	return (0);
+}
 
-	/* Determine if we can use EDD with this device. */
-	v86.ctl = V86_FLAGS;
-	v86.addr = 0x13;
-	v86.eax = 0x4100;
-	v86.edx = bd->bd_unit;
-	v86.ebx = 0x55aa;
-	v86int();
-	if (V86_CY(v86.efl) ||	/* carry set */
-	    (v86.ebx & 0xffff) != 0xaa55 || /* signature */
-	    (v86.ecx & EDD_INTERFACE_FIXED_DISK) == 0)
-		return (ret);	/* return code from int13 AH=08 */
+/*
+ * Read EDD info. Return 0 on success, error otherwise.
+ */
+static int
+bd_get_diskinfo_ext(struct bdinfo *bd)
+{
+	struct edd_params params;
+	uint64_t total;
 
-	/* EDD supported */
-	bd->bd_flags |= BD_MODEEDD1;
-	if ((v86.eax & 0xff00) >= 0x3000)
-		bd->bd_flags |= BD_MODEEDD3;
 	/* Get disk params */
-	params.len = sizeof(struct edd_params);
+	bzero(&params, sizeof(params));
+	params.len = sizeof(params);
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x13;
 	v86.eax = 0x4800;
@@ -249,37 +273,120 @@ bd_int13probe(struct bdinfo *bd)
 	v86.ds = VTOPSEG(&params);
 	v86.esi = VTOPOFF(&params);
 	v86int();
-	if (!V86_CY(v86.efl)) {
-		uint64_t total;
 
-		/*
-		 * Sector size must be a multiple of 512 bytes.
-		 * An alternate test would be to check power of 2,
-		 * powerof2(params.sector_size).
-		 * 4K is largest read buffer we can use at this time.
-		 */
-		if (params.sector_size >= 512 &&
-		    params.sector_size <= 4096 &&
-		    (params.sector_size % BIOSDISK_SECSIZE) == 0)
-			bd->bd_sectorsize = params.sector_size;
+	if (V86_CY(v86.efl) && ((v86.eax & 0xff00) != 0))
+		return ((v86.eax & 0xff00) >> 8);
 
-		total = bd->bd_sectorsize * params.sectors;
-		if (params.sectors != 0) {
-			/* Only update if we did not overflow. */
-			if (total > params.sectors)
-				bd->bd_sectors = params.sectors;
-		}
+	/*
+	 * Sector size must be a multiple of 512 bytes.
+	 * An alternate test would be to check power of 2,
+	 * powerof2(params.sector_size).
+	 * 4K is largest read buffer we can use at this time.
+	 */
+	if (params.sector_size >= 512 &&
+	    params.sector_size <= 4096 &&
+	    (params.sector_size % BIOSDISK_SECSIZE) == 0)
+		bd->bd_sectorsize = params.sector_size;
 
+	bd->bd_cyl = params.cylinders;
+	bd->bd_hds = params.heads;
+	bd->bd_sec = params.sectors_per_track;
+
+	if (params.sectors != 0) {
+		total = params.sectors;
+	} else {
 		total = (uint64_t)params.cylinders *
 		    params.heads * params.sectors_per_track;
-		if (total > 0 && bd->bd_sectors > total)
-			bd->bd_sectors = total;
-
-		ret = 1;
 	}
-	DEBUG("unit 0x%x flags %x, sectors %llu, sectorsize %u",
-	    bd->bd_unit, bd->bd_flags, bd->bd_sectors, bd->bd_sectorsize);
-	return (ret);
+	bd->bd_sectors = total;
+
+	return (0);
+}
+
+/*
+ * Try to detect a device supported by the legacy int13 BIOS
+ */
+static int
+bd_int13probe(struct bdinfo *bd)
+{
+	int edd;
+	int ret;
+
+	bd->bd_flags &= ~BD_NO_MEDIA;
+
+	edd = bd_check_extensions(bd->bd_unit);
+	if (edd == 0)
+		bd->bd_flags |= BD_MODEINT13;
+	else if (edd < 0x30)
+		bd->bd_flags |= BD_MODEEDD1;
+	else
+		bd->bd_flags |= BD_MODEEDD3;
+
+	/* Default sector size */
+	bd->bd_sectorsize = BIOSDISK_SECSIZE;
+
+	/*
+	 * Test if the floppy device is present, so we can avoid receiving
+	 * bogus information from bd_get_diskinfo_std().
+	 */
+	if (bd->bd_unit < 0x80) {
+		/* reset disk */
+		bd_reset_disk(bd->bd_unit);
+
+		/* Get disk type */
+		v86.ctl = V86_FLAGS;
+		v86.addr = 0x13;
+		v86.eax = 0x1500;
+		v86.edx = bd->bd_unit;
+		v86int();
+		if (V86_CY(v86.efl) || (v86.eax & 0x300) == 0)
+			return (0);
+	}
+
+	ret = 1;
+	if (edd != 0)
+		ret = bd_get_diskinfo_ext(bd);
+	if (ret != 0 || bd->bd_sectors == 0)
+		ret = bd_get_diskinfo_std(bd);
+
+	if (ret != 0 && bd->bd_unit < 0x80) {
+		/* Set defaults for 1.44 floppy */
+		bd->bd_cyl = 80;
+		bd->bd_hds = 2;
+		bd->bd_sec = 18;
+		bd->bd_type = 4;
+		bd->bd_sectors = 2880;
+		/* Since we are there, there most likely is no media */
+		bd->bd_flags |= BD_NO_MEDIA;
+		ret = 0;
+	}
+
+	if (ret != 0) {
+		if (bd->bd_sectors != 0 && edd != 0) {
+			bd->bd_sec = 63;
+			bd->bd_hds = 255;
+			bd->bd_cyl =
+			    (bd->bd_sectors + bd->bd_sec * bd->bd_hds - 1) /
+			    bd->bd_sec * bd->bd_hds;
+		} else {
+			printf("Can not get information about %s unit %#x\n",
+			    biosdisk.dv_name, bd->bd_unit);
+			return (0);
+		}
+	}
+
+	if (bd->bd_sec == 0)
+		bd->bd_sec = 63;
+	if (bd->bd_hds == 0)
+		bd->bd_hds = 255;
+
+	if (bd->bd_sectors == 0)
+		bd->bd_sectors = (uint64_t)bd->bd_cyl * bd->bd_hds * bd->bd_sec;
+
+	DEBUG("unit 0x%x geometry %d/%d/%d", bd->bd_unit, bd->bd_cyl,
+	    bd->bd_hds, bd->bd_sec);
+
+	return (1);
 }
 
 /*
@@ -301,13 +408,18 @@ bd_print(int verbose)
 
 	for (i = 0; i < nbdinfo; i++) {
 		snprintf(line, sizeof(line),
-		    "    disk%d:   BIOS drive %c (%ju X %u):\n", i,
+		    "    disk%d:   BIOS drive %c (%s%ju X %u):\n", i,
 		    (bdinfo[i].bd_unit < 0x80) ? ('A' + bdinfo[i].bd_unit):
 		    ('C' + bdinfo[i].bd_unit - 0x80),
+		    (bdinfo[i].bd_flags & BD_NO_MEDIA) == BD_NO_MEDIA ?
+		    "no media, " : "",
 		    (uintmax_t)bdinfo[i].bd_sectors,
 		    bdinfo[i].bd_sectorsize);
 		if ((ret = pager_output(line)) != 0)
 			break;
+
+		if ((bdinfo[i].bd_flags & BD_NO_MEDIA) == BD_NO_MEDIA)
+			continue;
 
 		dev.dd.d_dev = &biosdisk;
 		dev.dd.d_unit = i;
@@ -351,6 +463,13 @@ bd_open(struct open_file *f, ...)
 
 	if (dev->dd.d_unit < 0 || dev->dd.d_unit >= nbdinfo)
 		return (EIO);
+
+	if ((BD(dev).bd_flags & BD_NO_MEDIA) == BD_NO_MEDIA) {
+		if (!bd_int13probe(&BD(dev)))
+			return (EIO);
+		if ((BD(dev).bd_flags & BD_NO_MEDIA) == BD_NO_MEDIA)
+			return (EIO);
+	}
 	BD(dev).bd_open++;
 	if (BD(dev).bd_bcache == NULL)
 	    BD(dev).bd_bcache = bcache_allocate();
@@ -455,6 +574,9 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	caddr_t bbuf;
 	int rc;
 
+	if ((BD(dev).bd_flags & BD_NO_MEDIA) == BD_NO_MEDIA)
+		return (EIO);
+
 	/*
 	 * First make sure the IO size is a multiple of 512 bytes. While we do
 	 * process partial reads below, the strategy mechanism is built
@@ -499,7 +621,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	 * partition.
 	 */
 	if (disk_ioctl(dev, DIOCGMEDIASIZE, &disk_blocks) == 0) {
-		/* DIOCGMEDIASIZE returns bytes. */
+		/* DIOCGMEDIASIZE does return bytes. */
 		disk_blocks /= BD(dev).bd_sectorsize;
 	} else {
 		/* We should not get here. Just try to survive. */
@@ -685,29 +807,33 @@ bd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
 	if (dowrite == BD_RD && dblk >= 0x100000000)
 		bd_io_workaround(dev);
 	for (retry = 0; retry < 3; retry++) {
-		/* if retrying, reset the drive */
-		if (retry > 0) {
-			v86.ctl = V86_FLAGS;
-			v86.addr = 0x13;
-			v86.eax = 0;
-			v86.edx = BD(dev).bd_unit;
-			v86int();
-		}
-
-		if (BD(dev).bd_flags & BD_MODEEDD1)
+		if (BD(dev).bd_flags & BD_MODEEDD)
 			result = bd_edd_io(dev, dblk, blks, dest, dowrite);
 		else
 			result = bd_chs_io(dev, dblk, blks, dest, dowrite);
 
-		if (result == 0)
+		if (result == 0) {
+			if (BD(dev).bd_flags & BD_NO_MEDIA)
+				BD(dev).bd_flags &= ~BD_NO_MEDIA;
 			break;
+		}
+
+		bd_reset_disk(BD(dev).bd_unit);
+
+		/*
+		 * Error codes:
+		 * 20h	controller failure
+		 * 31h	no media in drive (IBM/MS INT 13 extensions)
+		 * 80h	no media in drive, VMWare (Fusion)
+		 * There is no reason to repeat the IO with errors above.
+		 */
+		if (result == 0x20 || result == 0x31 || result == 0x80) {
+			BD(dev).bd_flags |= BD_NO_MEDIA;
+			break;
+		}
 	}
 
-	/*
-	 * 0x20 - Controller failure. This is common error when the
-	 * media is not present.
-	 */
-	if (result != 0 && result != 0x20) {
+	if (result != 0 && (BD(dev).bd_flags & BD_NO_MEDIA) == 0) {
 		if (dowrite == BD_WR) {
 			printf("%s%d: Write %d sector(s) from %p (0x%x) "
 			    "to %lld: 0x%x\n", dev->dd.d_dev->dv_name,

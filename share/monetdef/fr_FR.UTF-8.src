@@ -13,7 +13,7 @@ EUR
 ,
 #
 # mon_thousands_sep
-.
+ 
 #
 # mon_grouping
 3
@@ -31,13 +31,13 @@ EUR
 2
 #
 # p_cs_precedes
-1
+0
 #
 # p_sep_by_space
 1
 #
 # n_cs_precedes
-1
+0
 #
 # n_sep_by_space
 1

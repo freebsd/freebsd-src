@@ -244,6 +244,10 @@ struct nd_router_advert {	/* router advertisement */
 #define ND_RA_FLAG_RTPREF_LOW	0x18 /* 00011000 */
 #define ND_RA_FLAG_RTPREF_RSV	0x10 /* 00010000 */
 
+#ifdef EXPERIMENTAL
+#define	ND_RA_FLAG_IPV6_ONLY	0x02 /* draft-ietf-6man-ipv6only-flag */
+#endif
+
 #define nd_ra_router_lifetime	nd_ra_hdr.icmp6_data16[1]
 
 struct nd_neighbor_solicit {	/* neighbor solicitation */

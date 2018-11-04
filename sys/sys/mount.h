@@ -554,7 +554,8 @@ struct ovfsconf {
 #define	VFCF_UNICODE	0x00200000	/* stores file names as Unicode */
 #define	VFCF_JAIL	0x00400000	/* can be mounted from within a jail */
 #define	VFCF_DELEGADMIN	0x00800000	/* supports delegated administration */
-#define	VFCF_SBDRY	0x01000000	/* defer stop requests */
+#define	VFCF_SBDRY	0x01000000	/* Stop at Boundary: defer stop requests
+					   to kernel->user (AST) transition */
 
 typedef uint32_t fsctlop_t;
 

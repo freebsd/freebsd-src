@@ -221,18 +221,18 @@ SYMLINKS+=	../$f/${FILESNAME} \
 FILESDIR_${f}.LC_CTYPE= ${LOCALEDIR}/${f}
 .endfor
 
-SYMPAIRS+=	ja_JP.eucJP.src ja_JP.SJIS.src
+SYMPAIRS+=	zh_CN.eucCN.src zh_CN.GB18030.src
+SYMPAIRS+=	zh_CN.eucCN.src zh_CN.GB2312.src
+SYMPAIRS+=	zh_CN.eucCN.src zh_CN.GBK.src
 SYMPAIRS+=	en_US.ISO8859-1.src en_US.ISO8859-15.src
 SYMPAIRS+=	en_US.ISO8859-1.src en_US.US-ASCII.src
 SYMPAIRS+=	en_US.ISO8859-1.src lv_LV.ISO8859-13.src
 SYMPAIRS+=	en_US.ISO8859-1.src sr_RS.ISO8859-2.src
 SYMPAIRS+=	en_US.ISO8859-1.src tr_TR.ISO8859-9.src
-SYMPAIRS+=	zh_CN.eucCN.src zh_CN.GB18030.src
-SYMPAIRS+=	zh_CN.eucCN.src zh_CN.GB2312.src
-SYMPAIRS+=	zh_CN.eucCN.src zh_CN.GBK.src
+SYMPAIRS+=	ca_IT.ISO8859-1.src ca_IT.ISO8859-15.src
 SYMPAIRS+=	uk_UA.CP1251.src uk_UA.ISO8859-5.src
 SYMPAIRS+=	uk_UA.CP1251.src uk_UA.KOI8-U.src
-SYMPAIRS+=	ca_IT.ISO8859-1.src ca_IT.ISO8859-15.src
+SYMPAIRS+=	ja_JP.eucJP.src ja_JP.SJIS.src
 SYMPAIRS+=	be_BY.CP1131.src ru_RU.CP1251.src
 SYMPAIRS+=	be_BY.CP1131.src ru_RU.CP866.src
 SYMPAIRS+=	be_BY.CP1131.src ru_RU.ISO8859-5.src
