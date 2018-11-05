@@ -1967,15 +1967,6 @@ update: .PHONY
 # build-tools or cross-tools.
 #
 
-# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
-# r296685 fix cross-endian objcopy
-# r310724 fixed PR 215350, a crash in libdwarf with objects built by GCC 6.2.
-# r334881 added libdwarf constants used by ctfconvert.
-# r338478 fixed a crash in objcopy for mips64el objects
-# r339083 libelf: correct mips64el test to use ELF header
-.if ${BOOTSTRAPPING} < 1200085
-_elftoolchain_libs= lib/libelf lib/libdwarf
-.endif
 
 # libnv and libl are both requirements for config(8), which is an unconditional
 # bootstrap-tool.
@@ -1987,7 +1978,7 @@ legacy: .PHONY
 	false
 .endif
 
-.for _tool in tools/build ${_elftoolchain_libs} ${_config_deps}
+.for _tool in tools/build ${_config_deps}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
 	    if [ -z "${NO_OBJWALK}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
@@ -2001,7 +1992,8 @@ legacy: .PHONY
 # bootstrap-tools: Build tools needed for compatibility. These are binaries that
 # are built to build other binaries in the system. However, the focus of these
 # binaries is usually quite narrow. Bootstrap tools use the host's compiler and
-# libraries, augmented by -legacy.
+# libraries, augmented by -legacy, in addition to the libraries built during
+# bootstrap-tools.
 #
 _bt=		_bootstrap-tools
 
@@ -2052,9 +2044,22 @@ _lex=		usr.bin/lex
 # Note: lex needs m4 to build but m4 also depends on lex. However, lex can be
 # bootstrapped so we build lex first.
 ${_bt}-usr.bin/m4: ${_bt}-lib/libopenbsd ${_bt}-usr.bin/yacc ${_bt}-${_lex}
-_bt_lex_depend=${_bt}-usr.bin/lex ${_bt}-usr.bin/m4
+_bt_m4_depend=${_bt}-${_m4}
+_bt_lex_depend=${_bt}-${_lex} ${_bt_m4_depend}
 .else
 _bootstrap_tools_links+=m4 lex
+.endif
+
+# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
+# r296685 fix cross-endian objcopy
+# r310724 fixed PR 215350, a crash in libdwarf with objects built by GCC 6.2.
+# r334881 added libdwarf constants used by ctfconvert.
+# r338478 fixed a crash in objcopy for mips64el objects
+# r339083 libelf: correct mips64el test to use ELF header
+.if ${BOOTSTRAPPING} < 1200085
+_elftoolchain_libs= lib/libelf lib/libdwarf
+${_bt}-lib/libelf: ${_bt_m4_depend}
+${_bt}-lib/libdwarf: ${_bt_m4_depend}
 .endif
 
 # r245440 mtree -N support added
@@ -2264,6 +2269,7 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_dtc} \
     ${_cat} \
     ${_kbdcontrol} \
+    ${_elftoolchain_libs} \
     usr.bin/lorder \
     lib/libopenbsd \
     usr.bin/mandoc \
