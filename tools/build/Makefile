@@ -114,9 +114,17 @@ installdirs:
 # bootstrap-tools phase. We could also overrride BINDIR when building bootstrap
 # tools but adding the symlinks is easier and means all tools are also
 # in the directory that they are installed to normally.
-	ln -sf bin ${DESTDIR}/sbin
-	ln -sf ../bin ${DESTDIR}/usr/bin
-	ln -sf ../bin ${DESTDIR}/usr/sbin
+
+.for _dir in sbin usr/sbin usr/bin
+# delete existing directories from before r340157
+	@if [ ! -L ${DESTDIR}/${_dir} ]; then \
+	    echo "removing old non-symlink ${DESTDIR}/${_dir}"; \
+	    rm -rf "${DESTDIR}/${_dir}"; \
+	fi
+.endfor
+	ln -sfn bin ${DESTDIR}/sbin
+	ln -sfn ../bin ${DESTDIR}/usr/bin
+	ln -sfn ../bin ${DESTDIR}/usr/sbin
 .for _group in ${INCSGROUPS:NINCS}
 	mkdir -p "${DESTDIR}/${${_group}DIR}"
 .endfor
