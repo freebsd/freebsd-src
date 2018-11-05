@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2003
+.Dd November 5, 2018
 .Dt ELFDUMP 1
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 files
 .Sh SYNOPSIS
 .Nm
-.Fl a | cdeGhinprs
+.Fl a | E | cdeGhinprs
 .Op Fl w Ar file
 .Ar file
 .Sh DESCRIPTION
@@ -55,6 +55,11 @@ Dump section headers.
 Dump dynamic symbols.
 .It Fl e
 Dump ELF header.
+.It Fl E
+Return success if
+.Ar file
+is an ELF file and failure if it is not.
+This option is exclusive with other options.
 .It Fl G
 Dump the GOT.
 .It Fl h
