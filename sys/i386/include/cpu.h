@@ -50,7 +50,6 @@
 #define	cpu_getstack(td)		((td)->td_frame->tf_esp)
 #define	cpu_setstack(td, ap)		((td)->td_frame->tf_esp = (ap))
 #define	cpu_spinwait()			ia32_pause()
-#define	cpu_lock_delay()		DELAY(1)
 
 #define	TRAPF_USERMODE(framep) \
 	((ISPL((framep)->tf_cs) == SEL_UPL) || ((framep)->tf_eflags & PSL_VM))
@@ -73,6 +72,7 @@ extern char	btext[];
 extern char	etext[];
 
 void	cpu_halt(void);
+void	cpu_lock_delay(void);
 void	cpu_reset(void);
 void	fork_trampoline(void);
 void	swi_vm(void *);
