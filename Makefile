@@ -610,10 +610,13 @@ _need_lld_${target}_${target_arch} != \
 # XXX: Passing HOST_OBJTOP into the PATH would allow skipping legacy,
 #      bootstrap-tools, and cross-tools.  Need to ensure each tool actually
 #      supports all TARGETS though.
+# For now we only pass UNIVERSE_TOOLCHAIN_PATH which will be added at the end
+# of STRICTTMPPATH to ensure that the target-specific binaries come first.
 MAKE_PARAMS_${target}+= \
 	XCC="${HOST_OBJTOP}/tmp/usr/bin/cc" \
 	XCXX="${HOST_OBJTOP}/tmp/usr/bin/c++" \
-	XCPP="${HOST_OBJTOP}/tmp/usr/bin/cpp"
+	XCPP="${HOST_OBJTOP}/tmp/usr/bin/cpp" \
+	UNIVERSE_TOOLCHAIN_PATH=${HOST_OBJTOP}/tmp/usr/bin
 .endif
 .if defined(_need_lld_${target}_${target_arch}) && \
     ${_need_lld_${target}_${target_arch}} == "yes"
