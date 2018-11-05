@@ -337,6 +337,22 @@ menu.welcome = {
 			submenu = menu.boot_environments,
 			alias = {"e", "E"},
 		},
+		-- chainload
+		{
+			entry_type = core.MENU_ENTRY,
+			name = function()
+				return 'Chain' .. color.highlight("L") ..
+				    "oad " .. loader.getenv('chain_disk')
+			end,
+			func = function()
+				loader.perform("chain " ..
+				    loader.getenv('chain_disk'))
+			end,
+			visible = function()
+				return loader.getenv('chain_disk') ~= nil
+			end,
+			alias = {"l", "L"},
+		},
 	},
 }
 
