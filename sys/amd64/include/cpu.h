@@ -50,6 +50,7 @@
 #define	cpu_getstack(td)		((td)->td_frame->tf_rsp)
 #define	cpu_setstack(td, ap)		((td)->td_frame->tf_rsp = (ap))
 #define	cpu_spinwait()			ia32_pause()
+#define	cpu_lock_delay()		DELAY(1)
 
 #define	TRAPF_USERMODE(framep) \
 	(ISPL((framep)->tf_cs) == SEL_UPL)
