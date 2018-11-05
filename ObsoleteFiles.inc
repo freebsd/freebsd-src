@@ -38,8 +38,6 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20181105: backwards-compatibility capability.h header removed
-OLD_FILES+=usr/include/sys/capability.h
 # 20181030: malloc_domain(9) KPI change
 OLD_FILES+=share/man/man9/malloc_domain.9.gz
 # 20181026: joy(4) removal
