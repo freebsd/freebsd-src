@@ -37,17 +37,29 @@
  */
 
 #include <sys/cdefs.h>
+#ifdef __FreeBSD__
+__FBSDID("$FreeBSD$");
+#else
 #if defined(_KERNEL)
 __KERNEL_RCSID(0, "$NetBSD: ubsan.c,v 1.3 2018/08/03 16:31:04 kamil Exp $");
 #else
 __RCSID("$NetBSD: ubsan.c,v 1.3 2018/08/03 16:31:04 kamil Exp $");
 #endif
+#endif
 
 #if defined(_KERNEL)
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/stdarg.h>
-#define ASSERT(x) KASSERT(x)
+#include <sys/limits.h>
+#include <sys/systm.h>
+#include <machine/_inttypes.h>
+#include <machine/stdarg.h>
+#define	ASSERT(x) KASSERT(x, ("%s: " __STRING(x) " failed", __func__))
+#define	__arraycount(x) nitems(x)
+#define	ISSET(x, y)	((x) & (y))
+#define	__BIT(x)	((uintmax_t)1 << (uintmax_t)(x))
+#define	__LOWEST_SET_BIT(__mask) ((((__mask) - 1) & (__mask)) ^ (__mask))
+#define	__SHIFTOUT(__x, __mask) (((__x) & (__mask)) / __LOWEST_SET_BIT(__mask))
 #else
 #if defined(_LIBC)
 #include "namespace.h"
