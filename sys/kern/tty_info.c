@@ -271,7 +271,7 @@ tty_info(struct tty *tp)
 	if (tty_checkoutq(tp) == 0)
 		return;
 
-	(void)sbuf_new(&sb, tp->t_prbuf, sizeof(tp->t_prbuf), SBUF_FIXEDLEN);
+	(void)sbuf_new(&sb, tp->t_prbuf, tp->t_prbufsz, SBUF_FIXEDLEN);
 	sbuf_set_drain(&sb, sbuf_tty_drain, tp);
 
 	/* Print load average. */
