@@ -973,7 +973,7 @@ vm_pageout_laundry_worker(void *arg)
 	shortfall = 0;
 	in_shortfall = false;
 	shortfall_cycle = 0;
-	target = 0;
+	last_target = target = 0;
 	nfreed = 0;
 
 	/*
