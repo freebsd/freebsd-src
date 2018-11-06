@@ -34,7 +34,7 @@
 #include <sys/jail.h>
 #endif
 #ifdef HAVE_CAP_ENTER
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #endif
 
 #include <errno.h>
