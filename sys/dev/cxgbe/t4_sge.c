@@ -82,6 +82,9 @@ __FBSDID("$FreeBSD$");
 #define RX_COPY_THRESHOLD MINCLSIZE
 #endif
 
+/* Internal mbuf flags stored in PH_loc.eight[1]. */
+#define	MC_RAW_WR		0x02
+
 /*
  * Ethernet frames are DMA'd at this byte offset into the freelist buffer.
  * 0-7 are valid values.
@@ -270,6 +273,7 @@ static inline u_int txpkt_len16(u_int, u_int);
 static inline u_int txpkt_vm_len16(u_int, u_int);
 static inline u_int txpkts0_len16(u_int);
 static inline u_int txpkts1_len16(void);
+static u_int write_raw_wr(struct sge_txq *, void *, struct mbuf *, u_int);
 static u_int write_txpkt_wr(struct sge_txq *, struct fw_eth_tx_pkt_wr *,
     struct mbuf *, u_int);
 static u_int write_txpkt_vm_wr(struct adapter *, struct sge_txq *,
@@ -2196,6 +2200,22 @@ set_mbuf_nsegs(struct mbuf *m, uint8_t nsegs)
 }
 
 static inline int
+mbuf_cflags(struct mbuf *m)
+{
+
+	M_ASSERTPKTHDR(m);
+	return (m->m_pkthdr.PH_loc.eight[4]);
+}
+
+static inline void
+set_mbuf_cflags(struct mbuf *m, uint8_t flags)
+{
+
+	M_ASSERTPKTHDR(m);
+	m->m_pkthdr.PH_loc.eight[4] = flags;
+}
+
+static inline int
 mbuf_len16(struct mbuf *m)
 {
 	int n;
@@ -2275,6 +2295,31 @@ needs_eo(struct mbuf *m)
 	return (m->m_pkthdr.snd_tag != NULL);
 }
 #endif
+
+/*
+ * Try to allocate an mbuf to contain a raw work request.  To make it
+ * easy to construct the work request, don't allocate a chain but a
+ * single mbuf.
+ */
+struct mbuf *
+alloc_wr_mbuf(int len, int how)
+{
+	struct mbuf *m;
+
+	if (len <= MHLEN)
+		m = m_gethdr(how, MT_DATA);
+	else if (len <= MCLBYTES)
+		m = m_getcl(how, MT_DATA, M_PKTHDR);
+	else
+		m = NULL;
+	if (m == NULL)
+		return (NULL);
+	m->m_pkthdr.len = len;
+	m->m_len = len;
+	set_mbuf_cflags(m, MC_RAW_WR);
+	set_mbuf_len16(m, howmany(len, 16));
+	return (m);
+}
 
 static inline int
 needs_tso(struct mbuf *m)
@@ -2449,6 +2494,7 @@ restart:
 		goto restart;
 	}
 	set_mbuf_nsegs(m0, nsegs);
+	set_mbuf_cflags(m0, 0);
 	if (sc->flags & IS_VF)
 		set_mbuf_len16(m0, txpkt_vm_len16(nsegs, needs_tso(m0)));
 	else
@@ -2691,7 +2737,7 @@ cannot_use_txpkts(struct mbuf *m)
 {
 	/* maybe put a GL limit too, to avoid silliness? */
 
-	return (needs_tso(m));
+	return (needs_tso(m) || (mbuf_cflags(m) & MC_RAW_WR) != 0);
 }
 
 static inline int
@@ -2699,6 +2745,21 @@ discard_tx(struct sge_eq *eq)
 {
 
 	return ((eq->flags & (EQ_ENABLED | EQ_QFLUSH)) != EQ_ENABLED);
+}
+
+static inline int
+wr_can_update_eq(struct fw_eth_tx_pkts_wr *wr)
+{
+
+	switch (G_FW_WR_OP(be32toh(wr->op_pkd))) {
+	case FW_ULPTX_WR:
+	case FW_ETH_TX_PKT_WR:
+	case FW_ETH_TX_PKTS_WR:
+	case FW_ETH_TX_PKT_VM_WR:
+		return (1);
+	default:
+		return (0);
+	}
 }
 
 /*
@@ -2796,6 +2857,10 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 			n = write_txpkts_wr(txq, wr, m0, &txp, available);
 			total += txp.npkt;
 			remaining -= txp.npkt;
+		} else if (mbuf_cflags(m0) & MC_RAW_WR) {
+			total++;
+			remaining--;
+			n = write_raw_wr(txq, (void *)wr, m0, available);
 		} else {
 			total++;
 			remaining--;
@@ -2808,14 +2873,17 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 		dbdiff += n;
 		IDXINCR(eq->pidx, n, eq->sidx);
 
-		if (total_available_tx_desc(eq) < eq->sidx / 4 &&
-		    atomic_cmpset_int(&eq->equiq, 0, 1)) {
-			wr->equiq_to_len16 |= htobe32(F_FW_WR_EQUIQ |
-			    F_FW_WR_EQUEQ);
-			eq->equeqidx = eq->pidx;
-		} else if (IDXDIFF(eq->pidx, eq->equeqidx, eq->sidx) >= 32) {
-			wr->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ);
-			eq->equeqidx = eq->pidx;
+		if (wr_can_update_eq(wr)) {
+			if (total_available_tx_desc(eq) < eq->sidx / 4 &&
+			    atomic_cmpset_int(&eq->equiq, 0, 1)) {
+				wr->equiq_to_len16 |= htobe32(F_FW_WR_EQUIQ |
+				    F_FW_WR_EQUEQ);
+				eq->equeqidx = eq->pidx;
+			} else if (IDXDIFF(eq->pidx, eq->equeqidx, eq->sidx) >=
+			    32) {
+				wr->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ);
+				eq->equeqidx = eq->pidx;
+			}
 		}
 
 		if (dbdiff >= 16 && remaining >= 4) {
@@ -4010,6 +4078,8 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "txpkts1_pkts",
 	    CTLFLAG_RD, &txq->txpkts1_pkts,
 	    "# of frames tx'd using type1 txpkts work requests");
+	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "raw_wrs", CTLFLAG_RD,
+	    &txq->raw_wrs, "# of raw work requests (non-packets)");
 
 	SYSCTL_ADD_COUNTER_U64(&vi->ctx, children, OID_AUTO, "r_enqueues",
 	    CTLFLAG_RD, &txq->r->enqueues,
@@ -4548,6 +4618,39 @@ write_txpkt_vm_wr(struct adapter *sc, struct sge_txq *txq,
 	txq->sgl_wrs++;
 
 	txq->txpkt_wrs++;
+
+	txsd = &txq->sdesc[eq->pidx];
+	txsd->m = m0;
+	txsd->desc_used = ndesc;
+
+	return (ndesc);
+}
+
+/*
+ * Write a raw WR to the hardware descriptors, update the software
+ * descriptor, and advance the pidx.  It is guaranteed that enough
+ * descriptors are available.
+ *
+ * The return value is the # of hardware descriptors used.
+ */
+static u_int
+write_raw_wr(struct sge_txq *txq, void *wr, struct mbuf *m0, u_int available)
+{
+	struct sge_eq *eq = &txq->eq;
+	struct tx_sdesc *txsd;
+	struct mbuf *m;
+	caddr_t dst;
+	int len16, ndesc;
+
+	len16 = mbuf_len16(m0);
+	ndesc = howmany(len16, EQ_ESIZE / 16);
+	MPASS(ndesc <= available);
+
+	dst = wr;
+	for (m = m0; m != NULL; m = m->m_next)
+		copy_to_txd(eq, mtod(m, caddr_t), &dst, m->m_len);
+
+	txq->raw_wrs++;
 
 	txsd = &txq->sdesc[eq->pidx];
 	txsd->m = m0;
