@@ -117,8 +117,7 @@
 		);
 	}
 ; XXX should be		{ int open(const char *path, int flags, ...); }
-; but we're not ready for `const' or varargs.
-; XXX man page says `mode_t mode'.
+; but we're not ready for varargs.
 6	AUE_CLOSE	STD {
 		int close(
 		    int fd
@@ -210,7 +209,6 @@
 		    _In_opt_ void *data
 		);
 	}
-; XXX `path' should have type `const char *' but we're not ready for that.
 22	AUE_UMOUNT	STD {
 		int unmount(
 		    _In_z_ const char *path,
