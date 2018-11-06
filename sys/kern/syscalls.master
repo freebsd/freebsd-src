@@ -761,8 +761,8 @@
 120	AUE_READV	STD {
 		int readv(
 		    int fd,
-		   _Inout_updates_(iovcnt) struct iovec *iovp,
-		   u_int iovcnt
+		    _Inout_updates_(iovcnt) struct iovec *iovp,
+		    u_int iovcnt
 		);
 	}
 121	AUE_WRITEV	STD {
@@ -848,7 +848,7 @@
 		    int s,
 		    _In_reads_bytes_(len) caddr_t buf,
 		    size_t len,
-		     int flags,
+		    int flags,
 		    _In_reads_bytes_opt_(tolen) caddr_t to,
 		    int tolen
 		);
