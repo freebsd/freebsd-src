@@ -1520,7 +1520,7 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		int s;
 		int level;
 		int name;
-		caddr_t val;
+		const void *val;
 		int valsize;
 	} */ bsd_args;
 	l_timeval linux_tv;
@@ -1570,10 +1570,11 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	bsd_args.valsize = args->optlen;
 
 	if (name == IPV6_NEXTHOP) {
-		linux_to_bsd_sockaddr((struct sockaddr *)bsd_args.val,
-			bsd_args.valsize);
+		linux_to_bsd_sockaddr(__DECONST(struct sockaddr *,
+		    bsd_args.val), bsd_args.valsize);
 		error = sys_setsockopt(td, &bsd_args);
-		bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.val);
+		bsd_to_linux_sockaddr(__DECONST(struct sockaddr *,
+		    bsd_args.val));
 	} else
 		error = sys_setsockopt(td, &bsd_args);
 
