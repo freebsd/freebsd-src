@@ -1,4 +1,5 @@
 #!/usr/local/bin/perl -wC
+# $FreeBSD$
 
 use strict;
 #use File::Copy;
@@ -11,15 +12,15 @@ use Getopt::Long;
 
 
 if ($#ARGV != 1) {
-	print "Usage: $0 --cldr=<cldrdir> --etc=<etcdir>\n";
+	print "Usage: $0 --unidir=<unidir> --etc=<etcdir>\n";
 	exit(1);
 }
 
-my $CLDRDIR = undef;
+my $UNIDIR = undef;
 my $ETCDIR = undef;
 
 my $result = GetOptions (
-		"cldr=s"	=> \$CLDRDIR,
+		"unidir=s"	=> \$UNIDIR,
 		"etc=s"		=> \$ETCDIR,
 	    );
 
@@ -118,7 +119,7 @@ my $outfilename = "$ETCDIR/common.UTF-8.src";
 my $manual_file = "$ETCDIR/manual-input.UTF-8";
 my $stars = "**********************************************************************\n";
 
-get_utf8map("$CLDRDIR/posix/UTF-8.cm");
+get_utf8map("$UNIDIR/posix/UTF-8.cm");
 generate_header ();
 generate_sections ();
 generate_footer ();
@@ -252,7 +253,7 @@ sub compress_ctype {
 
 	my @lines = initialize_lines ($territory);
 
-	my $filename = "$CLDRDIR/posix/$territory.UTF-8.src";
+	my $filename = "$UNIDIR/posix/$territory.UTF-8.src";
 	if (! -f $filename) {
 		print STDERR "Cannot open $filename\n";
 		return;
