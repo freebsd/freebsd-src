@@ -6,32 +6,27 @@ use File::Copy;
 use XML::Parser;
 use Tie::IxHash;
 use Text::Iconv;
-use Data::Dumper;
+#use Data::Dumper;
 use Getopt::Long;
 use Digest::SHA qw(sha1_hex);
 require "charmaps.pm";
 
 
 if ($#ARGV < 2) {
-	print "Usage: $0 --cldr=<cldrdir> --unidata=<unidatadir> --etc=<etcdir> --type=<type> [--lc=<la_CC>]\n";
+	print "Usage: $0 --unidir=<unidir> --etc=<etcdir> --type=<type>\n";
 	exit(1);
 }
 
 my $DEFENCODING = "UTF-8";
-my @filter = ();
 
-my $CLDRDIR = undef;
-my $UNIDATADIR = undef;
+my $UNIDIR = undef;
 my $ETCDIR = undef;
 my $TYPE = undef;
-my $doonly = undef;
 
 my $result = GetOptions (
-		"cldr=s"	=> \$CLDRDIR,
-		"unidata=s"	=> \$UNIDATADIR,
+		"unidir=s"	=> \$UNIDIR,
 		"etc=s"		=> \$ETCDIR,
 		"type=s"	=> \$TYPE,
-		"lc=s"		=> \$doonly
 	    );
 
 my %convertors = ();
@@ -47,8 +42,8 @@ get_languages();
 
 my %utf8map = ();
 my %utf8aliases = ();
-get_unidata($UNIDATADIR);
-get_utf8map("$CLDRDIR/posix/$DEFENCODING.cm");
+get_unidata($UNIDIR);
+get_utf8map("$UNIDIR/posix/$DEFENCODING.cm");
 get_encodings("$ETCDIR/charmaps");
 
 my %keys = ();
@@ -397,22 +392,6 @@ sub get_languages {
 	%translations = %{$data{T}}; 
 	%alternativemonths = %{$data{AM}}; 
 	%encodings = %{$data{E}}; 
-
-	return if (!defined $doonly);
-
-	my @a = split(/_/, $doonly);
-	if ($#a == 1) {
-		$filter[0] = $a[0];
-		$filter[1] = "x";
-		$filter[2] = $a[1];
-	} elsif ($#a == 2) {
-		$filter[0] = $a[0];
-		$filter[1] = $a[1];
-		$filter[2] = $a[2];
-	}
-
-	print Dumper(@filter);
-	return;
 }
 
 sub transform_ctypes {
@@ -422,8 +401,6 @@ sub transform_ctypes {
 	foreach my $l (sort keys(%languages)) {
 	foreach my $f (sort keys(%{$languages{$l}})) {
 	foreach my $c (sort keys(%{$languages{$l}{$f}{data}})) {
-		next if ($#filter == 2 && ($filter[0] ne $l
-		    || $filter[1] ne $f || $filter[2] ne $c));
 		next if (defined $languages{$l}{$f}{definitions}
 		    && $languages{$l}{$f}{definitions} !~ /$TYPE/);
 		$languages{$l}{$f}{data}{$c}{$DEFENCODING} = 0;	# unread
@@ -432,7 +409,7 @@ sub transform_ctypes {
 		$file .= "_" . $c if ($c ne "x");
 		my $actfile = $file;
 
-		my $filename = "$CLDRDIR/posix/xx_Comm_C.UTF-8.src";
+		my $filename = "$UNIDIR/posix/xx_Comm_C.UTF-8.src";
 		if (! -f $filename) {
 			print STDERR "Cannot open $filename\n";
 			next;
@@ -455,7 +432,7 @@ sub transform_ctypes {
 		close(FOUT);
 		foreach my $enc (sort keys(%{$languages{$l}{$f}{data}{$c}})) {
 			next if ($enc eq $DEFENCODING);
-			$filename = "$CLDRDIR/posix/$file.$DEFENCODING.src";
+			$filename = "$UNIDIR/posix/$file.$DEFENCODING.src";
 			if (! -f $filename) {
 				print STDERR "Cannot open $filename\n";
 				next;
@@ -494,8 +471,6 @@ sub transform_collation {
 	foreach my $l (sort keys(%languages)) {
 	foreach my $f (sort keys(%{$languages{$l}})) {
 	foreach my $c (sort keys(%{$languages{$l}{$f}{data}})) {
-		next if ($#filter == 2 && ($filter[0] ne $l
-		    || $filter[1] ne $f || $filter[2] ne $c));
 		next if (defined $languages{$l}{$f}{definitions}
 		    && $languages{$l}{$f}{definitions} !~ /$TYPE/);
 		$languages{$l}{$f}{data}{$c}{$DEFENCODING} = 0;	# unread
@@ -505,15 +480,15 @@ sub transform_collation {
 		$file .= $c;
 		my $actfile = $file;
 
-		my $filename = "$CLDRDIR/posix/$file.$DEFENCODING.src";
+		my $filename = "$UNIDIR/posix/$file.$DEFENCODING.src";
 		$filename = "$ETCDIR/$file.$DEFENCODING.src"
 		    if (! -f $filename);
 		if (! -f $filename
 		 && defined $languages{$l}{$f}{fallback}) {
 			$file = $languages{$l}{$f}{fallback};
-			$filename = "$CLDRDIR/posix/$file.$DEFENCODING.src";
+			$filename = "$UNIDIR/posix/$file.$DEFENCODING.src";
 		}
-		$filename = "$CLDRDIR/posix/$file.$DEFENCODING.src"
+		$filename = "$UNIDIR/posix/$file.$DEFENCODING.src"
 		    if (! -f $filename);
 		if (! -f $filename) {
 			print STDERR
@@ -564,8 +539,6 @@ sub get_fields {
 	foreach my $l (sort keys(%languages)) {
 	foreach my $f (sort keys(%{$languages{$l}})) {
 	foreach my $c (sort keys(%{$languages{$l}{$f}{data}})) {
-		next if ($#filter == 2 && ($filter[0] ne $l
-		    || $filter[1] ne $f || $filter[2] ne $c));
 		next if (defined $languages{$l}{$f}{definitions}
 		    && $languages{$l}{$f}{definitions} !~ /$TYPE/);
 
@@ -575,15 +548,15 @@ sub get_fields {
 		$file .= $f . "_" if ($f ne "x");
 		$file .= $c;
 
-		my $filename = "$CLDRDIR/posix/$file.$DEFENCODING.src";
+		my $filename = "$UNIDIR/posix/$file.$DEFENCODING.src";
 		$filename = "$ETCDIR/$file.$DEFENCODING.src"
 		    if (! -f $filename);
 		if (! -f $filename
 		 && defined $languages{$l}{$f}{fallback}) {
 			$file = $languages{$l}{$f}{fallback};
-			$filename = "$CLDRDIR/posix/$file.$DEFENCODING.src";
+			$filename = "$UNIDIR/posix/$file.$DEFENCODING.src";
 		}
-		$filename = "$CLDRDIR/posix/$file.$DEFENCODING.src"
+		$filename = "$UNIDIR/posix/$file.$DEFENCODING.src"
 		    if (! -f $filename);
 		if (! -f $filename) {
 			print STDERR
@@ -703,8 +676,6 @@ sub print_fields {
 	foreach my $l (sort keys(%languages)) {
 	foreach my $f (sort keys(%{$languages{$l}})) {
 	foreach my $c (sort keys(%{$languages{$l}{$f}{data}})) {
-		next if ($#filter == 2 && ($filter[0] ne $l
-		    || $filter[1] ne $f || $filter[2] ne $c));
 		next if (defined $languages{$l}{$f}{definitions}
 		    && $languages{$l}{$f}{definitions} !~ /$TYPE/);
 		foreach my $enc (sort keys(%{$languages{$l}{$f}{data}{$c}})) {
@@ -851,7 +822,6 @@ EOF
 }
 
 sub make_makefile {
-	return if ($#filter > -1);
 	print "Creating Makefile for $TYPE\n";
 	my $SRCOUT;
 	my $SRCOUT2;
@@ -913,8 +883,16 @@ LOCALEDIR=	\${SHAREDIR}/locale
 FILESNAME=	$FILESNAMES{$TYPE}
 .SUFFIXES:	.src .${SRCOUT2}
 ${MAPLOC}
+EOF
+
+	if ($TYPE eq "colldef" || $TYPE eq "ctypedef") {
+		print FOUT <<EOF;
 .include <bsd.endian.mk>
 
+EOF
+	}
+
+	print FOUT <<EOF;
 .src.${SRCOUT2}:
 	$SRCOUT
 
@@ -979,8 +957,6 @@ EOF
 	foreach my $l (sort keys(%languages)) {
 	foreach my $f (sort keys(%{$languages{$l}})) {
 	foreach my $c (sort keys(%{$languages{$l}{$f}{data}})) {
-		next if ($#filter == 2 && ($filter[0] ne $l
-		    || $filter[1] ne $f || $filter[2] ne $c));
 		next if (defined $languages{$l}{$f}{definitions}
 		    && $languages{$l}{$f}{definitions} !~ /$TYPE/);
 		if (defined $languages{$l}{$f}{data}{$c}{$DEFENCODING}
