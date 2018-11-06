@@ -113,6 +113,12 @@ PROF=		-pg
 .endif
 DEFINED_PROF=	${PROF}
 
+KUBSAN_ENABLED!=	grep KUBSAN opt_global.h || true ; echo
+.if !empty(KUBSAN_ENABLED)
+SAN_CFLAGS+=	-fsanitize=undefined
+.endif
+CFLAGS+=	${SAN_CFLAGS}
+
 # Put configuration-specific C flags last (except for ${PROF}) so that they
 # can override the others.
 CFLAGS+=	${CONF_CFLAGS}
