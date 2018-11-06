@@ -9804,6 +9804,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 					txq->txpkts1_wrs = 0;
 					txq->txpkts0_pkts = 0;
 					txq->txpkts1_pkts = 0;
+					txq->raw_wrs = 0;
 					mp_ring_reset_stats(txq->r);
 				}
 
