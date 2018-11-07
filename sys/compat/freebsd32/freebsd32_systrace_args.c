@@ -8839,7 +8839,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* break */
 	case 17:
 		if (ndx == 0 || ndx == 1)
-			p = "caddr_t";
+			p = "void *";
 		break;
 	/* getpid */
 	case 20:
@@ -9388,7 +9388,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* shmat */
 	case 228:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "void *";
 		break;
 	/* shmdt */
 	case 230:
@@ -10139,7 +10139,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* freebsd32_mmap */
 	case 477:
 		if (ndx == 0 || ndx == 1)
-			p = "caddr_t";
+			p = "void *";
 		break;
 	/* freebsd32_lseek */
 	case 478:
@@ -10170,7 +10170,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* freebsd32_mmap */
 	case 477:
 		if (ndx == 0 || ndx == 1)
-			p = "caddr_t";
+			p = "void *";
 		break;
 	/* freebsd32_lseek */
 	case 478:
