@@ -88,7 +88,7 @@
 					int mode, int dev); }
 15	AUE_CHMOD	NOPROTO	{ int chmod(const char *path, mode_t mode); }
 16	AUE_CHOWN	NOPROTO	{ int chown(const char *path, int uid, int gid); }
-17	AUE_NULL	NOPROTO	{ caddr_t break(char *nsize); }
+17	AUE_NULL	NOPROTO	{ void *break(char *nsize); }
 18	AUE_GETFSSTAT	COMPAT4	{ int freebsd32_getfsstat( \
 				    struct statfs32 *buf, long bufsize, \
 				    int mode); }
@@ -175,7 +175,7 @@
 68	AUE_NULL	OBSOL	vwrite
 69	AUE_SBRK	NOPROTO	{ int sbrk(int incr); }
 70	AUE_SSTK	NOPROTO	{ int sstk(int incr); }
-71	AUE_MMAP	COMPAT|NOPROTO	{ int mmap(void *addr, int len, \
+71	AUE_MMAP	COMPAT|NOPROTO	{ void *mmap(void *addr, int len, \
 				    int prot, int flags, int fd, int pos); }
 72	AUE_O_VADVISE	COMPAT11|NOPROTO	{ int vadvise(int anom); }
 73	AUE_MUNMAP	NOPROTO	{ int munmap(void *addr, size_t len); }
@@ -373,7 +373,7 @@
 				    __setrlimit_args int
 196	AUE_GETDIRENTRIES COMPAT11 { int freebsd32_getdirentries(int fd, \
 				    char *buf, u_int count, int32_t *basep); }
-197	AUE_MMAP	COMPAT6	{ caddr_t freebsd32_mmap(void *addr, \
+197	AUE_MMAP	COMPAT6	{ void *freebsd32_mmap(void *addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    int pad, uint32_t pos1, uint32_t pos2); }
 198	AUE_NULL	NOPROTO	{ int nosys(void); } __syscall \
@@ -432,7 +432,7 @@
 				    size_t msgsz, int msgflg); }
 227	AUE_MSGRCV	NOSTD	{ int freebsd32_msgrcv(int msqid, void *msgp, \
 				    size_t msgsz, long msgtyp, int msgflg); }
-228	AUE_SHMAT	NOSTD|NOPROTO	{ int shmat(int shmid, void *shmaddr, \
+228	AUE_SHMAT	NOSTD|NOPROTO	{ void *shmat(int shmid, void *shmaddr, \
 				    int shmflg); }
 229	AUE_SHMCTL	COMPAT7|NOSTD	{ int freebsd32_shmctl( \
 				    int shmid, int cmd, \
@@ -876,7 +876,7 @@
 				    const void *buf, size_t nbyte, \
 				    int pad, \
 				    uint32_t offset1, uint32_t offset2); }
-477	AUE_MMAP	STD 	{ caddr_t freebsd32_mmap(void *addr, \
+477	AUE_MMAP	STD 	{ void *freebsd32_mmap(void *addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    int pad, \
 				    uint32_t pos1, uint32_t pos2); }
@@ -897,7 +897,7 @@
 476	AUE_PWRITE	STD	{ ssize_t freebsd32_pwrite(int fd, \
 				    const void *buf, size_t nbyte, \
 				    uint32_t offset1, uint32_t offset2); }
-477	AUE_MMAP	STD 	{ caddr_t freebsd32_mmap(void *addr, \
+477	AUE_MMAP	STD 	{ void *freebsd32_mmap(void *addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    uint32_t pos1, uint32_t pos2); }
 478	AUE_LSEEK	STD	{ off_t freebsd32_lseek(int fd, \

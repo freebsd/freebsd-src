@@ -180,7 +180,7 @@
 		);
 	}
 17	AUE_NULL	STD {
-		caddr_t break(
+		void *break(
 		    _In_ char *nsize
 		);
 	}
@@ -480,7 +480,7 @@
 		);
 	}
 71	AUE_MMAP	COMPAT {
-		int mmap(
+		void *mmap(
 		    _In_ void *addr,
 		    int len,
 		    int prot,
@@ -1168,7 +1168,7 @@
 		);
 	}
 197	AUE_MMAP	COMPAT6 {
-		caddr_t mmap(
+		void *mmap(
 		    _In_ void *addr,
 		    size_t len,
 		    int prot,
@@ -1317,7 +1317,7 @@
 		);
 	}
 228	AUE_SHMAT	NOSTD {
-		int shmat(
+		void *shmat(
 		    int shmid,
 		    _In_ const void *shmaddr,
 		    int shmflg
@@ -2543,7 +2543,7 @@
 		);
 	}
 477	AUE_MMAP	STD {
-		caddr_t mmap(
+		void *mmap(
 		    _In_ void *addr,
 		    size_t len,
 		    int prot,
