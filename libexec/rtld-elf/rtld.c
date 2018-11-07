@@ -705,10 +705,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (do_copy_relocations(obj_main) == -1)
 	rtld_die();
 
-    dbg("enforcing main obj relro");
-    if (obj_enforce_relro(obj_main) == -1)
-	rtld_die();
-
     if (getenv(_LD("DUMP_REL_POST")) != NULL) {
        dump_relocations(obj_main);
        exit (0);
@@ -741,6 +737,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (resolve_objects_ifunc(obj_main,
       ld_bind_now != NULL && *ld_bind_now != '\0', SYMLOOK_EARLY,
       NULL) == -1)
+	rtld_die();
+
+    dbg("enforcing main obj relro");
+    if (obj_enforce_relro(obj_main) == -1)
 	rtld_die();
 
     if (!obj_main->crt_no_init) {
