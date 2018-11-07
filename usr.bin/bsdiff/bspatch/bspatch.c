@@ -144,26 +144,22 @@ int main(int argc, char *argv[])
 	atexit(exit_cleanup);
 
 #ifdef HAVE_CAPSICUM
-	if (cap_enter() < 0) {
-		/* Failed to sandbox, fatal if CAPABILITY_MODE enabled */
-		if (errno != ENOSYS)
-			err(1, "failed to enter security sandbox");
-	} else {
-		/* Capsicum Available */
-		cap_rights_init(&rights_ro, CAP_READ, CAP_FSTAT, CAP_SEEK);
-		cap_rights_init(&rights_wr, CAP_WRITE);
-		cap_rights_init(&rights_dir, CAP_UNLINKAT);
+	if (cap_enter() < 0)
+		err(1, "failed to enter security sandbox");
 
-		if (cap_rights_limit(fileno(f), &rights_ro) < 0 ||
-		    cap_rights_limit(fileno(cpf), &rights_ro) < 0 ||
-		    cap_rights_limit(fileno(dpf), &rights_ro) < 0 ||
-		    cap_rights_limit(fileno(epf), &rights_ro) < 0 ||
-		    cap_rights_limit(oldfd, &rights_ro) < 0 ||
-		    cap_rights_limit(newfd, &rights_wr) < 0 ||
-		    cap_rights_limit(dirfd, &rights_dir) < 0)
-			err(1, "cap_rights_limit() failed, could not restrict"
-			    " capabilities");
-	}
+	cap_rights_init(&rights_ro, CAP_READ, CAP_FSTAT, CAP_SEEK);
+	cap_rights_init(&rights_wr, CAP_WRITE);
+	cap_rights_init(&rights_dir, CAP_UNLINKAT);
+
+	if (cap_rights_limit(fileno(f), &rights_ro) < 0 ||
+	    cap_rights_limit(fileno(cpf), &rights_ro) < 0 ||
+	    cap_rights_limit(fileno(dpf), &rights_ro) < 0 ||
+	    cap_rights_limit(fileno(epf), &rights_ro) < 0 ||
+	    cap_rights_limit(oldfd, &rights_ro) < 0 ||
+	    cap_rights_limit(newfd, &rights_wr) < 0 ||
+	    cap_rights_limit(dirfd, &rights_dir) < 0)
+		err(1, "cap_rights_limit() failed, could not restrict"
+		    " capabilities");
 #endif
 
 	/*
