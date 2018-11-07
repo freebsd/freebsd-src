@@ -232,6 +232,9 @@ UMTX_CHAINS	opt_global.h
 VERBOSE_SYSINIT
 ZSTDIO		opt_zstdio.h
 
+# Sanitizers
+KUBSAN		opt_global.h
+
 # POSIX kernel options
 P1003_1B_MQUEUE			opt_posix.h
 P1003_1B_SEMAPHORES		opt_posix.h

@@ -4949,8 +4949,11 @@ pmc_process_samples(int cpu, ring_type_t ring)
 
 		/* If there is a pending AST wait for completion */
 		if (ps->ps_nsamples == PMC_USER_CALLCHAIN_PENDING) {
-			/* if sample is more than 65 ms old, drop it */
-			if (ticks - ps->ps_ticks > (hz >> 4)) {
+			/* if we've been waiting more than 1 tick to 
+			 * collect a callchain for this record then
+			 * drop it and move on.
+			 */
+			if (ticks - ps->ps_ticks > 1) {
 				/*
 				 * track how often we hit this as it will
 				 * preferentially lose user samples

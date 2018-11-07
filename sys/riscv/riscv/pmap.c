@@ -2098,13 +2098,20 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l3 |= PTE_W;
 	if ((va >> 63) == 0)
 		new_l3 |= PTE_U;
-	else if (prot & VM_PROT_WRITE)
-		new_l3 |= PTE_D;
 
 	new_l3 |= (pn << PTE_PPN0_S);
 	if ((flags & PMAP_ENTER_WIRED) != 0)
 		new_l3 |= PTE_SW_WIRED;
-	if ((m->oflags & VPO_UNMANAGED) == 0)
+
+	/*
+	 * Set modified bit gratuitously for writeable mappings if
+	 * the page is unmanaged. We do not want to take a fault
+	 * to do the dirty bit accounting for these mappings.
+	 */
+	if ((m->oflags & VPO_UNMANAGED) != 0) {
+		if (prot & VM_PROT_WRITE)
+			new_l3 |= PTE_D;
+	} else
 		new_l3 |= PTE_SW_MANAGED;
 
 	CTR2(KTR_PMAP, "pmap_enter: %.16lx -> %.16lx", va, pa);

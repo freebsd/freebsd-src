@@ -2005,7 +2005,7 @@ daasync(void *callback_arg, u_int32_t code,
 
 	periph = (struct cam_periph *)callback_arg;
 	switch (code) {
-	case AC_FOUND_DEVICE:
+	case AC_FOUND_DEVICE:	/* callback to create periph, no locking yet */
 	{
 		struct ccb_getdev *cgd;
 		cam_status status;
@@ -2041,7 +2041,7 @@ daasync(void *callback_arg, u_int32_t code,
 				"due to status 0x%x\n", status);
 		return;
 	}
-	case AC_ADVINFO_CHANGED:
+	case AC_ADVINFO_CHANGED:	/* Doesn't touch periph */
 	{
 		uintptr_t buftype;
 
@@ -2064,8 +2064,10 @@ daasync(void *callback_arg, u_int32_t code,
 		ccb = (union ccb *)arg;
 
 		/*
-		 * Handle all UNIT ATTENTIONs except our own,
-		 * as they will be handled by daerror().
+		 * Handle all UNIT ATTENTIONs except our own, as they will be
+		 * handled by daerror(). Since this comes from a different periph,
+		 * that periph's lock is held, not ours, so we have to take it ours
+		 * out to touch softc flags.
 		 */
 		if (xpt_path_periph(ccb->ccb_h.path) != periph &&
 		    scsi_extract_sense_ccb(ccb,
@@ -2093,9 +2095,13 @@ daasync(void *callback_arg, u_int32_t code,
 		}
 		break;
 	}
-	case AC_SCSI_AEN:
+	case AC_SCSI_AEN:		/* Called for this path: periph locked */
+		/*
+		 * Appears to be currently unused for SCSI devices, only ata SIMs
+		 * generate this.
+		 */
+		cam_periph_assert(periph, MA_OWNED);
 		softc = (struct da_softc *)periph->softc;
-		cam_periph_lock(periph);
 		if (!cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR) &&
 		    (softc->flags & DA_FLAG_TUR_PENDING) == 0) {
 			if (da_periph_acquire(periph, DA_REF_TUR) == 0) {
@@ -2103,31 +2109,28 @@ daasync(void *callback_arg, u_int32_t code,
 				daschedule(periph);
 			}
 		}
-		cam_periph_unlock(periph);
 		/* FALLTHROUGH */
-	case AC_SENT_BDR:
-	case AC_BUS_RESET:
+	case AC_SENT_BDR:		/* Called for this path: periph locked */
+	case AC_BUS_RESET:		/* Called for this path: periph locked */
 	{
 		struct ccb_hdr *ccbh;
 
+		cam_periph_assert(periph, MA_OWNED);
 		softc = (struct da_softc *)periph->softc;
 		/*
 		 * Don't fail on the expected unit attention
 		 * that will occur.
 		 */
-		cam_periph_lock(periph);
 		softc->flags |= DA_FLAG_RETRY_UA;
 		LIST_FOREACH(ccbh, &softc->pending_ccbs, periph_links.le)
 			ccbh->ccb_state |= DA_CCB_RETRY_UA;
-		cam_periph_unlock(periph);
 		break;
 	}
-	case AC_INQ_CHANGED:
-		cam_periph_lock(periph);
+	case AC_INQ_CHANGED:		/* Called for this path: periph locked */
+		cam_periph_assert(periph, MA_OWNED);
 		softc = (struct da_softc *)periph->softc;
 		softc->flags &= ~DA_FLAG_PROBED;
 		dareprobe(periph);
-		cam_periph_unlock(periph);
 		break;
 	default:
 		break;

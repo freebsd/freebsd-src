@@ -77,6 +77,7 @@ extern char	etext[];
 extern	void (*vmm_resume_p)(void);
 
 void	cpu_halt(void);
+void	cpu_lock_delay(void);
 void	cpu_reset(void);
 void	fork_trampoline(void);
 void	swi_vm(void *);
