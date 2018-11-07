@@ -325,6 +325,7 @@ sed -e '
 	}
 	function parseline() {
 		f=4			# toss number, type, audit event
+		ret_inc = 0
 		argc= 0;
 		argssize = "0"
 		thr_flag = "SY_THR_STATIC"
@@ -340,12 +341,15 @@ sed -e '
 			funcalias=""
 			argalias=""
 			rettype="int"
+			if ($(f+2) == "*") {
+				ret_inc = 1
+			}
 			end=NF
 		}
 		if (flag("NODEF")) {
 			auditev="AUE_NULL"
-			funcname=$4
-			argssize = "AS(" $6 ")"
+			funcname=$(4 + ret_inc)
+			argssize = "AS(" $(6 + ret_inc) ")"
 			return
 		}
 		if ($f != "{")
@@ -363,6 +367,11 @@ sed -e '
 
 		syscallret=$f
 		f++
+		while (ret_inc > 0) {
+			syscallret=syscallret " " $f
+			f++
+			ret_inc--
+		}
 
 		funcname=$f
 

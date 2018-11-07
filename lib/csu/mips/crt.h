@@ -27,5 +27,25 @@
 #define	_CRT_H_
 
 #define	HAVE_CTORS
+#define	CTORS_CONSTRUCTORS
+#ifdef __mips_o32
+#define	INIT_CALL_SEQ(func)						\
+    ".set noreorder		\n"					\
+    "bal	1f		\n"					\
+    "nop			\n"					\
+    "1:				\n"					\
+    ".cpload $ra		\n"					\
+    ".set reorder		\n"					\
+    "jal	" __STRING(func)
+#else
+#define	INIT_CALL_SEQ(func)						\
+    ".set noreorder		\n"					\
+    "bal	1f		\n"					\
+    "nop			\n"					\
+    "1:				\n"					\
+    ".set reorder		\n"					\
+    ".cpsetup $ra, $v0, 1b	\n"					\
+    "jal	" __STRING(func)
+#endif
 
 #endif
