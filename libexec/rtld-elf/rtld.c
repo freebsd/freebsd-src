@@ -688,6 +688,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
        exit (0);
     }
 
+    ifunc_init(aux);
+
     /*
      * Setup TLS for main thread.  This must be done after the
      * relocations are processed, since tls initialization section
@@ -709,7 +711,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     r_debug_state(NULL, &obj_main->linkmap); /* say hello to gdb! */
 
     map_stacks_exec(NULL);
-    ifunc_init(aux);
 
     dbg("resolving ifuncs");
     if (resolve_objects_ifunc(obj_main,
