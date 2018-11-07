@@ -169,7 +169,7 @@ print_icmp6types(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 	int i, j;
 	char sep= ' ';
 
-	bprintf(bp, " ip6 icmp6types");
+	bprintf(bp, " icmp6types");
 	for (i = 0; i < 7; i++)
 		for (j=0; j < 32; ++j) {
 			if ( (cmd->d[i] & (1 << (j))) == 0)

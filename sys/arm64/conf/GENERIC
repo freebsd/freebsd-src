@@ -92,6 +92,8 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options 	ALT_BREAK_TO_DEBUGGER	# Enter debugger on keyboard escape sequence
 options 	USB_DEBUG		# enable debug msgs
 options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
+# Warning: KUBSAN can result in a kernel too large for loader to load
+#options 	KUBSAN			# Kernel Undefined Behavior Sanitizer
 
 # Kernel dump features.
 options 	EKCD			# Support for encrypted kernel dumps

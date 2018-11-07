@@ -671,4 +671,4 @@ create_diskimage ( ) (
 # Set the path to the same path we use for buldworld to use latest mkimg
 NANO_TARGET=$(cd ${NANO_SRC}; ${NANO_MAKE} TARGET_ARCH=${NANO_ARCH} -V _TARGET)
 NANO_TMPPATH=$(cd ${NANO_SRC}; ${NANO_MAKE} MK_AUTO_OBJ=no TARGET=${NANO_TARGET} TARGET_ARCH=${NANO_ARCH} -f Makefile.inc1 buildenv -V TMPPATH)
-export PATH="${NANO_TMPPATH}"
+export PATH="${NANO_TMPPATH}:${PATH}"

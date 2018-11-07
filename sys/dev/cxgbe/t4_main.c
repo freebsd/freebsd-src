@@ -529,9 +529,9 @@ struct intrs_and_queues {
 
 static void setup_memwin(struct adapter *);
 static void position_memwin(struct adapter *, int, uint32_t);
-static int validate_mem_range(struct adapter *, uint32_t, int);
+static int validate_mem_range(struct adapter *, uint32_t, uint32_t);
 static int fwmtype_to_hwmtype(int);
-static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
+static int validate_mt_off_len(struct adapter *, int, uint32_t, uint32_t,
     uint32_t *);
 static int fixup_devlog_params(struct adapter *);
 static int cfg_itype_and_nqueues(struct adapter *, struct intrs_and_queues *);
@@ -2826,14 +2826,14 @@ t4_range_cmp(const void *a, const void *b)
  * the card's address space.
  */
 static int
-validate_mem_range(struct adapter *sc, uint32_t addr, int len)
+validate_mem_range(struct adapter *sc, uint32_t addr, uint32_t len)
 {
 	struct t4_range mem_ranges[4], *r, *next;
 	uint32_t em, addr_len;
 	int i, n, remaining;
 
 	/* Memory can only be accessed in naturally aligned 4 byte units */
-	if (addr & 3 || len & 3 || len <= 0)
+	if (addr & 3 || len & 3 || len == 0)
 		return (EINVAL);
 
 	/* Enabled memories */
@@ -2972,7 +2972,7 @@ fwmtype_to_hwmtype(int mtype)
  * the start of the range is returned in addr.
  */
 static int
-validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
+validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, uint32_t len,
     uint32_t *addr)
 {
 	uint32_t em, addr_len, maddr;
@@ -9804,6 +9804,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 					txq->txpkts1_wrs = 0;
 					txq->txpkts0_pkts = 0;
 					txq->txpkts1_pkts = 0;
+					txq->raw_wrs = 0;
 					mp_ring_reset_stats(txq->r);
 				}
 

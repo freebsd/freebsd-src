@@ -566,11 +566,7 @@ main(int argc, char *const *argv)
 		if (inet_aton(source, &sock_in.sin_addr) != 0) {
 			shostname = source;
 		} else {
-			if (capdns != NULL)
-				hp = cap_gethostbyname2(capdns, source,
-				    AF_INET);
-			else
-				hp = gethostbyname2(source, AF_INET);
+			hp = cap_gethostbyname2(capdns, source, AF_INET);
 			if (!hp)
 				errx(EX_NOHOST, "cannot resolve %s: %s",
 				    source, hstrerror(h_errno));
@@ -598,10 +594,7 @@ main(int argc, char *const *argv)
 	if (inet_aton(target, &to->sin_addr) != 0) {
 		hostname = target;
 	} else {
-		if (capdns != NULL)
-			hp = cap_gethostbyname2(capdns, target, AF_INET);
-		else
-			hp = gethostbyname2(target, AF_INET);
+		hp = cap_gethostbyname2(capdns, target, AF_INET);
 		if (!hp)
 			errx(EX_NOHOST, "cannot resolve %s: %s",
 			    target, hstrerror(h_errno));
@@ -1693,10 +1686,7 @@ pr_addr(struct in_addr ina)
 	if (options & F_NUMERIC)
 		return inet_ntoa(ina);
 
-	if (capdns != NULL)
-		hp = cap_gethostbyaddr(capdns, (char *)&ina, 4, AF_INET);
-	else
-		hp = gethostbyaddr((char *)&ina, 4, AF_INET);
+	hp = cap_gethostbyaddr(capdns, (char *)&ina, 4, AF_INET);
 
 	if (hp == NULL)
 		return inet_ntoa(ina);

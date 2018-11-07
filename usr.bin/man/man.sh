@@ -662,6 +662,7 @@ man_setup_width() {
 # Setup necessary locale variables.
 man_setup_locale() {
 	local lang_cc
+	local locstr
 
 	locpaths='.'
 	man_charset='US-ASCII'
@@ -670,18 +671,25 @@ man_setup_locale() {
 	if [ -n "$oflag" ]; then
 		decho 'Using non-localized manpages'
 	else
-		# Use the locale tool to give us the proper LC_CTYPE
+		# Use the locale tool to give us proper locale information
 		eval $( $LOCALE )
 
-		case "$LC_CTYPE" in
+		if [ -n "$LANG" ]; then
+			locstr=$LANG
+		else
+			locstr=$LC_CTYPE
+		fi
+
+		case "$locstr" in
 		C)		;;
+		C.UTF-8)	;;
 		POSIX)		;;
 		[a-z][a-z]_[A-Z][A-Z]\.*)
-				lang_cc="${LC_CTYPE%.*}"
-				man_lang="${LC_CTYPE%_*}"
+				lang_cc="${locstr%.*}"
+				man_lang="${locstr%_*}"
 				man_country="${lang_cc#*_}"
-				man_charset="${LC_CTYPE#*.}"
-				locpaths="$LC_CTYPE"
+				man_charset="${locstr#*.}"
+				locpaths="$locstr"
 				locpaths="$locpaths:$man_lang.$man_charset"
 				if [ "$man_lang" != "en" ]; then
 					locpaths="$locpaths:en.$man_charset"

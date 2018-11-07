@@ -512,7 +512,7 @@ main(int argc, char *argv[])
 	close(pipe_fd[0]);
 	privfd = pipe_fd[1];
 	cap_rights_init(&rights, CAP_READ, CAP_WRITE);
-	if (cap_rights_limit(privfd, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(privfd, &rights) < 0)
 		error("can't limit private descriptor: %m");
 
 	if ((fd = open(path_dhclient_db, O_RDONLY|O_EXLOCK|O_CREAT, 0)) == -1)
@@ -526,7 +526,7 @@ main(int argc, char *argv[])
 	if (shutdown(routefd, SHUT_WR) < 0)
 		error("can't shutdown route socket: %m");
 	cap_rights_init(&rights, CAP_EVENT, CAP_READ);
-	if (cap_rights_limit(routefd, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(routefd, &rights) < 0)
 		error("can't limit route socket: %m");
 
 	endpwent();
@@ -1928,12 +1928,10 @@ rewrite_client_leases(void)
 			error("can't create %s: %m", path_dhclient_db);
 		cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_FSYNC,
 		    CAP_FTRUNCATE, CAP_SEEK, CAP_WRITE);
-		if (cap_rights_limit(fileno(leaseFile), &rights) < 0 &&
-		    errno != ENOSYS) {
+		if (caph_rights_limit(fileno(leaseFile), &rights) < 0) {
 			error("can't limit lease descriptor: %m");
 		}
-		if (cap_fcntls_limit(fileno(leaseFile), CAP_FCNTL_GETFL) < 0 &&
-		    errno != ENOSYS) {
+		if (caph_fcntls_limit(fileno(leaseFile), CAP_FCNTL_GETFL) < 0) {
 			error("can't limit lease descriptor fcntls: %m");
 		}
 	} else {
@@ -2460,20 +2458,24 @@ go_daemon(void)
 
 	cap_rights_init(&rights);
 
-	if (pidfile != NULL)
+	if (pidfile != NULL) {
 		pidfile_write(pidfile);
+
+		if (caph_rights_limit(pidfile_fileno(pidfile), &rights) < 0)
+			error("can't limit pidfile descriptor: %m");
+	}
 
 	if (nullfd != -1) {
 		close(nullfd);
 		nullfd = -1;
 	}
 
-	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(STDIN_FILENO, &rights) < 0)
 		error("can't limit stdin: %m");
 	cap_rights_init(&rights, CAP_WRITE);
-	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(STDOUT_FILENO, &rights) < 0)
 		error("can't limit stdout: %m");
-	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(STDERR_FILENO, &rights) < 0)
 		error("can't limit stderr: %m");
 }
 
