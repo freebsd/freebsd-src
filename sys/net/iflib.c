@@ -4256,18 +4256,13 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		setmask |= (mask & IFCAP_WOL);
 
 		/*
-		 * If we're disabling any RX csum, disable all the ones
-		 * the driver supports.  This assumes all supported are
-		 * enabled.
-		 * 
-		 * Otherwise, if they've changed, enable all of them.
+		 * If any RX csum has changed, change all the ones that
+		 * are supported by the driver.
 		 */
-		if ((setmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) <
-		    (oldmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)))
-			setmask &= ~(IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
-		else if ((setmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) !=
-		    (oldmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)))
-			setmask |= (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6));
+		if (setmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
+			setmask |= ctx->ifc_softc_ctx.isc_capabilities &
+			    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+		}
 
 		/*
 		 * want to ensure that traffic has stopped before we change any of the flags
