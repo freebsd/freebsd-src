@@ -439,6 +439,33 @@ bd_print(int verbose)
 }
 
 /*
+ * Read disk size from partition.
+ * This is needed to work around buggy BIOS systems returning
+ * wrong (truncated) disk media size.
+ * During bd_probe() we tested if the multiplication of bd_sectors
+ * would overflow so it should be safe to perform here.
+ */
+static uint64_t
+bd_disk_get_sectors(struct disk_devdesc *dev)
+{
+	struct disk_devdesc disk;
+	uint64_t size;
+
+	disk.dd.d_dev = dev->dd.d_dev;
+	disk.dd.d_unit = dev->dd.d_unit;
+	disk.d_slice = -1;
+	disk.d_partition = -1;
+	disk.d_offset = 0;
+
+	size = BD(dev).bd_sectors * BD(dev).bd_sectorsize;
+	if (disk_open(&disk, size, BD(dev).bd_sectorsize) == 0) {
+		(void) disk_ioctl(&disk, DIOCGMEDIASIZE, &size);
+		disk_close(&disk);
+	}
+	return (size / BD(dev).bd_sectorsize);
+}
+
+/*
  * Attempt to open the disk described by (dev) for use by (f).
  *
  * Note that the philosophy here is "give them exactly what
@@ -452,9 +479,7 @@ static int
 bd_open(struct open_file *f, ...)
 {
 	struct disk_devdesc *dev;
-	struct disk_devdesc disk;
 	va_list ap;
-	uint64_t size;
 	int rc;
 
 	va_start(ap, f);
@@ -470,33 +495,12 @@ bd_open(struct open_file *f, ...)
 		if ((BD(dev).bd_flags & BD_NO_MEDIA) == BD_NO_MEDIA)
 			return (EIO);
 	}
-	BD(dev).bd_open++;
 	if (BD(dev).bd_bcache == NULL)
 	    BD(dev).bd_bcache = bcache_allocate();
 
-	/*
-	 * Read disk size from partition.
-	 * This is needed to work around buggy BIOS systems returning
-	 * wrong (truncated) disk media size.
-	 * During bd_probe() we tested if the mulitplication of bd_sectors
-	 * would overflow so it should be safe to perform here.
-	 */
-	disk.dd.d_dev = dev->dd.d_dev;
-	disk.dd.d_unit = dev->dd.d_unit;
-	disk.d_slice = -1;
-	disk.d_partition = -1;
-	disk.d_offset = 0;
-
-	if (disk_open(&disk, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
-	    BD(dev).bd_sectorsize) == 0) {
-
-		if (disk_ioctl(&disk, DIOCGMEDIASIZE, &size) == 0) {
-			size /= BD(dev).bd_sectorsize;
-			if (size > BD(dev).bd_sectors)
-				BD(dev).bd_sectors = size;
-		}
-		disk_close(&disk);
-	}
+	if (BD(dev).bd_open == 0)
+		BD(dev).bd_sectors = bd_disk_get_sectors(dev);
+	BD(dev).bd_open++;
 
 	rc = disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
 	    BD(dev).bd_sectorsize);
