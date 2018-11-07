@@ -1264,6 +1264,13 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		*((Elf_Addr *)(dynp->d_un.d_ptr)) = (Elf_Addr) &r_debug;
 		break;
 
+	case DT_MIPS_RLD_MAP_REL:
+		// The MIPS_RLD_MAP_REL tag stores the offset to the .rld_map
+		// section relative to the address of the tag itself.
+		*((Elf_Addr *)(__DECONST(char*, dynp) + dynp->d_un.d_val)) =
+		    (Elf_Addr) &r_debug;
+		break;
+
 	case DT_MIPS_PLTGOT:
 		obj->mips_pltgot = (Elf_Addr *)(obj->relocbase +
 		    dynp->d_un.d_ptr);
