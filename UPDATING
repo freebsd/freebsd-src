@@ -16,6 +16,15 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20181107:
+	The '%I' format in the kern.corefile sysctl limits the number of
+	core files that a process can generate to the number stored in the
+	debug.ncores sysctl. The '%I' format is replaced by the single digit
+	index. Previously, if all indexes were taken the kernel would overwrite
+	only a core file with the highest index in a filename.
+	Currently the system will create a new core file if there is a free
+	index or if all slots are taken it will overwrite the oldest one.
+
 20180818:
 	WITH_OFED option now only enables the build for the OFED libraries
 	and some fundamental client utilities.  OpenSM and rest of the
