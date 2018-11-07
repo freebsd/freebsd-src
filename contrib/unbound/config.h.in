@@ -663,6 +663,9 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
 
+/* if REUSEPORT is enabled by default */
+#undef REUSEPORT_DEFAULT
+
 /* default rootkey location */
 #undef ROOT_ANCHOR_FILE
 
