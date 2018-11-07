@@ -420,8 +420,6 @@ g_io_check(struct bio *bp)
 			return (EIO);
 		if (bp->bio_offset > pp->mediasize)
 			return (EIO);
-		if (bp->bio_offset == pp->mediasize && bp->bio_length > 0)
-			return (EIO);
 
 		/* Truncate requests to the end of providers media. */
 		excess = bp->bio_offset + bp->bio_length;
