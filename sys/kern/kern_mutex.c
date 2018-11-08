@@ -1204,7 +1204,7 @@ _mtx_lock_indefinite_check(struct mtx *m, struct lock_delay_arg *ldap)
 
 	ldap->spin_cnt++;
 	if (ldap->spin_cnt < 60000000 || kdb_active || panicstr != NULL)
-		DELAY(1);
+		cpu_lock_delay();
 	else {
 		td = mtx_owner(m);
 
