@@ -1403,6 +1403,7 @@ ifa_lookup(const char *ifa_name, int flags)
 				set_ipmask(n, 128);
 		}
 		n->ifindex = p->ifindex;
+		n->ifname = strdup(p->ifname);
 
 		n->next = NULL;
 		n->tail = n;
