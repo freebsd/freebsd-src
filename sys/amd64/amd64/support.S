@@ -515,24 +515,38 @@ END(memcpy_erms)
 1256:
 	movq	%rdi,%r9
 	movq	%r10,%rax
+	testl	$15,%edi
+	jnz	3f
+1:
 .if \erms == 1
 	rep
 	stosb
 	movq	%r9,%rax
 .else
+	movq	%rcx,%rdx
 	shrq	$3,%rcx
 	rep
 	stosq
 	movq	%r9,%rax
 	andl	$7,%edx
-	jnz	1f
+	jnz	2f
 	POP_FRAME_POINTER
 	ret
-1:
+2:
 	movq	%r10,-8(%rdi,%rdx)
 .endif
 	POP_FRAME_POINTER
 	ret
+	ALIGN_TEXT
+3:
+	movq	%r10,(%rdi)
+	movq	%r10,8(%rdi)
+	movq	%rdi,%r8
+	andq	$15,%r8
+	leaq	-16(%rcx,%r8),%rcx
+	neg	%r8
+	leaq	16(%rdi,%r8),%rdi
+	jmp	1b
 .endm
 
 ENTRY(memset_std)
