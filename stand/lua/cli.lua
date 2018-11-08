@@ -115,6 +115,16 @@ function cli.autoboot(...)
 	core.autoboot(argstr)
 end
 
+cli['boot-conf'] = function(...)
+	local _, argv = cli.arguments(...)
+	local kernel, argstr = parseBootArgs(argv)
+	if kernel ~= nil then
+		loader.perform("unload")
+		config.selectKernel(kernel)
+	end
+	core.autoboot(argstr)
+end
+
 -- Used for splitting cli varargs into cmd_name and the rest of argv
 function cli.arguments(...)
 	local argv = {...}
