@@ -433,20 +433,26 @@ opalpci_attach(device_t dev)
 	}
 
 	/* Create the parent DMA tag */
-	err = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
-	    1, 0,				/* alignment, bounds */
-	    OPAL_PCI_BUS_SPACE_LOWADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR_32BIT,		/* highaddr */
-	    NULL, NULL,				/* filter, filterarg */
-	    BUS_SPACE_MAXSIZE,			/* maxsize */
-	    BUS_SPACE_UNRESTRICTED,		/* nsegments */
-	    BUS_SPACE_MAXSIZE,			/* maxsegsize */
-	    0,					/* flags */
-	    NULL, NULL,				/* lockfunc, lockarg */
-	    &sc->ofw_sc.sc_dmat);
-	if (err != 0) {
-		device_printf(dev, "Failed to create DMA tag\n");
-		return (err);
+	/*
+	 * Constrain it to POWER8 PHB (ioda2) for now.  It seems to mess up on
+	 * POWER9 systems.
+	 */
+	if (ofw_bus_is_compatible(dev, "ibm,ioda2-phb")) {
+		err = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
+		    1, 0,				/* alignment, bounds */
+		    OPAL_PCI_BUS_SPACE_LOWADDR_32BIT,	/* lowaddr */
+		    BUS_SPACE_MAXADDR_32BIT,		/* highaddr */
+		    NULL, NULL,				/* filter, filterarg */
+		    BUS_SPACE_MAXSIZE,			/* maxsize */
+		    BUS_SPACE_UNRESTRICTED,		/* nsegments */
+		    BUS_SPACE_MAXSIZE,			/* maxsegsize */
+		    0,					/* flags */
+		    NULL, NULL,				/* lockfunc, lockarg */
+		    &sc->ofw_sc.sc_dmat);
+		if (err != 0) {
+			device_printf(dev, "Failed to create DMA tag\n");
+			return (err);
+		}
 	}
 
 	/*
