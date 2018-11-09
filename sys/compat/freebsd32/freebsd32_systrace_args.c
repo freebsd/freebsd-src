@@ -2182,9 +2182,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* freebsd32_umtx_op */
+	/* freebsd32__umtx_op */
 	case 454: {
-		struct freebsd32_umtx_op_args *p = params;
+		struct freebsd32__umtx_op_args *p = params;
 		uarg[0] = (intptr_t) p->obj; /* void * */
 		iarg[1] = p->op; /* int */
 		uarg[2] = p->val; /* u_long */
@@ -6765,7 +6765,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_umtx_op */
+	/* freebsd32__umtx_op */
 	case 454:
 		switch(ndx) {
 		case 0:
@@ -10040,7 +10040,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd32_umtx_op */
+	/* freebsd32__umtx_op */
 	case 454:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
