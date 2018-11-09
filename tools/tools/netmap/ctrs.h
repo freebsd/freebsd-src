@@ -7,30 +7,37 @@
 
 /* counters to accumulate statistics */
 struct my_ctrs {
-	uint64_t pkts, bytes, events, drop;
+	uint64_t pkts, bytes, events;
+	uint64_t drop, drop_bytes;
 	uint64_t min_space;
 	struct timeval t;
+	uint32_t oq_n; /* number of elements in overflow queue (used in lb) */
 };
 
 /* very crude code to print a number in normalized form.
  * Caller has to make sure that the buffer is large enough.
  */
 static const char *
-norm2(char *buf, double val, char *fmt)
+norm2(char *buf, double val, char *fmt, int normalize)
 {
 	char *units[] = { "", "K", "M", "G", "T" };
 	u_int i;
-
-	for (i = 0; val >=1000 && i < sizeof(units)/sizeof(char *) - 1; i++)
-		val /= 1000;
+	if (normalize)
+		for (i = 0; val >=1000 && i < sizeof(units)/sizeof(char *) - 1; i++)
+			val /= 1000;
+	else
+		i=0;
 	sprintf(buf, fmt, val, units[i]);
 	return buf;
 }
 
 static __inline const char *
-norm(char *buf, double val)
+norm(char *buf, double val, int normalize)
 {
-	return norm2(buf, val, "%.3f %s");
+	if (normalize)
+		return norm2(buf, val, "%.3f %s", normalize);
+	else
+		return norm2(buf, val, "%.0f %s", normalize);
 }
 
 static __inline int
@@ -89,7 +96,7 @@ timespec_sub(struct timespec a, struct timespec b)
 	return ret;
 }
 
-static uint64_t
+static __inline uint64_t
 wait_for_next_report(struct timeval *prev, struct timeval *cur,
 		int report_interval)
 {
@@ -106,3 +113,4 @@ wait_for_next_report(struct timeval *prev, struct timeval *cur,
 	return delta.tv_sec* 1000000 + delta.tv_usec;
 }
 #endif /* CTRS_H_ */
+
