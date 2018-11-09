@@ -2260,7 +2260,7 @@ freebsd11_freebsd32_fhstat(struct thread *td,
 #endif
 
 int
-freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
+freebsd32___sysctl(struct thread *td, struct freebsd32___sysctl_args *uap)
 {
 	int error, name[CTL_MAXNAME];
 	size_t j, oldlen;
