@@ -374,7 +374,7 @@
 #define	FREEBSD32_SYS_getaudit_addr	451
 #define	FREEBSD32_SYS_setaudit_addr	452
 #define	FREEBSD32_SYS_auditctl	453
-#define	FREEBSD32_SYS_freebsd32_umtx_op	454
+#define	FREEBSD32_SYS_freebsd32__umtx_op	454
 #define	FREEBSD32_SYS_freebsd32_thr_new	455
 #define	FREEBSD32_SYS_freebsd32_sigqueue	456
 #define	FREEBSD32_SYS_freebsd32_kmq_open	457
