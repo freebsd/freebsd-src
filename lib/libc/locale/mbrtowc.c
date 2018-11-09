@@ -43,7 +43,7 @@ mbrtowc_l(wchar_t * __restrict pwc, const char * __restrict s,
 {
 	FIX_LOCALE(locale);
 	if (ps == NULL)
-		ps = &locale->mbrtowc;
+		ps = &(XLOCALE_CTYPE(locale)->mbrtowc);
 	return (XLOCALE_CTYPE(locale)->__mbrtowc(pwc, s, n, ps));
 }
 

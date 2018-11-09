@@ -160,6 +160,21 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 	if (ret == 0) {
 		/* Free the old runes if it exists. */
 		free_runes(saved.runes);
+		/* Reset the mbstates */
+		memset(&l->c16rtomb, 0, sizeof(l->c16rtomb));
+		memset(&l->c32rtomb, 0, sizeof(l->c32rtomb));
+		memset(&l->mblen, 0, sizeof(l->mblen));
+		memset(&l->mbrlen, 0, sizeof(l->mbrlen));
+		memset(&l->mbrtoc16, 0, sizeof(l->mbrtoc16));
+		memset(&l->mbrtoc32, 0, sizeof(l->mbrtoc32));
+		memset(&l->mbrtowc, 0, sizeof(l->mbrtowc));
+		memset(&l->mbsnrtowcs, 0, sizeof(l->mbsnrtowcs));
+		memset(&l->mbsrtowcs, 0, sizeof(l->mbsrtowcs));
+		memset(&l->mbtowc, 0, sizeof(l->mbtowc));
+		memset(&l->wcrtomb, 0, sizeof(l->wcrtomb));
+		memset(&l->wcsnrtombs, 0, sizeof(l->wcsnrtombs));
+		memset(&l->wcsrtombs, 0, sizeof(l->wcsrtombs));
+		memset(&l->wctomb, 0, sizeof(l->wctomb));
 	} else {
 		/* Restore the saved version if this failed. */
 		memcpy(l, &saved, sizeof(struct xlocale_ctype));

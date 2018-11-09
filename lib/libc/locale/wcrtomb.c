@@ -43,7 +43,7 @@ wcrtomb_l(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps,
 {
 	FIX_LOCALE(locale);
 	if (ps == NULL)
-		ps = &locale->wcrtomb;
+		ps = &(XLOCALE_CTYPE(locale)->wcrtomb);
 	return (XLOCALE_CTYPE(locale)->__wcrtomb(s, wc, ps));
 }
 
