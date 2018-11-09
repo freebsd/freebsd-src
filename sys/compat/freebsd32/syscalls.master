@@ -386,7 +386,7 @@
 				    uint32_t length2); }
 201	AUE_FTRUNCATE	COMPAT6	{ int freebsd32_ftruncate(int fd, int pad, \
 				    uint32_t length1, uint32_t length2); }
-202	AUE_SYSCTL	STD	{ int freebsd32_sysctl(int *name, \
+202	AUE_SYSCTL	STD	{ int freebsd32___sysctl(int *name, \
 				    u_int namelen, void *old, \
 				    uint32_t *oldlenp, void *new, \
 				    uint32_t newlen); }
