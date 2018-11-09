@@ -42,7 +42,7 @@ mbrlen_l(const char * __restrict s, size_t n, mbstate_t * __restrict ps, locale_
 {
 	FIX_LOCALE(locale);
 	if (ps == NULL)
-		ps = &locale->mbrlen;
+		ps = &(XLOCALE_CTYPE(locale)->mbrlen);
 	return (XLOCALE_CTYPE(locale)->__mbrtowc(NULL, s, n, ps));
 }
 

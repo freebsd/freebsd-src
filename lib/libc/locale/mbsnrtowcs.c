@@ -48,7 +48,7 @@ mbsnrtowcs_l(wchar_t * __restrict dst, const char ** __restrict src,
 {
 	FIX_LOCALE(locale);
 	if (ps == NULL)
-		ps = &locale->mbsnrtowcs;
+		ps = &(XLOCALE_CTYPE(locale)->mbsnrtowcs);
 	return (XLOCALE_CTYPE(locale)->__mbsnrtowcs(dst, src, nms, len, ps));
 }
 size_t
