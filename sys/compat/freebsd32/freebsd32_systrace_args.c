@@ -3201,16 +3201,32 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* mknodat */
+#ifdef PAD64_REQUIRED
+	/* freebsd32_mknodat */
 	case 559: {
-		struct mknodat_args *p = params;
+		struct freebsd32_mknodat_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->path; /* const char * */
 		iarg[2] = p->mode; /* mode_t */
-		iarg[3] = p->dev; /* dev_t */
-		*n_args = 4;
+		iarg[3] = p->pad; /* int */
+		uarg[4] = p->dev1; /* uint32_t */
+		uarg[5] = p->dev2; /* uint32_t */
+		*n_args = 6;
 		break;
 	}
+#else
+	/* freebsd32_mknodat */
+	case 559: {
+		struct freebsd32_mknodat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* const char * */
+		iarg[2] = p->mode; /* mode_t */
+		uarg[3] = p->dev1; /* uint32_t */
+		uarg[4] = p->dev2; /* uint32_t */
+		*n_args = 5;
+		break;
+	}
+#endif
 	/* freebsd32_kevent */
 	case 560: {
 		struct freebsd32_kevent_args *p = params;
@@ -8642,7 +8658,8 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* mknodat */
+#ifdef PAD64_REQUIRED
+	/* freebsd32_mknodat */
 	case 559:
 		switch(ndx) {
 		case 0:
@@ -8655,12 +8672,42 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "mode_t";
 			break;
 		case 3:
-			p = "dev_t";
+			p = "int";
+			break;
+		case 4:
+			p = "uint32_t";
+			break;
+		case 5:
+			p = "uint32_t";
 			break;
 		default:
 			break;
 		};
 		break;
+#else
+	/* freebsd32_mknodat */
+	case 559:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "mode_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
+		break;
+#endif
 	/* freebsd32_kevent */
 	case 560:
 		switch(ndx) {
@@ -10574,11 +10621,19 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* mknodat */
+#ifdef PAD64_REQUIRED
+	/* freebsd32_mknodat */
 	case 559:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+#else
+	/* freebsd32_mknodat */
+	case 559:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+#endif
 	/* freebsd32_kevent */
 	case 560:
 		if (ndx == 0 || ndx == 1)
