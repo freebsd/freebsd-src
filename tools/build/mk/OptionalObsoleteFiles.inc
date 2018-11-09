@@ -2461,7 +2461,7 @@ OLD_FILES+=usr/share/man/man1/gperf.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.7.gz
 .endif
 
-.if ${MK_GCC} == no || ${MK_GCOV} == no
+.if (${MK_GCOV} == no || ${MK_GCC} == no) && ${MK_LLVM_COV} == no
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
 .endif
