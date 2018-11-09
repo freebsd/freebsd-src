@@ -466,13 +466,9 @@ evalredir(union node *n, int flags)
 		handler = savehandler;
 		e = exception;
 		popredir();
-		if (e == EXERROR || e == EXEXEC) {
-			if (in_redirect) {
-				if (e == EXERROR)
-					exitstatus = 2;
-				FORCEINTON;
-				return;
-			}
+		if (e == EXERROR && in_redirect) {
+			FORCEINTON;
+			return;
 		}
 		longjmp(handler->loc, 1);
 	} else {
@@ -506,7 +502,7 @@ exphere(union node *redir, struct arglist *fn)
 	forcelocal++;
 	savehandler = handler;
 	if (setjmp(jmploc.loc))
-		need_longjmp = exception != EXERROR && exception != EXEXEC;
+		need_longjmp = exception != EXERROR;
 	else {
 		handler = &jmploc;
 		expandarg(redir->nhere.doc, fn, 0);
@@ -671,8 +667,6 @@ evalbackcmd(union node *n, struct backcmd *result)
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			if (exception == EXERROR)
-				exitstatus = 2;
-			else if (exception == EXEXEC)
 				/* nothing */;
 			else if (exception != 0) {
 				handler = savehandler;
@@ -1092,8 +1086,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			e = exception;
 			if (e == EXINT)
 				exitstatus = SIGINT+128;
-			else if (e != EXEXEC && e != EXEXIT)
-				exitstatus = 2;
 			goto cmddone;
 		}
 		handler = &jmploc;
@@ -1142,8 +1134,7 @@ cmddone:
 		if (cmdentry.u.index != EXECCMD)
 			popredir();
 		if (e != -1) {
-			if ((e != EXERROR && e != EXEXEC)
-			    || cmdentry.special)
+			if (e != EXERROR || cmdentry.special)
 				exraise(e);
 			popfilesupto(savetopfile);
 			if (flags != EV_BACKCMD)
