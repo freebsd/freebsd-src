@@ -402,6 +402,8 @@ elftc_reloc_type_str(unsigned int mach, unsigned int type)
 		case 22: return "R_MIPS_GOT_HI16";
 		case 23: return "R_MIPS_GOT_LO16";
 		case 24: return "R_MIPS_SUB";
+		case 28: return "R_MIPS_HIGHER";
+		case 29: return "R_MIPS_HIGHEST";
 		case 30: return "R_MIPS_CALLHI16";
 		case 31: return "R_MIPS_CALLLO16";
 		case 37: return "R_MIPS_JALR";
