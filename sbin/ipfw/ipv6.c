@@ -143,8 +143,6 @@ fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av, int cblen)
        uint8_t type;
 
        CHECK_LENGTH(cblen, F_INSN_SIZE(ipfw_insn_icmp6));
-
-       bzero(cmd, sizeof(*cmd));
        while (*av) {
 	       if (*av == ',')
 		       av++;
@@ -171,7 +169,7 @@ print_icmp6types(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 	int i, j;
 	char sep= ' ';
 
-	bprintf(bp, " ip6 icmp6types");
+	bprintf(bp, " icmp6types");
 	for (i = 0; i < 7; i++)
 		for (j=0; j < 32; ++j) {
 			if ( (cmd->d[i] & (1 << (j))) == 0)
