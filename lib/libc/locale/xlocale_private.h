@@ -128,34 +128,6 @@ struct _xlocale {
 	int using_messages_locale;
 	/** The structure to be returned from localeconv_l() for this locale. */
 	struct lconv lconv;
-	/** Persistent state used by mblen() calls. */
-	__mbstate_t mblen;
-	/** Persistent state used by mbrlen() calls. */
-	__mbstate_t mbrlen;
-	/** Persistent state used by mbrtoc16() calls. */
-	__mbstate_t mbrtoc16;
-	/** Persistent state used by mbrtoc32() calls. */
-	__mbstate_t mbrtoc32;
-	/** Persistent state used by mbrtowc() calls. */
-	__mbstate_t mbrtowc;
-	/** Persistent state used by mbsnrtowcs() calls. */
-	__mbstate_t mbsnrtowcs;
-	/** Persistent state used by mbsrtowcs() calls. */
-	__mbstate_t mbsrtowcs;
-	/** Persistent state used by mbtowc() calls. */
-	__mbstate_t mbtowc;
-	/** Persistent state used by c16rtomb() calls. */
-	__mbstate_t c16rtomb;
-	/** Persistent state used by c32rtomb() calls. */
-	__mbstate_t c32rtomb;
-	/** Persistent state used by wcrtomb() calls. */
-	__mbstate_t wcrtomb;
-	/** Persistent state used by wcsnrtombs() calls. */
-	__mbstate_t wcsnrtombs;
-	/** Persistent state used by wcsrtombs() calls. */
-	__mbstate_t wcsrtombs;
-	/** Persistent state used by wctomb() calls. */
-	__mbstate_t wctomb;
 	/** Buffer used by nl_langinfo_l() */
 	char *csym;
 };
