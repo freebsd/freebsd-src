@@ -163,7 +163,7 @@
 		int mknod(
 		    _In_z_ const char *path,
 		    int mode,
-		    int dev
+		    uint32_t dev
 		);
 	}
 15	AUE_CHMOD	STD {
