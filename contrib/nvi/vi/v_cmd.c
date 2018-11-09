@@ -130,7 +130,7 @@ VIKEYS const vikeys [MAXVIKEY + 1] = {
 /* 034  ^\ */
 	{v_exmode,	0,
 	    "^\\",
-	    " ^\\ switch to ex mode"},
+	    "^\\ switch to ex mode"},
 /* 035  ^] */
 	{v_tagpush,	V_ABS|V_KEYW|VM_RCM_SET,
 	    "^]",
