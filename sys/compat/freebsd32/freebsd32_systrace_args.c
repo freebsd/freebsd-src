@@ -935,9 +935,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* freebsd32_sysctl */
+	/* freebsd32___sysctl */
 	case 202: {
-		struct freebsd32_sysctl_args *p = params;
+		struct freebsd32___sysctl_args *p = params;
 		uarg[0] = (intptr_t) p->name; /* int * */
 		uarg[1] = p->namelen; /* u_int */
 		uarg[2] = (intptr_t) p->old; /* void * */
@@ -4755,7 +4755,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* nosys */
 	case 198:
 		break;
-	/* freebsd32_sysctl */
+	/* freebsd32___sysctl */
 	case 202:
 		switch(ndx) {
 		case 0:
@@ -9305,7 +9305,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* nosys */
 	case 198:
-	/* freebsd32_sysctl */
+	/* freebsd32___sysctl */
 	case 202:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
