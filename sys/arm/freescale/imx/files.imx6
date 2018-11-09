@@ -64,7 +64,7 @@ sdma_fw.c				optional sdma_fw		\
 	clean		"sdma_fw.c"
 sdma-imx6q-to1.fwo			optional sdma_fw		\
 	dependency	"sdma-imx6q-to1.bin"				\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} sdma-imx6q-to1.bin" \
+	compile-with	"${LD} -m ${LD_EMULATION} -b binary -d -warn-common -r -d -o ${.TARGET} sdma-imx6q-to1.bin" \
 	no-implicit-rule						\
 	clean		"sdma-imx6q-to1.fwo"
 sdma-imx6q-to1.bin			optional sdma_fw		\
