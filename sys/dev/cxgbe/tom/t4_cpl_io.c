@@ -396,7 +396,7 @@ make_established(struct toepcb *toep, uint32_t snd_isn, uint32_t rcv_isn,
 	CTR6(KTR_CXGBE, "%s: tid %d, so %p, inp %p, tp %p, toep %p",
 	    __func__, toep->tid, so, inp, tp, toep);
 
-	tp->t_state = TCPS_ESTABLISHED;
+	tcp_state_change(tp, TCPS_ESTABLISHED);
 	tp->t_starttime = ticks;
 	TCPSTAT_INC(tcps_connects);
 
@@ -1303,11 +1303,11 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		/* FALLTHROUGH */ 
 
 	case TCPS_ESTABLISHED:
-		tp->t_state = TCPS_CLOSE_WAIT;
+		tcp_state_change(tp, TCPS_CLOSE_WAIT);
 		break;
 
 	case TCPS_FIN_WAIT_1:
-		tp->t_state = TCPS_CLOSING;
+		tcp_state_change(tp, TCPS_CLOSING);
 		break;
 
 	case TCPS_FIN_WAIT_2:
@@ -1389,7 +1389,7 @@ release:
 	case TCPS_FIN_WAIT_1:
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			soisdisconnected(so);
-		tp->t_state = TCPS_FIN_WAIT_2;
+		tcp_state_change(tp, TCPS_FIN_WAIT_2);
 		break;
 
 	default:
