@@ -350,7 +350,7 @@ struct freebsd32_ksem_timedwait_args {
 struct freebsd32_thr_suspend_args {
 	char timeout_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * timeout; char timeout_r_[PADR_(const struct timespec32 *)];
 };
-struct freebsd32_umtx_op_args {
+struct freebsd32__umtx_op_args {
 	char obj_l_[PADL_(void *)]; void * obj; char obj_r_[PADR_(void *)];
 	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
 	char val_l_[PADL_(u_long)]; u_long val; char val_r_[PADR_(u_long)];
@@ -776,7 +776,7 @@ int	freebsd32_setcontext(struct thread *, struct freebsd32_setcontext_args *);
 int	freebsd32_swapcontext(struct thread *, struct freebsd32_swapcontext_args *);
 int	freebsd32_ksem_timedwait(struct thread *, struct freebsd32_ksem_timedwait_args *);
 int	freebsd32_thr_suspend(struct thread *, struct freebsd32_thr_suspend_args *);
-int	freebsd32_umtx_op(struct thread *, struct freebsd32_umtx_op_args *);
+int	freebsd32__umtx_op(struct thread *, struct freebsd32__umtx_op_args *);
 int	freebsd32_thr_new(struct thread *, struct freebsd32_thr_new_args *);
 int	freebsd32_sigqueue(struct thread *, struct freebsd32_sigqueue_args *);
 int	freebsd32_kmq_open(struct thread *, struct freebsd32_kmq_open_args *);
@@ -1335,7 +1335,7 @@ int	freebsd11_freebsd32_mknodat(struct thread *, struct freebsd11_freebsd32_mkno
 #define	FREEBSD32_SYS_AUE_freebsd32_swapcontext	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_ksem_timedwait	AUE_SEMWAIT
 #define	FREEBSD32_SYS_AUE_freebsd32_thr_suspend	AUE_NULL
-#define	FREEBSD32_SYS_AUE_freebsd32_umtx_op	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32__umtx_op	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_thr_new	AUE_THR_NEW
 #define	FREEBSD32_SYS_AUE_freebsd32_sigqueue	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_kmq_open	AUE_MQ_OPEN
