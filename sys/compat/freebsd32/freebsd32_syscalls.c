@@ -23,7 +23,7 @@ const char *freebsd32_syscallnames[] = {
 	"obs_execv",			/* 11 = obsolete execv */
 	"chdir",			/* 12 = chdir */
 	"fchdir",			/* 13 = fchdir */
-	"compat11.freebsd32_mknod",		/* 14 = freebsd11 freebsd32_mknod */
+	"compat11.mknod",		/* 14 = freebsd11 mknod */
 	"chmod",			/* 15 = chmod */
 	"chown",			/* 16 = chown */
 	"break",			/* 17 = break */
@@ -520,7 +520,7 @@ const char *freebsd32_syscallnames[] = {
 	"linkat",			/* 495 = linkat */
 	"mkdirat",			/* 496 = mkdirat */
 	"mkfifoat",			/* 497 = mkfifoat */
-	"compat11.freebsd32_mknodat",		/* 498 = freebsd11 freebsd32_mknodat */
+	"compat11.mknodat",		/* 498 = freebsd11 mknodat */
 	"openat",			/* 499 = openat */
 	"readlinkat",			/* 500 = readlinkat */
 	"renameat",			/* 501 = renameat */
@@ -591,7 +591,11 @@ const char *freebsd32_syscallnames[] = {
 	"fstatfs",			/* 556 = fstatfs */
 	"getfsstat",			/* 557 = getfsstat */
 	"fhstatfs",			/* 558 = fhstatfs */
-	"mknodat",			/* 559 = mknodat */
+#ifdef PAD64_REQUIRED
+	"freebsd32_mknodat",			/* 559 = freebsd32_mknodat */
+#else
+	"freebsd32_mknodat",			/* 559 = freebsd32_mknodat */
+#endif
 	"freebsd32_kevent",			/* 560 = freebsd32_kevent */
 	"freebsd32_cpuset_getdomain",			/* 561 = freebsd32_cpuset_getdomain */
 	"freebsd32_cpuset_setdomain",			/* 562 = freebsd32_cpuset_setdomain */
