@@ -463,25 +463,14 @@ freebsd32_fexecve(struct thread *td, struct freebsd32_fexecve_args *uap)
 	return (error);
 }
 
-#if defined(COMPAT_FREEBSD11)
-int
-freebsd11_freebsd32_mknod(struct thread *td,
-    struct freebsd11_freebsd32_mknod_args *uap)
-{
-
-	return (kern_mknodat(td, AT_FDCWD, uap->path, UIO_USERSPACE, uap->mode,
-	    uap->dev));
-}
 
 int
-freebsd11_freebsd32_mknodat(struct thread *td,
-    struct freebsd11_freebsd32_mknodat_args *uap)
+freebsd32_mknodat(struct thread *td, struct freebsd32_mknodat_args *uap)
 {
 
-	return (kern_mknodat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode,
-	    uap->dev));
+	return (kern_mknodat(td, uap->fd, uap->path, UIO_USERSPACE,
+	    uap->mode, PAIR32TO64(dev_t, uap->dev)));
 }
-#endif /* COMPAT_FREEBSD11 */
 
 int
 freebsd32_mprotect(struct thread *td, struct freebsd32_mprotect_args *uap)
