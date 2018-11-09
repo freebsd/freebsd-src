@@ -19,7 +19,7 @@
 				/* 11 is obsolete execv */
 #define	FREEBSD32_SYS_chdir	12
 #define	FREEBSD32_SYS_fchdir	13
-#define	FREEBSD32_SYS_freebsd11_freebsd32_mknod	14
+#define	FREEBSD32_SYS_freebsd11_mknod	14
 #define	FREEBSD32_SYS_chmod	15
 #define	FREEBSD32_SYS_chown	16
 #define	FREEBSD32_SYS_break	17
@@ -421,7 +421,7 @@
 #define	FREEBSD32_SYS_linkat	495
 #define	FREEBSD32_SYS_mkdirat	496
 #define	FREEBSD32_SYS_mkfifoat	497
-#define	FREEBSD32_SYS_freebsd11_freebsd32_mknodat	498
+#define	FREEBSD32_SYS_freebsd11_mknodat	498
 #define	FREEBSD32_SYS_openat	499
 #define	FREEBSD32_SYS_readlinkat	500
 #define	FREEBSD32_SYS_renameat	501
@@ -484,7 +484,8 @@
 #define	FREEBSD32_SYS_fstatfs	556
 #define	FREEBSD32_SYS_getfsstat	557
 #define	FREEBSD32_SYS_fhstatfs	558
-#define	FREEBSD32_SYS_mknodat	559
+#define	FREEBSD32_SYS_freebsd32_mknodat	559
+#define	FREEBSD32_SYS_freebsd32_mknodat	559
 #define	FREEBSD32_SYS_freebsd32_kevent	560
 #define	FREEBSD32_SYS_freebsd32_cpuset_getdomain	561
 #define	FREEBSD32_SYS_freebsd32_cpuset_setdomain	562
