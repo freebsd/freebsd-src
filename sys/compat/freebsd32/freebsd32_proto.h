@@ -162,7 +162,7 @@ struct freebsd32_shmsys_args {
 	char a3_l_[PADL_(uint32_t)]; uint32_t a3; char a3_r_[PADR_(uint32_t)];
 	char a4_l_[PADL_(uint32_t)]; uint32_t a4; char a4_r_[PADR_(uint32_t)];
 };
-struct freebsd32_sysctl_args {
+struct freebsd32___sysctl_args {
 	char name_l_[PADL_(int *)]; int * name; char name_r_[PADR_(int *)];
 	char namelen_l_[PADL_(u_int)]; u_int namelen; char namelen_r_[PADR_(u_int)];
 	char old_l_[PADL_(void *)]; void * old; char old_r_[PADR_(void *)];
@@ -736,7 +736,7 @@ int	freebsd32_sysarch(struct thread *, struct freebsd32_sysarch_args *);
 int	freebsd32_semsys(struct thread *, struct freebsd32_semsys_args *);
 int	freebsd32_msgsys(struct thread *, struct freebsd32_msgsys_args *);
 int	freebsd32_shmsys(struct thread *, struct freebsd32_shmsys_args *);
-int	freebsd32_sysctl(struct thread *, struct freebsd32_sysctl_args *);
+int	freebsd32___sysctl(struct thread *, struct freebsd32___sysctl_args *);
 int	freebsd32_futimes(struct thread *, struct freebsd32_futimes_args *);
 int	freebsd32_msgsnd(struct thread *, struct freebsd32_msgsnd_args *);
 int	freebsd32_msgrcv(struct thread *, struct freebsd32_msgrcv_args *);
@@ -1282,7 +1282,7 @@ int	freebsd11_freebsd32_mknodat(struct thread *, struct freebsd11_freebsd32_mkno
 #define	FREEBSD32_SYS_AUE_freebsd6_freebsd32_lseek	AUE_LSEEK
 #define	FREEBSD32_SYS_AUE_freebsd6_freebsd32_truncate	AUE_TRUNCATE
 #define	FREEBSD32_SYS_AUE_freebsd6_freebsd32_ftruncate	AUE_FTRUNCATE
-#define	FREEBSD32_SYS_AUE_freebsd32_sysctl	AUE_SYSCTL
+#define	FREEBSD32_SYS_AUE_freebsd32___sysctl	AUE_SYSCTL
 #define	FREEBSD32_SYS_AUE_freebsd32_futimes	AUE_FUTIMES
 #define	FREEBSD32_SYS_AUE_freebsd7_freebsd32_semctl	AUE_SEMCTL
 #define	FREEBSD32_SYS_AUE_freebsd7_freebsd32_msgctl	AUE_MSGCTL
