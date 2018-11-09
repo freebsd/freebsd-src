@@ -105,15 +105,6 @@ main(int argc, char *argv[])
 	initcharset();
 	state = 0;
 	if (setjmp(main_handler.loc)) {
-		switch (exception) {
-		case EXERROR:
-			exitstatus = 2;
-			break;
-
-		default:
-			break;
-		}
-
 		if (state == 0 || iflag == 0 || ! rootshell ||
 		    exception == EXEXIT)
 			exitshell(exitstatus);
