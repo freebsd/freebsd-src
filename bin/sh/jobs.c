@@ -1006,7 +1006,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	if (pid == 0) {
 		TRACE(("Child shell %d\n", (int)getpid()));
 		if (setjmp(jmploc.loc))
-			_exit(exception == EXEXEC ? exitstatus : 2);
+			_exit(exitstatus);
 		if (pip != NULL) {
 			close(pip[0]);
 			if (pip[1] != 1) {
