@@ -1432,6 +1432,19 @@ dwc_otg_host_data_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 					goto receive_pkt;
 				}
 			} else if (td->ep_type == UE_ISOCHRONOUS) {
+				if (td->hcsplt != 0) {
+					/*
+					 * Sometimes the complete
+					 * split packet may be queued
+					 * too early and the
+					 * transaction translator will
+					 * return a NAK. Ignore
+					 * this message and retry the
+					 * complete split instead.
+					 */
+					DPRINTF("Retrying complete split\n");
+					goto receive_pkt;
+				}
 				goto complete;
 			}
 			td->did_nak = 1;
