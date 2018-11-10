@@ -281,7 +281,11 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 		}
 		tty_unlock(tp);
 		return (0);
-	case FIODGNAME: {
+	case FIODGNAME:
+#ifdef COMPAT_FREEBSD32
+	case FIODGNAME_32:
+#endif
+	{
 		struct fiodgname_arg *fgn;
 		const char *p;
 		int i;
@@ -292,7 +296,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 		i = strlen(p) + 1;
 		if (i > fgn->len)
 			return (EINVAL);
-		return copyout(p, fgn->buf, i);
+		return (copyout(p, fiodgname_buf_get_ptr(fgn, cmd), i));
 	}
 
 	/*

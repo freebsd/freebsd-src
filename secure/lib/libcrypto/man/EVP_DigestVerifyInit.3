@@ -128,33 +128,44 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "EVP_DigestVerifyInit 3"
-.TH EVP_DigestVerifyInit 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "EVP_DIGESTVERIFYINIT 3"
+.TH EVP_DIGESTVERIFYINIT 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_DigestVerifyInit, EVP_DigestVerifyUpdate, EVP_DigestVerifyFinal \- EVP signature verification functions
+EVP_DigestVerifyInit, EVP_DigestVerifyUpdate, EVP_DigestVerifyFinal, EVP_DigestVerify \- EVP signature verification functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
 \&
 \& int EVP_DigestVerifyInit(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
-\&                        const EVP_MD *type, ENGINE *e, EVP_PKEY *pkey);
+\&                          const EVP_MD *type, ENGINE *e, EVP_PKEY *pkey);
 \& int EVP_DigestVerifyUpdate(EVP_MD_CTX *ctx, const void *d, size_t cnt);
-\& int EVP_DigestVerifyFinal(EVP_MD_CTX *ctx, const unsigned char *sig, size_t siglen);
+\& int EVP_DigestVerifyFinal(EVP_MD_CTX *ctx, const unsigned char *sig,
+\&                           size_t siglen);
+\& int EVP_DigestVerify(EVP_MD_CTX *ctx, const unsigned char *sigret,
+\&                      size_t siglen, const unsigned char *tbs, size_t tbslen);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \s-1EVP\s0 signature routines are a high level interface to digital signatures.
 .PP
 \&\fIEVP_DigestVerifyInit()\fR sets up verification context \fBctx\fR to use digest
-\&\fBtype\fR from \s-1ENGINE\s0 \fBimpl\fR and public key \fBpkey\fR. \fBctx\fR must be initialized
-with \fIEVP_MD_CTX_init()\fR before calling this function. If \fBpctx\fR is not \s-1NULL\s0 the
+\&\fBtype\fR from \s-1ENGINE\s0 \fBe\fR and public key \fBpkey\fR. \fBctx\fR must be created
+with \fIEVP_MD_CTX_new()\fR before calling this function. If \fBpctx\fR is not \s-1NULL,\s0 the
 \&\s-1EVP_PKEY_CTX\s0 of the verification operation will be written to \fB*pctx\fR: this
-can be used to set alternative verification options.
+can be used to set alternative verification options. Note that any existing
+value in \fB*pctx\fR is overwritten. The \s-1EVP_PKEY_CTX\s0 value returned must not be freed
+directly by the application if \fBctx\fR is not assigned an \s-1EVP_PKEY_CTX\s0 value before
+being passed to \fIEVP_DigestSignInit()\fR (which means the \s-1EVP_PKEY_CTX\s0 is created
+inside \fIEVP_DigestSignInit()\fR and it will be freed automatically when the
+\&\s-1EVP_MD_CTX\s0 is freed).
+.PP
+No \fB\s-1EVP_PKEY_CTX\s0\fR will be created by \fIEVP_DigsetSignInit()\fR if the passed \fBctx\fR
+has already been assigned one via \fIEVP_MD_CTX_set_ctx\fR\|(3). See also \s-1\fISM2\s0\fR\|(7).
 .PP
 \&\fIEVP_DigestVerifyUpdate()\fR hashes \fBcnt\fR bytes of data at \fBd\fR into the
 verification context \fBctx\fR. This function can be called several times on the
@@ -163,17 +174,19 @@ using a macro.
 .PP
 \&\fIEVP_DigestVerifyFinal()\fR verifies the data in \fBctx\fR against the signature in
 \&\fBsig\fR of length \fBsiglen\fR.
+.PP
+\&\fIEVP_DigestVerify()\fR verifies \fBtbslen\fR bytes at \fBtbs\fR against the signature
+in \fBsig\fR of length \fBsiglen\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIEVP_DigestVerifyInit()\fR and \fIEVP_DigestVerifyUpdate()\fR return 1 for success and 0
-or a negative value for failure. In particular a return value of \-2 indicates
-the operation is not supported by the public key algorithm.
+for failure.
 .PP
-\&\fIEVP_DigestVerifyFinal()\fR returns 1 for success; any other value indicates
-failure.  A return value of zero indicates that the signature did not verify
-successfully (that is, tbs did not match the original data or the signature had
-an invalid form), while other values indicate a more serious error (and
-sometimes also indicate an invalid signature form).
+\&\fIEVP_DigestVerifyFinal()\fR and \fIEVP_DigestVerify()\fR return 1 for success; any other
+value indicates failure.  A return value of zero indicates that the signature
+did not verify successfully (that is, \fBtbs\fR did not match the original data or
+the signature had an invalid form), while other values indicate a more serious
+error (and sometimes also indicate an invalid signature form).
 .PP
 The error codes can be obtained from \fIERR_get_error\fR\|(3).
 .SH "NOTES"
@@ -181,6 +194,12 @@ The error codes can be obtained from \fIERR_get_error\fR\|(3).
 The \fB\s-1EVP\s0\fR interface to digital signatures should almost always be used in
 preference to the low level interfaces. This is because the code then becomes
 transparent to the algorithm used and much more flexible.
+.PP
+\&\fIEVP_DigestVerify()\fR is a one shot operation which verifies a single block of
+data in one function. For algorithms that support streaming it is equivalent
+to calling \fIEVP_DigestVerifyUpdate()\fR and \fIEVP_DigestVerifyFinal()\fR. For
+algorithms which do not support streaming (e.g. PureEdDSA) it is the only way
+to verify data.
 .PP
 In previous versions of OpenSSL there was a link between message digest types
 and public key algorithms. This meant that \*(L"clone\*(R" digests such as \fIEVP_dss1()\fR
@@ -194,17 +213,25 @@ The call to \fIEVP_DigestVerifyFinal()\fR internally finalizes a copy of the dig
 context. This means that \fIEVP_VerifyUpdate()\fR and \fIEVP_VerifyFinal()\fR can
 be called later to digest and verify additional data.
 .PP
-Since only a copy of the digest context is ever finalized the context must
-be cleaned up after use by calling \fIEVP_MD_CTX_cleanup()\fR or a memory leak
+Since only a copy of the digest context is ever finalized, the context must
+be cleaned up after use by calling \fIEVP_MD_CTX_free()\fR or a memory leak
 will occur.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIEVP_DigestSignInit\fR\|(3),
-\&\fIEVP_DigestInit\fR\|(3), \fIerr\fR\|(3),
-\&\fIevp\fR\|(3), \fIhmac\fR\|(3), \fImd2\fR\|(3),
-\&\fImd5\fR\|(3), \fImdc2\fR\|(3), \fIripemd\fR\|(3),
-\&\fIsha\fR\|(3), \fIdgst\fR\|(1)
+\&\fIEVP_DigestInit\fR\|(3),
+\&\fIevp\fR\|(7), \s-1\fIHMAC\s0\fR\|(3), \s-1\fIMD2\s0\fR\|(3),
+\&\s-1\fIMD5\s0\fR\|(3), \s-1\fIMDC2\s0\fR\|(3), \s-1\fIRIPEMD160\s0\fR\|(3),
+\&\s-1\fISHA1\s0\fR\|(3), \fIdgst\fR\|(1)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fIEVP_DigestVerifyInit()\fR, \fIEVP_DigestVerifyUpdate()\fR and \fIEVP_DigestVerifyFinal()\fR 
+\&\fIEVP_DigestVerifyInit()\fR, \fIEVP_DigestVerifyUpdate()\fR and \fIEVP_DigestVerifyFinal()\fR
 were first added to OpenSSL 1.0.0.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2006\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

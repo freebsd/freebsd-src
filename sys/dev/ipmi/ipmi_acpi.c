@@ -61,17 +61,18 @@ int
 ipmi_acpi_probe(device_t dev)
 {
 	static char *ipmi_ids[] = {"IPI0001", NULL};
+	int rv;
 
 	if (ipmi_attached)
 		return (EBUSY);
 
-	if (acpi_disabled("ipmi") ||
-	    ACPI_ID_PROBE(device_get_parent(dev), dev, ipmi_ids) == NULL)
+	if (acpi_disabled("ipmi"))
 		return (ENXIO);
+	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, ipmi_ids, NULL);
+	if (rv <= 0)
+		device_set_desc(dev, "IPMI System Interface");
 
-	device_set_desc(dev, "IPMI System Interface");
-
-	return (0);
+	return (rv);
 }
 
 static int

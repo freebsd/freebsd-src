@@ -437,7 +437,9 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 					rrset->rrset_all_next =
 						nx->rrset_all_next;
 					nx->rrset_all_next = rrset;
-					prev = nx;
+					/* prev = nx; unused, enable if there
+					 * is other rrset removal code after
+					 * this */
 				}
 			}
 

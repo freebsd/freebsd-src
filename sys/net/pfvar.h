@@ -824,13 +824,21 @@ typedef	void		pfsync_update_state_t(struct pf_state *);
 typedef	void		pfsync_delete_state_t(struct pf_state *);
 typedef void		pfsync_clear_states_t(u_int32_t, const char *);
 typedef int		pfsync_defer_t(struct pf_state *, struct mbuf *);
+typedef void		pfsync_detach_ifnet_t(struct ifnet *);
 
-extern pfsync_state_import_t	*pfsync_state_import_ptr;
-extern pfsync_insert_state_t	*pfsync_insert_state_ptr;
-extern pfsync_update_state_t	*pfsync_update_state_ptr;
-extern pfsync_delete_state_t	*pfsync_delete_state_ptr;
-extern pfsync_clear_states_t	*pfsync_clear_states_ptr;
-extern pfsync_defer_t		*pfsync_defer_ptr;
+VNET_DECLARE(pfsync_state_import_t *, pfsync_state_import_ptr);
+#define V_pfsync_state_import_ptr	VNET(pfsync_state_import_ptr)
+VNET_DECLARE(pfsync_insert_state_t *, pfsync_insert_state_ptr);
+#define V_pfsync_insert_state_ptr	VNET(pfsync_insert_state_ptr)
+VNET_DECLARE(pfsync_update_state_t *, pfsync_update_state_ptr);
+#define V_pfsync_update_state_ptr	VNET(pfsync_update_state_ptr)
+VNET_DECLARE(pfsync_delete_state_t *, pfsync_delete_state_ptr);
+#define V_pfsync_delete_state_ptr	VNET(pfsync_delete_state_ptr)
+VNET_DECLARE(pfsync_clear_states_t *, pfsync_clear_states_ptr);
+#define V_pfsync_clear_states_ptr	VNET(pfsync_clear_states_ptr)
+VNET_DECLARE(pfsync_defer_t *, pfsync_defer_ptr);
+#define V_pfsync_defer_ptr		VNET(pfsync_defer_ptr)
+extern pfsync_detach_ifnet_t	*pfsync_detach_ifnet_ptr;
 
 void			pfsync_state_export(struct pfsync_state *,
 			    struct pf_state *);
@@ -1203,6 +1211,19 @@ struct pf_divert {
 
 #define PFFRAG_FRENT_HIWAT	5000	/* Number of fragment entries */
 #define PFR_KENTRY_HIWAT	200000	/* Number of table entries */
+
+/*
+ * Limit the length of the fragment queue traversal.  Remember
+ * search entry points based on the fragment offset.
+ */
+#define PF_FRAG_ENTRY_POINTS		16
+
+/*
+ * The number of entries in the fragment queue must be limited
+ * to avoid DoS by linear seaching.  Instead of a global limit,
+ * use a limit per entry point.  For large packets these sum up.
+ */
+#define PF_FRAG_ENTRY_LIMIT		64
 
 /*
  * ioctl parameter structures

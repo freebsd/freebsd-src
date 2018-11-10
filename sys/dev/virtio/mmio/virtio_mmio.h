@@ -33,6 +33,29 @@
 #ifndef	_VIRTIO_MMIO_H
 #define	_VIRTIO_MMIO_H
 
+DECLARE_CLASS(vtmmio_driver);
+
+struct vtmmio_virtqueue;
+
+struct vtmmio_softc {
+	device_t			dev;
+	device_t			platform;
+	struct resource			*res[2];
+
+	uint64_t			vtmmio_features;
+	uint32_t			vtmmio_flags;
+
+	/* This "bus" will only ever have one child. */
+	device_t			vtmmio_child_dev;
+	struct virtio_feature_desc	*vtmmio_child_feat_desc;
+
+	int				vtmmio_nvqs;
+	struct vtmmio_virtqueue		*vtmmio_vqs;
+	void				*ih;
+};
+
+int vtmmio_attach(device_t);
+
 #define	VIRTIO_MMIO_MAGIC_VALUE		0x000
 #define	VIRTIO_MMIO_VERSION		0x004
 #define	VIRTIO_MMIO_DEVICE_ID		0x008

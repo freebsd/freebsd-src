@@ -45,8 +45,7 @@ __FBSDID("$FreeBSD$");
  * Return a | b, in quad.
  */
 quad_t
-__iordi3(a, b)
-	quad_t a, b;
+__iordi3(quad_t a, quad_t b)
 {
 	union uu aa, bb;
 

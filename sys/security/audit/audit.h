@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 1999-2005 Apple Inc.
- * Copyright (c) 2016-2017 Robert N. M. Watson
+ * Copyright (c) 2016-2018 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by BAE Systems, the University of Cambridge
@@ -55,14 +55,23 @@
 #include <sys/sysctl.h>
 
 /*
- * Audit subsystem condition flags.  The audit_enabled flag is set and
+ * Audit subsystem condition flags.  The audit_trail_enabled flag is set and
  * removed automatically as a result of configuring log files, and can be
  * observed but should not be directly manipulated.  The audit suspension
  * flag permits audit to be temporarily disabled without reconfiguring the
  * audit target.
+ *
+ * As DTrace can also request system-call auditing, a further
+ * audit_syscalls_enabled flag tracks whether newly entering system calls
+ * should be considered for auditing or not.
+ *
+ * XXXRW: Move trail flags to audit_private.h, as they no longer need to be
+ * visible outside the audit code...?
  */
-extern int	audit_enabled;
-extern int	audit_suspended;
+extern u_int	audit_dtrace_enabled;
+extern int	audit_trail_enabled;
+extern int	audit_trail_suspended;
+extern int	audit_syscalls_enabled;
 
 void	 audit_syscall_enter(unsigned short code, struct thread *td);
 void	 audit_syscall_exit(int error, struct thread *td);
@@ -113,7 +122,7 @@ void	 audit_arg_upath2(struct thread *td, int dirfd, char *upath);
 void	 audit_arg_upath2_canon(char *upath);
 void	 audit_arg_vnode1(struct vnode *vp);
 void	 audit_arg_vnode2(struct vnode *vp);
-void	 audit_arg_text(char *text);
+void	 audit_arg_text(const char *text);
 void	 audit_arg_cmd(int cmd);
 void	 audit_arg_svipc_cmd(int cmd);
 void	 audit_arg_svipc_perm(struct ipc_perm *perm);
@@ -139,7 +148,7 @@ void	 audit_thread_free(struct thread *td);
 
 /*
  * Define macros to wrap the audit_arg_* calls by checking the global
- * audit_enabled flag before performing the actual call.
+ * audit_syscalls_enabled flag before performing the actual call.
  */
 #define	AUDITING_TD(td)		((td)->td_pflags & TDP_AUDITREC)
 
@@ -369,7 +378,7 @@ void	 audit_thread_free(struct thread *td);
 } while (0)
 
 #define	AUDIT_SYSCALL_ENTER(code, td)	do {				\
-	if (audit_enabled) {						\
+	if (audit_syscalls_enabled) {					\
 		audit_syscall_enter(code, td);				\
 	}								\
 } while (0)
@@ -377,7 +386,7 @@ void	 audit_thread_free(struct thread *td);
 /*
  * Wrap the audit_syscall_exit() function so that it is called only when
  * we have a audit record on the thread.  Audit records can persist after
- * auditing is disabled, so we don't just check audit_enabled here.
+ * auditing is disabled, so we don't just check audit_syscalls_enabled here.
  */
 #define	AUDIT_SYSCALL_EXIT(error, td)	do {				\
 	if (td->td_pflags & TDP_AUDITREC)				\

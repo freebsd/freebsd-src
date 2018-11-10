@@ -42,6 +42,7 @@
 #define	IFC_DO_WATCHDOG		0x100
 #define	IFC_CHECK_HUNG		0x200
 #define	IFC_PSEUDO		0x400
+#define	IFC_IN_DETACH		0x800
 
 #define IFC_NETMAP_TX_IRQ	0x80000000
 

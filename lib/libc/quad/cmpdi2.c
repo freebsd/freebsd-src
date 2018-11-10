@@ -47,8 +47,7 @@ __FBSDID("$FreeBSD$");
  * signed.
  */
 int
-__cmpdi2(a, b)
-	quad_t a, b;
+__cmpdi2(quad_t a, quad_t b)
 {
 	union uu aa, bb;
 

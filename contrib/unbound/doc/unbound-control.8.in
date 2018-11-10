@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Jun 21, 2018" "NLnet Labs" "unbound 1.7.3"
+.TH "unbound-control" "8" "Oct  8, 2018" "NLnet Labs" "unbound 1.8.1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -293,6 +293,18 @@ ips are dropped before checking the cache.
 List the auth zones that are configured.  Printed one per line with a
 status, indicating if the zone is expired and current serial number.
 .TP
+.B auth_zone_reload \fIzone\fR
+Reload the auth zone from zonefile.  The zonefile is read in overwriting
+the current contents of the zone in memory.  This changes the auth zone
+contents itself, not the cache contents.  Such cache contents exists if
+you set unbound to validate with for-upstream yes and that can be cleared
+with \fBflush_zone\fR \fIzone\fR.
+.TP
+.B auth_zone_transfer \fIzone\fR
+Transfer the auth zone from master.  The auth zone probe sequence is started,
+where the masters are probed to see if they have an updated zone (with the SOA
+serial check).  And then the zone is transferred for a newer zone version.
+.TP
 .B view_list_local_zones \fIview\fR
 \fIlist_local_zones\fR for given view.
 .TP
@@ -515,6 +527,10 @@ Number of queries that were made using TCP towards the unbound server.
 Number of queries that the unbound server made using TCP outgoing towards
 other servers.
 .TP
+.I num.query.tls
+Number of queries that were made using TLS towards the unbound server.
+These are also counted in num.query.tcp, because TLS uses TCP.
+.TP
 .I num.query.ipv6
 Number of queries that were made using IPv6 towards the unbound server.
 .TP
@@ -625,6 +641,14 @@ answered using cached data.
 The number of queries answered using cached NSEC records with NXDOMAIN RCODE.
 These queries would otherwise have been sent to the internet, but are now
 answered using cached data.
+.TP
+.I num.query.subnet
+Number of queries that got an answer that contained EDNS client subnet data.
+.TP
+.I num.query.subnet_cache
+Number of queries answered from the edns client subnet cache.  These are
+counted as cachemiss by the main counters, but hit the client subnet
+specific cache, after getting processed by the edns client subnet module.
 .SH "FILES"
 .TP
 .I @ub_conf_file@

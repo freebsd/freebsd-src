@@ -114,3 +114,6 @@ C25VTSW		Cons25 switch virtual terminal		^[ [ z		r
 
 # VT52 compatibility
 #DECID		VT52 DECID				^[ Z
+
+# ECMA-48
+REP		Repeat last graphic char		^[ [ b		n

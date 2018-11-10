@@ -101,6 +101,7 @@ static void usage(void)
 	printf("-c file	config file to read instead of %s\n", CONFIGFILE);
 	printf("	file format is described in unbound.conf(5).\n");
 	printf("-d	do not fork into the background.\n");
+	printf("-p	do not create a pidfile.\n");
 	printf("-v	verbose (more times to increase verbosity)\n");
 #ifdef UB_ON_WINDOWS
 	printf("-w opt	windows option: \n");
@@ -626,8 +627,10 @@ run_daemon(const char* cfgfile, int cmdline_verbose, int debug_mode, const char*
 			fatal_exit("Could not alloc config defaults");
 		if(!config_read(cfg, cfgfile, daemon->chroot)) {
 			if(errno != ENOENT)
-				fatal_exit("Could not read config file: %s",
-					cfgfile);
+				fatal_exit("Could not read config file: %s."
+					" Maybe try unbound -dd, it stays on "
+					"the commandline to see more errors, "
+					"or unbound-checkconf", cfgfile);
 			log_warn("Continuing with default config settings");
 		}
 		apply_settings(daemon, cfg, cmdline_verbose, debug_mode, log_default_identity);
@@ -727,7 +730,7 @@ main(int argc, char* argv[])
 		}
 	}
 	argc -= optind;
-	argv += optind;
+	/* argv += optind; not using further arguments */
 
 	if(winopt) {
 #ifdef UB_ON_WINDOWS

@@ -496,7 +496,9 @@ restart:
 	if (Oflag > 1) {
 		sblock.fs_flags |= FS_METACKHASH;
 		if (getosreldate() >= P_OSREL_CK_CYLGRP)
-			sblock.fs_metackhash = CK_CYLGRP;
+			sblock.fs_metackhash |= CK_CYLGRP;
+		if (getosreldate() >= P_OSREL_CK_SUPERBLOCK)
+			sblock.fs_metackhash |= CK_SUPERBLOCK;
 	}
 
 	/*

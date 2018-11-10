@@ -1,3 +1,5 @@
+Oct 06, 2018: RAR 5.0 reader
+
 Sep 03, 2018: libarchive 3.3.3 released
 
 Jul 19, 2018: Avoid super-linear slowdown on malformed mtree files

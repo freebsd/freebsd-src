@@ -423,13 +423,14 @@ static int
 intelspi_probe(device_t dev)
 {
 	static char *gpio_ids[] = { "80860F0E", NULL };
-
-	if (acpi_disabled("spi") ||
-	    ACPI_ID_PROBE(device_get_parent(dev), dev, gpio_ids) == NULL)
-	return (ENXIO);
-
-	device_set_desc(dev, "Intel SPI Controller");
-	return (0);
+	int rv;
+	
+	if (acpi_disabled("spi") )
+		return (ENXIO);
+	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, gpio_ids, NULL);
+	if (rv <= 0)
+		device_set_desc(dev, "Intel SPI Controller");
+	return (rv);
 }
 
 static int

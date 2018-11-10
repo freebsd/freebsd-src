@@ -128,44 +128,60 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_read 3"
-.TH BIO_read 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_READ 3"
+.TH BIO_READ 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_read, BIO_write, BIO_gets, BIO_puts \- BIO I/O functions
+BIO_read_ex, BIO_write_ex, BIO_read, BIO_write, BIO_gets, BIO_puts \&\- BIO I/O functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& int    BIO_read(BIO *b, void *buf, int len);
-\& int    BIO_gets(BIO *b, char *buf, int size);
-\& int    BIO_write(BIO *b, const void *buf, int len);
-\& int    BIO_puts(BIO *b, const char *buf);
+\& int BIO_read_ex(BIO *b, void *data, size_t dlen, size_t *readbytes);
+\& int BIO_write_ex(BIO *b, const void *data, size_t dlen, size_t *written);
+\&
+\& int BIO_read(BIO *b, void *data, int dlen);
+\& int BIO_gets(BIO *b, char *buf, int size);
+\& int BIO_write(BIO *b, const void *data, int dlen);
+\& int BIO_puts(BIO *b, const char *buf);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+\&\fIBIO_read_ex()\fR attempts to read \fBdlen\fR bytes from \s-1BIO\s0 \fBb\fR and places the data
+in \fBdata\fR. If any bytes were successfully read then the number of bytes read is
+stored in \fB*readbytes\fR.
+.PP
+\&\fIBIO_write_ex()\fR attempts to write \fBdlen\fR bytes from \fBdata\fR to \s-1BIO\s0 \fBb\fR. If
+successful then the number of bytes written is stored in \fB*written\fR.
+.PP
 \&\fIBIO_read()\fR attempts to read \fBlen\fR bytes from \s-1BIO\s0 \fBb\fR and places
 the data in \fBbuf\fR.
 .PP
 \&\fIBIO_gets()\fR performs the BIOs \*(L"gets\*(R" operation and places the data
 in \fBbuf\fR. Usually this operation will attempt to read a line of data
-from the \s-1BIO\s0 of maximum length \fBlen\fR. There are exceptions to this
-however, for example \fIBIO_gets()\fR on a digest \s-1BIO\s0 will calculate and
+from the \s-1BIO\s0 of maximum length \fBsize\-1\fR. There are exceptions to this,
+however; for example, \fIBIO_gets()\fR on a digest \s-1BIO\s0 will calculate and
 return the digest and other BIOs may not support \fIBIO_gets()\fR at all.
+The returned string is always NUL-terminated and the '\en' is preserved
+if present in the input data.
 .PP
 \&\fIBIO_write()\fR attempts to write \fBlen\fR bytes from \fBbuf\fR to \s-1BIO\s0 \fBb\fR.
 .PP
-\&\fIBIO_puts()\fR attempts to write a null terminated string \fBbuf\fR to \s-1BIO\s0 \fBb\fR.
+\&\fIBIO_puts()\fR attempts to write a NUL-terminated string \fBbuf\fR to \s-1BIO\s0 \fBb\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-All these functions return either the amount of data successfully read or
+\&\fIBIO_read_ex()\fR and \fIBIO_write_ex()\fR return 1 if data was successfully read or
+written, and 0 otherwise.
+.PP
+All other functions return either the amount of data successfully read or
 written (if the return value is positive) or that no data was successfully
 read or written if the result is 0 or \-1. If the return value is \-2 then
-the operation is not implemented in the specific \s-1BIO\s0 type.
+the operation is not implemented in the specific \s-1BIO\s0 type.  The trailing
+\&\s-1NUL\s0 is not included in the length returned by \fIBIO_gets()\fR.
 .SH "NOTES"
 .IX Header "NOTES"
 A 0 or \-1 return is not necessarily an indication of an error. In
@@ -192,5 +208,15 @@ to the chain.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIBIO_should_retry\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fIBIO_gets()\fR on 1.1.0 and older when called on \fIBIO_fd()\fR based \s-1BIO\s0 does not
+keep the '\en' at the end of the line in the buffer.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-\&\s-1TBA\s0
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

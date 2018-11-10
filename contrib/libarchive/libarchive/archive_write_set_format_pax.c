@@ -660,7 +660,7 @@ archive_write_pax_header(struct archive_write *a,
 			 * case getting WCS failed. On POSIX, this is a
 			 * normal operation.
 			 */
-			if (p != NULL && p[strlen(p) - 1] != '/') {
+			if (p != NULL && p[0] != '\0' && p[strlen(p) - 1] != '/') {
 				struct archive_string as;
 
 				archive_string_init(&as);

@@ -252,6 +252,11 @@ read_stubs_addr(struct config_stub* s, struct delegpt* dp)
 				s->name, p->str);
 			return 0;
 		}
+#ifndef HAVE_SSL_SET1_HOST
+		if(auth_name)
+			log_err("no name verification functionality in "
+				"ssl library, ignored name for %s", p->str);
+#endif
 		if(!delegpt_add_addr_mlc(dp, &addr, addrlen, 0, 0,
 			auth_name)) {
 			log_err("out of memory");
@@ -278,6 +283,8 @@ read_stubs(struct iter_hints* hints, struct config_file* cfg)
 		 * last resort will ask for parent-side NS record and thus
 		 * fallback to the internet name servers on a failure */
 		dp->has_parent_side_NS = (uint8_t)!s->isfirst;
+		/* Do not cache if set. */
+		dp->no_cache = s->no_cache;
 		/* ssl_upstream */
 		dp->ssl_upstream = (uint8_t)s->ssl_upstream;
 		delegpt_log(VERB_QUERY, dp);

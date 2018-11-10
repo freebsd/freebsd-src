@@ -28,7 +28,7 @@
 .\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2018
+.Dd October 1, 2018
 .Dt NFSSTAT 1
 .Os
 .Sh NAME
@@ -59,7 +59,7 @@ The options are as follows:
 .It Fl c
 Only display client side statistics.
 .It Fl d
-Display statistics for the new NFS server that are similar to those
+Display statistics for the NFS server that are similar to those
 displayed by
 .Xr iostat 8 .
 This includes kilobytes per transfer, transfers per second, and megabytes per
@@ -98,11 +98,10 @@ Extract values associated with the name list from the specified core
 instead of the default
 .Pa /dev/kmem .
 .It Fl m
-Report the mount options for all new NFS client mounts.
+Report the mount options for all NFS client mounts.
 This option overrides all others and
 .Nm
 will exit after completing the report.
-This option is only supported by the new NFS client.
 .It Fl N
 Extract the name list from the specified system instead of the default
 .Pa /boot/kernel/kernel .

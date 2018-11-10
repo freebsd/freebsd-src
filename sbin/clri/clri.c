@@ -62,6 +62,11 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <unistd.h>
 
+union dinodep {
+	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
+};
+
 static void
 usage(void)
 {
@@ -72,81 +77,51 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	struct fs *fs;
-	struct ufs1_dinode *dp1;
-	struct ufs2_dinode *dp2;
-	char *ibuf[MAXBSIZE];
-	long generation, bsize;
-	off_t offset;
-	int fd, ret, inonum;
+	union dinodep dp;
+	struct uufsd disk;
+	long generation;
+	int inonum, exitval;
 	char *fsname;
-	void *v = ibuf;
 
 	if (argc < 3)
 		usage();
 
-	fsname = *++argv;
-
 	/* get the superblock. */
-	if ((fd = open(fsname, O_RDWR, 0)) < 0)
-		err(1, "%s", fsname);
-	if ((ret = sbget(fd, &fs, -1)) != 0) {
-		switch (ret) {
-		case ENOENT:
-			warn("Cannot find file system superblock");
-			return (1);
-		default:
-			warn("Unable to read file system superblock");
-			return (1);
-		}
+	fsname = *++argv;
+	if (ufs_disk_fillout(&disk, fsname) == -1) {
+		printf("loading superblock: %s\n", disk.d_error);
+		exit (1);
 	}
-	bsize = fs->fs_bsize;
 
 	/* remaining arguments are inode numbers. */
+	exitval = 0;
 	while (*++argv) {
 		/* get the inode number. */
-		if ((inonum = atoi(*argv)) <= 0)
-			errx(1, "%s is not a valid inode number", *argv);
+		if ((inonum = atoi(*argv)) < UFS_ROOTINO) {
+			printf("%s is not a valid inode number", *argv);
+			exitval = 1;
+			continue;
+		}
 		(void)printf("clearing %d\n", inonum);
 
-		/* read in the appropriate block. */
-		offset = ino_to_fsba(fs, inonum);	/* inode to fs blk */
-		offset = fsbtodb(fs, offset);		/* fs blk disk blk */
-		offset *= DEV_BSIZE;			/* disk blk to bytes */
-
-		/* seek and read the block */
-		if (lseek(fd, offset, SEEK_SET) < 0)
-			err(1, "%s", fsname);
-		if (read(fd, ibuf, bsize) != bsize)
-			err(1, "%s", fsname);
-
-		if (fs->fs_magic == FS_UFS2_MAGIC) {
-			/* get the inode within the block. */
-			dp2 = &(((struct ufs2_dinode *)v)
-			    [ino_to_fsbo(fs, inonum)]);
-
-			/* clear the inode, and bump the generation count. */
-			generation = dp2->di_gen + 1;
-			memset(dp2, 0, sizeof(*dp2));
-			dp2->di_gen = generation;
-		} else {
-			/* get the inode within the block. */
-			dp1 = &(((struct ufs1_dinode *)v)
-			    [ino_to_fsbo(fs, inonum)]);
-
-			/* clear the inode, and bump the generation count. */
-			generation = dp1->di_gen + 1;
-			memset(dp1, 0, sizeof(*dp1));
-			dp1->di_gen = generation;
+		if (getino(&disk, (void **)&dp, inonum, NULL) == -1) {
+			printf("getino: %s\n", disk.d_error);
+			exitval = 1;
+			continue;
 		}
-
-		/* backup and write the block */
-		if (lseek(fd, (off_t)-bsize, SEEK_CUR) < 0)
-			err(1, "%s", fsname);
-		if (write(fd, ibuf, bsize) != bsize)
-			err(1, "%s", fsname);
-		(void)fsync(fd);
+		/* clear the inode, and bump the generation count. */
+		if (disk.d_fs.fs_magic == FS_UFS1_MAGIC) {
+			generation = dp.dp1->di_gen + 1;
+			memset(dp.dp1, 0, sizeof(*dp.dp1));
+			dp.dp1->di_gen = generation;
+		} else {
+			generation = dp.dp2->di_gen + 1;
+			memset(dp.dp2, 0, sizeof(*dp.dp2));
+			dp.dp2->di_gen = generation;
+		}
+		putino(&disk);
+		(void)fsync(disk.d_fd);
 	}
-	(void)close(fd);
-	exit(0);
+	(void)ufs_disk_close(&disk);
+	exit(exitval);
 }

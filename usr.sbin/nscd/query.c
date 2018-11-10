@@ -160,7 +160,7 @@ on_query_startup(struct query_state *qstate)
 	struct cmsgcred *cred;
 	int elem_type;
 
-	struct {
+	union {
 		struct cmsghdr	hdr;
 		char cred[CMSG_SPACE(sizeof(struct cmsgcred))];
 	} cmsg;
@@ -171,8 +171,8 @@ on_query_startup(struct query_state *qstate)
 	memset(&cred_hdr, 0, sizeof(struct msghdr));
 	cred_hdr.msg_iov = &iov;
 	cred_hdr.msg_iovlen = 1;
-	cred_hdr.msg_control = (caddr_t)&cmsg;
-	cred_hdr.msg_controllen = CMSG_LEN(sizeof(struct cmsgcred));
+	cred_hdr.msg_control = &cmsg;
+	cred_hdr.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
 
 	memset(&iov, 0, sizeof(struct iovec));
 	iov.iov_base = &elem_type;
@@ -183,7 +183,8 @@ on_query_startup(struct query_state *qstate)
 		return (-1);
 	}
 
-	if (cmsg.hdr.cmsg_len < CMSG_LEN(sizeof(struct cmsgcred))
+	if (cred_hdr.msg_controllen < CMSG_LEN(sizeof(struct cmsgcred))
+		|| cmsg.hdr.cmsg_len < CMSG_LEN(sizeof(struct cmsgcred))
 		|| cmsg.hdr.cmsg_level != SOL_SOCKET
 		|| cmsg.hdr.cmsg_type != SCM_CREDS) {
 		TRACE_OUT(on_query_startup);

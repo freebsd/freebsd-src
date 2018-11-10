@@ -237,6 +237,8 @@ struct netmap_slot {
 	 *  are the number of fragments.
 	 */
 
+#define NETMAP_MAX_FRAGS	64	/* max number of fragments */
+
 
 /*
  * struct netmap_ring

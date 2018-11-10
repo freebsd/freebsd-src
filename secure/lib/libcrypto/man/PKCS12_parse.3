@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "PKCS12_parse 3"
-.TH PKCS12_parse 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "PKCS12_PARSE 3"
+.TH PKCS12_PARSE 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -160,6 +160,15 @@ valid \s-1STACK\s0 in which case additional certificates are appended to \fB*ca\
 The \fBfriendlyName\fR and \fBlocalKeyID\fR attributes (if present) on each
 certificate will be stored in the \fBalias\fR and \fBkeyid\fR attributes of the
 \&\fBX509\fR structure.
+.PP
+The parameter \fBpass\fR is interpreted as a string in the \s-1UTF\-8\s0 encoding. If it
+is not valid \s-1UTF\-8,\s0 then it is assumed to be \s-1ISO8859\-1\s0 instead.
+.PP
+In particular, this means that passwords in the locale character set
+(or code page on Windows) must potentially be converted to \s-1UTF\-8\s0 before
+use. This may include passwords from local text files, or input from
+the terminal or command line. Refer to the documentation of
+\&\fIUI_OpenSSL\fR\|(3), for example.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIPKCS12_parse()\fR returns 1 for success and zero if an error occurred.
@@ -177,7 +186,13 @@ certificates. Other attributes are discarded.
 Attributes currently cannot be stored in the private key \fB\s-1EVP_PKEY\s0\fR structure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fId2i_PKCS12\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-PKCS12_parse was added in OpenSSL 0.9.3
+\&\fId2i_PKCS12\fR\|(3),
+\&\fIpassphrase\-encoding\fR\|(7)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

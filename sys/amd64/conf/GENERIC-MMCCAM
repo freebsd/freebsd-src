@@ -7,7 +7,6 @@ include         MINIMAL
 ident		GENERIC-MMCCAM
 
 # Access GPT-formatted and labeled root volume
-options         GEOM_PART_GPT
 options         GEOM_LABEL
 
 # UART -- for bhyve console

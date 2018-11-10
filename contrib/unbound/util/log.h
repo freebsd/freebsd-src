@@ -174,7 +174,7 @@ void log_buf(enum verbosity_value level, const char* msg, struct sldns_buffer* b
  * Pass printf formatted arguments. No trailing newline is needed.
  * @param format: printf-style format string. Arguments follow.
  */
-void fatal_exit(const char* format, ...) ATTR_FORMAT(printf, 1, 2);
+void fatal_exit(const char* format, ...) ATTR_FORMAT(printf, 1, 2) ATTR_NORETURN;
 
 /**
  * va_list argument version of log_info.

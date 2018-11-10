@@ -1,18 +1,23 @@
 # -*- python -*-
 #
-# Copyright 2011-2012 Justin Erenkrantz and Greg Stein
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# ====================================================================
+#    Licensed to the Apache Software Foundation (ASF) under one
+#    or more contributor license agreements.  See the NOTICE file
+#    distributed with this work for additional information
+#    regarding copyright ownership.  The ASF licenses this file
+#    to you under the Apache License, Version 2.0 (the
+#    "License"); you may not use this file except in compliance
+#    with the License.  You may obtain a copy of the License at
+# 
+#      http://www.apache.org/licenses/LICENSE-2.0
+# 
+#    Unless required by applicable law or agreed to in writing,
+#    software distributed under the License is distributed on an
+#    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+#    KIND, either express or implied.  See the License for the
+#    specific language governing permissions and limitations
+#    under the License.
+# ====================================================================
 #
 
 import sys
@@ -135,7 +140,8 @@ if sys.platform == 'win32':
     EnumVariable('MSVC_VERSION',
                  "Visual C++ to use for building (E.g. 11.0, 9.0)",
                  None,
-                 allowed_values=('12.0', '11.0', '10.0', '9.0', '8.0', '6.0')
+                 allowed_values=('14.0', '12.0',
+                                 '11.0', '10.0', '9.0', '8.0', '6.0')
                 ),
 
     # We always documented that we handle an install layout, but in fact we
@@ -177,8 +183,7 @@ CALLOUT_OKAY = not (env.GetOption('clean') or env.GetOption('help'))
 
 unknown = opts.UnknownVariables()
 if unknown:
-  print 'Unknown variables:', ', '.join(unknown.keys())
-  Exit(1)
+  print 'Warning: Used unknown variables:', ', '.join(unknown.keys())
 
 apr = str(env['APR'])
 apu = str(env['APU'])
@@ -210,7 +215,8 @@ incdir = '$PREFIX/include/serf-$MAJOR'
 # Unfortunately we can't set the .dylib compatibility_version option separately
 # from current_version, so don't use the PATCH level to avoid that build and
 # runtime patch levels have to be identical.
-env['SHLIBVERSION'] = '%d.%d.%d' % (MAJOR, MINOR, 0)
+if sys.platform != 'sunos5':
+  env['SHLIBVERSION'] = '%d.%d.%d' % (MAJOR, MINOR, 0)
 
 LIBNAME = 'libserf-%d' % (MAJOR,)
 if sys.platform != 'win32':
@@ -223,31 +229,43 @@ env.Append(RPATH=libdir,
 
 if sys.platform == 'darwin':
 #  linkflags.append('-Wl,-install_name,@executable_path/%s.dylib' % (LIBNAME,))
-  env.Append(LINKFLAGS='-Wl,-install_name,%s/%s.dylib' % (thisdir, LIBNAME,))
+  env.Append(LINKFLAGS=['-Wl,-install_name,%s/%s.dylib' % (thisdir, LIBNAME,)])
 
 if sys.platform != 'win32':
-  ### gcc only. figure out appropriate test / better way to check these
-  ### flags, and check for gcc.
-  env.Append(CFLAGS='-std=c89')
+  def CheckGnuCC(context):
+    src = '''
+    #ifndef __GNUC__
+    oh noes!
+    #endif
+    '''
+    context.Message('Checking for GNU-compatible C compiler...')
+    result = context.TryCompile(src, '.c')
+    context.Result(result)
+    return result
 
-  ### These warnings are not available on Solaris
-  if sys.platform != 'sunos5': 
+  conf = Configure(env, custom_tests = dict(CheckGnuCC=CheckGnuCC))
+  have_gcc = conf.CheckGnuCC()
+  env = conf.Finish()
+
+  if have_gcc:
+    env.Append(CFLAGS=['-std=c89'])
     env.Append(CCFLAGS=['-Wdeclaration-after-statement',
                         '-Wmissing-prototypes',
                         '-Wall'])
 
   if debug:
-    env.Append(CCFLAGS='-g')
+    env.Append(CCFLAGS=['-g'])
     env.Append(CPPDEFINES=['DEBUG', '_DEBUG'])
   else:
-    env.Append(CCFLAGS='-O2')
-    env.Append(CPPDEFINES='NDEBUG')
+    env.Append(CCFLAGS=['-O2'])
+    env.Append(CPPDEFINES=['NDEBUG'])
 
   ### works for Mac OS. probably needs to change
   env.Append(LIBS=['ssl', 'crypto', 'z', ])
 
   if sys.platform == 'sunos5':
-    env.Append(LIBS='m')
+    env.Append(LIBS=['m'])
+    env.Append(PLATFORM='posix')
 else:
   # Warning level 4, no unused argument warnings
   env.Append(CCFLAGS=['/W4', '/wd4100'])
@@ -260,8 +278,8 @@ else:
   else:
     # Optimize for speed, use DLL runtime
     env.Append(CCFLAGS=['/O2', '/MD'])
-    env.Append(CPPDEFINES='NDEBUG')
-    env.Append(LINKFLAGS='/RELEASE')
+    env.Append(CPPDEFINES=['NDEBUG'])
+    env.Append(LINKFLAGS=['/RELEASE'])
 
 # PLAN THE BUILD
 SHARED_SOURCES = []
@@ -291,6 +309,7 @@ if sys.platform == 'win32':
   if aprstatic:
     apr_libs='apr-1.lib'
     apu_libs='aprutil-1.lib'
+    env.Append(LIBS=['shell32.lib', 'xml.lib'])
   else:
     apr_libs='libapr-1.lib'
     apu_libs='libaprutil-1.lib'
@@ -307,25 +326,25 @@ if sys.platform == 'win32':
                CPPPATH=['$APR/include', '$APU/include'])
 
   # zlib
-  env.Append(LIBS='zlib.lib')
+  env.Append(LIBS=['zlib.lib'])
   if not env.get('SOURCE_LAYOUT', None):
-    env.Append(CPPPATH='$ZLIB/include',
-               LIBPATH='$ZLIB/lib')
+    env.Append(CPPPATH=['$ZLIB/include'],
+               LIBPATH=['$ZLIB/lib'])
   else:
-    env.Append(CPPPATH='$ZLIB',
-               LIBPATH='$ZLIB')
+    env.Append(CPPPATH=['$ZLIB'],
+               LIBPATH=['$ZLIB'])
 
   # openssl
   env.Append(LIBS=['libeay32.lib', 'ssleay32.lib'])
   if not env.get('SOURCE_LAYOUT', None):
-    env.Append(CPPPATH='$OPENSSL/include/openssl',
-               LIBPATH='$OPENSSL/lib')
+    env.Append(CPPPATH=['$OPENSSL/include/openssl'],
+               LIBPATH=['$OPENSSL/lib'])
   elif 0: # opensslstatic:
-    env.Append(CPPPATH='$OPENSSL/inc32',
-               LIBPATH='$OPENSSL/out32')
+    env.Append(CPPPATH=['$OPENSSL/inc32'],
+               LIBPATH=['$OPENSSL/out32'])
   else:
-    env.Append(CPPPATH='$OPENSSL/inc32',
-               LIBPATH='$OPENSSL/out32dll')
+    env.Append(CPPPATH=['$OPENSSL/inc32'],
+               LIBPATH=['$OPENSSL/out32dll'])
 else:
   if os.path.isdir(apr):
     apr = os.path.join(apr, 'bin', 'apr-1-config')
@@ -351,8 +370,8 @@ else:
     apr_libs = ''
     apu_libs = ''
 
-  env.Append(CPPPATH='$OPENSSL/include')
-  env.Append(LIBPATH='$OPENSSL/lib')
+  env.Append(CPPPATH=['$OPENSSL/include'])
+  env.Append(LIBPATH=['$OPENSSL/lib'])
 
 
 # If build with gssapi, get its information and define SERF_HAVE_GSSAPI
@@ -362,7 +381,7 @@ if gssapi and CALLOUT_OKAY:
         env['GSSAPI_LIBS'] = cmd.strip()
         return env.MergeFlags(cmd, unique)
     env.ParseConfig('$GSSAPI --libs gssapi', parse_libs)
-    env.Append(CPPDEFINES='SERF_HAVE_GSSAPI')
+    env.Append(CPPDEFINES=['SERF_HAVE_GSSAPI'])
 if sys.platform == 'win32':
   env.Append(CPPDEFINES=['SERF_HAVE_SSPI'])
 
@@ -428,6 +447,12 @@ env.Alias('install', ['install-lib', 'install-inc', 'install-pc', ])
 
 tenv = env.Clone()
 
+# MockHTTP requires C99 standard, so use it for the test suite.
+cflags = tenv['CFLAGS']
+tenv.Replace(CFLAGS = [f.replace('-std=c89', '-std=c99') for f in cflags])
+
+tenv.Append(CPPDEFINES=['MOCKHTTP_OPENSSL'])
+
 TEST_PROGRAMS = [ 'serf_get', 'serf_response', 'serf_request', 'serf_spider',
                   'test_all', 'serf_bwtp' ]
 if sys.platform == 'win32':
@@ -435,13 +460,22 @@ if sys.platform == 'win32':
 else:
   TEST_EXES = [ os.path.join('test', '%s' % (prog)) for prog in TEST_PROGRAMS ]
 
-env.AlwaysBuild(env.Alias('check', TEST_EXES, sys.executable + ' build/check.py',
-                          ENV={'PATH' : os.environ['PATH']}))
-
 # Find the (dynamic) library in this directory
 tenv.Replace(RPATH=thisdir)
 tenv.Prepend(LIBS=[LIBNAMESTATIC, ],
              LIBPATH=[thisdir, ])
+
+check_script = env.File('build/check.py').rstr()
+test_dir = env.File('test/test_all.c').rfile().get_dir()
+src_dir = env.File('serf.h').rfile().get_dir()
+test_app = ("%s %s %s %s") % (sys.executable, check_script, test_dir, 'test')
+
+# Set the library search path for the test programs
+test_env = {'PATH' : os.environ['PATH'],
+            'srcdir' : src_dir}
+if sys.platform != 'win32':
+  test_env['LD_LIBRARY_PATH'] = ':'.join(tenv.get('LIBPATH', []))
+env.AlwaysBuild(env.Alias('check', TEST_EXES, test_app, ENV=test_env))
 
 testall_files = [
         'test/test_all.c',

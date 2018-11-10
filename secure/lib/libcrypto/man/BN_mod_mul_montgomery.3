@@ -128,36 +128,33 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BN_mod_mul_montgomery 3"
-.TH BN_mod_mul_montgomery 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BN_MOD_MUL_MONTGOMERY 3"
+.TH BN_MOD_MUL_MONTGOMERY 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BN_mod_mul_montgomery, BN_MONT_CTX_new, BN_MONT_CTX_init,
-BN_MONT_CTX_free, BN_MONT_CTX_set, BN_MONT_CTX_copy,
-BN_from_montgomery, BN_to_montgomery \- Montgomery multiplication
+BN_mod_mul_montgomery, BN_MONT_CTX_new, BN_MONT_CTX_free, BN_MONT_CTX_set, BN_MONT_CTX_copy, BN_from_montgomery, BN_to_montgomery \- Montgomery multiplication
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bn.h>
 \&
 \& BN_MONT_CTX *BN_MONT_CTX_new(void);
-\& void BN_MONT_CTX_init(BN_MONT_CTX *ctx);
 \& void BN_MONT_CTX_free(BN_MONT_CTX *mont);
 \&
 \& int BN_MONT_CTX_set(BN_MONT_CTX *mont, const BIGNUM *m, BN_CTX *ctx);
 \& BN_MONT_CTX *BN_MONT_CTX_copy(BN_MONT_CTX *to, BN_MONT_CTX *from);
 \&
 \& int BN_mod_mul_montgomery(BIGNUM *r, BIGNUM *a, BIGNUM *b,
-\&         BN_MONT_CTX *mont, BN_CTX *ctx);
+\&                           BN_MONT_CTX *mont, BN_CTX *ctx);
 \&
 \& int BN_from_montgomery(BIGNUM *r, BIGNUM *a, BN_MONT_CTX *mont,
-\&         BN_CTX *ctx);
+\&                        BN_CTX *ctx);
 \&
 \& int BN_to_montgomery(BIGNUM *r, BIGNUM *a, BN_MONT_CTX *mont,
-\&         BN_CTX *ctx);
+\&                      BN_CTX *ctx);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -167,7 +164,6 @@ but they may be useful when several operations are to be performed
 using the same modulus.
 .PP
 \&\fIBN_MONT_CTX_new()\fR allocates and initializes a \fB\s-1BN_MONT_CTX\s0\fR structure.
-\&\fIBN_MONT_CTX_init()\fR initializes an existing uninitialized \fB\s-1BN_MONT_CTX\s0\fR.
 .PP
 \&\fIBN_MONT_CTX_set()\fR sets up the \fImont\fR structure from the modulus \fIm\fR
 by precomputing its inverse and a value R.
@@ -176,6 +172,7 @@ by precomputing its inverse and a value R.
 .PP
 \&\fIBN_MONT_CTX_free()\fR frees the components of the \fB\s-1BN_MONT_CTX\s0\fR, and, if
 it was created by \fIBN_MONT_CTX_new()\fR, also the structure itself.
+If \fBmont\fR is \s-1NULL,\s0 nothing is done.
 .PP
 \&\fIBN_mod_mul_montgomery()\fR computes Mont(\fIa\fR,\fIb\fR):=\fIa\fR*\fIb\fR*R^\-1 and places
 the result in \fIr\fR.
@@ -187,29 +184,12 @@ Note that \fIa\fR must be non-negative and smaller than the modulus.
 .PP
 For all functions, \fIctx\fR is a previously allocated \fB\s-1BN_CTX\s0\fR used for
 temporary variables.
-.PP
-The \fB\s-1BN_MONT_CTX\s0\fR structure is defined as follows:
-.PP
-.Vb 10
-\& typedef struct bn_mont_ctx_st
-\&        {
-\&        int ri;         /* number of bits in R */
-\&        BIGNUM RR;      /* R^2 (used to convert to Montgomery form) */
-\&        BIGNUM N;       /* The modulus */
-\&        BIGNUM Ni;      /* R*(1/R mod N) \- N*Ni = 1
-\&                         * (Ni is only stored for bignum algorithm) */
-\&        BN_ULONG n0;    /* least significant word of Ni */
-\&        int flags;
-\&        } BN_MONT_CTX;
-.Ve
-.PP
-\&\fIBN_to_montgomery()\fR is a macro.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIBN_MONT_CTX_new()\fR returns the newly allocated \fB\s-1BN_MONT_CTX\s0\fR, and \s-1NULL\s0
 on error.
 .PP
-\&\fIBN_MONT_CTX_init()\fR and \fIBN_MONT_CTX_free()\fR have no return values.
+\&\fIBN_MONT_CTX_free()\fR has no return value.
 .PP
 For the other functions, 1 is returned for success, 0 on error.
 The error codes can be obtained by \fIERR_get_error\fR\|(3).
@@ -219,12 +199,16 @@ The inputs must be reduced modulo \fBm\fR, otherwise the result will be
 outside the expected range.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIbn\fR\|(3), \fIERR_get_error\fR\|(3), \fIBN_add\fR\|(3),
+\&\fIERR_get_error\fR\|(3), \fIBN_add\fR\|(3),
 \&\fIBN_CTX_new\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fIBN_MONT_CTX_new()\fR, \fIBN_MONT_CTX_free()\fR, \fIBN_MONT_CTX_set()\fR,
-\&\fIBN_mod_mul_montgomery()\fR, \fIBN_from_montgomery()\fR and \fIBN_to_montgomery()\fR
-are available in all versions of SSLeay and OpenSSL.
+\&\fIBN_MONT_CTX_init()\fR was removed in OpenSSL 1.1.0
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-\&\fIBN_MONT_CTX_init()\fR and \fIBN_MONT_CTX_copy()\fR were added in SSLeay 0.9.1b.
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

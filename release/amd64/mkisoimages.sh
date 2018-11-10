@@ -23,6 +23,8 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
+set -e
+
 if [ -z $ETDUMP ]; then
 	ETDUMP=etdump
 fi

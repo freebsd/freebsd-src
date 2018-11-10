@@ -208,12 +208,15 @@ static char *wmi_ids[] = {"PNP0C14", NULL};
 static int
 acpi_wmi_probe(device_t dev)
 {
-	if (acpi_disabled("wmi") ||
-	    ACPI_ID_PROBE(device_get_parent(dev), dev, wmi_ids) == NULL)
-		return (ENXIO);
-	device_set_desc(dev, "ACPI-WMI mapping");
+	int rv; 
 
-	return (0);
+	if (acpi_disabled("wmi"))
+		return (ENXIO);
+	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, wmi_ids, NULL);
+	if (rv <= 0)
+		device_set_desc(dev, "ACPI-WMI mapping");
+
+	return (rv);
 }
 
 /*

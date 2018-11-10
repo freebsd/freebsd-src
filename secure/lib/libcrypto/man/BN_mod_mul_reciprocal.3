@@ -128,32 +128,29 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BN_mod_mul_reciprocal 3"
-.TH BN_mod_mul_reciprocal 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BN_MOD_MUL_RECIPROCAL 3"
+.TH BN_MOD_MUL_RECIPROCAL 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BN_mod_mul_reciprocal,  BN_div_recp, BN_RECP_CTX_new, BN_RECP_CTX_init,
-BN_RECP_CTX_free, BN_RECP_CTX_set \- modular multiplication using
-reciprocal
+BN_mod_mul_reciprocal, BN_div_recp, BN_RECP_CTX_new, BN_RECP_CTX_free, BN_RECP_CTX_set \- modular multiplication using reciprocal
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bn.h>
 \&
 \& BN_RECP_CTX *BN_RECP_CTX_new(void);
-\& void BN_RECP_CTX_init(BN_RECP_CTX *recp);
 \& void BN_RECP_CTX_free(BN_RECP_CTX *recp);
 \&
 \& int BN_RECP_CTX_set(BN_RECP_CTX *recp, const BIGNUM *m, BN_CTX *ctx);
 \&
 \& int BN_div_recp(BIGNUM *dv, BIGNUM *rem, BIGNUM *a, BN_RECP_CTX *recp,
-\&        BN_CTX *ctx);
+\&                 BN_CTX *ctx);
 \&
 \& int BN_mod_mul_reciprocal(BIGNUM *r, BIGNUM *a, BIGNUM *b,
-\&        BN_RECP_CTX *recp, BN_CTX *ctx);
+\&                           BN_RECP_CTX *recp, BN_CTX *ctx);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -164,10 +161,10 @@ using \fBrecp\fR=1/\fBm\fR, which is set as described below.  \fBctx\fR is a
 previously allocated \fB\s-1BN_CTX\s0\fR used for temporary variables.
 .PP
 \&\fIBN_RECP_CTX_new()\fR allocates and initializes a \fB\s-1BN_RECP\s0\fR structure.
-\&\fIBN_RECP_CTX_init()\fR initializes an existing uninitialized \fB\s-1BN_RECP\s0\fR.
 .PP
 \&\fIBN_RECP_CTX_free()\fR frees the components of the \fB\s-1BN_RECP\s0\fR, and, if it
 was created by \fIBN_RECP_CTX_new()\fR, also the structure itself.
+If \fBrecp\fR is \s-1NULL,\s0 nothing is done.
 .PP
 \&\fIBN_RECP_CTX_set()\fR stores \fBm\fR in \fBrecp\fR and sets it up for computing
 1/\fBm\fR and shifting it left by BN_num_bits(\fBm\fR)+1 to make it an
@@ -177,35 +174,28 @@ later be stored in \fBrecp\fR.
 \&\fIBN_div_recp()\fR divides \fBa\fR by \fBm\fR using \fBrecp\fR. It places the quotient
 in \fBdv\fR and the remainder in \fBrem\fR.
 .PP
-The \fB\s-1BN_RECP_CTX\s0\fR structure is defined as follows:
-.PP
-.Vb 8
-\& typedef struct bn_recp_ctx_st
-\&        {
-\&        BIGNUM N;       /* the divisor */
-\&        BIGNUM Nr;      /* the reciprocal */
-\&        int num_bits;
-\&        int shift;
-\&        int flags;
-\&        } BN_RECP_CTX;
-.Ve
-.PP
-It cannot be shared between threads.
+The \fB\s-1BN_RECP_CTX\s0\fR structure cannot be shared between threads.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIBN_RECP_CTX_new()\fR returns the newly allocated \fB\s-1BN_RECP_CTX\s0\fR, and \s-1NULL\s0
 on error.
 .PP
-\&\fIBN_RECP_CTX_init()\fR and \fIBN_RECP_CTX_free()\fR have no return values.
+\&\fIBN_RECP_CTX_free()\fR has no return value.
 .PP
 For the other functions, 1 is returned for success, 0 on error.
 The error codes can be obtained by \fIERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIbn\fR\|(3), \fIERR_get_error\fR\|(3), \fIBN_add\fR\|(3),
+\&\fIERR_get_error\fR\|(3), \fIBN_add\fR\|(3),
 \&\fIBN_CTX_new\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fB\s-1BN_RECP_CTX\s0\fR was added in SSLeay 0.9.0. Before that, the function
-\&\fIBN_reciprocal()\fR was used instead, and the \fIBN_mod_mul_reciprocal()\fR
-arguments were different.
+\&\fIBN_RECP_CTX_init()\fR was removed in OpenSSL 1.1.0
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

@@ -592,6 +592,6 @@ xen_setup_cpus(void)
 		apic_ops.ipi_vectored = xen_pv_lapic_ipi_vectored;
 }
 
-/* We need to setup IPIs before APs are started */
-SYSINIT(xen_setup_cpus, SI_SUB_SMP-1, SI_ORDER_FIRST, xen_setup_cpus, NULL);
+/* Switch to using PV IPIs as soon as the vcpu_id is set. */
+SYSINIT(xen_setup_cpus, SI_SUB_SMP, SI_ORDER_SECOND, xen_setup_cpus, NULL);
 #endif /* SMP */

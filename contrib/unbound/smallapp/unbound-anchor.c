@@ -192,9 +192,10 @@ usage(void)
 	printf("-n name		signer's subject emailAddress, default %s\n", P7SIGNER);
 	printf("-4		work using IPv4 only\n");
 	printf("-6		work using IPv6 only\n");
-	printf("-f resolv.conf	use given resolv.conf to resolve -u name\n");
-	printf("-r root.hints	use given root.hints to resolve -u name\n"
+	printf("-f resolv.conf	use given resolv.conf\n");
+	printf("-r root.hints	use given root.hints\n"
 		"		builtin root hints are used by default\n");
+	printf("-R		fallback from -f to root query on error\n");
 	printf("-v		more verbose\n");
 	printf("-C conf		debug, read config\n");
 	printf("-P port		use port for https connect, default 443\n");
@@ -1089,11 +1090,14 @@ read_http_result(SSL* ssl)
 	}
 	if(!data) return NULL;
 	if(verb >= 4) print_data("read data", data, (int)len);
-	m = BIO_new_mem_buf(data, (int)len);
+	m = BIO_new(BIO_s_mem());
 	if(!m) {
 		if(verb) printf("out of memory\n");
+		free(data);
 		exit(0);
 	}
+	BIO_write(m, data, (int)len);
+	free(data);
 	return m;
 }
 
@@ -1158,17 +1162,6 @@ https(struct ip_list* ip_list, const char* pathname, const char* urlname)
 			pathname, (int)BIO_ctrl_pending(bio));
 	}
 	return bio;
-}
-
-/** free up a downloaded file BIO */
-static void
-free_file_bio(BIO* bio)
-{
-	char* pp = NULL;
-	(void)BIO_reset(bio);
-	(void)BIO_get_mem_data(bio, &pp);
-	free(pp);
-	BIO_free(bio);
 }
 
 /** XML parse private data during the parse */
@@ -1595,7 +1588,7 @@ xml_parse(BIO* xml, time_t now)
 	xml_parse_setup(parser, &data, now);
 
 	/* parse it */
-	(void)BIO_reset(xml);
+	(void)BIO_seek(xml, 0);
 	len = (int)BIO_get_mem_data(xml, &pp);
 	if(!len || !pp) {
 		if(verb) printf("out of memory\n");
@@ -1769,8 +1762,8 @@ verify_p7sig(BIO* data, BIO* p7s, STACK_OF(X509)* trust, const char* p7signer)
 	X509_VERIFY_PARAM_free(param);
 #endif
 
-	(void)BIO_reset(p7s);
-	(void)BIO_reset(data);
+	(void)BIO_seek(p7s, 0);
+	(void)BIO_seek(data, 0);
 
 	/* convert p7s to p7 (the signature) */
 	p7 = d2i_PKCS7_bio(p7s, NULL);
@@ -1913,8 +1906,7 @@ static int
 do_certupdate(const char* root_anchor_file, const char* root_cert_file,
 	const char* urlname, const char* xmlname, const char* p7sname,
 	const char* p7signer, const char* res_conf, const char* root_hints,
-	const char* debugconf, int ip4only, int ip6only, int port,
-	struct ub_result* dnskey)
+	const char* debugconf, int ip4only, int ip6only, int port)
 {
 	STACK_OF(X509)* cert;
 	BIO *xml, *p7s;
@@ -1949,12 +1941,11 @@ do_certupdate(const char* root_anchor_file, const char* root_cert_file,
 	if(verb) printf("success: the anchor has been updated "
 			"using the cert\n");
 
-	free_file_bio(xml);
-	free_file_bio(p7s);
+	BIO_free(xml);
+	BIO_free(p7s);
 #ifndef S_SPLINT_S
 	sk_X509_pop_free(cert, X509_free);
 #endif
-	ub_resolve_free(dnskey);
 	ip_list_free(ip_list);
 	return 1;
 }
@@ -2192,16 +2183,33 @@ probe_date_allows_certupdate(const char* root_anchor_file)
 	return 0;
 }
 
+static struct ub_result *
+fetch_root_key(const char* root_anchor_file, const char* res_conf,
+	const char* root_hints, const char* debugconf,
+	int ip4only, int ip6only)
+{
+	struct ub_ctx* ctx;
+	struct ub_result* dnskey;
+
+	ctx = create_unbound_context(res_conf, root_hints, debugconf,
+		ip4only, ip6only);
+	add_5011_probe_root(ctx, root_anchor_file);
+	dnskey = prime_root_key(ctx);
+	ub_ctx_delete(ctx);
+	return dnskey;
+}
+
 /** perform the unbound-anchor work */
 static int
 do_root_update_work(const char* root_anchor_file, const char* root_cert_file,
 	const char* urlname, const char* xmlname, const char* p7sname,
 	const char* p7signer, const char* res_conf, const char* root_hints,
-	const char* debugconf, int ip4only, int ip6only, int force, int port)
+	const char* debugconf, int ip4only, int ip6only, int force,
+	int res_conf_fallback, int port)
 {
-	struct ub_ctx* ctx;
 	struct ub_result* dnskey;
 	int used_builtin = 0;
+	int rcode;
 
 	/* see if builtin rootanchor needs to be provided, or if
 	 * rootanchor is 'revoked-trust-point' */
@@ -2210,12 +2218,22 @@ do_root_update_work(const char* root_anchor_file, const char* root_cert_file,
 
 	/* make unbound context with 5011-probe for root anchor,
 	 * and probe . DNSKEY */
-	ctx = create_unbound_context(res_conf, root_hints, debugconf,
-		ip4only, ip6only);
-	add_5011_probe_root(ctx, root_anchor_file);
-	dnskey = prime_root_key(ctx);
-	ub_ctx_delete(ctx);
-	
+	dnskey = fetch_root_key(root_anchor_file, res_conf,
+		root_hints, debugconf, ip4only, ip6only);
+	rcode = dnskey->rcode;
+
+	if (res_conf_fallback && res_conf && !dnskey->secure) {
+		if (verb) printf("%s failed, retrying direct\n", res_conf);
+		ub_resolve_free(dnskey);
+		/* try direct query without res_conf */
+		dnskey = fetch_root_key(root_anchor_file, NULL,
+			root_hints, debugconf, ip4only, ip6only);
+		if (rcode != 0 && dnskey->rcode == 0) {
+			res_conf = NULL;
+			rcode = 0;
+		}
+	}
+
 	/* if secure: exit */
 	if(dnskey->secure && !force) {
 		if(verb) printf("success: the anchor is ok\n");
@@ -2223,18 +2241,18 @@ do_root_update_work(const char* root_anchor_file, const char* root_cert_file,
 		return used_builtin;
 	}
 	if(force && verb) printf("debug cert update forced\n");
+	ub_resolve_free(dnskey);
 
 	/* if not (and NOERROR): check date and do certupdate */
-	if((dnskey->rcode == 0 &&
+	if((rcode == 0 &&
 		probe_date_allows_certupdate(root_anchor_file)) || force) {
 		if(do_certupdate(root_anchor_file, root_cert_file, urlname,
 			xmlname, p7sname, p7signer, res_conf, root_hints,
-			debugconf, ip4only, ip6only, port, dnskey))
+			debugconf, ip4only, ip6only, port))
 			return 1;
 		return used_builtin;
 	}
 	if(verb) printf("fail: the anchor is NOT ok and could not be fixed\n");
-	ub_resolve_free(dnskey);
 	return used_builtin;
 }
 
@@ -2257,8 +2275,9 @@ int main(int argc, char* argv[])
 	const char* root_hints = NULL;
 	const char* debugconf = NULL;
 	int dolist=0, ip4only=0, ip6only=0, force=0, port = HTTPS_PORT;
+	int res_conf_fallback = 0;
 	/* parse the options */
-	while( (c=getopt(argc, argv, "46C:FP:a:c:f:hln:r:s:u:vx:")) != -1) {
+	while( (c=getopt(argc, argv, "46C:FRP:a:c:f:hln:r:s:u:vx:")) != -1) {
 		switch(c) {
 		case 'l':
 			dolist = 1;
@@ -2293,6 +2312,9 @@ int main(int argc, char* argv[])
 		case 'r':
 			root_hints = optarg;
 			break;
+		case 'R':
+			res_conf_fallback = 1;
+			break;
 		case 'C':
 			debugconf = optarg;
 			break;
@@ -2312,7 +2334,7 @@ int main(int argc, char* argv[])
 		}
 	}
 	argc -= optind;
-	argv += optind;
+	/* argv += optind; not using further arguments */
 	if(argc != 0)
 		usage();
 
@@ -2339,5 +2361,5 @@ int main(int argc, char* argv[])
 
 	return do_root_update_work(root_anchor_file, root_cert_file, urlname,
 		xmlname, p7sname, p7signer, res_conf, root_hints, debugconf,
-		ip4only, ip6only, force, port);
+		ip4only, ip6only, force, res_conf_fallback, port);
 }

@@ -855,11 +855,6 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	vm_reserv_init();
 #endif
-	/*
-	 * Set an initial domain policy for thread0 so that allocations
-	 * can work.
-	 */
-	domainset_zero();
 
 	return (vaddr);
 }
@@ -1753,7 +1748,7 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex,
 		    mpred);
 		if (m != NULL)
 			break;
-	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
+	} while (vm_domainset_iter_page(&di, object, &domain) == 0);
 
 	return (m);
 }
@@ -1990,7 +1985,7 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 		    npages, low, high, alignment, boundary, memattr);
 		if (m != NULL)
 			break;
-	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
+	} while (vm_domainset_iter_page(&di, object, &domain) == 0);
 
 	return (m);
 }
@@ -2191,7 +2186,7 @@ vm_page_alloc_freelist(int freelist, int req)
 		m = vm_page_alloc_freelist_domain(domain, freelist, req);
 		if (m != NULL)
 			break;
-	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
+	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
 
 	return (m);
 }
@@ -2830,7 +2825,7 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 		    high, alignment, boundary);
 		if (ret)
 			break;
-	} while (vm_domainset_iter_page(&di, &domain, &req) == 0);
+	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
 
 	return (ret);
 }
@@ -2959,7 +2954,7 @@ vm_wait_doms(const domainset_t *wdoms)
 		 * consume all freed pages while old allocators wait.
 		 */
 		mtx_lock(&vm_domainset_lock);
-		if (DOMAINSET_SUBSET(&vm_min_domains, wdoms)) {
+		if (vm_page_count_min_set(wdoms)) {
 			vm_min_waiters++;
 			msleep(&vm_min_domains, &vm_domainset_lock,
 			    PVM | PDROP, "vmwait", 0);
@@ -3078,7 +3073,7 @@ vm_waitpfault(struct domainset *dset)
 	 * consume all freed pages while old allocators wait.
 	 */
 	mtx_lock(&vm_domainset_lock);
-	if (DOMAINSET_SUBSET(&vm_min_domains, &dset->ds_mask)) {
+	if (vm_page_count_min_set(&dset->ds_mask)) {
 		vm_min_waiters++;
 		msleep(&vm_min_domains, &vm_domainset_lock, PUSER | PDROP,
 		    "pfault", 0);

@@ -66,6 +66,12 @@
 #define	CTR_ILINE_MASK		(0xf << CTR_ILINE_SHIFT)
 #define	CTR_ILINE_SIZE(reg)	(((reg) & CTR_ILINE_MASK) >> CTR_ILINE_SHIFT)
 
+/* DAIF - Interrupt Mask Bits */
+#define	DAIF_D_MASKED		(1 << 9)
+#define	DAIF_A_MASKED		(1 << 8)
+#define	DAIF_I_MASKED		(1 << 7)
+#define	DAIF_F_MASKED		(1 << 6)
+
 /* DCZID_EL0 - Data Cache Zero ID register */
 #define DCZID_DZP		(1 << 4) /* DC ZVA prohibited if non-0 */
 #define DCZID_BS_SHIFT		0
@@ -254,7 +260,7 @@
 #define	ID_AA64ISAR0_SM4(x)		((x) & ID_AA64ISAR0_SM4_MASK)
 #define	 ID_AA64ISAR0_SM4_NONE		(0x0ul << ID_AA64ISAR0_SM4_SHIFT)
 #define	 ID_AA64ISAR0_SM4_IMPL		(0x1ul << ID_AA64ISAR0_SM4_SHIFT)
-#define	ID_AA64ISAR0_DP_SHIFT		48
+#define	ID_AA64ISAR0_DP_SHIFT		44
 #define	ID_AA64ISAR0_DP_MASK		(0xful << ID_AA64ISAR0_DP_SHIFT)
 #define	ID_AA64ISAR0_DP(x)		((x) & ID_AA64ISAR0_DP_MASK)
 #define	 ID_AA64ISAR0_DP_NONE		(0x0ul << ID_AA64ISAR0_DP_SHIFT)
@@ -519,7 +525,7 @@
 #define	PAR_S_MASK		(0x1 << PAR_S_SHIFT)
 
 /* SCTLR_EL1 - System Control Register */
-#define	SCTLR_RES0	0xc8222400	/* Reserved ARMv8.0, write 0 */
+#define	SCTLR_RES0	0xc8222440	/* Reserved ARMv8.0, write 0 */
 #define	SCTLR_RES1	0x30d00800	/* Reserved ARMv8.0, write 1 */
 
 #define	SCTLR_M		0x00000001
@@ -528,23 +534,32 @@
 #define	SCTLR_SA	0x00000008
 #define	SCTLR_SA0	0x00000010
 #define	SCTLR_CP15BEN	0x00000020
-#define	SCTLR_THEE	0x00000040
+/* Bit 6 is reserved */
 #define	SCTLR_ITD	0x00000080
 #define	SCTLR_SED	0x00000100
 #define	SCTLR_UMA	0x00000200
+/* Bit 10 is reserved */
+/* Bit 11 is reserved */
 #define	SCTLR_I		0x00001000
+#define	SCTLR_EnDB	0x00002000 /* ARMv8.3 */
 #define	SCTLR_DZE	0x00004000
 #define	SCTLR_UCT	0x00008000
 #define	SCTLR_nTWI	0x00010000
+/* Bit 17 is reserved */
 #define	SCTLR_nTWE	0x00040000
 #define	SCTLR_WXN	0x00080000
-#define	SCTLR_IESB	0x00200000
-#define	SCTLR_SPAN	0x00800000
+/* Bit 20 is reserved */
+#define	SCTLR_IESB	0x00200000 /* ARMv8.2 */
+/* Bit 22 is reserved */
+#define	SCTLR_SPAN	0x00800000 /* ARMv8.1 */
 #define	SCTLR_EOE	0x01000000
 #define	SCTLR_EE	0x02000000
 #define	SCTLR_UCI	0x04000000
-#define	SCTLR_nTLSMD	0x10000000
-#define	SCTLR_LSMAOE	0x20000000
+#define	SCTLR_EnDA	0x08000000 /* ARMv8.3 */
+#define	SCTLR_nTLSMD	0x10000000 /* ARMv8.2 */
+#define	SCTLR_LSMAOE	0x20000000 /* ARMv8.2 */
+#define	SCTLR_EnIB	0x40000000 /* ARMv8.3 */
+#define	SCTLR_EnIA	0x80000000 /* ARMv8.3 */
 
 /* SPSR_EL1 */
 /*

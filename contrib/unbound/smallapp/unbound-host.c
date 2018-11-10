@@ -82,9 +82,8 @@ static int verb = 0;
 static void
 usage(void)
 {
-	printf("Usage:	unbound-host [-vdhr46] [-c class] [-t type] hostname\n");
-	printf("                     [-y key] [-f keyfile] [-F namedkeyfile]\n");
-	printf("                     [-C configfile]\n");
+	printf("Usage:	unbound-host [-C configfile] [-vdhr46] [-c class] [-t type]\n");
+	printf("                     [-y key] [-f keyfile] [-F namedkeyfile] hostname\n");
 	printf("  Queries the DNS for information.\n");
 	printf("  The hostname is looked up for IP4, IP6 and mail.\n");
 	printf("  If an ip-address is given a reverse lookup is done.\n");
@@ -98,6 +97,8 @@ usage(void)
 	printf("    -f keyfile		read trust anchors from file, with lines as -y.\n");
 	printf("    -F keyfile		read named.conf-style trust anchors.\n");
 	printf("    -C config		use the specified unbound.conf (none read by default)\n");
+	printf("			pass as first argument if you want to override some\n");
+	printf("			options with further arguments\n");
 	printf("    -r			read forwarder information from /etc/resolv.conf\n");
 	printf("      			breaks validation if the forwarder does not do DNSSEC.\n");
 	printf("    -v			be more verbose, shows nodata and security.\n");
@@ -339,6 +340,7 @@ pretty_output(char* q, int t, int c, struct ub_result* result, int docname)
 					exit(1);
 				}
 				printf("%s\n", s);
+				free(s);
 			} else	printf(" has no %s record", tstr);
 			printf(" %s\n", secstatus);
 		}

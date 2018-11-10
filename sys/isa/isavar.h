@@ -142,7 +142,7 @@ enum isa_device_ivars {
 
 #define	ISA_PNP_DESCR "E:pnpid;D:#"
 #define ISA_PNP_INFO(t) \
-	MODULE_PNP_INFO(ISA_PNP_DESCR, isa, t, t, sizeof(t[0]), nitems(t) - 1); \
+	MODULE_PNP_INFO(ISA_PNP_DESCR, isa, t, t, nitems(t) - 1); \
 
 /*
  * Simplified accessors for isa devices

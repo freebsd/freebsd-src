@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
+#ifdef FPE
+#include <machine/fpe.h>
+#endif
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/pcpu.h>
@@ -204,10 +207,15 @@ data_abort(struct trapframe *frame, int lower)
 
 	if ((frame->tf_scause == EXCP_FAULT_STORE) ||
 	    (frame->tf_scause == EXCP_STORE_PAGE_FAULT)) {
-		ftype = (VM_PROT_READ | VM_PROT_WRITE);
+		ftype = VM_PROT_WRITE;
+	} else if (frame->tf_scause == EXCP_INST_PAGE_FAULT) {
+		ftype = VM_PROT_EXECUTE;
 	} else {
-		ftype = (VM_PROT_READ);
+		ftype = VM_PROT_READ;
 	}
+
+	if (pmap_fault_fixup(map->pmap, va, ftype))
+		goto done;
 
 	if (map != kernel_map) {
 		/*
@@ -253,6 +261,7 @@ data_abort(struct trapframe *frame, int lower)
 		}
 	}
 
+done:
 	if (lower)
 		userret(td, frame);
 }
@@ -363,7 +372,9 @@ do_trap_user(struct trapframe *frame)
 			 * May be a FPE trap. Enable FPE usage
 			 * for this thread and try again.
 			 */
-			frame->tf_sstatus |= SSTATUS_FS_INITIAL;
+			fpe_state_clear();
+			frame->tf_sstatus &= ~SSTATUS_FS_MASK;
+			frame->tf_sstatus |= SSTATUS_FS_CLEAN;
 			pcb->pcb_fpflags |= PCB_FP_STARTED;
 			break;
 		}

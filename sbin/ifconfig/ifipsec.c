@@ -72,6 +72,7 @@ DECL_CMD_FUNC(setreqid, val, arg)
 		warn("Invalid reqid value %s", val);
 		return;
 	}
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (char *)&v;
 	if (ioctl(s, IPSECSREQID, &ifr) == -1) {
 		warn("ioctl(IPSECSREQID)");

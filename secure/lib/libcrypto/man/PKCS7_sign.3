@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "PKCS7_sign 3"
-.TH PKCS7_sign 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "PKCS7_SIGN 3"
+.TH PKCS7_SIGN 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,12 +141,13 @@ PKCS7_sign \- create a PKCS#7 signedData structure
 .Vb 1
 \& #include <openssl/pkcs7.h>
 \&
-\& PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs, BIO *data, int flags);
+\& PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
+\&                   BIO *data, int flags);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fIPKCS7_sign()\fR creates and returns a PKCS#7 signedData structure. \fBsigncert\fR is
-the certificate to sign with, \fBpkey\fR is the corresponsding private key.
+the certificate to sign with, \fBpkey\fR is the corresponding private key.
 \&\fBcerts\fR is an optional additional set of certificates to include in the PKCS#7
 structure (for example any intermediate CAs in the chain).
 .PP
@@ -178,7 +179,7 @@ required by the S/MIME specifications) if \fB\s-1PKCS7_BINARY\s0\fR is set no tr
 occurs. This option should be used if the supplied data is in binary format
 otherwise the translation will corrupt it.
 .PP
-The signedData structure includes several PKCS#7 autenticatedAttributes
+The signedData structure includes several PKCS#7 authenticatedAttributes
 including the signing time, the PKCS#7 content type and the supported list of
 ciphers in an SMIMECapabilities attribute. If \fB\s-1PKCS7_NOATTR\s0\fR is set then no
 authenticatedAttributes will be used. If \fB\s-1PKCS7_NOSMIMECAP\s0\fR is set then just
@@ -210,13 +211,13 @@ can be performed by obtaining the streaming \s-1ASN1\s0 \fB\s-1BIO\s0\fR directl
 If a signer is specified it will use the default digest for the signing
 algorithm. This is \fB\s-1SHA1\s0\fR for both \s-1RSA\s0 and \s-1DSA\s0 keys.
 .PP
-In OpenSSL 1.0.0 the \fBcerts\fR, \fBsigncert\fR and \fBpkey\fR parameters can all be
+The \fBcerts\fR, \fBsigncert\fR and \fBpkey\fR parameters can all be
 \&\fB\s-1NULL\s0\fR if the \fB\s-1PKCS7_PARTIAL\s0\fR flag is set. One or more signers can be added
-using the function \fB\f(BIPKCS7_sign_add_signer()\fB\fR. \fB\f(BIPKCS7_final()\fB\fR must also be
+using the function \fIPKCS7_sign_add_signer()\fR. \fIPKCS7_final()\fR must also be
 called to finalize the structure if streaming is not enabled. Alternative
 signing digests can also be specified using this method.
 .PP
-In OpenSSL 1.0.0 if \fBsigncert\fR and \fBpkey\fR are \s-1NULL\s0 then a certificates only
+If \fBsigncert\fR and \fBpkey\fR are \s-1NULL\s0 then a certificates only
 PKCS#7 structure is output.
 .PP
 In versions of OpenSSL before 1.0.0 the \fBsigncert\fR and \fBpkey\fR parameters must
@@ -233,8 +234,15 @@ occurred.  The error can be obtained from \fIERR_get_error\fR\|(3).
 \&\fIERR_get_error\fR\|(3), \fIPKCS7_verify\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fIPKCS7_sign()\fR was added to OpenSSL 0.9.5
-.PP
-The \fB\s-1PKCS7_PARTIAL\s0\fR flag was added in OpenSSL 1.0.0
+The \fB\s-1PKCS7_PARTIAL\s0\fR flag, and the ability for \fBcerts\fR, \fBsigncert\fR,
+and \fBpkey\fR parameters to be \fB\s-1NULL\s0\fR to be was added in OpenSSL 1.0.0
 .PP
 The \fB\s-1PKCS7_STREAM\s0\fR flag was added in OpenSSL 1.0.0
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

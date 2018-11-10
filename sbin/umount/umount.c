@@ -136,10 +136,6 @@ main(int argc, char *argv[])
 	if ((fflag & MNT_FORCE) != 0 && (fflag & MNT_NONBUSY) != 0)
 		err(1, "-f and -n are mutually exclusive");
 
-	/* Start disks transferring immediately. */
-	if ((fflag & (MNT_FORCE | MNT_NONBUSY)) == 0 && nfsforce == 0)
-		sync();
-
 	if ((argc == 0 && !all) || (argc != 0 && all))
 		usage();
 

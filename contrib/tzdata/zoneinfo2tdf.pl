@@ -1,4 +1,5 @@
 #! /usr/bin/perl -w
+# Summarize .zi input in a .zi-like format.
 
 # Courtesy Ken Pizzini.
 

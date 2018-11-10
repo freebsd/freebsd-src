@@ -4604,8 +4604,9 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 		 if (size == 0)
 			 return (NULL);
 
-		 /* Calculate how many full L2 blocks are needed for the mapping */
-		l2_blocks = (roundup2(pa + size, L2_SIZE) - rounddown2(pa, L2_SIZE)) >> L2_SHIFT;
+		 /* Calculate how many L2 blocks are needed for the mapping */
+		l2_blocks = (roundup2(pa + size, L2_SIZE) -
+		    rounddown2(pa, L2_SIZE)) >> L2_SHIFT;
 
 		offset = pa & L2_OFFSET;
 
@@ -4652,19 +4653,21 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 		for (i = 0; i < l2_blocks; i++) {
 			pde = pmap_pde(kernel_pmap, va, &lvl);
 			KASSERT(pde != NULL,
-			    ("pmap_mapbios: Invalid page entry, va: 0x%lx", va));
-			KASSERT(lvl == 1, ("pmap_mapbios: Invalid level %d", lvl));
+			    ("pmap_mapbios: Invalid page entry, va: 0x%lx",
+			    va));
+			KASSERT(lvl == 1,
+			    ("pmap_mapbios: Invalid level %d", lvl));
 
 			/* Insert L2_BLOCK */
 			l2 = pmap_l1_to_l2(pde, va);
 			pmap_load_store(l2,
 			    pa | ATTR_DEFAULT | ATTR_XN |
 			    ATTR_IDX(CACHED_MEMORY) | L2_BLOCK);
-			pmap_invalidate_range(kernel_pmap, va, va + L2_SIZE);
 
 			va += L2_SIZE;
 			pa += L2_SIZE;
 		}
+		pmap_invalidate_all(kernel_pmap);
 
 		va = preinit_map_va + (start_idx * L2_SIZE);
 
@@ -4697,34 +4700,43 @@ pmap_unmapbios(vm_offset_t va, vm_size_t size)
 	pd_entry_t *pde;
 	pt_entry_t *l2;
 	int i, lvl, l2_blocks, block;
+	bool preinit_map;
 
-	l2_blocks = (roundup2(va + size, L2_SIZE) - rounddown2(va, L2_SIZE)) >> L2_SHIFT;
+	l2_blocks =
+	   (roundup2(va + size, L2_SIZE) - rounddown2(va, L2_SIZE)) >> L2_SHIFT;
 	KASSERT(l2_blocks > 0, ("pmap_unmapbios: invalid size %lx", size));
 
 	/* Remove preinit mapping */
+	preinit_map = false;
 	block = 0;
 	for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
 		ppim = pmap_preinit_mapping + i;
 		if (ppim->va == va) {
-			KASSERT(ppim->size == size, ("pmap_unmapbios: size mismatch"));
+			KASSERT(ppim->size == size,
+			    ("pmap_unmapbios: size mismatch"));
 			ppim->va = 0;
 			ppim->pa = 0;
 			ppim->size = 0;
+			preinit_map = true;
 			offset = block * L2_SIZE;
 			va_trunc = rounddown2(va, L2_SIZE) + offset;
 
 			/* Remove L2_BLOCK */
 			pde = pmap_pde(kernel_pmap, va_trunc, &lvl);
 			KASSERT(pde != NULL,
-			    ("pmap_unmapbios: Invalid page entry, va: 0x%lx", va_trunc));
+			    ("pmap_unmapbios: Invalid page entry, va: 0x%lx",
+			    va_trunc));
 			l2 = pmap_l1_to_l2(pde, va_trunc);
 			pmap_load_clear(l2);
-			pmap_invalidate_range(kernel_pmap, va_trunc, va_trunc + L2_SIZE);
 
 			if (block == (l2_blocks - 1))
-				return;
+				break;
 			block++;
 		}
+	}
+	if (preinit_map) {
+		pmap_invalidate_all(kernel_pmap);
+		return;
 	}
 
 	/* Unmap the pages reserved with kva_alloc. */

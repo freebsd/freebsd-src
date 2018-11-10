@@ -133,6 +133,30 @@ static void cxgb_update_mac_settings(struct port_info *p);
 static int toe_capability(struct port_info *, int);
 #endif
 
+/* Table for probing the cards.  The desc field isn't actually used */
+struct cxgb_ident {
+	uint16_t	vendor;
+	uint16_t	device;
+	int		index;
+	char		*desc;
+} cxgb_identifiers[] = {
+	{PCI_VENDOR_ID_CHELSIO, 0x0020, 0, "PE9000"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0021, 1, "T302E"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0022, 2, "T310E"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0023, 3, "T320X"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0024, 1, "T302X"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0025, 3, "T320E"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0026, 2, "T310X"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0030, 2, "T3B10"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0031, 3, "T3B20"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0032, 1, "T3B02"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0033, 4, "T3B04"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0035, 6, "T3C10"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0036, 3, "S320E-CR"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0037, 7, "N320E-G2"},
+	{0, 0, 0, NULL}
+};
+
 static device_method_t cxgb_controller_methods[] = {
 	DEVMETHOD(device_probe,		cxgb_controller_probe),
 	DEVMETHOD(device_attach,	cxgb_controller_attach),
@@ -151,6 +175,8 @@ static int cxgbc_mod_event(module_t, int, void *);
 static devclass_t	cxgb_controller_devclass;
 DRIVER_MODULE(cxgbc, pci, cxgb_controller_driver, cxgb_controller_devclass,
     cxgbc_mod_event, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device", pci, cxgbc, cxgb_identifiers,
+    nitems(cxgb_identifiers) - 1);
 MODULE_VERSION(cxgbc, 1);
 MODULE_DEPEND(cxgbc, firmware, 1, 1, 1);
 
@@ -280,29 +306,6 @@ enum { FILTER_NO_VLAN_PRI = 7 };
 
 #define PORT_MASK ((1 << MAX_NPORTS) - 1)
 
-/* Table for probing the cards.  The desc field isn't actually used */
-struct cxgb_ident {
-	uint16_t	vendor;
-	uint16_t	device;
-	int		index;
-	char		*desc;
-} cxgb_identifiers[] = {
-	{PCI_VENDOR_ID_CHELSIO, 0x0020, 0, "PE9000"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0021, 1, "T302E"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0022, 2, "T310E"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0023, 3, "T320X"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0024, 1, "T302X"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0025, 3, "T320E"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0026, 2, "T310X"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0030, 2, "T3B10"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0031, 3, "T3B20"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0032, 1, "T3B02"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0033, 4, "T3B04"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0035, 6, "T3C10"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0036, 3, "S320E-CR"},
-	{PCI_VENDOR_ID_CHELSIO, 0x0037, 7, "N320E-G2"},
-	{0, 0, 0, NULL}
-};
 
 static int set_eeprom(struct port_info *pi, const uint8_t *data, int len, int offset);
 

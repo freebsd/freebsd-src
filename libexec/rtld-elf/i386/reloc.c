@@ -67,7 +67,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 
     assert(dstobj->mainprog);	/* COPY relocations are invalid elsewhere */
 
-    rellim = (const Elf_Rel *) ((caddr_t) dstobj->rel + dstobj->relsize);
+    rellim = (const Elf_Rel *)((const char *)dstobj->rel + dstobj->relsize);
     for (rel = dstobj->rel;  rel < rellim;  rel++) {
 	if (ELF_R_TYPE(rel->r_info) == R_386_COPY) {
 	    void *dstaddr;
@@ -80,7 +80,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 	    SymLook req;
 	    int res;
 
-	    dstaddr = (void *) (dstobj->relocbase + rel->r_offset);
+	    dstaddr = (void *)(dstobj->relocbase + rel->r_offset);
 	    dstsym = dstobj->symtab + ELF_R_SYM(rel->r_info);
 	    name = dstobj->strtab + dstsym->st_name;
 	    size = dstsym->st_size;
@@ -104,7 +104,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 		return -1;
 	    }
 
-	    srcaddr = (const void *) (defobj->relocbase + srcsym->st_value);
+	    srcaddr = (const void *)(defobj->relocbase + srcsym->st_value);
 	    memcpy(dstaddr, srcaddr, size);
 	}
     }
@@ -146,7 +146,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	} else
 		cache = NULL;
 
-	rellim = (const Elf_Rel *)((caddr_t) obj->rel + obj->relsize);
+	rellim = (const Elf_Rel *)((const char *)obj->rel + obj->relsize);
 	for (rel = obj->rel;  rel < rellim;  rel++) {
 		switch (ELF_R_TYPE(rel->r_info)) {
 		case R_386_32:
@@ -239,7 +239,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			 * of space, we generate an error.
 			 */
 			if (!defobj->tls_done) {
-				if (!allocate_tls_offset((Obj_Entry*) defobj)) {
+				if (!allocate_tls_offset(
+				    __DECONST(Obj_Entry *, defobj))) {
 					_rtld_error("%s: No space available "
 					    "for static Thread Local Storage",
 					    obj->path);
@@ -278,7 +279,7 @@ reloc_plt(Obj_Entry *obj)
     const Elf_Rel *rellim;
     const Elf_Rel *rel;
 
-    rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+    rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
     for (rel = obj->pltrel;  rel < rellim;  rel++) {
 	Elf_Addr *where/*, val*/;
 
@@ -311,7 +312,7 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
     if (obj->jmpslots_done)
 	return 0;
-    rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+    rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
     for (rel = obj->pltrel;  rel < rellim;  rel++) {
 	Elf_Addr *where, target;
 	const Elf_Sym *def;
@@ -349,8 +350,8 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 /* Fixup the jump slot at "where" to transfer control to "target". */
 Elf_Addr
 reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
-    const struct Struct_Obj_Entry *obj, const struct Struct_Obj_Entry *refobj,
-    const Elf_Rel *rel)
+    const Obj_Entry *obj __unused, const Obj_Entry *refobj __unused,
+    const Elf_Rel *rel __unused)
 {
 #ifdef dbg
 	dbg("reloc_jmpslot: *%p = %p", where, (void *)target);
@@ -369,7 +370,7 @@ reloc_iresolve(Obj_Entry *obj, RtldLockState *lockstate)
 
     if (!obj->irelative)
 	return (0);
-    rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+    rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
     for (rel = obj->pltrel;  rel < rellim;  rel++) {
 	switch (ELF_R_TYPE(rel->r_info)) {
 	case R_386_IRELATIVE:
@@ -393,7 +394,7 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
     if (!obj->gnu_ifunc)
 	return (0);
-    rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+    rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
     for (rel = obj->pltrel;  rel < rellim;  rel++) {
 	Elf_Addr *where, target;
 	const Elf_Sym *def;

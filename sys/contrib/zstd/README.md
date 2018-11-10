@@ -4,7 +4,7 @@ __Zstandard__, or `zstd` as short version, is a fast lossless compression algori
 targeting real-time compression scenarios at zlib-level and better compression ratios.
 It's backed by a very fast entropy stage, provided by [Huff0 and FSE library](https://github.com/Cyan4973/FiniteStateEntropy).
 
-The project is provided as an open-source BSD-licensed **C** library,
+The project is provided as an open-source dual [BSD](LICENSE) and [GPLv2](COPYING) licensed **C** library,
 and a command line utility producing and decoding `.zst`, `.gz`, `.xz` and `.lz4` files.
 Should your project require another programming language,
 a list of known ports and bindings is provided on [Zstandard homepage](http://www.zstd.net/#other-languages).
@@ -120,6 +120,8 @@ Other available options include:
 A `cmake` project generator is provided within `build/cmake`.
 It can generate Makefiles or other build scripts
 to create `zstd` binary, and `libzstd` dynamic and static libraries.
+
+By default, `CMAKE_BUILD_TYPE` is set to `Release`.
 
 #### Meson
 

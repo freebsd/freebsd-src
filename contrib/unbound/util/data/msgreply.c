@@ -61,6 +61,8 @@ time_t MAX_TTL = 3600 * 24 * 10; /* ten days */
 time_t MIN_TTL = 0;
 /** MAX Negative TTL, for SOA records in authority section */
 time_t MAX_NEG_TTL = 3600; /* one hour */
+/** Time to serve records after expiration */
+time_t SERVE_EXPIRED_TTL = 0;
 
 /** allocate qinfo, return 0 on error */
 static int
@@ -85,8 +87,8 @@ parse_create_qinfo(sldns_buffer* pkt, struct msg_parse* msg,
 /** constructor for replyinfo */
 struct reply_info*
 construct_reply_info_base(struct regional* region, uint16_t flags, size_t qd,
-	time_t ttl, time_t prettl, size_t an, size_t ns, size_t ar, 
-	size_t total, enum sec_status sec)
+	time_t ttl, time_t prettl, time_t expttl, size_t an, size_t ns,
+	size_t ar, size_t total, enum sec_status sec)
 {
 	struct reply_info* rep;
 	/* rrset_count-1 because the first ref is part of the struct. */
@@ -103,6 +105,7 @@ construct_reply_info_base(struct regional* region, uint16_t flags, size_t qd,
 	rep->qdcount = qd;
 	rep->ttl = ttl;
 	rep->prefetch_ttl = prettl;
+	rep->serve_expired_ttl = expttl;
 	rep->an_numrrsets = an;
 	rep->ns_numrrsets = ns;
 	rep->ar_numrrsets = ar;
@@ -126,7 +129,7 @@ parse_create_repinfo(struct msg_parse* msg, struct reply_info** rep,
 	struct regional* region)
 {
 	*rep = construct_reply_info_base(region, msg->flags, msg->qdcount, 0, 
-		0, msg->an_rrsets, msg->ns_rrsets, msg->ar_rrsets, 
+		0, 0, msg->an_rrsets, msg->ns_rrsets, msg->ar_rrsets, 
 		msg->rrset_count, sec_status_unchecked);
 	if(!*rep)
 		return 0;
@@ -424,6 +427,7 @@ parse_copy_decompress(sldns_buffer* pkt, struct msg_parse* msg,
 		pset = pset->rrset_all_next;
 	}
 	rep->prefetch_ttl = PREFETCH_TTL_CALC(rep->ttl);
+	rep->serve_expired_ttl = rep->ttl + SERVE_EXPIRED_TTL;
 	return 1;
 }
 
@@ -437,10 +441,14 @@ parse_create_msg(sldns_buffer* pkt, struct msg_parse* msg,
 		return 0;
 	if(!parse_create_repinfo(msg, rep, region))
 		return 0;
-	if(!reply_info_alloc_rrset_keys(*rep, alloc, region))
+	if(!reply_info_alloc_rrset_keys(*rep, alloc, region)) {
+		if(!region) reply_info_parsedelete(*rep, alloc);
 		return 0;
-	if(!parse_copy_decompress(pkt, msg, *rep, region))
+	}
+	if(!parse_copy_decompress(pkt, msg, *rep, region)) {
+		if(!region) reply_info_parsedelete(*rep, alloc);
 		return 0;
+	}
 	return 1;
 }
 
@@ -502,6 +510,7 @@ reply_info_set_ttls(struct reply_info* rep, time_t timenow)
 	size_t i, j;
 	rep->ttl += timenow;
 	rep->prefetch_ttl += timenow;
+	rep->serve_expired_ttl += timenow;
 	for(i=0; i<rep->rrset_count; i++) {
 		struct packed_rrset_data* data = (struct packed_rrset_data*)
 			rep->ref[i].key->entry.data;
@@ -687,9 +696,9 @@ reply_info_copy(struct reply_info* rep, struct alloc_cache* alloc,
 {
 	struct reply_info* cp;
 	cp = construct_reply_info_base(region, rep->flags, rep->qdcount, 
-		rep->ttl, rep->prefetch_ttl, rep->an_numrrsets, 
-		rep->ns_numrrsets, rep->ar_numrrsets, rep->rrset_count, 
-		rep->security);
+		rep->ttl, rep->prefetch_ttl, rep->serve_expired_ttl, 
+		rep->an_numrrsets, rep->ns_numrrsets, rep->ar_numrrsets,
+		rep->rrset_count, rep->security);
 	if(!cp)
 		return NULL;
 	/* allocate ub_key structures special or not */
@@ -913,8 +922,9 @@ parse_reply_in_temp_region(sldns_buffer* pkt, struct regional* region,
 	}
 	memset(msg, 0, sizeof(*msg));
 	sldns_buffer_set_position(pkt, 0);
-	if(parse_packet(pkt, msg, region) != 0)
+	if(parse_packet(pkt, msg, region) != 0){
 		return 0;
+	}
 	if(!parse_create_msg(pkt, msg, NULL, qi, &rep, region)) {
 		return 0;
 	}
@@ -1013,7 +1023,7 @@ static int inplace_cb_reply_call_generic(
     struct inplace_cb* callback_list, enum inplace_cb_list_type type,
 	struct query_info* qinfo, struct module_qstate* qstate,
 	struct reply_info* rep, int rcode, struct edns_data* edns,
-	struct regional* region)
+	struct comm_reply* repinfo, struct regional* region)
 {
 	struct inplace_cb* cb;
 	struct edns_option* opt_list_out = NULL;
@@ -1026,7 +1036,7 @@ static int inplace_cb_reply_call_generic(
 		fptr_ok(fptr_whitelist_inplace_cb_reply_generic(
 			(inplace_cb_reply_func_type*)cb->cb, type));
 		(void)(*(inplace_cb_reply_func_type*)cb->cb)(qinfo, qstate, rep,
-			rcode, edns, &opt_list_out, region, cb->id, cb->cb_arg);
+			rcode, edns, &opt_list_out, repinfo, region, cb->id, cb->cb_arg);
 	}
 	edns->opt_list = opt_list_out;
 	return 1;
@@ -1034,44 +1044,45 @@ static int inplace_cb_reply_call_generic(
 
 int inplace_cb_reply_call(struct module_env* env, struct query_info* qinfo,
 	struct module_qstate* qstate, struct reply_info* rep, int rcode,
-	struct edns_data* edns, struct regional* region)
+	struct edns_data* edns, struct comm_reply* repinfo, struct regional* region)
 {
 	return inplace_cb_reply_call_generic(
 		env->inplace_cb_lists[inplace_cb_reply], inplace_cb_reply, qinfo,
-		qstate, rep, rcode, edns, region);
+		qstate, rep, rcode, edns, repinfo, region);
 }
 
 int inplace_cb_reply_cache_call(struct module_env* env,
 	struct query_info* qinfo, struct module_qstate* qstate,
 	struct reply_info* rep, int rcode, struct edns_data* edns,
-	struct regional* region)
+	struct comm_reply* repinfo, struct regional* region)
 {
 	return inplace_cb_reply_call_generic(
 		env->inplace_cb_lists[inplace_cb_reply_cache], inplace_cb_reply_cache,
-		qinfo, qstate, rep, rcode, edns, region);
+		qinfo, qstate, rep, rcode, edns, repinfo, region);
 }
 
 int inplace_cb_reply_local_call(struct module_env* env,
 	struct query_info* qinfo, struct module_qstate* qstate,
 	struct reply_info* rep, int rcode, struct edns_data* edns,
-	struct regional* region)
+	struct comm_reply* repinfo, struct regional* region)
 {
 	return inplace_cb_reply_call_generic(
 		env->inplace_cb_lists[inplace_cb_reply_local], inplace_cb_reply_local,
-		qinfo, qstate, rep, rcode, edns, region);
+		qinfo, qstate, rep, rcode, edns, repinfo, region);
 }
 
 int inplace_cb_reply_servfail_call(struct module_env* env,
 	struct query_info* qinfo, struct module_qstate* qstate,
 	struct reply_info* rep, int rcode, struct edns_data* edns,
-	struct regional* region)
+	struct comm_reply* repinfo, struct regional* region)
 {
 	/* We are going to servfail. Remove any potential edns options. */
 	if(qstate)
 		qstate->edns_opts_front_out = NULL;
 	return inplace_cb_reply_call_generic(
 		env->inplace_cb_lists[inplace_cb_reply_servfail],
-		inplace_cb_reply_servfail, qinfo, qstate, rep, rcode, edns, region);
+		inplace_cb_reply_servfail, qinfo, qstate, rep, rcode, edns, repinfo,
+		region);
 }
 
 int inplace_cb_query_call(struct module_env* env, struct query_info* qinfo,

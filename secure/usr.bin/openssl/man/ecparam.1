@@ -129,17 +129,17 @@
 .\" ========================================================================
 .\"
 .IX Title "ECPARAM 1"
-.TH ECPARAM 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH ECPARAM 1 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-openssl\-ecparam,
-ecparam \- EC parameter manipulation and generation
+openssl\-ecparam, ecparam \- EC parameter manipulation and generation
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBopenssl ecparam\fR
+[\fB\-help\fR]
 [\fB\-inform DER|PEM\fR]
 [\fB\-outform DER|PEM\fR]
 [\fB\-in filename\fR]
@@ -153,7 +153,8 @@ ecparam \- EC parameter manipulation and generation
 [\fB\-conv_form arg\fR]
 [\fB\-param_enc arg\fR]
 [\fB\-no_seed\fR]
-[\fB\-rand file(s)\fR]
+[\fB\-rand file...\fR]
+[\fB\-writerand file\fR]
 [\fB\-genkey\fR]
 [\fB\-engine id\fR]
 .SH "DESCRIPTION"
@@ -161,16 +162,19 @@ ecparam \- EC parameter manipulation and generation
 This command is used to manipulate or generate \s-1EC\s0 parameter files.
 .SH "OPTIONS"
 .IX Header "OPTIONS"
+.IP "\fB\-help\fR" 4
+.IX Item "-help"
+Print out a usage message.
 .IP "\fB\-inform DER|PEM\fR" 4
 .IX Item "-inform DER|PEM"
 This specifies the input format. The \fB\s-1DER\s0\fR option uses an \s-1ASN.1 DER\s0 encoded
 form compatible with \s-1RFC 3279\s0 EcpkParameters. The \s-1PEM\s0 form is the default
-format: it consists of the \fB\s-1DER\s0\fR format base64 encoded with additional 
+format: it consists of the \fB\s-1DER\s0\fR format base64 encoded with additional
 header and footer lines.
 .IP "\fB\-outform DER|PEM\fR" 4
 .IX Item "-outform DER|PEM"
-This specifies the output format, the options have the same meaning as the 
-\&\fB\-inform\fR option.
+This specifies the output format, the options have the same meaning and default
+as the \fB\-inform\fR option.
 .IP "\fB\-in filename\fR" 4
 .IX Item "-in filename"
 This specifies the input filename to read parameters from or standard input if
@@ -189,7 +193,7 @@ This option prints out the \s-1EC\s0 parameters in human readable form.
 .IP "\fB\-C\fR" 4
 .IX Item "-C"
 This option converts the \s-1EC\s0 parameters into C code. The parameters can then
-be loaded by calling the \fB\f(BIget_ec_group_XXX()\fB\fR function.
+be loaded by calling the \fIget_ec_group_XXX()\fR function.
 .IP "\fB\-check\fR" 4
 .IX Item "-check"
 Validate the elliptic curve parameters.
@@ -214,10 +218,10 @@ the preprocessor macro \fB\s-1OPENSSL_EC_BIN_PT_COMP\s0\fR at compile time.
 .IX Item "-param_enc arg"
 This specifies how the elliptic curve parameters are encoded.
 Possible value are: \fBnamed_curve\fR, i.e. the ec parameters are
-specified by a \s-1OID,\s0 or \fBexplicit\fR where the ec parameters are
-explicitly given (see \s-1RFC 3279\s0 for the definition of the 
+specified by an \s-1OID,\s0 or \fBexplicit\fR where the ec parameters are
+explicitly given (see \s-1RFC 3279\s0 for the definition of the
 \&\s-1EC\s0 parameters structures). The default value is \fBnamed_curve\fR.
-\&\fBNote\fR the \fBimplicitlyCA\fR alternative ,as specified in \s-1RFC 3279,\s0
+\&\fBNote\fR the \fBimplicitlyCA\fR alternative, as specified in \s-1RFC 3279,\s0
 is currently not implemented in OpenSSL.
 .IP "\fB\-no_seed\fR" 4
 .IX Item "-no_seed"
@@ -225,17 +229,21 @@ This option inhibits that the 'seed' for the parameter generation
 is included in the ECParameters structure (see \s-1RFC 3279\s0).
 .IP "\fB\-genkey\fR" 4
 .IX Item "-genkey"
-This option will generate a \s-1EC\s0 private key using the specified parameters.
-.IP "\fB\-rand file(s)\fR" 4
-.IX Item "-rand file(s)"
-a file or files containing random data used to seed the random number
-generator, or an \s-1EGD\s0 socket (see \fIRAND_egd\fR\|(3)).
-Multiple files can be specified separated by a OS-dependent character.
+This option will generate an \s-1EC\s0 private key using the specified parameters.
+.IP "\fB\-rand file...\fR" 4
+.IX Item "-rand file..."
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
 The separator is \fB;\fR for MS-Windows, \fB,\fR for OpenVMS, and \fB:\fR for
 all others.
+.IP "[\fB\-writerand file\fR]" 4
+.IX Item "[-writerand file]"
+Writes random data to the specified \fIfile\fR upon exit.
+This can be used with a subsequent \fB\-rand\fR flag.
 .IP "\fB\-engine id\fR" 4
 .IX Item "-engine id"
-specifying an engine (by its unique \fBid\fR string) will cause \fBecparam\fR
+Specifying an engine (by its unique \fBid\fR string) will cause \fBecparam\fR
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
@@ -290,9 +298,11 @@ To print out the \s-1EC\s0 parameters to standard output:
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIec\fR\|(1), \fIdsaparam\fR\|(1)
-.SH "HISTORY"
-.IX Header "HISTORY"
-The ecparam command was first introduced in OpenSSL 0.9.8.
-.SH "AUTHOR"
-.IX Header "AUTHOR"
-Nils Larsch for the OpenSSL project (http://www.openssl.org)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2003\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

@@ -1021,15 +1021,33 @@ linker_ddb_search_symbol_name(caddr_t value, char *buf, u_int buflen,
  * obey locking protocols, and offer a significantly less complex interface.
  */
 int
-linker_search_symbol_name(caddr_t value, char *buf, u_int buflen,
-    long *offset)
+linker_search_symbol_name_flags(caddr_t value, char *buf, u_int buflen,
+    long *offset, int flags)
 {
 	int error;
 
-	sx_slock(&kld_sx);
+	KASSERT((flags & (M_NOWAIT | M_WAITOK)) != 0 &&
+	    (flags & (M_NOWAIT | M_WAITOK)) != (M_NOWAIT | M_WAITOK),
+	    ("%s: bad flags: 0x%x", __func__, flags));
+
+	if (flags & M_NOWAIT) {
+		if (!sx_try_slock(&kld_sx))
+			return (EWOULDBLOCK);
+	} else
+		sx_slock(&kld_sx);
+
 	error = linker_debug_search_symbol_name(value, buf, buflen, offset);
 	sx_sunlock(&kld_sx);
 	return (error);
+}
+
+int
+linker_search_symbol_name(caddr_t value, char *buf, u_int buflen,
+    long *offset)
+{
+
+	return (linker_search_symbol_name_flags(value, buf, buflen, offset,
+	    M_WAITOK));
 }
 
 /*
@@ -2123,7 +2141,7 @@ linker_load_dependencies(linker_file_t lf)
 	const struct mod_depend *verinfo;
 	modlist_t mod;
 	const char *modname, *nmodname;
-	int ver, error = 0, count;
+	int ver, error = 0;
 
 	/*
 	 * All files are dependent on /kernel.
@@ -2136,7 +2154,7 @@ linker_load_dependencies(linker_file_t lf)
 			return (error);
 	}
 	if (linker_file_lookup_set(lf, MDT_SETNAME, &start, &stop,
-	    &count) != 0)
+	    NULL) != 0)
 		return (0);
 	for (mdp = start; mdp < stop; mdp++) {
 		mp = *mdp;

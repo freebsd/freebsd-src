@@ -272,6 +272,7 @@ struct ichwd_softc {
 #define	DEVICEID_WCPT_LP6	0x9cc6
 #define	DEVICEID_WCPT_LP7	0x9cc7
 #define	DEVICEID_WCPT_LP9	0x9cc9
+#define	DEVICEID_LEWISBURG_SMB	0xa1a3
 
 /* ICH LPC Interface Bridge Registers (ICH5 and older) */
 #define	ICH_GEN_STA		0xd4
@@ -290,6 +291,14 @@ struct ichwd_softc {
 #define	ICH_PMC_OFFSET		0x08
 #define	ICH_PMC_SIZE		0x4
 #define	ICH_PMC_NO_REBOOT	0x10
+
+/* Lewisburg configration registers in SMBus controller. */
+#define	ICH_TCOBASE			0x50    /* TCO Base Addr */
+#define	ICH_TCOBASE_ADDRMASK		0xffe0
+#define	ICH_TCOBASE_SIZE		32
+#define	ICH_TCOCTL			0x54    /* TCO Control */
+#define	ICH_TCOCTL_TCO_BASE_EN		0x0100  /* TCO Base decoding enabled */
+#define	ICH_TCOCTL_TCO_BASE_LOCK	0x0001  /* TCOBASE is locked */
 
 /* register names and locations (relative to PMBASE) */
 #define	SMI_BASE		0x30 /* base address for SMI registers */

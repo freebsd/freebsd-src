@@ -44,6 +44,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/elf_common.h>
 #include <stdlib.h>
 
 #include "libc_private.h"
@@ -120,7 +122,7 @@ static const struct {
 } archtag __attribute__ ((section (NOTE_SECTION), aligned(4))) __used = {
 	.namesz = sizeof(NOTE_FREEBSD_VENDOR),
 	.descsz = sizeof(MACHINE_ARCH),
-	.type = ARCH_NOTETYPE,
+	.type = NT_FREEBSD_ARCH_TAG,
 	.name = NOTE_FREEBSD_VENDOR,
 	.desc = MACHINE_ARCH
 };

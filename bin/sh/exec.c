@@ -91,7 +91,6 @@ struct tblentry {
 
 static struct tblentry *cmdtable[CMDTABLESIZE];
 static int cmdtable_cd = 0;	/* cmdtable contains cd-dependent entries */
-int exerrno = 0;			/* Last exec error */
 
 
 static void tryexec(char *, char **, char **);
@@ -134,13 +133,10 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 	}
 
 	/* Map to POSIX errors */
-	if (e == ENOENT || e == ENOTDIR) {
-		exerrno = 127;
-		exerror(EXEXEC, "%s: not found", argv[0]);
-	} else {
-		exerrno = 126;
-		exerror(EXEXEC, "%s: %s", argv[0], strerror(e));
-	}
+	if (e == ENOENT || e == ENOTDIR)
+		errorwithstatus(127, "%s: not found", argv[0]);
+	else
+		errorwithstatus(126, "%s: %s", argv[0], strerror(e));
 }
 
 

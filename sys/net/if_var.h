@@ -411,6 +411,7 @@ struct ifnet {
 #define	NET_EPOCH_ENTER_ET(et) epoch_enter_preempt(net_epoch_preempt, &(et))
 #define	NET_EPOCH_EXIT() epoch_exit_preempt(net_epoch_preempt, &nep_et)
 #define	NET_EPOCH_EXIT_ET(et) epoch_exit_preempt(net_epoch_preempt, &(et))
+#define	NET_EPOCH_WAIT() epoch_wait_preempt(net_epoch_preempt)
 
 
 /*
@@ -431,6 +432,11 @@ EVENTHANDLER_DECLARE(iflladdr_event, iflladdr_event_handler_t);
 /* interface address change event */
 typedef void (*ifaddr_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ifaddr_event, ifaddr_event_handler_t);
+typedef void (*ifaddr_event_ext_handler_t)(void *, struct ifnet *,
+    struct ifaddr *, int);
+EVENTHANDLER_DECLARE(ifaddr_event_ext, ifaddr_event_ext_handler_t);
+#define	IFADDR_EVENT_ADD	0
+#define	IFADDR_EVENT_DEL	1
 /* new interface arrival event */
 typedef void (*ifnet_arrival_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ifnet_arrival_event, ifnet_arrival_event_handler_t);
@@ -758,6 +764,8 @@ int if_hw_tsomax_update(if_t ifp, struct ifnet_hw_tsomax *);
 
 /* accessors for struct ifreq */
 void *ifr_data_get_ptr(void *ifrp);
+
+int ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
 
 #ifdef DEVICE_POLLING
 enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS };

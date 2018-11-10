@@ -1,9 +1,9 @@
 /*
- *  $Id: mixedform.c,v 1.12 2013/09/02 17:02:05 tom Exp $
+ *  $Id: mixedform.c,v 1.13 2018/06/15 01:23:33 tom Exp $
  *
  *  mixedform.c -- implements the mixed form (i.e, typed pairs label/editbox)
  *
- *  Copyright 2007-2011,2013	Thomas E. Dickey
+ *  Copyright 2007-2013,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -49,7 +49,7 @@ dialog_mixedform(const char *title,
 		 char **items)
 {
     int result;
-    int choice;
+    int choice = 0;
     int i;
     DIALOG_FORMITEM *listitems;
     DIALOG_VARS save_vars;

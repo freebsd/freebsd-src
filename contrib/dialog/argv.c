@@ -1,9 +1,9 @@
 /*
- * $Id: argv.c,v 1.2 2012/11/30 20:28:23 tom Exp $
+ * $Id: argv.c,v 1.12 2018/06/12 22:47:23 tom Exp $
  *
  *  argv - Reusable functions for argv-parsing.
  *
- *  Copyright 2011,2012	Thomas E. Dickey
+ *  Copyright 2011-2017,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -32,19 +32,42 @@
 char **
 dlg_string_to_argv(char *blob)
 {
-    size_t n;
+    size_t n, k;
     int pass;
     size_t length = strlen(blob);
     char **result = 0;
 
+#ifdef HAVE_DLG_TRACE
+    if (dialog_state.trace_output) {
+	DLG_TRACE(("# dlg_string_to_argv:\n"));
+	DLG_TRACE(("# given:\n"));
+	for (n = k = 0; n < length; ++n) {
+	    if (blob[n] == '\n') {
+		DLG_TRACE(("#%s\t%.*s\\n\n",
+			   k ? "+" : "",
+			   (int) (n - k), blob + k));
+		k = n + 1;
+	    }
+	}
+	if (n > k) {
+	    DLG_TRACE(("#%s\t%.*s\n",
+		       k ? "+" : "",
+		       (int) (n - k), blob + k));
+	}
+	DLG_TRACE(("# result:\n"));
+    }
+#endif
     for (pass = 0; pass < 2; ++pass) {
 	bool inparm = FALSE;
 	bool quoted = FALSE;
+	bool escape = FALSE;
 	char *param = blob;
 	size_t count = 0;
 
 	for (n = 0; n < length; ++n) {
-	    if (quoted && blob[n] == '"') {
+	    if (escape) {
+		;
+	    } else if (quoted && blob[n] == '"') {
 		quoted = FALSE;
 	    } else if (blob[n] == '"') {
 		quoted = TRUE;
@@ -54,20 +77,32 @@ dlg_string_to_argv(char *blob)
 		    ++count;
 		    inparm = TRUE;
 		}
-	    } else if (blob[n] == '\\') {
-		if (quoted && !isspace(UCH(blob[n + 1]))) {
-		    if (pass) {
-			*param++ = blob[n];
-			*param++ = blob[n + 1];
-		    }
-		}
-		++n;
 	    } else if (!quoted && isspace(UCH(blob[n]))) {
-		inparm = FALSE;
-		if (pass) {
-		    *param++ = '\0';
+		if (inparm) {
+		    if (pass) {
+			*param++ = '\0';
+		    }
+		    inparm = FALSE;
 		}
 	    } else {
+		if (blob[n] == '\\') {
+		    if (n + 1 == length) {
+			break;	/* The string is terminated by a backslash */
+		    } else if ((blob[n + 1] == '\\') ||
+			       (blob[n + 1] == '"') ||
+			       (!quoted && blob[n + 1] == '\n')) {
+			/* eat the backslash */
+			if (pass) {
+			    --length;
+			    for (k = n; k < length; ++k)
+				blob[k] = blob[k + 1];
+			    blob[length] = '\0';
+			} else {
+			    escape = TRUE;
+			    continue;
+			}
+		    }
+		}
 		if (!inparm) {
 		    if (pass)
 			result[count] = param;
@@ -78,6 +113,7 @@ dlg_string_to_argv(char *blob)
 		    *param++ = blob[n];
 		}
 	    }
+	    escape = FALSE;
 	}
 
 	if (!pass) {
@@ -91,6 +127,13 @@ dlg_string_to_argv(char *blob)
 	    *param = '\0';
 	}
     }
+#ifdef HAVE_DLG_TRACE
+    if (result != 0) {
+	for (n = 0; result[n] != 0; ++n) {
+	    DLG_TRACE(("#\targv[%d] = %s\n", (int) n, result[n]));
+	}
+    }
+#endif
     return result;
 }
 

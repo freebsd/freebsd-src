@@ -128,16 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "SMIME_write_CMS 3"
-.TH SMIME_write_CMS 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "SMIME_WRITE_CMS 3"
+.TH SMIME_WRITE_CMS 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-.Vb 1
-\& SMIME_write_CMS \- convert CMS structure to S/MIME format.
-.Ve
+SMIME_write_CMS \- convert CMS structure to S/MIME format
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -187,6 +185,11 @@ option to disable this.
 \&\fIERR_get_error\fR\|(3), \fICMS_sign\fR\|(3),
 \&\fICMS_verify\fR\|(3), \fICMS_encrypt\fR\|(3)
 \&\fICMS_decrypt\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fISMIME_write_CMS()\fR was added to OpenSSL 0.9.8
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

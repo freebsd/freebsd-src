@@ -129,26 +129,29 @@
 .\" ========================================================================
 .\"
 .IX Title "RSAUTL 1"
-.TH RSAUTL 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH RSAUTL 1 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-openssl\-rsautl,
-rsautl \- RSA utility
+openssl\-rsautl, rsautl \- RSA utility
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBopenssl\fR \fBrsautl\fR
+[\fB\-help\fR]
 [\fB\-in file\fR]
 [\fB\-out file\fR]
 [\fB\-inkey file\fR]
+[\fB\-keyform PEM|DER|ENGINE\fR]
 [\fB\-pubin\fR]
 [\fB\-certin\fR]
 [\fB\-sign\fR]
 [\fB\-verify\fR]
 [\fB\-encrypt\fR]
 [\fB\-decrypt\fR]
+[\fB\-rand file...\fR]
+[\fB\-writerand file\fR]
 [\fB\-pkcs\fR]
 [\fB\-ssl\fR]
 [\fB\-raw\fR]
@@ -158,50 +161,67 @@ rsautl \- RSA utility
 .IX Header "DESCRIPTION"
 The \fBrsautl\fR command can be used to sign, verify, encrypt and decrypt
 data using the \s-1RSA\s0 algorithm.
-.SH "COMMAND OPTIONS"
-.IX Header "COMMAND OPTIONS"
+.SH "OPTIONS"
+.IX Header "OPTIONS"
+.IP "\fB\-help\fR" 4
+.IX Item "-help"
+Print out a usage message.
 .IP "\fB\-in filename\fR" 4
 .IX Item "-in filename"
 This specifies the input filename to read data from or standard input
 if this option is not specified.
 .IP "\fB\-out filename\fR" 4
 .IX Item "-out filename"
-specifies the output filename to write to or standard output by
+Specifies the output filename to write to or standard output by
 default.
 .IP "\fB\-inkey file\fR" 4
 .IX Item "-inkey file"
-the input key file, by default it should be an \s-1RSA\s0 private key.
+The input key file, by default it should be an \s-1RSA\s0 private key.
+.IP "\fB\-keyform PEM|DER|ENGINE\fR" 4
+.IX Item "-keyform PEM|DER|ENGINE"
+The key format \s-1PEM, DER\s0 or \s-1ENGINE.\s0
 .IP "\fB\-pubin\fR" 4
 .IX Item "-pubin"
-the input file is an \s-1RSA\s0 public key.
+The input file is an \s-1RSA\s0 public key.
 .IP "\fB\-certin\fR" 4
 .IX Item "-certin"
-the input is a certificate containing an \s-1RSA\s0 public key.
+The input is a certificate containing an \s-1RSA\s0 public key.
 .IP "\fB\-sign\fR" 4
 .IX Item "-sign"
-sign the input data and output the signed result. This requires
-and \s-1RSA\s0 private key.
+Sign the input data and output the signed result. This requires
+an \s-1RSA\s0 private key.
 .IP "\fB\-verify\fR" 4
 .IX Item "-verify"
-verify the input data and output the recovered data.
+Verify the input data and output the recovered data.
 .IP "\fB\-encrypt\fR" 4
 .IX Item "-encrypt"
-encrypt the input data using an \s-1RSA\s0 public key.
+Encrypt the input data using an \s-1RSA\s0 public key.
 .IP "\fB\-decrypt\fR" 4
 .IX Item "-decrypt"
-decrypt the input data using an \s-1RSA\s0 private key.
+Decrypt the input data using an \s-1RSA\s0 private key.
+.IP "\fB\-rand file...\fR" 4
+.IX Item "-rand file..."
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is \fB;\fR for MS-Windows, \fB,\fR for OpenVMS, and \fB:\fR for
+all others.
+.IP "[\fB\-writerand file\fR]" 4
+.IX Item "[-writerand file]"
+Writes random data to the specified \fIfile\fR upon exit.
+This can be used with a subsequent \fB\-rand\fR flag.
 .IP "\fB\-pkcs, \-oaep, \-ssl, \-raw\fR" 4
 .IX Item "-pkcs, -oaep, -ssl, -raw"
-the padding to use: PKCS#1 v1.5 (the default), PKCS#1 \s-1OAEP,\s0
+The padding to use: PKCS#1 v1.5 (the default), PKCS#1 \s-1OAEP,\s0
 special padding used in \s-1SSL\s0 v2 backwards compatible handshakes,
 or no padding, respectively.
 For signatures, only \fB\-pkcs\fR and \fB\-raw\fR can be used.
 .IP "\fB\-hexdump\fR" 4
 .IX Item "-hexdump"
-hex dump the output data.
+Hex dump the output data.
 .IP "\fB\-asn1parse\fR" 4
 .IX Item "-asn1parse"
-asn1parse the output data, this is useful when combined with the
+Parse the \s-1ASN.1\s0 output data, this is useful when combined with the
 \&\fB\-verify\fR option.
 .SH "NOTES"
 .IX Header "NOTES"
@@ -247,23 +267,23 @@ example in certs/pca\-cert.pem . Running \fBasn1parse\fR as follows yields:
 .Vb 1
 \& openssl asn1parse \-in pca\-cert.pem
 \&
-\&    0:d=0  hl=4 l= 742 cons: SEQUENCE          
-\&    4:d=1  hl=4 l= 591 cons:  SEQUENCE          
-\&    8:d=2  hl=2 l=   3 cons:   cont [ 0 ]        
+\&    0:d=0  hl=4 l= 742 cons: SEQUENCE
+\&    4:d=1  hl=4 l= 591 cons:  SEQUENCE
+\&    8:d=2  hl=2 l=   3 cons:   cont [ 0 ]
 \&   10:d=3  hl=2 l=   1 prim:    INTEGER           :02
 \&   13:d=2  hl=2 l=   1 prim:   INTEGER           :00
-\&   16:d=2  hl=2 l=  13 cons:   SEQUENCE          
+\&   16:d=2  hl=2 l=  13 cons:   SEQUENCE
 \&   18:d=3  hl=2 l=   9 prim:    OBJECT            :md5WithRSAEncryption
-\&   29:d=3  hl=2 l=   0 prim:    NULL              
-\&   31:d=2  hl=2 l=  92 cons:   SEQUENCE          
-\&   33:d=3  hl=2 l=  11 cons:    SET               
-\&   35:d=4  hl=2 l=   9 cons:     SEQUENCE          
+\&   29:d=3  hl=2 l=   0 prim:    NULL
+\&   31:d=2  hl=2 l=  92 cons:   SEQUENCE
+\&   33:d=3  hl=2 l=  11 cons:    SET
+\&   35:d=4  hl=2 l=   9 cons:     SEQUENCE
 \&   37:d=5  hl=2 l=   3 prim:      OBJECT            :countryName
 \&   42:d=5  hl=2 l=   2 prim:      PRINTABLESTRING   :AU
 \&  ....
-\&  599:d=1  hl=2 l=  13 cons:  SEQUENCE          
+\&  599:d=1  hl=2 l=  13 cons:  SEQUENCE
 \&  601:d=2  hl=2 l=   9 prim:   OBJECT            :md5WithRSAEncryption
-\&  612:d=2  hl=2 l=   0 prim:   NULL              
+\&  612:d=2  hl=2 l=   0 prim:   NULL
 \&  614:d=1  hl=3 l= 129 prim:  BIT STRING
 .Ve
 .PP
@@ -284,11 +304,11 @@ The signature can be analysed with:
 .Vb 1
 \& openssl rsautl \-in sig \-verify \-asn1parse \-inkey pubkey.pem \-pubin
 \&
-\&    0:d=0  hl=2 l=  32 cons: SEQUENCE          
-\&    2:d=1  hl=2 l=  12 cons:  SEQUENCE          
+\&    0:d=0  hl=2 l=  32 cons: SEQUENCE
+\&    2:d=1  hl=2 l=  12 cons:  SEQUENCE
 \&    4:d=2  hl=2 l=   8 prim:   OBJECT            :md5
-\&   14:d=2  hl=2 l=   0 prim:   NULL              
-\&   16:d=1  hl=2 l=  16 prim:  OCTET STRING      
+\&   14:d=2  hl=2 l=   0 prim:   NULL
+\&   16:d=1  hl=2 l=  16 prim:  OCTET STRING
 \&      0000 \- f3 46 9e aa 1a 4a 73 c9\-37 ea 93 00 48 25 08 b5   .F...Js.7...H%..
 .Ve
 .PP
@@ -311,3 +331,11 @@ which it can be seen agrees with the recovered value above.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIdgst\fR\|(1), \fIrsa\fR\|(1), \fIgenrsa\fR\|(1)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

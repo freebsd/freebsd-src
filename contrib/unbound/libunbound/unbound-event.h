@@ -170,7 +170,7 @@ struct ub_event {
 	struct ub_event_vmt* vmt;
 };
 
-typedef void (*ub_event_callback_type)(void*, int, void*, int, int, char*);
+typedef void (*ub_event_callback_type)(void*, int, void*, int, int, char*, int);
 
 /**
  * Create a resolving and validation context.

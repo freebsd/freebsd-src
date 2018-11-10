@@ -358,6 +358,7 @@ wollman [label="Garrett Wollman\nwollman@FreeBSD.org\n????/??/??"]
 wsalamon [label="Wayne Salamon\nwsalamon@FreeBSD.org\n2005/06/25"]
 wulf [label="Vladimir Kondratyev\nwulf@FreeBSD.org\n2017/04/27"]
 yongari [label="Pyun YongHyeon\nyongari@FreeBSD.org\n2004/08/01"]
+yuripv [label="Yuri Pankov\nyuripv@FreeBSD.org\n2018/10/09"]
 zbb [label="Zbigniew Bodek\nzbb@FreeBSD.org\n2013/09/02"]
 zec [label="Marko Zec\nzec@FreeBSD.org\n2008/06/22"]
 zml [label="Zachary Loafman\nzml@FreeBSD.org\n2009/05/27"]
@@ -674,6 +675,7 @@ kib -> stas
 kib -> tijl
 kib -> trociny
 kib -> vangyzen
+kib -> yuripv
 kib -> zont
 
 kmacy -> lstewart

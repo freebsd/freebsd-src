@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec6.h>
 #include <netipsec/key.h>
 #include <netipsec/key_debug.h>
+#include <netipsec/xform.h>
 
 #include <machine/atomic.h>
 /*
@@ -124,14 +125,6 @@ ipsec6_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
 }
 #endif
 
-#ifdef IPSEC_SUPPORT
-/*
- * IPSEC_SUPPORT - loading of ipsec.ko and tcpmd5.ko is supported.
- * IPSEC + IPSEC_SUPPORT - loading tcpmd5.ko is supported.
- * IPSEC + TCP_SIGNATURE - all is build in the kernel, do not build
- *   IPSEC_SUPPORT.
- */
-#if !defined(IPSEC) || !defined(TCP_SIGNATURE)
 #define	IPSEC_MODULE_INCR	2
 static int
 ipsec_kmod_enter(volatile u_int *cntr)
@@ -171,6 +164,83 @@ ipsec_kmod_drain(volatile u_int *cntr)
 		pause("ipsecd", hz/2);
 }
 
+static LIST_HEAD(xforms_list, xformsw) xforms = LIST_HEAD_INITIALIZER();
+static struct mtx xforms_lock;
+MTX_SYSINIT(xfroms_list, &xforms_lock, "IPsec transforms list", MTX_DEF);
+#define	XFORMS_LOCK()		mtx_lock(&xforms_lock)
+#define	XFORMS_UNLOCK()		mtx_unlock(&xforms_lock)
+
+void
+xform_attach(void *data)
+{
+	struct xformsw *xsp, *entry;
+
+	xsp = (struct xformsw *)data;
+	XFORMS_LOCK();
+	LIST_FOREACH(entry, &xforms, chain) {
+		if (entry->xf_type == xsp->xf_type) {
+			XFORMS_UNLOCK();
+			printf("%s: failed to register %s xform\n",
+			    __func__, xsp->xf_name);
+			return;
+		}
+	}
+	LIST_INSERT_HEAD(&xforms, xsp, chain);
+	xsp->xf_cntr = IPSEC_MODULE_ENABLED;
+	XFORMS_UNLOCK();
+}
+
+void
+xform_detach(void *data)
+{
+	struct xformsw *xsp = (struct xformsw *)data;
+
+	XFORMS_LOCK();
+	LIST_REMOVE(xsp, chain);
+	XFORMS_UNLOCK();
+
+	/* Delete all SAs related to this xform. */
+	key_delete_xform(xsp);
+	if (xsp->xf_cntr & IPSEC_MODULE_ENABLED)
+		ipsec_kmod_drain(&xsp->xf_cntr);
+}
+
+/*
+ * Initialize transform support in an sav.
+ */
+int
+xform_init(struct secasvar *sav, u_short xftype)
+{
+	struct xformsw *entry;
+	int ret;
+
+	IPSEC_ASSERT(sav->tdb_xform == NULL,
+	    ("tdb_xform is already initialized"));
+
+	XFORMS_LOCK();
+	LIST_FOREACH(entry, &xforms, chain) {
+		if (entry->xf_type == xftype) {
+			ret = ipsec_kmod_enter(&entry->xf_cntr);
+			XFORMS_UNLOCK();
+			if (ret != 0)
+				return (ret);
+			ret = (*entry->xf_init)(sav, entry);
+			ipsec_kmod_exit(&entry->xf_cntr);
+			return (ret);
+		}
+	}
+	XFORMS_UNLOCK();
+	return (EINVAL);
+}
+
+#ifdef IPSEC_SUPPORT
+/*
+ * IPSEC_SUPPORT - loading of ipsec.ko and tcpmd5.ko is supported.
+ * IPSEC + IPSEC_SUPPORT - loading tcpmd5.ko is supported.
+ * IPSEC + TCP_SIGNATURE - all is build in the kernel, do not build
+ *   IPSEC_SUPPORT.
+ */
+#if !defined(IPSEC) || !defined(TCP_SIGNATURE)
 #define	METHOD_DECL(...)	__VA_ARGS__
 #define	METHOD_ARGS(...)	__VA_ARGS__
 #define	IPSEC_KMOD_METHOD(type, name, sc, method, decl, args)		\

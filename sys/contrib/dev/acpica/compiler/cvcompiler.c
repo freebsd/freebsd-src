@@ -193,8 +193,8 @@ CvProcessComment (
         *StringBuffer = 0;
 
         CvDbgPrint ("Multi-line comment\n");
-        CommentString = UtLocalCacheCalloc (strlen (MsgBuffer) + 1);
-        strcpy (CommentString, MsgBuffer);
+        CommentString = UtLocalCacheCalloc (strlen (AslGbl_MsgBuffer) + 1);
+        strcpy (CommentString, AslGbl_MsgBuffer);
 
         CvDbgPrint ("CommentString: %s\n", CommentString);
 
@@ -313,8 +313,8 @@ CvProcessCommentType2 (
     {
         *StringBuffer = 0; /* null terminate */
         CvDbgPrint ("Single-line comment\n");
-        CommentString = UtLocalCacheCalloc (strlen (MsgBuffer) + 1);
-        strcpy (CommentString, MsgBuffer);
+        CommentString = UtLocalCacheCalloc (strlen (AslGbl_MsgBuffer) + 1);
+        strcpy (CommentString, AslGbl_MsgBuffer);
 
         /* If this comment lies on the same line as the latest parse op,
          * assign it to that op's CommentAfter field. Saving in this field
@@ -825,53 +825,53 @@ CvProcessCommentState (
 
     if (Input != ' ')
     {
-        Gbl_CommentState.SpacesBefore = 0;
+        AslGbl_CommentState.SpacesBefore = 0;
     }
 
     switch (Input)
     {
     case '\n':
 
-        Gbl_CommentState.CommentType = ASL_COMMENT_STANDARD;
+        AslGbl_CommentState.CommentType = ASL_COMMENT_STANDARD;
         break;
 
     case ' ':
 
         /* Keep the CommentType the same */
 
-        Gbl_CommentState.SpacesBefore++;
+        AslGbl_CommentState.SpacesBefore++;
         break;
 
     case '(':
 
-        Gbl_CommentState.CommentType = ASL_COMMENT_OPEN_PAREN;
+        AslGbl_CommentState.CommentType = ASL_COMMENT_OPEN_PAREN;
         break;
 
     case ')':
 
-        Gbl_CommentState.CommentType = ASL_COMMENT_CLOSE_PAREN;
+        AslGbl_CommentState.CommentType = ASL_COMMENT_CLOSE_PAREN;
         break;
 
     case '{':
 
-        Gbl_CommentState.CommentType = ASL_COMMENT_STANDARD;
-        Gbl_CommentState.ParsingParenBraceNode = NULL;
+        AslGbl_CommentState.CommentType = ASL_COMMENT_STANDARD;
+        AslGbl_CommentState.ParsingParenBraceNode = NULL;
         CvDbgPrint ("End Parsing paren/Brace node!\n");
         break;
 
     case '}':
 
-        Gbl_CommentState.CommentType = ASL_COMMENT_CLOSE_BRACE;
+        AslGbl_CommentState.CommentType = ASL_COMMENT_CLOSE_BRACE;
         break;
 
     case ',':
 
-        Gbl_CommentState.CommentType = ASLCOMMENT_INLINE;
+        AslGbl_CommentState.CommentType = ASLCOMMENT_INLINE;
         break;
 
     default:
 
-        Gbl_CommentState.CommentType = ASLCOMMENT_INLINE;
+        AslGbl_CommentState.CommentType = ASLCOMMENT_INLINE;
         break;
     }
 }
@@ -895,18 +895,18 @@ CvAddToCommentList (
     char                    *ToAdd)
 {
 
-   if (Gbl_CommentListHead)
+   if (AslGbl_CommentListHead)
    {
-       Gbl_CommentListTail->Next = CvCommentNodeCalloc ();
-       Gbl_CommentListTail = Gbl_CommentListTail->Next;
+       AslGbl_CommentListTail->Next = CvCommentNodeCalloc ();
+       AslGbl_CommentListTail = AslGbl_CommentListTail->Next;
    }
    else
    {
-       Gbl_CommentListHead = CvCommentNodeCalloc ();
-       Gbl_CommentListTail = Gbl_CommentListHead;
+       AslGbl_CommentListHead = CvCommentNodeCalloc ();
+       AslGbl_CommentListTail = AslGbl_CommentListHead;
    }
 
-   Gbl_CommentListTail->Comment = ToAdd;
+   AslGbl_CommentListTail->Comment = ToAdd;
 }
 
 
@@ -976,8 +976,8 @@ CvPlaceComment(
     ACPI_PARSE_OBJECT       *ParenBraceNode;
 
 
-    LatestParseNode = Gbl_CommentState.LatestParseOp;
-    ParenBraceNode  = Gbl_CommentState.ParsingParenBraceNode;
+    LatestParseNode = AslGbl_CommentState.LatestParseOp;
+    ParenBraceNode  = AslGbl_CommentState.ParsingParenBraceNode;
     CvDbgPrint ("Placing comment %s for type %d\n", CommentString, Type);
 
     switch (Type)
@@ -996,8 +996,8 @@ CvPlaceComment(
 
     case ASL_COMMENT_OPEN_PAREN:
 
-        Gbl_InlineCommentBuffer =
-            CvAppendInlineComment(Gbl_InlineCommentBuffer,
+        AslGbl_InlineCommentBuffer =
+            CvAppendInlineComment(AslGbl_InlineCommentBuffer,
             CommentString);
         break;
 

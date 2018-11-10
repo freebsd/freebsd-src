@@ -28,7 +28,7 @@
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2018
+.Dd September 24, 2018
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -276,6 +276,8 @@ definitions for fourth level ICMP identifiers
 .It In netinet/udp_var.h
 definitions for fourth level UDP identifiers
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 For example, to retrieve the maximum number of processes allowed
 in the system, one would use the following request:

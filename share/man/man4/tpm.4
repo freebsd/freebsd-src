@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2010
+.Dd October 31, 2018
 .Dt TPM 4
 .Os
 .Sh NAME
@@ -76,6 +76,44 @@ interrupt vector in
 .Xr intro 4 ,
 .Xr device.hints 5 ,
 .Xr config 8
+.Pp
+The homepage of the BSSSD project, which developed the original
+.Nm
+driver:
+.Lk "http://bsssd.sourceforge.net/" .
+.Pp
+TPM main specification can be found at:
+.Lk "https://trustedcomputinggroup.org/resource/tpm-main-specification/" .
+.Sh STANDARDS
+TPM Main Specification Level 2 Version 1.2:
+.Bl -dash
+.It
+.Rs
+.%A ISO/IEC
+.%T 11889-1:2009, Information technology -- Trusted Platform Module -- Part 1: Overview
+.%U "https://www.iso.org/standard/50970.html"
+.Re
+.It
+.Rs
+.%A ISO/IEC
+.%T 11889-2:2009, Information technology -- Trusted Platform Module -- Part 2: Design principles
+.%U "https://www.iso.org/standard/50971.html"
+.Re
+.It
+.Rs
+.%A ISO/IEC
+.%T 11889-3:2009, Information technology -- Trusted Platform Module -- Part 3: Structures
+.%U "https://www.iso.org/standard/50972.html"
+.Re
+.El
+.Sh HISTORY
+The
+.Nm
+driver
+first appeared in
+.Fx 8.2
+and was later added to
+.Ox 6.1 .
 .Sh AUTHORS
 .An -nosplit
 The

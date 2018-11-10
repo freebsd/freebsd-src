@@ -248,6 +248,21 @@ struct adrep {
 	if (_wakeup)							\
 		cv_signal(list##_cond);					\
 } while (0)
+#define	QUEUE_CONCAT2(tolist, fromlist1, fromlist2)	do {		\
+	bool _wakeup;							\
+									\
+	mtx_lock(tolist##_lock);					\
+	_wakeup = TAILQ_EMPTY(tolist);					\
+	mtx_lock(fromlist1##_lock);					\
+	TAILQ_CONCAT((tolist), (fromlist1), adr_next);			\
+	mtx_unlock(fromlist1##_lock);					\
+	mtx_lock(fromlist2##_lock);					\
+	TAILQ_CONCAT((tolist), (fromlist2), adr_next);			\
+	mtx_unlock(fromlist2##_lock);					\
+	mtx_unlock(tolist##_lock);					\
+	if (_wakeup)							\
+		cv_signal(tolist##_cond);				\
+} while (0)
 #define	QUEUE_WAIT(list)	do {					\
 	mtx_lock(list##_lock);						\
 	while (TAILQ_EMPTY(list))					\

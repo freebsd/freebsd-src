@@ -119,6 +119,7 @@ struct nameidata {
 #define	WANTPARENT	0x0010	/* want parent vnode returned unlocked */
 #define	NOCACHE		0x0020	/* name must not be left in cache */
 #define	FOLLOW		0x0040	/* follow symbolic links */
+#define	BENEATH		0x0080	/* No escape from the start dir */
 #define	LOCKSHARED	0x0100	/* Shared lock leaf */
 #define	NOFOLLOW	0x0000	/* do not follow symbolic links (pseudo) */
 #define	MODMASK		0x01fc	/* mask of operational modifiers */

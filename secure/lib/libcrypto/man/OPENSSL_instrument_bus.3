@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "OPENSSL_instrument_bus 3"
-.TH OPENSSL_instrument_bus 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "OPENSSL_INSTRUMENT_BUS 3"
+.TH OPENSSL_INSTRUMENT_BUS 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -140,8 +140,8 @@ OPENSSL_instrument_bus, OPENSSL_instrument_bus2 \- instrument references to memo
 .IX Header "SYNOPSIS"
 .Vb 4
 \& #ifdef OPENSSL_CPUID_OBJ
-\& size_t OPENSSL_instrument_bus (int *vector,size_t num);
-\& size_t OPENSSL_instrument_bus2(int *vector,size_t num,size_t max);
+\& size_t OPENSSL_instrument_bus(int *vector, size_t num);
+\& size_t OPENSSL_instrument_bus2(int *vector, size_t num, size_t max);
 \& #endif
 .Ve
 .SH "DESCRIPTION"
@@ -149,26 +149,34 @@ OPENSSL_instrument_bus, OPENSSL_instrument_bus2 \- instrument references to memo
 It was empirically found that timings of references to primary memory
 are subject to irregular, apparently non-deterministic variations. The
 subroutines in question instrument these references for purposes of
-gathering entropy for random number generator. In order to make it
+gathering randomness for random number generator. In order to make it
 bus-bound a 'flush cache line' instruction is used between probes. In
 addition probes are added to \fBvector\fR elements in atomic or
 interlocked manner, which should contribute additional noise on
 multi-processor systems. This also means that \fBvector[num]\fR should be
 zeroed upon invocation (if you want to retrieve actual probe values).
 .PP
-OPENSSL_instrument_bus performs \fBnum\fR probes and records the number of
+\&\fIOPENSSL_instrument_bus()\fR performs \fBnum\fR probes and records the number of
 oscillator cycles every probe took.
 .PP
-OPENSSL_instrument_bus2 on the other hand \fBaccumulates\fR consecutive
+\&\fIOPENSSL_instrument_bus2()\fR on the other hand \fBaccumulates\fR consecutive
 probes with the same value, i.e. in a way it records duration of
 periods when probe values appeared deterministic. The subroutine
 performs at most \fBmax\fR probes in attempt to fill the \fBvector[num]\fR,
 with \fBmax\fR value of 0 meaning \*(L"as many as it takes.\*(R"
-.SH "RETURN VALUE"
-.IX Header "RETURN VALUE"
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
 Return value of 0 indicates that \s-1CPU\s0 is not capable of performing the
 benchmark, either because oscillator counter or 'flush cache line' is
 not available on current platform. For reference, on x86 'flush cache
 line' was introduced with the \s-1SSE2\s0 extensions.
 .PP
 Otherwise number of recorded values is returned.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2011\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

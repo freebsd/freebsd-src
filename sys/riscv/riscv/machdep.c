@@ -178,7 +178,6 @@ set_regs(struct thread *td, struct reg *regs)
 
 	frame = td->td_frame;
 	frame->tf_sepc = regs->sepc;
-	frame->tf_sstatus = regs->sstatus;
 	frame->tf_ra = regs->ra;
 	frame->tf_sp = regs->sp;
 	frame->tf_gp = regs->gp;
@@ -204,13 +203,14 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 		 * If we have just been running FPE instructions we will
 		 * need to save the state to memcpy it below.
 		 */
-		fpe_state_save(td);
+		if (td == curthread)
+			fpe_state_save(td);
 
 		memcpy(regs->fp_x, pcb->pcb_x, sizeof(regs->fp_x));
 		regs->fp_fcsr = pcb->pcb_fcsr;
 	} else
 #endif
-		memset(regs->fp_x, 0, sizeof(regs->fp_x));
+		memset(regs, 0, sizeof(*regs));
 
 	return (0);
 }
@@ -219,12 +219,17 @@ int
 set_fpregs(struct thread *td, struct fpreg *regs)
 {
 #ifdef FPE
+	struct trapframe *frame;
 	struct pcb *pcb;
 
+	frame = td->td_frame;
 	pcb = td->td_pcb;
 
 	memcpy(pcb->pcb_x, regs->fp_x, sizeof(regs->fp_x));
 	pcb->pcb_fcsr = regs->fp_fcsr;
+	pcb->pcb_fpflags |= PCB_FP_STARTED;
+	frame->tf_sstatus &= ~SSTATUS_FS_MASK;
+	frame->tf_sstatus |= SSTATUS_FS_CLEAN;
 #endif
 
 	return (0);
@@ -248,7 +253,7 @@ int
 ptrace_set_pc(struct thread *td, u_long addr)
 {
 
-	panic("ptrace_set_pc");
+	td->td_frame->tf_sepc = addr;
 	return (0);
 }
 
@@ -257,7 +262,7 @@ ptrace_single_step(struct thread *td)
 {
 
 	/* TODO; */
-	return (0);
+	return (EOPNOTSUPP);
 }
 
 int
@@ -265,7 +270,7 @@ ptrace_clear_single_step(struct thread *td)
 {
 
 	/* TODO; */
-	return (0);
+	return (EOPNOTSUPP);
 }
 
 void

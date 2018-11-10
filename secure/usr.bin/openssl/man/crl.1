@@ -129,17 +129,17 @@
 .\" ========================================================================
 .\"
 .IX Title "CRL 1"
-.TH CRL 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH CRL 1 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-openssl\-crl,
-crl \- CRL utility
+openssl\-crl, crl \- CRL utility
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBopenssl\fR \fBcrl\fR
+[\fB\-help\fR]
 [\fB\-inform PEM|DER\fR]
 [\fB\-outform PEM|DER\fR]
 [\fB\-text\fR]
@@ -156,8 +156,11 @@ crl \- CRL utility
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \fBcrl\fR command processes \s-1CRL\s0 files in \s-1DER\s0 or \s-1PEM\s0 format.
-.SH "COMMAND OPTIONS"
-.IX Header "COMMAND OPTIONS"
+.SH "OPTIONS"
+.IX Header "OPTIONS"
+.IP "\fB\-help\fR" 4
+.IX Item "-help"
+Print out a usage message.
 .IP "\fB\-inform DER|PEM\fR" 4
 .IX Item "-inform DER|PEM"
 This specifies the input format. \fB\s-1DER\s0\fR format is \s-1DER\s0 encoded \s-1CRL\s0
@@ -165,50 +168,50 @@ structure. \fB\s-1PEM\s0\fR (the default) is a base64 encoded version of
 the \s-1DER\s0 form with header and footer lines.
 .IP "\fB\-outform DER|PEM\fR" 4
 .IX Item "-outform DER|PEM"
-This specifies the output format, the options have the same meaning as the 
-\&\fB\-inform\fR option.
+This specifies the output format, the options have the same meaning and default
+as the \fB\-inform\fR option.
 .IP "\fB\-in filename\fR" 4
 .IX Item "-in filename"
 This specifies the input filename to read from or standard input if this
 option is not specified.
 .IP "\fB\-out filename\fR" 4
 .IX Item "-out filename"
-specifies the output filename to write to or standard output by
+Specifies the output filename to write to or standard output by
 default.
 .IP "\fB\-text\fR" 4
 .IX Item "-text"
-print out the \s-1CRL\s0 in text form.
+Print out the \s-1CRL\s0 in text form.
 .IP "\fB\-nameopt option\fR" 4
 .IX Item "-nameopt option"
-option which determines how the subject or issuer names are displayed. See
+Option which determines how the subject or issuer names are displayed. See
 the description of \fB\-nameopt\fR in \fIx509\fR\|(1).
 .IP "\fB\-noout\fR" 4
 .IX Item "-noout"
-don't output the encoded version of the \s-1CRL.\s0
+Don't output the encoded version of the \s-1CRL.\s0
 .IP "\fB\-hash\fR" 4
 .IX Item "-hash"
-output a hash of the issuer name. This can be use to lookup CRLs in
+Output a hash of the issuer name. This can be use to lookup CRLs in
 a directory by issuer name.
 .IP "\fB\-hash_old\fR" 4
 .IX Item "-hash_old"
-outputs the \*(L"hash\*(R" of the \s-1CRL\s0 issuer name using the older algorithm
-as used by OpenSSL versions before 1.0.0.
+Outputs the \*(L"hash\*(R" of the \s-1CRL\s0 issuer name using the older algorithm
+as used by OpenSSL before version 1.0.0.
 .IP "\fB\-issuer\fR" 4
 .IX Item "-issuer"
-output the issuer name.
+Output the issuer name.
 .IP "\fB\-lastupdate\fR" 4
 .IX Item "-lastupdate"
-output the lastUpdate field.
+Output the lastUpdate field.
 .IP "\fB\-nextupdate\fR" 4
 .IX Item "-nextupdate"
-output the nextUpdate field.
+Output the nextUpdate field.
 .IP "\fB\-CAfile file\fR" 4
 .IX Item "-CAfile file"
-verify the signature on a \s-1CRL\s0 by looking up the issuing certificate in
-\&\fBfile\fR
+Verify the signature on a \s-1CRL\s0 by looking up the issuing certificate in
+\&\fBfile\fR.
 .IP "\fB\-CApath dir\fR" 4
 .IX Item "-CApath dir"
-verify the signature on a \s-1CRL\s0 by looking up the issuing certificate in
+Verify the signature on a \s-1CRL\s0 by looking up the issuing certificate in
 \&\fBdir\fR. This directory must be a standard certificate directory: that
 is a hash of each subject name (using \fBx509 \-hash\fR) should be linked
 to each certificate.
@@ -231,7 +234,7 @@ Convert a \s-1CRL\s0 file from \s-1PEM\s0 to \s-1DER:\s0
 Output the text form of a \s-1DER\s0 encoded certificate:
 .PP
 .Vb 1
-\& openssl crl \-in crl.der \-text \-noout
+\& openssl crl \-in crl.der \-inform DER \-text \-noout
 .Ve
 .SH "BUGS"
 .IX Header "BUGS"
@@ -240,3 +243,11 @@ and files too.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIcrl2pkcs7\fR\|(1), \fIca\fR\|(1), \fIx509\fR\|(1)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

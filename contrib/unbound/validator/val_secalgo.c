@@ -77,6 +77,22 @@ int fake_dsa = 0;
 /** fake SHA1 support for unit tests */
 int fake_sha1 = 0;
 
+/**
+ * Output a libcrypto openssl error to the logfile.
+ * @param str: string to add to it.
+ * @param e: the error to output, error number from ERR_get_error().
+ */
+static void
+log_crypto_error(const char* str, unsigned long e)
+{
+	char buf[128];
+	/* or use ERR_error_string if ERR_error_string_n is not avail TODO */
+	ERR_error_string_n(e, buf, sizeof(buf));
+	/* buf now contains */
+	/* error:[error code]:[library name]:[function name]:[reason string] */
+	log_err("%s crypto %s", str, buf);
+}
+
 /* return size of digest if supported, or 0 otherwise */
 size_t
 nsec3_hash_algo_size_supported(int id)
@@ -96,7 +112,13 @@ secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
 {
 	switch(algo) {
 	case NSEC3_HASH_SHA1:
+#ifdef OPENSSL_FIPS
+		if(!sldns_digest_evp(buf, len, res, EVP_sha1()))
+			log_crypto_error("could not digest with EVP_sha1",
+				ERR_get_error());
+#else
 		(void)SHA1(buf, len, res);
+#endif
 		return 1;
 	default:
 		return 0;
@@ -106,7 +128,13 @@ secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
 void
 secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res)
 {
+#ifdef OPENSSL_FIPS
+	if(!sldns_digest_evp(buf, len, res, EVP_sha256()))
+		log_crypto_error("could not digest with EVP_sha256",
+			ERR_get_error());
+#else
 	(void)SHA256(buf, len, res);
+#endif
 }
 
 /**
@@ -165,12 +193,24 @@ secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
 	switch(algo) {
 #if defined(HAVE_EVP_SHA1) && defined(USE_SHA1)
 		case LDNS_SHA1:
+#ifdef OPENSSL_FIPS
+			if(!sldns_digest_evp(buf, len, res, EVP_sha1()))
+				log_crypto_error("could not digest with EVP_sha1",
+					ERR_get_error());
+#else
 			(void)SHA1(buf, len, res);
+#endif
 			return 1;
 #endif
 #ifdef HAVE_EVP_SHA256
 		case LDNS_SHA256:
+#ifdef OPENSSL_FIPS
+			if(!sldns_digest_evp(buf, len, res, EVP_sha256()))
+				log_crypto_error("could not digest with EVP_sha256",
+					ERR_get_error());
+#else
 			(void)SHA256(buf, len, res);
+#endif
 			return 1;
 #endif
 #ifdef USE_GOST
@@ -181,7 +221,13 @@ secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
 #endif
 #ifdef USE_ECDSA
 		case LDNS_SHA384:
+#ifdef OPENSSL_FIPS
+			if(!sldns_digest_evp(buf, len, res, EVP_sha384()))
+				log_crypto_error("could not digest with EVP_sha384",
+					ERR_get_error());
+#else
 			(void)SHA384(buf, len, res);
+#endif
 			return 1;
 #endif
 		default: 
@@ -246,22 +292,6 @@ dnskey_algo_id_is_supported(int id)
 	default:
 		return 0;
 	}
-}
-
-/**
- * Output a libcrypto openssl error to the logfile.
- * @param str: string to add to it.
- * @param e: the error to output, error number from ERR_get_error().
- */
-static void
-log_crypto_error(const char* str, unsigned long e)
-{
-	char buf[128];
-	/* or use ERR_error_string if ERR_error_string_n is not avail TODO */
-	ERR_error_string_n(e, buf, sizeof(buf));
-	/* buf now contains */
-	/* error:[error code]:[library name]:[function name]:[reason string] */
-	log_err("%s crypto %s", str, buf);
 }
 
 #ifdef USE_DSA

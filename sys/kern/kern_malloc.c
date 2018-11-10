@@ -61,12 +61,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/vmem.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_domainset.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
@@ -173,6 +175,7 @@ struct {
  * declare malloc types.
  */
 static uma_zone_t mt_zone;
+static uma_zone_t mt_stats_zone;
 
 u_long vm_kmem_size;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
@@ -368,7 +371,7 @@ malloc_type_zone_allocated(struct malloc_type *mtp, unsigned long size,
 
 	critical_enter();
 	mtip = mtp->ks_handle;
-	mtsp = &mtip->mti_stats[curcpu];
+	mtsp = zpcpu_get(mtip->mti_stats);
 	if (size > 0) {
 		mtsp->mts_memalloced += size;
 		mtsp->mts_numallocs++;
@@ -411,7 +414,7 @@ malloc_type_freed(struct malloc_type *mtp, unsigned long size)
 
 	critical_enter();
 	mtip = mtp->ks_handle;
-	mtsp = &mtip->mti_stats[curcpu];
+	mtsp = zpcpu_get(mtip->mti_stats);
 	mtsp->mts_memfreed += size;
 	mtsp->mts_numfrees++;
 
@@ -451,13 +454,13 @@ contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 }
 
 void *
-contigmalloc_domain(unsigned long size, struct malloc_type *type,
-    int domain, int flags, vm_paddr_t low, vm_paddr_t high,
+contigmalloc_domainset(unsigned long size, struct malloc_type *type,
+    struct domainset *ds, int flags, vm_paddr_t low, vm_paddr_t high,
     unsigned long alignment, vm_paddr_t boundary)
 {
 	void *ret;
 
-	ret = (void *)kmem_alloc_contig_domain(domain, size, flags, low, high,
+	ret = (void *)kmem_alloc_contig_domainset(ds, size, flags, low, high,
 	    alignment, boundary, VM_MEMATTR_DEFAULT);
 	if (ret != NULL)
 		malloc_type_allocated(type, round_page(size));
@@ -593,9 +596,8 @@ void *
 	return ((void *) va);
 }
 
-void *
-malloc_domain(size_t size, struct malloc_type *mtp, int domain,
-    int flags)
+static void *
+malloc_domain(size_t size, struct malloc_type *mtp, int domain, int flags)
 {
 	int indx;
 	caddr_t va;
@@ -636,6 +638,24 @@ malloc_domain(size_t size, struct malloc_type *mtp, int domain,
 		va = redzone_setup(va, osize);
 #endif
 	return ((void *) va);
+}
+
+void *
+malloc_domainset(size_t size, struct malloc_type *mtp, struct domainset *ds,
+    int flags)
+{
+	struct vm_domainset_iter di;
+	void *ret;
+	int domain;
+
+	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
+	do {
+		ret = malloc_domain(size, mtp, domain, flags);
+		if (ret != NULL)
+			break;
+	} while (vm_domainset_iter_policy(&di, &domain) == 0);
+
+	return (ret);
 }
 
 void *
@@ -953,6 +973,9 @@ mallocinit(void *dummy)
 	if (kmem_zmax < PAGE_SIZE || kmem_zmax > KMEM_ZMAX)
 		kmem_zmax = KMEM_ZMAX;
 
+	mt_stats_zone = uma_zcreate("mt_stats_zone",
+	    sizeof(struct malloc_type_stats), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 	mt_zone = uma_zcreate("mt_zone", sizeof(struct malloc_type_internal),
 #ifdef INVARIANTS
 	    mtrash_ctor, mtrash_dtor, mtrash_init, mtrash_fini,
@@ -995,6 +1018,7 @@ malloc_init(void *data)
 		panic("malloc_init: bad malloc type magic");
 
 	mtip = uma_zalloc(mt_zone, M_WAITOK | M_ZERO);
+	mtip->mti_stats = uma_zalloc_pcpu(mt_stats_zone, M_WAITOK | M_ZERO);
 	mtp->ks_handle = mtip;
 	mtp_set_subzone(mtp);
 
@@ -1042,8 +1066,8 @@ malloc_uninit(void *data)
 	 * Look for memory leaks.
 	 */
 	temp_allocs = temp_bytes = 0;
-	for (i = 0; i < MAXCPU; i++) {
-		mtsp = &mtip->mti_stats[i];
+	for (i = 0; i <= mp_maxid; i++) {
+		mtsp = zpcpu_get_cpu(mtip->mti_stats, i);
 		temp_allocs += mtsp->mts_numallocs;
 		temp_allocs -= mtsp->mts_numfrees;
 		temp_bytes += mtsp->mts_memalloced;
@@ -1056,6 +1080,7 @@ malloc_uninit(void *data)
 	}
 
 	slab = vtoslab((vm_offset_t) mtip & (~UMA_SLAB_MASK));
+	uma_zfree_pcpu(mt_stats_zone, mtip->mti_stats);
 	uma_zfree_arg(mt_zone, mtip, slab);
 }
 
@@ -1077,6 +1102,7 @@ sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct malloc_type_stream_header mtsh;
 	struct malloc_type_internal *mtip;
+	struct malloc_type_stats *mtsp, zeromts;
 	struct malloc_type_header mth;
 	struct malloc_type *mtp;
 	int error, i;
@@ -1088,6 +1114,8 @@ sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS)
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 	sbuf_clear_flags(&sbuf, SBUF_INCLUDENUL);
 	mtx_lock(&malloc_mtx);
+
+	bzero(&zeromts, sizeof(zeromts));
 
 	/*
 	 * Insert stream header.
@@ -1114,10 +1142,17 @@ sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS)
 		/*
 		 * Insert type statistics for each CPU.
 		 */
-		for (i = 0; i < MAXCPU; i++) {
-			(void)sbuf_bcat(&sbuf, &mtip->mti_stats[i],
-			    sizeof(mtip->mti_stats[i]));
+		for (i = 0; i <= mp_maxid; i++) {
+			mtsp = zpcpu_get_cpu(mtip->mti_stats, i);
+			(void)sbuf_bcat(&sbuf, mtsp, sizeof(*mtsp));
 		}
+		/*
+		 * Fill in the missing CPUs.
+		 */
+		for (; i < MAXCPU; i++) {
+			(void)sbuf_bcat(&sbuf, &zeromts, sizeof(zeromts));
+		}
+
 	}
 	mtx_unlock(&malloc_mtx);
 	error = sbuf_finish(&sbuf);
@@ -1170,6 +1205,7 @@ restart:
 DB_SHOW_COMMAND(malloc, db_show_malloc)
 {
 	struct malloc_type_internal *mtip;
+	struct malloc_type_internal *mtsp;
 	struct malloc_type *mtp;
 	uint64_t allocs, frees;
 	uint64_t alloced, freed;
@@ -1183,7 +1219,8 @@ DB_SHOW_COMMAND(malloc, db_show_malloc)
 		frees = 0;
 		alloced = 0;
 		freed = 0;
-		for (i = 0; i < MAXCPU; i++) {
+		for (i = 0; i <= mp_maxid; i++) {
+			mtsp = zpcpu_get_cpu(mtip->mti_stats, i);
 			allocs += mtip->mti_stats[i].mts_numallocs;
 			frees += mtip->mti_stats[i].mts_numfrees;
 			alloced += mtip->mti_stats[i].mts_memalloced;

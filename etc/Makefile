@@ -4,6 +4,8 @@
 .include <src.opts.mk>
 
 FILESGROUPS=	FILES
+NLS_ALIASES=	POSIX C \
+		en_US.US_ASCII C
 
 # No need as it is empty and just causes rebuilds since this file does so much.
 UPDATE_DEPENDFILE=	no
@@ -13,55 +15,16 @@ SUBDIR+=sendmail
 .endif
 
 BIN1=	\
-	dhclient.conf \
-	disktab \
 	group \
-	hosts \
-	hosts.allow \
-	hosts.equiv \
-	libalias.conf \
-	libmap.conf \
 	login.access \
-	mac.conf \
-	netconfig \
-	networks \
-	nsswitch.conf \
-	phones \
-	protocols \
 	rc.bsdextended \
 	rc.firewall \
-	remote \
-	rpc \
 	termcap.small
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_AMD} != "no"
-BIN1+= amd.map
-.endif
-
-.if ${MK_LOCATE} != "no"
-BIN1+=	${SRCTOP}/usr.bin/locate/locate/locate.rc
-.endif
-
-.if ${MK_LPR} != "no"
-BIN1+=	hosts.lpd printcap
-.endif
-
-.if ${MK_MAIL} != "no"
-BIN1+=	${SRCTOP}/usr.bin/mail/misc/mail.rc
-.endif
-
-.if ${MK_OPENSSL} != "no"
-SSL=	${SRCTOP}/crypto/openssl/apps/openssl.cnf
-.endif
-
 .if ${MK_SENDMAIL} != "no"
 BIN1+=	rc.sendmail
-.endif
-
-.if ${MK_WIRELESS} != "no"
-BIN1+= regdomain.xml
 .endif
 
 .if ${MK_SENDMAIL} == "no"
@@ -104,7 +67,7 @@ distribution:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${BIN1} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
-		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
+		master.passwd ${DESTDIR}/etc;
 
 .if ${MK_TCSH} == "no"
 	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
@@ -121,7 +84,6 @@ distribution:
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
-	${_+_}cd ${.CURDIR}/pam.d; ${MAKE} install
 .if ${MK_UNBOUND} != "no"
 	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
 		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \
@@ -129,10 +91,6 @@ distribution:
 .endif
 .if ${MK_SENDMAIL} != "no"
 	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution
-.endif
-.if ${MK_OPENSSL} != "no"
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${SSL} ${DESTDIR}/etc/ssl
 .endif
 .if ${MK_KERBEROS} != "no"
 	cd ${.CURDIR}/root; \
@@ -160,10 +118,6 @@ distribution:
 	    ${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints \
 	    ${DESTDIR}/boot/device.hints
 .endif
-.endif
-.if ${MK_NIS} == "no"
-	sed -i "" -e 's/.*_compat:/# &/' -e 's/compat$$/files/' \
-		${DESTDIR}/etc/nsswitch.conf
 .endif
 
 MTREE_CMD?=	mtree
@@ -205,47 +159,39 @@ distrib-cleanup: .PHONY
 	done
 
 distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
-	@set ${MTREES}; \
-	while test $$# -ge 2; do \
-		m=${.CURDIR}/$$1; \
-		shift; \
-		d=${DESTDIR}$$1; \
-		shift; \
-		test -d $$d || mkdir -p $$d; \
-		${ECHO} ${MTREE_CMD} -deU ${MTREE_FSCHG} \
-		    ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
-		${MTREE_FILTER} $$m | \
-		${MTREE_CMD} -deU ${MTREE_FSCHG} ${MTREE_FOLLOWS_SYMLINKS} \
-		    -p $$d; \
-	done; true
+.for _m _d in ${MTREES}
+	@m=${.CURDIR}/${_m}; \
+	d=${DESTDIR}${_d}; \
+	test -d $$d || mkdir -p $$d; \
+	${ECHO} ${MTREE_CMD} -deU ${MTREE_FSCHG} \
+	    ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
+	${MTREE_FILTER} $$m | \
+	${MTREE_CMD} -deU ${MTREE_FSCHG} ${MTREE_FOLLOWS_SYMLINKS} \
+	    -p $$d
+.endfor
 .if defined(NO_ROOT)
-	@set ${MTREES}; \
-	while test $$# -ge 2; do \
-		m=${.CURDIR}/$$1; \
-		shift; \
-		d=$$1; \
-		test "$$d" == "/" && d=""; \
-		d=${DISTBASE}$$d; \
-		shift; \
-		test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
-		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K all | " \
-		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
-		${MTREE_FILTER} $$m | \
-		${MTREE_CMD:N-W} -C -K all | sed s#^\.#.$$d# | \
-		    ${METALOG.add} ; \
-	done; true
+.for _m _d in ${MTREES}
+	@m=${.CURDIR}/${_m}; \
+	d=${_d}; \
+	test "$$d" == "/" && d=""; \
+	d=${DISTBASE}$$d; \
+	test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
+	${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K all | " \
+	    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
+	${MTREE_FILTER} $$m | \
+	${MTREE_CMD:N-W} -C -K all | sed s#^\.#.$$d# | \
+	    ${METALOG.add}
+.endfor
 .endif
 .if ${MK_NLS} != "no"
-	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
-	while [ $$# -gt 0 ] ; do \
-		${INSTALL_SYMLINK} "$$2" "${DESTDIR}${SHAREDIR}/nls/$$1"; \
-		shift; shift; \
-	done
+.for alias nls in ${NLS_ALIASES}
+	${INSTALL_SYMLINK} "${nls}" "${DESTDIR}${SHAREDIR}/nls/${alias}"
+.endfor
 .endif
 
 etc-examples: ${META_DEPS}
 	cd ${.CURDIR}; ${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
+	    ${BIN1} ${BIN2} \
 	    ${DESTDIR}${SHAREDIR}/examples/etc
 
 .include <bsd.prog.mk>

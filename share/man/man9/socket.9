@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2018
+.Dd October 18, 2018
 .Dt SOCKET 9
 .Os
 .Sh NAME
@@ -378,8 +378,8 @@ or
 A kernel system can use the
 .Fn sodtor_set
 function to set a destructor for a socket.
-The destructor is called when the socket is closed.
-The destructor is called after the protocol close routine has completed.
+The destructor is called when the socket is is about to be freed.
+The destructor is called before the protocol detach routine.
 The destructor can serve as a callback to initiate additional cleanup actions.
 .Ss Socket I/O
 The

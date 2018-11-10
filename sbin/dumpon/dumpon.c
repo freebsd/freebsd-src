@@ -243,6 +243,30 @@ genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 	if (pubkey == NULL)
 		errx(1, "Unable to read data from %s.", pubkeyfile);
 
+	/*
+	 * RSA keys under ~1024 bits are trivially factorable (2018).  OpenSSL
+	 * provides an API for RSA keys to estimate the symmetric-cipher
+	 * "equivalent" bits of security (defined in NIST SP800-57), which as
+	 * of this writing equates a 2048-bit RSA key to 112 symmetric cipher
+	 * bits.
+	 *
+	 * Use this API as a seatbelt to avoid suggesting to users that their
+	 * privacy is protected by encryption when the key size is insufficient
+	 * to prevent compromise via factoring.
+	 *
+	 * Future work: Sanity check for weak 'e', and sanity check for absence
+	 * of 'd' (i.e., the supplied key is a public key rather than a full
+	 * keypair).
+	 */
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	if (RSA_security_bits(pubkey) < 112)
+#else
+	if (RSA_size(pubkey) * 8 < 2048)
+#endif
+		errx(1, "Small RSA keys (you provided: %db) can be "
+		    "factored cheaply.  Please generate a larger key.",
+		    RSA_size(pubkey) * 8);
+
 	kdap->kda_encryptedkeysize = RSA_size(pubkey);
 	if (kdap->kda_encryptedkeysize > KERNELDUMP_ENCKEY_MAX_SIZE) {
 		errx(1, "Public key has to be at most %db long.",

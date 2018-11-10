@@ -718,6 +718,7 @@ packed_rrset_heap_data(int iter(struct autr_ta**, uint8_t**, size_t*,
 	list_i = list;
 	i = 0;
 	while(iter(&list_i, &rr, &rr_len, &dname_len)) {
+		log_assert(data->rr_data[i]);
 		memmove(data->rr_data[i],
 			sldns_wirerr_get_rdatawl(rr, rr_len, dname_len),
 			data->rr_len[i]);
@@ -2306,7 +2307,7 @@ autr_debug_print(struct val_anchors* anchors)
 
 void probe_answer_cb(void* arg, int ATTR_UNUSED(rcode), 
 	sldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(sec),
-	char* ATTR_UNUSED(why_bogus))
+	char* ATTR_UNUSED(why_bogus), int ATTR_UNUSED(was_ratelimited))
 {
 	/* retry was set before the query was done,
 	 * re-querytime is set when query succeeded, but that may not

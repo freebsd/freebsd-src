@@ -129,26 +129,31 @@
 .\" ========================================================================
 .\"
 .IX Title "PASSWD 1"
-.TH PASSWD 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH PASSWD 1 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-openssl\-passwd,
-passwd \- compute password hashes
+openssl\-passwd, passwd \- compute password hashes
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBopenssl passwd\fR
+[\fB\-help\fR]
 [\fB\-crypt\fR]
 [\fB\-1\fR]
 [\fB\-apr1\fR]
+[\fB\-aixmd5\fR]
+[\fB\-5\fR]
+[\fB\-6\fR]
 [\fB\-salt\fR \fIstring\fR]
 [\fB\-in\fR \fIfile\fR]
 [\fB\-stdin\fR]
 [\fB\-noverify\fR]
 [\fB\-quiet\fR]
 [\fB\-table\fR]
+[\fB\-rand file...\fR]
+[\fB\-writerand file\fR]
 {\fIpassword\fR}
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -157,9 +162,12 @@ run-time or the hash of each password in a list.  The password list is
 taken from the named file for option \fB\-in file\fR, from stdin for
 option \fB\-stdin\fR, or from the command line, or from the terminal otherwise.
 The Unix standard algorithm \fBcrypt\fR and the MD5\-based \s-1BSD\s0 password
-algorithm \fB1\fR and its Apache variant \fBapr1\fR are available.
+algorithm \fB1\fR, its Apache variant \fBapr1\fR, and its \s-1AIX\s0 variant are available.
 .SH "OPTIONS"
 .IX Header "OPTIONS"
+.IP "\fB\-help\fR" 4
+.IX Item "-help"
+Print out a usage message.
 .IP "\fB\-crypt\fR" 4
 .IX Item "-crypt"
 Use the \fBcrypt\fR algorithm (default).
@@ -169,6 +177,17 @@ Use the \s-1MD5\s0 based \s-1BSD\s0 password algorithm \fB1\fR.
 .IP "\fB\-apr1\fR" 4
 .IX Item "-apr1"
 Use the \fBapr1\fR algorithm (Apache variant of the \s-1BSD\s0 algorithm).
+.IP "\fB\-aixmd5\fR" 4
+.IX Item "-aixmd5"
+Use the \fB\s-1AIX MD5\s0\fR algorithm (\s-1AIX\s0 variant of the \s-1BSD\s0 algorithm).
+.IP "\fB\-5\fR" 4
+.IX Item "-5"
+.PD 0
+.IP "\fB\-6\fR" 4
+.IX Item "-6"
+.PD
+Use the \fB\s-1SHA256\s0\fR / \fB\s-1SHA512\s0\fR based algorithms defined by Ulrich Drepper.
+See <https://www.akkadia.org/drepper/SHA\-crypt.txt>.
 .IP "\fB\-salt\fR \fIstring\fR" 4
 .IX Item "-salt string"
 Use the specified salt.
@@ -189,10 +208,37 @@ Don't output warnings when passwords given at the command line are truncated.
 .IX Item "-table"
 In the output list, prepend the cleartext password and a \s-1TAB\s0 character
 to each password hash.
+.IP "\fB\-rand file...\fR" 4
+.IX Item "-rand file..."
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
+The separator is \fB;\fR for MS-Windows, \fB,\fR for OpenVMS, and \fB:\fR for
+all others.
+.IP "[\fB\-writerand file\fR]" 4
+.IX Item "[-writerand file]"
+Writes random data to the specified \fIfile\fR upon exit.
+This can be used with a subsequent \fB\-rand\fR flag.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
-\&\fBopenssl passwd \-crypt \-salt xx password\fR prints \fBxxj31ZMTZzkVA\fR.
+.Vb 2
+\&  % openssl passwd \-crypt \-salt xx password
+\&  xxj31ZMTZzkVA
+\&
+\&  % openssl passwd \-1 \-salt xxxxxxxx password
+\&  $1$xxxxxxxx$UYCIxa628.9qXjpQCjM4a.
+\&
+\&  % openssl passwd \-apr1 \-salt xxxxxxxx password
+\&  $apr1$xxxxxxxx$dxHfLAsjHkDRmG83UXe8K0
+\&
+\&  % openssl passwd \-aixmd5 \-salt xxxxxxxx password
+\&  xxxxxxxx$8Oaipk/GPKhC64w/YVeFD/
+.Ve
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-\&\fBopenssl passwd \-1 \-salt xxxxxxxx password\fR prints \fB\f(CB$1\fB$xxxxxxxx$UYCIxa628.9qXjpQCjM4a.\fR.
-.PP
-\&\fBopenssl passwd \-apr1 \-salt xxxxxxxx password\fR prints \fB\f(CB$apr1\fB$xxxxxxxx$dxHfLAsjHkDRmG83UXe8K0\fR.
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

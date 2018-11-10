@@ -128,24 +128,22 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "OBJ_nid2obj 3"
-.TH OBJ_nid2obj 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "OBJ_NID2OBJ 3"
+.TH OBJ_NID2OBJ 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-OBJ_nid2obj, OBJ_nid2ln, OBJ_nid2sn, OBJ_obj2nid, OBJ_txt2nid, OBJ_ln2nid, OBJ_sn2nid,
-OBJ_cmp, OBJ_dup, OBJ_txt2obj, OBJ_obj2txt, OBJ_create, OBJ_cleanup \- ASN1 object utility
-functions
+i2t_ASN1_OBJECT, OBJ_length, OBJ_get0_data, OBJ_nid2obj, OBJ_nid2ln, OBJ_nid2sn, OBJ_obj2nid, OBJ_txt2nid, OBJ_ln2nid, OBJ_sn2nid, OBJ_cmp, OBJ_dup, OBJ_txt2obj, OBJ_obj2txt, OBJ_create, OBJ_cleanup \&\- ASN1 object utility functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/objects.h>
 \&
-\& ASN1_OBJECT * OBJ_nid2obj(int n);
-\& const char *  OBJ_nid2ln(int n);
-\& const char *  OBJ_nid2sn(int n);
+\& ASN1_OBJECT *OBJ_nid2obj(int n);
+\& const char *OBJ_nid2ln(int n);
+\& const char *OBJ_nid2sn(int n);
 \&
 \& int OBJ_obj2nid(const ASN1_OBJECT *o);
 \& int OBJ_ln2nid(const char *ln);
@@ -153,14 +151,26 @@ functions
 \&
 \& int OBJ_txt2nid(const char *s);
 \&
-\& ASN1_OBJECT * OBJ_txt2obj(const char *s, int no_name);
+\& ASN1_OBJECT *OBJ_txt2obj(const char *s, int no_name);
 \& int OBJ_obj2txt(char *buf, int buf_len, const ASN1_OBJECT *a, int no_name);
 \&
-\& int OBJ_cmp(const ASN1_OBJECT *a,const ASN1_OBJECT *b);
-\& ASN1_OBJECT * OBJ_dup(const ASN1_OBJECT *o);
+\& int i2t_ASN1_OBJECT(char *buf, int buf_len, const ASN1_OBJECT *a);
 \&
-\& int OBJ_create(const char *oid,const char *sn,const char *ln);
-\& void OBJ_cleanup(void);
+\& int OBJ_cmp(const ASN1_OBJECT *a, const ASN1_OBJECT *b);
+\& ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o);
+\&
+\& int OBJ_create(const char *oid, const char *sn, const char *ln);
+\&
+\& size_t OBJ_length(const ASN1_OBJECT *obj);
+\& const unsigned char *OBJ_get0_data(const ASN1_OBJECT *obj);
+.Ve
+.PP
+Deprecated:
+.PP
+.Vb 3
+\& #if OPENSSL_API_COMPAT < 0x10100000L
+\& void OBJ_cleanup(void)
+\& #endif
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -173,7 +183,7 @@ are available as defined constants.  For the functions below, application
 code should treat all returned values \*(-- OIDs, NIDs, or names \*(-- as
 constants.
 .PP
-\&\fIOBJ_nid2obj()\fR, \fIOBJ_nid2ln()\fR and \fIOBJ_nid2sn()\fR convert the \s-1NID\s0 \fBn\fR to 
+\&\fIOBJ_nid2obj()\fR, \fIOBJ_nid2ln()\fR and \fIOBJ_nid2sn()\fR convert the \s-1NID\s0 \fBn\fR to
 an \s-1ASN1_OBJECT\s0 structure, its long name and its short name respectively,
 or \fB\s-1NULL\s0\fR if an error occurred.
 .PP
@@ -182,7 +192,7 @@ for the object \fBo\fR, the long name <ln> or the short name <sn> respectively
 or NID_undef if an error occurred.
 .PP
 \&\fIOBJ_txt2nid()\fR returns \s-1NID\s0 corresponding to text string <s>. \fBs\fR can be
-a long name, a short name or the numerical respresentation of an object.
+a long name, a short name or the numerical representation of an object.
 .PP
 \&\fIOBJ_txt2obj()\fR converts the text string \fBs\fR into an \s-1ASN1_OBJECT\s0 structure.
 If \fBno_name\fR is 0 then long names and short names will be interpreted
@@ -197,17 +207,23 @@ if the object has a long or short name then that will be used, otherwise
 the numerical form will be used. If \fBno_name\fR is 1 then the numerical
 form will always be used.
 .PP
+\&\fIi2t_ASN1_OBJECT()\fR is the same as \fIOBJ_obj2txt()\fR with the \fBno_name\fR set to zero.
+.PP
 \&\fIOBJ_cmp()\fR compares \fBa\fR to \fBb\fR. If the two are identical 0 is returned.
 .PP
 \&\fIOBJ_dup()\fR returns a copy of \fBo\fR.
 .PP
-\&\fIOBJ_create()\fR adds a new object to the internal table. \fBoid\fR is the 
+\&\fIOBJ_create()\fR adds a new object to the internal table. \fBoid\fR is the
 numerical form of the object, \fBsn\fR the short name and \fBln\fR the
-long name. A new \s-1NID\s0 is returned for the created object.
+long name. A new \s-1NID\s0 is returned for the created object in case of
+success and NID_undef in case of failure.
 .PP
-\&\fIOBJ_cleanup()\fR cleans up OpenSSLs internal object table: this should
-be called before an application exits if any new objects were added
-using \fIOBJ_create()\fR.
+\&\fIOBJ_length()\fR returns the size of the content octets of \fBobj\fR.
+.PP
+\&\fIOBJ_get0_data()\fR returns a pointer to the content octets of \fBobj\fR.
+The returned pointer is an internal pointer which \fBmust not\fR be freed.
+.PP
+\&\fIOBJ_cleanup()\fR releases any resources allocated by creating new objects.
 .SH "NOTES"
 .IX Header "NOTES"
 Objects in OpenSSL can have a short name, a long name and a numerical
@@ -249,27 +265,22 @@ The latter cannot be constant because it needs to be freed after use.
 .IX Header "EXAMPLES"
 Create an object for \fBcommonName\fR:
 .PP
-.Vb 2
-\& ASN1_OBJECT *o;
-\& o = OBJ_nid2obj(NID_commonName);
+.Vb 1
+\& ASN1_OBJECT *o = OBJ_nid2obj(NID_commonName);
 .Ve
 .PP
 Check if an object is \fBcommonName\fR
 .PP
 .Vb 2
 \& if (OBJ_obj2nid(obj) == NID_commonName)
-\&        /* Do something */
+\&     /* Do something */
 .Ve
 .PP
 Create a new \s-1NID\s0 and initialize an object from it:
 .PP
 .Vb 2
-\& int new_nid;
-\& ASN1_OBJECT *obj;
-\&
-\& new_nid = OBJ_create("1.2.3.4", "NewOID", "New Object Identifier");
-\&
-\& obj = OBJ_nid2obj(new_nid);
+\& int new_nid = OBJ_create("1.2.3.4", "NewOID", "New Object Identifier");
+\& ASN1_OBJECT *obj = OBJ_nid2obj(new_nid);
 .Ve
 .PP
 Create a new object directly:
@@ -279,7 +290,7 @@ Create a new object directly:
 .Ve
 .SH "BUGS"
 .IX Header "BUGS"
-\&\fIOBJ_obj2txt()\fR is awkward and messy to use: it doesn't follow the 
+\&\fIOBJ_obj2txt()\fR is awkward and messy to use: it doesn't follow the
 convention of other OpenSSL functions where the buffer can be set
 to \fB\s-1NULL\s0\fR to determine the amount of data that should be written.
 Instead \fBbuf\fR must point to a valid buffer and \fBbuf_len\fR should
@@ -289,8 +300,6 @@ than enough to handle any \s-1OID\s0 encountered in practice.
 .IX Header "RETURN VALUES"
 \&\fIOBJ_nid2obj()\fR returns an \fB\s-1ASN1_OBJECT\s0\fR structure or \fB\s-1NULL\s0\fR is an
 error occurred.
-It returns a pointer to an internal table and does not
-allocate memory; \fIASN1_OBJECT_free()\fR will have no effect.
 .PP
 \&\fIOBJ_nid2ln()\fR and \fIOBJ_nid2sn()\fR returns a valid string or \fB\s-1NULL\s0\fR
 on error.
@@ -302,4 +311,13 @@ a \s-1NID\s0 or \fBNID_undef\fR on error.
 \&\fIERR_get_error\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\s-1TBA\s0
+\&\fIOBJ_cleanup()\fR was deprecated in OpenSSL 1.1.0 by \fIOPENSSL_init_crypto\fR\|(3)
+and should not be used.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

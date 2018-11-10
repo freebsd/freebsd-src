@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "PKCS12_create 3"
-.TH PKCS12_create 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "PKCS12_CREATE 3"
+.TH PKCS12_CREATE 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,20 +141,22 @@ PKCS12_create \- create a PKCS#12 structure
 .Vb 1
 \& #include <openssl/pkcs12.h>
 \&
-\& PKCS12 *PKCS12_create(char *pass, char *name, EVP_PKEY *pkey, X509 *cert, STACK_OF(X509) *ca,
-\&                                int nid_key, int nid_cert, int iter, int mac_iter, int keytype);
+\& PKCS12 *PKCS12_create(const char *pass, const char *name, EVP_PKEY *pkey,
+\&                       X509 *cert, STACK_OF(X509) *ca,
+\&                       int nid_key, int nid_cert, int iter, int mac_iter, int keytype);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fIPKCS12_create()\fR creates a PKCS#12 structure.
 .PP
 \&\fBpass\fR is the passphrase to use. \fBname\fR is the \fBfriendlyName\fR to use for
-the supplied certifictate and key. \fBpkey\fR is the private key to include in
+the supplied certificate and key. \fBpkey\fR is the private key to include in
 the structure and \fBcert\fR its corresponding certificates. \fBca\fR, if not \fB\s-1NULL\s0\fR
 is an optional set of certificates to also include in the structure.
 .PP
 \&\fBnid_key\fR and \fBnid_cert\fR are the encryption algorithms that should be used
-for the key and certificate respectively. \fBiter\fR is the encryption algorithm
+for the key and certificate respectively. The modes
+\&\s-1GCM, CCM, XTS,\s0 and \s-1OCB\s0 are unsupported. \fBiter\fR is the encryption algorithm
 iteration count to use and \fBmac_iter\fR is the \s-1MAC\s0 iteration count to use.
 \&\fBkeytype\fR is the type of key.
 .SH "NOTES"
@@ -177,26 +179,35 @@ it can be used for signing and encryption. This option was useful for old
 export grade software which could use signing only keys of arbitrary size but
 had restrictions on the permissible sizes of keys which could be used for
 encryption.
-.SH "NEW FUNCTIONALITY IN OPENSSL 0.9.8"
-.IX Header "NEW FUNCTIONALITY IN OPENSSL 0.9.8"
-Some additional functionality was added to \fIPKCS12_create()\fR in OpenSSL
-0.9.8. These extensions are detailed below.
 .PP
 If a certificate contains an \fBalias\fR or \fBkeyid\fR then this will be
 used for the corresponding \fBfriendlyName\fR or \fBlocalKeyID\fR in the
 \&\s-1PKCS12\s0 structure.
 .PP
 Either \fBpkey\fR, \fBcert\fR or both can be \fB\s-1NULL\s0\fR to indicate that no key or
-certficate is required. In previous versions both had to be present or
+certificate is required. In previous versions both had to be present or
 a fatal error is returned.
 .PP
 \&\fBnid_key\fR or \fBnid_cert\fR can be set to \-1 indicating that no encryption
 should be used.
 .PP
 \&\fBmac_iter\fR can be set to \-1 and the \s-1MAC\s0 will then be omitted entirely.
+.PP
+\&\fIPKCS12_create()\fR makes assumptions regarding the encoding of the given pass
+phrase.
+See \fIpassphrase\-encoding\fR\|(7) for more information.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fIPKCS12_create()\fR returns a valid \fB\s-1PKCS12\s0\fR structure or \s-1NULL\s0 if an error occurred.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fId2i_PKCS12\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-PKCS12_create was added in OpenSSL 0.9.3
+\&\fId2i_PKCS12\fR\|(3),
+\&\fIpassphrase\-encoding\fR\|(7)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

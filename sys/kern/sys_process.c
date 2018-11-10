@@ -387,8 +387,9 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 			error = EINVAL;
 			break;
 		}
-		while (entry != &map->header &&
-		    (entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0) {
+		KASSERT((map->header.eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
+		    ("Submap in map header"));
+		while ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0) {
 			entry = entry->next;
 			index++;
 		}

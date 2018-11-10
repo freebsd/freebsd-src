@@ -239,7 +239,7 @@ OpcAmlOpcodeWalk (
     void                    *Context)
 {
 
-    TotalParseNodes++;
+    AslGbl_TotalParseNodes++;
 
     OpcGenerateAmlOpcode (Op);
     OpnGenerateAmlOperands (Op);
@@ -271,9 +271,9 @@ OpcGetIntegerWidth (
         return;
     }
 
-    if (Gbl_RevisionOverride)
+    if (AslGbl_RevisionOverride)
     {
-        AcpiUtSetIntegerWidth (Gbl_RevisionOverride);
+        AcpiUtSetIntegerWidth (AslGbl_RevisionOverride);
     }
     else
     {
@@ -328,7 +328,7 @@ OpcSetOptimalIntegerSize (
      *
      * This optimization is optional.
      */
-    if (Gbl_IntegerOptimizationFlag)
+    if (AslGbl_IntegerOptimizationFlag)
     {
         switch (Op->Asl.Value.Integer)
         {
@@ -404,7 +404,7 @@ OpcSetOptimalIntegerSize (
             AslError (ASL_WARNING, ASL_MSG_INTEGER_LENGTH,
                 Op, NULL);
 
-            if (!Gbl_IgnoreErrors)
+            if (!AslGbl_IgnoreErrors)
             {
                 /* Truncate the integer to 32-bit */
 
@@ -466,9 +466,9 @@ OpcDoAccessAs (
     /* Only a few AccessAttributes support AccessLength */
 
     Attribute = (UINT8) AttribOp->Asl.Value.Integer;
-    if ((Attribute != AML_FIELD_ATTRIB_MULTIBYTE) &&
+    if ((Attribute != AML_FIELD_ATTRIB_BYTES) &&
         (Attribute != AML_FIELD_ATTRIB_RAW_BYTES) &&
-        (Attribute != AML_FIELD_ATTRIB_RAW_PROCESS))
+        (Attribute != AML_FIELD_ATTRIB_RAW_PROCESS_BYTES))
     {
         return;
     }
@@ -924,12 +924,12 @@ OpcGenerateAmlOpcode (
 
     case PARSEOP_INCLUDE:
 
-        Gbl_HasIncludeFiles = TRUE;
+        AslGbl_HasIncludeFiles = TRUE;
         break;
 
     case PARSEOP_EXTERNAL:
 
-        if (Gbl_DoExternals == FALSE)
+        if (AslGbl_DoExternals == FALSE)
         {
             Op->Asl.Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
             Op->Asl.Child->Asl.Next->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;

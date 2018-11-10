@@ -24,18 +24,16 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2018
+.Dd October 22, 2018
 .Dt NUMA 4
 .Os
 .Sh NAME
 .Nm NUMA
 .Nd Non-Uniform Memory Access
 .Sh SYNOPSIS
-.Cd options SMP
-.Cd options MAXMEMDOM=16
+.Cd options MAXMEMDOM
+.Cd options NUMA
 .Pp
-.In sys/cpuset.h
-.In sys/bus.h
 .Sh DESCRIPTION
 Non-Uniform Memory Access is a computer architecture design which
 involves unequal costs between processors, memory and IO devices
@@ -47,14 +45,26 @@ architecture, the latency to access specific memory or IO devices
 depends upon which processor the memory or device is attached to.
 Accessing memory local to a processor is faster than accessing memory
 that is connected to one of the other processors.
+.Fx
+implements NUMA-aware memory allocation policies.
+By default it attempts to ensure that allocations are balanced across
+each domain.
+Users may override the default domain selection policy using
+.Xr cpuset 1 .
 .Pp
 .Nm
-is enabled when the
+support is enabled when the
 .Cd NUMA
-option is used in a kernel configuration
-file and the
+option is specified in the kernel configuration file.
+Each platform defines the
 .Cd MAXMEMDOM
-option is set to a value greater than 1.
+constant, which specifies the maximum number of supported NUMA domains.
+This constant may be specified in the kernel configuration file.
+.Nm
+support can be disabled at boot time by setting the
+.Va vm.numa.disabled
+tunable to 1.
+Other values for this tunable are currently ignored.
 .Pp
 Thread and process
 .Nm
@@ -128,7 +138,7 @@ tool first appeared in
 .Fx 11.0
 and were removed in
 .Fx 12.0 .
-Current implementation appeared in
+The current implementation appeared in
 .Fx 12.0 .
 .Pp
 .Sh AUTHORS

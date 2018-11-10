@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 28, 2018
+.Dd October 6, 2018
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -147,6 +147,15 @@ If a password is set, the user must provide specified password to boot.
 If set to
 .Dq YES ,
 module names will be displayed as they are loaded.
+.It Ar module_blacklist
+Blacklist of modules.
+Modules specified in the blacklist may not be loaded automatically with a
+.Ar *_load
+directive, but they may be loaded directly at the
+.Xr loader 8
+prompt.
+Blacklisted modules may still be loaded indirectly as dependencies of other
+modules.
 .It Ar *_load
 If set to
 .Dq YES ,

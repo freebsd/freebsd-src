@@ -41,6 +41,8 @@ options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilites
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 options 	VFP			# Enable floating point hardware support
 options 	MAC			# Support for Mandatory Access Control (MAC)
@@ -68,6 +70,7 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options 	ALT_BREAK_TO_DEBUGGER	# Enter debugger on keyboard escape sequence
 options 	USB_DEBUG		# Enable usb debug support code
+options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
 
 # Optional extras, never enabled by default:
 #options 	BOOTVERBOSE
@@ -79,4 +82,3 @@ options 	USB_DEBUG		# Enable usb debug support code
 #options 	KTR_VERBOSE=0
 #options 	USB_REQ_DEBUG
 #options 	USB_VERBOSE
-#options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages

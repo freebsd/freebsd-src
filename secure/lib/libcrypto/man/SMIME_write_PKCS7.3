@@ -128,14 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "SMIME_write_PKCS7 3"
-.TH SMIME_write_PKCS7 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "SMIME_WRITE_PKCS7 3"
+.TH SMIME_WRITE_PKCS7 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SMIME_write_PKCS7 \- convert PKCS#7 structure to S/MIME format.
+SMIME_write_PKCS7 \- convert PKCS#7 structure to S/MIME format
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -165,14 +165,14 @@ is also set.
 .PP
 If the \fB\s-1PKCS7_STREAM\s0\fR flag is set streaming is performed. This flag should
 only be set if \fB\s-1PKCS7_STREAM\s0\fR was also set in the previous call to
-\&\fIPKCS7_sign()\fR or \fB\f(BIPKCS7_encrypt()\fB\fR.
+\&\fIPKCS7_sign()\fR or \fIPKCS7_encrypt()\fR.
 .PP
 If cleartext signing is being used and \fB\s-1PKCS7_STREAM\s0\fR not set then
 the data must be read twice: once to compute the signature in \fIPKCS7_sign()\fR
 and once to output the S/MIME message.
 .PP
 If streaming is performed the content is output in \s-1BER\s0 format using indefinite
-length constructuted encoding except in the case of signed data with detached
+length constructed encoding except in the case of signed data with detached
 content where the content is absent and \s-1DER\s0 format is used.
 .SH "BUGS"
 .IX Header "BUGS"
@@ -186,6 +186,11 @@ should be an option to disable this.
 \&\fIERR_get_error\fR\|(3), \fIPKCS7_sign\fR\|(3),
 \&\fIPKCS7_verify\fR\|(3), \fIPKCS7_encrypt\fR\|(3)
 \&\fIPKCS7_decrypt\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fISMIME_write_PKCS7()\fR was added to OpenSSL 0.9.5
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

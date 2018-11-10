@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <libgen.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -246,16 +247,13 @@ a_uid(const char *s)
 static uid_t
 id(const char *name, const char *type)
 {
-	uid_t val;
+	unsigned long val;
 	char *ep;
 
-	/*
-	 * XXX
-	 * We know that uid_t's and gid_t's are unsigned longs.
-	 */
 	errno = 0;
 	val = strtoul(name, &ep, 10);
-	if (errno || *ep != '\0')
+	_Static_assert(UID_MAX >= GID_MAX, "UID MAX less than GID MAX");
+	if (errno || *ep != '\0' || val > UID_MAX)
 		errx(1, "%s: illegal %s name", name, type);
 	return (val);
 }

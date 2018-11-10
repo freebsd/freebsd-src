@@ -128,27 +128,29 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "X509_NAME_add_entry_by_txt 3"
-.TH X509_NAME_add_entry_by_txt 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "X509_NAME_ADD_ENTRY_BY_TXT 3"
+.TH X509_NAME_ADD_ENTRY_BY_TXT 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_NAME_add_entry_by_txt, X509_NAME_add_entry_by_OBJ, X509_NAME_add_entry_by_NID,
-X509_NAME_add_entry, X509_NAME_delete_entry \- X509_NAME modification functions
+X509_NAME_add_entry_by_txt, X509_NAME_add_entry_by_OBJ, X509_NAME_add_entry_by_NID, X509_NAME_add_entry, X509_NAME_delete_entry \- X509_NAME modification functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/x509.h>
 \&
-\& int X509_NAME_add_entry_by_txt(X509_NAME *name, const char *field, int type, const unsigned char *bytes, int len, int loc, int set);
+\& int X509_NAME_add_entry_by_txt(X509_NAME *name, const char *field, int type,
+\&                                const unsigned char *bytes, int len, int loc, int set);
 \&
-\& int X509_NAME_add_entry_by_OBJ(X509_NAME *name, ASN1_OBJECT *obj, int type, unsigned char *bytes, int len, int loc, int set);
+\& int X509_NAME_add_entry_by_OBJ(X509_NAME *name, const ASN1_OBJECT *obj, int type,
+\&                                const unsigned char *bytes, int len, int loc, int set);
 \&
-\& int X509_NAME_add_entry_by_NID(X509_NAME *name, int nid, int type, unsigned char *bytes, int len, int loc, int set);
+\& int X509_NAME_add_entry_by_NID(X509_NAME *name, int nid, int type,
+\&                                const unsigned char *bytes, int len, int loc, int set);
 \&
-\& int X509_NAME_add_entry(X509_NAME *name,X509_NAME_ENTRY *ne, int loc, int set);
+\& int X509_NAME_add_entry(X509_NAME *name, const X509_NAME_ENTRY *ne, int loc, int set);
 \&
 \& X509_NAME_ENTRY *X509_NAME_delete_entry(X509_NAME *name, int loc);
 .Ve
@@ -208,20 +210,21 @@ Create an \fBX509_NAME\fR structure:
 .PP
 \&\*(L"C=UK, O=Disorganized Organization, CN=Joe Bloggs\*(R"
 .PP
-.Vb 10
+.Vb 1
 \& X509_NAME *nm;
+\&
 \& nm = X509_NAME_new();
 \& if (nm == NULL)
-\&        /* Some error */
-\& if (!X509_NAME_add_entry_by_txt(nm, "C", MBSTRING_ASC, 
-\&                        "UK", \-1, \-1, 0))
-\&        /* Error */
+\&     /* Some error */
+\& if (!X509_NAME_add_entry_by_txt(nm, "C", MBSTRING_ASC,
+\&                                 "UK", \-1, \-1, 0))
+\&     /* Error */
 \& if (!X509_NAME_add_entry_by_txt(nm, "O", MBSTRING_ASC,
-\&                        "Disorganized Organization", \-1, \-1, 0))
-\&        /* Error */
+\&                                 "Disorganized Organization", \-1, \-1, 0))
+\&     /* Error */
 \& if (!X509_NAME_add_entry_by_txt(nm, "CN", MBSTRING_ASC,
-\&                        "Joe Bloggs", \-1, \-1, 0))
-\&        /* Error */
+\&                                 "Joe Bloggs", \-1, \-1, 0))
+\&     /* Error */
 .Ve
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
@@ -240,5 +243,11 @@ can result in invalid field types its use is strongly discouraged.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIERR_get_error\fR\|(3), \fId2i_X509_NAME\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

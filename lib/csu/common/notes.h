@@ -34,8 +34,4 @@
 
 #define NOTE_SECTION		".note.tag"
 
-#define ABI_NOTETYPE		1
-#define	CRT_NOINIT_NOTETYPE	2
-#define	ARCH_NOTETYPE		3
-
 #endif

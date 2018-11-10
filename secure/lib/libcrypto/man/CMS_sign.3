@@ -128,22 +128,21 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "CMS_sign 3"
-.TH CMS_sign 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "CMS_SIGN 3"
+.TH CMS_SIGN 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-.Vb 1
-\& CMS_sign \- create a CMS SignedData structure
-.Ve
+CMS_sign \- create a CMS SignedData structure
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/cms.h>
 \&
-\& CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs, BIO *data, unsigned int flags);
+\& CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
+\&                           BIO *data, unsigned int flags);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -229,7 +228,7 @@ suitable for many purposes. For finer control of the output format the
 \&\fBcerts\fR, \fBsigncert\fR and \fBpkey\fR parameters can all be \fB\s-1NULL\s0\fR and the
 \&\fB\s-1CMS_PARTIAL\s0\fR flag set. Then one or more signers can be added using the
 function \fICMS_sign_add1_signer()\fR, non default digests can be used and custom
-attributes added. \fB\f(BICMS_final()\fB\fR must then be called to finalize the
+attributes added. \fICMS_final()\fR must then be called to finalize the
 structure if streaming is not enabled.
 .SH "BUGS"
 .IX Header "BUGS"
@@ -243,7 +242,13 @@ occurred. The error can be obtained from \fIERR_get_error\fR\|(3).
 \&\fIERR_get_error\fR\|(3), \fICMS_verify\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fICMS_sign()\fR was added to OpenSSL 0.9.8
-.PP
 The \fB\s-1CMS_STREAM\s0\fR flag is only supported for detached data in OpenSSL 0.9.8,
 it is supported for embedded data in OpenSSL 1.0.0 and later.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

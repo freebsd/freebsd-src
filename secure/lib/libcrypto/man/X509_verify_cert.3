@@ -128,14 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "X509_verify_cert 3"
-.TH X509_verify_cert 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "X509_VERIFY_CERT 3"
+.TH X509_VERIFY_CERT 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_verify_cert \- discover and verify X509 certificte chain
+X509_verify_cert \- discover and verify X509 certificate chain
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -172,10 +172,15 @@ Applications must check for <= 0 return value on error.
 .SH "BUGS"
 .IX Header "BUGS"
 This function uses the header \fBx509.h\fR as opposed to most chain verification
-functiosn which use \fBx509_vfy.h\fR.
+functions which use \fBx509_vfy.h\fR.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIX509_STORE_CTX_get_error\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIX509_verify_cert()\fR is available in all versions of SSLeay and OpenSSL.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2009\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

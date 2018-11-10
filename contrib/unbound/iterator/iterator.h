@@ -371,6 +371,9 @@ struct iter_qstate {
 	/** QNAME minimisation state, RFC7816 */
 	enum minimisation_state minimisation_state;
 
+	/** State for capsfail: QNAME minimisation state for comparisons. */
+	enum minimisation_state caps_minimisation_state;
+
 	/**
 	 * The query info that is sent upstream. Will be a subset of qchase
 	 * when qname minimisation is enabled.

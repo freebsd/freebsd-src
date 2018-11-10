@@ -2143,6 +2143,7 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 {
 	dmu_object_info_t doi;
 	dmu_tx_t *tx;
+	dmu_buf_t *db;
 	uint64_t object;
 	int err;
 
@@ -2190,12 +2191,14 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 
 	tx = dmu_tx_create(rwa->os);
 	dmu_tx_hold_bonus(tx, object);
+	dmu_tx_hold_write(tx, object, 0, 0);
 	err = dmu_tx_assign(tx, TXG_WAIT);
 	if (err != 0) {
 		dmu_tx_abort(tx);
 		return (err);
 	}
 
+	db = NULL;
 	if (object == DMU_NEW_OBJECT) {
 		/* currently free, want to be allocated */
 		err = dmu_object_claim_dnsize(rwa->os, drro->drr_object,
@@ -2203,15 +2206,33 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 		    drro->drr_bonustype, drro->drr_bonuslen,
 		    drro->drr_dn_slots << DNODE_SHIFT, tx);
 	} else if (drro->drr_type != doi.doi_type ||
-	    drro->drr_blksz != doi.doi_data_block_size ||
-	    drro->drr_bonustype != doi.doi_bonus_type ||
-	    drro->drr_bonuslen != doi.doi_bonus_size) {
+	    (drro->drr_blksz != doi.doi_data_block_size &&
+	     doi.doi_max_offset > doi.doi_data_block_size)) {
 		/* currently allocated, but with different properties */
 		err = dmu_object_reclaim(rwa->os, drro->drr_object,
 		    drro->drr_type, drro->drr_blksz,
 		    drro->drr_bonustype, drro->drr_bonuslen, tx);
+	} else {
+		/*
+		 * Currently allocated, but with slightly different properties,
+		 * that may change live, like block size or bonus buffer.
+		 * Change those specifically to not loose the spill block, etc.
+		 */
+		if (drro->drr_bonustype != doi.doi_bonus_type ||
+		    drro->drr_bonuslen != doi.doi_bonus_size)
+			VERIFY0(dmu_bonus_hold(rwa->os, drro->drr_object, FTAG,
+			    &db));
+		if (drro->drr_bonustype != doi.doi_bonus_type)
+			VERIFY0(dmu_set_bonustype(db, drro->drr_bonustype, tx));
+		if (drro->drr_bonuslen != doi.doi_bonus_size)
+			VERIFY0(dmu_set_bonus(db, drro->drr_bonuslen, tx));
+		if (drro->drr_blksz != doi.doi_data_block_size)
+			err = dmu_object_set_blocksize(rwa->os, drro->drr_object,
+			    drro->drr_blksz, 0, tx);
 	}
 	if (err != 0) {
+		if (db != NULL)
+			dmu_buf_rele(db, FTAG);
 		dmu_tx_commit(tx);
 		return (SET_ERROR(EINVAL));
 	}
@@ -2222,9 +2243,9 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 	    drro->drr_compress, tx);
 
 	if (data != NULL) {
-		dmu_buf_t *db;
-
-		VERIFY0(dmu_bonus_hold(rwa->os, drro->drr_object, FTAG, &db));
+		if (db == NULL)
+			VERIFY0(dmu_bonus_hold(rwa->os, drro->drr_object, FTAG,
+			    &db));
 		dmu_buf_will_dirty(db, tx);
 
 		ASSERT3U(db->db_size, >=, drro->drr_bonuslen);
@@ -2235,8 +2256,9 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 			dmu_ot_byteswap[byteswap].ob_func(db->db_data,
 			    drro->drr_bonuslen);
 		}
-		dmu_buf_rele(db, FTAG);
 	}
+	if (db != NULL)
+		dmu_buf_rele(db, FTAG);
 	dmu_tx_commit(tx);
 
 	return (0);

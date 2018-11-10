@@ -128,27 +128,25 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_s_file 3"
-.TH BIO_s_file 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_S_FILE 3"
+.TH BIO_S_FILE 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_s_file, BIO_new_file, BIO_new_fp, BIO_set_fp, BIO_get_fp,
-BIO_read_filename, BIO_write_filename, BIO_append_filename,
-BIO_rw_filename \- FILE bio
+BIO_s_file, BIO_new_file, BIO_new_fp, BIO_set_fp, BIO_get_fp, BIO_read_filename, BIO_write_filename, BIO_append_filename, BIO_rw_filename \- FILE bio
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& BIO_METHOD *   BIO_s_file(void);
+\& const BIO_METHOD *BIO_s_file(void);
 \& BIO *BIO_new_file(const char *filename, const char *mode);
 \& BIO *BIO_new_fp(FILE *stream, int flags);
 \&
-\& BIO_set_fp(BIO *b,FILE *fp, int flags);
-\& BIO_get_fp(BIO *b,FILE **fpp);
+\& BIO_set_fp(BIO *b, FILE *fp, int flags);
+\& BIO_get_fp(BIO *b, FILE **fpp);
 \&
 \& int BIO_read_filename(BIO *b, char *name)
 \& int BIO_write_filename(BIO *b, char *name)
@@ -161,7 +159,7 @@ BIO_rw_filename \- FILE bio
 is a wrapper round the stdio \s-1FILE\s0 structure and it is a
 source/sink \s-1BIO.\s0
 .PP
-Calls to \fIBIO_read()\fR and \fIBIO_write()\fR read and write data to the
+Calls to \fIBIO_read_ex()\fR and \fIBIO_write_ex()\fR read and write data to the
 underlying stream. \fIBIO_gets()\fR and \fIBIO_puts()\fR are supported on file BIOs.
 .PP
 \&\fIBIO_flush()\fR on a file \s-1BIO\s0 calls the \fIfflush()\fR function on the wrapped
@@ -187,7 +185,7 @@ flag is set on the returned \s-1BIO.\s0
 stream to text mode, default is binary: this only has any effect under
 Win32).
 .PP
-\&\fIBIO_set_fp()\fR set the fp of a file \s-1BIO\s0 to \fBfp\fR. \fBflags\fR has the same
+\&\fIBIO_set_fp()\fR sets the fp of a file \s-1BIO\s0 to \fBfp\fR. \fBflags\fR has the same
 meaning as in \fIBIO_new_fp()\fR, it is a macro.
 .PP
 \&\fIBIO_get_fp()\fR retrieves the fp of a file \s-1BIO,\s0 it is a macro.
@@ -215,39 +213,48 @@ lingual environment, encode file names in \s-1UTF\-8.\s0
 .IX Header "EXAMPLES"
 File \s-1BIO\s0 \*(L"hello world\*(R":
 .PP
-.Vb 3
+.Vb 1
 \& BIO *bio_out;
+\&
 \& bio_out = BIO_new_fp(stdout, BIO_NOCLOSE);
 \& BIO_printf(bio_out, "Hello World\en");
 .Ve
 .PP
 Alternative technique:
 .PP
-.Vb 5
+.Vb 1
 \& BIO *bio_out;
+\&
 \& bio_out = BIO_new(BIO_s_file());
-\& if(bio_out == NULL) /* Error ... */
-\& if(!BIO_set_fp(bio_out, stdout, BIO_NOCLOSE)) /* Error ... */
+\& if (bio_out == NULL)
+\&     /* Error */
+\& if (!BIO_set_fp(bio_out, stdout, BIO_NOCLOSE))
+\&     /* Error */
 \& BIO_printf(bio_out, "Hello World\en");
 .Ve
 .PP
 Write to a file:
 .PP
-.Vb 5
+.Vb 1
 \& BIO *out;
+\&
 \& out = BIO_new_file("filename.txt", "w");
-\& if(!out) /* Error occurred */
+\& if (!out)
+\&     /* Error */
 \& BIO_printf(out, "Hello World\en");
 \& BIO_free(out);
 .Ve
 .PP
 Alternative technique:
 .PP
-.Vb 6
+.Vb 1
 \& BIO *out;
+\&
 \& out = BIO_new(BIO_s_file());
-\& if(out == NULL) /* Error ... */
-\& if(!BIO_write_filename(out, "filename.txt")) /* Error ... */
+\& if (out == NULL)
+\&     /* Error */
+\& if (!BIO_write_filename(out, "filename.txt"))
+\&     /* Error */
 \& BIO_printf(out, "Hello World\en");
 \& BIO_free(out);
 .Ve
@@ -266,7 +273,7 @@ occurred.
 .PP
 \&\fIBIO_tell()\fR returns the current file position.
 .PP
-\&\fIBIO_read_filename()\fR, \fIBIO_write_filename()\fR,  \fIBIO_append_filename()\fR and
+\&\fIBIO_read_filename()\fR, \fIBIO_write_filename()\fR, \fIBIO_append_filename()\fR and
 \&\fIBIO_rw_filename()\fR return 1 for success or 0 for failure.
 .SH "BUGS"
 .IX Header "BUGS"
@@ -278,7 +285,15 @@ occurred this differs from other types of \s-1BIO\s0 which will typically return
 .IX Header "SEE ALSO"
 \&\fIBIO_seek\fR\|(3), \fIBIO_tell\fR\|(3),
 \&\fIBIO_reset\fR\|(3), \fIBIO_flush\fR\|(3),
-\&\fIBIO_read\fR\|(3),
-\&\fIBIO_write\fR\|(3), \fIBIO_puts\fR\|(3),
+\&\fIBIO_read_ex\fR\|(3),
+\&\fIBIO_write_ex\fR\|(3), \fIBIO_puts\fR\|(3),
 \&\fIBIO_gets\fR\|(3), \fIBIO_printf\fR\|(3),
 \&\fIBIO_set_close\fR\|(3), \fIBIO_get_close\fR\|(3)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

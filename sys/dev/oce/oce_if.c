@@ -214,12 +214,6 @@ static driver_t oce_driver = {
 static devclass_t oce_devclass;
 
 
-DRIVER_MODULE(oce, pci, oce_driver, oce_devclass, 0, 0);
-MODULE_DEPEND(oce, pci, 1, 1, 1);
-MODULE_DEPEND(oce, ether, 1, 1, 1);
-MODULE_VERSION(oce, 1);
-
-
 /* global vars */
 const char component_revision[32] = {"///" COMPONENT_REVISION "///"};
 
@@ -241,6 +235,15 @@ static uint32_t supportedDevices[] =  {
 	(PCI_VENDOR_EMULEX << 16) | PCI_PRODUCT_XE201_VF,
 	(PCI_VENDOR_EMULEX << 16) | PCI_PRODUCT_SH
 };
+
+
+DRIVER_MODULE(oce, pci, oce_driver, oce_devclass, 0, 0);
+MODULE_PNP_INFO("W32:vendor/device", pci, oce, supportedDevices,
+    nitems(supportedDevices));
+MODULE_DEPEND(oce, pci, 1, 1, 1);
+MODULE_DEPEND(oce, ether, 1, 1, 1);
+MODULE_VERSION(oce, 1);
+
 
 POCE_SOFTC softc_head = NULL;
 POCE_SOFTC softc_tail = NULL;

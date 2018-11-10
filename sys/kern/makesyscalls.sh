@@ -68,13 +68,33 @@ if [ -n "$2" ]; then
 fi
 
 sed -e '
-:join
+	# FreeBSD ID, includes, comments, and blank lines
+	/.*\$FreeBSD/b done_joining
+	/^[#;]/b done_joining
+	/^$/b done_joining
+
+	# Join lines ending in backslash
+:joining
 	/\\$/{a\
 
 	N
 	s/\\\n//
-	b join
+	b joining
 	}
+
+	# OBSOL, etc lines without function signatures
+	/^[0-9][^{]*$/b done_joining
+
+	# Join incomplete signatures.  The { must appear on the first line
+	# and the } must appear on the last line (modulo lines joined by
+	# backslashes).
+	/^[^}]*$/{a\
+
+	N
+	s/\n//
+	b joining
+	}
+:done_joining
 2,${
 	/^#/!s/\([{}()*,]\)/ \1 /g
 }
@@ -305,6 +325,7 @@ sed -e '
 	}
 	function parseline() {
 		f=4			# toss number, type, audit event
+		ret_inc = 0
 		argc= 0;
 		argssize = "0"
 		thr_flag = "SY_THR_STATIC"
@@ -320,12 +341,15 @@ sed -e '
 			funcalias=""
 			argalias=""
 			rettype="int"
+			if ($(f+2) == "*") {
+				ret_inc = 1
+			}
 			end=NF
 		}
 		if (flag("NODEF")) {
 			auditev="AUE_NULL"
-			funcname=$4
-			argssize = "AS(" $6 ")"
+			funcname=$(4 + ret_inc)
+			argssize = "AS(" $(6 + ret_inc) ")"
 			return
 		}
 		if ($f != "{")
@@ -343,6 +367,11 @@ sed -e '
 
 		syscallret=$f
 		f++
+		while (ret_inc > 0) {
+			syscallret=syscallret " " $f
+			f++
+			ret_inc--
+		}
 
 		funcname=$f
 

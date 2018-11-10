@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2016
+.Dd November 10, 2018
 .Dt NSSWITCH.CONF 5
 .Os
 .Sh NAME
@@ -340,6 +340,12 @@ sets a policy of "if the user is notfound in nis, do not try files."
 This treats nis as the authoritative source of information, except
 when the server is down.
 .Sh NOTES
+The
+.Nm
+file is parsed by each program only once.
+Subsequent changes will not be applied until the program
+is restarted.
+.Pp
 If system got compiled with
 .Va WITHOUT_NIS
 you have to remove

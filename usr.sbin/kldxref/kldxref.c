@@ -46,6 +46,7 @@
 #include <sys/module.h>
 #define FREEBSD_ELF
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
@@ -259,6 +260,9 @@ parse_pnp_list(const char *desc, char **new_desc, pnp_list *list)
 			strncpy(key, colon + 1, semi - colon - 1);
 			key[semi - colon - 1] = '\0';
 			walker = semi + 1;
+			/* Fail safe if we have spaces after ; */
+			while (walker < ep && isspace(*walker))
+				walker++;
 		} else {
 			if (strlen(colon + 1) >= sizeof(key))
 				goto err;

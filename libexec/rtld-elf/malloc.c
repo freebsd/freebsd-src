@@ -60,15 +60,11 @@ static char *rcsid = "$FreeBSD$";
 #include "rtld_printf.h"
 #include "paths.h"
 
-static void morecore();
-static int findbucket();
-
 /*
  * Pre-allocate mmap'ed pages
  */
 #define	NPOOLPAGES	(128*1024/pagesz)
 static caddr_t		pagepool_start, pagepool_end;
-static int		morepages();
 
 /*
  * The overhead on a block is at least 4 bytes.  When free, this space
@@ -95,6 +91,11 @@ union	overhead {
 #define	ov_rmagic	ovu.ovu_rmagic
 #define	ov_size		ovu.ovu_size
 };
+
+static void morecore(int bucket);
+static int morepages(int n);
+static int findbucket(union overhead *freep, int srchlen);
+
 
 #define	MAGIC		0xef		/* magic # on accounting info */
 #define RMAGIC		0x5555		/* magic # on range info */
@@ -150,16 +151,14 @@ botch(s)
  * must contain at least one page size.  The page sizes must be stored in
  * increasing order.
  */
-extern size_t *pagesizes;
 
 void *
-malloc(nbytes)
-	size_t nbytes;
+malloc(size_t nbytes)
 {
-  	register union overhead *op;
-  	register int bucket;
-	register long n;
-	register unsigned amt;
+	union overhead *op;
+	int bucket;
+	ssize_t n;
+	size_t amt;
 
 	/*
 	 * First time malloc is called, setup page size and
@@ -256,11 +255,10 @@ calloc(size_t num, size_t size)
  * Allocate more memory to the indicated bucket.
  */
 static void
-morecore(bucket)
-	int bucket;
+morecore(int bucket)
 {
-  	register union overhead *op;
-	register int sz;		/* size of desired block */
+	union overhead *op;
+	int sz;		/* size of desired block */
   	int amt;			/* amount to allocate */
   	int nblks;			/* how many blocks we get */
 
@@ -300,11 +298,10 @@ morecore(bucket)
 }
 
 void
-free(cp)
-	void *cp;
+free(void * cp)
 {
-  	register int size;
-	register union overhead *op;
+	int size;
+	union overhead *op;
 
   	if (cp == NULL)
   		return;
@@ -339,15 +336,13 @@ free(cp)
  * is extern so the caller can modify it).  If that fails we just copy
  * however many bytes was given to realloc() and hope it's not huge.
  */
-int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
+static int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
 
 void *
-realloc(cp, nbytes)
-	void *cp;
-	size_t nbytes;
+realloc(void *cp, size_t nbytes)
 {
-  	register u_int onb;
-	register int i;
+	u_int onb;
+	int i;
 	union overhead *op;
   	char *res;
 	int was_alloced = 0;
@@ -413,12 +408,10 @@ realloc(cp, nbytes)
  * Return bucket number, or -1 if not found.
  */
 static int
-findbucket(freep, srchlen)
-	union overhead *freep;
-	int srchlen;
+findbucket(union overhead *freep, int srchlen)
 {
-	register union overhead *p;
-	register int i, j;
+	union overhead *p;
+	int i, j;
 
 	for (i = 0; i < NBUCKETS; i++) {
 		j = 0;
@@ -439,11 +432,10 @@ findbucket(freep, srchlen)
  * for each size category, the second showing the number of mallocs -
  * frees for each size category.
  */
-mstats(s)
-	char *s;
+mstats(char * s)
 {
-  	register int i, j;
-  	register union overhead *p;
+	int i, j;
+	union overhead *p;
   	int totfree = 0,
   	totused = 0;
 
@@ -466,8 +458,7 @@ mstats(s)
 
 
 static int
-morepages(n)
-int	n;
+morepages(int n)
 {
 	int	fd = -1;
 	int	offset;

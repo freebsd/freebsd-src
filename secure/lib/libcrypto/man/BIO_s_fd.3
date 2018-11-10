@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_s_fd 3"
-.TH BIO_s_fd 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_S_FD 3"
+.TH BIO_S_FD 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,10 +141,10 @@ BIO_s_fd, BIO_set_fd, BIO_get_fd, BIO_new_fd \- file descriptor BIO
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& BIO_METHOD *   BIO_s_fd(void);
+\& const BIO_METHOD *BIO_s_fd(void);
 \&
-\& #define BIO_set_fd(b,fd,c)     BIO_int_ctrl(b,BIO_C_SET_FD,c,fd)
-\& #define BIO_get_fd(b,c)        BIO_ctrl(b,BIO_C_GET_FD,0,(char *)c)
+\& int BIO_set_fd(BIO *b, int fd, int c);
+\& int BIO_get_fd(BIO *b, int *c);
 \&
 \& BIO *BIO_new_fd(int fd, int close_flag);
 .Ve
@@ -153,46 +153,43 @@ BIO_s_fd, BIO_set_fd, BIO_get_fd, BIO_new_fd \- file descriptor BIO
 \&\fIBIO_s_fd()\fR returns the file descriptor \s-1BIO\s0 method. This is a wrapper
 round the platforms file descriptor routines such as \fIread()\fR and \fIwrite()\fR.
 .PP
-\&\fIBIO_read()\fR and \fIBIO_write()\fR read or write the underlying descriptor.
+\&\fIBIO_read_ex()\fR and \fIBIO_write_ex()\fR read or write the underlying descriptor.
 \&\fIBIO_puts()\fR is supported but \fIBIO_gets()\fR is not.
 .PP
-If the close flag is set then then \fIclose()\fR is called on the underlying
+If the close flag is set then \fIclose()\fR is called on the underlying
 file descriptor when the \s-1BIO\s0 is freed.
 .PP
 \&\fIBIO_reset()\fR attempts to change the file pointer to the start of file
-using lseek(fd, 0, 0).
+such as by using \fBlseek(fd, 0, 0)\fR.
 .PP
 \&\fIBIO_seek()\fR sets the file pointer to position \fBofs\fR from start of file
-using lseek(fd, ofs, 0).
+such as by using \fBlseek(fd, ofs, 0)\fR.
 .PP
-\&\fIBIO_tell()\fR returns the current file position by calling lseek(fd, 0, 1).
+\&\fIBIO_tell()\fR returns the current file position such as by calling
+\&\fBlseek(fd, 0, 1)\fR.
 .PP
 \&\fIBIO_set_fd()\fR sets the file descriptor of \s-1BIO\s0 \fBb\fR to \fBfd\fR and the close
 flag to \fBc\fR.
 .PP
 \&\fIBIO_get_fd()\fR places the file descriptor in \fBc\fR if it is not \s-1NULL,\s0 it also
-returns the file descriptor. If \fBc\fR is not \s-1NULL\s0 it should be of type
-(int *).
+returns the file descriptor.
 .PP
 \&\fIBIO_new_fd()\fR returns a file descriptor \s-1BIO\s0 using \fBfd\fR and \fBclose_flag\fR.
 .SH "NOTES"
 .IX Header "NOTES"
-The behaviour of \fIBIO_read()\fR and \fIBIO_write()\fR depends on the behavior of the
-platforms \fIread()\fR and \fIwrite()\fR calls on the descriptor. If the underlying 
+The behaviour of \fIBIO_read_ex()\fR and \fIBIO_write_ex()\fR depends on the behavior of the
+platforms \fIread()\fR and \fIwrite()\fR calls on the descriptor. If the underlying
 file descriptor is in a non blocking mode then the \s-1BIO\s0 will behave in the
-manner described in the \fIBIO_read\fR\|(3) and \fIBIO_should_retry\fR\|(3)
+manner described in the \fIBIO_read_ex\fR\|(3) and \fIBIO_should_retry\fR\|(3)
 manual pages.
 .PP
 File descriptor BIOs should not be used for socket I/O. Use socket BIOs
 instead.
+.PP
+\&\fIBIO_set_fd()\fR and \fIBIO_get_fd()\fR are implemented as macros.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIBIO_s_fd()\fR returns the file descriptor \s-1BIO\s0 method.
-.PP
-\&\fIBIO_reset()\fR returns zero for success and \-1 if an error occurred.
-\&\fIBIO_seek()\fR and \fIBIO_tell()\fR return the current file position or \-1
-if an error occurred. These values reflect the underlying \fIlseek()\fR
-behaviour.
 .PP
 \&\fIBIO_set_fd()\fR always returns 1.
 .PP
@@ -205,8 +202,9 @@ occurred.
 .IX Header "EXAMPLE"
 This is a file descriptor \s-1BIO\s0 version of \*(L"Hello World\*(R":
 .PP
-.Vb 4
+.Vb 1
 \& BIO *out;
+\&
 \& out = BIO_new_fd(fileno(stdout), BIO_NOCLOSE);
 \& BIO_printf(out, "Hello World\en");
 \& BIO_free(out);
@@ -214,7 +212,15 @@ This is a file descriptor \s-1BIO\s0 version of \*(L"Hello World\*(R":
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIBIO_seek\fR\|(3), \fIBIO_tell\fR\|(3),
-\&\fIBIO_reset\fR\|(3), \fIBIO_read\fR\|(3),
-\&\fIBIO_write\fR\|(3), \fIBIO_puts\fR\|(3),
+\&\fIBIO_reset\fR\|(3), \fIBIO_read_ex\fR\|(3),
+\&\fIBIO_write_ex\fR\|(3), \fIBIO_puts\fR\|(3),
 \&\fIBIO_gets\fR\|(3), \fIBIO_printf\fR\|(3),
 \&\fIBIO_set_close\fR\|(3), \fIBIO_get_close\fR\|(3)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

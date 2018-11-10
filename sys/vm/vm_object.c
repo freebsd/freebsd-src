@@ -274,6 +274,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 		panic("_vm_object_allocate: type %d is undefined", type);
 	}
 	object->size = size;
+	object->domain.dr_policy = NULL;
 	object->generation = 1;
 	object->ref_count = 1;
 	object->memattr = VM_MEMATTR_DEFAULT;

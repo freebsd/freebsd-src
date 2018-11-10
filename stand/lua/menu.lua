@@ -29,7 +29,7 @@
 -- $FreeBSD$
 --
 
-
+local cli = require("cli")
 local core = require("core")
 local color = require("color")
 local config = require("config")
@@ -312,6 +312,9 @@ menu.welcome = {
 				    #all_choices .. ")"
 			end,
 			func = function(_, choice, _)
+				if loader.getenv("kernelname") ~= nil then
+					loader.perform("unload")
+				end
 				config.selectKernel(choice)
 			end,
 			alias = {"k", "K"},
@@ -333,6 +336,22 @@ menu.welcome = {
 			name = "Boot " .. color.highlight("E") .. "nvironments",
 			submenu = menu.boot_environments,
 			alias = {"e", "E"},
+		},
+		-- chainload
+		{
+			entry_type = core.MENU_ENTRY,
+			name = function()
+				return 'Chain' .. color.highlight("L") ..
+				    "oad " .. loader.getenv('chain_disk')
+			end,
+			func = function()
+				loader.perform("chain " ..
+				    loader.getenv('chain_disk'))
+			end,
+			visible = function()
+				return loader.getenv('chain_disk') ~= nil
+			end,
+			alias = {"l", "L"},
 		},
 	},
 }
@@ -370,7 +389,9 @@ function menu.process(menudef, keypress)
 			break
 		elseif key == core.KEY_ENTER then
 			core.boot()
-			-- Should not return
+			-- Should not return.  If it does, escape menu handling
+			-- and drop to loader prompt.
+			return false
 		end
 
 		key = string.char(key)
@@ -401,8 +422,32 @@ function menu.process(menudef, keypress)
 end
 
 function menu.run()
+	local autoboot_key
+	local delay = loader.getenv("autoboot_delay")
+
+	if delay ~= nil and delay:lower() == "no" then
+		delay = nil
+	else
+		delay = tonumber(delay) or 10
+	end
+
+	if delay == -1 then
+		core.boot()
+		return
+	end
+
 	menu.draw(menu.default)
-	local autoboot_key = menu.autoboot()
+
+	if delay ~= nil then
+		autoboot_key = menu.autoboot(delay)
+
+		-- autoboot_key should return the key pressed.  It will only
+		-- return nil if we hit the timeout and executed the timeout
+		-- command.  Bail out.
+		if autoboot_key == nil then
+			return
+		end
+	end
 
 	menu.process(menu.default, autoboot_key)
 	drawn_menu = nil
@@ -411,19 +456,10 @@ function menu.run()
 	print("Exiting menu!")
 end
 
-function menu.autoboot()
-	local ab = loader.getenv("autoboot_delay")
-	if ab ~= nil and ab:lower() == "no" then
-		return nil
-	elseif tonumber(ab) == -1 then
-		core.boot()
-	end
-	ab = tonumber(ab) or 10
-
+function menu.autoboot(delay)
 	local x = loader.getenv("loader_menu_timeout_x") or 4
 	local y = loader.getenv("loader_menu_timeout_y") or 23
-
-	local endtime = loader.time() + ab
+	local endtime = loader.time() + delay
 	local time
 	local last
 	repeat
@@ -454,6 +490,12 @@ function menu.autoboot()
 
 	local cmd = loader.getenv("menu_timeout_command") or "boot"
 	cli_execute_unparsed(cmd)
+	return nil
+end
+
+-- CLI commands
+function cli.menu(...)
+	menu.run()
 end
 
 return menu

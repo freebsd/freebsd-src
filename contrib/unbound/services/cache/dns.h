@@ -238,4 +238,16 @@ struct msgreply_entry* msg_cache_lookup(struct module_env* env,
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
 	uint16_t flags, time_t now, int wr);
 
+/**
+ * Remove entry from the message cache.  For unwanted entries.
+ * @param env: with message cache.
+ * @param qname: query name, in wireformat
+ * @param qnamelen: length of qname, including terminating 0.
+ * @param qtype: query type, host order.
+ * @param qclass: query class, host order.
+ * @param flags: flags
+ */
+void msg_cache_remove(struct module_env* env, uint8_t* qname, size_t qnamelen,
+	uint16_t qtype, uint16_t qclass, uint16_t flags);
+
 #endif /* SERVICES_CACHE_DNS_H */

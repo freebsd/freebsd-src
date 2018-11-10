@@ -1,9 +1,9 @@
 /*
- *  $Id: formbox.c,v 1.87 2013/09/02 17:02:05 tom Exp $
+ *  $Id: formbox.c,v 1.95 2018/06/21 08:23:31 tom Exp $
  *
- *  formbox.c -- implements the form (i.e, some pairs label/editbox)
+ *  formbox.c -- implements the form (i.e., some pairs label/editbox)
  *
- *  Copyright 2003-2012,2013	Thomas E. Dickey
+ *  Copyright 2003-2016,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -447,9 +447,11 @@ prev_valid_buttonindex(int state, int extra, bool non_editable)
 	DLG_KEYS_DATA( DLGK_FIELD_PREV, KEY_BTAB ), \
 	DLG_KEYS_DATA( DLGK_ITEM_NEXT,  CHR_NEXT ), \
 	DLG_KEYS_DATA( DLGK_ITEM_NEXT,  KEY_DOWN ), \
+	DLG_KEYS_DATA( DLGK_ITEM_NEXT,  KEY_RIGHT ), \
 	DLG_KEYS_DATA( DLGK_ITEM_NEXT,  KEY_NEXT ), \
 	DLG_KEYS_DATA( DLGK_ITEM_PREV,  CHR_PREVIOUS ), \
 	DLG_KEYS_DATA( DLGK_ITEM_PREV,  KEY_PREVIOUS ), \
+	DLG_KEYS_DATA( DLGK_ITEM_PREV,  KEY_LEFT ), \
 	DLG_KEYS_DATA( DLGK_ITEM_PREV,  KEY_UP ), \
 	DLG_KEYS_DATA( DLGK_PAGE_NEXT,  KEY_NPAGE ), \
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,  KEY_PPAGE )
@@ -471,6 +473,7 @@ dlg_form(const char *title,
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
+	TOGGLEKEY_BINDINGS,
 	END_KEYS_BINDING
     };
     static DLG_KEYS_BINDING binding2[] = {
@@ -478,6 +481,7 @@ dlg_form(const char *title,
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
+	/* no TOGGLEKEY_BINDINGS, since that includes space... */
 	END_KEYS_BINDING
     };
     /* *INDENT-ON* */
@@ -488,10 +492,12 @@ dlg_form(const char *title,
 #endif
 
     int form_width;
-    int first = TRUE;
-    int first_trace = TRUE;
+    bool first = TRUE;
+    bool first_trace = TRUE;
     int chr_offset = 0;
-    int state = dialog_vars.default_button >= 0 ? dlg_default_button() : sTEXT;
+    int state = (dialog_vars.default_button >= 0
+		 ? dlg_default_button()
+		 : sTEXT);
     int x, y, cur_x, cur_y, box_x, box_y;
     int code;
     int key = 0;
@@ -507,19 +513,32 @@ dlg_form(const char *title,
     bool field_changed = FALSE;
     bool non_editable = FALSE;
     WINDOW *dialog, *form;
-    char *prompt = dlg_strclone(cprompt);
+    char *prompt;
     const char **buttons = dlg_ok_labels();
     DIALOG_FORMITEM *current;
+
+    DLG_TRACE(("# %sform args:\n", (dialog_vars.formitem_type
+				    ? "password"
+				    : "")));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("message", cprompt);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+    DLG_TRACE2N("lheight", form_height);
+    DLG_TRACE2N("llength", item_no);
+    /* FIXME dump the items[][] too */
+    DLG_TRACE2N("current", *current_item);
 
     make_FORM_ELTs(items, item_no, &min_height, &min_width);
     dlg_button_layout(buttons, &min_width);
     dlg_does_output();
-    dlg_tab_correct_str(prompt);
 
 #ifdef KEY_RESIZE
   retry:
 #endif
 
+    prompt = dlg_strclone(cprompt);
+    dlg_tab_correct_str(prompt);
     dlg_auto_size(title, prompt, &height, &width,
 		  1 + 3 * MARGIN,
 		  MAX(26, 2 + min_width));
@@ -554,7 +573,7 @@ dlg_form(const char *title,
     dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
     dlg_print_autowrap(dialog, prompt, height, width);
 
     form_width = width - 6;
@@ -651,10 +670,6 @@ dlg_form(const char *title,
 		    result = dlg_ok_buttoncode(code);
 		    continue;
 		}
-		if (key == ' ') {
-		    fkey = TRUE;
-		    key = DLGK_ENTER;
-		}
 	    }
 	}
 
@@ -677,6 +692,7 @@ dlg_form(const char *title,
 		move_by = form_height;
 		break;
 
+	    case DLGK_TOGGLE:
 	    case DLGK_ENTER:
 		dlg_del_window(dialog);
 		result = (state >= 0) ? dlg_enter_buttoncode(state) : DLG_EXIT_OK;
@@ -759,14 +775,16 @@ dlg_form(const char *title,
 
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
+		dlg_will_resize(dialog);
 		/* reset data */
 		height = old_height;
 		width = old_width;
-		/* repaint */
+		free(prompt);
 		dlg_clear();
+		dlg_unregister_window(form);
 		dlg_del_window(dialog);
-		refresh();
 		dlg_mouse_free_regions();
+		/* repaint */
 		goto retry;
 #endif
 	    default:
@@ -861,6 +879,7 @@ dlg_form(const char *title,
     }
 
     dlg_mouse_free_regions();
+    dlg_unregister_window(form);
     dlg_del_window(dialog);
     free(prompt);
 
@@ -910,7 +929,7 @@ dialog_form(const char *title,
 	    char **items)
 {
     int result;
-    int choice;
+    int choice = 0;
     int i;
     DIALOG_FORMITEM *listitems;
     DIALOG_VARS save_vars;

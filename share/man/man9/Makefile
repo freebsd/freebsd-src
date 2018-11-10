@@ -113,6 +113,7 @@ MAN=	accept_filter.9 \
 	device_set_flags.9 \
 	DEVICE_SHUTDOWN.9 \
 	DEV_MODULE.9 \
+	dev_refthread.9 \
 	devstat.9 \
 	devtoname.9 \
 	disk.9 \
@@ -811,7 +812,8 @@ MLINKS+=condvar.9 cv_broadcast.9 \
 MLINKS+=config_intrhook.9 config_intrhook_disestablish.9 \
 	config_intrhook.9 config_intrhook_establish.9 \
 	config_intrhook.9 config_intrhook_oneshot.9
-MLINKS+=contigmalloc.9 contigfree.9
+MLINKS+=contigmalloc.9 contigmalloc_domainset.9 \
+	contigmalloc.9 contigfree.9
 MLINKS+=casuword.9 casueword.9 \
 	casuword.9 casueword32.9 \
 	casuword.9 casuword32.9
@@ -878,6 +880,8 @@ MLINKS+=DB_COMMAND.9 DB_SHOW_ALL_COMMAND.9 \
 	DB_COMMAND.9 DB_SHOW_COMMAND.9
 MLINKS+=DECLARE_MODULE.9 DECLARE_MODULE_TIED.9
 MLINKS+=dev_clone.9 drain_dev_clone_events.9
+MLINKS+=dev_refthread.9 devvn_refthread.9 \
+	dev_refthread.9 dev_relthread.9
 MLINKS+=devfs_set_cdevpriv.9 devfs_clear_cdevpriv.9 \
 	devfs_set_cdevpriv.9 devfs_get_cdevpriv.9
 MLINKS+=device_add_child.9 device_add_child_ordered.9
@@ -1286,7 +1290,7 @@ MLINKS+=make_dev.9 destroy_dev.9 \
 	make_dev.9 make_dev_p.9 \
 	make_dev.9 make_dev_s.9
 MLINKS+=malloc.9 free.9 \
-	malloc.9 malloc_domain.9 \
+	malloc.9 malloc_domainset.9 \
 	malloc.9 free_domain.9 \
 	malloc.9 mallocarray.9 \
 	malloc.9 MALLOC_DECLARE.9 \

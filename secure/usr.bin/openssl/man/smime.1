@@ -129,32 +129,64 @@
 .\" ========================================================================
 .\"
 .IX Title "SMIME 1"
-.TH SMIME 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH SMIME 1 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-openssl\-smime,
-smime \- S/MIME utility
+openssl\-smime, smime \- S/MIME utility
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBopenssl\fR \fBsmime\fR
+[\fB\-help\fR]
 [\fB\-encrypt\fR]
 [\fB\-decrypt\fR]
 [\fB\-sign\fR]
 [\fB\-resign\fR]
 [\fB\-verify\fR]
 [\fB\-pk7out\fR]
-[\fB\-[cipher]\fR]
+[\fB\-binary\fR]
+[\fB\-crlfeol\fR]
+[\fB\-\f(BIcipher\fB\fR]
 [\fB\-in file\fR]
+[\fB\-CAfile file\fR]
+[\fB\-CApath dir\fR]
+[\fB\-no\-CAfile\fR]
+[\fB\-no\-CApath\fR]
+[\fB\-attime timestamp\fR]
+[\fB\-check_ss_sig\fR]
+[\fB\-crl_check\fR]
+[\fB\-crl_check_all\fR]
+[\fB\-explicit_policy\fR]
+[\fB\-extended_crl\fR]
+[\fB\-ignore_critical\fR]
+[\fB\-inhibit_any\fR]
+[\fB\-inhibit_map\fR]
+[\fB\-partial_chain\fR]
+[\fB\-policy arg\fR]
+[\fB\-policy_check\fR]
+[\fB\-policy_print\fR]
+[\fB\-purpose purpose\fR]
+[\fB\-suiteB_128\fR]
+[\fB\-suiteB_128_only\fR]
+[\fB\-suiteB_192\fR]
+[\fB\-trusted_first\fR]
 [\fB\-no_alt_chains\fR]
+[\fB\-use_deltas\fR]
+[\fB\-auth_level num\fR]
+[\fB\-verify_depth num\fR]
+[\fB\-verify_email email\fR]
+[\fB\-verify_hostname hostname\fR]
+[\fB\-verify_ip ip\fR]
+[\fB\-verify_name name\fR]
+[\fB\-x509_strict\fR]
 [\fB\-certfile file\fR]
 [\fB\-signer file\fR]
 [\fB\-recip  file\fR]
 [\fB\-inform SMIME|PEM|DER\fR]
 [\fB\-passin arg\fR]
-[\fB\-inkey file\fR]
+[\fB\-inkey file_or_id\fR]
 [\fB\-out file\fR]
 [\fB\-outform SMIME|PEM|DER\fR]
 [\fB\-content file\fR]
@@ -165,51 +197,55 @@ smime \- S/MIME utility
 [\fB\-indef\fR]
 [\fB\-noindef\fR]
 [\fB\-stream\fR]
-[\fB\-rand file(s)\fR]
+[\fB\-rand file...\fR]
+[\fB\-writerand file\fR]
 [\fB\-md digest\fR]
 [cert.pem]...
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \fBsmime\fR command handles S/MIME mail. It can encrypt, decrypt, sign and
 verify S/MIME messages.
-.SH "COMMAND OPTIONS"
-.IX Header "COMMAND OPTIONS"
+.SH "OPTIONS"
+.IX Header "OPTIONS"
 There are six operation options that set the type of operation to be performed.
 The meaning of the other options varies according to the operation type.
+.IP "\fB\-help\fR" 4
+.IX Item "-help"
+Print out a usage message.
 .IP "\fB\-encrypt\fR" 4
 .IX Item "-encrypt"
-encrypt mail for the given recipient certificates. Input file is the message
+Encrypt mail for the given recipient certificates. Input file is the message
 to be encrypted. The output file is the encrypted mail in \s-1MIME\s0 format.
 .Sp
 Note that no revocation check is done for the recipient cert, so if that
 key has been compromised, others may be able to decrypt the text.
 .IP "\fB\-decrypt\fR" 4
 .IX Item "-decrypt"
-decrypt mail using the supplied certificate and private key. Expects an
+Decrypt mail using the supplied certificate and private key. Expects an
 encrypted mail message in \s-1MIME\s0 format for the input file. The decrypted mail
 is written to the output file.
 .IP "\fB\-sign\fR" 4
 .IX Item "-sign"
-sign mail using the supplied certificate and private key. Input file is
+Sign mail using the supplied certificate and private key. Input file is
 the message to be signed. The signed message in \s-1MIME\s0 format is written
 to the output file.
 .IP "\fB\-verify\fR" 4
 .IX Item "-verify"
-verify signed mail. Expects a signed mail message on input and outputs
+Verify signed mail. Expects a signed mail message on input and outputs
 the signed data. Both clear text and opaque signing is supported.
 .IP "\fB\-pk7out\fR" 4
 .IX Item "-pk7out"
-takes an input message and writes out a \s-1PEM\s0 encoded PKCS#7 structure.
+Takes an input message and writes out a \s-1PEM\s0 encoded PKCS#7 structure.
 .IP "\fB\-resign\fR" 4
 .IX Item "-resign"
-resign a message: take an existing message and one or more new signers.
+Resign a message: take an existing message and one or more new signers.
 .IP "\fB\-in filename\fR" 4
 .IX Item "-in filename"
-the input message to be encrypted or signed or the \s-1MIME\s0 message to
+The input message to be encrypted or signed or the \s-1MIME\s0 message to
 be decrypted or verified.
 .IP "\fB\-inform SMIME|PEM|DER\fR" 4
 .IX Item "-inform SMIME|PEM|DER"
-this specifies the input format for the PKCS#7 structure. The default
+This specifies the input format for the PKCS#7 structure. The default
 is \fB\s-1SMIME\s0\fR which reads an S/MIME format message. \fB\s-1PEM\s0\fR and \fB\s-1DER\s0\fR
 format change this to expect \s-1PEM\s0 and \s-1DER\s0 format PKCS#7 structures
 instead. This currently only affects the input format of the PKCS#7
@@ -217,11 +253,11 @@ structure, if no PKCS#7 structure is being input (for example with
 \&\fB\-encrypt\fR or \fB\-sign\fR) this option has no effect.
 .IP "\fB\-out filename\fR" 4
 .IX Item "-out filename"
-the message text that has been decrypted or verified or the output \s-1MIME\s0
+The message text that has been decrypted or verified or the output \s-1MIME\s0
 format message that has been signed or verified.
 .IP "\fB\-outform SMIME|PEM|DER\fR" 4
 .IX Item "-outform SMIME|PEM|DER"
-this specifies the output format for the PKCS#7 structure. The default
+This specifies the output format for the PKCS#7 structure. The default
 is \fB\s-1SMIME\s0\fR which write an S/MIME format message. \fB\s-1PEM\s0\fR and \fB\s-1DER\s0\fR
 format change this to write \s-1PEM\s0 and \s-1DER\s0 format PKCS#7 structures
 instead. This currently only affects the output format of the PKCS#7
@@ -229,7 +265,7 @@ structure, if no PKCS#7 structure is being output (for example with
 \&\fB\-verify\fR or \fB\-decrypt\fR) this option has no effect.
 .IP "\fB\-stream \-indef \-noindef\fR" 4
 .IX Item "-stream -indef -noindef"
-the \fB\-stream\fR and \fB\-indef\fR options are equivalent and enable streaming I/O
+The \fB\-stream\fR and \fB\-indef\fR options are equivalent and enable streaming I/O
 for encoding operations. This permits single pass processing of data without
 the need to hold the entire contents in memory, potentially supporting very
 large files. Streaming is automatically set for S/MIME signing with detached
@@ -237,7 +273,7 @@ data if the output format is \fB\s-1SMIME\s0\fR it is currently off by default f
 other operations.
 .IP "\fB\-noindef\fR" 4
 .IX Item "-noindef"
-disable streaming I/O where it would produce and indefinite length constructed
+Disable streaming I/O where it would produce and indefinite length constructed
 encoding. This option currently has no effect. In future streaming will be
 enabled by default on all relevant operations and this option will disable it.
 .IP "\fB\-content filename\fR" 4
@@ -249,118 +285,134 @@ not included. This option will override any content if the input format
 is S/MIME and it uses the multipart/signed \s-1MIME\s0 content type.
 .IP "\fB\-text\fR" 4
 .IX Item "-text"
-this option adds plain text (text/plain) \s-1MIME\s0 headers to the supplied
+This option adds plain text (text/plain) \s-1MIME\s0 headers to the supplied
 message if encrypting or signing. If decrypting or verifying it strips
-off text headers: if the decrypted or verified message is not of \s-1MIME\s0 
+off text headers: if the decrypted or verified message is not of \s-1MIME\s0
 type text/plain then an error occurs.
 .IP "\fB\-CAfile file\fR" 4
 .IX Item "-CAfile file"
-a file containing trusted \s-1CA\s0 certificates, only used with \fB\-verify\fR.
+A file containing trusted \s-1CA\s0 certificates, only used with \fB\-verify\fR.
 .IP "\fB\-CApath dir\fR" 4
 .IX Item "-CApath dir"
-a directory containing trusted \s-1CA\s0 certificates, only used with
+A directory containing trusted \s-1CA\s0 certificates, only used with
 \&\fB\-verify\fR. This directory must be a standard certificate directory: that
 is a hash of each subject name (using \fBx509 \-hash\fR) should be linked
 to each certificate.
+.IP "\fB\-no\-CAfile\fR" 4
+.IX Item "-no-CAfile"
+Do not load the trusted \s-1CA\s0 certificates from the default file location.
+.IP "\fB\-no\-CApath\fR" 4
+.IX Item "-no-CApath"
+Do not load the trusted \s-1CA\s0 certificates from the default directory location.
 .IP "\fB\-md digest\fR" 4
 .IX Item "-md digest"
-digest algorithm to use when signing or resigning. If not present then the
+Digest algorithm to use when signing or resigning. If not present then the
 default digest algorithm for the signing key will be used (usually \s-1SHA1\s0).
-.IP "\fB\-[cipher]\fR" 4
-.IX Item "-[cipher]"
-the encryption algorithm to use. For example \s-1DES\s0  (56 bits) \- \fB\-des\fR,
+.IP "\fB\-\f(BIcipher\fB\fR" 4
+.IX Item "-cipher"
+The encryption algorithm to use. For example \s-1DES\s0  (56 bits) \- \fB\-des\fR,
 triple \s-1DES\s0 (168 bits) \- \fB\-des3\fR,
-\&\fIEVP_get_cipherbyname()\fR function) can also be used preceded by a dash, for 
-example \fB\-aes_128_cbc\fR. See \fBenc\fR for list of ciphers
+\&\fIEVP_get_cipherbyname()\fR function) can also be used preceded by a dash, for
+example \fB\-aes\-128\-cbc\fR. See \fBenc\fR for list of ciphers
 supported by your version of OpenSSL.
 .Sp
 If not specified triple \s-1DES\s0 is used. Only used with \fB\-encrypt\fR.
 .IP "\fB\-nointern\fR" 4
 .IX Item "-nointern"
-when verifying a message normally certificates (if any) included in
+When verifying a message normally certificates (if any) included in
 the message are searched for the signing certificate. With this option
 only the certificates specified in the \fB\-certfile\fR option are used.
 The supplied certificates can still be used as untrusted CAs however.
 .IP "\fB\-noverify\fR" 4
 .IX Item "-noverify"
-do not verify the signers certificate of a signed message.
+Do not verify the signers certificate of a signed message.
 .IP "\fB\-nochain\fR" 4
 .IX Item "-nochain"
-do not do chain verification of signers certificates: that is don't
+Do not do chain verification of signers certificates: that is don't
 use the certificates in the signed message as untrusted CAs.
 .IP "\fB\-nosigs\fR" 4
 .IX Item "-nosigs"
-don't try to verify the signatures on the message.
+Don't try to verify the signatures on the message.
 .IP "\fB\-nocerts\fR" 4
 .IX Item "-nocerts"
-when signing a message the signer's certificate is normally included
+When signing a message the signer's certificate is normally included
 with this option it is excluded. This will reduce the size of the
 signed message but the verifier must have a copy of the signers certificate
 available locally (passed using the \fB\-certfile\fR option for example).
 .IP "\fB\-noattr\fR" 4
 .IX Item "-noattr"
-normally when a message is signed a set of attributes are included which
+Normally when a message is signed a set of attributes are included which
 include the signing time and supported symmetric algorithms. With this
 option they are not included.
 .IP "\fB\-binary\fR" 4
 .IX Item "-binary"
-normally the input message is converted to \*(L"canonical\*(R" format which is
+Normally the input message is converted to \*(L"canonical\*(R" format which is
 effectively using \s-1CR\s0 and \s-1LF\s0 as end of line: as required by the S/MIME
 specification. When this option is present no translation occurs. This
 is useful when handling binary data which may not be in \s-1MIME\s0 format.
+.IP "\fB\-crlfeol\fR" 4
+.IX Item "-crlfeol"
+Normally the output file uses a single \fB\s-1LF\s0\fR as end of line. When this
+option is present \fB\s-1CRLF\s0\fR is used instead.
 .IP "\fB\-nodetach\fR" 4
 .IX Item "-nodetach"
-when signing a message use opaque signing: this form is more resistant
+When signing a message use opaque signing: this form is more resistant
 to translation by mail relays but it cannot be read by mail agents that
 do not support S/MIME.  Without this option cleartext signing with
 the \s-1MIME\s0 type multipart/signed is used.
 .IP "\fB\-certfile file\fR" 4
 .IX Item "-certfile file"
-allows additional certificates to be specified. When signing these will
+Allows additional certificates to be specified. When signing these will
 be included with the message. When verifying these will be searched for
 the signers certificates. The certificates should be in \s-1PEM\s0 format.
 .IP "\fB\-signer file\fR" 4
 .IX Item "-signer file"
-a signing certificate when signing or resigning a message, this option can be
+A signing certificate when signing or resigning a message, this option can be
 used multiple times if more than one signer is required. If a message is being
 verified then the signers certificates will be written to this file if the
 verification was successful.
 .IP "\fB\-recip file\fR" 4
 .IX Item "-recip file"
-the recipients certificate when decrypting a message. This certificate
+The recipients certificate when decrypting a message. This certificate
 must match one of the recipients of the message or an error occurs.
-.IP "\fB\-inkey file\fR" 4
-.IX Item "-inkey file"
-the private key to use when signing or decrypting. This must match the
+.IP "\fB\-inkey file_or_id\fR" 4
+.IX Item "-inkey file_or_id"
+The private key to use when signing or decrypting. This must match the
 corresponding certificate. If this option is not specified then the
 private key must be included in the certificate file specified with
 the \fB\-recip\fR or \fB\-signer\fR file. When signing this option can be used
 multiple times to specify successive keys.
+If no engine is used, the argument is taken as a file; if an engine is
+specified, the argument is given to the engine as a key identifier.
 .IP "\fB\-passin arg\fR" 4
 .IX Item "-passin arg"
-the private key password source. For more information about the format of \fBarg\fR
+The private key password source. For more information about the format of \fBarg\fR
 see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section in \fIopenssl\fR\|(1).
-.IP "\fB\-rand file(s)\fR" 4
-.IX Item "-rand file(s)"
-a file or files containing random data used to seed the random number
-generator, or an \s-1EGD\s0 socket (see \fIRAND_egd\fR\|(3)).
-Multiple files can be specified separated by a OS-dependent character.
+.IP "\fB\-rand file...\fR" 4
+.IX Item "-rand file..."
+A file or files containing random data used to seed the random number
+generator.
+Multiple files can be specified separated by an OS-dependent character.
 The separator is \fB;\fR for MS-Windows, \fB,\fR for OpenVMS, and \fB:\fR for
 all others.
+.IP "[\fB\-writerand file\fR]" 4
+.IX Item "[-writerand file]"
+Writes random data to the specified \fIfile\fR upon exit.
+This can be used with a subsequent \fB\-rand\fR flag.
 .IP "\fBcert.pem...\fR" 4
 .IX Item "cert.pem..."
-one or more certificates of message recipients: used when encrypting
+One or more certificates of message recipients: used when encrypting
 a message.
 .IP "\fB\-to, \-from, \-subject\fR" 4
 .IX Item "-to, -from, -subject"
-the relevant mail headers. These are included outside the signed
+The relevant mail headers. These are included outside the signed
 portion of a message so they may be included manually. If signing
 then many S/MIME mail clients check the signers certificate's email
 address matches that specified in the From: address.
-.IP "\fB\-purpose, \-ignore_critical, \-issuer_checks, \-crl_check, \-crl_check_all, \-policy_check, \-extended_crl, \-x509_strict, \-policy \-check_ss_sig \-no_alt_chains\fR" 4
-.IX Item "-purpose, -ignore_critical, -issuer_checks, -crl_check, -crl_check_all, -policy_check, -extended_crl, -x509_strict, -policy -check_ss_sig -no_alt_chains"
+.IP "\fB\-attime\fR, \fB\-check_ss_sig\fR, \fB\-crl_check\fR, \fB\-crl_check_all\fR, \fB\-explicit_policy\fR, \fB\-extended_crl\fR, \fB\-ignore_critical\fR, \fB\-inhibit_any\fR, \fB\-inhibit_map\fR, \fB\-no_alt_chains\fR, \fB\-partial_chain\fR, \fB\-policy\fR, \fB\-policy_check\fR, \fB\-policy_print\fR, \fB\-purpose\fR, \fB\-suiteB_128\fR, \fB\-suiteB_128_only\fR, \fB\-suiteB_192\fR, \fB\-trusted_first\fR, \fB\-use_deltas\fR, \fB\-auth_level\fR, \fB\-verify_depth\fR, \fB\-verify_email\fR, \fB\-verify_hostname\fR, \fB\-verify_ip\fR, \fB\-verify_name\fR, \fB\-x509_strict\fR" 4
+.IX Item "-attime, -check_ss_sig, -crl_check, -crl_check_all, -explicit_policy, -extended_crl, -ignore_critical, -inhibit_any, -inhibit_map, -no_alt_chains, -partial_chain, -policy, -policy_check, -policy_print, -purpose, -suiteB_128, -suiteB_128_only, -suiteB_192, -trusted_first, -use_deltas, -auth_level, -verify_depth, -verify_email, -verify_hostname, -verify_ip, -verify_name, -x509_strict"
 Set various options of certificate chain verification. See
-\&\fBverify\fR manual page for details.
+\&\fIverify\fR\|(1) manual page for details.
 .SH "NOTES"
 .IX Header "NOTES"
 The \s-1MIME\s0 message must be sent without any blank lines between the
@@ -369,7 +421,7 @@ a blank line. Piping the mail directly to sendmail is one way to
 achieve the correct format.
 .PP
 The supplied message to be signed or encrypted must include the
-necessary \s-1MIME\s0 headers or many S/MIME clients wont display it
+necessary \s-1MIME\s0 headers or many S/MIME clients won't display it
 properly (if at all). You can use the \fB\-text\fR option to automatically
 add plain text headers.
 .PP
@@ -390,7 +442,7 @@ The \fB\-resign\fR option uses an existing message digest when adding a new
 signer. This means that attributes must be present in at least one existing
 signer using the same message digest or this operation will fail.
 .PP
-The \fB\-stream\fR and \fB\-indef\fR options enable experimental streaming I/O support.
+The \fB\-stream\fR and \fB\-indef\fR options enable streaming I/O support.
 As a result the encoding is \s-1BER\s0 using indefinite length constructed encoding
 and no longer \s-1DER.\s0 Streaming is supported for the \fB\-encrypt\fR operation and the
 \&\fB\-sign\fR operation if the content is not detached.
@@ -401,23 +453,23 @@ remains \s-1DER.\s0
 .SH "EXIT CODES"
 .IX Header "EXIT CODES"
 .IP "0" 4
-the operation was completely successfully.
+The operation was completely successfully.
 .IP "1" 4
 .IX Item "1"
-an error occurred parsing the command options.
+An error occurred parsing the command options.
 .IP "2" 4
 .IX Item "2"
-one of the input files could not be read.
+One of the input files could not be read.
 .IP "3" 4
 .IX Item "3"
-an error occurred creating the PKCS#7 file or when reading the \s-1MIME\s0
+An error occurred creating the PKCS#7 file or when reading the \s-1MIME\s0
 message.
 .IP "4" 4
 .IX Item "4"
-an error occurred decrypting or verifying the message.
+An error occurred decrypting or verifying the message.
 .IP "5" 4
 .IX Item "5"
-the message was verified correctly but an error occurred writing out
+The message was verified correctly but an error occurred writing out
 the signers certificates.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
@@ -550,4 +602,12 @@ structures may cause parsing errors.
 The use of multiple \fB\-signer\fR options and the \fB\-resign\fR command were first
 added in OpenSSL 1.0.0
 .PP
-The \-no_alt_chains options was first added to OpenSSL 1.0.2b.
+The \-no_alt_chains options was first added to OpenSSL 1.1.0.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

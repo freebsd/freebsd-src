@@ -122,7 +122,7 @@
 #endif
 
 #if __XSI_VISIBLE || __POSIX_VISIBLE >= 200809
-#define	NL_ARGMAX		65536	/* max # of position args for printf */
+#define	NL_ARGMAX		4096	/* max # of position args for printf */
 #define	NL_MSGMAX		32767
 #define	NL_SETMAX		255
 #define	NL_TEXTMAX		2048

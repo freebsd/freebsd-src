@@ -30,6 +30,7 @@
 
 echo -n > $BSDINSTALL_TMPETC/rc.conf.hardening
 echo -n > $BSDINSTALL_TMPETC/sysctl.conf.hardening
+echo -n > $BSDINSTALL_TMPBOOT/loader.conf.hardening
 
 exec 3>&1
 FEATURES=$( dialog --backtitle "FreeBSD Installer" \
@@ -46,6 +47,7 @@ FEATURES=$( dialog --backtitle "FreeBSD Installer" \
 	"7 disable_syslogd" "Disable opening Syslogd network socket (disables remote logging)" ${disable_syslogd:-off} \
 	"8 disable_sendmail" "Disable Sendmail service" ${disable_sendmail:-off} \
 	"9 secure_console" "Enable console password prompt" ${secure_console:-off} \
+	"10 disable_ddtrace" "Disallow DTrace destructive-mode" ${disable_ddtrace:-off} \
 2>&1 1>&3 )
 exec 3>&-
 
@@ -79,6 +81,9 @@ for feature in $FEATURES; do
 	fi
 	if [ "$feature" = "secure_console" ]; then
 		sed "s/unknown	off secure/unknown	off insecure/g" $BSDINSTALL_CHROOT/etc/ttys > $BSDINSTALL_TMPETC/ttys.hardening
+	fi
+	if [ "$feature" = "disable_ddtrace" ]; then
+		echo 'security.bsd.allow_destructive_dtrace=0' >> $BSDINSTALL_TMPBOOT/loader.conf.hardening
 	fi
 done
 

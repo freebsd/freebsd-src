@@ -186,7 +186,7 @@ pass5(void)
 			cg->cg_ckhash = 0;
 			thishash = calculate_crc32c(~0L, cg, fs->fs_cgsize);
 			if (ckhash != thishash)
-				pwarn("CG %d: BAD CHECK-HASH %#x vs %#x",
+				pwarn("CG %d: BAD CHECK-HASH %#x vs %#x\n",
 				    c, ckhash, thishash);
 			cg->cg_ckhash = ckhash;
 		}

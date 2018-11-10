@@ -34,7 +34,7 @@ local screen = require("screen")
 
 local password = {}
 
-local INCORRECT_PASSWORD = "loader: incorrect password!"
+local INCORRECT_PASSWORD = "loader: incorrect password"
 -- Asterisks as a password mask
 local show_password_mask = false
 local twiddle_chars = {"/", "-", "\\", "|"}
@@ -45,7 +45,7 @@ function password.read(prompt_length)
 	local twiddle_pos = 1
 
 	local function draw_twiddle()
-		printc("  " .. twiddle_chars[twiddle_pos])
+		printc(twiddle_chars[twiddle_pos])
 		-- Reset cursor to just after the password prompt
 		screen.setcursor(prompt_length + 2, screen.default_y)
 		twiddle_pos = (twiddle_pos % #twiddle_chars) + 1
@@ -87,20 +87,19 @@ function password.check()
 		local attempts = 1
 
 		local function clear_incorrect_text_prompt()
-			printc("\n")
-			printc(string.rep(" ", #INCORRECT_PASSWORD))
+			printc("\r" .. string.rep(" ", #INCORRECT_PASSWORD))
 		end
 
 		while true do
+			if attempts > 1 then
+				clear_incorrect_text_prompt()
+			end
 			screen.defcursor()
 			printc(prompt)
 			local read_pwd = password.read(#prompt)
 			if pwd == nil or pwd == read_pwd then
 				-- Clear the prompt + twiddle
 				printc(string.rep(" ", #prompt + 5))
-				if attempts > 1 then
-					clear_incorrect_text_prompt()
-				end
 				return read_pwd
 			end
 			printc("\n" .. INCORRECT_PASSWORD)
@@ -116,11 +115,11 @@ function password.check()
 	end
 
 	local boot_pwd = loader.getenv("bootlock_password")
-	compare("Boot password: ", boot_pwd)
+	compare("Bootlock password:", boot_pwd)
 
 	local geli_prompt = loader.getenv("geom_eli_passphrase_prompt")
 	if geli_prompt ~= nil and geli_prompt:lower() == "yes" then
-		local passphrase = doPrompt("GELI Passphrase: ")
+		local passphrase = doPrompt("GELI Passphrase:")
 		loader.setenv("kern.geom.eli.passphrase", passphrase)
 	end
 
@@ -128,7 +127,7 @@ function password.check()
 	if pwd ~= nil then
 		core.autoboot()
 	end
-	compare("Password: ", pwd)
+	compare("Loader password:", pwd)
 end
 
 return password

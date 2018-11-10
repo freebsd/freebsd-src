@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "DSA_generate_parameters 3"
-.TH DSA_generate_parameters 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "DSA_GENERATE_PARAMETERS 3"
+.TH DSA_GENERATE_PARAMETERS 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -142,29 +142,31 @@ DSA_generate_parameters_ex, DSA_generate_parameters \- generate DSA parameters
 \& #include <openssl/dsa.h>
 \&
 \& int DSA_generate_parameters_ex(DSA *dsa, int bits,
-\&                const unsigned char *seed,int seed_len,
-\&                int *counter_ret, unsigned long *h_ret, BN_GENCB *cb);
+\&                                const unsigned char *seed, int seed_len,
+\&                                int *counter_ret, unsigned long *h_ret,
+\&                                BN_GENCB *cb);
 .Ve
 .PP
 Deprecated:
 .PP
-.Vb 3
-\& DSA *DSA_generate_parameters(int bits, unsigned char *seed,
-\&                int seed_len, int *counter_ret, unsigned long *h_ret,
-\&                void (*callback)(int, int, void *), void *cb_arg);
+.Vb 5
+\& #if OPENSSL_API_COMPAT < 0x00908000L
+\& DSA *DSA_generate_parameters(int bits, unsigned char *seed, int seed_len,
+\&                              int *counter_ret, unsigned long *h_ret,
+\&                              void (*callback)(int, int, void *), void *cb_arg);
+\& #endif
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fIDSA_generate_parameters_ex()\fR generates primes p and q and a generator g
 for use in the \s-1DSA\s0 and stores the result in \fBdsa\fR.
 .PP
-\&\fBbits\fR is the length of the prime to be generated; the \s-1DSS\s0 allows a
-maximum of 1024 bits.
+\&\fBbits\fR is the length of the prime p to be generated.
+For lengths under 2048 bits, the length of q is 160 bits; for lengths
+greater than or equal to 2048 bits, the length of q is set to 256 bits.
 .PP
-If \fBseed\fR is \fB\s-1NULL\s0\fR or \fBseed_len\fR < 20, the primes will be
-generated at random. Otherwise, the seed is used to generate
-them. If the given seed does not yield a prime q, a new random
-seed is chosen.
+If \fBseed\fR is \s-1NULL,\s0 the primes will be generated at random.
+If \fBseed_len\fR is less than the length of q, an error is returned.
 .PP
 \&\fIDSA_generate_parameters_ex()\fR places the iteration count in
 *\fBcounter_ret\fR and a counter used for finding a generator in
@@ -175,59 +177,60 @@ of the key generation. If \fBcb\fR is not \fB\s-1NULL\s0\fR, it will be
 called as shown below. For information on the \s-1BN_GENCB\s0 structure and the
 BN_GENCB_call function discussed below, refer to
 \&\fIBN_generate_prime\fR\|(3).
-.IP "\(bu" 4
+.PP
+\&\fIDSA_generate_prime()\fR is similar to \fIDSA_generate_prime_ex()\fR but
+expects an old-style callback function; see
+\&\fIBN_generate_prime\fR\|(3) for information on the old-style callback.
+.IP "\(bu" 2
 When a candidate for q is generated, \fBBN_GENCB_call(cb, 0, m++)\fR is called
 (m is 0 for the first candidate).
-.IP "\(bu" 4
+.IP "\(bu" 2
 When a candidate for q has passed a test by trial division,
 \&\fBBN_GENCB_call(cb, 1, \-1)\fR is called.
 While a candidate for q is tested by Miller-Rabin primality tests,
 \&\fBBN_GENCB_call(cb, 1, i)\fR is called in the outer loop
 (once for each witness that confirms that the candidate may be prime);
 i is the loop counter (starting at 0).
-.IP "\(bu" 4
+.IP "\(bu" 2
 When a prime q has been found, \fBBN_GENCB_call(cb, 2, 0)\fR and
 \&\fBBN_GENCB_call(cb, 3, 0)\fR are called.
-.IP "\(bu" 4
+.IP "\(bu" 2
 Before a candidate for p (other than the first) is generated and tested,
 \&\fBBN_GENCB_call(cb, 0, counter)\fR is called.
-.IP "\(bu" 4
+.IP "\(bu" 2
 When a candidate for p has passed the test by trial division,
 \&\fBBN_GENCB_call(cb, 1, \-1)\fR is called.
 While it is tested by the Miller-Rabin primality test,
 \&\fBBN_GENCB_call(cb, 1, i)\fR is called in the outer loop
 (once for each witness that confirms that the candidate may be prime).
 i is the loop counter (starting at 0).
-.IP "\(bu" 4
+.IP "\(bu" 2
 When p has been found, \fBBN_GENCB_call(cb, 2, 1)\fR is called.
-.IP "\(bu" 4
+.IP "\(bu" 2
 When the generator has been found, \fBBN_GENCB_call(cb, 3, 1)\fR is called.
-.PP
-\&\fIDSA_generate_parameters()\fR (deprecated) works in much the same way as for DSA_generate_parameters_ex, except that no \fBdsa\fR parameter is passed and
-instead a newly allocated \fB\s-1DSA\s0\fR structure is returned. Additionally \*(L"old
-style\*(R" callbacks are used instead of the newer \s-1BN_GENCB\s0 based approach.
-Refer to \fIBN_generate_prime\fR\|(3) for further information.
-.SH "RETURN VALUE"
-.IX Header "RETURN VALUE"
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
 \&\fIDSA_generate_parameters_ex()\fR returns a 1 on success, or 0 otherwise.
-.PP
-\&\fIDSA_generate_parameters()\fR returns a pointer to the \s-1DSA\s0 structure, or
-\&\fB\s-1NULL\s0\fR if the parameter generation fails.
-.PP
 The error codes can be obtained by \fIERR_get_error\fR\|(3).
+.PP
+\&\fIDSA_generate_parameters()\fR returns a pointer to the \s-1DSA\s0 structure or
+\&\fB\s-1NULL\s0\fR if the parameter generation fails.
 .SH "BUGS"
 .IX Header "BUGS"
-Seed lengths > 20 are not supported.
+Seed lengths greater than 20 are not supported.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIdsa\fR\|(3), \fIERR_get_error\fR\|(3), \fIrand\fR\|(3),
+\&\fIDSA_new\fR\|(3), \fIERR_get_error\fR\|(3), \fIRAND_bytes\fR\|(3),
 \&\fIDSA_free\fR\|(3), \fIBN_generate_prime\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fIDSA_generate_parameters()\fR appeared in SSLeay 0.8. The \fBcb_arg\fR
-argument was added in SSLeay 0.9.0.
-In versions up to OpenSSL 0.9.4, \fBcallback(1, ...)\fR was called
-in the inner loop of the Miller-Rabin test whenever it reached the
-squaring step (the parameters to \fBcallback\fR did not reveal how many
-witnesses had been tested); since OpenSSL 0.9.5, \fBcallback(1, ...)\fR
-is called as in \fIBN_is_prime\fR\|(3), i.e. once for each witness.
+\&\fIDSA_generate_parameters()\fR was deprecated in OpenSSL 0.9.8; use
+\&\fIDSA_generate_parameters_ex()\fR instead.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

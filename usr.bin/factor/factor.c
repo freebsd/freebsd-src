@@ -215,8 +215,7 @@ pr_fact(BIGNUM *val)
 			if (!BN_sqr(bnfact, bnfact, ctx))
 				errx(1, "error in BN_sqr()");
 			if (BN_cmp(bnfact, val) > 0 ||
-			    BN_is_prime(val, PRIME_CHECKS,
-					NULL, NULL, NULL) == 1)
+			    BN_is_prime_ex(val, PRIME_CHECKS, NULL, NULL) == 1)
 				pr_print(val);
 			else
 				pollard_pminus1(val);
@@ -289,8 +288,7 @@ newbase:
 			errx(1, "error in BN_gcd()");
 
 		if (!BN_is_one(x)) {
-			if (BN_is_prime(x, PRIME_CHECKS, NULL, NULL,
-			    NULL) == 1)
+			if (BN_is_prime_ex(x, PRIME_CHECKS, NULL, NULL) == 1)
 				pr_print(x);
 			else
 				pollard_pminus1(x);
@@ -299,7 +297,7 @@ newbase:
 			BN_div(num, NULL, val, x, ctx);
 			if (BN_is_one(num))
 				return;
-			if (BN_is_prime(num, PRIME_CHECKS, NULL, NULL,
+			if (BN_is_prime_ex(num, PRIME_CHECKS, NULL,
 			    NULL) == 1) {
 				pr_print(num);
 				fflush(stdout);

@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2018 Nexenta Systems, Inc.
  * Copyright 2015 John Marino <draco@marino.st>
  *
  * This source code is derived from the illumos localedef command, and
@@ -253,6 +253,9 @@ static int32_t pri_undefined[COLL_WEIGHTS_MAX];
 static int32_t pri_ignore;
 
 static collate_info_t collinfo;
+static int32_t subst_count[COLL_WEIGHTS_MAX];
+static int32_t chain_count;
+static int32_t large_count;
 
 static collpri_t	*prilist = NULL;
 static int		numpri = 0;
@@ -1080,7 +1083,7 @@ wsncpy(wchar_t *s1, const wchar_t *s2, size_t n)
 	wchar_t *os1 = s1;
 
 	n++;
-	while (--n > 0 && (*s1++ = *s2++) != 0)
+	while (--n > 0 && (*s1++ = htote(*s2++)) != 0)
 		continue;
 	if (n > 0)
 		while (--n > 0)
@@ -1165,13 +1168,13 @@ dump_collate(void)
 		if (resolve_pri(pri_undefined[i]) == -1) {
 			set_pri(pri_undefined[i], -1, RESOLVED);
 			/* they collate at the end of everything else */
-			collinfo.undef_pri[i] = COLLATE_MAX_PRIORITY;
+			collinfo.undef_pri[i] = htote(COLLATE_MAX_PRIORITY);
 		}
-		collinfo.pri_count[i] = nweight[i];
+		collinfo.pri_count[i] = htote(nweight[i]);
 	}
 
-	collinfo.pri_count[NUM_WT] = max_wide();
-	collinfo.undef_pri[NUM_WT] = COLLATE_MAX_PRIORITY;
+	collinfo.pri_count[NUM_WT] = htote(max_wide());
+	collinfo.undef_pri[NUM_WT] = htote(COLLATE_MAX_PRIORITY);
 	collinfo.directive[NUM_WT] = DIRECTIVE_UNDEFINED;
 
 	/*
@@ -1180,19 +1183,20 @@ dump_collate(void)
 	for (i = 0; i <= UCHAR_MAX; i++) {
 		if ((cc = get_collchar(i, 0)) != NULL) {
 			for (j = 0; j < NUM_WT; j++) {
-				chars[i].pri[j] = get_weight(cc->ref[j], j);
+				chars[i].pri[j] =
+				    htote(get_weight(cc->ref[j], j));
 			}
 		} else {
 			for (j = 0; j < NUM_WT; j++) {
 				chars[i].pri[j] =
-				    get_weight(pri_undefined[j], j);
+				    htote(get_weight(pri_undefined[j], j));
 			}
 			/*
 			 * Per POSIX, for undefined characters, we
 			 * also have to add a last item, which is the
 			 * character code.
 			 */
-			chars[i].pri[NUM_WT] = i;
+			chars[i].pri[NUM_WT] = htote(i);
 		}
 	}
 
@@ -1203,7 +1207,7 @@ dump_collate(void)
 		collate_subst_t *st = NULL;
 		subst_t *temp;
 		RB_COUNT(temp, substs, &substs[i], n);
-		collinfo.subst_count[i] = n;
+		subst_count[i] = n;
 		if ((st = calloc(n, sizeof(collate_subst_t))) == NULL) {
 			fprintf(stderr, "out of memory");
 			return;
@@ -1217,12 +1221,14 @@ dump_collate(void)
 			if (st[n].key != (n | COLLATE_SUBST_PRIORITY)) {
 				INTERR;
 			}
+			st[n].key = htote(st[n].key);
 			for (j = 0; sb->ref[j]; j++) {
-				st[n].pri[j] = get_weight(sb->ref[j], i);
+				st[n].pri[j] = htote(get_weight(sb->ref[j],
+				    i));
 			}
 			n++;
 		}
-		if (n != collinfo.subst_count[i])
+		if (n != subst_count[i])
 			INTERR;
 		subst[i] = st;
 	}
@@ -1231,9 +1237,8 @@ dump_collate(void)
 	/*
 	 * Chains, i.e. collating elements
 	 */
-	RB_NUMNODES(collelem_t, elem_by_expand, &elem_by_expand,
-	    collinfo.chain_count);
-	chain = calloc(collinfo.chain_count, sizeof(collate_chain_t));
+	RB_NUMNODES(collelem_t, elem_by_expand, &elem_by_expand, chain_count);
+	chain = calloc(chain_count, sizeof(collate_chain_t));
 	if (chain == NULL) {
 		fprintf(stderr, "out of memory");
 		return;
@@ -1242,11 +1247,11 @@ dump_collate(void)
 	RB_FOREACH(ce, elem_by_expand, &elem_by_expand) {
 		(void) wsncpy(chain[n].str, ce->expand, COLLATE_STR_LEN);
 		for (i = 0; i < NUM_WT; i++) {
-			chain[n].pri[i] = get_weight(ce->ref[i], i);
+			chain[n].pri[i] = htote(get_weight(ce->ref[i], i));
 		}
 		n++;
 	}
-	if (n != collinfo.chain_count)
+	if (n != chain_count)
 		INTERR;
 
 	/*
@@ -1273,12 +1278,12 @@ dump_collate(void)
 				/* if undefined, then all priorities are */
 				INTERR;
 			} else {
-				large[i].pri.pri[j] = pri;
+				large[i].pri.pri[j] = htote(pri);
 			}
 		}
 		if (!undef) {
-			large[i].val = cc->wc;
-			collinfo.large_count = i++;
+			large[i].val = htote(cc->wc);
+			large_count = i++;
 		}
 	}
 
@@ -1288,6 +1293,11 @@ dump_collate(void)
 
 	/* Time to write the entire data set out */
 
+	for (i = 0; i < NUM_WT; i++)
+		collinfo.subst_count[i] = htote(subst_count[i]);
+	collinfo.chain_count = htote(chain_count);
+	collinfo.large_count = htote(large_count);
+
 	if ((wr_category(vers, COLLATE_STR_LEN, f) < 0) ||
 	    (wr_category(&collinfo, sizeof (collinfo), f) < 0) ||
 	    (wr_category(&chars, sizeof (chars), f) < 0)) {
@@ -1295,16 +1305,16 @@ dump_collate(void)
 	}
 
 	for (i = 0; i < NUM_WT; i++) {
-		sz =  sizeof (collate_subst_t) * collinfo.subst_count[i];
+		sz = sizeof (collate_subst_t) * subst_count[i];
 		if (wr_category(subst[i], sz, f) < 0) {
 			return;
 		}
 	}
-	sz = sizeof (collate_chain_t) * collinfo.chain_count;
+	sz = sizeof (collate_chain_t) * chain_count;
 	if (wr_category(chain, sz, f) < 0) {
 		return;
 	}
-	sz = sizeof (collate_large_t) * collinfo.large_count;
+	sz = sizeof (collate_large_t) * large_count;
 	if (wr_category(large, sz, f) < 0) {
 		return;
 	}

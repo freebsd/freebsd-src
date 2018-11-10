@@ -121,6 +121,14 @@ SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
 #endif
     "Max kernel address");
 
+#if VM_NRESERVLEVEL > 0
+#define	KVA_QUANTUM_SHIFT	(VM_LEVEL_0_ORDER + PAGE_SHIFT)
+#else
+/* On non-superpage architectures want large import sizes. */
+#define	KVA_QUANTUM_SHIFT	(10 + PAGE_SHIFT)
+#endif
+#define	KVA_QUANTUM		(1 << KVA_QUANTUM_SHIFT)
+
 /*
  *	kva_alloc:
  *
@@ -167,7 +175,7 @@ kva_free(vm_offset_t addr, vm_size_t size)
  *	necessarily physically contiguous.  If M_ZERO is specified through the
  *	given flags, then the pages are zeroed before they are mapped.
  */
-vm_offset_t
+static vm_offset_t
 kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, vm_memattr_t memattr)
 {
@@ -223,17 +231,26 @@ vm_offset_t
 kmem_alloc_attr(vm_size_t size, int flags, vm_paddr_t low, vm_paddr_t high,
     vm_memattr_t memattr)
 {
+
+	return (kmem_alloc_attr_domainset(DOMAINSET_RR(), size, flags, low,
+	    high, memattr));
+}
+
+vm_offset_t
+kmem_alloc_attr_domainset(struct domainset *ds, vm_size_t size, int flags,
+    vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr)
+{
 	struct vm_domainset_iter di;
 	vm_offset_t addr;
 	int domain;
 
-	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
+	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
 	do {
 		addr = kmem_alloc_attr_domain(domain, size, flags, low, high,
 		    memattr);
 		if (addr != 0)
 			break;
-	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
+	} while (vm_domainset_iter_policy(&di, &domain) == 0);
 
 	return (addr);
 }
@@ -246,7 +263,7 @@ kmem_alloc_attr(vm_size_t size, int flags, vm_paddr_t low, vm_paddr_t high,
  *	through the given flags, then the pages are zeroed before they are
  *	mapped.
  */
-vm_offset_t
+static vm_offset_t
 kmem_alloc_contig_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr)
@@ -307,17 +324,27 @@ vm_offset_t
 kmem_alloc_contig(vm_size_t size, int flags, vm_paddr_t low, vm_paddr_t high,
     u_long alignment, vm_paddr_t boundary, vm_memattr_t memattr)
 {
+
+	return (kmem_alloc_contig_domainset(DOMAINSET_RR(), size, flags, low,
+	    high, alignment, boundary, memattr));
+}
+
+vm_offset_t
+kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size, int flags,
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_memattr_t memattr)
+{
 	struct vm_domainset_iter di;
 	vm_offset_t addr;
 	int domain;
 
-	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
+	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
 	do {
 		addr = kmem_alloc_contig_domain(domain, size, flags, low, high,
 		    alignment, boundary, memattr);
 		if (addr != 0)
 			break;
-	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
+	} while (vm_domainset_iter_policy(&di, &domain) == 0);
 
 	return (addr);
 }
@@ -360,11 +387,11 @@ kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
 }
 
 /*
- *	kmem_malloc:
+ *	kmem_malloc_domain:
  *
  *	Allocate wired-down pages in the kernel's address space.
  */
-vm_offset_t
+static vm_offset_t
 kmem_malloc_domain(int domain, vm_size_t size, int flags)
 {
 	vmem_t *arena;
@@ -394,24 +421,32 @@ kmem_malloc_domain(int domain, vm_size_t size, int flags)
 vm_offset_t
 kmem_malloc(vm_size_t size, int flags)
 {
+
+	return (kmem_malloc_domainset(DOMAINSET_RR(), size, flags));
+}
+
+vm_offset_t
+kmem_malloc_domainset(struct domainset *ds, vm_size_t size, int flags)
+{
 	struct vm_domainset_iter di;
 	vm_offset_t addr;
 	int domain;
 
-	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
+	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
 	do {
 		addr = kmem_malloc_domain(domain, size, flags);
 		if (addr != 0)
 			break;
-	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
+	} while (vm_domainset_iter_policy(&di, &domain) == 0);
 
 	return (addr);
 }
 
 /*
- *	kmem_back:
+ *	kmem_back_domain:
  *
- *	Allocate physical pages for the specified virtual address range.
+ *	Allocate physical pages from the specified domain for the specified
+ *	virtual address range.
  */
 int
 kmem_back_domain(int domain, vm_object_t object, vm_offset_t addr,
@@ -472,24 +507,43 @@ retry:
 	return (KERN_SUCCESS);
 }
 
+/*
+ *	kmem_back:
+ *
+ *	Allocate physical pages for the specified virtual address range.
+ */
 int
 kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
 {
-	struct vm_domainset_iter di;
-	int domain;
-	int ret;
+	vm_offset_t end, next, start;
+	int domain, rv;
 
 	KASSERT(object == kernel_object,
 	    ("kmem_back: only supports kernel object."));
 
-	vm_domainset_iter_malloc_init(&di, kernel_object, &domain, &flags);
-	do {
-		ret = kmem_back_domain(domain, object, addr, size, flags);
-		if (ret == KERN_SUCCESS)
+	for (start = addr, end = addr + size; addr < end; addr = next) {
+		/*
+		 * We must ensure that pages backing a given large virtual page
+		 * all come from the same physical domain.
+		 */
+		if (vm_ndomains > 1) {
+			domain = (addr >> KVA_QUANTUM_SHIFT) % vm_ndomains;
+			while (VM_DOMAIN_EMPTY(domain))
+				domain++;
+			next = roundup2(addr + 1, KVA_QUANTUM);
+			if (next > end || next < start)
+				next = end;
+		} else {
+			domain = 0;
+			next = end;
+		}
+		rv = kmem_back_domain(domain, object, addr, next - addr, flags);
+		if (rv != KERN_SUCCESS) {
+			kmem_unback(object, start, addr - start);
 			break;
-	} while (vm_domainset_iter_malloc(&di, &domain, &flags) == 0);
-
-	return (ret);
+		}
+	}
+	return (rv);
 }
 
 /*
@@ -596,8 +650,8 @@ kmap_alloc_wait(vm_map_t map, vm_size_t size)
 		map->needs_wakeup = TRUE;
 		vm_map_unlock_and_wait(map, 0);
 	}
-	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_ALL,
-	    VM_PROT_ALL, MAP_ACC_CHARGED);
+	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_RW, VM_PROT_RW,
+	    MAP_ACC_CHARGED);
 	vm_map_unlock(map);
 	return (addr);
 }
@@ -645,17 +699,57 @@ kmem_init_zero_region(void)
 }
 
 /*
+ * Import KVA from the kernel map into the kernel arena.
+ */
+static int
+kva_import(void *unused, vmem_size_t size, int flags, vmem_addr_t *addrp)
+{
+	vm_offset_t addr;
+	int result;
+
+	KASSERT((size % KVA_QUANTUM) == 0,
+	    ("kva_import: Size %jd is not a multiple of %d",
+	    (intmax_t)size, (int)KVA_QUANTUM));
+	addr = vm_map_min(kernel_map);
+	result = vm_map_find(kernel_map, NULL, 0, &addr, size, 0,
+	    VMFS_SUPER_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
+	if (result != KERN_SUCCESS)
+                return (ENOMEM);
+
+	*addrp = addr;
+
+	return (0);
+}
+
+/*
+ * Import KVA from a parent arena into a per-domain arena.  Imports must be
+ * KVA_QUANTUM-aligned and a multiple of KVA_QUANTUM in size.
+ */
+static int
+kva_import_domain(void *arena, vmem_size_t size, int flags, vmem_addr_t *addrp)
+{
+
+	KASSERT((size % KVA_QUANTUM) == 0,
+	    ("kva_import_domain: Size %jd is not a multiple of %d",
+	    (intmax_t)size, (int)KVA_QUANTUM));
+	return (vmem_xalloc(arena, size, KVA_QUANTUM, 0, 0, VMEM_ADDR_MIN,
+	    VMEM_ADDR_MAX, flags, addrp));
+}
+
+/*
  * 	kmem_init:
  *
  *	Create the kernel map; insert a mapping covering kernel text, 
  *	data, bss, and all space allocated thus far (`boostrap' data).  The 
  *	new map will thus map the range between VM_MIN_KERNEL_ADDRESS and 
  *	`start' as allocated, and the range between `start' and `end' as free.
+ *	Create the kernel vmem arena and its per-domain children.
  */
 void
 kmem_init(vm_offset_t start, vm_offset_t end)
 {
 	vm_map_t m;
+	int domain;
 
 	m = vm_map_create(kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
 	m->system_map = 1;
@@ -671,6 +765,39 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 	    start, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	/* ... and ending with the completion of the above `insert' */
 	vm_map_unlock(m);
+
+	/*
+	 * Initialize the kernel_arena.  This can grow on demand.
+	 */
+	vmem_init(kernel_arena, "kernel arena", 0, 0, PAGE_SIZE, 0, 0);
+	vmem_set_import(kernel_arena, kva_import, NULL, NULL, KVA_QUANTUM);
+
+	for (domain = 0; domain < vm_ndomains; domain++) {
+		/*
+		 * Initialize the per-domain arenas.  These are used to color
+		 * the KVA space in a way that ensures that virtual large pages
+		 * are backed by memory from the same physical domain,
+		 * maximizing the potential for superpage promotion.
+		 */
+		vm_dom[domain].vmd_kernel_arena = vmem_create(
+		    "kernel arena domain", 0, 0, PAGE_SIZE, 0, M_WAITOK);
+		vmem_set_import(vm_dom[domain].vmd_kernel_arena,
+		    kva_import_domain, NULL, kernel_arena, KVA_QUANTUM);
+
+		/*
+		 * In architectures with superpages, maintain separate arenas
+		 * for allocations with permissions that differ from the
+		 * "standard" read/write permissions used for kernel memory,
+		 * so as not to inhibit superpage promotion.
+		 */
+#if VM_NRESERVLEVEL > 0
+		vm_dom[domain].vmd_kernel_rwx_arena = vmem_create(
+		    "kernel rwx arena domain", 0, 0, PAGE_SIZE, 0, M_WAITOK);
+		vmem_set_import(vm_dom[domain].vmd_kernel_rwx_arena,
+		    kva_import_domain, (vmem_release_t *)vmem_xfree,
+		    kernel_arena, KVA_QUANTUM);
+#endif
+	}
 }
 
 /*
@@ -699,7 +826,6 @@ kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 		vmd = vm_pagequeue_domain(m);
 		vm_domain_free_lock(vmd);
 		vm_phys_free_pages(m, 0);
-		vmd->vmd_page_count++;
 		vm_domain_free_unlock(vmd);
 
 		vm_domain_freecnt_inc(vmd, 1);

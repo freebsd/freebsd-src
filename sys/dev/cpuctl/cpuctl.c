@@ -362,7 +362,7 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	set_cpu(cpu, td);
 	critical_enter();
 
-	ret = ucode_intel_load(ptr, true);
+	ret = ucode_intel_load(ptr, true, NULL, NULL);
 
 	critical_exit();
 	restore_cpu(oldcpu, is_bound, td);
@@ -521,6 +521,9 @@ cpuctl_do_eval_cpu_features(int cpu, struct thread *td)
 	hw_ibrs_recalculate();
 	restore_cpu(oldcpu, is_bound, td);
 	hw_ssb_recalculate(true);
+#ifdef __amd64__
+	amd64_syscall_ret_flush_l1d_recalc();
+#endif
 	printcpuinfo();
 	return (0);
 }

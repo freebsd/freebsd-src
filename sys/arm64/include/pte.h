@@ -109,7 +109,7 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 	/* 0x2 also marks an invalid address */
 #define	L3_PAGE		0x3
 
-#define	PMAP_MAPDEV_EARLY_SIZE	(L2_SIZE * 4)
+#define	PMAP_MAPDEV_EARLY_SIZE	(L2_SIZE * 8)
 
 #define	L0_ENTRIES_SHIFT 9
 #define	L0_ENTRIES	(1 << L0_ENTRIES_SHIFT)

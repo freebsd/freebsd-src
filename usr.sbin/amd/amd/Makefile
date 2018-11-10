@@ -10,6 +10,7 @@
 
 .PATH:	${SRCTOP}/contrib/amd/amd
 
+CONFS=	amd.map
 PROG=	amd
 MAN=	amd.8
 SRCS=	am_ops.c amd.c amfs_auto.c amfs_direct.c amfs_error.c amfs_generic.c

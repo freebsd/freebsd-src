@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "RSA_sign_ASN1_OCTET_STRING 3"
-.TH RSA_sign_ASN1_OCTET_STRING 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "RSA_SIGN_ASN1_OCTET_STRING 3"
+.TH RSA_SIGN_ASN1_OCTET_STRING 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -142,12 +142,12 @@ RSA_sign_ASN1_OCTET_STRING, RSA_verify_ASN1_OCTET_STRING \- RSA signatures
 \& #include <openssl/rsa.h>
 \&
 \& int RSA_sign_ASN1_OCTET_STRING(int dummy, unsigned char *m,
-\&    unsigned int m_len, unsigned char *sigret, unsigned int *siglen,
-\&    RSA *rsa);
+\&                                unsigned int m_len, unsigned char *sigret,
+\&                                unsigned int *siglen, RSA *rsa);
 \&
 \& int RSA_verify_ASN1_OCTET_STRING(int dummy, unsigned char *m,
-\&    unsigned int m_len, unsigned char *sigbuf, unsigned int siglen,
-\&    RSA *rsa);
+\&                                  unsigned int m_len, unsigned char *sigbuf,
+\&                                  unsigned int siglen, RSA *rsa);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -177,10 +177,14 @@ The error codes can be obtained by \fIERR_get_error\fR\|(3).
 These functions serve no recognizable purpose.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIERR_get_error\fR\|(3), \fIobjects\fR\|(3),
-\&\fIrand\fR\|(3), \fIrsa\fR\|(3), \fIRSA_sign\fR\|(3),
+\&\fIERR_get_error\fR\|(3),
+\&\fIRAND_bytes\fR\|(3), \fIRSA_sign\fR\|(3),
 \&\fIRSA_verify\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIRSA_sign_ASN1_OCTET_STRING()\fR and \fIRSA_verify_ASN1_OCTET_STRING()\fR were
-added in SSLeay 0.8.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

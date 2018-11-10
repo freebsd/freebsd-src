@@ -811,10 +811,10 @@ main(int ac, char **av)
 			    *options.version_addendum != '\0')
 				fprintf(stderr, "%s %s, %s\n", SSH_RELEASE,
 				    options.version_addendum,
-				    OPENSSL_VERSION);
+				    OPENSSL_VERSION_STRING);
 			else
 				fprintf(stderr, "%s, %s\n", SSH_RELEASE,
-				    OPENSSL_VERSION);
+				    OPENSSL_VERSION_STRING);
 			if (opt == 'V')
 				exit(0);
 			break;
@@ -1078,7 +1078,7 @@ main(int ac, char **av)
 
 	if (debug_flag)
 		/* version_addendum is always NULL at this point */
-		logit("%s, %s", SSH_RELEASE, OPENSSL_VERSION);
+		logit("%s, %s", SSH_RELEASE, OPENSSL_VERSION_STRING);
 
 	/* Parse the configuration files */
 	process_config_files(host_arg, pw, 0);

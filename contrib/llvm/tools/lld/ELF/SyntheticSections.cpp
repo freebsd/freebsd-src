@@ -1034,6 +1034,8 @@ template <class ELFT> void DynamicSection<ELFT>::finalizeContents() {
   uint32_t DtFlags1 = 0;
   if (Config->Bsymbolic)
     DtFlags |= DF_SYMBOLIC;
+  if (Config->ZInterpose)
+    DtFlags1 |= DF_1_INTERPOSE;
   if (Config->ZNodelete)
     DtFlags1 |= DF_1_NODELETE;
   if (Config->ZNodlopen)
@@ -1211,11 +1213,13 @@ void RelocationBaseSection::addReloc(const DynamicReloc &Reloc) {
 void RelocationBaseSection::finalizeContents() {
   // If all relocations are R_*_RELATIVE they don't refer to any
   // dynamic symbol and we don't need a dynamic symbol table. If that
-  // is the case, just use 0 as the link.
-  Link = InX::DynSymTab ? InX::DynSymTab->getParent()->SectionIndex : 0;
+  // is the case, just use the index of the regular symbol table section.
+  getParent()->Link = InX::DynSymTab ?
+    InX::DynSymTab->getParent()->SectionIndex :
+    InX::SymTab->getParent()->SectionIndex;
 
-  // Set required output section properties.
-  getParent()->Link = Link;
+  if (InX::RelaIplt == this || InX::RelaPlt == this)
+    getParent()->Info = InX::GotPlt->getParent()->SectionIndex;
 }
 
 template <class ELFT>

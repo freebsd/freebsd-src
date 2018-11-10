@@ -758,8 +758,16 @@ numberstring	: NUMBER				{
 		;
 
 varset		: STRING '=' varstring	{
+			char *s = $1;
 			if (pf->opts & PF_OPT_VERBOSE)
 				printf("%s = \"%s\"\n", $1, $3);
+			while (*s++) {
+				if (isspace((unsigned char)*s)) {
+					yyerror("macro name cannot contain "
+					   "whitespace");
+					YYERROR;
+				}
+			}
 			if (symset($1, $3, 0) == -1)
 				err(1, "cannot store variable %s", $1);
 			free($1);
@@ -4408,7 +4416,7 @@ route_host	: STRING			{
 			$$ = calloc(1, sizeof(struct node_host));
 			if ($$ == NULL)
 				err(1, "route_host: calloc");
-			$$->ifname = $1;
+			$$->ifname = strdup($1);
 			set_ipmask($$, 128);
 			$$->next = NULL;
 			$$->tail = $$;
@@ -4418,7 +4426,7 @@ route_host	: STRING			{
 
 			$$ = $3;
 			for (n = $3; n != NULL; n = n->next)
-				n->ifname = $2;
+				n->ifname = strdup($2);
 		}
 		;
 
@@ -5765,8 +5773,10 @@ top:
 					return (0);
 				if (next == quotec || c == ' ' || c == '\t')
 					c = next;
-				else if (next == '\n')
+				else if (next == '\n') {
+					file->lineno++;
 					continue;
+				}
 				else
 					lungetc(next);
 			} else if (c == quotec) {

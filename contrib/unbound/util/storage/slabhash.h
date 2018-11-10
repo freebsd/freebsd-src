@@ -153,6 +153,15 @@ void slabhash_status(struct slabhash* table, const char* id, int extended);
 size_t slabhash_get_size(struct slabhash* table);
 
 /**
+ * See if slabhash is of given (size, slabs) configuration.
+ * @param table: hash table
+ * @param size: max size to test for
+ * @param slabs: slab count to test for.
+ * @return true if equal
+ */
+int slabhash_is_size(struct slabhash* table, size_t size, size_t slabs);
+
+/**
  * Retrieve slab hash current memory use.
  * @param table: hash table.
  * @return memory in use.

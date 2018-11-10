@@ -31,7 +31,9 @@ PACKAGE=	ssh
 
 # Portability layer
 SRCS+=	bcrypt_pbkdf.c blowfish.c bsd-misc.c bsd-signal.c explicit_bzero.c \
-	fmt_scaled.c freezero.c glob.c openssl-compat.c port-net.c \
+	fmt_scaled.c freezero.c glob.c \
+	libressl-api-compat.c \
+	openssl-compat.c port-net.c \
 	realpath.c recallocarray.c strtonum.c timingsafe_bcmp.c vis.c xcrypt.c
 
 .if ${MK_LDNS} == "no"

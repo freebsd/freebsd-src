@@ -28,7 +28,7 @@
 .\"	@(#)pwd_mkdb.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2018
+.Dd October 20, 2018
 .Dt PWD_MKDB 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd "generate the password databases"
 .Sh SYNOPSIS
 .Nm
-.Op Fl BCiLNp
+.Op Fl CiNp
 .Op Fl d Ar directory
 .Op Fl s Ar cachesize
 .Op Fl u Ar username
@@ -111,15 +111,6 @@ encrypted password and the insecure version has an asterisk (``*'')
 .Pp
 The databases are used by the C library password routines (see
 .Xr getpwent 3 ) .
-.Pp
-The following options affected the generation of legacy entries,
-and are now deprecated.
-.Bl -tag -width flag
-.It Fl B
-Store data in big-endian format.
-.It Fl L
-Store data in little-endian format.
-.El
 .Pp
 The
 .Nm

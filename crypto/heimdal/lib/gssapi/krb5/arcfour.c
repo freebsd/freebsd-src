@@ -173,7 +173,7 @@ _gssapi_get_mic_arcfour(OM_uint32 * minor_status,
     int32_t seq_number;
     size_t len, total_len;
     u_char k6_data[16], *p0, *p;
-    EVP_CIPHER_CTX rc4_key;
+    EVP_CIPHER_CTX *rc4_key;
 
     _gsskrb5_encap_length (22, &len, &total_len, GSS_KRB5_MECHANISM);
 
@@ -235,10 +235,16 @@ _gssapi_get_mic_arcfour(OM_uint32 * minor_status,
 
     memset (p + 4, (context_handle->more_flags & LOCAL) ? 0 : 0xff, 4);
 
-    EVP_CIPHER_CTX_init(&rc4_key);
-    EVP_CipherInit_ex(&rc4_key, EVP_rc4(), NULL, k6_data, NULL, 1);
-    EVP_Cipher(&rc4_key, p, p, 8);
-    EVP_CIPHER_CTX_cleanup(&rc4_key);
+    rc4_key = EVP_CIPHER_CTX_new();
+    if (rc4_key == NULL) {
+	_gsskrb5_release_buffer(minor_status, message_token);
+	*minor_status = ENOMEM;
+	return GSS_S_FAILURE;
+    }
+
+    EVP_CipherInit_ex(rc4_key, EVP_rc4(), NULL, k6_data, NULL, 1);
+    EVP_Cipher(rc4_key, p, p, 8);
+    EVP_CIPHER_CTX_free(rc4_key);
 
     memset(k6_data, 0, sizeof(k6_data));
 
@@ -308,12 +314,16 @@ _gssapi_verify_mic_arcfour(OM_uint32 * minor_status,
     }
 
     {
-	EVP_CIPHER_CTX rc4_key;
+	EVP_CIPHER_CTX *rc4_key;
 
-	EVP_CIPHER_CTX_init(&rc4_key);
-	EVP_CipherInit_ex(&rc4_key, EVP_rc4(), NULL, (void *)k6_data, NULL, 0);
-	EVP_Cipher(&rc4_key, SND_SEQ, p, 8);
-	EVP_CIPHER_CTX_cleanup(&rc4_key);
+	rc4_key = EVP_CIPHER_CTX_new();
+	if (rc4_key == NULL) {
+	    *minor_status = ENOMEM;
+	    return GSS_S_FAILURE;
+	}
+	EVP_CipherInit_ex(rc4_key, EVP_rc4(), NULL, (void *)k6_data, NULL, 0);
+	EVP_Cipher(rc4_key, SND_SEQ, p, 8);
+	EVP_CIPHER_CTX_free(rc4_key);
 
 	memset(k6_data, 0, sizeof(k6_data));
     }
@@ -461,12 +471,17 @@ _gssapi_wrap_arcfour(OM_uint32 * minor_status,
 
 
     if(conf_req_flag) {
-	EVP_CIPHER_CTX rc4_key;
+	EVP_CIPHER_CTX *rc4_key;
 
-	EVP_CIPHER_CTX_init(&rc4_key);
-	EVP_CipherInit_ex(&rc4_key, EVP_rc4(), NULL, k6_data, NULL, 1);
-	EVP_Cipher(&rc4_key, p0 + 24, p0 + 24, 8 + datalen);
-	EVP_CIPHER_CTX_cleanup(&rc4_key);
+	rc4_key = EVP_CIPHER_CTX_new();
+	if (rc4_key == NULL) {
+	    _gsskrb5_release_buffer(minor_status, output_message_buffer);
+	    *minor_status = ENOMEM;
+	    return GSS_S_FAILURE;
+	}
+	EVP_CipherInit_ex(rc4_key, EVP_rc4(), NULL, k6_data, NULL, 1);
+	EVP_Cipher(rc4_key, p0 + 24, p0 + 24, 8 + datalen);
+	EVP_CIPHER_CTX_free(rc4_key);
     }
     memset(k6_data, 0, sizeof(k6_data));
 
@@ -480,12 +495,17 @@ _gssapi_wrap_arcfour(OM_uint32 * minor_status,
     }
 
     {
-	EVP_CIPHER_CTX rc4_key;
+	EVP_CIPHER_CTX *rc4_key;
 
-	EVP_CIPHER_CTX_init(&rc4_key);
-	EVP_CipherInit_ex(&rc4_key, EVP_rc4(), NULL, k6_data, NULL, 1);
-	EVP_Cipher(&rc4_key, p0 + 8, p0 + 8 /* SND_SEQ */, 8);
-	EVP_CIPHER_CTX_cleanup(&rc4_key);
+	rc4_key = EVP_CIPHER_CTX_new();
+	if (rc4_key == NULL) {
+	    _gsskrb5_release_buffer(minor_status, output_message_buffer);
+	    *minor_status = ENOMEM;
+	    return GSS_S_FAILURE;
+	}
+	EVP_CipherInit_ex(rc4_key, EVP_rc4(), NULL, k6_data, NULL, 1);
+	EVP_Cipher(rc4_key, p0 + 8, p0 + 8 /* SND_SEQ */, 8);
+	EVP_CIPHER_CTX_free(rc4_key);
 	memset(k6_data, 0, sizeof(k6_data));
     }
 
@@ -580,12 +600,16 @@ OM_uint32 _gssapi_unwrap_arcfour(OM_uint32 *minor_status,
     }
 
     {
-	EVP_CIPHER_CTX rc4_key;
+	EVP_CIPHER_CTX *rc4_key;
 
-	EVP_CIPHER_CTX_init(&rc4_key);
-	EVP_CipherInit_ex(&rc4_key, EVP_rc4(), NULL, k6_data, NULL, 1);
-	EVP_Cipher(&rc4_key, SND_SEQ, p0 + 8, 8);
-	EVP_CIPHER_CTX_cleanup(&rc4_key);
+	rc4_key = EVP_CIPHER_CTX_new();
+	if (rc4_key == NULL) {
+	    *minor_status = ENOMEM;
+	    return GSS_S_FAILURE;
+	}
+	EVP_CipherInit_ex(rc4_key, EVP_rc4(), NULL, k6_data, NULL, 1);
+	EVP_Cipher(rc4_key, SND_SEQ, p0 + 8, 8);
+	EVP_CIPHER_CTX_free(rc4_key);
 	memset(k6_data, 0, sizeof(k6_data));
     }
 
@@ -628,13 +652,18 @@ OM_uint32 _gssapi_unwrap_arcfour(OM_uint32 *minor_status,
     output_message_buffer->length = datalen;
 
     if(conf_flag) {
-	EVP_CIPHER_CTX rc4_key;
+	EVP_CIPHER_CTX *rc4_key;
 
-	EVP_CIPHER_CTX_init(&rc4_key);
-	EVP_CipherInit_ex(&rc4_key, EVP_rc4(), NULL, k6_data, NULL, 1);
-	EVP_Cipher(&rc4_key, Confounder, p0 + 24, 8);
-	EVP_Cipher(&rc4_key, output_message_buffer->value, p0 + GSS_ARCFOUR_WRAP_TOKEN_SIZE, datalen);
-	EVP_CIPHER_CTX_cleanup(&rc4_key);
+	rc4_key = EVP_CIPHER_CTX_new();
+	if (rc4_key == NULL) {
+	    _gsskrb5_release_buffer(minor_status, output_message_buffer);
+	    *minor_status = ENOMEM;
+	    return GSS_S_FAILURE;
+	}
+	EVP_CipherInit_ex(rc4_key, EVP_rc4(), NULL, k6_data, NULL, 1);
+	EVP_Cipher(rc4_key, Confounder, p0 + 24, 8);
+	EVP_Cipher(rc4_key, output_message_buffer->value, p0 + GSS_ARCFOUR_WRAP_TOKEN_SIZE, datalen);
+	EVP_CIPHER_CTX_free(rc4_key);
     } else {
 	memcpy(Confounder, p0 + 24, 8); /* Confounder */
 	memcpy(output_message_buffer->value,

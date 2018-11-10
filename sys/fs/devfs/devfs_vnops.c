@@ -767,6 +767,29 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 	return (error);
 }
 
+void *
+fiodgname_buf_get_ptr(void *fgnp, u_long com)
+{
+	union {
+		struct fiodgname_arg	fgn;
+#ifdef COMPAT_FREEBSD32
+		struct fiodgname_arg32	fgn32;
+#endif
+	} *fgnup;
+
+	fgnup = fgnp;
+	switch (com) {
+	case FIODGNAME:
+		return (fgnup->fgn.buf);
+#ifdef COMPAT_FREEBSD32
+	case FIODGNAME_32:
+		return ((void *)(uintptr_t)fgnup->fgn32.buf);
+#endif
+	default:
+		panic("Unhandled ioctl command %ld", com);
+	}
+}
+
 static int
 devfs_ioctl(struct vop_ioctl_args *ap)
 {
@@ -789,24 +812,27 @@ devfs_ioctl(struct vop_ioctl_args *ap)
 	KASSERT(dev->si_refcount > 0,
 	    ("devfs: un-referenced struct cdev *(%s)", devtoname(dev)));
 
-	if (com == FIODTYPE) {
+	switch (com) {
+	case FIODTYPE:
 		*(int *)ap->a_data = dsw->d_flags & D_TYPEMASK;
 		error = 0;
-		goto out;
-	} else if (com == FIODGNAME) {
+		break;
+	case FIODGNAME:
+#ifdef	COMPAT_FREEBSD32
+	case FIODGNAME_32:
+#endif
 		fgn = ap->a_data;
 		p = devtoname(dev);
 		i = strlen(p) + 1;
 		if (i > fgn->len)
 			error = EINVAL;
 		else
-			error = copyout(p, fgn->buf, i);
-		goto out;
+			error = copyout(p, fiodgname_buf_get_ptr(fgn, com), i);
+		break;
+	default:
+		error = dsw->d_ioctl(dev, com, ap->a_data, ap->a_fflag, td);
 	}
 
-	error = dsw->d_ioctl(dev, com, ap->a_data, ap->a_fflag, td);
-
-out:
 	dev_relthread(dev, ref);
 	if (error == ENOIOCTL)
 		error = ENOTTY;

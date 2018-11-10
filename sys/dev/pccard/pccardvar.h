@@ -102,7 +102,7 @@ struct pccard_product {
  */
 #define PCCARD_PNP_DESCR "D:#;V32:manufacturer;V32:product;Z:cisvendor;Z:cisproduct;"
 #define PCCARD_PNP_INFO(t) \
-	MODULE_PNP_INFO(PCCARD_PNP_DESCR, pccard, t, t, sizeof(t[0]), nitems(t) - 1); \
+	MODULE_PNP_INFO(PCCARD_PNP_DESCR, pccard, t, t, nitems(t) - 1)
 
 typedef int (*pccard_product_match_fn) (device_t dev,
     const struct pccard_product *ent, int vpfmatch);

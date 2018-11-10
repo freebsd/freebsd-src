@@ -1,8 +1,327 @@
--- $Id: CHANGES,v 1.476 2013/09/24 00:06:47 tom Exp $
+-- $Id: CHANGES,v 1.619 2018/06/21 09:19:45 tom Exp $
 -- Thomas E. Dickey <dickey@invisible-island.net>
 
 This version of dialog was originally from a Debian snapshot.  I've done this
 to it:
+
+2018/06/21
+	+ improve file-offset computation in textbox.c (Werner Fink).
+	+ fix an overlooked case with real_auto_size() to maximize when
+	  height or width is given as -1.
+	+ build-fixes for configure options "--disable-Xdialog2" and
+	  "--disable-form"
+	+ add traces for each widget to show its parameters.
+	+ modify color scheme for mixedgauge to use the dialog window colors,
+	  like the captions.
+	+ fix a too-small malloc in the mixedgauge widget.
+	+ fix a use-after-free in dlg_remove_callback().
+	+ improve handling of SIGWINCH for several widgets (Debian #865840).
+	  + menubox, the point of the Debian report was that it would be nice
+	    to increase the window size if the terminal size increases.  Did
+	    that as a special case less problematic than decreasing the
+	    terminal size.  Added samples/menubox11 to demonstrate by
+	    comparison with menubox10 a problem with debconf which puts extra
+	    newlines in the caption that interfere with autowrap.
+	  + progressbox and derived prgbox, programbox, now handle resizing.
+	  + yesno, window was cleared
+	+ add dlg_ttysize() to support new options, allowing scripts to obtain
+	  some text-formatting details without initializing the terminal.
+	+ add options --print-text-only, and --print-text-size for scripts that
+	  adjust the widget size according to how the captions are formatted.
+	+ improve dialog.pl:
+	  + add demo.pl, to demonstrate the functions
+	  + quote/escape string parameters passed to dialog.
+	  + ensure all "integer" parameters are really integers.
+	  + use actual screensize for list captions rather than assuming 24
+	    lines.
+	+ when trimming blanks, treat unconverted tabs the same as spaces.
+	+ correct parameter to test when trimming blanks from the script,
+	  e.g., with "--trim" (report by Jarno Suni).
+	+ improve documentation of the various whitespace-filtering options,
+	  to show which take precedence (Debian #867536, cf: Debian #102942).
+	+ modify msgbox.c, yesno.c to bind SCROLLKEY_BINDINGS before
+	  TRAVERSE_BINDINGS so that up/down arrow will by default scroll the
+	  message up/down rather than be aliases for tab-traversal (report by
+	  Fredrik Kers).
+	+ modify dump_one_binding() to show when a binding is overridden.
+	+ improve format of trace-file, making comment-syntax consistent,
+	  as well as showing argv-splitting as a series of comments.
+	+ modify dlg_string_to_argv() to change the quoting behavior to be
+	  more consistent with shell behavior (patch by Denilson Sa Maia).
+	+ modify dlg_getc() to return ESC when a timeout expires, notifying
+	  callers that a quit occurred rather than exiting the application
+	  (suggested by Rodrigo Freitas).
+	+ modify handle_inputs() to ensure cursor-visibility is restored when
+	  there is no input character available (report by Guillaume Vareille).
+	+ improve comment in manual page regarding which widgets can use the
+	  "--help-button" (prompted by discussion with Csanyi Pal).
+	+ add a check for valid object pointer in tailbox's main loop since
+	  the getc-callback may have been freed within ui_getc.c (report by
+	  "David").
+	+ improved configure macros for ncurses: CF_GNU_SOURCE, CF_SHARED_OPTS,
+	  CF_CURSES_LIBS, CF_CURSES_FUNCS, CF_NCURSES_CONFIG
+	+ improved configure script checks for groff vs man2html: 
+	  CF_PROG_GROFF and CF_WITH_MAN2HTML
+	+ build-fix from lynx for AM_WITH_NLS configure macro
+	+ update config.guess, config.sub
+
+2017/12/09
+	+ update ftp url in test-packages.
+	+ modify test-packages to use recommended compiler/linker flags.
+	+ improved configure macros AM_WITH_NLS, CF_CC_ENV_FLAGS,
+	  CF_CURSES_LIBS, CF_NCURSES_CONFIG, CF_SHARED_OPTS, CF_WITH_LIBTOOL,
+	  CF__INTL_BODY.
+	+ update config.guess, config.sub
+
+2017/05/09
+	+ improved configure macros CF_ADD_CFLAGS, CF_CC_ENV_FLAGS, and
+	  CF_SHARED_OPTS.
+	+ updated hu.po and tr.po from
+		http://translationproject.org/latest/dialog/
+	+ update config.guess, config.sub
+
+2017/01/31
+	+ use DLG_TRACE macro consistently to make "--disable-trace" configure
+	  option work.
+	+ modify buildlist widget to support option "--reorder" for to allow
+	  user to reorder the data based on the sequence of selections
+	  (discussion with Paraic O'Ceallaigh).
+	+ fill background color on unused parts of buildlist.
+	+ fix a minor error in buildlist which let pageup switch columns.
+	+ change several calls to dlg_trace_msg to prefix with "#" to make
+	  the trace logs more consistent for parsing.
+	+ add samples/run_test.sh
+	+ further improve performance with very long command-lines by changes
+	  to howmany_tags().
+	+ modify dlg_string_to_argv() to convert escaped double-quotes to
+	  plain double-quotes when within a double-quoted string.
+	+ modify makefile to apply CFLAGS to linking
+	+ modify dlg_string_to_argv() to ignore escaped newlines except when
+	  quoted, fixing a problem with samples/checklist9.
+	+ interpret $DIALOGOPTS before expanding "--file", etc., to allow
+	  the environment variable to turn on tracing in that process.
+	+ improve performance when processing very long command lines, e.g.,
+	  using "--file" by changing dialog_opts[] to an array of pointers to
+	  the expanded argv[] (discussion with Lars Tauber).
+	+ modified autoconf macros
+	  + CF_CC_ENV_FLAGS amend the last change to move only the
+	    preprocessor, optimization and warning flags to CPPFLAGS and
+	    CFLAGS, leaving the residue in CC.  That happens to work for gcc's
+	    various "model" options, but may require tuning for other compilers
+	  + CF_LARGEFILE workaround for clang exit-code vs warnings
+	  + CF_MATH_LIB quiet strict gcc warning
+	  + CF_WITH_LIBTOOL fix a few places in configure/build scripts where
+	    DESTDIR and rpath were combined
+	  + CF_XOPEN_SOURCE add "uclinux" to list of Linux's
+	+ update config.guess, config.sub
+
+2016/11/20
+	+ added fur.po (Friulian) from
+		http://translationproject.org/latest/dialog/
+
+2016/08/28
+	+ improve parsing and trace for "bindkey", to convert space to/from
+	  "\s", as well as handle octal escapes for single byte characters.
+	+ change explicit checks for space character used for select or toggle
+	  to make this rebindable to "TOGGLE" (prompted by discussion with
+	  Paul van Tilburg).
+	+ add default bindings for cursor left/right to formbox.  The cursor
+	  left/right cases were replaced with rebindable symbols in 2005/12/07
+	  without providing these keys as default values (report/patch by
+	  Miroslav Lichvar).
+	+ modified autoconf macros
+	  + CF_PROG_LINT add cpplint to programs to use; drop ad hoc tdlint and
+	    alint.
+	  + CF_CC_ENV_FLAGS don't limit the check to -I, -U and -D options,
+	    since the added options can include various compiler options before
+	    and after preprocessor options.
+	  + CF_GNU_SOURCE recent glibc (Debian 2.23-4 for example) has
+	    misordered ifdef/checks for new symbol _DEFAULT_SOURCE, producing
+	    warning messages when only _GNU_SOURCE is defined.  Add a followup
+	    check to define _DEFAULT_SOURCE.
+	  + CF_XOPEN_SOURCE use _GNU_SOURCE for cygwin headers, tested with
+	    cygwin 2.3, 2.5 (patch by Corinna Vinschen).
+	+ mention --no-collapse option in manual page description of
+	  --tab-correct option.
+	+ update config.guess, config.sub
+
+2016/04/24
+	+ fix a special case in drawing shadow on a line-drawing cell where the
+	  alternate-character set flag was lost (report by Martin Kravec).
+	+ fix a regression from 2015/05/13 changes for escaping; it is
+	  necessary to retain backslashes within quotes to make "\Z" escapes
+	  work (report by Marcin Krol).
+	+ fix test package for RPMs; changes in 2015 omitted symbolic links
+	  for the library.
+	+ fix typo in help message for "--buildlist" (report by Rihards Olups).
+	+ modified autoconf macros
+	  + CF_PROG_AR, CF_AR_FLAGS added to improve check for archive tool.
+	  + CF_LD_RPATH_OPT, change FreeBSD to use -Wl,-rpath rather than
+	    -rpath option.  According to FreeBSD #178732, either works since
+	    FreeBSD 4.x; however scons does not accept anything except the
+	    -Wl,-rpath form.
+	  + CF_WITH_NCURSES_ETC, change from ncurses to check for pthreads
+	    dependency.
+
+2016/02/09
+	+ modify editbox widget to add a trailing newline if the text has none
+	  to ensure the last line is not ignored (report by Florent Rougon).
+	+ change mouse initialization to look for button-presses rather than
+	  button-clicks, for better response.
+	+ modify dump_curses_key() to show mouse-coding in readable form.
+	+ correct mapping of mouse-clicks on the day-grid in calendar widget
+	  when "--week-start" is used to set the start of the week (report by
+	  Stefan Vogtner).
+	> integrated changes from Stefan Vogtner:
+	+ use Gregorian algorithm for leap year
+	+ use mktime if available; calendar was written just as it became
+	  standard.
+
+2016/01/26 - release 1.3
+	+ correct --infobox documentation, which said it shows an OK button.
+	+ fix a couple of place in test-scripts which referred to $SIG_TRAP
+	  rather than $SIG_QUIT
+	+ reorganize dialog.3, to use subsections for generating navigation
+	  pane, using man2html
+	+ add "--week-start" option for calendar widget (prompted by discussion
+	  with Stefan Vogtner).
+	+ add a limit-check in editbox.c to ensure that mouse-clicks outside
+	  the filled-in text area do not access past the end of the array
+	  (report by Stefan Vogtner).
+	+ update configure macros from ncurses changes.
+	+ update config.guess, config.sub
+
+2015/09/20
+	+ decrease table value for minimum number of arguments for the widgets
+	  which use --no-items option (report by Raven Singularity).
+	+ update configure macros:
+	  + use $SHELL consistently, deprecate non-POSIX shell
+	  + PKG_CONFIG may simply be unset - fix
+	  + add option to allow changing ABI version, from ncurses6.
+
+2015/05/28
+	+ fixes for two autoconf macros, CF_ADD_INCDIR and CF_NCURSES_CONFIG
+	  from work on ncurses.
+	+ build-fix for NetBSD curses (patch by Matthias Scheler).
+
+2015/05/13
+	+ add configure option --with-install-prefix, like ncurses.
+	+ add --with-screen and related configure options from ncurses-examples
+	  to allow building with ncurses6 test-packages.
+	+ update configure macros for improved coding style from lynx changes.
+	+ updated ro.po from
+		http://translationproject.org/latest/dialog/
+	+ update config.guess, config.sub
+	> patches by Florent Rougon:
+	+ fix two bugs in the "--file" option.
+	  + When the number of arguments read from the included file is 0, the
+	    code used to just skip over '--file' and its argument instead of
+	    removing them from the argument list, causing "Error:  Unknown
+	    option --file" later on.
+	  + In the alternative case (at least one argument read from the file),
+	    the previous code used to do '--j;' in order to "force rescan" of
+	    the inserted arguments.  However, control then flowed to outer
+	    blocks where a '++j;' counteracted this measure, causing "Error: 
+	    Unknown option --msgbox" (for instance) later on.
+	+ modify escaping in argv.c to be more uniform, whether or not the
+	  backslash is found within a parameter.
+
+2015/02/25
+	+ modify gauge widget to keep from erasing a second gauge widget, e.g.,
+	  via the "--and-widget" option.  This is a cosmetic change to match
+	  behavior of dialog 1.0 (report by Jason Orendorf).
+	+ add configure option "--with-man2html"
+	+ add configure options for versioned symbols, from ongoing work on
+	  ncurses.
+	+ update configure macros, e.g., for shared libraries
+
+2015/01/25
+	+ suppress highlighting of character which denotes an abbreviation or
+	  shortcut for the OK/Cancel and other buttons for these widgets, which
+	  use abbreviations for the list shown on the screen:  buildlist,
+	  checklist/radiobox, menubox, treeview (Debian #775295).
+	+ add grid up/left and down/right bindings in editbox.c as synonyms for
+	  field prev and next, respectively when handling the OK/Cancel buttons
+	  (Debian #775294).
+
+2014/09/11
+	+ correct malloc-size for change to prgbox.
+
+2014/09/10
+	+ fixes to make "-c" option work when passing command to shell for the
+	  prgbox widget, for example in samples/prgbox2 (report by Korantin
+	  Auguste).
+
+2014/09/08
+	+ fix an out-of-bounds array index in buildlist widget (report by
+	  Cade Foster).
+
+2014/09/01
+	+ add configure check for groff, needed for html/ps/pdf output.
+	+ update configure-script macros:
+	  + CF_ACVERSION_CHECK - work around another gratuitous incompatibility
+	    introduced in 2.69
+	  + CF_ADD_CFLAGS - workaround for ash-shell, e.g., with Minix
+	  + CF_ADD_LIBS - filter out duplicates
+	  + CF_CURSES_FUNCS - improve workaround for weak-linkage, seems to fix
+	    tests with NetBSD 6.1
+	  + CF_INTEL_COMPILER - clean up the -no-gcc option which was leftover
+	    from testing.
+	  + CF_LIB_SUFFIX - change suffix for AIX shared libraries to ".so".
+	  + CF_MAKEFLAGS - workaround for GNU make 4.0 incompatibility with
+	    previous releases.
+	  + CF_XOPEN_SOURCE - add cases for Minix, UnixWare and improve the
+	    workaround for Solaris.
+	+ improve comparison in compare_cache() function, in case difference
+	  between pointers does not fit in int's.
+	+ updated de.po, es.po, hu.po, lv.po from
+		http://translationproject.org/latest/dialog/
+	+ update config.guess, config.sub
+
+2014/02/19
+	+ cleanup of manpages prompted by Gislason's comments.
+	+ several changes to manpages to improve presentation (patches by
+	  Bjarni I. Gislason, Debian #739180, Debian #739181)
+	  + use "\/" when transitioning from italic to normal font
+	  + correct an instance of "e.g,."
+	  + use "\e" rather than "\\" to present a literal "\"
+	  + improve formatting of table header
+	  + remove some excess space-characters
+	  + change a reference 0-9 to use "through" as the connector
+	  + use "\&" to separate "." from a space to make the space shorter
+	  + change a list's TP macro parameters to make the hanging text align
+	    better with the adjacent paragraph
+	  + add comma in a few places before "and" in a list
+	  + separate units from numbers with a nonfillable space
+	  + replace "-" with en-dash in a few places
+	+ corrected argument indices after "--args" and "--file" to rescan the
+	  argument list after removing/substituting those options.
+	+ fix loops for "--file" option to handle cases with zero or no tokens at
+	  all substituted (Redhat #1066168).
+	+ add gd.po from
+		http://translationproject.org/latest/dialog/
+
+2014/01/12
+	+ improve calculation for amount to scroll in programbox when an "Ok"
+	  button might obscure part of the data (report by Florent Rougon).
+	+ modify program to permit --separate-output to be used with buildlist
+	  and treeview widgets (report by Florent Rougon).
+	+ add list-height parameter to manpage description of --buildlist
+	  (report by Florent Rougon).
+	+ minor fixes to dialog.1 manpage; the reported problem was actually
+	  fixed in 20120703 (Debian #726233, patch by Bjarni Ingi Gislason).
+	+ add a "Hello World" example to dialog.3 manpage (prompted by
+	  discussions with Dustin Oprea, Kevin Ingwersen).
+	+ correct comparison in dlg_lookup_key() so that using "bindkey" with
+	  a "*" wildcard parameter works as documented (report by Stewart
+	  Benedict).
+	+ updated configure macros, fixes for clang and mingw.
+	+ update config.guess, config.sub
+
+2013/09/28
+	+ fix a regression in gauge widget from 2013/09/28 changes;
+	  dlg_reallocate_gauge() failed when no --title option was given
+	  (report by Tritonas Insomnia).
 
 2013/09/23
 	+ fix samples/inputbox6-utf8, which had depended unnecessarily on bash.
@@ -434,7 +753,7 @@ to it:
 	  to display (Debian #579390).
 	+ add makefile rules for generating html, etc., documentation from
 	  nroff.
-	> patches by Samuel Martín Moro
+	> patches by Samuel Martin Moro
 	+ reset errors in tailbox before reading new character.
 	+ modify dlg_draw_scrollbar(), omitting hiding percentages in boxes
 	  when no arrows or scrollbar are needed.

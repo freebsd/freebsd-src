@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CA.PL 1"
-.TH CA.PL 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH CA.PL 1 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -139,51 +139,63 @@ CA.pl \- friendlier interface for OpenSSL certificate programs
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fB\s-1CA\s0.pl\fR
-[\fB\-?\fR]
-[\fB\-h\fR]
-[\fB\-help\fR]
-[\fB\-newcert\fR]
-[\fB\-newreq\fR]
-[\fB\-newreq\-nodes\fR]
-[\fB\-newca\fR]
-[\fB\-xsign\fR]
-[\fB\-sign\fR]
-[\fB\-signreq\fR]
-[\fB\-signcert\fR]
-[\fB\-verify\fR]
-[\fBfiles\fR]
+\&\fB\-?\fR |
+\&\fB\-h\fR |
+\&\fB\-help\fR
+.PP
+\&\fB\s-1CA\s0.pl\fR
+\&\fB\-newcert\fR |
+\&\fB\-newreq\fR |
+\&\fB\-newreq\-nodes\fR |
+\&\fB\-xsign\fR |
+\&\fB\-sign\fR |
+\&\fB\-signCA\fR |
+\&\fB\-signcert\fR |
+\&\fB\-crl\fR |
+\&\fB\-newca\fR
+[\fB\-extra\-cmd\fR extra\-params]
+.PP
+\&\fB\s-1CA\s0.pl\fR \fB\-pkcs12\fR [\fB\-extra\-pkcs12\fR extra\-params] [\fBcertname\fR]
+.PP
+\&\fB\s-1CA\s0.pl\fR \fB\-verify\fR [\fB\-extra\-verify\fR extra\-params] \fBcertfile\fR...
+.PP
+\&\fB\s-1CA\s0.pl\fR \fB\-revoke\fR [\fB\-extra\-ca\fR extra\-params] \fBcertfile\fR [\fBreason\fR]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \fB\s-1CA\s0.pl\fR script is a perl script that supplies the relevant command line
 arguments to the \fBopenssl\fR command for some common certificate operations.
 It is intended to simplify the process of certificate creation and management
 by the use of some simple options.
-.SH "COMMAND OPTIONS"
-.IX Header "COMMAND OPTIONS"
+.SH "OPTIONS"
+.IX Header "OPTIONS"
 .IP "\fB?\fR, \fB\-h\fR, \fB\-help\fR" 4
 .IX Item "?, -h, -help"
-prints a usage message.
+Prints a usage message.
 .IP "\fB\-newcert\fR" 4
 .IX Item "-newcert"
-creates a new self signed certificate. The private key is written to the file
+Creates a new self signed certificate. The private key is written to the file
 \&\*(L"newkey.pem\*(R" and the request written to the file \*(L"newreq.pem\*(R".
+This argument invokes \fBopenssl req\fR command.
 .IP "\fB\-newreq\fR" 4
 .IX Item "-newreq"
-creates a new certificate request. The private key is written to the file
+Creates a new certificate request. The private key is written to the file
 \&\*(L"newkey.pem\*(R" and the request written to the file \*(L"newreq.pem\*(R".
+Executes \fBopenssl req\fR command below the hood.
 .IP "\fB\-newreq\-nodes\fR" 4
 .IX Item "-newreq-nodes"
-is like \fB\-newreq\fR except that the private key will not be encrypted.
+Is like \fB\-newreq\fR except that the private key will not be encrypted.
+Uses \fBopenssl req\fR command.
 .IP "\fB\-newca\fR" 4
 .IX Item "-newca"
-creates a new \s-1CA\s0 hierarchy for use with the \fBca\fR program (or the \fB\-signcert\fR
+Creates a new \s-1CA\s0 hierarchy for use with the \fBca\fR program (or the \fB\-signcert\fR
 and \fB\-xsign\fR options). The user is prompted to enter the filename of the \s-1CA\s0
 certificates (which should also contain the private key) or by hitting \s-1ENTER\s0
 details of the \s-1CA\s0 will be prompted for. The relevant files and directories
 are created in a directory called \*(L"demoCA\*(R" in the current directory.
+\&\fBopenssl req\fR and \fBopenssl ca\fR commands are get invoked.
 .IP "\fB\-pkcs12\fR" 4
 .IX Item "-pkcs12"
-create a PKCS#12 file containing the user certificate, private key and \s-1CA\s0
+Create a PKCS#12 file containing the user certificate, private key and \s-1CA\s0
 certificate. It expects the user certificate and private key to be in the
 file \*(L"newcert.pem\*(R" and the \s-1CA\s0 certificate to be in the file demoCA/cacert.pem,
 it creates a file \*(L"newcert.p12\*(R". This command can thus be called after the
@@ -191,28 +203,48 @@ it creates a file \*(L"newcert.p12\*(R". This command can thus be called after t
 If there is an additional argument on the command line it will be used as the
 \&\*(L"friendly name\*(R" for the certificate (which is typically displayed in the browser
 list box), otherwise the name \*(L"My Certificate\*(R" is used.
-.IP "\fB\-sign\fR, \fB\-signreq\fR, \fB\-xsign\fR" 4
-.IX Item "-sign, -signreq, -xsign"
-calls the \fBca\fR program to sign a certificate request. It expects the request
+Delegates work to \fBopenssl pkcs12\fR command.
+.IP "\fB\-sign\fR, \fB\-signcert\fR, \fB\-xsign\fR" 4
+.IX Item "-sign, -signcert, -xsign"
+Calls the \fBca\fR program to sign a certificate request. It expects the request
 to be in the file \*(L"newreq.pem\*(R". The new certificate is written to the file
 \&\*(L"newcert.pem\*(R" except in the case of the \fB\-xsign\fR option when it is written
-to standard output.
+to standard output. Leverages \fBopenssl ca\fR command.
 .IP "\fB\-signCA\fR" 4
 .IX Item "-signCA"
-this option is the same as the \fB\-signreq\fR option except it uses the configuration
-file section \fBv3_ca\fR and so makes the signed request a valid \s-1CA\s0 certificate. This
-is useful when creating intermediate \s-1CA\s0 from a root \s-1CA.\s0
+This option is the same as the \fB\-signreq\fR option except it uses the
+configuration file section \fBv3_ca\fR and so makes the signed request a
+valid \s-1CA\s0 certificate. This is useful when creating intermediate \s-1CA\s0 from
+a root \s-1CA.\s0  Extra params are passed on to \fBopenssl ca\fR command.
 .IP "\fB\-signcert\fR" 4
 .IX Item "-signcert"
-this option is the same as \fB\-sign\fR except it expects a self signed certificate
+This option is the same as \fB\-sign\fR except it expects a self signed certificate
 to be present in the file \*(L"newreq.pem\*(R".
+Extra params are passed on to \fBopenssl x509\fR and \fBopenssl ca\fR commands.
+.IP "\fB\-crl\fR" 4
+.IX Item "-crl"
+Generate a \s-1CRL.\s0 Executes \fBopenssl ca\fR command.
+.IP "\fB\-revoke certfile [reason]\fR" 4
+.IX Item "-revoke certfile [reason]"
+Revoke the certificate contained in the specified \fBcertfile\fR. An optional
+reason may be specified, and must be one of: \fBunspecified\fR,
+\&\fBkeyCompromise\fR, \fBCACompromise\fR, \fBaffiliationChanged\fR, \fBsuperseded\fR,
+\&\fBcessationOfOperation\fR, \fBcertificateHold\fR, or \fBremoveFromCRL\fR.
+Leverages \fBopenssl ca\fR command.
 .IP "\fB\-verify\fR" 4
 .IX Item "-verify"
-verifies certificates against the \s-1CA\s0 certificate for \*(L"demoCA\*(R". If no certificates
-are specified on the command line it tries to verify the file \*(L"newcert.pem\*(R".
-.IP "\fBfiles\fR" 4
-.IX Item "files"
-one or more optional certificate file names for use with the \fB\-verify\fR command.
+Verifies certificates against the \s-1CA\s0 certificate for \*(L"demoCA\*(R". If no
+certificates are specified on the command line it tries to verify the file
+\&\*(L"newcert.pem\*(R".  Invokes \fBopenssl verify\fR command.
+.IP "\fB\-extra\-req\fR | \fB\-extra\-ca\fR | \fB\-extra\-pkcs12\fR | \fB\-extra\-x509\fR | \fB\-extra\-verify\fR <extra\-params>" 4
+.IX Item "-extra-req | -extra-ca | -extra-pkcs12 | -extra-x509 | -extra-verify <extra-params>"
+The purpose of these parameters is to allow optional parameters to be supplied
+to \fBopenssl\fR that this command executes. The \fB\-extra\-cmd\fR are specific to the
+option being used and the \fBopenssl\fR command getting invoked. For example
+when this command invokes \fBopenssl req\fR extra parameters can be passed on
+with the \fB\-extra\-req\fR parameter. The
+\&\fBopenssl\fR commands being invoked per option are documented below.
+Users should consult \fBopenssl\fR command documentation for more information.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Create a \s-1CA\s0 hierarchy:
@@ -285,18 +317,21 @@ be wrong. In this case the command:
 \& perl \-S CA.pl
 .Ve
 .PP
-can be used and the \fB\s-1OPENSSL_CONF\s0\fR environment variable changed to point to 
-the correct path of the configuration file \*(L"openssl.cnf\*(R".
+can be used and the \fB\s-1OPENSSL_CONF\s0\fR environment variable changed to point to
+the correct path of the configuration file.
 .PP
 The script is intended as a simple front end for the \fBopenssl\fR program for use
 by a beginner. Its behaviour isn't always what is wanted. For more control over the
 behaviour of the certificate commands call the \fBopenssl\fR command directly.
-.SH "ENVIRONMENT VARIABLES"
-.IX Header "ENVIRONMENT VARIABLES"
-The variable \fB\s-1OPENSSL_CONF\s0\fR if defined allows an alternative configuration
-file location to be specified, it should contain the full path to the
-configuration file, not just its directory.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIx509\fR\|(1), \fIca\fR\|(1), \fIreq\fR\|(1), \fIpkcs12\fR\|(1),
 \&\fIconfig\fR\|(5)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

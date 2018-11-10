@@ -2708,6 +2708,11 @@ slurp_central_directory(struct archive_read *a, struct zip *zip)
 			return ARCHIVE_FATAL;
 
 		zip_entry = calloc(1, sizeof(struct zip_entry));
+		if (zip_entry == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+				"Can't allocate zip entry");
+			return ARCHIVE_FATAL;
+		}
 		zip_entry->next = zip->zip_entries;
 		zip_entry->flags |= LA_FROM_CENTRAL_DIRECTORY;
 		zip->zip_entries = zip_entry;

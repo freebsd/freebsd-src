@@ -129,6 +129,10 @@ extern u_int utmp_len;
 typedef pthread_t sp_pthread_t;
 #else
 typedef pid_t sp_pthread_t;
+#define pthread_exit	fake_pthread_exit
+#define pthread_create	fake_pthread_create
+#define pthread_cancel	fake_pthread_cancel
+#define pthread_join	fake_pthread_join
 #endif
 
 struct pam_ctxt {

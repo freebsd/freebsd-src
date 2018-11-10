@@ -78,7 +78,6 @@ Currently, the library automatically detects and reads the following fomats:
   * POSIX pax interchange format
   * POSIX octet-oriented cpio
   * SVR4 ASCII cpio
-  * POSIX octet-oriented cpio
   * Binary cpio (big-endian or little-endian)
   * ISO9660 CD-ROM images (with optional Rockridge or Joliet extensions)
   * ZIP archives (with uncompressed or "deflate" compressed entries, including support for encrypted Zip archives)
@@ -87,7 +86,7 @@ Currently, the library automatically detects and reads the following fomats:
   * 7-Zip archives
   * Microsoft CAB format
   * LHA and LZH archives
-  * RAR archives (with some limitations due to RAR's proprietary status)
+  * RAR and RAR 5.0 archives (with some limitations due to RAR's proprietary status)
   * XAR archives
 
 The library also detects and handles any of the following before evaluating the archive:

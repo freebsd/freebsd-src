@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "RSA_blinding_on 3"
-.TH RSA_blinding_on 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "RSA_BLINDING_ON 3"
+.TH RSA_BLINDING_ON 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -163,9 +163,11 @@ the blinding factor.
 \&\fIRSA_blinding_on()\fR returns 1 on success, and 0 if an error occurred.
 .PP
 \&\fIRSA_blinding_off()\fR returns no value.
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\fIrsa\fR\|(3), \fIrand\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIRSA_blinding_on()\fR and \fIRSA_blinding_off()\fR appeared in SSLeay 0.9.0.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

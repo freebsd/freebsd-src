@@ -612,8 +612,8 @@ typedef union {
 
 #define	mrsas_atomic_read(v)	atomic_load_acq_int(&(v)->val)
 #define	mrsas_atomic_set(v,i)	atomic_store_rel_int(&(v)->val, i)
-#define	mrsas_atomic_dec(v)	atomic_fetchadd_int(&(v)->val, -1)
-#define	mrsas_atomic_inc(v)	atomic_fetchadd_int(&(v)->val, 1)
+#define	mrsas_atomic_dec(v)	atomic_subtract_int(&(v)->val, 1)
+#define	mrsas_atomic_inc(v)	atomic_add_int(&(v)->val, 1)
 
 /* IOCInit Request message */
 typedef struct _MPI2_IOC_INIT_REQUEST {

@@ -65,6 +65,7 @@
 struct sldns_buffer;
 struct comm_point;
 struct comm_reply;
+struct tcl_list;
 struct ub_event_base;
 
 /* internal event notification data storage structure. */
@@ -256,8 +257,16 @@ struct comm_point {
 	/** timeout in msec for TCP wait times for this connection */
 	int tcp_timeout_msec;
 
+	/** if set, tcp keepalive is enabled on this connection */
+	int tcp_keepalive;
+
 	/** if set, checks for pending error from nonblocking connect() call.*/
 	int tcp_check_nb_connect;
+
+	/** if set, check for connection limit on tcp accept. */
+	struct tcl_list* tcp_conn_limit;
+	/** the entry for the connection. */
+	struct tcl_addr* tcl_addr;
 
 #ifdef USE_MSG_FASTOPEN
 	/** used to track if the sendto() call should be done when using TFO. */
@@ -443,6 +452,8 @@ struct comm_point* comm_point_create_udp_ancil(struct comm_base* base,
  * @param fd: file descriptor of open TCP socket set to listen nonblocking.
  * @param num: becomes max_tcp_count, the routine allocates that
  *	many tcp handler commpoints.
+ * @param idle_timeout: TCP idle timeout in ms.
+ * @param tcp_conn_limit: TCP connection limit info.
  * @param bufsize: size of buffer to create for handlers.
  * @param callback: callback function pointer for TCP handlers.
  * @param callback_arg: will be passed to your callback function.
@@ -452,8 +463,8 @@ struct comm_point* comm_point_create_udp_ancil(struct comm_base* base,
  * Inits timeout to NULL. All handlers are on the free list.
  */
 struct comm_point* comm_point_create_tcp(struct comm_base* base,
-	int fd, int num, size_t bufsize, 
-	comm_point_callback_type* callback, void* callback_arg);
+	int fd, int num, int idle_timeout, struct tcl_list* tcp_conn_limit,
+	size_t bufsize, comm_point_callback_type* callback, void* callback_arg);
 
 /**
  * Create an outgoing TCP commpoint. No file descriptor is opened, left at -1.

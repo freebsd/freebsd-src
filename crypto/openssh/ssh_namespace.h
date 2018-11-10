@@ -8,6 +8,8 @@
 #define Blowfish_expandstate			Fssh_Blowfish_expandstate
 #define Blowfish_initstate			Fssh_Blowfish_initstate
 #define Blowfish_stream2word			Fssh_Blowfish_stream2word
+#define EVP_CIPHER_CTX_get_iv			Fssh_EVP_CIPHER_CTX_get_iv
+#define EVP_CIPHER_CTX_set_iv			Fssh_EVP_CIPHER_CTX_set_iv
 #define _ssh__compat_glob			Fssh__ssh__compat_glob
 #define _ssh__compat_globfree			Fssh__ssh__compat_globfree
 #define _ssh_compat_realpath			Fssh__ssh_compat_realpath
@@ -166,7 +168,6 @@
 #define cipher_crypt				Fssh_cipher_crypt
 #define cipher_ctx_is_plaintext			Fssh_cipher_ctx_is_plaintext
 #define cipher_free				Fssh_cipher_free
-#define cipher_get_keycontext			Fssh_cipher_get_keycontext
 #define cipher_get_keyiv			Fssh_cipher_get_keyiv
 #define cipher_get_keyiv_len			Fssh_cipher_get_keyiv_len
 #define cipher_get_length			Fssh_cipher_get_length
@@ -175,7 +176,6 @@
 #define cipher_ivlen				Fssh_cipher_ivlen
 #define cipher_keylen				Fssh_cipher_keylen
 #define cipher_seclen				Fssh_cipher_seclen
-#define cipher_set_keycontext			Fssh_cipher_set_keycontext
 #define cipher_set_keyiv			Fssh_cipher_set_keyiv
 #define cipher_warning_message			Fssh_cipher_warning_message
 #define ciphers_valid				Fssh_ciphers_valid
@@ -630,7 +630,7 @@
 #define ssh_remove_all_identities		Fssh_ssh_remove_all_identities
 #define ssh_remove_identity			Fssh_ssh_remove_identity
 #define ssh_request_reply			Fssh_ssh_request_reply
-#define ssh_rsa_generate_additional_parameters	Fssh_ssh_rsa_generate_additional_parameters
+#define ssh_rsa_complete_crt_parameters		Fssh_ssh_rsa_complete_crt_parameters
 #define ssh_rsa_sign				Fssh_ssh_rsa_sign
 #define ssh_rsa_verify				Fssh_ssh_rsa_verify
 #define ssh_set_app_data			Fssh_ssh_set_app_data
@@ -652,6 +652,7 @@
 #define sshbuf_dump_data			Fssh_sshbuf_dump_data
 #define sshbuf_dup_string			Fssh_sshbuf_dup_string
 #define sshbuf_free				Fssh_sshbuf_free
+#define sshbuf_free_passwd			Fssh_sshbuf_free_passwd
 #define sshbuf_from				Fssh_sshbuf_from
 #define sshbuf_fromb				Fssh_sshbuf_fromb
 #define sshbuf_froms				Fssh_sshbuf_froms
@@ -662,6 +663,7 @@
 #define sshbuf_get_cstring			Fssh_sshbuf_get_cstring
 #define sshbuf_get_ec				Fssh_sshbuf_get_ec
 #define sshbuf_get_eckey			Fssh_sshbuf_get_eckey
+#define sshbuf_get_passwd			Fssh_sshbuf_get_passwd
 #define sshbuf_get_string			Fssh_sshbuf_get_string
 #define sshbuf_get_string_direct		Fssh_sshbuf_get_string_direct
 #define sshbuf_get_stringb			Fssh_sshbuf_get_stringb
@@ -683,6 +685,7 @@
 #define sshbuf_put_cstring			Fssh_sshbuf_put_cstring
 #define sshbuf_put_ec				Fssh_sshbuf_put_ec
 #define sshbuf_put_eckey			Fssh_sshbuf_put_eckey
+#define sshbuf_put_passwd			Fssh_sshbuf_put_passwd
 #define sshbuf_put_string			Fssh_sshbuf_put_string
 #define sshbuf_put_stringb			Fssh_sshbuf_put_stringb
 #define sshbuf_put_u16				Fssh_sshbuf_put_u16
@@ -697,7 +700,6 @@
 #define sshbuf_reset				Fssh_sshbuf_reset
 #define sshbuf_set_max_size			Fssh_sshbuf_set_max_size
 #define sshbuf_set_parent			Fssh_sshbuf_set_parent
-#define sshkey_add_private			Fssh_sshkey_add_private
 #define sshkey_alg_list				Fssh_sshkey_alg_list
 #define sshkey_cert_check_authority		Fssh_sshkey_cert_check_authority
 #define sshkey_cert_copy			Fssh_sshkey_cert_copy
@@ -709,7 +711,6 @@
 #define sshkey_curve_name_to_nid		Fssh_sshkey_curve_name_to_nid
 #define sshkey_curve_nid_to_bits		Fssh_sshkey_curve_nid_to_bits
 #define sshkey_curve_nid_to_name		Fssh_sshkey_curve_nid_to_name
-#define sshkey_demote				Fssh_sshkey_demote
 #define sshkey_drop_cert			Fssh_sshkey_drop_cert
 #define sshkey_dump_ec_key			Fssh_sshkey_dump_ec_key
 #define sshkey_dump_ec_point			Fssh_sshkey_dump_ec_point

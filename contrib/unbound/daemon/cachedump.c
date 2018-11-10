@@ -653,6 +653,7 @@ load_msg(RES* ssl, sldns_buffer* buf, struct worker* worker)
 	rep.qdcount = (uint16_t)qdcount;
 	rep.ttl = (time_t)ttl;
 	rep.prefetch_ttl = PREFETCH_TTL_CALC(rep.ttl);
+	rep.serve_expired_ttl = rep.ttl + SERVE_EXPIRED_TTL;
 	rep.security = (enum sec_status)security;
 	if(an > RR_COUNT_MAX || ns > RR_COUNT_MAX || ar > RR_COUNT_MAX) {
 		log_warn("error too many rrsets");

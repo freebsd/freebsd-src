@@ -260,13 +260,8 @@ struct cmsghdr {
 };
 .Ed
 .Pp
-As an example, one could use this to learn of changes in the data-stream
-in XNS/SPP, or in ISO, to obtain user-connection-request data by requesting
-a
-.Fn recvmsg
-with no data buffer provided immediately after an
-.Fn accept
-system call.
+As an example, the SO_TIMESTAMP socket option returns a reception
+timestamp for UDP packets.
 .Pp
 With
 .Dv AF_UNIX

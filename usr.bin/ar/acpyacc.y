@@ -254,7 +254,8 @@ arscp_open(char *fname)
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_filename(a, fname, DEF_BLKSZ));
 	if ((r = archive_read_next_header(a, &entry)))
-		bsdar_warnc(bsdar, 0, "%s", archive_error_string(a));
+		bsdar_warnc(bsdar, archive_errno(a), "%s",
+		    archive_error_string(a));
 	AC(archive_read_close(a));
 	AC(archive_read_free(a));
 	if (r != ARCHIVE_OK)

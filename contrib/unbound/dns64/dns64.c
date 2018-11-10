@@ -48,6 +48,9 @@
 #include "util/fptr_wlist.h"
 #include "util/net_help.h"
 #include "util/regional.h"
+#include "util/storage/dnstree.h"
+#include "util/data/dname.h"
+#include "sldns/str2wire.h"
 
 /******************************************************************************
  *                                                                            *
@@ -111,6 +114,11 @@ struct dns64_env {
      * This is the CIDR length of the prefix. It needs to be between 0 and 96.
      */
     int prefix_net;
+
+    /**
+     * Tree of names for which AAAA is ignored. always synthesize from A.
+     */
+    rbtree_type ignore_aaaa;
 };
 
 
@@ -285,6 +293,40 @@ synthesize_aaaa(const uint8_t prefix_addr[16], int prefix_net,
  ******************************************************************************/
 
 /**
+ * insert ignore_aaaa element into the tree
+ * @param dns64_env: module env.
+ * @param str: string with domain name.
+ * @return false on failure.
+ */
+static int
+dns64_insert_ignore_aaaa(struct dns64_env* dns64_env, char* str)
+{
+	/* parse and insert element */
+	struct name_tree_node* node;
+	node = (struct name_tree_node*)calloc(1, sizeof(*node));
+	if(!node) {
+		log_err("out of memory");
+		return 0;
+	}
+	node->name = sldns_str2wire_dname(str, &node->len);
+	if(!node->name) {
+		free(node);
+		log_err("cannot parse dns64-ignore-aaaa: %s", str);
+		return 0;
+	}
+	node->labs = dname_count_labels(node->name);
+	node->dclass = LDNS_RR_CLASS_IN;
+	if(!name_tree_insert(&dns64_env->ignore_aaaa, node,
+		node->name, node->len, node->labs, node->dclass)) {
+		/* ignore duplicate element */
+		free(node->name);
+		free(node);
+		return 1;
+	}
+	return 1;
+}
+
+/**
  * This function applies the configuration found in the parsed configuration
  * file \a cfg to this instance of the dns64 module. Currently only the DNS64
  * prefix (a.k.a. Pref64) is configurable.
@@ -295,6 +337,7 @@ synthesize_aaaa(const uint8_t prefix_addr[16], int prefix_net,
 static int
 dns64_apply_cfg(struct dns64_env* dns64_env, struct config_file* cfg)
 {
+    struct config_strlist* s;
     verbose(VERB_ALGO, "dns64-prefix: %s", cfg->dns64_prefix);
     if (!netblockstrtoaddr(cfg->dns64_prefix ? cfg->dns64_prefix :
                 DEFAULT_DNS64_PREFIX, 0, &dns64_env->prefix_addr,
@@ -311,6 +354,11 @@ dns64_apply_cfg(struct dns64_env* dns64_env, struct config_file* cfg)
                 cfg->dns64_prefix);
         return 0;
     }
+    for(s = cfg->dns64_ignore_aaaa; s; s = s->next) {
+	    if(!dns64_insert_ignore_aaaa(dns64_env, s->str))
+		    return 0;
+    }
+    name_tree_init_parents(&dns64_env->ignore_aaaa);
     return 1;
 }
 
@@ -329,12 +377,23 @@ dns64_init(struct module_env* env, int id)
         log_err("malloc failure");
         return 0;
     }
-	env->modinfo[id] = (void*)dns64_env;
+    env->modinfo[id] = (void*)dns64_env;
+    name_tree_init(&dns64_env->ignore_aaaa);
     if (!dns64_apply_cfg(dns64_env, env->cfg)) {
         log_err("dns64: could not apply configuration settings.");
         return 0;
     }
     return 1;
+}
+
+/** free ignore AAAA elements */
+static void
+free_ignore_aaaa_node(rbnode_type* node, void* ATTR_UNUSED(arg))
+{
+	struct name_tree_node* n = (struct name_tree_node*)node;
+	if(!n) return;
+	free(n->name);
+	free(n);
 }
 
 /**
@@ -346,8 +405,14 @@ dns64_init(struct module_env* env, int id)
 void
 dns64_deinit(struct module_env* env, int id)
 {
+    struct dns64_env* dns64_env;
     if (!env)
         return;
+    dns64_env = (struct dns64_env*)env->modinfo[id];
+    if(dns64_env) {
+	    traverse_postorder(&dns64_env->ignore_aaaa, free_ignore_aaaa_node,
+	    	NULL);
+    }
     free(env->modinfo[id]);
     env->modinfo[id] = NULL;
 }
@@ -441,6 +506,25 @@ generate_type_A_query(struct module_qstate* qstate, int id)
 }
 
 /**
+ * See if query name is in the always synth config.
+ * The ignore-aaaa list has names for which the AAAA for the domain is
+ * ignored and the A is always used to create the answer.
+ * @param qstate: query state.
+ * @param id: module id.
+ * @return true if the name is covered by ignore-aaaa.
+ */
+static int
+dns64_always_synth_for_qname(struct module_qstate* qstate, int id)
+{
+	struct dns64_env* dns64_env = (struct dns64_env*)qstate->env->modinfo[id];
+	int labs = dname_count_labels(qstate->qinfo.qname);
+	struct name_tree_node* node = name_tree_lookup(&dns64_env->ignore_aaaa,
+		qstate->qinfo.qname, qstate->qinfo.qname_len, labs,
+		qstate->qinfo.qclass);
+	return (node != NULL);
+}
+
+/**
  * Handles the "pass" event for a query. This event is received when a new query
  * is received by this module. The query may have been generated internally by
  * another module, in which case we don't want to do any special processing
@@ -467,6 +551,14 @@ handle_event_pass(struct module_qstate* qstate, int id)
 	    (uintptr_t)qstate->minfo[id] == DNS64_NEW_QUERY
 	    && qstate->qinfo.qtype == LDNS_RR_TYPE_AAAA)
 		return generate_type_A_query(qstate, id);
+
+	if(dns64_always_synth_for_qname(qstate, id) &&
+	    (uintptr_t)qstate->minfo[id] == DNS64_NEW_QUERY
+	    && !(qstate->query_flags & BIT_CD)
+	    && qstate->qinfo.qtype == LDNS_RR_TYPE_AAAA) {
+		verbose(VERB_ALGO, "dns64: ignore-aaaa and synthesize anyway");
+		return generate_type_A_query(qstate, id);
+	}
 
 	/* We are finished when our sub-query is finished. */
 	if ((uintptr_t)qstate->minfo[id] == DNS64_SUBQUERY_FINISHED)
@@ -501,17 +593,29 @@ handle_event_moddone(struct module_qstate* qstate, int id)
      *        synthesize in (sec 5.1.2 of RFC6147).
      *   - A successful AAAA query with an answer.
      */
-	if ( (enum dns64_qstate)qstate->minfo[id] == DNS64_INTERNAL_QUERY
-            || qstate->qinfo.qtype != LDNS_RR_TYPE_AAAA
-	    || (qstate->query_flags & BIT_CD)
-	    || (qstate->return_msg &&
+	if((enum dns64_qstate)qstate->minfo[id] != DNS64_INTERNAL_QUERY
+            && qstate->qinfo.qtype == LDNS_RR_TYPE_AAAA
+	    && !(qstate->query_flags & BIT_CD)
+	    && !(qstate->return_msg &&
 		    qstate->return_msg->rep &&
 		    reply_find_answer_rrset(&qstate->qinfo,
 			    qstate->return_msg->rep)))
-		return module_finished;
+		/* not internal, type AAAA, not CD, and no answer RRset,
+		 * So, this is a AAAA noerror/nodata answer */
+		return generate_type_A_query(qstate, id);
 
-    /* So, this is a AAAA noerror/nodata answer */
-	return generate_type_A_query(qstate, id);
+	if((enum dns64_qstate)qstate->minfo[id] != DNS64_INTERNAL_QUERY
+	    && qstate->qinfo.qtype == LDNS_RR_TYPE_AAAA
+	    && !(qstate->query_flags & BIT_CD)
+	    && dns64_always_synth_for_qname(qstate, id)) {
+		/* if it is not internal, AAAA, not CD and listed domain,
+		 * generate from A record and ignore AAAA */
+		verbose(VERB_ALGO, "dns64: ignore-aaaa and synthesize anyway");
+		return generate_type_A_query(qstate, id);
+	}
+
+	/* do nothing */
+	return module_finished;
 }
 
 /**
@@ -677,8 +781,9 @@ dns64_adjust_a(int id, struct module_qstate* super, struct module_qstate* qstate
 	 * Build the actual reply.
 	 */
 	cp = construct_reply_info_base(super->region, rep->flags, rep->qdcount,
-		rep->ttl, rep->prefetch_ttl, rep->an_numrrsets, rep->ns_numrrsets,
-		rep->ar_numrrsets, rep->rrset_count, rep->security);
+		rep->ttl, rep->prefetch_ttl, rep->serve_expired_ttl,
+		rep->an_numrrsets, rep->ns_numrrsets, rep->ar_numrrsets,
+		rep->rrset_count, rep->security);
 	if(!cp)
 		return;
 
@@ -705,6 +810,12 @@ dns64_adjust_a(int id, struct module_qstate* super, struct module_qstate* qstate
 			rrset_cache_remove(super->env->rrset_cache, dk->rk.dname, 
 					   dk->rk.dname_len, LDNS_RR_TYPE_AAAA, 
 					   LDNS_RR_CLASS_IN, 0);
+			/* Delete negative AAAA in msg cache for CNAMEs,
+			 * stored by the iterator module */
+			if(i != 0) /* if not the first RR */
+			    msg_cache_remove(super->env, dk->rk.dname,
+				dk->rk.dname_len, LDNS_RR_TYPE_AAAA,
+				LDNS_RR_CLASS_IN, 0);
 		} else {
 			dk->entry.hash = fk->entry.hash;
 			dk->rk.dname = (uint8_t*)regional_alloc_init(super->region,

@@ -861,6 +861,8 @@ fe_attach (device_t dev)
 	if (sc->stability & UNSTABLE_TYPE)
 		device_printf(dev, "warning: hardware type was not validated\n");
 
+	gone_by_fcp101_dev(dev);
+
 	return 0;
 }
 

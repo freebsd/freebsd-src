@@ -1282,7 +1282,7 @@ out:
 				 * lock again but we also need some kasserts
 				 * here.
 				 */
-				INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+				INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 				INP_UNLOCK_ASSERT(inp);
 				m = n;
 				if (m)
@@ -1324,7 +1324,7 @@ out:
 			INP_WUNLOCK(inp);
 		if (ti_locked == TI_RLOCKED)
 			INP_INFO_RUNLOCK_ET(&V_tcbinfo, et);
-		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+		INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 		INP_UNLOCK_ASSERT(inp);
 		ti_locked = TI_UNLOCKED;
 		mtx_lock(&hpts->p_mtx);

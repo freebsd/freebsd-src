@@ -422,6 +422,7 @@ verify_sparse_file(struct archive *a, const char *path,
 	assert(sparse->type == END);
 	assertEqualInt(expected_offset, archive_entry_size(ae));
 
+	failure(path);
 	assertEqualInt(holes_seen, expected_holes);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
@@ -457,6 +458,7 @@ verify_sparse_file2(struct archive *a, const char *path,
 	/* Verify the number of holes only, not its offset nor its
 	 * length because those alignments are deeply dependence on
 	 * its filesystem. */ 
+	failure(path);
 	assertEqualInt(blocks, archive_entry_sparse_count(ae));
 	archive_entry_free(ae);
 }

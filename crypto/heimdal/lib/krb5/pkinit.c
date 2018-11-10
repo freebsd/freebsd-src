@@ -101,7 +101,7 @@ _krb5_pk_cert_free(struct krb5_pk_cert *cert)
 }
 
 static krb5_error_code
-BN_to_integer(krb5_context context, BIGNUM *bn, heim_integer *integer)
+BN_to_integer(krb5_context context, const BIGNUM *bn, heim_integer *integer)
 {
     integer->length = BN_num_bytes(bn);
     integer->data = malloc(integer->length);
@@ -134,6 +134,7 @@ select_dh_group(krb5_context context, DH *dh, unsigned long bits,
 		struct krb5_dh_moduli **moduli)
 {
     const struct krb5_dh_moduli *m;
+    BIGNUM *p, *g, *q;
 
     if (bits == 0) {
 	m = moduli[1]; /* XXX */
@@ -155,15 +156,22 @@ select_dh_group(krb5_context context, DH *dh, unsigned long bits,
 	m = moduli[i];
     }
 
-    dh->p = integer_to_BN(context, "p", &m->p);
-    if (dh->p == NULL)
+    p = integer_to_BN(context, "p", &m->p);
+    g = integer_to_BN(context, "g", &m->g);
+    q = integer_to_BN(context, "q", &m->q);
+    if (p == NULL || g == NULL || q == NULL) {
+	BN_free(p);
+	BN_free(g);
+	BN_free(q);
 	return ENOMEM;
-    dh->g = integer_to_BN(context, "g", &m->g);
-    if (dh->g == NULL)
-	return ENOMEM;
-    dh->q = integer_to_BN(context, "q", &m->q);
-    if (dh->q == NULL)
-	return ENOMEM;
+    }
+
+    if (DH_set0_pqg(dh, p, q, g) != 1) {
+	BN_free(p);
+	BN_free(g);
+	BN_free(q);
+	return EINVAL;
+    }
 
     return 0;
 }
@@ -477,6 +485,7 @@ build_auth_pack(krb5_context context,
 
 	if (ctx->keyex == USE_DH) {
 	    DH *dh = ctx->u.dh;
+	    const BIGNUM *p, *g, *q, *pub_key;
 	    DomainParameters dp;
 	    heim_integer dh_pub_key;
 
@@ -487,17 +496,18 @@ build_auth_pack(krb5_context context,
 
 	    memset(&dp, 0, sizeof(dp));
 
-	    ret = BN_to_integer(context, dh->p, &dp.p);
+	    DH_get0_pqg(dh, &p, &q, &g);
+	    ret = BN_to_integer(context, p, &dp.p);
 	    if (ret) {
 		free_DomainParameters(&dp);
 		return ret;
 	    }
-	    ret = BN_to_integer(context, dh->g, &dp.g);
+	    ret = BN_to_integer(context, g, &dp.g);
 	    if (ret) {
 		free_DomainParameters(&dp);
 		return ret;
 	    }
-	    ret = BN_to_integer(context, dh->q, &dp.q);
+	    ret = BN_to_integer(context, q, &dp.q);
 	    if (ret) {
 		free_DomainParameters(&dp);
 		return ret;
@@ -522,7 +532,8 @@ build_auth_pack(krb5_context context,
 	    if (size != a->clientPublicValue->algorithm.parameters->length)
 		krb5_abortx(context, "Internal ASN1 encoder error");
 
-	    ret = BN_to_integer(context, dh->pub_key, &dh_pub_key);
+	    DH_get0_key(dh, &pub_key, NULL);
+	    ret = BN_to_integer(context, pub_key, &dh_pub_key);
 	    if (ret)
 		return ret;
 

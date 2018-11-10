@@ -379,7 +379,7 @@ tls_exec_client(const char *user, int startfd, const char *srcaddr,
 	 *       libcrypto use sysctl kern.arandom to obtain random data
 	 *       instead of /dev/urandom and friends.
 	 */
-	sslctx = SSL_CTX_new(TLSv1_client_method());
+	sslctx = SSL_CTX_new(TLS_client_method());
 	if (sslctx == NULL)
 		pjdlog_exitx(EX_TEMPFAIL, "SSL_CTX_new() failed.");
 
@@ -666,7 +666,7 @@ tls_exec_server(const char *user, int startfd, const char *privkey,
 	SSL_load_error_strings();
 	SSL_library_init();
 
-	sslctx = SSL_CTX_new(TLSv1_server_method());
+	sslctx = SSL_CTX_new(TLS_server_method());
 	if (sslctx == NULL)
 		pjdlog_exitx(EX_TEMPFAIL, "SSL_CTX_new() failed.");
 

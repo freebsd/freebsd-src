@@ -5,6 +5,7 @@
 .include <src.opts.mk>
 PROG_CXX=	pmc
 MAN=	
+WARNS?=	3
 CXXFLAGS+= -O0 -std=c++14
 CWARNFLAGS.gcc+= -Wno-redundant-decls
 

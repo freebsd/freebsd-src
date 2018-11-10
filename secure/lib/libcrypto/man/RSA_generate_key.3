@@ -128,72 +128,99 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "RSA_generate_key 3"
-.TH RSA_generate_key 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "RSA_GENERATE_KEY 3"
+.TH RSA_GENERATE_KEY 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-RSA_generate_key_ex, RSA_generate_key \- generate RSA key pair
+RSA_generate_key_ex, RSA_generate_key, RSA_generate_multi_prime_key \- generate RSA key pair
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/rsa.h>
 \&
 \& int RSA_generate_key_ex(RSA *rsa, int bits, BIGNUM *e, BN_GENCB *cb);
+\& int RSA_generate_multi_prime_key(RSA *rsa, int bits, int primes, BIGNUM *e, BN_GENCB *cb);
 .Ve
 .PP
 Deprecated:
 .PP
-.Vb 2
+.Vb 4
+\& #if OPENSSL_API_COMPAT < 0x00908000L
 \& RSA *RSA_generate_key(int num, unsigned long e,
-\&    void (*callback)(int,int,void *), void *cb_arg);
+\&                       void (*callback)(int, int, void *), void *cb_arg);
+\& #endif
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fIRSA_generate_key_ex()\fR generates a key pair and stores it in the \fB\s-1RSA\s0\fR
-structure provided in \fBrsa\fR. The pseudo-random number generator must
+\&\fIRSA_generate_key_ex()\fR generates a 2\-prime \s-1RSA\s0 key pair and stores it in the
+\&\fB\s-1RSA\s0\fR structure provided in \fBrsa\fR. The pseudo-random number generator must
 be seeded prior to calling \fIRSA_generate_key_ex()\fR.
 .PP
-The modulus size will be of length \fBbits\fR, and the public exponent will be
-\&\fBe\fR. Key sizes with \fBnum\fR < 1024 should be considered insecure.
-The exponent is an odd number, typically 3, 17 or 65537.
+\&\fIRSA_generate_multi_prime_key()\fR generates a multi-prime \s-1RSA\s0 key pair and stores
+it in the \fB\s-1RSA\s0\fR structure provided in \fBrsa\fR. The number of primes is given by
+the \fBprimes\fR parameter. The pseudo-random number generator must be seeded prior
+to calling \fIRSA_generate_multi_prime_key()\fR.
+.PP
+The modulus size will be of length \fBbits\fR, the number of primes to form the
+modulus will be \fBprimes\fR, and the public exponent will be \fBe\fR. Key sizes
+with \fBnum\fR < 1024 should be considered insecure. The exponent is an odd
+number, typically 3, 17 or 65537.
+.PP
+In order to maintain adequate security level, the maximum number of permitted
+\&\fBprimes\fR depends on modulus bit length:
+.PP
+.Vb 3
+\&   <1024 | >=1024 | >=4096 | >=8192
+\&   \-\-\-\-\-\-+\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-
+\&     2   |   3    |   4    |   5
+.Ve
 .PP
 A callback function may be used to provide feedback about the
 progress of the key generation. If \fBcb\fR is not \fB\s-1NULL\s0\fR, it
 will be called as follows using the \fIBN_GENCB_call()\fR function
 described on the \fIBN_generate_prime\fR\|(3) page.
-.IP "\(bu" 4
+.PP
+\&\fIRSA_generate_prime()\fR is similar to \fIRSA_generate_prime_ex()\fR but
+expects an old-style callback function; see
+\&\fIBN_generate_prime\fR\|(3) for information on the old-style callback.
+.IP "\(bu" 2
 While a random prime number is generated, it is called as
 described in \fIBN_generate_prime\fR\|(3).
-.IP "\(bu" 4
+.IP "\(bu" 2
 When the n\-th randomly generated prime is rejected as not
 suitable for the key, \fBBN_GENCB_call(cb, 2, n)\fR is called.
-.IP "\(bu" 4
+.IP "\(bu" 2
 When a random p has been found with p\-1 relatively prime to \fBe\fR,
 it is called as \fBBN_GENCB_call(cb, 3, 0)\fR.
 .PP
-The process is then repeated for prime q with \fBBN_GENCB_call(cb, 3, 1)\fR.
-.PP
-RSA_generate_key is deprecated (new applications should use
-RSA_generate_key_ex instead). RSA_generate_key works in the same way as
-RSA_generate_key_ex except it uses \*(L"old style\*(R" call backs. See
-\&\fIBN_generate_prime\fR\|(3) for further details.
-.SH "RETURN VALUE"
-.IX Header "RETURN VALUE"
-If key generation fails, \fIRSA_generate_key()\fR returns \fB\s-1NULL\s0\fR.
-.PP
+The process is then repeated for prime q and other primes (if any)
+with \fBBN_GENCB_call(cb, 3, i)\fR where \fBi\fR indicates the i\-th prime.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fIRSA_generate_multi_prime_key()\fR returns 1 on success or 0 on error.
+\&\fIRSA_generate_key_ex()\fR returns 1 on success or 0 on error.
 The error codes can be obtained by \fIERR_get_error\fR\|(3).
+.PP
+\&\fIRSA_generate_key()\fR returns a pointer to the \s-1RSA\s0 structure or
+\&\fB\s-1NULL\s0\fR if the key generation fails.
 .SH "BUGS"
 .IX Header "BUGS"
 \&\fBBN_GENCB_call(cb, 2, x)\fR is used with two different meanings.
-.PP
-\&\fIRSA_generate_key()\fR goes into an infinite loop for illegal input values.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIERR_get_error\fR\|(3), \fIrand\fR\|(3), \fIrsa\fR\|(3),
-\&\fIRSA_free\fR\|(3), \fIBN_generate_prime\fR\|(3)
+\&\fIERR_get_error\fR\|(3), \fIRAND_bytes\fR\|(3), \fIBN_generate_prime\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-The \fBcb_arg\fR argument was added in SSLeay 0.9.0.
+\&\fIRSA_generate_key()\fR was deprecated in OpenSSL 0.9.8; use
+\&\fIRSA_generate_key_ex()\fR instead.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

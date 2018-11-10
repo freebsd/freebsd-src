@@ -252,9 +252,9 @@ LkIsObjectUsed (
             if ((MethodLocals[i].Flags & ASL_LOCAL_INITIALIZED) &&
                 (!(MethodLocals[i].Flags & ASL_LOCAL_REFERENCED)))
             {
-                sprintf (MsgBuffer, "Local%u", i);
+                sprintf (AslGbl_MsgBuffer, "Local%u", i);
                 AslError (ASL_WARNING, ASL_MSG_LOCAL_NOT_USED,
-                    MethodLocals[i].Op, MsgBuffer);
+                    MethodLocals[i].Op, AslGbl_MsgBuffer);
             }
         }
 
@@ -271,9 +271,9 @@ LkIsObjectUsed (
                 if ((MethodArgs[i].Flags & ASL_ARG_INITIALIZED) &&
                     (!(MethodArgs[i].Flags & ASL_ARG_REFERENCED)))
                 {
-                    sprintf (MsgBuffer, "Arg%u", i);
+                    sprintf (AslGbl_MsgBuffer, "Arg%u", i);
                     AslError (ASL_WARNING, ASL_MSG_ARG_AS_LOCAL_NOT_USED,
-                        MethodArgs[i].Op, MsgBuffer);
+                        MethodArgs[i].Op, AslGbl_MsgBuffer);
                 }
             }
             else
@@ -286,9 +286,9 @@ LkIsObjectUsed (
                 if ((Node->Name.Ascii[0] != '_') &&
                     (!(MethodArgs[i].Flags & ASL_ARG_REFERENCED)))
                 {
-                    sprintf (MsgBuffer, "Arg%u", i);
+                    sprintf (AslGbl_MsgBuffer, "Arg%u", i);
                     AslError (ASL_REMARK, ASL_MSG_ARG_NOT_USED,
-                        MethodArgs[i].Op, MsgBuffer);
+                        MethodArgs[i].Op, AslGbl_MsgBuffer);
                 }
             }
         }
@@ -336,10 +336,10 @@ LkIsObjectUsed (
              * Issue a remark even if it is a reserved name (starts
              * with an underscore).
              */
-            sprintf (MsgBuffer, "Name [%4.4s] is within a method [%4.4s]",
+            sprintf (AslGbl_MsgBuffer, "Name [%4.4s] is within a method [%4.4s]",
                 Node->Name.Ascii, Next->Name.Ascii);
             AslError (ASL_REMARK, ASL_MSG_NOT_REFERENCED,
-                LkGetNameOp (Node->Op), MsgBuffer);
+                LkGetNameOp (Node->Op), AslGbl_MsgBuffer);
             return (AE_OK);
         }
 

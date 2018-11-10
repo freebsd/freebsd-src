@@ -128,23 +128,23 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "ERR_put_error 3"
-.TH ERR_put_error 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "ERR_PUT_ERROR 3"
+.TH ERR_PUT_ERROR 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ERR_put_error, ERR_add_error_data \- record an error
+ERR_put_error, ERR_add_error_data, ERR_add_error_vdata \- record an error
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/err.h>
 \&
-\& void ERR_put_error(int lib, int func, int reason, const char *file,
-\&         int line);
+\& void ERR_put_error(int lib, int func, int reason, const char *file, int line);
 \&
 \& void ERR_add_error_data(int num, ...);
+\& void ERR_add_error_vdata(int num, va_list arg);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -155,18 +155,49 @@ This function is usually called by a macro.
 .PP
 \&\fIERR_add_error_data()\fR associates the concatenation of its \fBnum\fR string
 arguments with the error code added last.
+\&\fIERR_add_error_vdata()\fR is similar except the argument is a \fBva_list\fR.
 .PP
 \&\fIERR_load_strings\fR\|(3) can be used to register
 error strings so that the application can a generate human-readable
 error messages for the error code.
+.SS "Reporting errors"
+.IX Subsection "Reporting errors"
+Each sub-library has a specific macro \fIXXXerr()\fR that is used to report
+errors. Its first argument is a function code \fB\s-1XXX_F_...\s0\fR, the second
+argument is a reason code \fB\s-1XXX_R_...\s0\fR. Function codes are derived
+from the function names; reason codes consist of textual error
+descriptions. For example, the function \fIssl3_read_bytes()\fR reports a
+\&\*(L"handshake failure\*(R" as follows:
+.PP
+.Vb 1
+\& SSLerr(SSL_F_SSL3_READ_BYTES, SSL_R_SSL_HANDSHAKE_FAILURE);
+.Ve
+.PP
+Function and reason codes should consist of upper case characters,
+numbers and underscores only. The error file generation script translates
+function codes into function names by looking in the header files
+for an appropriate function name, if none is found it just uses
+the capitalized form such as \*(L"\s-1SSL3_READ_BYTES\*(R"\s0 in the above example.
+.PP
+The trailing section of a reason code (after the \*(L"_R_\*(R") is translated
+into lower case and underscores changed to spaces.
+.PP
+Although a library will normally report errors using its own specific
+XXXerr macro, another library's macro can be used. This is normally
+only done when a library wants to include \s-1ASN1\s0 code which must use
+the \fIASN1err()\fR macro.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIERR_put_error()\fR and \fIERR_add_error_data()\fR return
 no values.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIerr\fR\|(3), \fIERR_load_strings\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIERR_put_error()\fR is available in all versions of SSLeay and OpenSSL.
-\&\fIERR_add_error_data()\fR was added in SSLeay 0.9.0.
+\&\fIERR_load_strings\fR\|(3)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

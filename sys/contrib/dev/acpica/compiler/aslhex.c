@@ -196,7 +196,7 @@ HxDoHexOutput (
     void)
 {
 
-    switch (Gbl_HexOutputFlag)
+    switch (AslGbl_HexOutputFlag)
     {
     case HEX_OUTPUT_C:
 
@@ -242,9 +242,9 @@ HxReadAmlOutputFile (
 
 
     Actual = fread (Buffer, 1, HEX_TABLE_LINE_SIZE,
-        Gbl_Files[ASL_FILE_AML_OUTPUT].Handle);
+        AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle);
 
-    if (ferror (Gbl_Files[ASL_FILE_AML_OUTPUT].Handle))
+    if (ferror (AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle))
     {
         FlFileError (ASL_FILE_AML_OUTPUT, ASL_MSG_READ);
         AslAbort ();
@@ -285,7 +285,7 @@ HxDoHexOutputC (
 
     /* Obtain the file basename (filename with no extension) */
 
-    FileBasename = FlGetFileBasename (Gbl_Files [ASL_FILE_HEX_OUTPUT].Filename);
+    FileBasename = FlGetFileBasename (AslGbl_Files [ASL_FILE_HEX_OUTPUT].Filename);
 
     /* Get AML size, seek back to start */
 

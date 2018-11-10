@@ -187,25 +187,25 @@ UtLocalCacheCalloc (
     {
         CacheSize = Length;
 
-        if (Gbl_StringCacheList)
+        if (AslGbl_StringCacheList)
         {
             Cache = UtLocalCalloc (sizeof (Cache->Next) + CacheSize);
 
             /* Link new cache buffer just following head of list */
 
-            Cache->Next = Gbl_StringCacheList->Next;
-            Gbl_StringCacheList->Next = Cache;
+            Cache->Next = AslGbl_StringCacheList->Next;
+            AslGbl_StringCacheList->Next = Cache;
 
             /* Leave cache management pointers alone as they pertain to head */
 
-            Gbl_StringCount++;
-            Gbl_StringSize += Length;
+            AslGbl_StringCount++;
+            AslGbl_StringSize += Length;
 
             return (Cache->Buffer);
         }
     }
 
-    if ((Gbl_StringCacheNext + Length) >= Gbl_StringCacheLast)
+    if ((AslGbl_StringCacheNext + Length) >= AslGbl_StringCacheLast)
     {
         /* Allocate a new buffer */
 
@@ -213,20 +213,20 @@ UtLocalCacheCalloc (
 
         /* Link new cache buffer to head of list */
 
-        Cache->Next = Gbl_StringCacheList;
-        Gbl_StringCacheList = Cache;
+        Cache->Next = AslGbl_StringCacheList;
+        AslGbl_StringCacheList = Cache;
 
         /* Setup cache management pointers */
 
-        Gbl_StringCacheNext = Cache->Buffer;
-        Gbl_StringCacheLast = Gbl_StringCacheNext + CacheSize;
+        AslGbl_StringCacheNext = Cache->Buffer;
+        AslGbl_StringCacheLast = AslGbl_StringCacheNext + CacheSize;
     }
 
-    Gbl_StringCount++;
-    Gbl_StringSize += Length;
+    AslGbl_StringCount++;
+    AslGbl_StringSize += Length;
 
-    Buffer = Gbl_StringCacheNext;
-    Gbl_StringCacheNext += Length;
+    Buffer = AslGbl_StringCacheNext;
+    AslGbl_StringCacheNext += Length;
     return (Buffer);
 }
 
@@ -252,7 +252,7 @@ UtParseOpCacheCalloc (
     ASL_CACHE_INFO          *Cache;
 
 
-    if (Gbl_ParseOpCacheNext >= Gbl_ParseOpCacheLast)
+    if (AslGbl_ParseOpCacheNext >= AslGbl_ParseOpCacheLast)
     {
         /* Allocate a new buffer */
 
@@ -261,17 +261,17 @@ UtParseOpCacheCalloc (
 
         /* Link new cache buffer to head of list */
 
-        Cache->Next = Gbl_ParseOpCacheList;
-        Gbl_ParseOpCacheList = Cache;
+        Cache->Next = AslGbl_ParseOpCacheList;
+        AslGbl_ParseOpCacheList = Cache;
 
         /* Setup cache management pointers */
 
-        Gbl_ParseOpCacheNext = ACPI_CAST_PTR (ACPI_PARSE_OBJECT, Cache->Buffer);
-        Gbl_ParseOpCacheLast = Gbl_ParseOpCacheNext + ASL_PARSEOP_CACHE_SIZE;
+        AslGbl_ParseOpCacheNext = ACPI_CAST_PTR (ACPI_PARSE_OBJECT, Cache->Buffer);
+        AslGbl_ParseOpCacheLast = AslGbl_ParseOpCacheNext + ASL_PARSEOP_CACHE_SIZE;
     }
 
-    Gbl_ParseOpCount++;
-    return (Gbl_ParseOpCacheNext++);
+    AslGbl_ParseOpCount++;
+    return (AslGbl_ParseOpCacheNext++);
 }
 
 
@@ -296,7 +296,7 @@ UtSubtableCacheCalloc (
     ASL_CACHE_INFO          *Cache;
 
 
-    if (Gbl_SubtableCacheNext >= Gbl_SubtableCacheLast)
+    if (AslGbl_SubtableCacheNext >= AslGbl_SubtableCacheLast)
     {
         /* Allocate a new buffer */
 
@@ -305,17 +305,17 @@ UtSubtableCacheCalloc (
 
         /* Link new cache buffer to head of list */
 
-        Cache->Next = Gbl_SubtableCacheList;
-        Gbl_SubtableCacheList = Cache;
+        Cache->Next = AslGbl_SubtableCacheList;
+        AslGbl_SubtableCacheList = Cache;
 
         /* Setup cache management pointers */
 
-        Gbl_SubtableCacheNext = ACPI_CAST_PTR (DT_SUBTABLE, Cache->Buffer);
-        Gbl_SubtableCacheLast = Gbl_SubtableCacheNext + ASL_SUBTABLE_CACHE_SIZE;
+        AslGbl_SubtableCacheNext = ACPI_CAST_PTR (DT_SUBTABLE, Cache->Buffer);
+        AslGbl_SubtableCacheLast = AslGbl_SubtableCacheNext + ASL_SUBTABLE_CACHE_SIZE;
     }
 
-    Gbl_SubtableCount++;
-    return (Gbl_SubtableCacheNext++);
+    AslGbl_SubtableCount++;
+    return (AslGbl_SubtableCacheNext++);
 }
 
 
@@ -340,7 +340,7 @@ UtFieldCacheCalloc (
     ASL_CACHE_INFO          *Cache;
 
 
-    if (Gbl_FieldCacheNext >= Gbl_FieldCacheLast)
+    if (AslGbl_FieldCacheNext >= AslGbl_FieldCacheLast)
     {
         /* Allocate a new buffer */
 
@@ -349,17 +349,17 @@ UtFieldCacheCalloc (
 
         /* Link new cache buffer to head of list */
 
-        Cache->Next = Gbl_FieldCacheList;
-        Gbl_FieldCacheList = Cache;
+        Cache->Next = AslGbl_FieldCacheList;
+        AslGbl_FieldCacheList = Cache;
 
         /* Setup cache management pointers */
 
-        Gbl_FieldCacheNext = ACPI_CAST_PTR (DT_FIELD, Cache->Buffer);
-        Gbl_FieldCacheLast = Gbl_FieldCacheNext + ASL_FIELD_CACHE_SIZE;
+        AslGbl_FieldCacheNext = ACPI_CAST_PTR (DT_FIELD, Cache->Buffer);
+        AslGbl_FieldCacheLast =AslGbl_FieldCacheNext + ASL_FIELD_CACHE_SIZE;
     }
 
-    Gbl_FieldCount++;
-    return (Gbl_FieldCacheNext++);
+    AslGbl_FieldCount++;
+    return (AslGbl_FieldCacheNext++);
 }
 
 
@@ -387,95 +387,92 @@ UtDeleteLocalCaches (
      * Generic cache, arbitrary size allocations
      */
     BufferCount = 0;
-    while (Gbl_StringCacheList)
+    while (AslGbl_StringCacheList)
     {
-        Next = Gbl_StringCacheList->Next;
-        ACPI_FREE (Gbl_StringCacheList);
-        Gbl_StringCacheList = Next;
+        Next = AslGbl_StringCacheList->Next;
+        ACPI_FREE (AslGbl_StringCacheList);
+        AslGbl_StringCacheList = Next;
         BufferCount++;
     }
 
     DbgPrint (ASL_DEBUG_OUTPUT,
         "%u Strings (%u bytes), Buffer size: %u bytes, %u Buffers\n",
-        Gbl_StringCount, Gbl_StringSize, ASL_STRING_CACHE_SIZE, BufferCount);
+        AslGbl_StringCount, AslGbl_StringSize, ASL_STRING_CACHE_SIZE, BufferCount);
 
     /* Reset cache globals */
 
-    Gbl_StringSize = 0;
-    Gbl_StringCount = 0;
-    Gbl_StringCacheNext = NULL;
-    Gbl_StringCacheLast = NULL;
-
+    AslGbl_StringSize = 0;
+    AslGbl_StringCount = 0;
+    AslGbl_StringCacheNext = NULL;
+    AslGbl_StringCacheLast = NULL;
 
     /*
      * Parse Op cache
      */
     BufferCount = 0;
-    while (Gbl_ParseOpCacheList)
+    while (AslGbl_ParseOpCacheList)
     {
-        Next = Gbl_ParseOpCacheList->Next;
-        ACPI_FREE (Gbl_ParseOpCacheList);
-        Gbl_ParseOpCacheList = Next;
+        Next = AslGbl_ParseOpCacheList->Next;
+        ACPI_FREE (AslGbl_ParseOpCacheList);
+        AslGbl_ParseOpCacheList = Next;
         BufferCount++;
     }
 
     DbgPrint (ASL_DEBUG_OUTPUT,
         "%u ParseOps, Buffer size: %u ops (%u bytes), %u Buffers\n",
-        Gbl_ParseOpCount, ASL_PARSEOP_CACHE_SIZE,
+        AslGbl_ParseOpCount, ASL_PARSEOP_CACHE_SIZE,
         (sizeof (ACPI_PARSE_OBJECT) * ASL_PARSEOP_CACHE_SIZE), BufferCount);
 
     /* Reset cache globals */
 
-    Gbl_ParseOpCount = 0;
-    Gbl_ParseOpCacheNext = NULL;
-    Gbl_ParseOpCacheLast = NULL;
-    Gbl_ParseTreeRoot = NULL;
-
+    AslGbl_ParseOpCount = 0;
+    AslGbl_ParseOpCacheNext = NULL;
+    AslGbl_ParseOpCacheLast = NULL;
+    AslGbl_ParseTreeRoot = NULL;
 
     /*
      * Table Compiler - Field cache
      */
     BufferCount = 0;
-    while (Gbl_FieldCacheList)
+    while (AslGbl_FieldCacheList)
     {
-        Next = Gbl_FieldCacheList->Next;
-        ACPI_FREE (Gbl_FieldCacheList);
-        Gbl_FieldCacheList = Next;
+        Next = AslGbl_FieldCacheList->Next;
+        ACPI_FREE (AslGbl_FieldCacheList);
+        AslGbl_FieldCacheList = Next;
         BufferCount++;
     }
 
     DbgPrint (ASL_DEBUG_OUTPUT,
         "%u Fields, Buffer size: %u fields (%u bytes), %u Buffers\n",
-        Gbl_FieldCount, ASL_FIELD_CACHE_SIZE,
+        AslGbl_FieldCount, ASL_FIELD_CACHE_SIZE,
         (sizeof (DT_FIELD) * ASL_FIELD_CACHE_SIZE), BufferCount);
 
     /* Reset cache globals */
 
-    Gbl_FieldCount = 0;
-    Gbl_FieldCacheNext = NULL;
-    Gbl_FieldCacheLast = NULL;
-
+    AslGbl_FieldCount = 0;
+    AslGbl_FieldCacheNext = NULL;
+    AslGbl_FieldCacheLast = NULL;
 
     /*
      * Table Compiler - Subtable cache
      */
     BufferCount = 0;
-    while (Gbl_SubtableCacheList)
+    while (AslGbl_SubtableCacheList)
     {
-        Next = Gbl_SubtableCacheList->Next;
-        ACPI_FREE (Gbl_SubtableCacheList);
-        Gbl_SubtableCacheList = Next;
+        Next = AslGbl_SubtableCacheList->Next;
+        ACPI_FREE (AslGbl_SubtableCacheList);
+        AslGbl_SubtableCacheList = Next;
         BufferCount++;
     }
 
     DbgPrint (ASL_DEBUG_OUTPUT,
         "%u Subtables, Buffer size: %u subtables (%u bytes), %u Buffers\n",
-        Gbl_SubtableCount, ASL_SUBTABLE_CACHE_SIZE,
+        AslGbl_SubtableCount, ASL_SUBTABLE_CACHE_SIZE,
         (sizeof (DT_SUBTABLE) * ASL_SUBTABLE_CACHE_SIZE), BufferCount);
 
     /* Reset cache globals */
 
-    Gbl_SubtableCount = 0;
-    Gbl_SubtableCacheNext = NULL;
-    Gbl_SubtableCacheLast = NULL;
+    AslGbl_SubtableCount = 0;
+    AslGbl_SubtableCacheNext = NULL;
+    AslGbl_SubtableCacheLast = NULL;
 }

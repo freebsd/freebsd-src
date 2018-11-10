@@ -100,6 +100,8 @@
 #define	EXC_APU		0x1300		/* Auxiliary Processing Unit */
 #define	EXC_DEBUG	0x2f10		/* Debug trap */
 #define	EXC_VECAST_E	0x2f20		/* Altivec Assist (Book-E) */
+#define	EXC_SPFPD	0x2f30		/* SPE Floating-point Data */
+#define	EXC_SPFPR	0x2f40		/* SPE Floating-point Round */
 
 #define	EXC_LAST	0x2f00		/* Last possible exception vector */
 

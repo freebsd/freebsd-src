@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_s_socket 3"
-.TH BIO_s_socket 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_S_SOCKET 3"
+.TH BIO_S_SOCKET 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,10 +141,7 @@ BIO_s_socket, BIO_new_socket \- socket BIO
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& BIO_METHOD *BIO_s_socket(void);
-\&
-\& long BIO_set_fd(BIO *b, int fd, long close_flag);
-\& long BIO_get_fd(BIO *b, int *c);
+\& const BIO_METHOD *BIO_s_socket(void);
 \&
 \& BIO *BIO_new_socket(int sock, int close_flag);
 .Ve
@@ -153,17 +150,11 @@ BIO_s_socket, BIO_new_socket \- socket BIO
 \&\fIBIO_s_socket()\fR returns the socket \s-1BIO\s0 method. This is a wrapper
 round the platform's socket routines.
 .PP
-\&\fIBIO_read()\fR and \fIBIO_write()\fR read or write the underlying socket.
+\&\fIBIO_read_ex()\fR and \fIBIO_write_ex()\fR read or write the underlying socket.
 \&\fIBIO_puts()\fR is supported but \fIBIO_gets()\fR is not.
 .PP
 If the close flag is set then the socket is shut down and closed
 when the \s-1BIO\s0 is freed.
-.PP
-\&\fIBIO_set_fd()\fR sets the socket of \s-1BIO\s0 \fBb\fR to \fBfd\fR and the close
-flag to \fBclose_flag\fR.
-.PP
-\&\fIBIO_get_fd()\fR places the socket in \fBc\fR if it is not \s-1NULL,\s0 it also
-returns the socket. If \fBc\fR is not \s-1NULL\s0 it should be of type (int *).
 .PP
 \&\fIBIO_new_socket()\fR returns a socket \s-1BIO\s0 using \fBsock\fR and \fBclose_flag\fR.
 .SH "NOTES"
@@ -175,19 +166,17 @@ The reason for having separate file descriptor and socket BIOs is that on some
 platforms sockets are not file descriptors and use distinct I/O routines,
 Windows is one such platform. Any code mixing the two will not work on
 all platforms.
-.PP
-\&\fIBIO_set_fd()\fR and \fIBIO_get_fd()\fR are macros.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIBIO_s_socket()\fR returns the socket \s-1BIO\s0 method.
 .PP
-\&\fIBIO_set_fd()\fR always returns 1.
-.PP
-\&\fIBIO_get_fd()\fR returns the socket or \-1 if the \s-1BIO\s0 has not been
-initialized.
-.PP
 \&\fIBIO_new_socket()\fR returns the newly allocated \s-1BIO\s0 or \s-1NULL\s0 is an error
 occurred.
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\s-1TBA\s0
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

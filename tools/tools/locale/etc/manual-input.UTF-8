@@ -877,6 +877,12 @@ graph	<MEETEI_MAYEK_LETTER_KOK>;...;<MEETEI_MAYEK_APUN_IYEK>
 digit	<MEETEI_MAYEK_DIGIT_ZERO>;...;<MEETEI_MAYEK_DIGIT_NINE>
 
 **********************************************************************
+* 0xE000 - 0xF8FF Private Use Area (from pre-CLDR data)
+**********************************************************************
+
+graph	<PRIVATE_USE_AREA-E000>;...;<PRIVATE_USE_AREA-F8FF>
+
+**********************************************************************
 * 0xFB50 - 0xFDFF Arabic Presentation Forms (differential)
 **********************************************************************
 
@@ -913,6 +919,17 @@ punct	<SMALL_COMMA>;...;<SMALL_COMMERCIAL_AT>
 **********************************************************************
 
 blank	<ZERO_WIDTH_NO-BREAK_SPACE>
+
+**********************************************************************
+* 0xFF00 - 0xFFFF Half- and Fullwidth Punctuation (from pre-CLDR data)
+**********************************************************************
+
+punct	<FULLWIDTH_EXCLAMATION_MARK>;...;<FULLWIDTH_SOLIDUS>;/
+	<FULLWIDTH_COLON>;...;<FULLWIDTH_COMMERCIAL_AT>;/
+	<FULLWIDTH_LEFT_SQUARE_BRACKET>;...;<FULLWIDTH_GRAVE_ACCENT>;/
+	<FULLWIDTH_LEFT_CURLY_BRACKET>;...;<HALFWIDTH_KATAKANA_MIDDLE_DOT>;/
+	<FULLWIDTH_CENT_SIGN>;...;<FULLWIDTH_WON_SIGN>;/
+	<HALFWIDTH_FORMS_LIGHT_VERTICAL>;...;<HALFWIDTH_WHITE_CIRCLE>
 
 **********************************************************************
 * 0x10300 - 0x1032F Old Italic

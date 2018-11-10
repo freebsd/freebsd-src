@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+CONFS=	regdomain.xml
 PACKAGE=lib${LIB}
 LIB=	80211
 SHLIBDIR?= /lib

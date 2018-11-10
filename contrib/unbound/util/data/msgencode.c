@@ -647,8 +647,6 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 	sldns_buffer_clear(buffer);
 	if(udpsize < sldns_buffer_limit(buffer))
 		sldns_buffer_set_limit(buffer, udpsize);
-	else if(sldns_buffer_limit(buffer) < udpsize)
-		udpsize = sldns_buffer_limit(buffer);
 	if(sldns_buffer_remaining(buffer) < LDNS_HEADER_SIZE)
 		return 0;
 

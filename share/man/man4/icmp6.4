@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2012
+.Dd November 1, 2018
 .Dt ICMP6 4
 .Os
 .Sh NAME
@@ -188,11 +188,11 @@ By default, all messages types are allowed on newly created raw ICMPv6
 sockets.
 The following macros may be used to refine the input set:
 .Bl -tag -width Ds
-.It Fn "void ICMP6_FILTER_SETPASSALL" "struct icmp6_filter *filterp"
+.It Ft void Fn ICMP6_FILTER_SETPASSALL "struct icmp6_filter *filterp"
 Allow all incoming messages.
 .Va filterp
 is modified to allow all message types.
-.It Fn "void ICMP6_FILTER_SETBLOCKALL" "struct icmp6_filter *filterp"
+.It Ft void Fn ICMP6_FILTER_SETBLOCKALL "struct icmp6_filter *filterp"
 Ignore all incoming messages.
 .Va filterp
 is modified to ignore all message types.
@@ -206,7 +206,7 @@ Allow ICMPv6 messages with the given
 is modified to allow such messages.
 .It Xo
 .Ft void
-.Fn ICMP6_FILTER_SETBLOCK" "int type" "struct icmp6_filter *filterp"
+.Fn ICMP6_FILTER_SETBLOCK "int type" "struct icmp6_filter *filterp"
 .Xc
 Ignore ICMPv6 messages with the given
 .Fa type .
@@ -214,13 +214,13 @@ Ignore ICMPv6 messages with the given
 is modified to ignore such messages.
 .It Xo
 .Ft int
-.Fn ICMP6_FILTER_WILLPASS" "int type" "const struct icmp6_filter *filterp"
+.Fn ICMP6_FILTER_WILLPASS "int type" "const struct icmp6_filter *filterp"
 .Xc
 Determine if the given filter will allow an ICMPv6 message of the given
 type.
 .It Xo
 .Ft int
-.Fn ICMP6_FILTER_WILLBLOCK" "int type" "const struct icmp6_filter *filterp"
+.Fn ICMP6_FILTER_WILLBLOCK "int type" "const struct icmp6_filter *filterp"
 .Xc
 Determine if the given filter will ignore an ICMPv6 message of the given
 type.
@@ -262,4 +262,22 @@ structure as the option value.
     "Protocol Version 6 (IPv6) Specification"
 .%N RFC 2463
 .%D December 1998
+.Re
+.Rs
+.%A W. Stevens
+.%A M. Thomas
+.%A E. Nordmark
+.%A T. Jinmei
+.%T "Advanced Sockets Application Program Interface (API) for IPv6"
+.%R RFC 3542
+.%D May 2003
+.Re
+.Rs
+.%A A. Conta
+.%A S. Deering
+.%A M. Gupta
+.%T "Internet Control Message Protocol (ICMPv6) for the Internet" \
+    "Protocol Version 6 (IPv6) Specification"
+.%R RFC 4443
+.%D March 2006
 .Re

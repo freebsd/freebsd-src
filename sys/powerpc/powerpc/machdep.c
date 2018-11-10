@@ -383,12 +383,12 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	if (platform_smp_get_bsp(&bsp) != 0)
 		bsp.cr_cpuid = 0;
 	pc = &__pcpu[bsp.cr_cpuid];
+	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 	pcpu_init(pc, bsp.cr_cpuid, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
 	thread0.td_oncpu = bsp.cr_cpuid;
 	pc->pc_cpuid = bsp.cr_cpuid;
 	pc->pc_hwref = bsp.cr_hwref;
-	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	/*
 	 * Init KDB
@@ -530,6 +530,10 @@ DB_SHOW_COMMAND(spr, db_show_spr)
 	saved_sprno = sprno = (intptr_t) addr;
 	sprno = ((sprno & 0x3e0) >> 5) | ((sprno & 0x1f) << 5);
 	p = (uint32_t *)(void *)&get_spr;
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+	/* Account for ELFv2 function prologue. */
+	p += 2;
+#endif
 	*p = (*p & ~0x001ff800) | (sprno << 11);
 	__syncicache(get_spr, cacheline_size);
 	spr = get_spr(sprno);

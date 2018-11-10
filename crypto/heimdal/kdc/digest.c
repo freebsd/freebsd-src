@@ -375,8 +375,8 @@ _kdc_do_digest(krb5_context context,
     case choice_DigestReqInner_init: {
 	unsigned char server_nonce[16], identifier;
 
-	RAND_pseudo_bytes(&identifier, sizeof(identifier));
-	RAND_pseudo_bytes(server_nonce, sizeof(server_nonce));
+	RAND_bytes(&identifier, sizeof(identifier));
+	RAND_bytes(server_nonce, sizeof(server_nonce));
 
 	server_nonce[0] = kdc_time & 0xff;
 	server_nonce[1] = (kdc_time >> 8) & 0xff;
@@ -1333,7 +1333,7 @@ _kdc_do_digest(krb5_context context,
 
 	if (ireq.u.ntlmRequest.sessionkey) {
 	    unsigned char masterkey[MD4_DIGEST_LENGTH];
-	    EVP_CIPHER_CTX rc4;
+	    EVP_CIPHER_CTX *rc4;
 	    size_t len;
 
 	    if ((flags & NTLM_NEG_KEYEX) == 0) {
@@ -1354,12 +1354,18 @@ _kdc_do_digest(krb5_context context,
 	    }
 
 
-	    EVP_CIPHER_CTX_init(&rc4);
-	    EVP_CipherInit_ex(&rc4, EVP_rc4(), NULL, sessionkey, NULL, 1);
-	    EVP_Cipher(&rc4,
+	    rc4 = EVP_CIPHER_CTX_new();
+	    if (rc4 == NULL) {
+		ret = ENOMEM;
+		krb5_set_error_message(context, ret,
+				       "NTLM failed to malloc cipher context");
+		goto failed;
+	    }
+	    EVP_CipherInit_ex(rc4, EVP_rc4(), NULL, sessionkey, NULL, 1);
+	    EVP_Cipher(rc4,
 		       masterkey, ireq.u.ntlmRequest.sessionkey->data,
 		       sizeof(masterkey));
-	    EVP_CIPHER_CTX_cleanup(&rc4);
+	    EVP_CIPHER_CTX_free(rc4);
 
 	    r.u.ntlmResponse.sessionkey =
 		malloc(sizeof(*r.u.ntlmResponse.sessionkey));

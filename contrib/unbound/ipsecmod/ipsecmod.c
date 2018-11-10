@@ -341,6 +341,8 @@ ipsecmod_handle_query(struct module_qstate* qstate,
 						qstate->env->cfg->ipsecmod_max_ttl;
 					qstate->return_msg->rep->prefetch_ttl = PREFETCH_TTL_CALC(
 						qstate->return_msg->rep->ttl);
+					qstate->return_msg->rep->serve_expired_ttl = qstate->return_msg->rep->ttl +
+						qstate->env->cfg->serve_expired_ttl;
 				}
 			}
 		}

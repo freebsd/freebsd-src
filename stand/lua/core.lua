@@ -34,6 +34,10 @@ local hook = require("hook")
 
 local core = {}
 
+local default_safe_mode = false
+local default_single_user = false
+local default_verbose = false
+
 local function composeLoaderCmd(cmd_name, argstr)
 	if argstr ~= nil then
 		cmd_name = cmd_name .. " " .. argstr
@@ -41,24 +45,36 @@ local function composeLoaderCmd(cmd_name, argstr)
 	return cmd_name
 end
 
+local function recordDefaults()
+	-- On i386, hint.acpi.0.rsdp will be set before we're loaded. On !i386,
+	-- it will generally be set upon execution of the kernel. Because of
+	-- this, we can't (or don't really want to) detect/disable ACPI on !i386
+	-- reliably. Just set it enabled if we detect it and leave well enough
+	-- alone if we don't.
+	local boot_acpi = core.isSystem386() and core.getACPIPresent(false)
+	local boot_single = loader.getenv("boot_single") or "no"
+	local boot_verbose = loader.getenv("boot_verbose") or "no"
+	default_single_user = boot_single:lower() ~= "no"
+	default_verbose = boot_verbose:lower() ~= "no"
+
+	if boot_acpi then
+		core.setACPI(true)
+	end
+	core.setSingleUser(default_single_user)
+	core.setVerbose(default_verbose)
+end
+
+
 -- Globals
--- try_include will return the loaded module on success, or nil on failure.
--- A message will also be printed on failure, with one exception: non-verbose
--- loading will suppress 'module not found' errors.
+-- try_include will return the loaded module on success, or false and the error
+-- message on failure.
 function try_include(module)
 	local status, ret = pcall(require, module)
 	-- ret is the module if we succeeded.
 	if status then
 		return ret
 	end
-	-- Otherwise, ret is just a message; filter out ENOENT unless we're
-	-- doing a verbose load. As a consequence, try_include prior to loading
-	-- configuration will not display 'module not found'. All other errors
-	-- in loading will be printed.
-	if config.verbose or ret:match("^module .+ not found") == nil then
-		error(ret, 2)
-	end
-	return nil
+	return false, ret
 end
 
 -- Module exports
@@ -268,9 +284,9 @@ end
 
 function core.setDefaults()
 	core.setACPI(core.getACPIPresent(true))
-	core.setSafeMode(false)
-	core.setSingleUser(false)
-	core.setVerbose(false)
+	core.setSafeMode(default_safe_mode)
+	core.setSingleUser(default_single_user)
+	core.setVerbose(default_verbose)
 end
 
 function core.autoboot(argstr)
@@ -367,13 +383,6 @@ function core.popFrontTable(tbl)
 	return first_value, new_tbl
 end
 
--- On i386, hint.acpi.0.rsdp will be set before we're loaded. On !i386, it will
--- generally be set upon execution of the kernel. Because of this, we can't (or
--- don't really want to) detect/disable ACPI on !i386 reliably. Just set it
--- enabled if we detect it and leave well enough alone if we don't.
-if core.isSystem386() and core.getACPIPresent(false) then
-	core.setACPI(true)
-end
-
+recordDefaults()
 hook.register("config.reloaded", core.clearCachedKernels)
 return core

@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "CMS_compress 3"
-.TH CMS_compress 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "CMS_COMPRESS 3"
+.TH CMS_COMPRESS 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -195,5 +195,12 @@ occurred. The error can be obtained from \fIERR_get_error\fR\|(3).
 \&\fIERR_get_error\fR\|(3), \fICMS_uncompress\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fICMS_compress()\fR was added to OpenSSL 0.9.8
-The \fB\s-1CMS_STREAM\s0\fR flag was first supported in OpenSSL 1.0.0.
+The \fB\s-1CMS_STREAM\s0\fR flag was added in OpenSSL 1.0.0.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

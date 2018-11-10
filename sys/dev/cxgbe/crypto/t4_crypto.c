@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
  * | key context header            |
  * +-------------------------------+
  * | AES key                       |  ----- For requests with AES
+ * +-------------------------------+
+ * | Hash state                    |  ----- For hash-only requests
  * +-------------------------------+ -
  * | IPAD (16-byte aligned)        |  \
  * +-------------------------------+  +---- For requests with HMAC
@@ -72,7 +74,7 @@ __FBSDID("$FreeBSD$");
  * +-------------------------------+  +---- Destination buffer for
  * | PHYS_DSGL entries             |  /     non-hash-only requests
  * +-------------------------------+ -
- * | 16 dummy bytes                |  ----- Only for hash-only requests
+ * | 16 dummy bytes                |  ----- Only for HMAC/hash-only requests
  * +-------------------------------+
  * | IV                            |  ----- If immediate IV
  * +-------------------------------+
@@ -160,7 +162,7 @@ struct ccr_session_blkcipher {
 struct ccr_session {
 	bool active;
 	int pending;
-	enum { HMAC, BLKCIPHER, AUTHENC, GCM } mode;
+	enum { HASH, HMAC, BLKCIPHER, AUTHENC, GCM } mode;
 	union {
 		struct ccr_session_hmac hmac;
 		struct ccr_session_gmac gmac;
@@ -200,6 +202,7 @@ struct ccr_softc {
 	/* Statistics. */
 	uint64_t stats_blkcipher_encrypt;
 	uint64_t stats_blkcipher_decrypt;
+	uint64_t stats_hash;
 	uint64_t stats_hmac;
 	uint64_t stats_authenc_encrypt;
 	uint64_t stats_authenc_decrypt;
@@ -420,7 +423,7 @@ ccr_populate_wreq(struct ccr_softc *sc, struct chcr_wr *crwr, u_int kctx_len,
 }
 
 static int
-ccr_hmac(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
+ccr_hash(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 {
 	struct chcr_wr *crwr;
 	struct wrqe *wr;
@@ -428,8 +431,8 @@ ccr_hmac(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	struct cryptodesc *crd;
 	char *dst;
 	u_int hash_size_in_response, kctx_flits, kctx_len, transhdr_len, wr_len;
-	u_int imm_len, iopad_size;
-	int error, sgl_nsegs, sgl_len;
+	u_int hmac_ctrl, imm_len, iopad_size;
+	int error, sgl_nsegs, sgl_len, use_opad;
 
 	crd = crp->crp_desc;
 
@@ -439,6 +442,14 @@ ccr_hmac(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 
 	axf = s->hmac.auth_hash;
 
+	if (s->mode == HMAC) {
+		use_opad = 1;
+		hmac_ctrl = CHCR_SCMD_HMAC_CTRL_NO_TRUNC;
+	} else {
+		use_opad = 0;
+		hmac_ctrl = CHCR_SCMD_HMAC_CTRL_NOP;
+	}
+
 	/* PADs must be 128-bit aligned. */
 	iopad_size = roundup2(s->hmac.partial_digest_len, 16);
 
@@ -446,7 +457,9 @@ ccr_hmac(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	 * The 'key' part of the context includes the aligned IPAD and
 	 * OPAD.
 	 */
-	kctx_len = iopad_size * 2;
+	kctx_len = iopad_size;
+	if (use_opad)
+		kctx_len += iopad_size;
 	hash_size_in_response = axf->hashsize;
 	transhdr_len = HASH_TRANSHDR_SIZE(kctx_len);
 
@@ -503,19 +516,21 @@ ccr_hmac(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	    V_SCMD_PROTO_VERSION(CHCR_SCMD_PROTO_VERSION_GENERIC) |
 	    V_SCMD_CIPH_MODE(CHCR_SCMD_CIPHER_MODE_NOP) |
 	    V_SCMD_AUTH_MODE(s->hmac.auth_mode) |
-	    V_SCMD_HMAC_CTRL(CHCR_SCMD_HMAC_CTRL_NO_TRUNC));
+	    V_SCMD_HMAC_CTRL(hmac_ctrl));
 	crwr->sec_cpl.ivgen_hdrlen = htobe32(
 	    V_SCMD_LAST_FRAG(0) |
 	    V_SCMD_MORE_FRAGS(crd->crd_len == 0 ? 1 : 0) | V_SCMD_MAC_ONLY(1));
 
 	memcpy(crwr->key_ctx.key, s->hmac.ipad, s->hmac.partial_digest_len);
-	memcpy(crwr->key_ctx.key + iopad_size, s->hmac.opad,
-	    s->hmac.partial_digest_len);
+	if (use_opad)
+		memcpy(crwr->key_ctx.key + iopad_size, s->hmac.opad,
+		    s->hmac.partial_digest_len);
 
 	/* XXX: F_KEY_CONTEXT_SALT_PRESENT set, but 'salt' not set. */
 	kctx_flits = (sizeof(struct _key_ctx) + kctx_len) / 16;
 	crwr->key_ctx.ctx_hdr = htobe32(V_KEY_CONTEXT_CTX_LEN(kctx_flits) |
-	    V_KEY_CONTEXT_OPAD_PRESENT(1) | V_KEY_CONTEXT_SALT_PRESENT(1) |
+	    V_KEY_CONTEXT_OPAD_PRESENT(use_opad) |
+	    V_KEY_CONTEXT_SALT_PRESENT(1) |
 	    V_KEY_CONTEXT_CK_SIZE(CHCR_KEYCTX_NO_KEY) |
 	    V_KEY_CONTEXT_MK_SIZE(s->hmac.mk_size) | V_KEY_CONTEXT_VALID(1));
 
@@ -537,7 +552,7 @@ ccr_hmac(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 }
 
 static int
-ccr_hmac_done(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp,
+ccr_hash_done(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp,
     const struct cpl_fw6_pld *cpl, int error)
 {
 	struct cryptodesc *crd;
@@ -1591,6 +1606,8 @@ ccr_sysctls(struct ccr_softc *sc)
 	    NULL, "statistics");
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "hash", CTLFLAG_RD,
+	    &sc->stats_hash, 0, "Hash requests submitted");
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "hmac", CTLFLAG_RD,
 	    &sc->stats_hmac, 0, "HMAC requests submitted");
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "cipher_encrypt", CTLFLAG_RD,
@@ -1666,7 +1683,13 @@ ccr_attach(device_t dev)
 	sc->sg_iv_aad = sglist_build(sc->iv_aad_buf, MAX_AAD_LEN, M_WAITOK);
 	ccr_sysctls(sc);
 
+	crypto_register(cid, CRYPTO_SHA1, 0, 0);
+	crypto_register(cid, CRYPTO_SHA2_224, 0, 0);
+	crypto_register(cid, CRYPTO_SHA2_256, 0, 0);
+	crypto_register(cid, CRYPTO_SHA2_384, 0, 0);
+	crypto_register(cid, CRYPTO_SHA2_512, 0, 0);
 	crypto_register(cid, CRYPTO_SHA1_HMAC, 0, 0);
+	crypto_register(cid, CRYPTO_SHA2_224_HMAC, 0, 0);
 	crypto_register(cid, CRYPTO_SHA2_256_HMAC, 0, 0);
 	crypto_register(cid, CRYPTO_SHA2_384_HMAC, 0, 0);
 	crypto_register(cid, CRYPTO_SHA2_512_HMAC, 0, 0);
@@ -1713,23 +1736,43 @@ ccr_copy_partial_hash(void *dst, int cri_alg, union authctx *auth_ctx)
 	u32 = (uint32_t *)dst;
 	u64 = (uint64_t *)dst;
 	switch (cri_alg) {
+	case CRYPTO_SHA1:
 	case CRYPTO_SHA1_HMAC:
 		for (i = 0; i < SHA1_HASH_LEN / 4; i++)
 			u32[i] = htobe32(auth_ctx->sha1ctx.h.b32[i]);
 		break;
+	case CRYPTO_SHA2_224:
+	case CRYPTO_SHA2_224_HMAC:
+		for (i = 0; i < SHA2_256_HASH_LEN / 4; i++)
+			u32[i] = htobe32(auth_ctx->sha224ctx.state[i]);
+		break;
+	case CRYPTO_SHA2_256:
 	case CRYPTO_SHA2_256_HMAC:
 		for (i = 0; i < SHA2_256_HASH_LEN / 4; i++)
 			u32[i] = htobe32(auth_ctx->sha256ctx.state[i]);
 		break;
+	case CRYPTO_SHA2_384:
 	case CRYPTO_SHA2_384_HMAC:
 		for (i = 0; i < SHA2_512_HASH_LEN / 8; i++)
 			u64[i] = htobe64(auth_ctx->sha384ctx.state[i]);
 		break;
+	case CRYPTO_SHA2_512:
 	case CRYPTO_SHA2_512_HMAC:
 		for (i = 0; i < SHA2_512_HASH_LEN / 8; i++)
 			u64[i] = htobe64(auth_ctx->sha512ctx.state[i]);
 		break;
 	}
+}
+
+static void
+ccr_init_hash_digest(struct ccr_session *s, int cri_alg)
+{
+	union authctx auth_ctx;
+	struct auth_hash *axf;
+
+	axf = s->hmac.auth_hash;
+	axf->Init(&auth_ctx);
+	ccr_copy_partial_hash(s->hmac.ipad, cri_alg, &auth_ctx);
 }
 
 static void
@@ -1880,12 +1923,13 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 	unsigned int auth_mode, cipher_mode, iv_len, mk_size;
 	unsigned int partial_digest_len;
 	int error;
-	bool gcm_hash;
+	bool gcm_hash, hmac;
 
 	if (cri == NULL)
 		return (EINVAL);
 
 	gcm_hash = false;
+	hmac = false;
 	cipher = NULL;
 	hash = NULL;
 	auth_hash = NULL;
@@ -1896,7 +1940,13 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 	partial_digest_len = 0;
 	for (c = cri; c != NULL; c = c->cri_next) {
 		switch (c->cri_alg) {
+		case CRYPTO_SHA1:
+		case CRYPTO_SHA2_224:
+		case CRYPTO_SHA2_256:
+		case CRYPTO_SHA2_384:
+		case CRYPTO_SHA2_512:
 		case CRYPTO_SHA1_HMAC:
+		case CRYPTO_SHA2_224_HMAC:
 		case CRYPTO_SHA2_256_HMAC:
 		case CRYPTO_SHA2_384_HMAC:
 		case CRYPTO_SHA2_512_HMAC:
@@ -1907,24 +1957,35 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 				return (EINVAL);
 			hash = c;
 			switch (c->cri_alg) {
+			case CRYPTO_SHA1:
 			case CRYPTO_SHA1_HMAC:
 				auth_hash = &auth_hash_hmac_sha1;
 				auth_mode = CHCR_SCMD_AUTH_MODE_SHA1;
 				mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_160;
 				partial_digest_len = SHA1_HASH_LEN;
 				break;
+			case CRYPTO_SHA2_224:
+			case CRYPTO_SHA2_224_HMAC:
+				auth_hash = &auth_hash_hmac_sha2_224;
+				auth_mode = CHCR_SCMD_AUTH_MODE_SHA224;
+				mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_256;
+				partial_digest_len = SHA2_256_HASH_LEN;
+				break;
+			case CRYPTO_SHA2_256:
 			case CRYPTO_SHA2_256_HMAC:
 				auth_hash = &auth_hash_hmac_sha2_256;
 				auth_mode = CHCR_SCMD_AUTH_MODE_SHA256;
 				mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_256;
 				partial_digest_len = SHA2_256_HASH_LEN;
 				break;
+			case CRYPTO_SHA2_384:
 			case CRYPTO_SHA2_384_HMAC:
 				auth_hash = &auth_hash_hmac_sha2_384;
 				auth_mode = CHCR_SCMD_AUTH_MODE_SHA512_384;
 				mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_512;
 				partial_digest_len = SHA2_512_HASH_LEN;
 				break;
+			case CRYPTO_SHA2_512:
 			case CRYPTO_SHA2_512_HMAC:
 				auth_hash = &auth_hash_hmac_sha2_512;
 				auth_mode = CHCR_SCMD_AUTH_MODE_SHA512_512;
@@ -1937,6 +1998,15 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 				gcm_hash = true;
 				auth_mode = CHCR_SCMD_AUTH_MODE_GHASH;
 				mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_128;
+				break;
+			}
+			switch (c->cri_alg) {
+			case CRYPTO_SHA1_HMAC:
+			case CRYPTO_SHA2_224_HMAC:
+			case CRYPTO_SHA2_256_HMAC:
+			case CRYPTO_SHA2_384_HMAC:
+			case CRYPTO_SHA2_512_HMAC:
+				hmac = true;
 				break;
 			}
 			break;
@@ -1980,8 +2050,12 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 		return (EINVAL);
 	if (hash == NULL && cipher == NULL)
 		return (EINVAL);
-	if (hash != NULL && hash->cri_key == NULL)
-		return (EINVAL);
+	if (hash != NULL) {
+		if ((hmac || gcm_hash) && hash->cri_key == NULL)
+			return (EINVAL);
+		if (!(hmac || gcm_hash) && hash->cri_key != NULL)
+			return (EINVAL);
+	}
 
 	sc = device_get_softc(dev);
 	mtx_lock(&sc->lock);
@@ -1996,9 +2070,12 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 		s->mode = GCM;
 	else if (hash != NULL && cipher != NULL)
 		s->mode = AUTHENC;
-	else if (hash != NULL)
-		s->mode = HMAC;
-	else {
+	else if (hash != NULL) {
+		if (hmac)
+			s->mode = HMAC;
+		else
+			s->mode = HASH;
+	} else {
 		MPASS(cipher != NULL);
 		s->mode = BLKCIPHER;
 	}
@@ -2017,8 +2094,11 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 			s->hmac.hash_len = auth_hash->hashsize;
 		else
 			s->hmac.hash_len = hash->cri_mlen;
-		ccr_init_hmac_digest(s, hash->cri_alg, hash->cri_key,
-		    hash->cri_klen);
+		if (hmac)
+			ccr_init_hmac_digest(s, hash->cri_alg, hash->cri_key,
+			    hash->cri_klen);
+		else
+			ccr_init_hash_digest(s, hash->cri_alg);
 	}
 	if (cipher != NULL) {
 		s->blkcipher.cipher_mode = cipher_mode;
@@ -2073,11 +2153,16 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 	}
 
 	switch (s->mode) {
+	case HASH:
+		error = ccr_hash(sc, s, crp);
+		if (error == 0)
+			sc->stats_hash++;
+		break;
 	case HMAC:
 		if (crd->crd_flags & CRD_F_KEY_EXPLICIT)
 			ccr_init_hmac_digest(s, crd->crd_alg, crd->crd_key,
 			    crd->crd_klen);
-		error = ccr_hmac(sc, s, crp);
+		error = ccr_hash(sc, s, crp);
 		if (error == 0)
 			sc->stats_hmac++;
 		break;
@@ -2228,8 +2313,9 @@ do_cpl6_fw_pld(struct sge_iq *iq, const struct rss_header *rss,
 	sc->stats_inflight--;
 
 	switch (s->mode) {
+	case HASH:
 	case HMAC:
-		error = ccr_hmac_done(sc, s, crp, cpl, error);
+		error = ccr_hash_done(sc, s, crp, cpl, error);
 		break;
 	case BLKCIPHER:
 		error = ccr_blkcipher_done(sc, s, crp, cpl, error);

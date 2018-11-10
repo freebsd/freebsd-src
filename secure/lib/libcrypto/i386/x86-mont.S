@@ -1,7 +1,6 @@
 /* $FreeBSD$ */
 /* Do not modify. This file is auto-generated from x86-mont.pl. */
 #ifdef PIC
-.file	"x86-mont.S"
 .text
 .globl	bn_mul_mont
 .type	bn_mul_mont,@function
@@ -478,7 +477,6 @@ bn_mul_mont:
 .byte	111,114,103,62,0
 .comm	OPENSSL_ia32cap_P,16,4
 #else
-.file	"x86-mont.S"
 .text
 .globl	bn_mul_mont
 .type	bn_mul_mont,@function

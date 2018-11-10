@@ -2,8 +2,8 @@
 
 .include <src.opts.mk>
 
-MDOCMLDIR=	${SRCTOP}/contrib/mdocml
-.PATH: ${MDOCMLDIR}
+MANDOCDIR=	${SRCTOP}/contrib/mandoc
+.PATH: ${MANDOCDIR}
 
 PROG=	mandoc
 MAN=	mandoc.1 eqn.7 mandoc_char.7 tbl.7 man.7 mdoc.7 roff.7

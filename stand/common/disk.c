@@ -265,9 +265,7 @@ disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize)
 		rc = ENXIO;
 		goto out;
 	}
-	if (mediasize > od->mediasize) {
-		od->mediasize = mediasize;
-	}
+	od->mediasize = mediasize;
 
 	if (ptable_gettype(od->table) == PTABLE_BSD &&
 	    partition >= 0) {

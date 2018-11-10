@@ -1,9 +1,9 @@
 /*
- *  $Id: yesno.c,v 1.57 2012/12/01 01:48:21 tom Exp $
+ *  $Id: yesno.c,v 1.62 2018/06/19 22:57:01 tom Exp $
  *
  *  yesno.c -- implements the yes/no box
  *
- *  Copyright 1999-2011,2012	Thomas E. Dickey
+ *  Copyright 1999-2012,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -37,8 +37,8 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
     static DLG_KEYS_BINDING binding[] = {
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
-	TRAVERSE_BINDINGS,
 	SCROLLKEY_BINDINGS,
+	TRAVERSE_BINDINGS,
 	END_KEYS_BINDING
     };
     /* *INDENT-ON* */
@@ -49,7 +49,7 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
     int button = dlg_default_button();
     WINDOW *dialog = 0;
     int result = DLG_EXIT_UNKNOWN;
-    char *prompt = dlg_strclone(cprompt);
+    char *prompt;
     const char **buttons = dlg_yes_labels();
     int min_width = 25;
     bool show = TRUE;
@@ -58,9 +58,18 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
 #ifdef KEY_RESIZE
     int req_high = height;
     int req_wide = width;
-  restart:
 #endif
 
+    DLG_TRACE(("# yesno args:\n"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("message", cprompt);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+
+#ifdef KEY_RESIZE
+  restart:
+#endif
+    prompt = dlg_strclone(cprompt);
     dlg_tab_correct_str(prompt);
     dlg_button_layout(buttons, &min_width);
     dlg_auto_size(title, prompt, &height, &width, 2, min_width);
@@ -86,7 +95,7 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
     dlg_draw_title(dialog, title);
     dlg_draw_helpline(dialog, FALSE);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
 
     page = height - (1 + 3 * MARGIN);
     dlg_draw_buttons(dialog,
@@ -133,9 +142,12 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
 		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
+		dlg_will_resize(dialog);
 		dlg_clear();
+		free(prompt);
 		height = req_high;
 		width = req_wide;
+		show = TRUE;
 		goto restart;
 #endif
 	    default:

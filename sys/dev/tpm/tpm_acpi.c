@@ -52,12 +52,13 @@ char *tpm_ids[] = {"ATM1200",  "BCM0102", "INTC0102", "SNO3504", "WEC1000",
 static int
 tpm_acpi_probe(device_t dev)
 {
-	if (ACPI_ID_PROBE(device_get_parent(dev), dev, tpm_ids) != NULL) {
-		device_set_desc(dev, "Trusted Platform Module");
-		return BUS_PROBE_DEFAULT;
-	}
+	int rv;
 	
-	return ENXIO;
+	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, tpm_ids, NULL);
+	if (rv <= 0)
+		device_set_desc(dev, "Trusted Platform Module");
+		
+	return (rv);
 }
 
 static device_method_t tpm_acpi_methods[] = {

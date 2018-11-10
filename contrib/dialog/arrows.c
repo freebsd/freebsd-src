@@ -1,9 +1,9 @@
 /*
- *  $Id: arrows.c,v 1.51 2013/09/02 15:10:09 tom Exp $
+ *  $Id: arrows.c,v 1.52 2018/06/18 22:10:54 tom Exp $
  *
  *  arrows.c -- draw arrows to indicate end-of-range for lists
  *
- *  Copyright 2000-2012,2013	Thomas E. Dickey
+ *  Copyright 2000-2013,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -125,11 +125,11 @@ dlg_draw_arrows2(WINDOW *win,
     if (draw_top) {
 	(void) wmove(win, top, x);
 	if (top_arrow) {
-	    (void) wattrset(win, merge_colors(uarrow_attr, attr));
+	    dlg_attrset(win, merge_colors(uarrow_attr, attr));
 	    (void) add_acs(win, ACS_UARROW);
 	    (void) waddstr(win, "(-)");
 	} else {
-	    (void) wattrset(win, attr);
+	    dlg_attrset(win, attr);
 	    (void) whline(win, dlg_boxchar(ACS_HLINE), ON_LEFT);
 	}
     }
@@ -137,11 +137,11 @@ dlg_draw_arrows2(WINDOW *win,
 
     (void) wmove(win, bottom, x);
     if (bottom_arrow) {
-	(void) wattrset(win, merge_colors(darrow_attr, borderattr));
+	dlg_attrset(win, merge_colors(darrow_attr, borderattr));
 	(void) add_acs(win, ACS_DARROW);
 	(void) waddstr(win, "(+)");
     } else {
-	(void) wattrset(win, borderattr);
+	dlg_attrset(win, borderattr);
 	(void) whline(win, dlg_boxchar(ACS_HLINE), ON_LEFT);
     }
     mouse_mkbutton(bottom, x - 1, 6, KEY_NPAGE);
@@ -149,7 +149,7 @@ dlg_draw_arrows2(WINDOW *win,
     (void) wmove(win, cur_y, cur_x);
     wrefresh(win);
 
-    (void) wattrset(win, save);
+    dlg_attrset(win, save);
 }
 
 void
@@ -188,12 +188,12 @@ dlg_draw_scrollbar(WINDOW *win,
 	else if (percent > 100)
 	    percent = 100;
 
-	(void) wattrset(win, position_indicator_attr);
+	dlg_attrset(win, position_indicator_attr);
 	(void) sprintf(buffer, "%d%%", percent);
 	(void) wmove(win, bottom, right - 7);
 	(void) waddstr(win, buffer);
 	if ((len = dlg_count_columns(buffer)) < 4) {
-	    (void) wattrset(win, border_attr);
+	    dlg_attrset(win, border_attr);
 	    whline(win, dlg_boxchar(ACS_HLINE), 4 - len);
 	}
     }
@@ -220,7 +220,7 @@ dlg_draw_scrollbar(WINDOW *win,
 
 		wmove(win, top + 1, right);
 
-		(void) wattrset(win, save);
+		dlg_attrset(win, save);
 		wvline(win, ACS_VLINE | A_REVERSE, all_high);
 
 		bar_y = ORDSIZE(this_data);
@@ -232,8 +232,8 @@ dlg_draw_scrollbar(WINDOW *win,
 
 		wmove(win, top + 1 + bar_y, right);
 
-		(void) wattrset(win, position_indicator_attr);
-		wattron(win, A_REVERSE);
+		dlg_attrset(win, position_indicator_attr);
+		dlg_attron(win, A_REVERSE);
 #if defined(WACS_BLOCK) && defined(NCURSES_VERSION) && defined(USE_WIDE_CURSES)
 		wvline_set(win, WACS_BLOCK, bar_last - bar_y);
 #else
@@ -251,7 +251,7 @@ dlg_draw_scrollbar(WINDOW *win,
 		     attr,
 		     borderattr);
 
-    (void) wattrset(win, save);
+    dlg_attrset(win, save);
     wmove(win, oldy, oldx);
 }
 

@@ -1,9 +1,9 @@
 /*
- * $Id: mousewget.c,v 1.22 2012/11/30 10:23:49 tom Exp $
+ * $Id: mousewget.c,v 1.24 2017/01/31 00:27:21 tom Exp $
  *
  * mousewget.c -- mouse/wgetch support for dialog
  *
- * Copyright 2000-2008,2012   Thomas E. Dickey
+ * Copyright 2000-2016,2017   Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -42,6 +42,10 @@ mouse_wgetch(WINDOW *win, int *fkey, bool ignore_errs)
 	    mseRegion *p;
 
 	    if (getmouse(&event) != ERR) {
+		DLG_TRACE(("# mouse-click abs %d,%d (rel %d,%d)\n",
+			   event.y, event.x,
+			   event.y - getbegy(win),
+			   event.x - getbegx(win)));
 		if ((p = dlg_mouse_region(event.y, event.x)) != 0) {
 		    key = DLGK_MOUSE(p->code);
 		} else if ((p = dlg_mouse_bigregion(event.y, event.x)) != 0) {

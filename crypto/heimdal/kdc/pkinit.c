@@ -331,6 +331,7 @@ get_dh_param(krb5_context context,
 {
     DomainParameters dhparam;
     DH *dh = NULL;
+    BIGNUM *p, *q, *g;
     krb5_error_code ret;
 
     memset(&dhparam, 0, sizeof(dhparam));
@@ -375,15 +376,21 @@ get_dh_param(krb5_context context,
 	goto out;
     }
     ret = KRB5_BADMSGTYPE;
-    dh->p = integer_to_BN(context, "DH prime", &dhparam.p);
-    if (dh->p == NULL)
+    p = integer_to_BN(context, "DH prime", &dhparam.p);
+    g = integer_to_BN(context, "DH base", &dhparam.g);
+    q = integer_to_BN(context, "DH p-1 factor", &dhparam.q);
+    if (p == NULL || g == NULL || q == NULL) {
+	BN_free(p);
+	BN_free(g);
+	BN_free(q);
 	goto out;
-    dh->g = integer_to_BN(context, "DH base", &dhparam.g);
-    if (dh->g == NULL)
+    }
+    if (DH_set0_pqg(dh, p, g, q) != 1) {
+	BN_free(p);
+	BN_free(g);
+	BN_free(q);
 	goto out;
-    dh->q = integer_to_BN(context, "DH p-1 factor", &dhparam.q);
-    if (dh->g == NULL)
-	goto out;
+    }
 
     {
 	heim_integer glue;
@@ -895,7 +902,7 @@ out:
  */
 
 static krb5_error_code
-BN_to_integer(krb5_context context, BIGNUM *bn, heim_integer *integer)
+BN_to_integer(krb5_context context, const BIGNUM *bn, heim_integer *integer)
 {
     integer->length = BN_num_bytes(bn);
     integer->data = malloc(integer->length);
@@ -1112,9 +1119,11 @@ pk_mk_pa_reply_dh(krb5_context context,
 
     if (cp->keyex == USE_DH) {
 	DH *kdc_dh = cp->u.dh.key;
+	const BIGNUM *pub_key;
 	heim_integer i;
 
-	ret = BN_to_integer(context, kdc_dh->pub_key, &i);
+	DH_get0_key(kdc_dh, &pub_key, NULL);
+	ret = BN_to_integer(context, pub_key, &i);
 	if (ret)
 	    return ret;
 

@@ -521,6 +521,8 @@ static driver_t mvs_driver = {
         sizeof(struct mvs_controller)
 };
 DRIVER_MODULE(mvs, pci, mvs_driver, mvs_devclass, 0, 0);
+MODULE_PNP_INFO("W32:vendor/device", pci, mvs, mvs_ids,
+    nitems(mvs_ids) - 1);
 MODULE_VERSION(mvs, 1);
 MODULE_DEPEND(mvs, cam, 1, 1, 1);
 

@@ -159,53 +159,6 @@ permanent PCI parity errors detected.
 This option is supplied for
 convenience but it is neither recommended nor supported.
 .Pp
-The generic
-.Xr ncr 4
-driver also supports SYM53C8XX based PCI SCSI controllers,
-except for the SYM53C1010, which is only supported by the
-.Nm
-driver.
-.Pp
-By default, when both the
-.Xr ncr 4
-and
-.Nm
-drivers are configured, the
-.Nm
-driver takes precedence over the
-.Xr ncr 4
-driver.
-The user can indicate a balancing of chip types between the two drivers
-by defining the
-.Ar SYM_SETUP_LP_PROBE_MAP
-kernel configuration option as follows:
-.Bl -column "0x40"
-.It Em "Bit	Devices to be attached by ncr instead"
-.It "0x01	53C810a, 53C860"
-.It "0x02	53C825a, 53C875, 53C876, 53C885, 53C895"
-.It "0x04	53C895a, 53C896, 53C897, 53C1510d"
-.It "0x40	53C810, 53C815, 53C825"
-.El
-.Pp
-For example, if
-.Ar SYM_SETUP_LP_PROBE_MAP
-is supplied with the value 0x41, the
-.Xr ncr 4
-driver will attach to 53C810, 53C815, 53C825, 53C810a, and 53C860 based
-controllers,
-and the
-.Nm
-driver will attach to all other 53C8XX based controllers.
-.Pp
-When only the
-.Nm
-driver is configured, the
-.Ar SYM_SETUP_LP_PROBE_MAP
-option has no effect.
-Thus, in this case, the
-.Nm
-driver will attach all 53C8XX based controllers present in the system.
-.Pp
 This driver offers other options
 that are not currently exported to the user.
 They are defined and documented in the
@@ -342,7 +295,6 @@ The DEC KZPCA-AA is a rebadged SYM8952U.
 .Sh SEE ALSO
 .Xr cd 4 ,
 .Xr da 4 ,
-.Xr ncr 4 ,
 .Xr sa 4 ,
 .Xr scsi 4 ,
 .Xr camcontrol 8

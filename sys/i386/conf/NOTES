@@ -501,14 +501,6 @@ device		viadrm		# VIA
 options 	DRM_DEBUG	# Include debug printfs (slow)
 
 #
-# mse: Logitech and ATI InPort bus mouse ports
-
-device		mse
-hint.mse.0.at="isa"
-hint.mse.0.port="0x23c"
-hint.mse.0.irq="5"
-
-#
 # Network interfaces:
 #
 
@@ -663,20 +655,6 @@ device		arcmsr		# Areca SATA II RAID
 #
 options 	TWA_DEBUG		# 0-10; 10 prints the most messages.
 device		twa			# 3ware 9000 series PATA/SATA RAID
-
-#
-# SCSI host adapters:
-#
-# ncv: NCR 53C500 based SCSI host adapters.
-# nsp: Workbit Ninja SCSI-3 based PC Card SCSI host adapters.
-# stg: TMC 18C30, 18C50 based SCSI host adapters.
-
-device		ncv
-device		nsp
-device		stg
-hint.stg.0.at="isa"
-hint.stg.0.port="0x140"
-hint.stg.0.port="11"
 
 #
 # Adaptec FSA RAID controllers, including integrated DELL controllers,

@@ -323,8 +323,7 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 	 * Note, this is still not a foolproof way to get disk's size. For
 	 * example, an image file can be truncated when copied to smaller media.
 	 */
-	if (hdr.hdr_lba_alt + 1 > table->sectors)
-		table->sectors = hdr.hdr_lba_alt + 1;
+	table->sectors = hdr.hdr_lba_alt + 1;
 
 	for (i = 0; i < size / hdr.hdr_entsz; i++) {
 		ent = (struct gpt_ent *)(tbl + i * hdr.hdr_entsz);
@@ -676,10 +675,12 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 	table->type = PTABLE_NONE;
 	STAILQ_INIT(&table->entries);
 
-	if (ptable_iso9660read(table, dev, dread) != NULL) {
-		if (table->type == PTABLE_ISO9660)
-			goto out;
-	}
+	if (ptable_iso9660read(table, dev, dread) == NULL) {
+		/* Read error. */
+		table = NULL;
+		goto out;
+	} else if (table->type == PTABLE_ISO9660)
+		goto out;
 
 #ifdef LOADER_VTOC8_SUPPORT
 	if (be16dec(buf + offsetof(struct vtoc8, magic)) == VTOC_MAGIC) {

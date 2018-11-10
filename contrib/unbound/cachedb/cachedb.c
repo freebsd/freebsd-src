@@ -446,6 +446,7 @@ adjust_msg_ttl(struct dns_msg* msg, time_t adjust)
 		msg->rep->ttl -= adjust;
 	else	msg->rep->ttl = 0;
 	msg->rep->prefetch_ttl = PREFETCH_TTL_CALC(msg->rep->ttl);
+	msg->rep->serve_expired_ttl = msg->rep->ttl + SERVE_EXPIRED_TTL;
 
 	for(i=0; i<msg->rep->rrset_count; i++) {
 		packed_rrset_ttl_subtract((struct packed_rrset_data*)msg->

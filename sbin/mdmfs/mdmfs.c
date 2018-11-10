@@ -90,6 +90,8 @@ static void	 do_mtptsetup(const char *, struct mtpt_info *);
 static void	 do_newfs(const char *);
 static void	 extract_ugid(const char *, struct mtpt_info *);
 static int	 run(int *, const char *, ...) __printflike(2, 3);
+static const char *run_exitstr(int);
+static int	 run_exitnumber(int);
 static void	 usage(void);
 
 int
@@ -431,7 +433,8 @@ do_mdconfig_attach(const char *args, const enum md_types mdtype)
 	rv = run(NULL, "%s -a %s%s -u %s%d", path_mdconfig, ta, args,
 	    mdname, unit);
 	if (rv)
-		errx(1, "mdconfig (attach) exited with error code %d", rv);
+		errx(1, "mdconfig (attach) exited %s %d", run_exitstr(rv),
+		    run_exitnumber(rv));
 }
 
 /*
@@ -464,7 +467,8 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 	}
 	rv = run(&fd, "%s -a %s%s", path_mdconfig, ta, args);
 	if (rv)
-		errx(1, "mdconfig (attach) exited with error code %d", rv);
+		errx(1, "mdconfig (attach) exited %s %d", run_exitstr(rv),
+		    run_exitnumber(rv));
 
 	/* Receive the unit number. */
 	if (norun) {	/* Since we didn't run, we can't read.  Fake it. */
@@ -503,8 +507,8 @@ do_mdconfig_detach(void)
 
 	rv = run(NULL, "%s -d -u %s%d", path_mdconfig, mdname, unit);
 	if (rv && debug)	/* This is allowed to fail. */
-		warnx("mdconfig (detach) exited with error code %d (ignored)",
-		    rv);
+		warnx("mdconfig (detach) exited %s %d (ignored)",
+		    run_exitstr(rv), run_exitnumber(rv));
 }
 
 /*
@@ -518,7 +522,8 @@ do_mount_md(const char *args, const char *mtpoint)
 	rv = run(NULL, "%s%s /dev/%s%d%s %s", _PATH_MOUNT, args,
 	    mdname, unit, mdsuffix, mtpoint);
 	if (rv)
-		errx(1, "mount exited with error code %d", rv);
+		errx(1, "mount exited %s %d", run_exitstr(rv),
+		    run_exitnumber(rv));
 }
 
 /*
@@ -531,7 +536,8 @@ do_mount_tmpfs(const char *args, const char *mtpoint)
 
 	rv = run(NULL, "%s -t tmpfs %s tmp %s", _PATH_MOUNT, args, mtpoint);
 	if (rv)
-		errx(1, "tmpfs mount exited with error code %d", rv);
+		errx(1, "tmpfs mount exited %s %d", run_exitstr(rv),
+		    run_exitnumber(rv));
 }
 
 /*
@@ -603,7 +609,8 @@ do_newfs(const char *args)
 
 	rv = run(NULL, "%s%s /dev/%s%d", _PATH_NEWFS, args, mdname, unit);
 	if (rv)
-		errx(1, "newfs exited with error code %d", rv);
+		errx(1, "newfs exited %s %d", run_exitstr(rv),
+		    run_exitnumber(rv));
 }
 
 /*
@@ -674,8 +681,12 @@ extract_ugid(const char *str, struct mtpt_info *mip)
  * Run a process with command name and arguments pointed to by the
  * formatted string 'cmdline'.  Since system(3) is not used, the first
  * space-delimited token of 'cmdline' must be the full pathname of the
- * program to run.  The return value is the return code of the process
- * spawned.  If 'ofd' is non-NULL, it is set to the standard output of
+ * program to run.
+ *
+ * The return value is the return code of the process spawned, or a negative
+ * signal number if the process exited due to an uncaught signal.
+ *
+ * If 'ofd' is non-NULL, it is set to the standard output of
  * the program spawned (i.e., you can read from ofd and get the output
  * of the program).
  */
@@ -771,7 +782,35 @@ run(int *ofd, const char *cmdline, ...)
 	free(argv);
 	while (waitpid(pid, &status, 0) != pid)
 		;
-	return (WEXITSTATUS(status));
+	if (WIFEXITED(status))
+		return (WEXITSTATUS(status));
+	if (WIFSIGNALED(status))
+		return (-WTERMSIG(status));
+	err(1, "unexpected waitpid status: 0x%x", status);
+}
+
+/*
+ * If run() returns non-zero, provide a string explaining why.
+ */
+static const char *
+run_exitstr(int rv)
+{
+	if (rv > 0)
+		return ("with error code");
+	if (rv < 0)
+		return ("with signal");
+	return (NULL);
+}
+
+/*
+ * If run returns non-zero, provide a relevant number.
+ */
+static int
+run_exitnumber(int rv)
+{
+	if (rv < 0)
+		return (-rv);
+	return (rv);
 }
 
 static void

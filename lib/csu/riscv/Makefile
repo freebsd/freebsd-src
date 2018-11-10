@@ -7,6 +7,7 @@ OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		Scrt1.o gcrt1.o
 CFLAGS+=	-I${.CURDIR:H}/common \
 		-I${SRCTOP}/lib/libc/include
+CFLAGS+=	-DCRT_IRELOC_SUPPRESS
 
 FILES=		${OBJS}
 FILESMODE=	${LIBMODE}

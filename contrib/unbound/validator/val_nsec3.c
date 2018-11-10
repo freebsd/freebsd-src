@@ -520,6 +520,10 @@ nsec3_hash_cmp(const void* c1, const void* c2)
 	}
 	(void)nsec3_get_salt(h1->nsec3, h1->rr, &s1, &s1len);
 	(void)nsec3_get_salt(h2->nsec3, h2->rr, &s2, &s2len);
+	if(s1len == 0 && s2len == 0)
+		return 0;
+	if(!s1) return -1;
+	if(!s2) return 1;
 	if(s1len != s2len) {
 		if(s1len < s2len)
 			return -1;
@@ -736,7 +740,7 @@ find_matching_nsec3(struct module_env* env, struct nsec3_filter* flt,
 	size_t i_rs;
 	int i_rr;
 	struct ub_packed_rrset_key* s;
-	struct nsec3_cached_hash* hash;
+	struct nsec3_cached_hash* hash = NULL;
 	int r;
 
 	/* this loop skips other-zone and unknown NSEC3s, also non-NSEC3 RRs */
@@ -748,7 +752,7 @@ find_matching_nsec3(struct module_env* env, struct nsec3_filter* flt,
 		if(r == 0) {
 			log_err("nsec3: malloc failure");
 			break; /* alloc failure */
-		} else if(r < 0)
+		} else if(r != 1)
 			continue; /* malformed NSEC3 */
 		else if(nsec3_hash_matches_owner(flt, hash, s)) {
 			*rrset = s; /* rrset with this name */
@@ -829,7 +833,7 @@ find_covering_nsec3(struct module_env* env, struct nsec3_filter* flt,
 	size_t i_rs;
 	int i_rr;
 	struct ub_packed_rrset_key* s;
-	struct nsec3_cached_hash* hash;
+	struct nsec3_cached_hash* hash = NULL;
 	int r;
 
 	/* this loop skips other-zone and unknown NSEC3s, also non-NSEC3 RRs */
@@ -841,7 +845,7 @@ find_covering_nsec3(struct module_env* env, struct nsec3_filter* flt,
 		if(r == 0) {
 			log_err("nsec3: malloc failure");
 			break; /* alloc failure */
-		} else if(r < 0)
+		} else if(r != 1)
 			continue; /* malformed NSEC3 */
 		else if(nsec3_covers(flt->zone, hash, s, i_rr, 
 			env->scratch_buffer)) {

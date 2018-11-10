@@ -922,14 +922,31 @@ be_set_nextboot(libbe_handle_t *lbh, nvlist_t *config, uint64_t pool_guid,
 	return (0);
 }
 
+/*
+ * Deactivate old BE dataset; currently just sets canmount=noauto
+ */
+static int
+be_deactivate(libbe_handle_t *lbh, const char *ds)
+{
+	zfs_handle_t *zfs;
+
+	if ((zfs = zfs_open(lbh->lzh, ds, ZFS_TYPE_DATASET)) == NULL)
+		return (1);
+	if (zfs_prop_set(zfs, "canmount", "noauto") != 0)
+		return (1);
+	zfs_close(zfs);
+	return (0);
+}
 
 int
 be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 {
 	char be_path[BE_MAXPATHLEN];
 	char buf[BE_MAXPATHLEN];
+	nvlist_t *config, *dsprops, *vdevs;
+	char *origin;
 	uint64_t pool_guid;
-	nvlist_t *config, *vdevs;
+	zfs_handle_t *zhp;
 	int err;
 
 	be_root_concat(lbh, bootenv, be_path);
@@ -959,16 +976,35 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 
 		return (be_set_nextboot(lbh, vdevs, pool_guid, buf));
 	} else {
+		if (be_deactivate(lbh, lbh->bootfs) != 0)
+			return (-1);
+
 		/* Obtain bootenv zpool */
 		err = zpool_set_prop(lbh->active_phandle, "bootfs", be_path);
+		if (err)
+			return (-1);
 
-		switch (err) {
-		case 0:
-			return (BE_ERR_SUCCESS);
+		zhp = zfs_open(lbh->lzh, be_path, ZFS_TYPE_FILESYSTEM);
+		if (zhp == NULL)
+			return (-1);
 
-		default:
-			/* XXX TODO correct errors */
+		if (be_prop_list_alloc(&dsprops) != 0)
+			return (-1);
+
+		if (be_get_dataset_props(lbh, be_path, dsprops) != 0) {
+			nvlist_free(dsprops);
 			return (-1);
 		}
+
+		if (nvlist_lookup_string(dsprops, "origin", &origin) == 0)
+			err = zfs_promote(zhp);
+		nvlist_free(dsprops);
+
+		zfs_close(zhp);
+
+		if (err)
+			return (-1);
 	}
+
+	return (BE_ERR_SUCCESS);
 }

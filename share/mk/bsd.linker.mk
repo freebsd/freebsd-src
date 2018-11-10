@@ -26,7 +26,13 @@
 .if !target(__<bsd.linker.mk>__)
 __<bsd.linker.mk>__:
 
-.for ld X_ in LD $${_empty_var_} XLD X_
+_ld_vars=LD $${_empty_var_}
+.if !empty(_WANT_TOOLCHAIN_CROSS_VARS)
+# Only the toplevel makefile needs to compute the X_LINKER_* variables.
+_ld_vars+=XLD X_
+.endif
+
+.for ld X_ in ${_ld_vars}
 .if ${ld} == "LD" || !empty(XLD)
 # Try to import LINKER_TYPE and LINKER_VERSION from parent make.
 # The value is only used/exported for the same environment that impacts

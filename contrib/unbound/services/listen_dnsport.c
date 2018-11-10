@@ -564,7 +564,8 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		/* detect freebsd jail with no ipv6 permission */
 		if(family==AF_INET6 && errno==EINVAL)
 			*noproto = 1;
-		else if(errno != EADDRINUSE) {
+		else if(errno != EADDRINUSE &&
+			!(errno == EACCES && verbosity < 4 && !listen)) {
 			log_err_addr("can't bind socket", strerror(errno),
 				(struct sockaddr_storage*)addr, addrlen);
 		}
@@ -572,7 +573,8 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		close(s);
 #else /* USE_WINSOCK */
 		if(WSAGetLastError() != WSAEADDRINUSE &&
-			WSAGetLastError() != WSAEADDRNOTAVAIL) {
+			WSAGetLastError() != WSAEADDRNOTAVAIL &&
+			!(WSAGetLastError() == WSAEACCES && verbosity < 4 && !listen)) {
 			log_err_addr("can't bind socket", 
 				wsa_strerror(WSAGetLastError()),
 				(struct sockaddr_storage*)addr, addrlen);
@@ -1216,7 +1218,8 @@ listen_cp_insert(struct comm_point* c, struct listen_dnsport* front)
 
 struct listen_dnsport* 
 listen_create(struct comm_base* base, struct listen_port* ports,
-	size_t bufsize, int tcp_accept_count, void* sslctx,
+	size_t bufsize, int tcp_accept_count, int tcp_idle_timeout,
+	struct tcl_list* tcp_conn_limit, void* sslctx,
 	struct dt_env* dtenv, comm_point_callback_type* cb, void *cb_arg)
 {
 	struct listen_dnsport* front = (struct listen_dnsport*)
@@ -1243,10 +1246,12 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 		else if(ports->ftype == listen_type_tcp ||
 				ports->ftype == listen_type_tcp_dnscrypt)
 			cp = comm_point_create_tcp(base, ports->fd, 
-				tcp_accept_count, bufsize, cb, cb_arg);
+				tcp_accept_count, tcp_idle_timeout,
+				tcp_conn_limit, bufsize, cb, cb_arg);
 		else if(ports->ftype == listen_type_ssl) {
 			cp = comm_point_create_tcp(base, ports->fd, 
-				tcp_accept_count, bufsize, cb, cb_arg);
+				tcp_accept_count, tcp_idle_timeout,
+				tcp_conn_limit, bufsize, cb, cb_arg);
 			cp->ssl = sslctx;
 		} else if(ports->ftype == listen_type_udpancil ||
 				  ports->ftype == listen_type_udpancil_dnscrypt)

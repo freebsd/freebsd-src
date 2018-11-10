@@ -95,6 +95,7 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
 	int	i, len;
 	int flags;
 	int Ealternative, Oalternative;
+	int century, year;
 	const struct lc_time_T *tptr = __get_current_time_locale(locale);
 	static int start_of_month[2][13] = {
 		{0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365},
@@ -102,6 +103,8 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
 	};
 
 	flags = FLAG_NONE;
+	century = -1;
+	year = -1;
 
 	ptr = fmt;
 	while (*ptr != 0) {
@@ -146,10 +149,8 @@ label:
 				i += *buf - '0';
 				len--;
 			}
-			if (i < 19)
-				return (NULL);
 
-			tm->tm_year = i * 100 - TM_YEAR_BASE;
+			century = i;
 			flags |= FLAG_YEAR;
 
 			break;
@@ -271,17 +272,24 @@ label:
 		case 'k':
 		case 'l':
 			/*
-			 * Of these, %l is the only specifier explicitly
-			 * documented as not being zero-padded.  However,
-			 * there is no harm in allowing zero-padding.
+			 * %k and %l specifiers are documented as being
+			 * blank-padded.  However, there is no harm in
+			 * allowing zero-padding.
 			 *
-			 * XXX The %l specifier may gobble one too many
+			 * XXX %k and %l specifiers may gobble one too many
 			 * digits if used incorrectly.
 			 */
+
+			len = 2;
+			if ((c == 'k' || c == 'l') &&
+			    isblank_l((unsigned char)*buf, locale)) {
+				buf++;
+				len = 1;
+			}
+
 			if (!isdigit_l((unsigned char)*buf, locale))
 				return (NULL);
 
-			len = 2;
 			for (i = 0; len && *buf != 0 &&
 			     isdigit_l((unsigned char)*buf, locale); buf++) {
 				i *= 10;
@@ -291,7 +299,7 @@ label:
 			if (c == 'H' || c == 'k') {
 				if (i > 23)
 					return (NULL);
-			} else if (i > 12)
+			} else if (i == 0 || i > 12)
 				return (NULL);
 
 			tm->tm_hour = i;
@@ -419,7 +427,7 @@ label:
 				i += *buf - '0';
 				len--;
 			}
-			if (i > 31)
+			if (i == 0 || i > 31)
 				return (NULL);
 
 			tm->tm_mday = i;
@@ -527,13 +535,9 @@ label:
 				len--;
 			}
 			if (c == 'Y')
-				i -= TM_YEAR_BASE;
-			if (c == 'y' && i < 69)
-				i += 100;
-			if (i < 0)
-				return (NULL);
+				century = i / 100;
+			year = i % 100;
 
-			tm->tm_year = i;
 			flags |= FLAG_YEAR;
 
 			break;
@@ -609,6 +613,17 @@ label:
 		default:
 			return (NULL);
 		}
+	}
+
+	if (century != -1 || year != -1) {
+		if (year == -1)
+			year = 0;
+		if (century == -1) {
+			if (year < 69)
+				year += 100;
+		} else
+			year += century * 100 - TM_YEAR_BASE;
+		tm->tm_year = year;
 	}
 
 	if (!(flags & FLAG_YDAY) && (flags & FLAG_YEAR)) {

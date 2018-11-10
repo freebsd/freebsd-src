@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/domainset.h>
 #include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -234,7 +235,7 @@ static void pmclog_loop(void *arg);
 static void pmclog_release(struct pmc_owner *po);
 static uint32_t *pmclog_reserve(struct pmc_owner *po, int length);
 static void pmclog_schedule_io(struct pmc_owner *po, int wakeup);
-static void pmclog_schedule_all(struct pmc_owner *po, int force);
+static void pmclog_schedule_all(struct pmc_owner *po);
 static void pmclog_stop_kthread(struct pmc_owner *po);
 
 /*
@@ -842,7 +843,7 @@ pmclog_flush(struct pmc_owner *po, int force)
 		goto error;
 	}
 
-	pmclog_schedule_all(po, force);
+	pmclog_schedule_all(po);
  error:
 	mtx_unlock(&pmc_kthread_mtx);
 
@@ -850,7 +851,7 @@ pmclog_flush(struct pmc_owner *po, int force)
 }
 
 static void
-pmclog_schedule_one_cond(struct pmc_owner *po, int force)
+pmclog_schedule_one_cond(struct pmc_owner *po)
 {
 	struct pmclog_buffer *plb;
 	int cpu;
@@ -860,8 +861,7 @@ pmclog_schedule_one_cond(struct pmc_owner *po, int force)
 	/* tell hardclock not to run again */
 	if (PMC_CPU_HAS_SAMPLES(cpu))
 		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
-	if (force)
-		pmc_flush_samples(cpu);
+
 	plb = po->po_curbuf[cpu];
 	if (plb && plb->plb_ptr != plb->plb_base)
 		pmclog_schedule_io(po, 1);
@@ -869,7 +869,7 @@ pmclog_schedule_one_cond(struct pmc_owner *po, int force)
 }
 
 static void
-pmclog_schedule_all(struct pmc_owner *po, int force)
+pmclog_schedule_all(struct pmc_owner *po)
 {
 	/*
 	 * Schedule the current buffer if any and not empty.
@@ -878,7 +878,7 @@ pmclog_schedule_all(struct pmc_owner *po, int force)
 		thread_lock(curthread);
 		sched_bind(curthread, i);
 		thread_unlock(curthread);
-		pmclog_schedule_one_cond(po, force);
+		pmclog_schedule_one_cond(po);
 	}
 	thread_lock(curthread);
 	sched_unbind(curthread);
@@ -905,7 +905,7 @@ pmclog_close(struct pmc_owner *po)
 	/*
 	 * Schedule the current buffer.
 	 */
-	pmclog_schedule_all(po, 0);
+	pmclog_schedule_all(po);
 	wakeup_one(po);
 
 	mtx_unlock(&pmc_kthread_mtx);
@@ -1232,8 +1232,8 @@ pmclog_process_userlog(struct pmc_owner *po, struct pmc_op_writelog *wl)
 void
 pmclog_initialize()
 {
-	int domain;
 	struct pmclog_buffer *plb;
+	int domain, ncpus, total;
 
 	if (pmclog_buffer_size <= 0 || pmclog_buffer_size > 16*1024) {
 		(void) printf("hwpmc: tunable logbuffersize=%d must be "
@@ -1254,16 +1254,17 @@ pmclog_initialize()
 		pmclog_buffer_size = PMC_LOG_BUFFER_SIZE;
 	}
 	for (domain = 0; domain < vm_ndomains; domain++) {
-		int ncpus = pmc_dom_hdrs[domain]->pdbh_ncpus;
-		int total = ncpus*pmc_nlogbuffers_pcpu;
+		ncpus = pmc_dom_hdrs[domain]->pdbh_ncpus;
+		total = ncpus * pmc_nlogbuffers_pcpu;
 
-		plb = malloc_domain(sizeof(struct pmclog_buffer)*total, M_PMC, domain, M_WAITOK|M_ZERO);
+		plb = malloc_domainset(sizeof(struct pmclog_buffer) * total,
+		    M_PMC, DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
 		pmc_dom_hdrs[domain]->pdbh_plbs = plb;
-		for (int i = 0; i < total; i++, plb++) {
+		for (; total > 0; total--, plb++) {
 			void *buf;
 
-			buf = malloc_domain(1024 * pmclog_buffer_size, M_PMC, domain,
-								M_WAITOK|M_ZERO);
+			buf = malloc_domainset(1024 * pmclog_buffer_size, M_PMC,
+			    DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
 			PMCLOG_INIT_BUFFER_DESCRIPTOR(plb, buf, domain);
 			pmc_plb_rele_unlocked(plb);
 		}

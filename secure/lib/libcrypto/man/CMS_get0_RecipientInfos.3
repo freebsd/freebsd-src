@@ -128,14 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "CMS_get0_RecipientInfos 3"
-.TH CMS_get0_RecipientInfos 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "CMS_GET0_RECIPIENTINFOS 3"
+.TH CMS_GET0_RECIPIENTINFOS 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CMS_get0_RecipientInfos, CMS_RecipientInfo_type, CMS_RecipientInfo_ktri_get0_signer_id,CMS_RecipientInfo_ktri_cert_cmp, CMS_RecipientInfo_set0_pkey, CMS_RecipientInfo_kekri_get0_id, CMS_RecipientInfo_kekri_id_cmp, CMS_RecipientInfo_set0_key, CMS_RecipientInfo_decrypt, CMS_RecipientInfo_encrypt \- CMS envelopedData RecipientInfo routines
+CMS_get0_RecipientInfos, CMS_RecipientInfo_type, CMS_RecipientInfo_ktri_get0_signer_id, CMS_RecipientInfo_ktri_cert_cmp, CMS_RecipientInfo_set0_pkey, CMS_RecipientInfo_kekri_get0_id, CMS_RecipientInfo_kekri_id_cmp, CMS_RecipientInfo_set0_key, CMS_RecipientInfo_decrypt, CMS_RecipientInfo_encrypt \&\- CMS envelopedData RecipientInfo routines
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -144,13 +144,22 @@ CMS_get0_RecipientInfos, CMS_RecipientInfo_type, CMS_RecipientInfo_ktri_get0_sig
 \& STACK_OF(CMS_RecipientInfo) *CMS_get0_RecipientInfos(CMS_ContentInfo *cms);
 \& int CMS_RecipientInfo_type(CMS_RecipientInfo *ri);
 \&
-\& int CMS_RecipientInfo_ktri_get0_signer_id(CMS_RecipientInfo *ri, ASN1_OCTET_STRING **keyid, X509_NAME **issuer, ASN1_INTEGER **sno);
+\& int CMS_RecipientInfo_ktri_get0_signer_id(CMS_RecipientInfo *ri,
+\&                                           ASN1_OCTET_STRING **keyid,
+\&                                           X509_NAME **issuer,
+\&                                           ASN1_INTEGER **sno);
 \& int CMS_RecipientInfo_ktri_cert_cmp(CMS_RecipientInfo *ri, X509 *cert);
 \& int CMS_RecipientInfo_set0_pkey(CMS_RecipientInfo *ri, EVP_PKEY *pkey);
 \&
-\& int CMS_RecipientInfo_kekri_get0_id(CMS_RecipientInfo *ri, X509_ALGOR **palg, ASN1_OCTET_STRING **pid, ASN1_GENERALIZEDTIME **pdate, ASN1_OBJECT **potherid, ASN1_TYPE **pothertype);
-\& int CMS_RecipientInfo_kekri_id_cmp(CMS_RecipientInfo *ri, const unsigned char *id, size_t idlen);
-\& int CMS_RecipientInfo_set0_key(CMS_RecipientInfo *ri, unsigned char *key, size_t keylen);
+\& int CMS_RecipientInfo_kekri_get0_id(CMS_RecipientInfo *ri, X509_ALGOR **palg,
+\&                                     ASN1_OCTET_STRING **pid,
+\&                                     ASN1_GENERALIZEDTIME **pdate,
+\&                                     ASN1_OBJECT **potherid,
+\&                                     ASN1_TYPE **pothertype);
+\& int CMS_RecipientInfo_kekri_id_cmp(CMS_RecipientInfo *ri,
+\&                                    const unsigned char *id, size_t idlen);
+\& int CMS_RecipientInfo_set0_key(CMS_RecipientInfo *ri,
+\&                                unsigned char *key, size_t keylen);
 \&
 \& int CMS_RecipientInfo_decrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri);
 \& int CMS_RecipientInfo_encrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri);
@@ -212,11 +221,11 @@ of \fICMS_decrypt()\fR is not appropriate.
 .PP
 In typical usage and application will retrieve all CMS_RecipientInfo structures
 using \fICMS_get0_RecipientInfos()\fR and check the type of each using
-\&\fICMS_RecpientInfo_type()\fR. Depending on the type the CMS_RecipientInfo structure
+\&\fICMS_RecipientInfo_type()\fR. Depending on the type the CMS_RecipientInfo structure
 can be ignored or its key identifier data retrieved using an appropriate
 function. Then if the corresponding secret or private key can be obtained by
 any appropriate means it can then associated with the structure and
-\&\fICMS_RecpientInfo_decrypt()\fR called. If successful \fICMS_decrypt()\fR can be called
+\&\fICMS_RecipientInfo_decrypt()\fR called. If successful \fICMS_decrypt()\fR can be called
 with a \s-1NULL\s0 key to decrypt the enveloped content.
 .PP
 The \fICMS_RecipientInfo_encrypt()\fR can be used to add a new recipient to an
@@ -242,6 +251,11 @@ Any error can be obtained from \fIERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIERR_get_error\fR\|(3), \fICMS_decrypt\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-These functions were first was added to OpenSSL 0.9.8
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

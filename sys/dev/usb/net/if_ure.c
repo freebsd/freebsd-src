@@ -68,6 +68,8 @@ SYSCTL_INT(_hw_usb_ure, OID_AUTO, debug, CTLFLAG_RWTUN, &ure_debug, 0,
 static const STRUCT_USB_HOST_ID ure_devs[] = {
 #define	URE_DEV(v,p,i)	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	URE_DEV(LENOVO, RTL8153, 0),
+	URE_DEV(LENOVO, TBT3LAN, 0),
+	URE_DEV(LENOVO, USBCLAN, 0),
 	URE_DEV(NVIDIA, RTL8153, 0),
 	URE_DEV(REALTEK, RTL8152, URE_FLAG_8152),
 	URE_DEV(REALTEK, RTL8153, 0),
@@ -169,6 +171,7 @@ MODULE_DEPEND(ure, usb, 1, 1, 1);
 MODULE_DEPEND(ure, ether, 1, 1, 1);
 MODULE_DEPEND(ure, miibus, 1, 1, 1);
 MODULE_VERSION(ure, 1);
+USB_PNP_HOST_INFO(ure_devs);
 
 static const struct usb_ether_methods ure_ue_methods = {
 	.ue_attach_post = ure_attach_post,

@@ -31,7 +31,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2017
+.Dd September 18, 2018
 .Dt RC 8
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .Nm rc.d/
 .Nm rc.firewall
 .Nm rc.local
+.Nm rc.resume
 .Nm rc.shutdown
 .Nm rc.subr
 .Sh DESCRIPTION
@@ -326,6 +327,21 @@ If the script starts a process (rather than performing a one-off
 operation), show the status of the process.
 Otherwise it is not necessary to support this argument.
 Defaults to displaying the process ID of the program (if running).
+.It Cm enable
+Enable the service in
+.Xr rc.conf 5 .
+.It Cm disable
+Disable the service in
+.Xr rc.conf 5 .
+.It Cm delete
+Remove the service from
+.Xr rc.conf 5 .
+If
+.Ql Li service_delete_empty
+is set to
+.Dq Li YES ,
+.Pa /etc/rc.conf.d/$servicename
+will be deleted if empty after modification.
 .It Cm describe
 Print a short description of what the script does.
 .It Cm extracommands
@@ -548,6 +564,7 @@ is unnecessary, but is often included.
 .Xr kill 1 ,
 .Xr rc.conf 5 ,
 .Xr init 8 ,
+.Xr rc.resume 8 ,
 .Xr rc.subr 8 ,
 .Xr rcorder 8 ,
 .Xr reboot 8 ,

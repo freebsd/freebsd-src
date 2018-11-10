@@ -207,9 +207,13 @@ time_t posix2time(time_t t);
 #include <xlocale/_time.h>
 #endif
 
+#if defined(__BSD_VISIBLE) || __ISO_C_VISIBLE >= 2011 || \
+    (defined(cplusplus) && cplusplus >= 201703)
+#include <sys/_timespec.h>
 /* ISO/IEC 9899:201x 7.27.2.5 The timespec_get function */
 #define TIME_UTC	1	/* time elapsed since epoch */
 int timespec_get(struct timespec *ts, int base);
+#endif
 
 __END_DECLS
 

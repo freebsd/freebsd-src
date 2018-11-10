@@ -4,7 +4,7 @@ Current dialog upstream maintainer: Thomas Dickey <dickey@invisible-island.net>
 
 -------------------------------------------------------------------------------
 Files: *.c *.h
-    Copyright 2000-2012,2013	Thomas E. Dickey
+    Copyright 2000-2017,2018	Thomas E. Dickey
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License, version 2.1
@@ -27,7 +27,7 @@ Files: *.c *.h
 
 Files: aclocal.m4
 Licence: other-BSD
-Copyright:  1999-2010,2013 by Thomas E. Dickey
+Copyright:  1999-2017,2018 by Thomas E. Dickey
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the
     "Software"), to deal in the Software without restriction, including

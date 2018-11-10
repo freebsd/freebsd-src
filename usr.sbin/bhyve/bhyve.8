@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 23, 2018
+.Dd October 24, 2018
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -367,16 +367,21 @@ Emergency write is advertised, but no-op at present.
 .Pp
 Framebuffer devices:
 .Bl -tag -width 10n
-.It Oo rfb= Ns Oo Ar IP: Oc Ns Ar port Oc Ns Oo ,w= Ns Ar width Oc Ns Oo ,h= Ns Ar height Oc Ns Oo ,vga= Ns Ar vgaconf Oc Ns Oo Ns ,wait Oc Ns Oo ,password= Ns Ar password Oc
+.It Xo
+.Oo rfb= Ns Oo Ar IP\&: Oc Ns Ar port Oc Ns Oo ,w= Ns Ar width Oc Ns Oo ,h= Ns
+.Ar height Oc Ns Oo ,vga= Ns Ar vgaconf Oc Ns Oo Ns ,wait Oc Ns Oo ,password= Ns
+.Ar password Oc
+.Xc
 .Bl -tag -width 8n
-.It Ar IP:port
+.It Ar IPv4:port No or Ar [IPv6%zone]:port
 An
 .Ar IP
 address and a
 .Ar port
 VNC should listen on.
 The default is to listen on localhost IPv4 address and default VNC port 5900.
-Listening on an IPv6 address is not supported.
+An IPv6 address must be enclosed in square brackets and may contain an
+optional zone identifer.
 .It Ar width No and Ar height
 A display resolution, width and height, respectively.
 If not specified, a default resolution of 1024x768 pixels will be used.
@@ -397,8 +402,8 @@ and memory space
 .Pq 64KB at Ad 0xA0000 .
 The default
 .Dq io
-option should be used for guests that attempt to issue BIOS
-calls which result in I/O port queries, and fail to boot if I/O decode is disabled.
+option should be used for guests that attempt to issue BIOS calls which result
+in I/O port queries, and fail to boot if I/O decode is disabled.
 .Pp
 The
 .Dq on
@@ -423,8 +428,8 @@ for configuration notes of particular guests.
 .It wait
 Instruct
 .Nm
-to only boot upon the initiation of a VNC connection, simplifying the installation
-of operating systems that require immediate keyboard input.
+to only boot upon the initiation of a VNC connection, simplifying the
+installation of operating systems that require immediate keyboard input.
 This can be removed for post-installation use.
 .It password
 This type of authentication is known to be cryptographically weak and is not
@@ -496,8 +501,9 @@ General purpose registers can be queried for each virtual CPU, but other
 registers such as floating-point and system registers cannot be queried.
 .Ss Memory
 Memory (including memory mapped I/O regions) can be read by the debugger,
-but not written.  Memory operations use virtual addresses that are resolved
-to physical addresses via the current virtual CPU's active address translation.
+but not written.
+Memory operations use virtual addresses that are resolved to physical addresses
+via the current virtual CPU's active address translation.
 .Ss Control
 The running guest can be interrupted by the debugger at any time
 .Pq for example, by pressing Ctrl-C in the debugger .
@@ -587,6 +593,20 @@ bhyve -c 2 -m 4G -w -H \\
   -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
    uefivm
 .Ed
+.Pp
+Run a UEFI virtual machine with a VNC display that is bound to all IPv6
+addresses on port 5900.
+.Bd -literal -offset indent
+bhyve -c 2 -m 4G -w -H \\
+  -s 0,hostbridge \\
+  -s 4,ahci-hd,disk.img \\
+  -s 5,virtio-net,tap0 \\
+  -s 29,fbuf,tcp=[::]:5900,w=800,h=600 \\
+  -s 30,xhci,tablet \\
+  -s 31,lpc -l com1,stdio \\
+  -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
+   uefivm
+.Ed
 .Sh SEE ALSO
 .Xr bhyve 4 ,
 .Xr nmdm 4 ,
@@ -594,6 +614,12 @@ bhyve -c 2 -m 4G -w -H \\
 .Xr ethers 5 ,
 .Xr bhyvectl 8 ,
 .Xr bhyveload 8
+.Pp
+.Rs
+.%A Intel
+.%B 64 and IA-32 Architectures Software Developer’s Manual
+.%V Volume 3
+.Re
 .Sh HISTORY
 .Nm
 first appeared in

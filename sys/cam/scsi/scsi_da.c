@@ -334,6 +334,9 @@ struct da_softc {
 	uint32_t		unmap_gran;
 	uint32_t		unmap_gran_align;
 	uint64_t		ws_max_blks;
+	uint64_t		trim_count;
+	uint64_t		trim_ranges;
+	uint64_t		trim_lbas;
 	da_delete_methods	delete_method_pref;
 	da_delete_methods	delete_method;
 	da_delete_func_t	*delete_func;
@@ -2002,7 +2005,7 @@ daasync(void *callback_arg, u_int32_t code,
 
 	periph = (struct cam_periph *)callback_arg;
 	switch (code) {
-	case AC_FOUND_DEVICE:
+	case AC_FOUND_DEVICE:	/* callback to create periph, no locking yet */
 	{
 		struct ccb_getdev *cgd;
 		cam_status status;
@@ -2038,7 +2041,7 @@ daasync(void *callback_arg, u_int32_t code,
 				"due to status 0x%x\n", status);
 		return;
 	}
-	case AC_ADVINFO_CHANGED:
+	case AC_ADVINFO_CHANGED:	/* Doesn't touch periph */
 	{
 		uintptr_t buftype;
 
@@ -2061,8 +2064,10 @@ daasync(void *callback_arg, u_int32_t code,
 		ccb = (union ccb *)arg;
 
 		/*
-		 * Handle all UNIT ATTENTIONs except our own,
-		 * as they will be handled by daerror().
+		 * Handle all UNIT ATTENTIONs except our own, as they will be
+		 * handled by daerror(). Since this comes from a different periph,
+		 * that periph's lock is held, not ours, so we have to take it ours
+		 * out to touch softc flags.
 		 */
 		if (xpt_path_periph(ccb->ccb_h.path) != periph &&
 		    scsi_extract_sense_ccb(ccb,
@@ -2090,9 +2095,13 @@ daasync(void *callback_arg, u_int32_t code,
 		}
 		break;
 	}
-	case AC_SCSI_AEN:
+	case AC_SCSI_AEN:		/* Called for this path: periph locked */
+		/*
+		 * Appears to be currently unused for SCSI devices, only ata SIMs
+		 * generate this.
+		 */
+		cam_periph_assert(periph, MA_OWNED);
 		softc = (struct da_softc *)periph->softc;
-		cam_periph_lock(periph);
 		if (!cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR) &&
 		    (softc->flags & DA_FLAG_TUR_PENDING) == 0) {
 			if (da_periph_acquire(periph, DA_REF_TUR) == 0) {
@@ -2100,31 +2109,28 @@ daasync(void *callback_arg, u_int32_t code,
 				daschedule(periph);
 			}
 		}
-		cam_periph_unlock(periph);
 		/* FALLTHROUGH */
-	case AC_SENT_BDR:
-	case AC_BUS_RESET:
+	case AC_SENT_BDR:		/* Called for this path: periph locked */
+	case AC_BUS_RESET:		/* Called for this path: periph locked */
 	{
 		struct ccb_hdr *ccbh;
 
+		cam_periph_assert(periph, MA_OWNED);
 		softc = (struct da_softc *)periph->softc;
 		/*
 		 * Don't fail on the expected unit attention
 		 * that will occur.
 		 */
-		cam_periph_lock(periph);
 		softc->flags |= DA_FLAG_RETRY_UA;
 		LIST_FOREACH(ccbh, &softc->pending_ccbs, periph_links.le)
 			ccbh->ccb_state |= DA_CCB_RETRY_UA;
-		cam_periph_unlock(periph);
 		break;
 	}
-	case AC_INQ_CHANGED:
-		cam_periph_lock(periph);
+	case AC_INQ_CHANGED:		/* Called for this path: periph locked */
+		cam_periph_assert(periph, MA_OWNED);
 		softc = (struct da_softc *)periph->softc;
 		softc->flags &= ~DA_FLAG_PROBED;
 		dareprobe(periph);
-		cam_periph_unlock(periph);
 		break;
 	default:
 		break;
@@ -2182,6 +2188,18 @@ dasysctlinit(void *context, int pending)
 		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
 		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
 		"Minimum CDB size");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_count", CTLFLAG_RD, &softc->trim_count,
+		"Total number of unmap/dsm commands sent");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_ranges", CTLFLAG_RD, &softc->trim_ranges,
+		"Total number of ranges in unmap/dsm commands");
+	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
+		SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO,
+		"trim_lbas", CTLFLAG_RD, &softc->trim_lbas,
+		"Total lbas in the unmap/dsm commands sent");
 
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "zone_mode", CTLTYPE_STRING | CTLFLAG_RD,
@@ -2682,9 +2700,10 @@ daregister(struct cam_periph *periph, void *arg)
 	TASK_INIT(&softc->sysctl_task, 0, dasysctlinit, periph);
 
 	/*
-	 * Take an exclusive refcount on the periph while dastart is called
-	 * to finish the probe.  The reference will be dropped in dadone at
-	 * the end of probe.
+	 * Take an exclusive section lock qon the periph while dastart is called
+	 * to finish the probe.  The lock will be dropped in dadone at the end
+	 * of probe. This locks out daopen and daclose from racing with the
+	 * probe.
 	 *
 	 * XXX if cam_periph_hold returns an error, we don't hold a refcount.
 	 */
@@ -3934,6 +3953,9 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 		   da_default_timeout * 1000);
 	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
 	ccb->ccb_h.flags |= CAM_UNLOCKED;
+	softc->trim_count++;
+	softc->trim_ranges += ranges;
+	softc->trim_lbas += totalcount;
 	cam_iosched_submit_trim(softc->cam_iosched);
 }
 
@@ -5674,6 +5696,9 @@ dadone_probezone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 	}
+
+	free(csio->data_ptr, M_SCSIDA);
+
 	daprobedone(periph, done_ccb);
 	return;
 }

@@ -200,7 +200,8 @@ build${libcompat}: .PHONY
 	    OBJTOP=${LIBCOMPAT_OBJTOP} \
 	    OBJROOT='$${OBJTOP}/' \
 	    MAKEOBJDIRPREFIX= \
-	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
+	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS \
+	    MK_CTF=no MK_RETPOLINE=no MK_WARNS=no \
 	    ${_t}
 .endfor
 .endfor

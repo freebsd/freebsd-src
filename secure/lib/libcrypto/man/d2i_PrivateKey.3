@@ -128,15 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "d2i_PrivateKey 3"
-.TH d2i_PrivateKey 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "D2I_PRIVATEKEY 3"
+.TH D2I_PRIVATEKEY 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-d2i_Private_key, d2i_AutoPrivateKey, i2d_PrivateKey \- decode and encode
-functions for reading and saving EVP_PKEY structures.
+d2i_PrivateKey, d2i_PublicKey, d2i_AutoPrivateKey, i2d_PrivateKey, i2d_PublicKey, d2i_PrivateKey_bio, d2i_PrivateKey_fp \&\- decode and encode functions for reading and saving EVP_PKEY structures
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -144,9 +143,15 @@ functions for reading and saving EVP_PKEY structures.
 \&
 \& EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **a, const unsigned char **pp,
 \&                          long length);
+\& EVP_PKEY *d2i_PublicKey(int type, EVP_PKEY **a, const unsigned char **pp,
+\&                         long length);
 \& EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **a, const unsigned char **pp,
 \&                              long length);
 \& int i2d_PrivateKey(EVP_PKEY *a, unsigned char **pp);
+\& int i2d_PublicKey(EVP_PKEY *a, unsigned char **pp);
+\&
+\& EVP_PKEY *d2i_PrivateKey_bio(BIO *bp, EVP_PKEY **a);
+\& EVP_PKEY *d2i_PrivateKey_fp(FILE *fp, EVP_PKEY **a)
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -154,20 +159,21 @@ functions for reading and saving EVP_PKEY structures.
 use any key specific format or PKCS#8 unencrypted PrivateKeyInfo format. The
 \&\fBtype\fR parameter should be a public key algorithm constant such as
 \&\fB\s-1EVP_PKEY_RSA\s0\fR. An error occurs if the decoded key does not match \fBtype\fR.
+\&\fId2i_PublicKey()\fR does the same for public keys.
 .PP
 \&\fId2i_AutoPrivateKey()\fR is similar to \fId2i_PrivateKey()\fR except it attempts to
 automatically detect the private key format.
 .PP
 \&\fIi2d_PrivateKey()\fR encodes \fBkey\fR. It uses a key specific format or, if none is
 defined for that key type, PKCS#8 unencrypted PrivateKeyInfo format.
+\&\fIi2d_PublicKey()\fR does the same for public keys.
 .PP
-These functions are similar to the \fId2i_X509()\fR functions, and you should refer to
-that page for a detailed description (see \fId2i_X509\fR\|(3)).
+These functions are similar to the \fId2i_X509()\fR functions; see \fId2i_X509\fR\|(3).
 .SH "NOTES"
 .IX Header "NOTES"
 All these functions use \s-1DER\s0 format and unencrypted keys. Applications wishing
 to encrypt or decrypt private keys should use other functions such as
-\&\fId2i_PKC8PrivateKey()\fR instead.
+\&\fId2i_PKCS8PrivateKey()\fR instead.
 .PP
 If the \fB*a\fR is not \s-1NULL\s0 when calling \fId2i_PrivateKey()\fR or \fId2i_AutoPrivateKey()\fR
 (i.e. an existing structure is being reused) and the key format is PKCS#8
@@ -183,5 +189,13 @@ negative value if an error occurs. The error code can be obtained by calling
 \&\fIERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIcrypto\fR\|(3),
-\&\fId2i_PKCS8PrivateKey\fR\|(3)
+\&\fIcrypto\fR\|(7),
+\&\fId2i_PKCS8PrivateKey_bio\fR\|(3)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

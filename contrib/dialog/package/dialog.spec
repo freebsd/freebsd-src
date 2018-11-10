@@ -1,29 +1,29 @@
 Summary: dialog - display dialog boxes from shell scripts
 %define AppProgram dialog
-%define AppVersion 1.2
-%define AppRelease 20130923
+%define AppVersion 1.3
+%define AppRelease 20180621
 %define ActualProg c%{AppProgram}
-# $XTermId: dialog.spec,v 1.54 2013/09/23 23:08:24 tom Exp $
+# $XTermId: dialog.spec,v 1.108 2018/06/21 09:19:45 tom Exp $
 Name: %{ActualProg}
 Version: %{AppVersion}
 Release: %{AppRelease}
 License: LGPL
-Group: Applications/Development
-URL: ftp://invisible-island.net/%{AppProgram}
+Group: Applications/System
+URL: ftp://ftp.invisible-island.net/%{AppProgram}
 Source0: %{AppProgram}-%{AppVersion}-%{AppRelease}.tgz
 Packager: Thomas Dickey <dickey@invisible-island.net>
 
 %description
-Dialog is a program that will let you to present a variety of questions
-or display messages using dialog boxes  from  a  shell  script.   These
-types  of  dialog boxes are implemented (though not all are necessarily
-compiled into dialog):
+Dialog is a program that will let you present a variety of questions or
+display messages using dialog boxes from a shell script.  These types
+of dialog boxes are implemented (though not all are necessarily compiled
+into dialog):
 
-      calendar, checklist, dselect, editbox, form, fselect, gauge,
-      infobox, inputbox, inputmenu, menu, mixedform, mixedgauge,
-      msgbox (message), passwordbox, passwordform, pause, progressbox,
-      radiolist, tailbox, tailboxbg, textbox, timebox, and yesno
-      (yes/no).
+     buildlist, calendar, checklist, dselect, editbox, form, fselect,
+     gauge, infobox, inputbox, inputmenu, menu, mixedform,
+     mixedgauge, msgbox (message), passwordbox, passwordform, pause,
+     prgbox, programbox, progressbox, radiolist, rangebox, tailbox,
+     tailboxbg, textbox, timebox, treeview, and yesno (yes/no).
 
 This package installs as "cdialog" to avoid conflict with other packages.
 %prep
@@ -34,32 +34,34 @@ This package installs as "cdialog" to avoid conflict with other packages.
 
 %build
 
+cp -v package/dialog.map package/%{ActualProg}.map
+
 INSTALL_PROGRAM='${INSTALL}' \
-	./configure \
-		--target %{_target_platform} \
-		--prefix=%{_prefix} \
-		--bindir=%{_bindir} \
-		--libdir=%{_libdir} \
-		--mandir=%{_mandir} \
-		--with-package=%{ActualProg} \
-		--enable-header-subdir \
-		--enable-nls \
-		--enable-widec \
-		--with-libtool \
-		--with-ncursesw \
-		--disable-rpath-hack
+%configure \
+        --target %{_target_platform} \
+        --prefix=%{_prefix} \
+        --bindir=%{_bindir} \
+        --libdir=%{_libdir} \
+        --mandir=%{_mandir} \
+        --with-package=%{ActualProg} \
+        --enable-header-subdir \
+        --enable-nls \
+        --enable-widec \
+        --with-shared \
+        --with-ncursesw \
+        --with-versioned-syms \
+        --disable-rpath-hack
 
 make
 
 %install
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 
+make install                    DESTDIR=$RPM_BUILD_ROOT
 make install-full               DESTDIR=$RPM_BUILD_ROOT
-libtool --finish %{_libdir} 
 
 strip $RPM_BUILD_ROOT%{_bindir}/%{ActualProg}
-chmod 755 $RPM_BUILD_ROOT%{_libdir}/lib%{ActualProg}.so.*.*.*
-rm -f $RPM_BUILD_ROOT%{_libdir}/lib%{ActualProg}.la
+chmod 755 $RPM_BUILD_ROOT%{_libdir}/lib%{ActualProg}.so.*
 
 %clean
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
@@ -79,6 +81,12 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/lib%{ActualProg}.la
 
 %changelog
 # each patch should add its ChangeLog entries here
+
+* Sat Dec 09 2017 Thomas Dickey
+- update ftp url
+
+* Thu Apr 21 2016 Thomas Dickey
+- remove stray call to libtool
 
 * Tue Oct 18 2011 Thomas Dickey
 - add executable permissions for shared libraries, discard ".la" file.

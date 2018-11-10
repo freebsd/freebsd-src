@@ -28,7 +28,7 @@
 .\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2013
+.Dd October 20, 2018
 .Dt CHFLAGS 2
 .Os
 .Sh NAME
@@ -94,6 +94,9 @@ defined in
 If
 .Fa path
 names a symbolic link, then the flags of the symbolic link are changed.
+.It Dv AT_BENEATH
+Only allow to change flags for a file which is beneath of
+the starting directory.
 .El
 .Pp
 If
@@ -302,6 +305,15 @@ error occurred while reading from or writing to the file system.
 The underlying file system does not support file flags, or
 does not support all of the flags set in
 .Fa flags .
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was specified but
+.Fa path
+is not strictly relative to the starting directory.
+For example,
+.Fa path
+is absolute or includes a ".." component that escapes the starting directory.
 .El
 .Sh SEE ALSO
 .Xr chflags 1 ,

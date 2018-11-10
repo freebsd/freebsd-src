@@ -939,7 +939,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	 */
 	Maxmem = 0;
 	for (i = 0; phys_avail[i + 2] != 0; i += 2)
-		Maxmem = max(Maxmem, powerpc_btop(phys_avail[i + 1]));
+		Maxmem = MAX(Maxmem, powerpc_btop(phys_avail[i + 1]));
 
 	/*
 	 * Initialize MMU.
@@ -2882,7 +2882,7 @@ moea64_scan_init(mmu_t mmu)
 			if (va == kmi.buffer_sva)
 				break;
 			pvo = moea64_pvo_find_va(kernel_pmap, va & ~ADDR_POFF);
-			if (pvo != NULL && !(pvo->pvo_vaddr & PVO_DEAD))
+			if (pvo == NULL || (pvo->pvo_vaddr & PVO_DEAD))
 				break;
 			va += PAGE_SIZE;
 		}

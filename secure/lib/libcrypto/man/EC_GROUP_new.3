@@ -128,32 +128,46 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "EC_GROUP_new 3"
-.TH EC_GROUP_new 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "EC_GROUP_NEW 3"
+.TH EC_GROUP_NEW 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EC_GROUP_new, EC_GROUP_free, EC_GROUP_clear_free, EC_GROUP_new_curve_GFp, EC_GROUP_new_curve_GF2m, EC_GROUP_new_by_curve_name, EC_GROUP_set_curve_GFp, EC_GROUP_get_curve_GFp, EC_GROUP_set_curve_GF2m, EC_GROUP_get_curve_GF2m, EC_get_builtin_curves \- Functions for creating and destroying EC_GROUP objects.
+EC_GROUP_get_ecparameters, EC_GROUP_get_ecpkparameters, EC_GROUP_new, EC_GROUP_new_from_ecparameters, EC_GROUP_new_from_ecpkparameters, EC_GROUP_free, EC_GROUP_clear_free, EC_GROUP_new_curve_GFp, EC_GROUP_new_curve_GF2m, EC_GROUP_new_by_curve_name, EC_GROUP_set_curve, EC_GROUP_get_curve, EC_GROUP_set_curve_GFp, EC_GROUP_get_curve_GFp, EC_GROUP_set_curve_GF2m, EC_GROUP_get_curve_GF2m, EC_get_builtin_curves \- Functions for creating and destroying EC_GROUP objects
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
-.Vb 2
+.Vb 1
 \& #include <openssl/ec.h>
-\& #include <openssl/bn.h>
 \&
 \& EC_GROUP *EC_GROUP_new(const EC_METHOD *meth);
+\& EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params)
+\& EC_GROUP *EC_GROUP_new_from_ecpkparameters(const ECPKPARAMETERS *params)
 \& void EC_GROUP_free(EC_GROUP *group);
 \& void EC_GROUP_clear_free(EC_GROUP *group);
 \&
-\& EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
-\& EC_GROUP *EC_GROUP_new_curve_GF2m(const BIGNUM *p, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
+\& EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p, const BIGNUM *a,
+\&                                  const BIGNUM *b, BN_CTX *ctx);
+\& EC_GROUP *EC_GROUP_new_curve_GF2m(const BIGNUM *p, const BIGNUM *a,
+\&                                   const BIGNUM *b, BN_CTX *ctx);
 \& EC_GROUP *EC_GROUP_new_by_curve_name(int nid);
 \&
-\& int EC_GROUP_set_curve_GFp(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
-\& int EC_GROUP_get_curve_GFp(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
-\& int EC_GROUP_set_curve_GF2m(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
-\& int EC_GROUP_get_curve_GF2m(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
+\& int EC_GROUP_set_curve(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a,
+\&                        const BIGNUM *b, BN_CTX *ctx);
+\& int EC_GROUP_get_curve(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b,
+\&                        BN_CTX *ctx);
+\& int EC_GROUP_set_curve_GFp(EC_GROUP *group, const BIGNUM *p,
+\&                            const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
+\& int EC_GROUP_get_curve_GFp(const EC_GROUP *group, BIGNUM *p,
+\&                            BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
+\& int EC_GROUP_set_curve_GF2m(EC_GROUP *group, const BIGNUM *p,
+\&                             const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
+\& int EC_GROUP_get_curve_GF2m(const EC_GROUP *group, BIGNUM *p,
+\&                             BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
+\&
+\& ECPARAMETERS *EC_GROUP_get_ecparameters(const EC_GROUP *group, ECPARAMETERS *params)
+\& ECPKPARAMETERS *EC_GROUP_get_ecpkparameters(const EC_GROUP *group, ECPKPARAMETERS *params)
 \&
 \& size_t EC_get_builtin_curves(EC_builtin_curve *r, size_t nitems);
 .Ve
@@ -174,19 +188,26 @@ Operations in a binary field are performed relative to an \fBirreducible polynom
 use a trinomial or a pentanomial for this parameter.
 .PP
 A new curve can be constructed by calling EC_GROUP_new, using the implementation provided by \fBmeth\fR (see
-\&\fIEC_GFp_simple_method\fR\|(3)). It is then necessary to call either EC_GROUP_set_curve_GFp or
-EC_GROUP_set_curve_GF2m as appropriate to create a curve defined over Fp or over F2^m respectively.
+\&\fIEC_GFp_simple_method\fR\|(3)). It is then necessary to call \fIEC_GROUP_set_curve()\fR to set the curve parameters.
+\&\fIEC_GROUP_new_from_ecparameters()\fR will create a group from the
+specified \fBparams\fR and
+\&\fIEC_GROUP_new_from_ecpkparameters()\fR will create a group from the specific \s-1PK\s0 \fBparams\fR.
 .PP
-EC_GROUP_set_curve_GFp sets the curve parameters \fBp\fR, \fBa\fR and \fBb\fR for a curve over Fp stored in \fBgroup\fR.
-EC_group_get_curve_GFp obtains the previously set curve parameters.
+\&\fIEC_GROUP_set_curve()\fR sets the curve parameters \fBp\fR, \fBa\fR and \fBb\fR. For a curve over Fp \fBb\fR
+is the prime for the field. For a curve over F2^m \fBp\fR represents the irreducible polynomial \- each bit
+represents a term in the polynomial. Therefore there will either be three or five bits set dependent on whether
+the polynomial is a trinomial or a pentanomial.
 .PP
-EC_GROUP_set_curve_GF2m sets the equivalent curve parameters for a curve over F2^m. In this case \fBp\fR represents
-the irreducible polybnomial \- each bit represents a term in the polynomial. Therefore there will either be three
-or five bits set dependant on whether the polynomial is a trinomial or a pentanomial.
-EC_group_get_curve_GF2m obtains the previously set curve parameters.
+\&\fIEC_group_get_curve()\fR obtains the previously set curve parameters.
 .PP
-The functions EC_GROUP_new_curve_GFp and EC_GROUP_new_curve_GF2m are shortcuts for calling EC_GROUP_new and the
-appropriate EC_group_set_curve function. An appropriate default implementation method will be used.
+\&\fIEC_GROUP_set_curve_GFp()\fR and \fIEC_GROUP_set_curve_GF2m()\fR are synonyms for \fIEC_GROUP_set_curve()\fR. They are defined for
+backwards compatibility only and should not be used.
+.PP
+\&\fIEC_GROUP_get_curve_GFp()\fR and \fIEC_GROUP_get_curve_GF2m()\fR are synonyms for \fIEC_GROUP_get_curve()\fR. They are defined for
+backwards compatibility only and should not be used.
+.PP
+The functions EC_GROUP_new_curve_GFp and EC_GROUP_new_curve_GF2m are shortcuts for calling EC_GROUP_new and then the
+EC_GROUP_set_curve function. An appropriate default implementation method will be used.
 .PP
 Whilst the library can be used to create any curve using the functions described above, there are also a number of
 predefined curves that are available. In order to obtain a list of all of the predefined curves, call the function
@@ -198,7 +219,7 @@ not). Passing a \s-1NULL\s0 \fBr\fR, or setting \fBnitems\fR to 0 will do nothin
 The EC_builtin_curve structure is defined as follows:
 .PP
 .Vb 4
-\& typedef struct { 
+\& typedef struct {
 \&        int nid;
 \&        const char *comment;
 \&        } EC_builtin_curve;
@@ -210,8 +231,10 @@ In order to construct a builtin curve use the function EC_GROUP_new_by_curve_nam
 be constructed.
 .PP
 EC_GROUP_free frees the memory associated with the \s-1EC_GROUP.\s0
+If \fBgroup\fR is \s-1NULL\s0 nothing is done.
 .PP
 EC_GROUP_clear_free destroys any sensitive data held within the \s-1EC_GROUP\s0 and then frees its memory.
+If \fBgroup\fR is \s-1NULL\s0 nothing is done.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 All EC_GROUP_new* functions return a pointer to the newly constructed group, or \s-1NULL\s0 on error.
@@ -221,6 +244,14 @@ EC_get_builtin_curves returns the number of builtin curves that are available.
 EC_GROUP_set_curve_GFp, EC_GROUP_get_curve_GFp, EC_GROUP_set_curve_GF2m, EC_GROUP_get_curve_GF2m return 1 on success or 0 on error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIcrypto\fR\|(3), \fIec\fR\|(3), \fIEC_GROUP_copy\fR\|(3),
+\&\fIcrypto\fR\|(7), \fIEC_GROUP_copy\fR\|(3),
 \&\fIEC_POINT_new\fR\|(3), \fIEC_POINT_add\fR\|(3), \fIEC_KEY_new\fR\|(3),
 \&\fIEC_GFp_simple_method\fR\|(3), \fId2i_ECPKParameters\fR\|(3)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2013\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

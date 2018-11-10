@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2018
+.Dd October 31, 2018
 .Dt PS 1
 .Os
 .Sh NAME
@@ -346,7 +346,7 @@ the include file
 .It Dv "P_HWPMC" Ta No "0x800000" Ta "Process is using HWPMCs"
 .It Dv "P_JAILED" Ta No "0x1000000" Ta "Process is in jail"
 .It Dv "P_TOTAL_STOP" Ta No "0x2000000" Ta "Stopped for system suspend"
-.It Dv "P_INEXEC" Ta No "0x4000000" Ta "Process is in execve()"
+.It Dv "P_INEXEC" Ta No "0x4000000" Ta Process is in Xr execve 2
 .It Dv "P_STATCHILD" Ta No "0x8000000" Ta "Child process stopped or exited"
 .It Dv "P_INMEM" Ta No "0x10000000" Ta "Loaded into memory"
 .It Dv "P_SWAPPINGOUT" Ta No "0x20000000" Ta "Process is being swapped out"
@@ -361,8 +361,8 @@ the include file
 .In sys/proc.h :
 .Bl -column P2_INHERIT_PROTECTED 0x00000001
 .It Dv "P2_INHERIT_PROTECTED" Ta No "0x00000001" Ta "New children get P_PROTECTED"
-.It Dv "P2_NOTRACE" Ta No "0x00000002" Ta "No ptrace(2) attach or coredumps"
-.It Dv "P2_NOTRACE_EXEC" Ta No "0x00000004" Ta "Keep P2_NOPTRACE on exec(2)"
+.It Dv "P2_NOTRACE" Ta No "0x00000002" Ta "No" Xr ptrace 2 attach or coredumps
+.It Dv "P2_NOTRACE_EXEC" Ta No "0x00000004" Ta Keep P2_NOPTRACE on Xr execve 2
 .It Dv "P2_AST_SU" Ta No "0x00000008" Ta "Handles SU ast for kthreads"
 .It Dv "P2_PTRACE_FSTP" Ta No "0x00000010" Ta "SIGSTOP from PT_ATTACH not yet handled"
 .El
@@ -453,8 +453,7 @@ Marks a process which is in
 The hostname of the prison can be found in
 .Pa /proc/ Ns Ao Ar pid Ac Ns Pa /status .
 .It Li L
-The process has pages locked in core (for example, for raw
-.Tn I/O ) .
+The process has pages locked in core (for example, for raw I/O).
 .It Li N
 The process has reduced CPU scheduling priority (see
 .Xr setpriority 2 ) .
@@ -553,9 +552,11 @@ data size (in Kbytes)
 system-call emulation environment (ABI)
 .It Cm etime
 elapsed running time, format
+.Do
 .Op days- Ns
-.Op hours: Ns
-minutes:seconds.
+.Op hours\&: Ns
+minutes:seconds
+.Dc
 .It Cm etimes
 elapsed running time, in decimal integer seconds
 .It Cm fib
@@ -750,6 +751,8 @@ attempts to automatically determine the terminal width.
 .It Pa /boot/kernel/kernel
 default system namelist
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 Display information on all system processes:
 .Pp

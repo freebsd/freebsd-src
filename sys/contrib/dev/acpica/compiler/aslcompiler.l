@@ -566,7 +566,7 @@ NamePathTail                [.]{NameSeg}
 
     /* ExtendedAttribKeyword: Bus attributes, AccessAs operator (ACPI 5.0) */
 
-"AttribBytes"               { count (0); return (PARSEOP_ACCESSATTRIB_MULTIBYTE); }
+"AttribBytes"               { count (0); return (PARSEOP_ACCESSATTRIB_BYTES); }
 "AttribRawBytes"            { count (0); return (PARSEOP_ACCESSATTRIB_RAW_BYTES); }
 "AttribRawProcessBytes"     { count (0); return (PARSEOP_ACCESSATTRIB_RAW_PROCESS); }
 
@@ -836,17 +836,17 @@ NamePathTail                [.]{NameSeg}
 .                           { count (1);
                                 if (isprint ((int) *AslCompilertext))
                                 {
-                                    sprintf (MsgBuffer,
+                                    sprintf (AslGbl_MsgBuffer,
                                         "Invalid character (%c), expecting ASL keyword or name",
                                         *AslCompilertext);
                                 }
                                 else
                                 {
-                                    sprintf (MsgBuffer,
+                                    sprintf (AslGbl_MsgBuffer,
                                         "Invalid character (0x%2.2X), expecting ASL keyword or name",
                                         *AslCompilertext);
                                 }
-                                AslCompilererror (MsgBuffer);}
+                                AslCompilererror (AslGbl_MsgBuffer);}
 
 <<EOF>>                     { if (AslPopInputFileStack ())
                                 {yyterminate();}

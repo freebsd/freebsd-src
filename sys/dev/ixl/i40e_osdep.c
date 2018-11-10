@@ -161,27 +161,25 @@ i40e_destroy_spinlock(struct i40e_spinlock *lock)
 		mtx_destroy(&lock->mutex);
 }
 
+static inline int
+ixl_ms_scale(int x)
+{
+	if (hz == 1000)
+		return (x);
+	else if (hz > 1000)
+		return (x*(hz/1000));
+	else
+		return (max(1, x/(1000/hz)));
+}
+
 void
 i40e_msec_pause(int msecs)
 {
-	int ticks_to_pause = (msecs * hz) / 1000;
-	int start_ticks = ticks;
-
-	if (cold || SCHEDULER_STOPPED()) {
+	if (cold || SCHEDULER_STOPPED())
 		i40e_msec_delay(msecs);
-		return;
-	}
-
-	while (1) {
-		kern_yield(PRI_USER);
-		int yielded_ticks = ticks - start_ticks;
-		if (yielded_ticks > ticks_to_pause)
-			break;
-		else if (yielded_ticks < 0
-		    && (yielded_ticks + INT_MAX + 1 > ticks_to_pause)) {
-			break;
-		}
-	}
+	else
+		// ERJ: (msecs * hz) could overflow
+		pause("ixl", ixl_ms_scale(msecs));
 }
 
 /*
@@ -272,7 +270,5 @@ i40e_write_pci_cfg(struct i40e_hw *hw, u32 reg, u16 value)
 {
         pci_write_config(((struct i40e_osdep *)hw->back)->dev,
             reg, value, 2);
-
-        return;
 }
 

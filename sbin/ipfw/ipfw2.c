@@ -1466,19 +1466,31 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 	case O_IP_SRC_MASK:
 	case O_IP_SRC_ME:
 	case O_IP_SRC_SET:
+		if (state->flags & HAVE_SRCIP)
+			bprintf(bp, " src-ip");
+		print_ip(bp, fo, insntod(cmd, ip));
+		break;
 	case O_IP_DST:
 	case O_IP_DST_LOOKUP:
 	case O_IP_DST_MASK:
 	case O_IP_DST_ME:
 	case O_IP_DST_SET:
+		if (state->flags & HAVE_DSTIP)
+			bprintf(bp, " dst-ip");
 		print_ip(bp, fo, insntod(cmd, ip));
 		break;
 	case O_IP6_SRC:
 	case O_IP6_SRC_MASK:
 	case O_IP6_SRC_ME:
+		if (state->flags & HAVE_SRCIP)
+			bprintf(bp, " src-ip6");
+		print_ip6(bp, insntod(cmd, ip6));
+		break;
 	case O_IP6_DST:
 	case O_IP6_DST_MASK:
 	case O_IP6_DST_ME:
+		if (state->flags & HAVE_DSTIP)
+			bprintf(bp, " dst-ip6");
 		print_ip6(bp, insntod(cmd, ip6));
 		break;
 	case O_FLOW6ID:
@@ -1934,7 +1946,7 @@ print_action_instruction(struct buf_pr *bp, const struct format_opts *fo,
 		if (s != NULL)
 			bprintf(bp, "setdscp %s", s);
 		else
-			bprintf(bp, "setdscp %s", cmd->arg1 & 0x3F);
+			bprintf(bp, "setdscp %u", cmd->arg1 & 0x3F);
 		break;
 	case O_REASS:
 		bprintf(bp, "reass");
@@ -2195,6 +2207,12 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	 */
 	if (co->comment_only != 0)
 		goto end;
+
+	if (rule->flags & IPFW_RULE_JUSTOPTS) {
+		state.flags |= HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP;
+		goto justopts;
+	}
+
 	print_proto(bp, fo, &state);
 
 	/* Print source */
@@ -2207,6 +2225,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	print_address(bp, fo, &state, dst_opcodes, nitems(dst_opcodes),
 	    O_IP_DSTPORT, HAVE_DSTIP);
 
+justopts:
 	/* Print the rest of options */
 	while (print_opcode(bp, fo, &state, -1))
 		;
@@ -4328,8 +4347,10 @@ chkarg:
 		}
 	} else if (first_cmd != cmd) {
 		errx(EX_DATAERR, "invalid protocol ``%s''", *av);
-	} else
+	} else {
+		rule->flags |= IPFW_RULE_JUSTOPTS;
 		goto read_options;
+	}
     OR_BLOCK(get_proto);
 
 	/*

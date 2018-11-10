@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "DSA_sign 3"
-.TH DSA_sign 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "DSA_SIGN 3"
+.TH DSA_SIGN 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,13 +141,12 @@ DSA_sign, DSA_sign_setup, DSA_verify \- DSA signatures
 .Vb 1
 \& #include <openssl/dsa.h>
 \&
-\& int    DSA_sign(int type, const unsigned char *dgst, int len,
-\&                unsigned char *sigret, unsigned int *siglen, DSA *dsa);
+\& int DSA_sign(int type, const unsigned char *dgst, int len,
+\&              unsigned char *sigret, unsigned int *siglen, DSA *dsa);
 \&
-\& int    DSA_sign_setup(DSA *dsa, BN_CTX *ctx, BIGNUM **kinvp,
-\&                BIGNUM **rp);
+\& int DSA_sign_setup(DSA *dsa, BN_CTX *ctx, BIGNUM **kinvp, BIGNUM **rp);
 \&
-\& int    DSA_verify(int type, const unsigned char *dgst, int len,
+\& int DSA_verify(int type, const unsigned char *dgst, int len,
 \&                unsigned char *sigbuf, int siglen, DSA *dsa);
 .Ve
 .SH "DESCRIPTION"
@@ -157,17 +156,12 @@ digest \fBdgst\fR using the private key \fBdsa\fR and places its \s-1ASN.1 DER\s
 encoding at \fBsigret\fR. The length of the signature is places in
 *\fBsiglen\fR. \fBsigret\fR must point to DSA_size(\fBdsa\fR) bytes of memory.
 .PP
-\&\fIDSA_sign_setup()\fR may be used to precompute part of the signing
-operation in case signature generation is time-critical. It expects
-\&\fBdsa\fR to contain \s-1DSA\s0 parameters. It places the precomputed values
-in newly allocated \fB\s-1BIGNUM\s0\fRs at *\fBkinvp\fR and *\fBrp\fR, after freeing
-the old ones unless *\fBkinvp\fR and *\fBrp\fR are \s-1NULL.\s0 These values may
-be passed to \fIDSA_sign()\fR in \fBdsa\->kinv\fR and \fBdsa\->r\fR.
-\&\fBctx\fR is a pre-allocated \fB\s-1BN_CTX\s0\fR or \s-1NULL.\s0
-The precomputed values from \fIDSA_sign_setup()\fR \fB\s-1MUST NOT\s0 be used\fR for
-more than one signature: using the same \fBdsa\->kinv\fR and
-\&\fBdsa\->r\fR pair twice under the same private key on different
-plaintexts will result in permanently exposing the \s-1DSA\s0 private key.
+\&\fIDSA_sign_setup()\fR is defined only for backward binary compatibility and
+should not be used.
+Since OpenSSL 1.1.0 the \s-1DSA\s0 type is opaque and the output of
+\&\fIDSA_sign_setup()\fR cannot be used anyway: calling this function will only
+cause overhead, and does not affect the actual signature
+(pre\-)computation.
 .PP
 \&\fIDSA_verify()\fR verifies that the signature \fBsigbuf\fR of size \fBsiglen\fR
 matches a given message digest \fBdgst\fR of size \fBlen\fR.
@@ -189,9 +183,13 @@ signature and \-1 on error. The error codes can be obtained by
 Standard, \s-1DSS\s0), \s-1ANSI X9.30\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIdsa\fR\|(3), \fIERR_get_error\fR\|(3), \fIrand\fR\|(3),
+\&\fIDSA_new\fR\|(3), \fIERR_get_error\fR\|(3), \fIRAND_bytes\fR\|(3),
 \&\fIDSA_do_sign\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIDSA_sign()\fR and \fIDSA_verify()\fR are available in all versions of SSLeay.
-\&\fIDSA_sign_setup()\fR was added in SSLeay 0.8.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

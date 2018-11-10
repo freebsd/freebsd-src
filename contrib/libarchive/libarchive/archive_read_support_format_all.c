@@ -72,6 +72,7 @@ archive_read_support_format_all(struct archive *a)
 	archive_read_support_format_7zip(a);
 	archive_read_support_format_cab(a);
 	archive_read_support_format_rar(a);
+	archive_read_support_format_rar5(a);
 	archive_read_support_format_iso9660(a);
 	/* Seek is really bad, since it forces the read-ahead
 	 * logic to discard buffered data. */

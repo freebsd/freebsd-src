@@ -107,11 +107,18 @@ try_decrypt(hx509_context context,
     clear.length = len;
 
     {
-	EVP_CIPHER_CTX ctx;
-	EVP_CIPHER_CTX_init(&ctx);
-	EVP_CipherInit_ex(&ctx, c, NULL, key, ivdata, 0);
-	EVP_Cipher(&ctx, clear.data, cipher, len);
-	EVP_CIPHER_CTX_cleanup(&ctx);
+	EVP_CIPHER_CTX *ctx;
+
+	ctx = EVP_CIPHER_CTX_new();
+	if (ctx == NULL) {
+		hx509_set_error_string(context, 0, ENOMEM,
+				       "Out of memory to decrypt for private key");
+		ret = ENOMEM;
+		goto out;
+	}
+	EVP_CipherInit_ex(ctx, c, NULL, key, ivdata, 0);
+	EVP_Cipher(ctx, clear.data, cipher, len);
+	EVP_CIPHER_CTX_free(ctx);
     }
 
     ret = _hx509_collector_private_key_add(context,
@@ -122,8 +129,8 @@ try_decrypt(hx509_context context,
 					   NULL);
 
     memset(clear.data, 0, clear.length);
-    free(clear.data);
 out:
+    free(clear.data);
     memset(key, 0, keylen);
     free(key);
     return ret;

@@ -331,7 +331,6 @@ msi_init(void)
 	}
 #endif
 
-	MPASS(num_io_irqs > 0);
 	first_msi_irq = max(MINIMUM_MSI_INT, num_io_irqs);
 	num_io_irqs = first_msi_irq + NUM_MSI_INTS;
 

@@ -113,10 +113,6 @@ static void intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *,
 
 extern struct pcpu __pcpu[];
 
-static device_identify_t arm64_cpu_identify;
-static device_probe_t arm64_cpu_probe;
-static device_attach_t arm64_cpu_attach;
-
 static void ipi_ast(void *);
 static void ipi_hardclock(void *);
 static void ipi_preempt(void *);
@@ -125,8 +121,6 @@ static void ipi_stop(void *);
 
 struct mtx ap_boot_mtx;
 struct pcb stoppcbs[MAXCPU];
-
-static device_t cpu_list[MAXCPU];
 
 /*
  * Not all systems boot from the first CPU in the device tree. To work around
@@ -145,78 +139,6 @@ volatile int aps_ready = 0;
 
 /* Temporary variables for init_secondary()  */
 void *dpcpu[MAXCPU - 1];
-
-static device_method_t arm64_cpu_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_identify,	arm64_cpu_identify),
-	DEVMETHOD(device_probe,		arm64_cpu_probe),
-	DEVMETHOD(device_attach,	arm64_cpu_attach),
-
-	DEVMETHOD_END
-};
-
-static devclass_t arm64_cpu_devclass;
-static driver_t arm64_cpu_driver = {
-	"arm64_cpu",
-	arm64_cpu_methods,
-	0
-};
-
-DRIVER_MODULE(arm64_cpu, cpu, arm64_cpu_driver, arm64_cpu_devclass, 0, 0);
-
-static void
-arm64_cpu_identify(driver_t *driver, device_t parent)
-{
-
-	if (device_find_child(parent, "arm64_cpu", -1) != NULL)
-		return;
-	if (BUS_ADD_CHILD(parent, 0, "arm64_cpu", -1) == NULL)
-		device_printf(parent, "add child failed\n");
-}
-
-static int
-arm64_cpu_probe(device_t dev)
-{
-	u_int cpuid;
-
-	cpuid = device_get_unit(dev);
-	if (cpuid >= MAXCPU || cpuid > mp_maxid)
-		return (EINVAL);
-
-	device_quiet(dev);
-	return (0);
-}
-
-static int
-arm64_cpu_attach(device_t dev)
-{
-	const uint32_t *reg;
-	size_t reg_size;
-	u_int cpuid;
-	int i;
-
-	cpuid = device_get_unit(dev);
-
-	if (cpuid >= MAXCPU || cpuid > mp_maxid)
-		return (EINVAL);
-	KASSERT(cpu_list[cpuid] == NULL, ("Already have cpu %u", cpuid));
-
-	reg = cpu_get_cpuid(dev, &reg_size);
-	if (reg == NULL)
-		return (EINVAL);
-
-	if (bootverbose) {
-		device_printf(dev, "register <");
-		for (i = 0; i < reg_size; i++)
-			printf("%s%x", (i == 0) ? "" : " ", reg[i]);
-		printf(">\n");
-	}
-
-	/* Set the device to start it later */
-	cpu_list[cpuid] = dev;
-
-	return (0);
-}
 
 static void
 release_aps(void *dummy __unused)
@@ -576,11 +498,12 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 		return (FALSE);
 
 	/* Try to read the numa node of this cpu */
-	if (OF_getencprop(node, "numa-node-id", &domain, sizeof(domain)) > 0) {
-		__pcpu[id].pc_domain = domain;
-		if (domain < MAXMEMDOM)
-			CPU_SET(id, &cpuset_domain[domain]);
-	}
+	if (vm_ndomains == 1 ||
+	    OF_getencprop(node, "numa-node-id", &domain, sizeof(domain)) <= 0)
+		domain = 0;
+	__pcpu[id].pc_domain = domain;
+	if (domain < MAXMEMDOM)
+		CPU_SET(id, &cpuset_domain[domain]);
 
 	return (TRUE);
 }
@@ -602,6 +525,7 @@ cpu_mp_start(void)
 	switch(arm64_bus_method) {
 #ifdef DEV_ACPI
 	case ARM64_BUS_ACPI:
+		mp_quirks = MP_QUIRK_CPULIST;
 		KASSERT(cpu0 >= 0, ("Current CPU was not found"));
 		cpu_init_acpi();
 		break;

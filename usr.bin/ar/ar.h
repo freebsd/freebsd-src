@@ -52,10 +52,10 @@
 /*
  * Convenient wrapper for general libarchive error handling.
  */
-#define	AC(CALL) do {					\
-	if ((CALL))					\
-		bsdar_errc(bsdar, EX_SOFTWARE, 0, "%s",	\
-		    archive_error_string(a));		\
+#define	AC(CALL) do {							\
+	if ((CALL))							\
+		bsdar_errc(bsdar, EX_SOFTWARE, archive_errno(a), "%s",	\
+		    archive_error_string(a));				\
 } while (0)
 
 /*

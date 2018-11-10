@@ -128,25 +128,29 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "CMS_get1_ReceiptRequest 3"
-.TH CMS_get1_ReceiptRequest 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "CMS_GET1_RECEIPTREQUEST 3"
+.TH CMS_GET1_RECEIPTREQUEST 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-.Vb 1
-\& CMS_ReceiptRequest_create0, CMS_add1_ReceiptRequest, CMS_get1_ReceiptRequest, CMS_ReceiptRequest_get0_values \- CMS signed receipt request functions.
-.Ve
+CMS_ReceiptRequest_create0, CMS_add1_ReceiptRequest, CMS_get1_ReceiptRequest, CMS_ReceiptRequest_get0_values \- CMS signed receipt request functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/cms.h>
 \&
-\& CMS_ReceiptRequest *CMS_ReceiptRequest_create0(unsigned char *id, int idlen, int allorfirst, STACK_OF(GENERAL_NAMES) *receiptList, STACK_OF(GENERAL_NAMES) *receiptsTo);
+\& CMS_ReceiptRequest *CMS_ReceiptRequest_create0(unsigned char *id, int idlen,
+\&                                                int allorfirst,
+\&                                                STACK_OF(GENERAL_NAMES) *receiptList,
+\&                                                STACK_OF(GENERAL_NAMES) *receiptsTo);
 \& int CMS_add1_ReceiptRequest(CMS_SignerInfo *si, CMS_ReceiptRequest *rr);
 \& int CMS_get1_ReceiptRequest(CMS_SignerInfo *si, CMS_ReceiptRequest **prr);
-\& void CMS_ReceiptRequest_get0_values(CMS_ReceiptRequest *rr, ASN1_STRING **pcid, int *pallorfirst, STACK_OF(GENERAL_NAMES) **plist, STACK_OF(GENERAL_NAMES) **prto);
+\& void CMS_ReceiptRequest_get0_values(CMS_ReceiptRequest *rr, ASN1_STRING **pcid,
+\&                                     int *pallorfirst,
+\&                                     STACK_OF(GENERAL_NAMES) **plist,
+\&                                     STACK_OF(GENERAL_NAMES) **prto);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -178,7 +182,7 @@ corresponding CMS_ContentInfo structure can be successfully verified using
 \&\fICMS_verify()\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fICMS_ReceiptRequest_create0()\fR returns a signed receipt request structure or 
+\&\fICMS_ReceiptRequest_create0()\fR returns a signed receipt request structure or
 \&\s-1NULL\s0 if an error occurred.
 .PP
 \&\fICMS_add1_ReceiptRequest()\fR returns 1 for success or 0 if an error occurred.
@@ -191,8 +195,11 @@ it is present but malformed.
 \&\fIERR_get_error\fR\|(3), \fICMS_sign\fR\|(3),
 \&\fICMS_sign_receipt\fR\|(3), \fICMS_verify\fR\|(3)
 \&\fICMS_verify_receipt\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fICMS_ReceiptRequest_create0()\fR, \fICMS_add1_ReceiptRequest()\fR,
-\&\fICMS_get1_ReceiptRequest()\fR and \fICMS_ReceiptRequest_get0_values()\fR were added to
-OpenSSL 0.9.8
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2008\-2018 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

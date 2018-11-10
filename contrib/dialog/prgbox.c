@@ -1,9 +1,9 @@
 /*
- *  $Id: prgbox.c,v 1.9 2012/12/02 23:40:30 tom Exp $
+ *  $Id: prgbox.c,v 1.13 2016/01/27 01:37:26 tom Exp $
  *
  *  prgbox.c -- implements the prg box
  *
- *  Copyright 2011,2012	Thomas E. Dickey
+ *  Copyright 2011-2014,2016	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -32,7 +32,7 @@ reapchild(int sig)
 /*
  * Open a pipe which ties stderr and stdout together.
  */
-static FILE *
+FILE *
 dlg_popen(const char *command, const char *type)
 {
     FILE *result = 0;
@@ -67,8 +67,8 @@ dlg_popen(const char *command, const char *type)
 	     * given command.  Also, it needs the command to be parsed into
 	     * tokens.
 	     */
-	    if ((blob = malloc(4 + strlen(command))) != 0) {
-		sprintf(blob, "-c %s", command);
+	    if ((blob = malloc(10 + strlen(command))) != 0) {
+		sprintf(blob, "sh -c \"%s\"", command);
 		argv = dlg_string_to_argv(blob);
 		execvp("sh", argv);
 	    }

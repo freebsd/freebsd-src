@@ -375,11 +375,34 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 		int got_num6 = 0;
 		int low_rtt6 = 0;
 		int i;
+		int attempt = -1; /* filter to make sure addresses have
+		  less attempts on them than the first, to force round
+		  robin when all the IPv6 addresses fail */
+		int num4ok = 0; /* number ip4 at low attempt count */
+		int num4_lowrtt = 0;
 		prev = NULL;
 		a = dp->result_list;
 		for(i = 0; i < got_num; i++) {
 			swap_to_front = 0;
+			if(a->addr.ss_family != AF_INET6 && attempt == -1) {
+				/* if we only have ip4 at low attempt count,
+				 * then ip6 is failing, and we need to
+				 * select one of the remaining IPv4 addrs */
+				attempt = a->attempts;
+				num4ok++;
+				num4_lowrtt = a->sel_rtt;
+			} else if(a->addr.ss_family != AF_INET6 && attempt == a->attempts) {
+				num4ok++;
+				if(num4_lowrtt == 0 || a->sel_rtt < num4_lowrtt) {
+					num4_lowrtt = a->sel_rtt;
+				}
+			}
 			if(a->addr.ss_family == AF_INET6) {
+				if(attempt == -1) {
+					attempt = a->attempts;
+				} else if(a->attempts > attempt) {
+					break;
+				}
 				got_num6++;
 				swap_to_front = 1;
 				if(low_rtt6 == 0 || a->sel_rtt < low_rtt6) {
@@ -401,6 +424,9 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 		if(got_num6 > 0) {
 			got_num = got_num6;
 			*selected_rtt = low_rtt6;
+		} else if(num4ok > 0) {
+			got_num = num4ok;
+			*selected_rtt = num4_lowrtt;
 		}
 	}
 	return got_num;

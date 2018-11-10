@@ -24,7 +24,7 @@
 #endif
 
 /* ************************************************************
-* Avoid fseek()'s 2GiB barrier with MSVC, MacOS, *BSD, MinGW
+* Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
 ***************************************************************/
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 #   define LONG_SEEK _fseeki64
@@ -56,6 +56,7 @@
 
 #include <stdlib.h> /* malloc, free */
 #include <stdio.h>  /* FILE* */
+#include <assert.h>
 
 #define XXH_STATIC_LINKING_ONLY
 #define XXH_NAMESPACE ZSTD_
@@ -88,7 +89,7 @@ static int ZSTD_seekable_read_FILE(void* opaque, void* buffer, size_t n)
     return 0;
 }
 
-static int ZSTD_seekable_seek_FILE(void* opaque, S64 offset, int origin)
+static int ZSTD_seekable_seek_FILE(void* opaque, long long offset, int origin)
 {
     int const ret = LONG_SEEK((FILE*)opaque, offset, origin);
     if (ret) return ret;
@@ -110,9 +111,9 @@ static int ZSTD_seekable_read_buff(void* opaque, void* buffer, size_t n)
     return 0;
 }
 
-static int ZSTD_seekable_seek_buff(void* opaque, S64 offset, int origin)
+static int ZSTD_seekable_seek_buff(void* opaque, long long offset, int origin)
 {
-    buffWrapper_t* buff = (buffWrapper_t*) opaque;
+    buffWrapper_t* const buff = (buffWrapper_t*) opaque;
     unsigned long long newOffset;
     switch (origin) {
     case SEEK_SET:
@@ -124,6 +125,8 @@ static int ZSTD_seekable_seek_buff(void* opaque, S64 offset, int origin)
     case SEEK_END:
         newOffset = (unsigned long long)buff->size - offset;
         break;
+    default:
+        assert(0);  /* not possible */
     }
     if (newOffset > buff->size) {
         return -1;
@@ -197,7 +200,7 @@ size_t ZSTD_seekable_free(ZSTD_seekable* zs)
  *  Performs a binary search to find the last frame with a decompressed offset
  *  <= pos
  *  @return : the frame's index */
-U32 ZSTD_seekable_offsetToFrameIndex(ZSTD_seekable* const zs, U64 pos)
+U32 ZSTD_seekable_offsetToFrameIndex(ZSTD_seekable* const zs, unsigned long long pos)
 {
     U32 lo = 0;
     U32 hi = zs->seekTable.tableLen;
@@ -222,13 +225,13 @@ U32 ZSTD_seekable_getNumFrames(ZSTD_seekable* const zs)
     return zs->seekTable.tableLen;
 }
 
-U64 ZSTD_seekable_getFrameCompressedOffset(ZSTD_seekable* const zs, U32 frameIndex)
+unsigned long long ZSTD_seekable_getFrameCompressedOffset(ZSTD_seekable* const zs, U32 frameIndex)
 {
     if (frameIndex >= zs->seekTable.tableLen) return ZSTD_SEEKABLE_FRAMEINDEX_TOOLARGE;
     return zs->seekTable.entries[frameIndex].cOffset;
 }
 
-U64 ZSTD_seekable_getFrameDecompressedOffset(ZSTD_seekable* const zs, U32 frameIndex)
+unsigned long long ZSTD_seekable_getFrameDecompressedOffset(ZSTD_seekable* const zs, U32 frameIndex)
 {
     if (frameIndex >= zs->seekTable.tableLen) return ZSTD_SEEKABLE_FRAMEINDEX_TOOLARGE;
     return zs->seekTable.entries[frameIndex].dOffset;
@@ -294,7 +297,6 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
         {   /* Allocate an extra entry at the end so that we can do size
              * computations on the last element without special case */
             seekEntry_t* entries = (seekEntry_t*)malloc(sizeof(seekEntry_t) * (numFrames + 1));
-            const BYTE* tableBase = zs->inBuff + ZSTD_skippableHeaderSize;
 
             U32 idx = 0;
             U32 pos = 8;
@@ -311,8 +313,8 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
             /* compute cumulative positions */
             for (; idx < numFrames; idx++) {
                 if (pos + sizePerEntry > SEEKABLE_BUFF_SIZE) {
-                    U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE);
                     U32 const offset = SEEKABLE_BUFF_SIZE - pos;
+                    U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE - offset);
                     memmove(zs->inBuff, zs->inBuff + pos, offset); /* move any data we haven't read yet */
                     CHECK_IO(src.read(src.opaque, zs->inBuff+offset, toRead));
                     remaining -= toRead;
@@ -372,7 +374,7 @@ size_t ZSTD_seekable_initAdvanced(ZSTD_seekable* zs, ZSTD_seekable_customFile sr
     return 0;
 }
 
-size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, U64 offset)
+size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsigned long long offset)
 {
     U32 targetFrame = ZSTD_seekable_offsetToFrameIndex(zs, offset);
     do {

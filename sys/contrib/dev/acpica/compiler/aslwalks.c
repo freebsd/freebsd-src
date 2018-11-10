@@ -616,14 +616,14 @@ AnOperandTypecheckWalkEnd (
             {
                 /* No match -- this is a type mismatch error */
 
-                AnFormatBtype (StringBuffer, ThisNodeBtype);
-                AnFormatBtype (StringBuffer2, RequiredBtypes);
+                AnFormatBtype (AslGbl_StringBuffer, ThisNodeBtype);
+                AnFormatBtype (AslGbl_StringBuffer2, RequiredBtypes);
 
-                sprintf (MsgBuffer, "[%s] found, %s operator requires [%s]",
-                    StringBuffer, OpInfo->Name, StringBuffer2);
+                sprintf (AslGbl_MsgBuffer, "[%s] found, %s operator requires [%s]",
+                    AslGbl_StringBuffer, OpInfo->Name, AslGbl_StringBuffer2);
 
                 AslError (ASL_ERROR, ASL_MSG_INVALID_TYPE,
-                    ArgOp, MsgBuffer);
+                    ArgOp, AslGbl_MsgBuffer);
             }
 
         NextArgument:
@@ -742,7 +742,7 @@ AnOtherSemanticAnalysisWalkBegin (
     {
     case PARSEOP_STORE:
 
-        if (Gbl_DoTypechecking)
+        if (AslGbl_DoTypechecking)
         {
             AnAnalyzeStoreOperator (Op);
         }
@@ -935,7 +935,7 @@ AnAnalyzeStoreOperator (
     case PARSEOP_INDEX:
     case PARSEOP_REFOF:
 
-        if (!Gbl_EnableReferenceTypechecking)
+        if (!AslGbl_EnableReferenceTypechecking)
         {
             return;
         }

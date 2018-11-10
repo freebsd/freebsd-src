@@ -855,7 +855,8 @@ native_lapic_intrcnt(void *dummy __unused)
 
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		la = &lapics[pc->pc_apic_id];
-		KASSERT(la->la_present, ("missing APIC structure"));
+		if (!la->la_present)
+		    continue;
 
 		snprintf(buf, sizeof(buf), "cpu%d:timer", pc->pc_cpuid);
 		intrcnt_add(buf, &la->la_timer_count);

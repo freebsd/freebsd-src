@@ -43,6 +43,7 @@
  */
 
 #include "config.h"
+#include <ctype.h>
 #include "util/log.h"
 #include "util/config_file.h"
 #include "util/module.h"
@@ -252,6 +253,23 @@ aclchecks(struct config_file* cfg)
 	}
 }
 
+/** check tcp connection limit ips */
+static void
+tcpconnlimitchecks(struct config_file* cfg)
+{
+	int d;
+	struct sockaddr_storage a;
+	socklen_t alen;
+	struct config_str2list* tcl;
+	for(tcl=cfg->tcp_connection_limits; tcl; tcl = tcl->next) {
+		if(!netblockstrtoaddr(tcl->str, UNBOUND_DNS_PORT, &a, &alen,
+			&d)) {
+			fatal_exit("cannot parse tcp connection limit address %s %s",
+				tcl->str, tcl->str2);
+		}
+	}
+}
+
 /** true if fname is a file */
 static int
 is_file(const char* fname)
@@ -373,6 +391,44 @@ ecs_conf_checks(struct config_file* cfg)
 }
 #endif /* CLIENT_SUBNET */
 
+/** check that the modules exist, are compiled in */
+static void
+check_modules_exist(const char* module_conf)
+{
+	const char** names = module_list_avail();
+	const char* s = module_conf;
+	while(*s) {
+		int i = 0;
+		int is_ok = 0;
+		while(*s && isspace((unsigned char)*s))
+			s++;
+		if(!*s) break;
+		while(names[i]) {
+			if(strncmp(names[i], s, strlen(names[i])) == 0) {
+				is_ok = 1;
+				break;
+			}
+			i++;
+		}
+		if(is_ok == 0) {
+			char n[64];
+			size_t j;
+			n[0]=0;
+			n[sizeof(n)-1]=0;
+			for(j=0; j<sizeof(n)-1; j++) {
+				if(!s[j] || isspace((unsigned char)s[j])) {
+					n[j] = 0;
+					break;
+				}
+				n[j] = s[j];
+			}
+			fatal_exit("module_conf lists module '%s' but that "
+				"module is not available.", n);
+		}
+		s += strlen(names[i]);
+	}
+}
+
 /** check configuration for errors */
 static void
 morechecks(struct config_file* cfg, const char* fname)
@@ -381,6 +437,7 @@ morechecks(struct config_file* cfg, const char* fname)
 	warn_hosts("forward-host", cfg->forwards);
 	interfacechecks(cfg);
 	aclchecks(cfg);
+	tcpconnlimitchecks(cfg);
 
 	if(cfg->verbosity < 0)
 		fatal_exit("verbosity value < 0");
@@ -465,6 +522,9 @@ morechecks(struct config_file* cfg, const char* fname)
 	free(cfg->chrootdir);
 	cfg->chrootdir = NULL;
 
+	/* check that the modules listed in module_conf exist */
+	check_modules_exist(cfg->module_conf);
+
 	/* There should be no reason for 'respip' module not to work with
 	 * dns64, but it's not explicitly confirmed,  so the combination is
 	 * excluded below.   It's simply unknown yet for the combination of
@@ -511,7 +571,6 @@ morechecks(struct config_file* cfg, const char* fname)
 #if defined(WITH_PYTHONMODULE) && defined(CLIENT_SUBNET)
 		&& strcmp(cfg->module_conf, "python subnetcache iterator") != 0
 		&& strcmp(cfg->module_conf, "subnetcache python iterator") != 0
-		&& strcmp(cfg->module_conf, "subnetcache validator iterator") != 0
 		&& strcmp(cfg->module_conf, "python subnetcache validator iterator") != 0
 		&& strcmp(cfg->module_conf, "subnetcache python validator iterator") != 0
 		&& strcmp(cfg->module_conf, "subnetcache validator python iterator") != 0

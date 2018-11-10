@@ -295,8 +295,8 @@
 /*
  * Macros for ASL/ASL+ converter
  */
-#define COMMENT_CAPTURE_ON    Gbl_CommentState.CaptureComments = TRUE;
-#define COMMENT_CAPTURE_OFF   Gbl_CommentState.CaptureComments = FALSE;
+#define COMMENT_CAPTURE_ON    AslGbl_CommentState.CaptureComments = TRUE;
+#define COMMENT_CAPTURE_OFF   AslGbl_CommentState.CaptureComments = FALSE;
 
 
 #endif /* ASLDEFINE.H */

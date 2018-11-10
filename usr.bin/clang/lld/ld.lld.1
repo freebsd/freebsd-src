@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2018
+.Dd September 14, 2018
 .Dt LD.LLD 1
 .Os
 .Sh NAME
@@ -450,6 +450,12 @@ be applied by a run-time loader.
 Note that this feature requires special loader support and will
 generally result in application crashes when used outside of freestanding
 environments.
+.It Cm interpose
+Set the
+.Dv DF_1_INTERPOSE
+flag to indicate that the object is an interposer.
+Runtime linkers perform symbol resolution by first searching the application,
+followed by interposers, and then any other dependencies.
 .It Cm muldefs
 Do not error if a symbol is defined multiple times.
 The first definition will be used.

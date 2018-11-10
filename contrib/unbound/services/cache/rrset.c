@@ -81,8 +81,8 @@ void rrset_cache_delete(struct rrset_cache* r)
 struct rrset_cache* rrset_cache_adjust(struct rrset_cache *r, 
 	struct config_file* cfg, struct alloc_cache* alloc)
 {
-	if(!r || !cfg || cfg->rrset_cache_slabs != r->table.size ||
-		cfg->rrset_cache_size != slabhash_get_size(&r->table))
+	if(!r || !cfg || !slabhash_is_size(&r->table, cfg->rrset_cache_size,
+		cfg->rrset_cache_slabs))
 	{
 		rrset_cache_delete(r);
 		r = rrset_cache_create(cfg, alloc);

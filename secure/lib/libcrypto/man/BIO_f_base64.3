@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_f_base64 3"
-.TH BIO_f_base64 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_F_BASE64 3"
+.TH BIO_F_BASE64 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -142,7 +142,7 @@ BIO_f_base64 \- base64 BIO filter
 \& #include <openssl/bio.h>
 \& #include <openssl/evp.h>
 \&
-\& BIO_METHOD *   BIO_f_base64(void);
+\& const BIO_METHOD *BIO_f_base64(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -196,8 +196,8 @@ data to standard output:
 \& bio = BIO_new_fp(stdin, BIO_NOCLOSE);
 \& bio_out = BIO_new_fp(stdout, BIO_NOCLOSE);
 \& BIO_push(b64, bio);
-\& while((inlen = BIO_read(b64, inbuf, 512)) > 0) 
-\&        BIO_write(bio_out, inbuf, inlen);
+\& while ((inlen = BIO_read(b64, inbuf, 512)) > 0)
+\&     BIO_write(bio_out, inbuf, inlen);
 \&
 \& BIO_flush(bio_out);
 \& BIO_free_all(b64);
@@ -209,6 +209,11 @@ data following the base64 encoded block to be misinterpreted.
 .PP
 There should be some way of specifying a test that the \s-1BIO\s0 can perform
 to reliably determine \s-1EOF\s0 (for example a \s-1MIME\s0 boundary).
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\s-1TBA\s0
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

@@ -438,7 +438,7 @@ trap(struct trapframe *frame)
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = sig;
 		ksi.ksi_code = (int) ucode; /* XXX, not POSIX */
-		/* ksi.ksi_addr = ? */
+		ksi.ksi_addr = (void *)frame->srr0;
 		ksi.ksi_trapno = type;
 		trapsignal(td, &ksi);
 	}
@@ -455,7 +455,7 @@ trap_fatal(struct trapframe *frame)
 
 	printtrap(frame->exc, frame, 1, (frame->srr1 & PSL_PR));
 #ifdef KDB
-	if (debugger_on_panic) {
+	if (debugger_on_trap) {
 		kdb_why = KDB_WHY_TRAP;
 		handled = kdb_trap(frame->exc, 0, frame);
 		kdb_why = KDB_WHY_UNSET;

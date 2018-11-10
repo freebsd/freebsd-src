@@ -1,9 +1,9 @@
 /*
- *  $Id: msgbox.c,v 1.75 2012/12/01 01:48:08 tom Exp $
+ *  $Id: msgbox.c,v 1.81 2018/06/21 23:29:59 tom Exp $
  *
  *  msgbox.c -- implements the message box and info box
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2012,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -39,8 +39,8 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
     static DLG_KEYS_BINDING binding[] = {
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
-	TRAVERSE_BINDINGS,
 	SCROLLKEY_BINDINGS,
+	TRAVERSE_BINDINGS,
 	END_KEYS_BINDING
     };
     /* *INDENT-ON* */
@@ -50,17 +50,24 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
     int key = 0, fkey;
     int result = DLG_EXIT_UNKNOWN;
     WINDOW *dialog = 0;
-    char *prompt = dlg_strclone(cprompt);
+    char *prompt;
     const char **buttons = dlg_ok_label();
     int offset = 0;
     int check;
     bool show = TRUE;
     int min_width = (pauseopt == 1 ? 12 : 0);
-    int save_nocancel = dialog_vars.nocancel;
+    bool save_nocancel = dialog_vars.nocancel;
 #ifdef KEY_RESIZE
     int req_high;
     int req_wide;
 #endif
+
+    DLG_TRACE(("# msgbox args:\n"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("message", cprompt);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+    DLG_TRACE2N("pauseopt", pauseopt);
 
     dialog_vars.nocancel = TRUE;
     button = dlg_default_button();
@@ -73,6 +80,7 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
 
     dlg_button_layout(buttons, &min_width);
 
+    prompt = dlg_strclone(cprompt);
     dlg_tab_correct_str(prompt);
     dlg_auto_size(title, prompt, &height, &width,
 		  (pauseopt == 1 ? 2 : 0),
@@ -100,7 +108,7 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
     dlg_draw_box2(dialog, 0, 0, height, width, dialog_attr, border_attr, border2_attr);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
 
     if (pauseopt) {
 	dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
@@ -128,7 +136,9 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
 		switch (key) {
 #ifdef KEY_RESIZE
 		case KEY_RESIZE:
+		    dlg_will_resize(dialog);
 		    dlg_clear();
+		    free(prompt);
 		    height = req_high;
 		    width = req_wide;
 		    show = TRUE;

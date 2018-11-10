@@ -291,12 +291,13 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 	for (;;) {
 		r = archive_read_next_header(a, &entry);
 		if (r == ARCHIVE_FATAL)
-			bsdar_errc(bsdar, EX_DATAERR, 0, "%s",
+			bsdar_errc(bsdar, EX_DATAERR, archive_errno(a), "%s",
 			    archive_error_string(a));
 		if (r == ARCHIVE_EOF)
 			break;
 		if (r == ARCHIVE_WARN || r == ARCHIVE_RETRY)
-			bsdar_warnc(bsdar, 0, "%s", archive_error_string(a));
+			bsdar_warnc(bsdar, archive_errno(a), "%s",
+			    archive_error_string(a));
 		if (r == ARCHIVE_RETRY) {
 			bsdar_warnc(bsdar, 0, "Retrying...");
 			continue;
@@ -341,7 +342,7 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 				bsdar_errc(bsdar, EX_SOFTWARE, errno,
 				    "malloc failed");
 			if (archive_read_data(a, buff, size) != (ssize_t)size) {
-				bsdar_warnc(bsdar, 0, "%s",
+				bsdar_warnc(bsdar, archive_errno(a), "%s",
 				    archive_error_string(a));
 				free(buff);
 				continue;
@@ -594,7 +595,7 @@ write_data(struct bsdar *bsdar, struct archive *a, const void *buf, size_t s)
 	while (s > 0) {
 		written = archive_write_data(a, buf, s);
 		if (written < 0)
-			bsdar_errc(bsdar, EX_SOFTWARE, 0, "%s",
+			bsdar_errc(bsdar, EX_SOFTWARE, archive_errno(a), "%s",
 			    archive_error_string(a));
 		buf = (const char *)buf + written;
 		s -= written;

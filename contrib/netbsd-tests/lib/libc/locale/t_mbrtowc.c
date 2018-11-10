@@ -243,9 +243,6 @@ ATF_TC_BODY(mbrtowc_internal, tc)
 {
 	struct test *t;
 
-#ifdef __FreeBSD__
-	atf_tc_expect_fail("ja_* locale fails");
-#endif
 	for (t = &tests[0]; t->data != NULL; ++t)
 		h_ctype2(t, false);
 }

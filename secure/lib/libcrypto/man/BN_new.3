@@ -128,14 +128,14 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BN_new 3"
-.TH BN_new 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BN_NEW 3"
+.TH BN_NEW 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BN_new, BN_init, BN_clear, BN_free, BN_clear_free \- allocate and free BIGNUMs
+BN_new, BN_secure_new, BN_clear, BN_free, BN_clear_free \- allocate and free BIGNUMs
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -143,7 +143,7 @@ BN_new, BN_init, BN_clear, BN_free, BN_clear_free \- allocate and free BIGNUMs
 \&
 \& BIGNUM *BN_new(void);
 \&
-\& void BN_init(BIGNUM *);
+\& BIGNUM *BN_secure_new(void);
 \&
 \& void BN_clear(BIGNUM *a);
 \&
@@ -153,8 +153,9 @@ BN_new, BN_init, BN_clear, BN_free, BN_clear_free \- allocate and free BIGNUMs
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fIBN_new()\fR allocates and initializes a \fB\s-1BIGNUM\s0\fR structure. \fIBN_init()\fR
-initializes an existing uninitialized \fB\s-1BIGNUM\s0\fR.
+\&\fIBN_new()\fR allocates and initializes a \fB\s-1BIGNUM\s0\fR structure.
+\&\fIBN_secure_new()\fR does the same except that the secure heap
+\&\fIOPENSSL_secure_malloc\fR\|(3) is used to store the value.
 .PP
 \&\fIBN_clear()\fR is used to destroy sensitive data such as keys when they
 are no longer needed. It erases the memory used by \fBa\fR and sets it
@@ -166,18 +167,24 @@ overwrites the data before the memory is returned to the system.
 If \fBa\fR is \s-1NULL,\s0 nothing is done.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fIBN_new()\fR returns a pointer to the \fB\s-1BIGNUM\s0\fR initialised to the value 0.
+\&\fIBN_new()\fR and \fIBN_secure_new()\fR
+return a pointer to the \fB\s-1BIGNUM\s0\fR initialised to the value 0.
 If the allocation fails,
-it returns \fB\s-1NULL\s0\fR and sets an error code that can be obtained
+they return \fB\s-1NULL\s0\fR and set an error code that can be obtained
 by \fIERR_get_error\fR\|(3).
 .PP
-\&\fIBN_init()\fR, \fIBN_clear()\fR, \fIBN_free()\fR and \fIBN_clear_free()\fR have no return
-values.
+\&\fIBN_clear()\fR, \fIBN_free()\fR and \fIBN_clear_free()\fR have no return values.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIbn\fR\|(3), \fIERR_get_error\fR\|(3)
+\&\fIERR_get_error\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fIBN_new()\fR, \fIBN_clear()\fR, \fIBN_free()\fR and \fIBN_clear_free()\fR are available in
-all versions on SSLeay and OpenSSL.  \fIBN_init()\fR was added in SSLeay
-0.9.1b.
+\&\fIBN_init()\fR was removed in OpenSSL 1.1.0; use \fIBN_new()\fR instead.
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

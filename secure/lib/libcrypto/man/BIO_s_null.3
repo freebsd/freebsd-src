@@ -128,8 +128,8 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "BIO_s_null 3"
-.TH BIO_s_null 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "BIO_S_NULL 3"
+.TH BIO_S_NULL 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,7 +141,7 @@ BIO_s_null \- null data sink
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& BIO_METHOD *   BIO_s_null(void);
+\& const BIO_METHOD *BIO_s_null(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -162,6 +162,11 @@ by adding a null sink \s-1BIO\s0 to the end of the chain
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIBIO_s_null()\fR returns the null sink \s-1BIO\s0 method.
-.SH "SEE ALSO"
-.IX Header "SEE ALSO"
-\&\s-1TBA\s0
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+.PP
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

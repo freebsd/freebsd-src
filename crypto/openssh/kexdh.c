@@ -33,6 +33,8 @@
 
 #include <openssl/evp.h>
 
+#include "openbsd-compat/openssl-compat.h"
+
 #include "ssh2.h"
 #include "sshkey.h"
 #include "cipher.h"

@@ -206,6 +206,6 @@ void autr_debug_print(struct val_anchors* anchors);
 
 /** callback for query answer to 5011 probe */
 void probe_answer_cb(void* arg, int rcode, struct sldns_buffer* buf, 
-	enum sec_status sec, char* errinf);
+	enum sec_status sec, char* errinf, int was_ratelimited);
 
 #endif /* VALIDATOR_AUTOTRUST_H */

@@ -128,35 +128,56 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "X509_cmp_time 3"
-.TH X509_cmp_time 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "X509_CMP_TIME 3"
+.TH X509_CMP_TIME 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_cmp_time \- X509 time functions
+X509_cmp_time, X509_cmp_current_time, X509_time_adj, X509_time_adj_ex \&\- X509 time functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
-.Vb 1
-\& X509_cmp_time(const ASN1_TIME *asn1_time, time_t *cmp_time);
+.Vb 5
+\& int X509_cmp_time(const ASN1_TIME *asn1_time, time_t *in_tm);
+\& int X509_cmp_current_time(const ASN1_TIME *asn1_time);
+\& ASN1_TIME *X509_time_adj(ASN1_TIME *asn1_time, long offset_sec, time_t *in_tm);
+\& ASN1_TIME *X509_time_adj_ex(ASN1_TIME *asn1_time, int offset_day, long
+\&                             offset_sec, time_t *in_tm);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fIX509_cmp_time()\fR compares the \s-1ASN1_TIME\s0 in \fBasn1_time\fR with the time in
-<cmp_time>.
+\&\fIX509_cmp_time()\fR compares the \s-1ASN1_TIME\s0 in \fBasn1_time\fR with the time
+in <cmp_time>. \fIX509_cmp_current_time()\fR compares the \s-1ASN1_TIME\s0 in
+\&\fBasn1_time\fR with the current time, expressed as time_t. \fBasn1_time\fR
+must satisfy the \s-1ASN1_TIME\s0 format mandated by \s-1RFC 5280,\s0 i.e., its
+format must be either \s-1YYMMDDHHMMSSZ\s0 or \s-1YYYYMMDDHHMMSSZ.\s0
 .PP
-\&\fBasn1_time\fR must satisfy the \s-1ASN1_TIME\s0 format mandated by \s-1RFC 5280,\s0 i.e.,
-its format must be either \s-1YYMMDDHHMMSSZ\s0 or \s-1YYYYMMDDHHMMSSZ.\s0
+\&\fIX509_time_adj_ex()\fR sets the \s-1ASN1_TIME\s0 structure \fBasn1_time\fR to the time
+\&\fBoffset_day\fR and \fBoffset_sec\fR after \fBin_tm\fR.
 .PP
-If \fBcmp_time\fR is \s-1NULL\s0 the current time is used.
+\&\fIX509_time_adj()\fR sets the \s-1ASN1_TIME\s0 structure \fBasn1_time\fR to the time
+\&\fBoffset_sec\fR after \fBin_tm\fR. This method can only handle second
+offsets up to the capacity of long, so the newer \fIX509_time_adj_ex()\fR
+\&\s-1API\s0 should be preferred.
+.PP
+In both methods, if \fBasn1_time\fR is \s-1NULL,\s0 a new \s-1ASN1_TIME\s0 structure
+is allocated and returned.
+.PP
+In all methods, if \fBin_tm\fR is \s-1NULL,\s0 the current time, expressed as
+time_t, is used.
 .SH "BUGS"
 .IX Header "BUGS"
-Unlike many standard comparison functions, X509_cmp_time returns 0 on error.
+Unlike many standard comparison functions, \fIX509_cmp_time()\fR and
+\&\fIX509_cmp_current_time()\fR return 0 on error.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fIX509_cmp_time()\fR returns \-1 if \fBasn1_time\fR is earlier than, or equal to,
-\&\fBcmp_time\fR, and 1 otherwise. It returns 0 on error.
+\&\fIX509_cmp_time()\fR and \fIX509_cmp_current_time()\fR return \-1 if \fBasn1_time\fR
+is earlier than, or equal to, \fBcmp_time\fR (resp. current time), and 1
+otherwise. These methods return 0 on error.
+.PP
+\&\fIX509_time_adj()\fR and \fIX509_time_adj_ex()\fR return a pointer to the updated
+\&\s-1ASN1_TIME\s0 structure, and \s-1NULL\s0 on error.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.

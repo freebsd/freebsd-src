@@ -128,20 +128,18 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "DH_set_method 3"
-.TH DH_set_method 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.IX Title "DH_SET_METHOD 3"
+.TH DH_SET_METHOD 3 "2018-09-11" "1.1.1" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DH_set_default_method, DH_get_default_method,
-DH_set_method, DH_new_method, DH_OpenSSL \- select DH method
+DH_set_default_method, DH_get_default_method, DH_set_method, DH_new_method, DH_OpenSSL \- select DH method
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
-.Vb 2
+.Vb 1
 \& #include <openssl/dh.h>
-\& #include <openssl/engine.h>
 \&
 \& void DH_set_default_method(const DH_METHOD *meth);
 \&
@@ -165,8 +163,11 @@ Initially, the default \s-1DH_METHOD\s0 is the OpenSSL internal implementation, 
 returned by \fIDH_OpenSSL()\fR.
 .PP
 \&\fIDH_set_default_method()\fR makes \fBmeth\fR the default method for all \s-1DH\s0
-structures created later. \fB\s-1NB\s0\fR: This is true only whilst no \s-1ENGINE\s0 has been set
+structures created later.
+\&\fB\s-1NB\s0\fR: This is true only whilst no \s-1ENGINE\s0 has been set
 as a default for \s-1DH,\s0 so this function is no longer recommended.
+This function is not thread-safe and should not be called at the same time
+as other OpenSSL functions.
 .PP
 \&\fIDH_get_default_method()\fR returns a pointer to the current default \s-1DH_METHOD.\s0
 However, the meaningfulness of this result is dependent on whether the \s-1ENGINE
@@ -184,37 +185,9 @@ for the key can have unexpected results.
 be used for the \s-1DH\s0 operations. If \fBengine\fR is \s-1NULL,\s0 the default \s-1ENGINE\s0 for \s-1DH\s0
 operations is used, and if no default \s-1ENGINE\s0 is set, the \s-1DH_METHOD\s0 controlled by
 \&\fIDH_set_default_method()\fR is used.
-.SH "THE DH_METHOD STRUCTURE"
-.IX Header "THE DH_METHOD STRUCTURE"
-.Vb 4
-\& typedef struct dh_meth_st
-\& {
-\&     /* name of the implementation */
-\&        const char *name;
-\&
-\&     /* generate private and public DH values for key agreement */
-\&        int (*generate_key)(DH *dh);
-\&
-\&     /* compute shared secret */
-\&        int (*compute_key)(unsigned char *key, BIGNUM *pub_key, DH *dh);
-\&
-\&     /* compute r = a ^ p mod m (May be NULL for some implementations) */
-\&        int (*bn_mod_exp)(DH *dh, BIGNUM *r, BIGNUM *a, const BIGNUM *p,
-\&                                const BIGNUM *m, BN_CTX *ctx,
-\&                                BN_MONT_CTX *m_ctx);
-\&
-\&     /* called at DH_new */
-\&        int (*init)(DH *dh);
-\&
-\&     /* called at DH_free */
-\&        int (*finish)(DH *dh);
-\&
-\&        int flags;
-\&
-\&        char *app_data; /* ?? */
-\&
-\& } DH_METHOD;
-.Ve
+.PP
+A new \s-1DH_METHOD\s0 object may be constructed using \fIDH_meth_new()\fR (see
+\&\fIDH_meth_new\fR\|(3)).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIDH_OpenSSL()\fR and \fIDH_get_default_method()\fR return pointers to the respective
@@ -229,29 +202,14 @@ method was supplied by an \s-1ENGINE\s0).
 \&\fIDH_new_method()\fR returns \s-1NULL\s0 and sets an error code that can be obtained by
 \&\fIERR_get_error\fR\|(3) if the allocation fails. Otherwise it
 returns a pointer to the newly allocated structure.
-.SH "NOTES"
-.IX Header "NOTES"
-As of version 0.9.7, \s-1DH_METHOD\s0 implementations are grouped together with other
-algorithmic APIs (eg. \s-1RSA_METHOD, EVP_CIPHER,\s0 etc) in \fB\s-1ENGINE\s0\fR modules. If a
-default \s-1ENGINE\s0 is specified for \s-1DH\s0 functionality using an \s-1ENGINE API\s0 function,
-that will override any \s-1DH\s0 defaults set using the \s-1DH API\s0 (ie.
-\&\fIDH_set_default_method()\fR). For this reason, the \s-1ENGINE API\s0 is the recommended way
-to control default implementations for use in \s-1DH\s0 and other cryptographic
-algorithms.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIdh\fR\|(3), \fIDH_new\fR\|(3)
-.SH "HISTORY"
-.IX Header "HISTORY"
-\&\fIDH_set_default_method()\fR, \fIDH_get_default_method()\fR, \fIDH_set_method()\fR,
-\&\fIDH_new_method()\fR and \fIDH_OpenSSL()\fR were added in OpenSSL 0.9.4.
+\&\fIDH_new\fR\|(3), \fIDH_new\fR\|(3), \fIDH_meth_new\fR\|(3)
+.SH "COPYRIGHT"
+.IX Header "COPYRIGHT"
+Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-\&\fIDH_set_default_openssl_method()\fR and \fIDH_get_default_openssl_method()\fR replaced
-\&\fIDH_set_default_method()\fR and \fIDH_get_default_method()\fR respectively, and
-\&\fIDH_set_method()\fR and \fIDH_new_method()\fR were altered to use \fB\s-1ENGINE\s0\fRs rather than
-\&\fB\s-1DH_METHOD\s0\fRs during development of the engine version of OpenSSL 0.9.6. For
-0.9.7, the handling of defaults in the \s-1ENGINE API\s0 was restructured so that this
-change was reversed, and behaviour of the other functions resembled more closely
-the previous behaviour. The behaviour of defaults in the \s-1ENGINE API\s0 now
-transparently overrides the behaviour of defaults in the \s-1DH API\s0 without
-requiring changing these function prototypes.
+Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file \s-1LICENSE\s0 in the source distribution or at
+<https://www.openssl.org/source/license.html>.

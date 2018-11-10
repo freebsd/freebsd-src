@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2018
+.Dd October 5, 2018
 .Dt MODULE_PNP_INFO 9
 .Os
 .Sh NAME
@@ -38,7 +38,6 @@
 .Fa "bus"
 .Fa "module"
 .Fa "void *table"
-.Fa "size_t entry_len"
 .Fa "size_t num_entries"
 .Fc
 .\"
@@ -113,7 +112,7 @@ A pointer that should be ignored.
 .It Dq Vt E
 EISA PNP Identifier.
 .It Dq Vt T
-PNP info that's true for the for the whole table.
+PNP info that is true for the whole table.
 The driver code checks for these condition pragmatically before using
 this table to match devices.
 This item must come last in the list.
@@ -143,11 +142,6 @@ parameter points to the device matching data with entries matching the
 .Fa descriptor_string .
 .Pp
 The
-.Fa entry_len
-parameter is the size of each table entry, i.e.,
-.Ql sizeof(table[0]) .
-.Pp
-The
 .Fa num_entries
 parameter is the number of entries in the table, i.e.,
 .Ql nitems(table) .
@@ -157,9 +151,18 @@ included in
 .Fa num_entries .
 .\"
 .Sh EXAMPLES
-.Bd -literal -offset indent -compact
+.Bl -tag -width ""
+.It Sy Example 1\&: No Using W32 for vendor/device pair
+.Pp
+The following example shows usage of
+.Vt W32
+type when vendor/device values are combined into single
+.Vt uint32_t
+value:
+.Bd -literal
 #include <sys/param.h>
 #include <sys/module.h>
+
 static struct my_pciids {
 	uint32_t devid;
 	const char *desc;
@@ -168,14 +171,35 @@ static struct my_pciids {
 	{ 0x9abcdef0, "Baz fizz" },
 };
 
-MODULE_PNP_INFO("W32:vendor/device", pci, my_driver, my_ids, sizeof(my_ids[0]),
+MODULE_PNP_INFO("W32:vendor/device;D:#", pci, my_driver, my_ids,
     nitems(my_ids));
 .Ed
+.It Sy Example 2\&: No Using T for common vendor value
+.Pp
+The following example shows usage of
+.Vt T
+type when all entries in the table have the same vendor value:
+.Bd -literal
+#include <sys/param.h>
+#include <sys/module.h>
+
+static struct my_pciids {
+	uint16_t device;
+	const char *desc;
+} my_ids[] = {
+	{ 0x9abc, "Foo bar" },
+	{ 0xdef0, "Baz fizz" },
+};
+
+MODULE_PNP_INFO("U16:device;D:#;T:vendor=0x1234", pci, my_driver,
+    my_ids, nitems(my_ids));
+.Ed
+.El
 .\"
 .Sh SEE ALSO
-.Xr module 9 ,
+.Xr devmatch 8 ,
 .Xr DRIVER_MODULE 9 ,
-.Xr devmatch 8
+.Xr module 9
 .Sh HISTORY
 The macro
 .Nm
