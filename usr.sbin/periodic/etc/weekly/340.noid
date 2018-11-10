@@ -25,7 +25,7 @@ case "$weekly_noid_enable" in
 	    sep=:
 	    OIFS="$IFS"
 	    IFS="$sep"
-	    for param in $(jail -f "`syscrc -n jail_conf`" -e "$sep")
+	    for param in $(jail -f "`sysrc -n jail_conf`" -e "$sep")
 	    do
 		case "$param" in
 		    path=*) exclude="$exclude -path ${param#path=} -prune -or"
