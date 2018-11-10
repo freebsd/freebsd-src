@@ -1972,13 +1972,13 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t pindex, vm_pindex_t count)
 			swp_pager_update_freerange(&s_free, &n_free, sb->d[i]);
 			sb->d[i] = SWAPBLK_NONE;
 		}
+		pindex = sb->p + SWAP_META_PAGES;
 		if (swp_pager_swblk_empty(sb, 0, start) &&
 		    swp_pager_swblk_empty(sb, limit, SWAP_META_PAGES)) {
 			SWAP_PCTRIE_REMOVE(&object->un_pager.swp.swp_blks,
 			    sb->p);
 			uma_zfree(swblk_zone, sb);
 		}
-		pindex = sb->p + SWAP_META_PAGES;
 	}
 	swp_pager_freeswapspace(s_free, n_free);
 }
