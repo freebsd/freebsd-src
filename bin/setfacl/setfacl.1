@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2018
+.Dd October 26, 2018
 .Dt SETFACL 1
 .Os
 .Sh NAME
@@ -136,6 +136,8 @@ option is specified, no symbolic links are followed.
 This is the default.
 .It Fl R
 Perform the action recursively on any specified directories.
+When modifying or adding NFSv4 ACL entries, inheritance flags
+are applied only to directories.
 .It Fl x Ar entries | position
 If
 .Ar entries
