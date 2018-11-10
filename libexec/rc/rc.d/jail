@@ -21,7 +21,6 @@ config_cmd="jail_config"
 console_cmd="jail_console"
 status_cmd="jail_status"
 extra_commands="config console status"
-: ${jail_conf:=/etc/jail.conf}
 : ${jail_program:=/usr/sbin/jail}
 : ${jail_consolecmd:=/usr/bin/login -f root}
 : ${jail_jexec:=/usr/sbin/jexec}
