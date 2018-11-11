@@ -28,7 +28,7 @@
 .\"     @(#)link.2	8.3 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2018
+.Dd November 11, 2018
 .Dt LINK 2
 .Os
 .Sh NAME
@@ -116,7 +116,12 @@ If
 names a symbolic link, a new link for the target of the symbolic link is
 created.
 .It Dv AT_BENEATH
-Only allow to link to a file which is beneath of the starting directory.
+Only allow to link to a file which is beneath of the topping directory.
+See the description of the
+.Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
 .El
 .Pp
 If
@@ -260,16 +265,25 @@ respectively, is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
 .It Bq Er ENOTCAPABLE
-The
-.Dv AT_BENEATH
-flag was specified but
 .Fa name1
 is not strictly relative to the starting directory.
 For example,
 .Fa name1
-is absolute or includes a ".." component that escapes the starting directory.
+is absolute or includes a ".." component that escapes
+the directory hierarchy specified by
+.Fa fd ,
+and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+The
 .Dv AT_BENEATH
-flag was specified.
+flag was provided to
+.Fa linkat
+and the absolute path
+.Fa name1
+does not have its tail fully contained under the topping directory,
+or the relative path
+.Fa name1
+escapes it.
 .El
 .Sh SEE ALSO
 .Xr chflags 2 ,
