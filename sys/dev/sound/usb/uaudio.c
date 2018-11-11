@@ -97,7 +97,7 @@ static int uaudio_default_bits = 32;
 static int uaudio_default_channels = 0;		/* use default */
 
 #ifdef USB_DEBUG
-static int uaudio_debug = 0;
+static int uaudio_debug;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
 
@@ -115,6 +115,8 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_bits, CTLFLAG_RW,
 TUNABLE_INT("hw.usb.uaudio.default_channels", &uaudio_default_channels);
 SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
     &uaudio_default_channels, 0, "uaudio default sample channels");
+#else
+#define	uaudio_debug 0
 #endif
 
 #define	UAUDIO_IRQS	(8000 / UAUDIO_NFRAMES)	/* interrupts per second */
@@ -2128,6 +2130,14 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 		break;
 
 	case USB_ST_SETUP:
+		/*
+		 * Check if the recording stream can be used as a
+		 * source of jitter information to save some
+		 * isochronous bandwidth:
+		 */
+		if (ch->priv_sc->sc_rec_chan.num_alt != 0 &&
+		    uaudio_debug == 0)
+			break;
 		usbd_xfer_set_frames(xfer, 1);
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_framelen(xfer));
 		usbd_transfer_submit(xfer);
