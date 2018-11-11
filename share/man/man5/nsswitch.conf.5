@@ -62,7 +62,7 @@ the current source.
 Each criterion consists of one or more status codes, and actions to
 take if that status code occurs.
 .Ss Sources
-The following sources are implemented:
+The following sources are implemented as part of the base system:
 .Pp
 .Bl -tag -width Source -compact
 .It Sy Source
@@ -100,6 +100,8 @@ makes use of the
 .Xr nscd 8
 daemon.
 .El
+.Pp
+Additional sources might be provided by third party software.
 .Ss Databases
 The following databases are used by the following C library functions:
 .Pp
