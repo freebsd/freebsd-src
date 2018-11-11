@@ -28,7 +28,7 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2018
+.Dd November 11, 2018
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -84,11 +84,24 @@ and
 .Fn lstat
 except when the
 .Fa path
-specifies a relative path.
-In this case the status is retrieved from a file relative to
+specifies a relative path, or the
+.Dv AT_BENEATH
+flag is provided.
+For
+.Fn fstatat
+and relative
+.Fa path ,
+the status is retrieved from a file relative to
 the directory associated with the file descriptor
 .Fa fd
 instead of the current working directory.
+For
+.Dv AT_BENEATH
+and absolute
+.Fa path ,
+the status is retrieved from a file specified by the
+.Fa path ,
+but additional permission checks are performed, see below.
 .Pp
 The values for the
 .Fa flag
@@ -101,7 +114,7 @@ If
 .Fa path
 names a symbolic link, the status of the symbolic link is returned.
 .It Dv AT_BENEATH
-Only stat files and directories below the starting directory.
+Only stat files and directories below the topping directory.
 See the description of the
 .Dv O_BENEATH
 flag in the
@@ -124,6 +137,23 @@ respectively, depending on whether or not the
 .Dv AT_SYMLINK_NOFOLLOW
 bit is set in
 .Fa flag .
+.Pp
+When
+.Fn fstatat
+is called with an absolute
+.Fa path
+without the
+.Dv AT_BENEATH
+flag, it ignores the
+.Fa fd
+argument.
+When
+.Dv AT_BENEATH
+is specified with an absolute
+.Fa path ,
+a directory passed by the
+.Fa fd
+argument is used as the topping point for the resolution.
 .Pp
 The
 .Fa sb
@@ -405,14 +435,23 @@ is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
 .It Bq Er ENOTCAPABLE
+.Fa path
+is an absolute path,
+or contained a ".." component leading to a
+directory outside of the directory hierarchy specified by
+.Fa fd ,
+and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
 The
 .Dv AT_BENEATH
-flag was specified but
+flag was provided to
+.Fn fstatat ,
+and the absolute
 .Fa path
-is not strictly relative to the starting directory.
-For example,
+does not have its tail fully contained under the topping directory,
+or the relative
 .Fa path
-is absolute or includes a ".." component that escapes the starting directory.
+escapes it.
 .El
 .Sh SEE ALSO
 .Xr access 2 ,
