@@ -258,6 +258,8 @@
 	(CSUM_IP_UDP|CSUM_IP6_UDP)
 #define IXL_CSUM_SCTP \
 	(CSUM_IP_SCTP|CSUM_IP6_SCTP)
+#define IXL_CSUM_IPV4 \
+	(CSUM_IP|CSUM_IP_TSO)
 
 /* Pre-11 counter(9) compatibility */
 #if __FreeBSD_version >= 1100036

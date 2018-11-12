@@ -133,13 +133,10 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 	}
 
 	/* Map to POSIX errors */
-	if (e == ENOENT || e == ENOTDIR) {
-		exitstatus = 127;
-		exerror(EXEXEC, "%s: not found", argv[0]);
-	} else {
-		exitstatus = 126;
-		exerror(EXEXEC, "%s: %s", argv[0], strerror(e));
-	}
+	if (e == ENOENT || e == ENOTDIR)
+		errorwithstatus(127, "%s: not found", argv[0]);
+	else
+		errorwithstatus(126, "%s: %s", argv[0], strerror(e));
 }
 
 

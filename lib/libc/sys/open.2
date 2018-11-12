@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2018
+.Dd November 11, 2018
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -75,8 +75,14 @@ function is equivalent to the
 .Fn open
 function except in the case where the
 .Fa path
-specifies a relative path.
-In this case the file to be opened is determined relative to the directory
+specifies a relative path, or the
+.Dv O_BENEATH
+flag is provided.
+For
+.Fn openat
+and relative
+.Fa path ,
+the file to be opened is determined relative to the directory
 associated with the file descriptor
 .Fa fd
 instead of the current working directory.
@@ -95,6 +101,26 @@ parameter, the current working directory is used
 and the behavior is identical to a call to
 .Fn open .
 .Pp
+When
+.Fn openat
+is called with an absolute
+.Fa path
+without the
+.Dv O_BENEATH
+flag, it ignores the
+.Fa fd
+argument.
+When
+.Dv O_BENEATH
+is specified with an absolute
+.Fa path ,
+a directory passed by the
+.Fa fd
+argument is used as the topping point for the resolution.
+See the definition of the
+.Dv O_BENEATH
+flag below.
+.Pp
 In
 .Xr capsicum 4
 capability mode,
@@ -109,13 +135,27 @@ must be strictly relative to a file descriptor
 as defined in
 .Pa sys/kern/vfs_lookup.c .
 .Fa path
-must not be an absolute path and must not contain ".." components.
+must not be an absolute path and must not contain ".." components
+which cause the path resolution to escape the directory hierarchy
+starting at
+.Fa fd .
 Additionally, no symbolic link in
 .Fa path
-may contain ".." components either.
+may target absolute path or contain escaping ".." components.
 .Fa fd
 must not be
 .Dv AT_FDCWD .
+.Pp
+If the
+.Dv vfs.lookup_cap_dotdot
+.Xr sysctl 3
+MIB is set to zero, ".." components in the paths,
+used in capability mode, or with the
+.Dv O_BENEATH
+flag, are completely disabled.
+If the
+.Dv vfs.lookup_cap_dotdot_nonlocal
+MIB is set to zero, ".." is not allowed if found on non-local filesystem.
 .Pp
 The flags specified are formed by
 .Em or Ns 'ing
@@ -142,7 +182,7 @@ O_TTY_INIT	ignored
 O_DIRECTORY	error if file is not a directory
 O_CLOEXEC	set FD_CLOEXEC upon open
 O_VERIFY	verify the contents of the file
-O_BENEATH	require path to be strictly relative to starting directory
+O_BENEATH	require path to be strictly relative to topping directory
 .Ed
 .Pp
 Opening a file with
@@ -273,19 +313,21 @@ been verified before operating on them.
 .Dv O_BENEATH
 returns
 .Er ENOTCAPABLE
-if the specified path, after resolving all symlinks and ".." references
-in it, does not reside in the directory hierarchy of children beneath
-the starting directory, or is an absolute path.
-Starting directory is the process current directory if relative
+if the specified relative path, after resolving all symlinks and ".."
+references, does not reside in the directory hierarchy of
+children beneath the topping directory.
+Topping directory is the process current directory if relative
 .Fa path
 is used for
 .Fn open ,
 and the directory referenced by the
 .Fa fd
-argument when specifying relative
-.Fa path
-for
+argument when using
 .Fn openat .
+If the specified path is absolute,
+.Dv O_BENEATH
+allows arbitrary prefix that ends up at the topping directory,
+after which all further resolved components must be under it.
 .Pp
 If successful,
 .Fn open
@@ -509,9 +551,16 @@ is an absolute path,
 or contained a ".." component leading to a
 directory outside of the directory hierarchy specified by
 .Fa fd ,
-and the process is in capability mode or the
+and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+The
 .Dv O_BENEATH
-flag was provided.
+flag was provided, and the absolute
+.Fa path
+does not have its tail fully contained under the topping directory,
+or the relative
+.Fa path
+escapes it.
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,

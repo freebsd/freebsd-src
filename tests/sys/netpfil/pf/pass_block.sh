@@ -111,14 +111,14 @@ noalias_body()
 	atf_check -s exit:0 -o ignore ping6 -c 1 -x 1 ${linklocaladdr}%${epair}a
 
 	jexec alcatraz pfctl -e
-	pft_set_rules alcatraz "block out inet6 from (epair0b:0) to any"
+	pft_set_rules alcatraz "block out inet6 from (${epair}b:0) to any"
 
 	atf_check -s exit:2 -o ignore ping6 -c 1 -x 1 2001:db8:42::2
 
 	# We should still be able to ping the link-local address
 	atf_check -s exit:0 -o ignore ping6 -c 1 -x 1 ${linklocaladdr}%${epair}a
 
-	pft_set_rules alcatraz "block out inet6 from (epair0b) to any"
+	pft_set_rules alcatraz "block out inet6 from (${epair}b) to any"
 
 	# We cannot ping to the link-local address
 	atf_check -s exit:2 -o ignore ping6 -c 1 -x 1 ${linklocaladdr}%${epair}a

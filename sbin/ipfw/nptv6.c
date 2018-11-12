@@ -152,6 +152,7 @@ static struct _s_x nptv6newcmds[] = {
       { "int_prefix",	TOK_INTPREFIX },
       { "ext_prefix",	TOK_EXTPREFIX },
       { "prefixlen",	TOK_PREFIXLEN },
+      { "ext_if",	TOK_EXTIF },
       { NULL, 0 }
 };
 
@@ -214,11 +215,26 @@ nptv6_create(const char *name, uint8_t set, int ac, char *av[])
 			ac--; av++;
 			break;
 		case TOK_EXTPREFIX:
+			if (flags & NPTV6_HAS_EXTPREFIX)
+				errx(EX_USAGE,
+				    "Only one ext_prefix or ext_if allowed");
 			NEED1("IPv6 prefix required");
 			nptv6_parse_prefix(*av, &cfg->external, &plen);
 			flags |= NPTV6_HAS_EXTPREFIX;
 			if (plen > 0)
 				goto check_prefix;
+			ac--; av++;
+			break;
+		case TOK_EXTIF:
+			if (flags & NPTV6_HAS_EXTPREFIX)
+				errx(EX_USAGE,
+				    "Only one ext_prefix or ext_if allowed");
+			NEED1("Interface name required");
+			if (strlen(*av) >= sizeof(cfg->if_name))
+				errx(EX_USAGE, "Invalid interface name");
+			flags |= NPTV6_HAS_EXTPREFIX;
+			cfg->flags |= NPTV6_DYNAMIC_PREFIX;
+			strncpy(cfg->if_name, *av, sizeof(cfg->if_name));
 			ac--; av++;
 			break;
 		case TOK_PREFIXLEN:
@@ -245,13 +261,14 @@ check_prefix:
 	if ((flags & NPTV6_HAS_INTPREFIX) != NPTV6_HAS_INTPREFIX)
 		errx(EX_USAGE, "int_prefix required");
 	if ((flags & NPTV6_HAS_EXTPREFIX) != NPTV6_HAS_EXTPREFIX)
-		errx(EX_USAGE, "ext_prefix required");
+		errx(EX_USAGE, "ext_prefix or ext_if required");
 	if ((flags & NPTV6_HAS_PREFIXLEN) != NPTV6_HAS_PREFIXLEN)
 		errx(EX_USAGE, "prefixlen required");
 
 	n2mask(&mask, cfg->plen);
 	APPLY_MASK(&cfg->internal, &mask);
-	APPLY_MASK(&cfg->external, &mask);
+	if ((cfg->flags & NPTV6_DYNAMIC_PREFIX) == 0)
+		APPLY_MASK(&cfg->external, &mask);
 
 	olh->count = 1;
 	olh->objsize = sizeof(*cfg);
@@ -350,8 +367,13 @@ nptv6_show_cb(ipfw_nptv6_cfg *cfg, const char *name, uint8_t set)
 		printf("set %u ", cfg->set);
 	inet_ntop(AF_INET6, &cfg->internal, abuf, sizeof(abuf));
 	printf("nptv6 %s int_prefix %s ", cfg->name, abuf);
-	inet_ntop(AF_INET6, &cfg->external, abuf, sizeof(abuf));
-	printf("ext_prefix %s prefixlen %u\n", abuf, cfg->plen);
+	if (cfg->flags & NPTV6_DYNAMIC_PREFIX)
+		printf("ext_if %s ", cfg->if_name);
+	else {
+		inet_ntop(AF_INET6, &cfg->external, abuf, sizeof(abuf));
+		printf("ext_prefix %s ", abuf);
+	}
+	printf("prefixlen %u\n", cfg->plen);
 	return (0);
 }
 

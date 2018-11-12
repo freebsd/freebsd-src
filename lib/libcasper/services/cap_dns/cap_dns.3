@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2018
+.Dd November 12, 2018
 .Dt CAP_DNS 3
 .Os
 .Sh NAME
@@ -92,9 +92,9 @@ function limits the functions allowed in the service.
 The
 .Fa types
 variable can be set to
-.Dv ADDR
+.Dv ADDR2NAME
 or
-.Dv NAME .
+.Dv NAME2ADDR .
 See the
 .Sx LIMITS
 section for more details.
@@ -129,9 +129,9 @@ for that function can contain the following values and types:
 The
 .Va type
 can have two values:
-.Dv ADDR
+.Dv ADDR2NAME
 or
-.Dv NAME .
+.Dv NAME2ADDR .
 The
 .Dv ADDR
 means that reverse DNS lookups are allowed with

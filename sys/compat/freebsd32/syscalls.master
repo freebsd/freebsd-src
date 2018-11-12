@@ -84,8 +84,8 @@
 11	AUE_NULL	OBSOL	execv
 12	AUE_CHDIR	NOPROTO	{ int chdir(const char *path); }
 13	AUE_FCHDIR	NOPROTO	{ int fchdir(int fd); }
-14	AUE_MKNOD	COMPAT11 { int freebsd32_mknod(const char *path, \
-					int mode, int dev); }
+14	AUE_MKNOD	COMPAT11|NOPROTO { int mknod(const char *path, \
+					int mode, uint32_t dev); }
 15	AUE_CHMOD	NOPROTO	{ int chmod(const char *path, mode_t mode); }
 16	AUE_CHOWN	NOPROTO	{ int chown(const char *path, int uid, int gid); }
 17	AUE_NULL	NOPROTO	{ void *break(char *nsize); }
@@ -386,7 +386,7 @@
 				    uint32_t length2); }
 201	AUE_FTRUNCATE	COMPAT6	{ int freebsd32_ftruncate(int fd, int pad, \
 				    uint32_t length1, uint32_t length2); }
-202	AUE_SYSCTL	STD	{ int freebsd32_sysctl(int *name, \
+202	AUE_SYSCTL	STD	{ int freebsd32___sysctl(int *name, \
 				    u_int namelen, void *old, \
 				    uint32_t *oldlenp, void *new, \
 				    uint32_t newlen); }
@@ -821,7 +821,7 @@
 				    struct auditinfo_addr *auditinfo_addr, \
 				    u_int length); }
 453	AUE_AUDITCTL	NOPROTO	{ int auditctl(const char *path); }
-454	AUE_NULL	STD	{ int freebsd32_umtx_op(void *obj, int op,\
+454	AUE_NULL	STD	{ int freebsd32__umtx_op(void *obj, int op,\
 				    u_long val, void *uaddr, \
 				    void *uaddr2); }
 455	AUE_THR_NEW	STD	{ int freebsd32_thr_new(	\
@@ -958,7 +958,7 @@
 				    mode_t mode); }
 497	AUE_MKFIFOAT	NOPROTO	{ int mkfifoat(int fd, const char *path, \
 				    mode_t mode); }
-498	AUE_MKNODAT	COMPAT11 { int freebsd32_mknodat(int fd, \
+498	AUE_MKNODAT	COMPAT11|NOPROTO { int mknodat(int fd, \
 				    const char *path, mode_t mode, \
 				    uint32_t dev); }
 499	AUE_OPENAT_RWTC	NOPROTO	{ int openat(int fd, const char *path, \
@@ -1113,8 +1113,15 @@
 				    long bufsize, int mode); }
 558	AUE_FHSTATFS	NOPROTO	{ int fhstatfs(const struct fhandle *u_fhp, \
 				    struct statfs32 *buf); }
-559	AUE_MKNODAT	NOPROTO	{ int mknodat(int fd, const char *path, \
-				    mode_t mode, dev_t dev); }
+#ifdef PAD64_REQUIRED
+559	AUE_MKNODAT	STD	{ int freebsd32_mknodat(int fd, \
+				    const char *path, mode_t mode, \
+				    int pad, uint32_t dev1, uint32_t dev2); }
+#else
+559	AUE_MKNODAT	STD	{ int freebsd32_mknodat(int fd, \
+				    const char *path, mode_t mode, \
+				    uint32_t dev1, uint32_t dev2); }
+#endif
 560	AUE_KEVENT	STD	{ int freebsd32_kevent(int fd, \
 				    const struct kevent32 *changelist, \
 				    int nchanges, \

@@ -77,7 +77,7 @@ main(int argc, char *argv[])
 	struct stat sb;
 	int base64;
 	int ch;
-	char *outfile;
+	const char *outfile;
 
 	base64 = 0;
 	outfile = NULL;

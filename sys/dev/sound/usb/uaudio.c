@@ -100,7 +100,7 @@ static int uaudio_default_channels = 0;		/* use default */
 static int uaudio_buffer_ms = 8;
 
 #ifdef USB_DEBUG
-static int uaudio_debug = 0;
+static int uaudio_debug;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
 
@@ -136,6 +136,8 @@ uaudio_buffer_ms_sysctl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw_usb_uaudio, OID_AUTO, buffer_ms, CTLTYPE_INT | CTLFLAG_RWTUN,
     0, sizeof(int), uaudio_buffer_ms_sysctl, "I",
     "uaudio buffering delay from 2ms to 8ms");
+#else
+#define	uaudio_debug 0
 #endif
 
 #define	UAUDIO_NFRAMES		64	/* must be factor of 8 due HS-USB */
@@ -2161,6 +2163,14 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 		break;
 
 	case USB_ST_SETUP:
+		/*
+		 * Check if the recording stream can be used as a
+		 * source of jitter information to save some
+		 * isochronous bandwidth:
+		 */
+		if (ch->priv_sc->sc_rec_chan.num_alt != 0 &&
+		    uaudio_debug == 0)
+			break;
 		usbd_xfer_set_frames(xfer, 1);
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_framelen(xfer));
 		usbd_transfer_submit(xfer);

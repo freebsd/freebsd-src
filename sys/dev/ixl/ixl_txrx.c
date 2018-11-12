@@ -225,7 +225,7 @@ ixl_tx_setup_offload(struct ixl_tx_queue *que,
 	switch (pi->ipi_etype) {
 #ifdef INET
 		case ETHERTYPE_IP:
-			if (pi->ipi_csum_flags & CSUM_IP)
+			if (pi->ipi_csum_flags & IXL_CSUM_IPV4)
 				*cmd |= I40E_TX_DESC_CMD_IIPT_IPV4_CSUM;
 			else
 				*cmd |= I40E_TX_DESC_CMD_IIPT_IPV4;

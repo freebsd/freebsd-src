@@ -410,8 +410,6 @@ nd_buf_import(void *arg, void **store, int count, int domain __unused,
 	struct mbuf *m;
 	int i;
 
-	KASSERT(!dumping, ("%s: ran out of pre-allocated mbufs", __func__));
-
 	q = arg;
 
 	for (i = 0; i < count; i++) {
@@ -421,6 +419,8 @@ nd_buf_import(void *arg, void **store, int count, int domain __unused,
 		trash_init(m, q == &nd_mbufq ? MSIZE : nd_clsize, flags);
 		store[i] = m;
 	}
+	KASSERT((flags & M_WAITOK) == 0 || i == count,
+	    ("%s: ran out of pre-allocated mbufs", __func__));
 	return (i);
 }
 
@@ -447,8 +447,6 @@ nd_pack_import(void *arg __unused, void **store, int count, int domain __unused,
 	void *clust;
 	int i;
 
-	KASSERT(!dumping, ("%s: ran out of pre-allocated mbufs", __func__));
-
 	for (i = 0; i < count; i++) {
 		m = m_get(MT_DATA, M_NOWAIT);
 		if (m == NULL)
@@ -461,6 +459,8 @@ nd_pack_import(void *arg __unused, void **store, int count, int domain __unused,
 		mb_ctor_clust(clust, nd_clsize, m, 0);
 		store[i] = m;
 	}
+	KASSERT((flags & M_WAITOK) == 0 || i == count,
+	    ("%s: ran out of pre-allocated mbufs", __func__));
 	return (i);
 }
 
