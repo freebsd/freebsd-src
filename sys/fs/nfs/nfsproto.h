@@ -365,6 +365,14 @@
  */
 #define	NFSV41_NPROCS		56
 
+/* Additional procedures for NFSv4.2. */
+#define	NFSPROC_IOADVISE	56
+
+/*
+ * Must be defined as one higher than the last NFSv4.2 Proc# above.
+ */
+#define	NFSV42_NPROCS		57
+
 #endif	/* NFS_V3NPROCS */
 
 /*
@@ -666,6 +674,7 @@
 /* Flags for File Layout. */
 #define	NFSFLAYUTIL_DENSE		0x1
 #define	NFSFLAYUTIL_COMMIT_THRU_MDS	0x2
+#define	NFSFLAYUTIL_IOADVISE_THRU_MDS	0x4
 #define	NFSFLAYUTIL_STRIPE_MASK		0xffffffc0
 
 /* Flags for Flex File Layout. */

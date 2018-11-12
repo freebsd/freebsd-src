@@ -203,9 +203,9 @@ static struct nfsrv_lughash	*nfsgroupnamehash;
  * marked 0 in this array, the code will still work, just not quite as
  * efficiently.)
  */
-static int nfs_bigreply[NFSV41_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
+static int nfs_bigreply[NFSV42_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 };
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 };
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
@@ -223,7 +223,7 @@ static struct {
 	int	opcnt;
 	const u_char *tag;
 	int	taglen;
-} nfsv4_opmap[NFSV41_NPROCS] = {
+} nfsv4_opmap[NFSV42_NPROCS] = {
 	{ 0, 1, "Null", 4 },
 	{ NFSV4OP_GETATTR, 1, "Getattr", 7, },
 	{ NFSV4OP_SETATTR, 2, "Setattr", 7, },
@@ -280,15 +280,16 @@ static struct {
 	{ NFSV4OP_COMMIT, 1, "CommitDS", 8, },
 	{ NFSV4OP_OPEN, 3, "OpenLayoutGet", 13, },
 	{ NFSV4OP_OPEN, 8, "CreateLayGet", 12, },
+	{ NFSV4OP_IOADVISE, 1, "Advise", 6, },
 };
 
 /*
  * NFS RPCS that have large request message size.
  */
-static int nfs_bigrequest[NFSV41_NPROCS] = {
+static int nfs_bigrequest[NFSV42_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0
+	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0
 };
 
 /*
@@ -427,7 +428,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	} else {
 		(void) nfsm_fhtom(nd, nfhp, fhlen, 0);
 	}
-	if (procnum < NFSV41_NPROCS)
+	if (procnum < NFSV42_NPROCS)
 		NFSINCRGLOBAL(nfsstatsv1.rpccnt[procnum]);
 }
 
