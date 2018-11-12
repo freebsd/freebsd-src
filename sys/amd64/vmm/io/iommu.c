@@ -109,19 +109,19 @@ IOMMU_REMOVE_MAPPING(void *domain, vm_paddr_t gpa, uint64_t len)
 }
 
 static __inline void
-IOMMU_ADD_DEVICE(void *domain, int bus, int slot, int func)
+IOMMU_ADD_DEVICE(void *domain, uint16_t rid)
 {
 
 	if (ops != NULL && iommu_avail)
-		(*ops->add_device)(domain, bus, slot, func);
+		(*ops->add_device)(domain, rid);
 }
 
 static __inline void
-IOMMU_REMOVE_DEVICE(void *domain, int bus, int slot, int func)
+IOMMU_REMOVE_DEVICE(void *domain, uint16_t rid)
 {
 
 	if (ops != NULL && iommu_avail)
-		(*ops->remove_device)(domain, bus, slot, func);
+		(*ops->remove_device)(domain, rid);
 }
 
 static __inline void
@@ -196,7 +196,8 @@ iommu_init(void)
 					continue;
 
 				/* everything else belongs to the host domain */
-				iommu_add_device(host_domain, bus, slot, func);
+				iommu_add_device(host_domain,
+				    pci_get_rid(dev));
 			}
 		}
 	}
@@ -263,17 +264,17 @@ iommu_host_domain(void)
 }
 
 void
-iommu_add_device(void *dom, int bus, int slot, int func)
+iommu_add_device(void *dom, uint16_t rid)
 {
 
-	IOMMU_ADD_DEVICE(dom, bus, slot, func);
+	IOMMU_ADD_DEVICE(dom, rid);
 }
 
 void
-iommu_remove_device(void *dom, int bus, int slot, int func)
+iommu_remove_device(void *dom, uint16_t rid)
 {
 
-	IOMMU_REMOVE_DEVICE(dom, bus, slot, func);
+	IOMMU_REMOVE_DEVICE(dom, rid);
 }
 
 void

@@ -35,7 +35,7 @@ Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 #endif
 
 extern int __gcc_bcmp (const unsigned char *, const unsigned char *, size_t);
-extern void __clear_cache (char *, char *);
+extern void __clear_cache (void *, void *);
 extern void __eprintf (const char *, const char *, unsigned int, const char *)
   __attribute__ ((__noreturn__));
 

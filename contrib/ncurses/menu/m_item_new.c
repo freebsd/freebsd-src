@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +44,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: m_item_new.c,v 1.27 2006/12/17 19:47:09 tom Exp $")
+MODULE_ID("$Id: m_item_new.c,v 1.33 2012/06/09 23:55:15 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -62,7 +62,7 @@ Is_Printable_String(const char *s)
   int result = TRUE;
 
 #if USE_WIDEC_SUPPORT
-  int count = mbstowcs(0, s, 0);
+  int count = (int)mbstowcs(0, s, 0);
   wchar_t *temp = 0;
 
   assert(s);
@@ -122,18 +122,18 @@ new_item(const char *name, const char *description)
     }
   else
     {
-      item = (ITEM *) calloc(1, sizeof(ITEM));
+      item = typeCalloc(ITEM, 1);
       if (item)
 	{
 	  *item = _nc_Default_Item;	/* hope we have struct assignment */
 
-	  item->name.length = strlen(name);
+	  item->name.length = (unsigned short)strlen(name);
 	  item->name.str = name;
 
 	  if (description && (*description != '\0') &&
 	      Is_Printable_String(description))
 	    {
-	      item->description.length = strlen(description);
+	      item->description.length = (unsigned short)strlen(description);
 	      item->description.str = description;
 	    }
 	  else
@@ -162,7 +162,7 @@ new_item(const char *name, const char *description)
 NCURSES_EXPORT(int)
 free_item(ITEM * item)
 {
-  T((T_CALLED("free_item(%p)"), item));
+  T((T_CALLED("free_item(%p)"), (void *)item));
 
   if (!item)
     RETURN(E_BAD_ARGUMENT);
@@ -195,12 +195,12 @@ free_item(ITEM * item)
 NCURSES_EXPORT(int)
 set_menu_mark(MENU * menu, const char *mark)
 {
-  unsigned l;
+  short l;
 
-  T((T_CALLED("set_menu_mark(%p,%s)"), menu, _nc_visbuf(mark)));
+  T((T_CALLED("set_menu_mark(%p,%s)"), (void *)menu, _nc_visbuf(mark)));
 
   if (mark && (*mark != '\0') && Is_Printable_String(mark))
-    l = strlen(mark);
+    l = (short)strlen(mark);
   else
     l = 0;
 
@@ -213,22 +213,22 @@ set_menu_mark(MENU * menu, const char *mark)
 	{
 	  /* If the menu is already posted, the geometry is fixed. Then
 	     we can only accept a mark with exactly the same length */
-	  if (menu->marklen != (int)l)
+	  if (menu->marklen != l)
 	    RETURN(E_BAD_ARGUMENT);
 	}
       menu->marklen = l;
       if (l)
 	{
-	  menu->mark = (char *)malloc(l + 1);
+	  menu->mark = strdup(mark);
 	  if (menu->mark)
 	    {
-	      strcpy(menu->mark, mark);
 	      if (menu != &_nc_Default_Menu)
-		menu->status |= _MARK_ALLOCATED;
+		SetStatus(menu, _MARK_ALLOCATED);
 	    }
 	  else
 	    {
 	      menu->mark = old_mark;
+	      menu->marklen = (short)((old_mark != 0) ? strlen(old_mark) : 0);
 	      RETURN(E_SYSTEM_ERROR);
 	    }
 	}
@@ -267,7 +267,7 @@ set_menu_mark(MENU * menu, const char *mark)
 NCURSES_EXPORT(const char *)
 menu_mark(const MENU * menu)
 {
-  T((T_CALLED("menu_mark(%p)"), menu));
+  T((T_CALLED("menu_mark(%p)"), (const void *)menu));
   returnPtr(Normalize_Menu(menu)->mark);
 }
 

@@ -489,10 +489,10 @@ static const resolver_option_t text_conflict_options[] =
 /* Resolver options for a property conflict */
 static const resolver_option_t prop_conflict_options[] =
 {
-  { "mf", N_("my version"),       N_("accept my version of entire file (even "
+  { "mf", N_("my version"),       N_("accept my version of entire property (even "
                                      "non-conflicts)  [mine-full]"),
                                   svn_wc_conflict_choose_mine_full },
-  { "tf", N_("their version"),    N_("accept their version of entire file "
+  { "tf", N_("their version"),    N_("accept their version of entire property "
                                      "(same)  [theirs-full]"),
                                   svn_wc_conflict_choose_theirs_full },
   { "dc", N_("display conflict"), N_("show conflicts in this property"), -1 },
@@ -500,24 +500,6 @@ static const resolver_option_t prop_conflict_options[] =
                                      "  [edit]"), -1 },
   { "r",  N_("mark resolved"),    N_("accept edited version of property"),
                                   svn_wc_conflict_choose_merged },
-  { "p",  N_("postpone"),         N_("mark the conflict to be resolved later"
-                                     "  [postpone]"),
-                                  svn_wc_conflict_choose_postpone },
-  { "q",  N_("quit resolution"),  N_("postpone all remaining conflicts"),
-                                  svn_wc_conflict_choose_postpone },
-  { "h",  N_("help"),             N_("show this help (also '?')"), -1 },
-  { NULL }
-};
-
-/* Resolver options for an obstructued addition */
-static const resolver_option_t obstructed_add_options[] =
-{
-  { "mf", N_("my version"),       N_("accept pre-existing item (ignore "
-                                     "upstream addition)  [mine-full]"),
-                                  svn_wc_conflict_choose_mine_full },
-  { "tf", N_("their version"),    N_("accept incoming item (overwrite "
-                                     "pre-existing item)  [theirs-full]"),
-                                  svn_wc_conflict_choose_theirs_full },
   { "p",  N_("postpone"),         N_("mark the conflict to be resolved later"
                                      "  [postpone]"),
                                   svn_wc_conflict_choose_postpone },
@@ -935,7 +917,7 @@ handle_text_conflict(svn_wc_conflict_result_t *result,
           /* We only allow the user accept the merged version of
              the file if they've edited it, or at least looked at
              the diff. */
-          if (result->choice == svn_wc_conflict_choose_merged
+          if (opt->choice == svn_wc_conflict_choose_merged
               && ! knows_something)
             {
               SVN_ERR(svn_cmdline_fprintf(
@@ -1132,56 +1114,6 @@ handle_tree_conflict(svn_wc_conflict_result_t *result,
   return SVN_NO_ERROR;
 }
 
-/* Ask the user what to do about the obstructed add described by DESC.
- * Return the answer in RESULT. B is the conflict baton for this
- * conflict resolution session.
- * SCRATCH_POOL is used for temporary allocations. */
-static svn_error_t *
-handle_obstructed_add(svn_wc_conflict_result_t *result,
-                      const svn_wc_conflict_description2_t *desc,
-                      svn_cl__interactive_conflict_baton_t *b,
-                      apr_pool_t *scratch_pool)
-{
-  apr_pool_t *iterpool;
-
-  SVN_ERR(svn_cmdline_fprintf(
-               stderr, scratch_pool,
-               _("Conflict discovered when trying to add '%s'.\n"
-                 "An object of the same name already exists.\n"),
-               svn_cl__local_style_skip_ancestor(b->path_prefix,
-                                                 desc->local_abspath,
-                                                 scratch_pool)));
-
-  iterpool = svn_pool_create(scratch_pool);
-  while (1)
-    {
-      const resolver_option_t *opt;
-
-      svn_pool_clear(iterpool);
-
-      SVN_ERR(prompt_user(&opt, obstructed_add_options, NULL, b->pb,
-                          iterpool));
-      if (! opt)
-        continue;
-
-      if (strcmp(opt->code, "q") == 0)
-        {
-          result->choice = opt->choice;
-          b->accept_which = svn_cl__accept_postpone;
-          b->quit = TRUE;
-          break;
-        }
-      else if (opt->choice != -1)
-        {
-          result->choice = opt->choice;
-          break;
-        }
-    }
-  svn_pool_destroy(iterpool);
-
-  return SVN_NO_ERROR;
-}
-
 /* The body of svn_cl__conflict_func_interactive(). */
 static svn_error_t *
 conflict_func_interactive(svn_wc_conflict_result_t **result,
@@ -1330,29 +1262,6 @@ conflict_func_interactive(svn_wc_conflict_result_t **result,
     SVN_ERR(handle_text_conflict(*result, desc, b, scratch_pool));
   else if (desc->kind == svn_wc_conflict_kind_property)
     SVN_ERR(handle_prop_conflict(*result, desc, b, result_pool, scratch_pool));
-
-  /*
-    Dealing with obstruction of additions can be tricky.  The
-    obstructing item could be unversioned, versioned, or even
-    schedule-add.  Here's a matrix of how the caller should behave,
-    based on results we return.
-
-                         Unversioned       Versioned       Schedule-Add
-
-      choose_mine       skip addition,    skip addition     skip addition
-                        add existing item
-
-      choose_theirs     destroy file,    schedule-delete,   revert add,
-                        add new item.    add new item.      rm file,
-                                                            add new item
-
-      postpone               [              bail out                 ]
-
-   */
-  else if ((desc->action == svn_wc_conflict_action_add)
-           && (desc->reason == svn_wc_conflict_reason_obstructed))
-    SVN_ERR(handle_obstructed_add(*result, desc, b, scratch_pool));
-
   else if (desc->kind == svn_wc_conflict_kind_tree)
     SVN_ERR(handle_tree_conflict(*result, desc, b, scratch_pool));
 

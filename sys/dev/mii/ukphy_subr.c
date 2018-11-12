@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -56,10 +55,9 @@ __FBSDID("$FreeBSD$");
  * by decoding the NWay autonegotiation, use this routine.
  */
 void
-ukphy_status(struct mii_softc *phy)
+ukphy_status(struct mii_softc *phy, if_media_t media)
 {
 	struct mii_data *mii = phy->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, anlpar, gtcr, gtsr;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -125,5 +123,5 @@ ukphy_status(struct mii_softc *phy)
 		if ((mii->mii_media_active & IFM_FDX) != 0)
 			mii->mii_media_active |= mii_phy_flowstatus(phy);
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active = media;
 }

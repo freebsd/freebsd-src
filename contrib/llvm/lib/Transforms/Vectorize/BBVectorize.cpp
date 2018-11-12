@@ -15,7 +15,6 @@
 //===----------------------------------------------------------------------===//
 
 #define BBV_NAME "bb-vectorize"
-#define DEBUG_TYPE BBV_NAME
 #include "llvm/Transforms/Vectorize.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
@@ -26,7 +25,6 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AliasSetTracker.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -34,6 +32,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
@@ -41,14 +40,16 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Type.h"
+#include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include <algorithm>
 using namespace llvm;
+
+#define DEBUG_TYPE BBV_NAME
 
 static cl::opt<bool>
 IgnoreTargetInfo("bb-vectorize-ignore-target-info",  cl::init(false),
@@ -120,6 +121,10 @@ NoCasts("bb-vectorize-no-casts", cl::init(false), cl::Hidden,
 static cl::opt<bool>
 NoMath("bb-vectorize-no-math", cl::init(false), cl::Hidden,
   cl::desc("Don't try to vectorize floating-point math intrinsics"));
+
+static cl::opt<bool>
+  NoBitManipulation("bb-vectorize-no-bitmanip", cl::init(false), cl::Hidden,
+  cl::desc("Don't try to vectorize BitManipulation intrinsics"));
 
 static cl::opt<bool>
 NoFMA("bb-vectorize-no-fma", cl::init(false), cl::Hidden,
@@ -199,10 +204,11 @@ namespace {
     BBVectorize(Pass *P, const VectorizeConfig &C)
       : BasicBlockPass(ID), Config(C) {
       AA = &P->getAnalysis<AliasAnalysis>();
-      DT = &P->getAnalysis<DominatorTree>();
+      DT = &P->getAnalysis<DominatorTreeWrapperPass>().getDomTree();
       SE = &P->getAnalysis<ScalarEvolution>();
-      TD = P->getAnalysisIfAvailable<DataLayout>();
-      TTI = IgnoreTargetInfo ? 0 : &P->getAnalysis<TargetTransformInfo>();
+      DataLayoutPass *DLP = P->getAnalysisIfAvailable<DataLayoutPass>();
+      DL = DLP ? &DLP->getDataLayout() : nullptr;
+      TTI = IgnoreTargetInfo ? nullptr : &P->getAnalysis<TargetTransformInfo>();
     }
 
     typedef std::pair<Value *, Value *> ValuePair;
@@ -214,7 +220,7 @@ namespace {
     AliasAnalysis *AA;
     DominatorTree *DT;
     ScalarEvolution *SE;
-    DataLayout *TD;
+    const DataLayout *DL;
     const TargetTransformInfo *TTI;
 
     // FIXME: const correct?
@@ -278,7 +284,7 @@ namespace {
     bool trackUsesOfI(DenseSet<Value *> &Users,
                       AliasSetTracker &WriteSet, Instruction *I,
                       Instruction *J, bool UpdateUsers = true,
-                      DenseSet<ValuePair> *LoadMoveSetPairs = 0);
+                      DenseSet<ValuePair> *LoadMoveSetPairs = nullptr);
 
   void computePairsConnectedTo(
              DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
@@ -291,8 +297,8 @@ namespace {
     bool pairsConflict(ValuePair P, ValuePair Q,
              DenseSet<ValuePair> &PairableInstUsers,
              DenseMap<ValuePair, std::vector<ValuePair> >
-               *PairableInstUserMap = 0,
-             DenseSet<VPPair> *PairableInstUserPairSet = 0);
+               *PairableInstUserMap = nullptr,
+             DenseSet<VPPair> *PairableInstUserPairSet = nullptr);
 
     bool pairWillFormCycle(ValuePair P,
              DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUsers,
@@ -356,7 +362,7 @@ namespace {
                      Instruction *J, unsigned o, bool IBeforeJ);
 
     void getReplacementInputsForPair(LLVMContext& Context, Instruction *I,
-                     Instruction *J, SmallVector<Value *, 3> &ReplacedOperands,
+                     Instruction *J, SmallVectorImpl<Value *> &ReplacedOperands,
                      bool IBeforeJ);
 
     void replaceOutputsOfPair(LLVMContext& Context, Instruction *I,
@@ -385,9 +391,9 @@ namespace {
                      Instruction *&InsertionPt,
                      Instruction *I, Instruction *J);
 
-    void combineMetadata(Instruction *K, const Instruction *J);
-
     bool vectorizeBB(BasicBlock &BB) {
+      if (skipOptnoneFunction(BB))
+        return false;
       if (!DT->isReachableFromEntry(&BB)) {
         DEBUG(dbgs() << "BBV: skipping unreachable " << BB.getName() <<
               " in " << BB.getParent()->getName() << "\n");
@@ -428,24 +434,27 @@ namespace {
       return changed;
     }
 
-    virtual bool runOnBasicBlock(BasicBlock &BB) {
+    bool runOnBasicBlock(BasicBlock &BB) override {
+      // OptimizeNone check deferred to vectorizeBB().
+
       AA = &getAnalysis<AliasAnalysis>();
-      DT = &getAnalysis<DominatorTree>();
+      DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
       SE = &getAnalysis<ScalarEvolution>();
-      TD = getAnalysisIfAvailable<DataLayout>();
-      TTI = IgnoreTargetInfo ? 0 : &getAnalysis<TargetTransformInfo>();
+      DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
+      DL = DLP ? &DLP->getDataLayout() : nullptr;
+      TTI = IgnoreTargetInfo ? nullptr : &getAnalysis<TargetTransformInfo>();
 
       return vectorizeBB(BB);
     }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       BasicBlockPass::getAnalysisUsage(AU);
       AU.addRequired<AliasAnalysis>();
-      AU.addRequired<DominatorTree>();
+      AU.addRequired<DominatorTreeWrapperPass>();
       AU.addRequired<ScalarEvolution>();
       AU.addRequired<TargetTransformInfo>();
       AU.addPreserved<AliasAnalysis>();
-      AU.addPreserved<DominatorTree>();
+      AU.addPreserved<DominatorTreeWrapperPass>();
       AU.addPreserved<ScalarEvolution>();
       AU.setPreservesCFG();
     }
@@ -528,12 +537,16 @@ namespace {
 
     // Returns the cost of the provided instruction using TTI.
     // This does not handle loads and stores.
-    unsigned getInstrCost(unsigned Opcode, Type *T1, Type *T2) {
+    unsigned getInstrCost(unsigned Opcode, Type *T1, Type *T2,
+                          TargetTransformInfo::OperandValueKind Op1VK = 
+                              TargetTransformInfo::OK_AnyValue,
+                          TargetTransformInfo::OperandValueKind Op2VK =
+                              TargetTransformInfo::OK_AnyValue) {
       switch (Opcode) {
       default: break;
       case Instruction::GetElementPtr:
         // We mark this instruction as zero-cost because scalar GEPs are usually
-        // lowered to the intruction addressing mode. At the moment we don't
+        // lowered to the instruction addressing mode. At the moment we don't
         // generate vector GEPs.
         return 0;
       case Instruction::Br:
@@ -558,7 +571,7 @@ namespace {
       case Instruction::And:
       case Instruction::Or:
       case Instruction::Xor:
-        return TTI->getArithmeticInstrCost(Opcode, T1);
+        return TTI->getArithmeticInstrCost(Opcode, T1, Op1VK, Op2VK);
       case Instruction::Select:
       case Instruction::ICmp:
       case Instruction::FCmp:
@@ -625,12 +638,12 @@ namespace {
         ConstantInt *IntOff = ConstOffSCEV->getValue();
         int64_t Offset = IntOff->getSExtValue();
 
-        Type *VTy = cast<PointerType>(IPtr->getType())->getElementType();
-        int64_t VTyTSS = (int64_t) TD->getTypeStoreSize(VTy);
+        Type *VTy = IPtr->getType()->getPointerElementType();
+        int64_t VTyTSS = (int64_t) DL->getTypeStoreSize(VTy);
 
-        Type *VTy2 = cast<PointerType>(JPtr->getType())->getElementType();
+        Type *VTy2 = JPtr->getType()->getPointerElementType();
         if (VTy != VTy2 && Offset < 0) {
-          int64_t VTy2TSS = (int64_t) TD->getTypeStoreSize(VTy2);
+          int64_t VTy2TSS = (int64_t) DL->getTypeStoreSize(VTy2);
           OffsetInElmts = Offset/VTy2TSS;
           return (abs64(Offset) % VTy2TSS) == 0;
         }
@@ -664,7 +677,22 @@ namespace {
       case Intrinsic::exp:
       case Intrinsic::exp2:
       case Intrinsic::pow:
+      case Intrinsic::round:
+      case Intrinsic::copysign:
+      case Intrinsic::ceil:
+      case Intrinsic::nearbyint:
+      case Intrinsic::rint:
+      case Intrinsic::trunc:
+      case Intrinsic::floor:
+      case Intrinsic::fabs:
+      case Intrinsic::minnum:
+      case Intrinsic::maxnum:
         return Config.VectorizeMath;
+      case Intrinsic::bswap:
+      case Intrinsic::ctpop:
+      case Intrinsic::ctlz:
+      case Intrinsic::cttz:
+        return Config.VectorizeBitManipulations;
       case Intrinsic::fma:
       case Intrinsic::fmuladd:
         return Config.VectorizeFMA;
@@ -813,7 +841,7 @@ namespace {
 
     // It is important to cleanup here so that future iterations of this
     // function have less work to do.
-    (void) SimplifyInstructionsInBlock(&BB, TD, AA->getTargetLibraryInfo());
+    (void) SimplifyInstructionsInBlock(&BB, DL, AA->getTargetLibraryInfo());
     return true;
   }
 
@@ -868,7 +896,7 @@ namespace {
     }
 
     // We can't vectorize memory operations without target data
-    if (TD == 0 && IsSimpleLoadStore)
+    if (!DL && IsSimpleLoadStore)
       return false;
 
     Type *T1, *T2;
@@ -905,7 +933,7 @@ namespace {
     if (T2->isX86_FP80Ty() || T2->isPPC_FP128Ty() || T2->isX86_MMXTy())
       return false;
 
-    if ((!Config.VectorizePointers || TD == 0) &&
+    if ((!Config.VectorizePointers || !DL) &&
         (T1->getScalarType()->isPointerTy() ||
          T2->getScalarType()->isPointerTy()))
       return false;
@@ -969,7 +997,7 @@ namespace {
           // with the lower offset has an alignment suitable for the
           // vector type.
 
-          unsigned VecAlignment = TD->getPrefTypeAlignment(VType);
+          unsigned VecAlignment = DL->getPrefTypeAlignment(VType);
           if (BottomAlignment < VecAlignment)
             return false;
         }
@@ -1009,13 +1037,49 @@ namespace {
       unsigned JCost = getInstrCost(J->getOpcode(), JT1, JT2);
       Type *VT1 = getVecTypeForPair(IT1, JT1),
            *VT2 = getVecTypeForPair(IT2, JT2);
+      TargetTransformInfo::OperandValueKind Op1VK =
+          TargetTransformInfo::OK_AnyValue;
+      TargetTransformInfo::OperandValueKind Op2VK =
+          TargetTransformInfo::OK_AnyValue;
+
+      // On some targets (example X86) the cost of a vector shift may vary
+      // depending on whether the second operand is a Uniform or
+      // NonUniform Constant.
+      switch (I->getOpcode()) {
+      default : break;
+      case Instruction::Shl:
+      case Instruction::LShr:
+      case Instruction::AShr:
+
+        // If both I and J are scalar shifts by constant, then the
+        // merged vector shift count would be either a constant splat value
+        // or a non-uniform vector of constants.
+        if (ConstantInt *CII = dyn_cast<ConstantInt>(I->getOperand(1))) {
+          if (ConstantInt *CIJ = dyn_cast<ConstantInt>(J->getOperand(1)))
+            Op2VK = CII == CIJ ? TargetTransformInfo::OK_UniformConstantValue :
+                               TargetTransformInfo::OK_NonUniformConstantValue;
+        } else {
+          // Check for a splat of a constant or for a non uniform vector
+          // of constants.
+          Value *IOp = I->getOperand(1);
+          Value *JOp = J->getOperand(1);
+          if ((isa<ConstantVector>(IOp) || isa<ConstantDataVector>(IOp)) &&
+              (isa<ConstantVector>(JOp) || isa<ConstantDataVector>(JOp))) {
+            Op2VK = TargetTransformInfo::OK_NonUniformConstantValue;
+            Constant *SplatValue = cast<Constant>(IOp)->getSplatValue();
+            if (SplatValue != nullptr &&
+                SplatValue == cast<Constant>(JOp)->getSplatValue())
+              Op2VK = TargetTransformInfo::OK_UniformConstantValue;
+          }
+        }
+      }
 
       // Note that this procedure is incorrect for insert and extract element
       // instructions (because combining these often results in a shuffle),
       // but this cost is ignored (because insert and extract element
       // instructions are assigned a zero depth factor and are not really
       // fused in general).
-      unsigned VCost = getInstrCost(I->getOpcode(), VT1, VT2);
+      unsigned VCost = getInstrCost(I->getOpcode(), VT1, VT2, Op1VK, Op2VK);
 
       if (VCost > ICost + JCost)
         return false;
@@ -1033,13 +1097,14 @@ namespace {
       CostSavings = ICost + JCost - VCost;
     }
 
-    // The powi intrinsic is special because only the first argument is
-    // vectorized, the second arguments must be equal.
+    // The powi,ctlz,cttz intrinsics are special because only the first
+    // argument is vectorized, the second arguments must be equal.
     CallInst *CI = dyn_cast<CallInst>(I);
     Function *FI;
     if (CI && (FI = CI->getCalledFunction())) {
       Intrinsic::ID IID = (Intrinsic::ID) FI->getIntrinsicID();
-      if (IID == Intrinsic::powi) {
+      if (IID == Intrinsic::powi || IID == Intrinsic::ctlz ||
+          IID == Intrinsic::cttz) {
         Value *A1I = CI->getArgOperand(1),
               *A1J = cast<CallInst>(J)->getArgOperand(1);
         const SCEV *A1ISCEV = SE->getSCEV(A1I),
@@ -1063,7 +1128,8 @@ namespace {
         assert(CI->getNumArgOperands() == CJ->getNumArgOperands() &&
                "Intrinsic argument counts differ");
         for (unsigned i = 0, ie = CI->getNumArgOperands(); i != ie; ++i) {
-          if (IID == Intrinsic::powi && i == 1)
+          if ((IID == Intrinsic::powi || IID == Intrinsic::ctlz ||
+               IID == Intrinsic::cttz) && i == 1)
             Tys.push_back(CI->getArgOperand(i)->getType());
           else
             Tys.push_back(getVecTypeForPair(CI->getArgOperand(i)->getType(),
@@ -1182,8 +1248,10 @@ namespace {
       // Look for an instruction with which to pair instruction *I...
       DenseSet<Value *> Users;
       AliasSetTracker WriteSet(*AA);
+      if (I->mayWriteToMemory()) WriteSet.add(I);
+
       bool JAfterStart = IAfterStart;
-      BasicBlock::iterator J = llvm::next(I);
+      BasicBlock::iterator J = std::next(I);
       for (unsigned ss = 0; J != E && ss <= Config.SearchLimit; ++J, ++ss) {
         if (J == Start) JAfterStart = true;
 
@@ -1228,7 +1296,7 @@ namespace {
         // The next call to this function must start after the last instruction
         // selected during this invocation.
         if (JAfterStart) {
-          Start = llvm::next(J);
+          Start = std::next(J);
           IAfterStart = JAfterStart = false;
         }
 
@@ -1270,13 +1338,15 @@ namespace {
 
     // For each possible pairing for this variable, look at the uses of
     // the first value...
-    for (Value::use_iterator I = P.first->use_begin(),
-         E = P.first->use_end(); I != E; ++I) {
-      if (isa<LoadInst>(*I)) {
+    for (Value::user_iterator I = P.first->user_begin(),
+                              E = P.first->user_end();
+         I != E; ++I) {
+      User *UI = *I;
+      if (isa<LoadInst>(UI)) {
         // A pair cannot be connected to a load because the load only takes one
         // operand (the address) and it is a scalar even after vectorization.
         continue;
-      } else if ((SI = dyn_cast<StoreInst>(*I)) &&
+      } else if ((SI = dyn_cast<StoreInst>(UI)) &&
                  P.first == SI->getPointerOperand()) {
         // Similarly, a pair cannot be connected to a store through its
         // pointer operand.
@@ -1285,22 +1355,21 @@ namespace {
 
       // For each use of the first variable, look for uses of the second
       // variable...
-      for (Value::use_iterator J = P.second->use_begin(),
-           E2 = P.second->use_end(); J != E2; ++J) {
-        if ((SJ = dyn_cast<StoreInst>(*J)) &&
+      for (User *UJ : P.second->users()) {
+        if ((SJ = dyn_cast<StoreInst>(UJ)) &&
             P.second == SJ->getPointerOperand())
           continue;
 
         // Look for <I, J>:
-        if (CandidatePairsSet.count(ValuePair(*I, *J))) {
-          VPPair VP(P, ValuePair(*I, *J));
+        if (CandidatePairsSet.count(ValuePair(UI, UJ))) {
+          VPPair VP(P, ValuePair(UI, UJ));
           ConnectedPairs[VP.first].push_back(VP.second);
           PairConnectionTypes.insert(VPPairWithType(VP, PairConnectionDirect));
         }
 
         // Look for <J, I>:
-        if (CandidatePairsSet.count(ValuePair(*J, *I))) {
-          VPPair VP(P, ValuePair(*J, *I));
+        if (CandidatePairsSet.count(ValuePair(UJ, UI))) {
+          VPPair VP(P, ValuePair(UJ, UI));
           ConnectedPairs[VP.first].push_back(VP.second);
           PairConnectionTypes.insert(VPPairWithType(VP, PairConnectionSwap));
         }
@@ -1309,13 +1378,14 @@ namespace {
       if (Config.SplatBreaksChain) continue;
       // Look for cases where just the first value in the pair is used by
       // both members of another pair (splatting).
-      for (Value::use_iterator J = P.first->use_begin(); J != E; ++J) {
-        if ((SJ = dyn_cast<StoreInst>(*J)) &&
+      for (Value::user_iterator J = P.first->user_begin(); J != E; ++J) {
+        User *UJ = *J;
+        if ((SJ = dyn_cast<StoreInst>(UJ)) &&
             P.first == SJ->getPointerOperand())
           continue;
 
-        if (CandidatePairsSet.count(ValuePair(*I, *J))) {
-          VPPair VP(P, ValuePair(*I, *J));
+        if (CandidatePairsSet.count(ValuePair(UI, UJ))) {
+          VPPair VP(P, ValuePair(UI, UJ));
           ConnectedPairs[VP.first].push_back(VP.second);
           PairConnectionTypes.insert(VPPairWithType(VP, PairConnectionSplat));
         }
@@ -1325,21 +1395,24 @@ namespace {
     if (Config.SplatBreaksChain) return;
     // Look for cases where just the second value in the pair is used by
     // both members of another pair (splatting).
-    for (Value::use_iterator I = P.second->use_begin(),
-         E = P.second->use_end(); I != E; ++I) {
-      if (isa<LoadInst>(*I))
+    for (Value::user_iterator I = P.second->user_begin(),
+                              E = P.second->user_end();
+         I != E; ++I) {
+      User *UI = *I;
+      if (isa<LoadInst>(UI))
         continue;
-      else if ((SI = dyn_cast<StoreInst>(*I)) &&
+      else if ((SI = dyn_cast<StoreInst>(UI)) &&
                P.second == SI->getPointerOperand())
         continue;
 
-      for (Value::use_iterator J = P.second->use_begin(); J != E; ++J) {
-        if ((SJ = dyn_cast<StoreInst>(*J)) &&
+      for (Value::user_iterator J = P.second->user_begin(); J != E; ++J) {
+        User *UJ = *J;
+        if ((SJ = dyn_cast<StoreInst>(UJ)) &&
             P.second == SJ->getPointerOperand())
           continue;
 
-        if (CandidatePairsSet.count(ValuePair(*I, *J))) {
-          VPPair VP(P, ValuePair(*I, *J));
+        if (CandidatePairsSet.count(ValuePair(UI, UJ))) {
+          VPPair VP(P, ValuePair(UI, UJ));
           ConnectedPairs[VP.first].push_back(VP.second);
           PairConnectionTypes.insert(VPPairWithType(VP, PairConnectionSplat));
         }
@@ -1403,7 +1476,9 @@ namespace {
 
       DenseSet<Value *> Users;
       AliasSetTracker WriteSet(*AA);
-      for (BasicBlock::iterator J = llvm::next(I); J != E; ++J) {
+      if (I->mayWriteToMemory()) WriteSet.add(I);
+
+      for (BasicBlock::iterator J = std::next(I); J != E; ++J) {
         (void) trackUsesOfI(Users, WriteSet, I, J);
 
         if (J == EL)
@@ -1602,7 +1677,7 @@ namespace {
         DenseSet<ValuePair> CurrentPairs;
 
         bool CanAdd = true;
-        for (SmallVector<ValuePairWithDepth, 8>::iterator C2
+        for (SmallVectorImpl<ValuePairWithDepth>::iterator C2
               = BestChildren.begin(), E2 = BestChildren.end();
              C2 != E2; ++C2) {
           if (C2->first.first == C->first.first ||
@@ -1610,8 +1685,9 @@ namespace {
               C2->first.second == C->first.first ||
               C2->first.second == C->first.second ||
               pairsConflict(C2->first, C->first, PairableInstUsers,
-                            UseCycleCheck ? &PairableInstUserMap : 0,
-                            UseCycleCheck ? &PairableInstUserPairSet : 0)) {
+                            UseCycleCheck ? &PairableInstUserMap : nullptr,
+                            UseCycleCheck ? &PairableInstUserPairSet
+                                          : nullptr)) {
             if (C2->second >= C->second) {
               CanAdd = false;
               break;
@@ -1631,8 +1707,9 @@ namespace {
               T->second == C->first.first ||
               T->second == C->first.second ||
               pairsConflict(*T, C->first, PairableInstUsers,
-                            UseCycleCheck ? &PairableInstUserMap : 0,
-                            UseCycleCheck ? &PairableInstUserPairSet : 0)) {
+                            UseCycleCheck ? &PairableInstUserMap : nullptr,
+                            UseCycleCheck ? &PairableInstUserPairSet
+                                          : nullptr)) {
             CanAdd = false;
             break;
           }
@@ -1642,15 +1719,16 @@ namespace {
         if (!CanAdd) continue;
 
         // And check the queue too...
-        for (SmallVector<ValuePairWithDepth, 32>::iterator C2 = Q.begin(),
+        for (SmallVectorImpl<ValuePairWithDepth>::iterator C2 = Q.begin(),
              E2 = Q.end(); C2 != E2; ++C2) {
           if (C2->first.first == C->first.first ||
               C2->first.first == C->first.second ||
               C2->first.second == C->first.first ||
               C2->first.second == C->first.second ||
               pairsConflict(C2->first, C->first, PairableInstUsers,
-                            UseCycleCheck ? &PairableInstUserMap : 0,
-                            UseCycleCheck ? &PairableInstUserPairSet : 0)) {
+                            UseCycleCheck ? &PairableInstUserMap : nullptr,
+                            UseCycleCheck ? &PairableInstUserPairSet
+                                          : nullptr)) {
             CanAdd = false;
             break;
           }
@@ -1665,8 +1743,9 @@ namespace {
               ChosenPairs.begin(), E2 = ChosenPairs.end();
              C2 != E2; ++C2) {
           if (pairsConflict(*C2, C->first, PairableInstUsers,
-                            UseCycleCheck ? &PairableInstUserMap : 0,
-                            UseCycleCheck ? &PairableInstUserPairSet : 0)) {
+                            UseCycleCheck ? &PairableInstUserMap : nullptr,
+                            UseCycleCheck ? &PairableInstUserPairSet
+                                          : nullptr)) {
             CanAdd = false;
             break;
           }
@@ -1691,7 +1770,7 @@ namespace {
         // to an already-selected child. Check for this here, and if a
         // conflict is found, then remove the previously-selected child
         // before adding this one in its place.
-        for (SmallVector<ValuePairWithDepth, 8>::iterator C2
+        for (SmallVectorImpl<ValuePairWithDepth>::iterator C2
               = BestChildren.begin(); C2 != BestChildren.end();) {
           if (C2->first.first == C->first.first ||
               C2->first.first == C->first.second ||
@@ -1706,7 +1785,7 @@ namespace {
         BestChildren.push_back(ValuePairWithDepth(C->first, C->second));
       }
 
-      for (SmallVector<ValuePairWithDepth, 8>::iterator C
+      for (SmallVectorImpl<ValuePairWithDepth>::iterator C
             = BestChildren.begin(), E2 = BestChildren.end();
            C != E2; ++C) {
         size_t DepthF = getDepthFactor(C->first.first);
@@ -1747,8 +1826,8 @@ namespace {
       for (DenseMap<Value *, Value *>::iterator C = ChosenPairs.begin(),
            E = ChosenPairs.end(); C != E; ++C) {
         if (pairsConflict(*C, IJ, PairableInstUsers,
-                          UseCycleCheck ? &PairableInstUserMap : 0,
-                          UseCycleCheck ? &PairableInstUserPairSet : 0)) {
+                          UseCycleCheck ? &PairableInstUserMap : nullptr,
+                          UseCycleCheck ? &PairableInstUserPairSet : nullptr)) {
           DoesConflict = true;
           break;
         }
@@ -1897,16 +1976,15 @@ namespace {
             Type *VTy = getVecTypeForPair(Ty1, Ty2);
 
             bool NeedsExtraction = false;
-            for (Value::use_iterator I = S->first->use_begin(),
-                 IE = S->first->use_end(); I != IE; ++I) {
-              if (ShuffleVectorInst *SI = dyn_cast<ShuffleVectorInst>(*I)) {
+            for (User *U : S->first->users()) {
+              if (ShuffleVectorInst *SI = dyn_cast<ShuffleVectorInst>(U)) {
                 // Shuffle can be folded if it has no other input
                 if (isa<UndefValue>(SI->getOperand(1)))
                   continue;
               }
-              if (isa<ExtractElementInst>(*I))
+              if (isa<ExtractElementInst>(U))
                 continue;
-              if (PrunedDAGInstrs.count(*I))
+              if (PrunedDAGInstrs.count(U))
                 continue;
               NeedsExtraction = true;
               break;
@@ -1929,16 +2007,15 @@ namespace {
             }
 
             NeedsExtraction = false;
-            for (Value::use_iterator I = S->second->use_begin(),
-                 IE = S->second->use_end(); I != IE; ++I) {
-              if (ShuffleVectorInst *SI = dyn_cast<ShuffleVectorInst>(*I)) {
+            for (User *U : S->second->users()) {
+              if (ShuffleVectorInst *SI = dyn_cast<ShuffleVectorInst>(U)) {
                 // Shuffle can be folded if it has no other input
                 if (isa<UndefValue>(SI->getOperand(1)))
                   continue;
               }
-              if (isa<ExtractElementInst>(*I))
+              if (isa<ExtractElementInst>(U))
                 continue;
-              if (PrunedDAGInstrs.count(*I))
+              if (PrunedDAGInstrs.count(U))
                 continue;
               NeedsExtraction = true;
               break;
@@ -2227,11 +2304,12 @@ namespace {
     // The pointer value is taken to be the one with the lowest offset.
     Value *VPtr = IPtr;
 
-    Type *ArgTypeI = cast<PointerType>(IPtr->getType())->getElementType();
-    Type *ArgTypeJ = cast<PointerType>(JPtr->getType())->getElementType();
+    Type *ArgTypeI = IPtr->getType()->getPointerElementType();
+    Type *ArgTypeJ = JPtr->getType()->getPointerElementType();
     Type *VArgType = getVecTypeForPair(ArgTypeI, ArgTypeJ);
-    Type *VArgPtrType = PointerType::get(VArgType,
-      cast<PointerType>(IPtr->getType())->getAddressSpace());
+    Type *VArgPtrType
+      = PointerType::get(VArgType,
+                         IPtr->getType()->getPointerAddressSpace());
     return new BitCastInst(VPtr, VArgPtrType, getReplacementName(I, true, o),
                         /* insert before */ I);
   }
@@ -2240,7 +2318,7 @@ namespace {
                      unsigned MaskOffset, unsigned NumInElem,
                      unsigned NumInElem1, unsigned IdxOffset,
                      std::vector<Constant*> &Mask) {
-    unsigned NumElem1 = cast<VectorType>(J->getType())->getNumElements();
+    unsigned NumElem1 = J->getType()->getVectorNumElements();
     for (unsigned v = 0; v < NumElem1; ++v) {
       int m = cast<ShuffleVectorInst>(J)->getMaskValue(v);
       if (m < 0) {
@@ -2267,18 +2345,18 @@ namespace {
     Type *ArgTypeJ = J->getType();
     Type *VArgType = getVecTypeForPair(ArgTypeI, ArgTypeJ);
 
-    unsigned NumElemI = cast<VectorType>(ArgTypeI)->getNumElements();
+    unsigned NumElemI = ArgTypeI->getVectorNumElements();
 
     // Get the total number of elements in the fused vector type.
     // By definition, this must equal the number of elements in
     // the final mask.
-    unsigned NumElem = cast<VectorType>(VArgType)->getNumElements();
+    unsigned NumElem = VArgType->getVectorNumElements();
     std::vector<Constant*> Mask(NumElem);
 
     Type *OpTypeI = I->getOperand(0)->getType();
-    unsigned NumInElemI = cast<VectorType>(OpTypeI)->getNumElements();
+    unsigned NumInElemI = OpTypeI->getVectorNumElements();
     Type *OpTypeJ = J->getOperand(0)->getType();
-    unsigned NumInElemJ = cast<VectorType>(OpTypeJ)->getNumElements();
+    unsigned NumInElemJ = OpTypeJ->getVectorNumElements();
 
     // The fused vector will be:
     // -----------------------------------------------------
@@ -2319,7 +2397,7 @@ namespace {
         } while ((LIENext =
                    dyn_cast<InsertElementInst>(LIENext->getOperand(0))));
 
-        LIENext = 0;
+        LIENext = nullptr;
         Value *LIEPrev = UndefValue::get(ArgTypeH);
         for (unsigned i = 0; i < numElemL; ++i) {
           if (isa<UndefValue>(VectElemts[i])) continue;
@@ -2340,6 +2418,12 @@ namespace {
     return ExpandedIEChain;
   }
 
+  static unsigned getNumScalarElements(Type *Ty) {
+    if (VectorType *VecTy = dyn_cast<VectorType>(Ty))
+      return VecTy->getNumElements();
+    return 1;
+  }
+
   // Returns the value to be used as the specified operand of the vector
   // instruction that fuses I with J.
   Value *BBVectorize::getReplacementInput(LLVMContext& Context, Instruction *I,
@@ -2355,17 +2439,8 @@ namespace {
     Instruction *L = I, *H = J;
     Type *ArgTypeL = ArgTypeI, *ArgTypeH = ArgTypeJ;
 
-    unsigned numElemL;
-    if (ArgTypeL->isVectorTy())
-      numElemL = cast<VectorType>(ArgTypeL)->getNumElements();
-    else
-      numElemL = 1;
-
-    unsigned numElemH;
-    if (ArgTypeH->isVectorTy())
-      numElemH = cast<VectorType>(ArgTypeH)->getNumElements();
-    else
-      numElemH = 1;
+    unsigned numElemL = getNumScalarElements(ArgTypeL);
+    unsigned numElemH = getNumScalarElements(ArgTypeH);
 
     Value *LOp = L->getOperand(o);
     Value *HOp = H->getOperand(o);
@@ -2390,14 +2465,14 @@ namespace {
     if ((LEE || LSV) && (HEE || HSV) && !IsSizeChangeShuffle) {
       // We can have at most two unique vector inputs.
       bool CanUseInputs = true;
-      Value *I1, *I2 = 0;
+      Value *I1, *I2 = nullptr;
       if (LEE) {
         I1 = LEE->getOperand(0);
       } else {
         I1 = LSV->getOperand(0);
         I2 = LSV->getOperand(1);
         if (I2 == I1 || isa<UndefValue>(I2))
-          I2 = 0;
+          I2 = nullptr;
       }
   
       if (HEE) {
@@ -2426,11 +2501,12 @@ namespace {
 
       if (CanUseInputs) {
         unsigned LOpElem =
-          cast<VectorType>(cast<Instruction>(LOp)->getOperand(0)->getType())
-            ->getNumElements();
+          cast<Instruction>(LOp)->getOperand(0)->getType()
+            ->getVectorNumElements();
+
         unsigned HOpElem =
-          cast<VectorType>(cast<Instruction>(HOp)->getOperand(0)->getType())
-            ->getNumElements();
+          cast<Instruction>(HOp)->getOperand(0)->getType()
+            ->getVectorNumElements();
 
         // We have one or two input vectors. We need to map each index of the
         // operands to the index of the original vector.
@@ -2533,7 +2609,6 @@ namespace {
                                                      true, o, 1));
           NewI1->insertBefore(IBeforeJ ? J : I);
           I1 = NewI1;
-          I1T = I2T;
           I1Elem = I2Elem;
         } else if (I1Elem > I2Elem) {
           std::vector<Constant *> Mask(I1Elem);
@@ -2550,8 +2625,6 @@ namespace {
                                                      true, o, 1));
           NewI2->insertBefore(IBeforeJ ? J : I);
           I2 = NewI2;
-          I2T = I1T;
-          I2Elem = I1Elem;
         }
 
         // Now that both I1 and I2 are the same length we can shuffle them
@@ -2646,14 +2719,14 @@ namespace {
                                            getReplacementName(IBeforeJ ? I : J,
                                                               true, o, 1));
         }
-  
+
         NHOp->insertBefore(IBeforeJ ? J : I);
         HOp = NHOp;
       }
     }
 
     if (ArgType->isVectorTy()) {
-      unsigned numElem = cast<VectorType>(VArgType)->getNumElements();
+      unsigned numElem = VArgType->getVectorNumElements();
       std::vector<Constant*> Mask(numElem);
       for (unsigned v = 0; v < numElem; ++v) {
         unsigned Idx = v;
@@ -2687,7 +2760,7 @@ namespace {
   // to the vector instruction that fuses I with J.
   void BBVectorize::getReplacementInputsForPair(LLVMContext& Context,
                      Instruction *I, Instruction *J,
-                     SmallVector<Value *, 3> &ReplacedOperands,
+                     SmallVectorImpl<Value *> &ReplacedOperands,
                      bool IBeforeJ) {
     unsigned NumOperands = I->getNumOperands();
 
@@ -2712,10 +2785,11 @@ namespace {
 
           ReplacedOperands[o] = Intrinsic::getDeclaration(M, IID, VArgType);
           continue;
-        } else if (IID == Intrinsic::powi && o == 1) {
-          // The second argument of powi is a single integer and we've already
-          // checked that both arguments are equal. As a result, we just keep
-          // I's second argument.
+        } else if ((IID == Intrinsic::powi || IID == Intrinsic::ctlz ||
+                    IID == Intrinsic::cttz) && o == 1) {
+          // The second argument of powi/ctlz/cttz is a single integer/constant
+          // and we've already checked that both arguments are equal.
+          // As a result, we just keep I's second argument.
           ReplacedOperands[o] = I->getOperand(o);
           continue;
         }
@@ -2746,16 +2820,8 @@ namespace {
       VectorType *VType = getVecTypeForPair(IType, JType);
       unsigned numElem = VType->getNumElements();
 
-      unsigned numElemI, numElemJ;
-      if (IType->isVectorTy())
-        numElemI = cast<VectorType>(IType)->getNumElements();
-      else
-        numElemI = 1;
-
-      if (JType->isVectorTy())
-        numElemJ = cast<VectorType>(JType)->getNumElements();
-      else
-        numElemJ = 1;
+      unsigned numElemI = getNumScalarElements(IType);
+      unsigned numElemJ = getNumScalarElements(JType);
 
       if (IType->isVectorTy()) {
         std::vector<Constant*> Mask1(numElemI), Mask2(numElemI);
@@ -2800,10 +2866,12 @@ namespace {
                      DenseSet<ValuePair> &LoadMoveSetPairs,
                      Instruction *I, Instruction *J) {
     // Skip to the first instruction past I.
-    BasicBlock::iterator L = llvm::next(BasicBlock::iterator(I));
+    BasicBlock::iterator L = std::next(BasicBlock::iterator(I));
 
     DenseSet<Value *> Users;
     AliasSetTracker WriteSet(*AA);
+    if (I->mayWriteToMemory()) WriteSet.add(I);
+
     for (; cast<Instruction>(L) != J; ++L)
       (void) trackUsesOfI(Users, WriteSet, I, L, true, &LoadMoveSetPairs);
 
@@ -2820,10 +2888,12 @@ namespace {
                      Instruction *&InsertionPt,
                      Instruction *I, Instruction *J) {
     // Skip to the first instruction past I.
-    BasicBlock::iterator L = llvm::next(BasicBlock::iterator(I));
+    BasicBlock::iterator L = std::next(BasicBlock::iterator(I));
 
     DenseSet<Value *> Users;
     AliasSetTracker WriteSet(*AA);
+    if (I->mayWriteToMemory()) WriteSet.add(I);
+
     for (; cast<Instruction>(L) != J;) {
       if (trackUsesOfI(Users, WriteSet, I, L, true, &LoadMoveSetPairs)) {
         // Move this instruction
@@ -2849,10 +2919,11 @@ namespace {
                      DenseSet<ValuePair> &LoadMoveSetPairs,
                      Instruction *I) {
     // Skip to the first instruction past I.
-    BasicBlock::iterator L = llvm::next(BasicBlock::iterator(I));
+    BasicBlock::iterator L = std::next(BasicBlock::iterator(I));
 
     DenseSet<Value *> Users;
     AliasSetTracker WriteSet(*AA);
+    if (I->mayWriteToMemory()) WriteSet.add(I);
 
     // Note: We cannot end the loop when we reach J because J could be moved
     // farther down the use chain by another instruction pairing. Also, J
@@ -2887,31 +2958,6 @@ namespace {
       Instruction *I = cast<Instruction>(P->first);
       collectPairLoadMoveSet(BB, ChosenPairs, LoadMoveSet,
                              LoadMoveSetPairs, I);
-    }
-  }
-
-  // When the first instruction in each pair is cloned, it will inherit its
-  // parent's metadata. This metadata must be combined with that of the other
-  // instruction in a safe way.
-  void BBVectorize::combineMetadata(Instruction *K, const Instruction *J) {
-    SmallVector<std::pair<unsigned, MDNode*>, 4> Metadata;
-    K->getAllMetadataOtherThanDebugLoc(Metadata);
-    for (unsigned i = 0, n = Metadata.size(); i < n; ++i) {
-      unsigned Kind = Metadata[i].first;
-      MDNode *JMD = J->getMetadata(Kind);
-      MDNode *KMD = Metadata[i].second;
-
-      switch (Kind) {
-      default:
-        K->setMetadata(Kind, 0); // Remove unknown metadata
-        break;
-      case LLVMContext::MD_tbaa:
-        K->setMetadata(Kind, MDNode::getMostGenericTBAA(JMD, KMD));
-        break;
-      case LLVMContext::MD_fpmath:
-        K->setMetadata(Kind, MDNode::getMostGenericFPMath(JMD, KMD));
-        break;
-      }
     }
   }
 
@@ -3064,7 +3110,13 @@ namespace {
       if (!isa<StoreInst>(K))
         K->mutateType(getVecTypeForPair(L->getType(), H->getType()));
 
-      combineMetadata(K, H);
+      unsigned KnownIDs[] = {
+        LLVMContext::MD_tbaa,
+        LLVMContext::MD_alias_scope,
+        LLVMContext::MD_noalias,
+        LLVMContext::MD_fpmath
+      };
+      combineMetadata(K, H, KnownIDs);
       K->intersectOptionalDataWith(H);
 
       for (unsigned o = 0; o < NumOperands; ++o)
@@ -3074,7 +3126,7 @@ namespace {
 
       // Instruction insertion point:
       Instruction *InsertionPt = K;
-      Instruction *K1 = 0, *K2 = 0;
+      Instruction *K1 = nullptr, *K2 = nullptr;
       replaceOutputsOfPair(Context, L, H, K, InsertionPt, K1, K2);
 
       // The use dag of the first original instruction must be moved to after
@@ -3119,7 +3171,7 @@ namespace {
       }
 
       // Before removing I, set the iterator to the next instruction.
-      PI = llvm::next(BasicBlock::iterator(I));
+      PI = std::next(BasicBlock::iterator(I));
       if (cast<Instruction>(PI) == J)
         ++PI;
 
@@ -3141,7 +3193,7 @@ static const char bb_vectorize_name[] = "Basic-Block Vectorization";
 INITIALIZE_PASS_BEGIN(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
 INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
-INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
 INITIALIZE_PASS_END(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
 
@@ -3164,6 +3216,7 @@ VectorizeConfig::VectorizeConfig() {
   VectorizePointers = !::NoPointers;
   VectorizeCasts = !::NoCasts;
   VectorizeMath = !::NoMath;
+  VectorizeBitManipulations = !::NoBitManipulation;
   VectorizeFMA = !::NoFMA;
   VectorizeSelect = !::NoSelect;
   VectorizeCmp = !::NoCmp;

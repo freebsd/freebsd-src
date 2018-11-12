@@ -114,10 +114,6 @@ __FBSDID("$FreeBSD$");
 
 typedef int ofw_vec_t(void *);
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 int dtlb_slots;
 int itlb_slots;
 struct tlb_entry *kernel_tlbs;
@@ -190,8 +186,8 @@ cpu_startup(void *arg)
 	EVENTHANDLER_REGISTER(shutdown_final, sparc64_shutdown_final, NULL,
 	    SHUTDOWN_PRI_LAST);
 
-	printf("avail memory = %lu (%lu MB)\n", cnt.v_free_count * PAGE_SIZE,
-	    cnt.v_free_count / ((1024 * 1024) / PAGE_SIZE));
+	printf("avail memory = %lu (%lu MB)\n", vm_cnt.v_free_count * PAGE_SIZE,
+	    vm_cnt.v_free_count / ((1024 * 1024) / PAGE_SIZE));
 
 	if (bootverbose)
 		printf("machine: %s\n", sparc64_model);
@@ -503,7 +499,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	}
 
 #ifdef SMP
-	mp_init(cpu_impl);
+	mp_init();
 #endif
 
 	/*
@@ -515,7 +511,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Initialize tunables.
 	 */
 	init_param2(physmem);
-	env = getenv("kernelname");
+	env = kern_getenv("kernelname");
 	if (env != NULL) {
 		strlcpy(kernelname, env, sizeof(kernelname));
 		freeenv(env);
@@ -657,10 +653,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	PROC_UNLOCK(p);
 
 	fp = (struct frame *)sfp - 1;
-
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	/* Build the argument list for the signal handler. */
 	tf->tf_out[0] = sig;
@@ -815,7 +807,7 @@ get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 }
 
 int
-set_mcontext(struct thread *td, const mcontext_t *mc)
+set_mcontext(struct thread *td, mcontext_t *mc)
 {
 	struct trapframe *tf;
 	struct pcb *pcb;

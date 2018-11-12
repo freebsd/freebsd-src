@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd October 21, 2009
+.Dd June 24, 2015
 .Dt MALO 4
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@ kernel configuration file:
 .Ed
 .Pp
 Alternatively, to load the driver as a
-module at boot time, place the following lines in
+module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_malo_load="YES"
@@ -69,21 +69,12 @@ Only one virtual interface may be configured at any time.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
-This driver requires the
-.Nm malofw
-firmware kernel module be installed before it will work.
-The firmware files are not publicly available.
-A port of the firmware can be found at:
-.Bd -literal -offset indent
-http://weongyo.org/project/malo/malo-firmware-1.4.tar.gz
-.Ed
-.Pp
-The firmware kernel module can be installed by extracting
-the archive and running
-.Ql make install clean
-in the
-.Pa malo-firmware-1.4
-directory.
+This driver requires firmware to be loaded before it will work.
+The
+.Pa ports/net/malo-firmware-kmod
+port needs to be installed before
+.Xr ifconfig 8
+will work.
 .Sh HARDWARE
 The following cards are among those supported by the
 .Nm

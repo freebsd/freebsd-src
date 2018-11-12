@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2011
+.Dd August 1, 2015
 .Dt GETOPT 1
 .Os
 .Sh NAME
@@ -62,7 +62,7 @@ set \-\- $args
 # You cannot use the set command with a backquoted getopt directly,
 # since the exit code from getopt would be shadowed by those of set,
 # which is zero by definition.
-while true; do
+while :; do
 	case "$1" in
 	\-a|\-b)
 		echo "flag $1 set"; sflags="${1#-}$sflags"
@@ -83,10 +83,10 @@ echo "oarg is '$oarg'"
 .Pp
 This code will accept any of the following as equivalent:
 .Bd -literal -offset indent
-cmd \-aoarg file file
-cmd \-a \-o arg file file
-cmd \-oarg -a file file
-cmd \-a \-oarg \-\- file file
+cmd \-aoarg file1 file2
+cmd \-a \-o arg file1 file2
+cmd \-oarg -a file1 file2
+cmd \-a \-oarg \-\- file1 file2
 .Ed
 .Sh SEE ALSO
 .Xr getopts 1 ,

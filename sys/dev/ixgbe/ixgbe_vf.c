@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -89,6 +89,49 @@ s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw)
 	return IXGBE_SUCCESS;
 }
 
+/* ixgbe_virt_clr_reg - Set register to default (power on) state.
+ *  @hw: pointer to hardware structure
+ */
+static void ixgbe_virt_clr_reg(struct ixgbe_hw *hw)
+{
+	int i;
+	u32 vfsrrctl;
+	u32 vfdca_rxctrl;
+	u32 vfdca_txctrl;
+
+	/* VRSRRCTL default values (BSIZEPACKET = 2048, BSIZEHEADER = 256) */
+	vfsrrctl = 0x100 << IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT;
+	vfsrrctl |= 0x800 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+
+	/* DCA_RXCTRL default value */
+	vfdca_rxctrl = IXGBE_DCA_RXCTRL_DESC_RRO_EN |
+		       IXGBE_DCA_RXCTRL_DATA_WRO_EN |
+		       IXGBE_DCA_RXCTRL_HEAD_WRO_EN;
+
+	/* DCA_TXCTRL default value */
+	vfdca_txctrl = IXGBE_DCA_TXCTRL_DESC_RRO_EN |
+		       IXGBE_DCA_TXCTRL_DESC_WRO_EN |
+		       IXGBE_DCA_TXCTRL_DATA_RRO_EN;
+
+	IXGBE_WRITE_REG(hw, IXGBE_VFPSRTYPE, 0);
+
+	for (i = 0; i < 7; i++) {
+		IXGBE_WRITE_REG(hw, IXGBE_VFRDH(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VFRDT(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VFSRRCTL(i), vfsrrctl);
+		IXGBE_WRITE_REG(hw, IXGBE_VFTDH(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VFTDT(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VFTXDCTL(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VFTDWBAH(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VFTDWBAL(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VFDCA_RXCTRL(i), vfdca_rxctrl);
+		IXGBE_WRITE_REG(hw, IXGBE_VFDCA_TXCTRL(i), vfdca_txctrl);
+	}
+
+	IXGBE_WRITE_FLUSH(hw);
+}
+
 /**
  *  ixgbe_start_hw_vf - Prepare hardware for Tx/Rx
  *  @hw: pointer to hardware structure
@@ -134,7 +177,7 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 timeout = IXGBE_VF_INIT_TIMEOUT;
 	s32 ret_val = IXGBE_ERR_INVALID_MAC_ADDR;
-	u32 ctrl, msgbuf[IXGBE_VF_PERMADDR_MSG_LEN];
+	u32 msgbuf[IXGBE_VF_PERMADDR_MSG_LEN];
 	u8 *addr = (u8 *)(&msgbuf[1]);
 
 	DEBUGFUNC("ixgbevf_reset_hw_vf");
@@ -142,11 +185,12 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	hw->mac.ops.stop_adapter(hw);
 
+	/* reset the api version */
+	hw->api_version = ixgbe_mbox_api_10;
 
 	DEBUGOUT("Issuing a function level reset to MAC\n");
 
-	ctrl = IXGBE_VFREAD_REG(hw, IXGBE_VFCTRL) | IXGBE_CTRL_RST;
-	IXGBE_VFWRITE_REG(hw, IXGBE_VFCTRL, ctrl);
+	IXGBE_VFWRITE_REG(hw, IXGBE_VFCTRL, IXGBE_CTRL_RST);
 	IXGBE_WRITE_FLUSH(hw);
 
 	msec_delay(50);
@@ -159,6 +203,9 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 
 	if (!timeout)
 		return IXGBE_ERR_RESET_FAILED;
+
+	/* Reset VF registers to initial values */
+	ixgbe_virt_clr_reg(hw);
 
 	/* mailbox timeout can now become active */
 	mbx->timeout = IXGBE_VF_MBX_INIT_TIMEOUT;
@@ -177,6 +224,8 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 			IXGBE_VF_PERMADDR_MSG_LEN, 0);
 	if (ret_val)
 		return ret_val;
+
+	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
 	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK) &&
 	    msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_NACK))
@@ -224,6 +273,8 @@ s32 ixgbe_stop_adapter_vf(struct ixgbe_hw *hw)
 		reg_val &= ~IXGBE_RXDCTL_ENABLE;
 		IXGBE_VFWRITE_REG(hw, IXGBE_VFRXDCTL(i), reg_val);
 	}
+	/* Clear packet split and pool config */
+	IXGBE_WRITE_REG(hw, IXGBE_VFPSRTYPE, 0);
 
 	/* flush all queues disables */
 	IXGBE_WRITE_FLUSH(hw);
@@ -512,6 +563,21 @@ s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	if (!(links_reg & IXGBE_LINKS_UP))
 		goto out;
 
+	/* for SFP+ modules and DA cables on 82599 it can take up to 500usecs
+	 * before the link status is correct
+	 */
+	if (mac->type == ixgbe_mac_82599_vf) {
+		int i;
+
+		for (i = 0; i < 5; i++) {
+			usec_delay(100);
+			links_reg = IXGBE_READ_REG(hw, IXGBE_VFLINKS);
+
+			if (!(links_reg & IXGBE_LINKS_UP))
+				goto out;
+		}
+	}
+
 	switch (links_reg & IXGBE_LINKS_SPEED_82599) {
 	case IXGBE_LINKS_SPEED_10G_82599:
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
@@ -604,7 +670,57 @@ int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api)
 int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 		       unsigned int *default_tc)
 {
-	UNREFERENCED_3PARAMETER(hw, num_tcs, default_tc);
-	return IXGBE_SUCCESS;
-}
+	int err;
+	u32 msg[5];
 
+	/* do nothing if API doesn't support ixgbevf_get_queues */
+	switch (hw->api_version) {
+	case ixgbe_mbox_api_11:
+		break;
+	default:
+		return 0;
+	}
+
+	/* Fetch queue configuration from the PF */
+	msg[0] = IXGBE_VF_GET_QUEUES;
+	msg[1] = msg[2] = msg[3] = msg[4] = 0;
+	err = hw->mbx.ops.write_posted(hw, msg, 5, 0);
+
+	if (!err)
+		err = hw->mbx.ops.read_posted(hw, msg, 5, 0);
+
+	if (!err) {
+		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+
+		/*
+		 * if we we didn't get an ACK there must have been
+		 * some sort of mailbox error so we should treat it
+		 * as such
+		 */
+		if (msg[0] != (IXGBE_VF_GET_QUEUES | IXGBE_VT_MSGTYPE_ACK))
+			return IXGBE_ERR_MBX;
+
+		/* record and validate values from message */
+		hw->mac.max_tx_queues = msg[IXGBE_VF_TX_QUEUES];
+		if (hw->mac.max_tx_queues == 0 ||
+		    hw->mac.max_tx_queues > IXGBE_VF_MAX_TX_QUEUES)
+			hw->mac.max_tx_queues = IXGBE_VF_MAX_TX_QUEUES;
+
+		hw->mac.max_rx_queues = msg[IXGBE_VF_RX_QUEUES];
+		if (hw->mac.max_rx_queues == 0 ||
+		    hw->mac.max_rx_queues > IXGBE_VF_MAX_RX_QUEUES)
+			hw->mac.max_rx_queues = IXGBE_VF_MAX_RX_QUEUES;
+
+		*num_tcs = msg[IXGBE_VF_TRANS_VLAN];
+		/* in case of unknown state assume we cannot tag frames */
+		if (*num_tcs > hw->mac.max_rx_queues)
+			*num_tcs = 1;
+
+		*default_tc = msg[IXGBE_VF_DEF_QUEUE];
+		/* default to queue 0 on out-of-bounds queue number */
+		if (*default_tc >= hw->mac.max_tx_queues)
+			*default_tc = 0;
+	}
+
+	return err;
+}

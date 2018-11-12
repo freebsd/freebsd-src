@@ -81,7 +81,7 @@ tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 	if (nam->sa_family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6))
 		goto done;
 
-	tod = TOEDEV(ifp);
+	tod = if_getsoftc(ifp, IF_TOEDEV);
 	if (tod != NULL)
 		error = tod->tod_connect(tod, so, rt, nam);
 done:

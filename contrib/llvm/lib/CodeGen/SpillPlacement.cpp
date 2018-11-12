@@ -27,19 +27,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "spillplacement"
 #include "SpillPlacement.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/CodeGen/EdgeBundles.h"
-#include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
+#include "llvm/Support/ManagedStatic.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "spillplacement"
 
 char SpillPlacement::ID = 0;
 INITIALIZE_PASS_BEGIN(SpillPlacement, "spill-code-placement",
@@ -53,6 +55,7 @@ char &llvm::SpillPlacementID = SpillPlacement::ID;
 
 void SpillPlacement::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
+  AU.addRequired<MachineBlockFrequencyInfo>();
   AU.addRequiredTransitive<EdgeBundles>();
   AU.addRequiredTransitive<MachineLoopInfo>();
   MachineFunctionPass::getAnalysisUsage(AU);
@@ -68,30 +71,24 @@ void SpillPlacement::getAnalysisUsage(AnalysisUsage &AU) const {
 /// because all weights are positive.
 ///
 struct SpillPlacement::Node {
-  /// Scale - Inverse block frequency feeding into[0] or out of[1] the bundle.
-  /// Ideally, these two numbers should be identical, but inaccuracies in the
-  /// block frequency estimates means that we need to normalize ingoing and
-  /// outgoing frequencies separately so they are commensurate.
-  float Scale[2];
-
-  /// Bias - Normalized contributions from non-transparent blocks.
-  /// A bundle connected to a MustSpill block has a huge negative bias,
-  /// otherwise it is a number in the range [-2;2].
-  float Bias;
+  /// BiasN - Sum of blocks that prefer a spill.
+  BlockFrequency BiasN;
+  /// BiasP - Sum of blocks that prefer a register.
+  BlockFrequency BiasP;
 
   /// Value - Output value of this node computed from the Bias and links.
-  /// This is always in the range [-1;1]. A positive number means the variable
-  /// should go in a register through this bundle.
-  float Value;
+  /// This is always on of the values {-1, 0, 1}. A positive number means the
+  /// variable should go in a register through this bundle.
+  int Value;
 
-  typedef SmallVector<std::pair<float, unsigned>, 4> LinkVector;
+  typedef SmallVector<std::pair<BlockFrequency, unsigned>, 4> LinkVector;
 
   /// Links - (Weight, BundleNo) for all transparent blocks connecting to other
-  /// bundles. The weights are all positive and add up to at most 2, weights
-  /// from ingoing and outgoing nodes separately add up to a most 1. The weight
-  /// sum can be less than 2 when the variable is not live into / out of some
-  /// connected basic blocks.
+  /// bundles. The weights are all positive block frequencies.
   LinkVector Links;
+
+  /// SumLinkWeights - Cached sum of the weights of all links + ThresHold.
+  BlockFrequency SumLinkWeights;
 
   /// preferReg - Return true when this node prefers to be in a register.
   bool preferReg() const {
@@ -101,28 +98,24 @@ struct SpillPlacement::Node {
 
   /// mustSpill - Return True if this node is so biased that it must spill.
   bool mustSpill() const {
-    // Actually, we must spill if Bias < sum(weights).
-    // It may be worth it to compute the weight sum here?
-    return Bias < -2.0f;
-  }
-
-  /// Node - Create a blank Node.
-  Node() {
-    Scale[0] = Scale[1] = 0;
+    // We must spill if Bias < -sum(weights) or the MustSpill flag was set.
+    // BiasN is saturated when MustSpill is set, make sure this still returns
+    // true when the RHS saturates. Note that SumLinkWeights includes Threshold.
+    return BiasN >= BiasP + SumLinkWeights;
   }
 
   /// clear - Reset per-query data, but preserve frequencies that only depend on
   // the CFG.
-  void clear() {
-    Bias = Value = 0;
+  void clear(const BlockFrequency &Threshold) {
+    BiasN = BiasP = Value = 0;
+    SumLinkWeights = Threshold;
     Links.clear();
   }
 
   /// addLink - Add a link to bundle b with weight w.
-  /// out=0 for an ingoing link, and 1 for an outgoing link.
-  void addLink(unsigned b, float w, bool out) {
-    // Normalize w relative to all connected blocks from that direction.
-    w *= Scale[out];
+  void addLink(unsigned b, BlockFrequency w) {
+    // Update cached sum.
+    SumLinkWeights += w;
 
     // There can be multiple links to the same bundle, add them up.
     for (LinkVector::iterator I = Links.begin(), E = Links.end(); I != E; ++I)
@@ -134,33 +127,48 @@ struct SpillPlacement::Node {
     Links.push_back(std::make_pair(w, b));
   }
 
-  /// addBias - Bias this node from an ingoing[0] or outgoing[1] link.
-  /// Return the change to the total number of positive biases.
-  void addBias(float w, bool out) {
-    // Normalize w relative to all connected blocks from that direction.
-    w *= Scale[out];
-    Bias += w;
+  /// addBias - Bias this node.
+  void addBias(BlockFrequency freq, BorderConstraint direction) {
+    switch (direction) {
+    default:
+      break;
+    case PrefReg:
+      BiasP += freq;
+      break;
+    case PrefSpill:
+      BiasN += freq;
+      break;
+    case MustSpill:
+      BiasN = BlockFrequency::getMaxFrequency();
+      break;
+    }
   }
 
   /// update - Recompute Value from Bias and Links. Return true when node
   /// preference changes.
-  bool update(const Node nodes[]) {
+  bool update(const Node nodes[], const BlockFrequency &Threshold) {
     // Compute the weighted sum of inputs.
-    float Sum = Bias;
-    for (LinkVector::iterator I = Links.begin(), E = Links.end(); I != E; ++I)
-      Sum += I->first * nodes[I->second].Value;
+    BlockFrequency SumN = BiasN;
+    BlockFrequency SumP = BiasP;
+    for (LinkVector::iterator I = Links.begin(), E = Links.end(); I != E; ++I) {
+      if (nodes[I->second].Value == -1)
+        SumN += I->first;
+      else if (nodes[I->second].Value == 1)
+        SumP += I->first;
+    }
 
-    // The weighted sum is going to be in the range [-2;2]. Ideally, we should
-    // simply set Value = sign(Sum), but we will add a dead zone around 0 for
-    // two reasons:
+    // Each weighted sum is going to be less than the total frequency of the
+    // bundle. Ideally, we should simply set Value = sign(SumP - SumN), but we
+    // will add a dead zone around 0 for two reasons:
+    //
     //  1. It avoids arbitrary bias when all links are 0 as is possible during
     //     initial iterations.
     //  2. It helps tame rounding errors when the links nominally sum to 0.
-    const float Thres = 1e-4f;
+    //
     bool Before = preferReg();
-    if (Sum < -Thres)
+    if (SumN >= SumP + Threshold)
       Value = -1;
-    else if (Sum > Thres)
+    else if (SumP >= SumN + Threshold)
       Value = 1;
     else
       Value = 0;
@@ -177,21 +185,13 @@ bool SpillPlacement::runOnMachineFunction(MachineFunction &mf) {
   nodes = new Node[bundles->getNumBundles()];
 
   // Compute total ingoing and outgoing block frequencies for all bundles.
-  BlockFrequency.resize(mf.getNumBlockIDs());
+  BlockFrequencies.resize(mf.getNumBlockIDs());
+  MBFI = &getAnalysis<MachineBlockFrequencyInfo>();
+  setThreshold(MBFI->getEntryFreq());
   for (MachineFunction::iterator I = mf.begin(), E = mf.end(); I != E; ++I) {
-    float Freq = LiveIntervals::getSpillWeight(true, false,
-                                               loops->getLoopDepth(I));
     unsigned Num = I->getNumber();
-    BlockFrequency[Num] = Freq;
-    nodes[bundles->getBundle(Num, 1)].Scale[0] += Freq;
-    nodes[bundles->getBundle(Num, 0)].Scale[1] += Freq;
+    BlockFrequencies[Num] = MBFI->getBlockFreq(I);
   }
-
-  // Scales are reciprocal frequencies.
-  for (unsigned i = 0, e = bundles->getNumBundles(); i != e; ++i)
-    for (unsigned d = 0; d != 2; ++d)
-      if (nodes[i].Scale[d] > 0)
-        nodes[i].Scale[d] = 1 / nodes[i].Scale[d];
 
   // We never change the function.
   return false;
@@ -199,7 +199,7 @@ bool SpillPlacement::runOnMachineFunction(MachineFunction &mf) {
 
 void SpillPlacement::releaseMemory() {
   delete[] nodes;
-  nodes = 0;
+  nodes = nullptr;
 }
 
 /// activate - mark node n as active if it wasn't already.
@@ -207,47 +207,55 @@ void SpillPlacement::activate(unsigned n) {
   if (ActiveNodes->test(n))
     return;
   ActiveNodes->set(n);
-  nodes[n].clear();
+  nodes[n].clear(Threshold);
 
   // Very large bundles usually come from big switches, indirect branches,
   // landing pads, or loops with many 'continue' statements. It is difficult to
   // allocate registers when so many different blocks are involved.
   //
-  // Give a small negative bias to large bundles such that 1/32 of the
-  // connected blocks need to be interested before we consider expanding the
-  // region through the bundle. This helps compile time by limiting the number
-  // of blocks visited and the number of links in the Hopfield network.
-  if (bundles->getBlocks(n).size() > 100)
-    nodes[n].Bias = -0.0625f;
+  // Give a small negative bias to large bundles such that a substantial
+  // fraction of the connected blocks need to be interested before we consider
+  // expanding the region through the bundle. This helps compile time by
+  // limiting the number of blocks visited and the number of links in the
+  // Hopfield network.
+  if (bundles->getBlocks(n).size() > 100) {
+    nodes[n].BiasP = 0;
+    nodes[n].BiasN = (MBFI->getEntryFreq() / 16);
+  }
 }
 
+/// \brief Set the threshold for a given entry frequency.
+///
+/// Set the threshold relative to \c Entry.  Since the threshold is used as a
+/// bound on the open interval (-Threshold;Threshold), 1 is the minimum
+/// threshold.
+void SpillPlacement::setThreshold(const BlockFrequency &Entry) {
+  // Apparently 2 is a good threshold when Entry==2^14, but we need to scale
+  // it.  Divide by 2^13, rounding as appropriate.
+  uint64_t Freq = Entry.getFrequency();
+  uint64_t Scaled = (Freq >> 13) + bool(Freq & (1 << 12));
+  Threshold = std::max(UINT64_C(1), Scaled);
+}
 
 /// addConstraints - Compute node biases and weights from a set of constraints.
 /// Set a bit in NodeMask for each active node.
 void SpillPlacement::addConstraints(ArrayRef<BlockConstraint> LiveBlocks) {
   for (ArrayRef<BlockConstraint>::iterator I = LiveBlocks.begin(),
        E = LiveBlocks.end(); I != E; ++I) {
-    float Freq = getBlockFrequency(I->Number);
-    const float Bias[] = {
-      0,           // DontCare,
-      1,           // PrefReg,
-      -1,          // PrefSpill
-      0,           // PrefBoth
-      -HUGE_VALF   // MustSpill
-    };
+    BlockFrequency Freq = BlockFrequencies[I->Number];
 
     // Live-in to block?
     if (I->Entry != DontCare) {
       unsigned ib = bundles->getBundle(I->Number, 0);
       activate(ib);
-      nodes[ib].addBias(Freq * Bias[I->Entry], 1);
+      nodes[ib].addBias(Freq, I->Entry);
     }
 
     // Live-out from block?
     if (I->Exit != DontCare) {
       unsigned ob = bundles->getBundle(I->Number, 1);
       activate(ob);
-      nodes[ob].addBias(Freq * Bias[I->Exit], 0);
+      nodes[ob].addBias(Freq, I->Exit);
     }
   }
 }
@@ -256,15 +264,15 @@ void SpillPlacement::addConstraints(ArrayRef<BlockConstraint> LiveBlocks) {
 void SpillPlacement::addPrefSpill(ArrayRef<unsigned> Blocks, bool Strong) {
   for (ArrayRef<unsigned>::iterator I = Blocks.begin(), E = Blocks.end();
        I != E; ++I) {
-    float Freq = getBlockFrequency(*I);
+    BlockFrequency Freq = BlockFrequencies[*I];
     if (Strong)
       Freq += Freq;
     unsigned ib = bundles->getBundle(*I, 0);
     unsigned ob = bundles->getBundle(*I, 1);
     activate(ib);
     activate(ob);
-    nodes[ib].addBias(-Freq, 1);
-    nodes[ob].addBias(-Freq, 0);
+    nodes[ib].addBias(Freq, PrefSpill);
+    nodes[ob].addBias(Freq, PrefSpill);
   }
 }
 
@@ -284,9 +292,9 @@ void SpillPlacement::addLinks(ArrayRef<unsigned> Links) {
       Linked.push_back(ib);
     if (nodes[ob].Links.empty() && !nodes[ob].mustSpill())
       Linked.push_back(ob);
-    float Freq = getBlockFrequency(Number);
-    nodes[ib].addLink(ob, Freq, 1);
-    nodes[ob].addLink(ib, Freq, 0);
+    BlockFrequency Freq = BlockFrequencies[Number];
+    nodes[ib].addLink(ob, Freq);
+    nodes[ob].addLink(ib, Freq);
   }
 }
 
@@ -294,7 +302,7 @@ bool SpillPlacement::scanActiveBundles() {
   Linked.clear();
   RecentPositive.clear();
   for (int n = ActiveNodes->find_first(); n>=0; n = ActiveNodes->find_next(n)) {
-    nodes[n].update(nodes);
+    nodes[n].update(nodes, Threshold);
     // A node that must spill, or a node without any links is not going to
     // change its value ever again, so exclude it from iterations.
     if (nodes[n].mustSpill())
@@ -314,7 +322,7 @@ void SpillPlacement::iterate() {
   // First update the recently positive nodes. They have likely received new
   // negative bias that will turn them off.
   while (!RecentPositive.empty())
-    nodes[RecentPositive.pop_back_val()].update(nodes);
+    nodes[RecentPositive.pop_back_val()].update(nodes, Threshold);
 
   if (Linked.empty())
     return;
@@ -326,12 +334,14 @@ void SpillPlacement::iterate() {
   // affect the entire network in a single iteration. That means very fast
   // convergence, usually in a single iteration.
   for (unsigned iteration = 0; iteration != 10; ++iteration) {
-    // Scan backwards, skipping the last node which was just updated.
+    // Scan backwards, skipping the last node when iteration is not zero. When
+    // iteration is not zero, the last node was just updated.
     bool Changed = false;
     for (SmallVectorImpl<unsigned>::const_reverse_iterator I =
-           llvm::next(Linked.rbegin()), E = Linked.rend(); I != E; ++I) {
+           iteration == 0 ? Linked.rbegin() : std::next(Linked.rbegin()),
+           E = Linked.rend(); I != E; ++I) {
       unsigned n = *I;
-      if (nodes[n].update(nodes)) {
+      if (nodes[n].update(nodes, Threshold)) {
         Changed = true;
         if (nodes[n].preferReg())
           RecentPositive.push_back(n);
@@ -343,9 +353,9 @@ void SpillPlacement::iterate() {
     // Scan forwards, skipping the first node which was just updated.
     Changed = false;
     for (SmallVectorImpl<unsigned>::const_iterator I =
-           llvm::next(Linked.begin()), E = Linked.end(); I != E; ++I) {
+           std::next(Linked.begin()), E = Linked.end(); I != E; ++I) {
       unsigned n = *I;
-      if (nodes[n].update(nodes)) {
+      if (nodes[n].update(nodes, Threshold)) {
         Changed = true;
         if (nodes[n].preferReg())
           RecentPositive.push_back(n);
@@ -376,6 +386,6 @@ SpillPlacement::finish() {
       ActiveNodes->reset(n);
       Perfect = false;
     }
-  ActiveNodes = 0;
+  ActiveNodes = nullptr;
   return Perfect;
 }

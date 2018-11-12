@@ -25,12 +25,13 @@
 using namespace llvm;
 
 static cl::opt<int> SmallDataThreshold("hexagon-small-data-threshold",
-                                cl::init(8), cl::Hidden);
+                                cl::init(8), cl::Hidden,
+                cl::desc("The maximum size of an object in the sdata section"));
 
 void HexagonTargetObjectFile::Initialize(MCContext &Ctx,
                                          const TargetMachine &TM) {
   TargetLoweringObjectFileELF::Initialize(Ctx, TM);
-
+  InitializeELF(TM.Options.UseInitArray);
 
   SmallDataSection =
     getContext().getELFSection(".sdata", ELF::SHT_PROGBITS,
@@ -46,6 +47,11 @@ void HexagonTargetObjectFile::Initialize(MCContext &Ctx,
 static bool IsInSmallSection(uint64_t Size) {
   return Size > 0 && Size <= (uint64_t)SmallDataThreshold;
 }
+
+bool HexagonTargetObjectFile::IsSmallDataEnabled () const {
+  return SmallDataThreshold > 0;
+}
+
 /// IsGlobalInSmallSection - Return true if this global value should be
 /// placed into small data/bss section.
 bool HexagonTargetObjectFile::IsGlobalInSmallSection(const GlobalValue *GV,
@@ -73,15 +79,17 @@ IsGlobalInSmallSection(const GlobalValue *GV, const TargetMachine &TM,
 
   if (Kind.isBSS() || Kind.isDataNoRel() || Kind.isCommon()) {
     Type *Ty = GV->getType()->getElementType();
-    return IsInSmallSection(TM.getDataLayout()->getTypeAllocSize(Ty));
+    return IsInSmallSection(
+        TM.getSubtargetImpl()->getDataLayout()->getTypeAllocSize(Ty));
   }
 
   return false;
 }
 
-const MCSection *HexagonTargetObjectFile::
-SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
-                       Mangler *Mang, const TargetMachine &TM) const {
+const MCSection *
+HexagonTargetObjectFile::SelectSectionForGlobal(const GlobalValue *GV,
+                                                SectionKind Kind, Mangler &Mang,
+                                                const TargetMachine &TM) const {
 
   // Handle Small Section classification here.
   if (Kind.isBSS() && IsGlobalInSmallSection(GV, TM, Kind))

@@ -16,10 +16,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/*
+ * See e_j0.c for complete comments.
+ */
+
 #include "math.h"
 #include "math_private.h"
 
-static float pzerof(float), qzerof(float);
+static __inline float pzerof(float), qzerof(float);
+
+static const volatile float vone = 1,  vzero = 0;
 
 static const float
 huge 	= 1e30,
@@ -62,17 +68,17 @@ __ieee754_j0f(float x)
 	 * j0(x) = 1/sqrt(pi) * (P(0,x)*cc - Q(0,x)*ss) / sqrt(x)
 	 * y0(x) = 1/sqrt(pi) * (P(0,x)*ss + Q(0,x)*cc) / sqrt(x)
 	 */
-		if(ix>0x80000000) z = (invsqrtpi*cc)/sqrtf(x);
+		if(ix>0x58000000) z = (invsqrtpi*cc)/sqrtf(x); /* |x|>2**49 */
 		else {
 		    u = pzerof(x); v = qzerof(x);
 		    z = invsqrtpi*(u*cc-v*ss)/sqrtf(x);
 		}
 		return z;
 	}
-	if(ix<0x39000000) {	/* |x| < 2**-13 */
+	if(ix<0x3b000000) {	/* |x| < 2**-9 */
 	    if(huge+x>one) {	/* raise inexact if x != 0 */
-	        if(ix<0x32000000) return one;	/* |x|<2**-27 */
-	        else 	      return one - (float)0.25*x*x;
+	        if(ix<0x39800000) return one;	/* |x|<2**-12 */
+	        else 	      return one - x*x/4;
 	    }
 	}
 	z = x*x;
@@ -107,10 +113,9 @@ __ieee754_y0f(float x)
 
 	GET_FLOAT_WORD(hx,x);
         ix = 0x7fffffff&hx;
-    /* Y0(NaN) is NaN, y0(-inf) is Nan, y0(inf) is 0  */
-	if(ix>=0x7f800000) return  one/(x+x*x);
-        if(ix==0) return -one/zero;
-        if(hx<0) return zero/zero;
+	if(ix>=0x7f800000) return  vone/(x+x*x);
+	if(ix==0) return -one/vzero;
+	if(hx<0) return vzero/vzero;
         if(ix >= 0x40000000) {  /* |x| >= 2.0 */
         /* y0(x) = sqrt(2/(pi*x))*(p0(x)*sin(x0)+q0(x)*cos(x0))
          * where x0 = x-pi/4
@@ -136,14 +141,14 @@ __ieee754_y0f(float x)
                     if ((s*c)<zero) cc = z/ss;
                     else            ss = z/cc;
                 }
-                if(ix>0x80000000) z = (invsqrtpi*ss)/sqrtf(x);
+                if(ix>0x58000000) z = (invsqrtpi*ss)/sqrtf(x); /* |x|>2**49 */
                 else {
                     u = pzerof(x); v = qzerof(x);
                     z = invsqrtpi*(u*ss+v*cc)/sqrtf(x);
                 }
                 return z;
 	}
-	if(ix<=0x32000000) {	/* x < 2**-27 */
+	if(ix<=0x39000000) {	/* x < 2**-13 */
 	    return(u00 + tpi*__ieee754_logf(x));
 	}
 	z = x*x;
@@ -224,7 +229,8 @@ static const float pS2[5] = {
   1.4657617569e+01, /* 0x416a859a */
 };
 
-	static float pzerof(float x)
+static __inline float
+pzerof(float x)
 {
 	const float *p,*q;
 	float z,r,s;
@@ -232,9 +238,9 @@ static const float pS2[5] = {
 	GET_FLOAT_WORD(ix,x);
 	ix &= 0x7fffffff;
 	if(ix>=0x41000000)     {p = pR8; q= pS8;}
-	else if(ix>=0x40f71c58){p = pR5; q= pS5;}
-	else if(ix>=0x4036db68){p = pR3; q= pS3;}
-	else if(ix>=0x40000000){p = pR2; q= pS2;}
+	else if(ix>=0x409173eb){p = pR5; q= pS5;}
+	else if(ix>=0x4036d917){p = pR3; q= pS3;}
+	else                   {p = pR2; q= pS2;}	/* ix>=0x40000000 */
 	z = one/(x*x);
 	r = p[0]+z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))));
 	s = one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*q[4]))));
@@ -319,7 +325,8 @@ static const float qS2[6] = {
  -5.3109550476e+00, /* 0xc0a9f358 */
 };
 
-	static float qzerof(float x)
+static __inline float
+qzerof(float x)
 {
 	const float *p,*q;
 	float s,r,z;
@@ -327,9 +334,9 @@ static const float qS2[6] = {
 	GET_FLOAT_WORD(ix,x);
 	ix &= 0x7fffffff;
 	if(ix>=0x41000000)     {p = qR8; q= qS8;}
-	else if(ix>=0x40f71c58){p = qR5; q= qS5;}
-	else if(ix>=0x4036db68){p = qR3; q= qS3;}
-	else if(ix>=0x40000000){p = qR2; q= qS2;}
+	else if(ix>=0x409173eb){p = qR5; q= qS5;}
+	else if(ix>=0x4036d917){p = qR3; q= qS3;}
+	else                   {p = qR2; q= qS2;}	/* ix>=0x40000000 */
 	z = one/(x*x);
 	r = p[0]+z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))));
 	s = one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*(q[4]+z*q[5])))));

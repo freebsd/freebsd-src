@@ -72,13 +72,14 @@ imx_ata_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "fsl,imx51-ata"))
+	if (!ofw_bus_is_compatible(dev, "fsl,imx51-ata") &&
+	    !ofw_bus_is_compatible(dev, "fsl,imx53-ata"))
 		return (ENXIO);
 
 	ctrl = device_get_softc(dev);
 
 	device_set_desc(dev, "Freescale Integrated PATA Controller");
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_LOW_PRIORITY);
 }
 
 static void

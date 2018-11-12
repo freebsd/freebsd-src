@@ -302,6 +302,7 @@ static const struct ath_hal_private ar9300hal = {
         ar9300_get_desc_info,              /* ah_get_desc_info */
         ar9300_select_ant_config,          /* ah_select_ant_config */
         ar9300_ant_ctrl_common_get,        /* ah_ant_ctrl_common_get */
+        ar9300_ant_swcom_sel,              /* ah_ant_swcom_sel */
         ar9300_enable_tpc,                 /* ah_enable_tpc */
         AH_NULL,                           /* ah_olpc_temp_compensation */
 #if ATH_SUPPORT_CRDC
@@ -319,7 +320,9 @@ static const struct ath_hal_private ar9300hal = {
         ar9300_set_key_cache_entry,        /* ah_set_key_cache_entry */
         ar9300_set_key_cache_entry_mac,    /* ah_set_key_cache_entry_mac */
         ar9300_print_keycache,             /* ah_print_key_cache */
-
+#if ATH_SUPPORT_KEYPLUMB_WAR
+        ar9300_check_key_cache_entry,      /* ah_check_key_cache_entry */
+#endif
         /* Power Management Functions */
         ar9300_set_power_mode,             /* ah_set_power_mode */
         ar9300_set_sm_power_mode,          /* ah_set_sm_ps_mode */
@@ -342,6 +345,8 @@ static const struct ath_hal_private ar9300hal = {
         /* Get Channel Noise */
         ath_hal_get_chan_noise,            /* ah_get_chan_noise */
         ar9300_chain_noise_floor,          /* ah_get_chain_noise_floor */
+        ar9300_get_nf_from_reg,            /* ah_get_nf_from_reg */
+        ar9300_get_rx_nf_offset,           /* ah_get_rx_nf_offset */
 
         /* Beacon Functions */
         ar9300_beacon_init,                /* ah_beacon_init */
@@ -499,11 +504,11 @@ static const struct ath_hal_private ar9300hal = {
 #else
         AH_NULL,
         AH_NULL,
-        ar9300TX99TgtChannelPwrUpdate,		/* ah_tx99channelpwrupdate */
-        ar9300TX99TgtStart,					/* ah_tx99start */
-        ar9300TX99TgtStop,					/* ah_tx99stop */
-        ar9300TX99TgtChainmskSetup,			/* ah_tx99_chainmsk_setup */
-        ar9300TX99SetSingleCarrier,			/* ah_tx99_set_single_carrier */
+        ar9300_tx99_channel_pwr_update,		/* ah_tx99channelpwrupdate */
+        ar9300_tx99_start,					/* ah_tx99start */
+        ar9300_tx99_stop,					/* ah_tx99stop */
+        ar9300_tx99_chainmsk_setup,			/* ah_tx99_chainmsk_setup */
+        ar9300_tx99_set_single_carrier,		/* ah_tx99_set_single_carrier */
 #endif
 #endif
         ar9300_chk_rssi_update_tx_pwr,
@@ -525,6 +530,8 @@ static const struct ath_hal_private ar9300hal = {
         ar9300_dump_keycache,              /* ah_dump_keycache */
         ar9300_is_ani_noise_spur,         /* ah_is_ani_noise_spur */
         ar9300_set_hw_beacon_proc,         /* ah_set_hw_beacon_proc */
+        ar9300_set_ctl_pwr,                 /* ah_set_ctl_pwr */
+        ar9300_set_txchainmaskopt,          /* ah_set_txchainmaskopt */
     },
 
     ar9300_get_channel_edges,              /* ah_get_channel_edges */
@@ -618,7 +625,8 @@ ar9300_read_revisions(struct ath_hal *ah)
  */
 struct ath_hal *
 ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
-  HAL_BUS_HANDLE sh, uint16_t *eepromdata, HAL_STATUS *status)
+  HAL_BUS_HANDLE sh, uint16_t *eepromdata, HAL_OPS_CONFIG *ah_config,
+  HAL_STATUS *status)
 {
     struct ath_hal_9300     *ahp;
     struct ath_hal          *ah;
@@ -628,7 +636,7 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
     HAL_NO_INTERSPERSED_READS;
 
     /* NB: memory is returned zero'd */
-    ahp = ar9300_new_state(devid, sc, st, sh, eepromdata, status);
+    ahp = ar9300_new_state(devid, sc, st, sh, eepromdata, ah_config, status);
     if (ahp == AH_NULL) {
         return AH_NULL;
     }
@@ -653,12 +661,6 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
 
     /* XXX FreeBSD: enable RX mitigation */
     ah->ah_config.ath_hal_intr_mitigation_rx = 1;
-
-    /*
-     * XXX what's this do? Check in the qcamain driver code
-     * as to what it does.
-     */
-    ah->ah_config.ath_hal_ext_atten_margin_cfg = 0;
 
     /* interrupt mitigation */
 #ifdef AR5416_INT_MITIGATION
@@ -842,6 +844,18 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
 
     /* Enable RIFS */
     ahp->ah_rifs_enabled = AH_TRUE;
+
+    /* by default, stop RX also in abort txdma, due to
+       "Unable to stop TxDMA" msg observed */
+    ahp->ah_abort_txdma_norx = AH_TRUE;
+
+    /* do not use optional tx chainmask by default */
+    ahp->ah_tx_chainmaskopt = 0;
+
+    ahp->ah_skip_rx_iq_cal = AH_FALSE;
+    ahp->ah_rx_cal_complete = AH_FALSE;
+    ahp->ah_rx_cal_chan = 0;
+    ahp->ah_rx_cal_chan_flag = 0;
 
     HALDEBUG(ah, HAL_DEBUG_RESET,
         "%s: This Mac Chip Rev 0x%02x.%x is \n", __func__,
@@ -2378,7 +2392,9 @@ ar9300_detach(struct ath_hal *ah)
 struct ath_hal_9300 *
 ar9300_new_state(u_int16_t devid, HAL_SOFTC sc,
     HAL_BUS_TAG st, HAL_BUS_HANDLE sh,
-    uint16_t *eepromdata, HAL_STATUS *status)
+    uint16_t *eepromdata,
+    HAL_OPS_CONFIG *ah_config,
+    HAL_STATUS *status)
 {
     static const u_int8_t defbssidmask[IEEE80211_ADDR_LEN] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -2430,7 +2446,7 @@ ar9300_new_state(u_int16_t devid, HAL_SOFTC sc,
     ** Initialize factory defaults in the private space
     */
 //    ath_hal_factory_defaults(AH_PRIVATE(ah), hal_conf_parm);
-    ar9300_config_defaults_freebsd(ah);
+    ar9300_config_defaults_freebsd(ah, ah_config);
 
     /* XXX FreeBSD: cal is always in EEPROM */
 #if 0
@@ -2456,6 +2472,7 @@ ar9300_new_state(u_int16_t devid, HAL_SOFTC sc,
     AH_PRIVATE(ah)->ah_tpScale = HAL_TP_SCALE_MAX;  /* no scaling */
 
     ahp->ah_atim_window = 0;         /* [0..1000] */
+
     ahp->ah_diversity_control =
         ah->ah_config.ath_hal_diversity_control;
     ahp->ah_antenna_switch_swap =
@@ -2934,6 +2951,10 @@ ar9300_fill_capability_info(struct ath_hal *ah)
         p_cap->halRxUsingLnaMixing = AH_TRUE;
     }
 
+    /*
+     * AR5416 and later NICs support MYBEACON filtering.
+     */
+    p_cap->halRxDoMyBeacon = AH_TRUE;
 
 #if ATH_WOW_OFFLOAD
     if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
@@ -3831,6 +3852,11 @@ ar9300_ant_div_comb_get_config(struct ath_hal *ah,
     } else {
         div_comb_conf->antdiv_configgroup = DEFAULT_ANTDIV_CONFIG_GROUP;
     }
+
+    /*
+     * XXX TODO: allow the HAL to override the rssithres and fast_div_bias
+     * values (eg CUS198.)
+     */
 }
 
 void
@@ -4109,6 +4135,8 @@ ar9300_probe(uint16_t vendorid, uint16_t devid)
         return "Qualcomm Atheros QCA955x";
     case AR9300_DEVID_QCA9565: /* Aphrodite */
          return "Qualcomm Atheros AR9565";
+    case AR9300_DEVID_AR1111_PCIE:
+         return "Atheros AR1111";
     default:
         return AH_NULL;
     }

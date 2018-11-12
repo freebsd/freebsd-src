@@ -1,6 +1,6 @@
 # Chelsio T4 Factory Default configuration file.
 #
-# Copyright (C) 2010-2013 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2010-2014 Chelsio Communications.  All rights reserved.
 #
 #   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF
 #   THIS FILE WILL RESULT IN A NON-FUNCTIONAL T4 ADAPTER AND MAY RESULT
@@ -112,7 +112,7 @@
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
 	reg[0x7d04] = 0x00010000/0x00010000
 
-	reg[0x7dc0] = 0x62f8849		# TP_SHIFT_CNT
+	reg[0x7dc0] = 0x0e2f8849		# TP_SHIFT_CNT
 
 	# TP_VLAN_PRI_MAP to select filter tuples
 	# filter tuples : fragmentation, mpshittype, macmatch, ethertype,
@@ -145,6 +145,9 @@
 
 	# TP OFLD MTUs
 	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
+
+	# ULPRX iSCSI Page Sizes
+	reg[0x19168] = 0x04020100 # 64K, 16K, 8K and 4K 
 
 # Some "definitions" to make the rest of this a bit more readable.  We support
 # 4 ports, 3 functions (NIC, FCoE and iSCSI), scaling up to 8 "CPU Queue Sets"
@@ -392,7 +395,7 @@
 	pmask = all		# access to all four ports ...
 	nserver = 16
 	nhash = 2048
-	tp_l2t = 1024
+	tp_l2t = 1020
 	protocol = iscsi_initiator_fofld
 	tp_ddp_iscsi = 2
 	iscsi_ntask = 2048
@@ -413,6 +416,7 @@
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
 	nhash = 2048
+	tp_l2t = 4
 	protocol = fcoe_initiator
 	tp_ddp = 1
 	fcoe_nfcf = 16
@@ -496,6 +500,8 @@
 # dwm:		minimum delta between high and low watermark (in units of 100
 #		Bytes)
 #
+#
+
 [port "0"]
 	dcb = ppp, dcbx		# configure for DCB PPP and enable DCBX offload
 	bg_mem = 25
@@ -503,6 +509,9 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "1"]
 	dcb = ppp, dcbx
@@ -511,6 +520,9 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "2"]
 	dcb = ppp, dcbx
@@ -519,6 +531,9 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "3"]
 	dcb = ppp, dcbx
@@ -527,10 +542,13 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [fini]
-	version = 0x14250010
-	checksum = 0x5a5526c3
+	version = 0x1425001c
+	checksum = 0x63a652b3
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

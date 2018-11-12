@@ -270,39 +270,33 @@ program is executed with:
 .It Ic "<path> role <resource> <oldrole> <newrole>"
 .Pp
 Executed on both primary and secondary nodes when resource role is changed.
-.Pp
 .It Ic "<path> connect <resource>"
 .Pp
 Executed on both primary and secondary nodes when connection for the given
 resource between the nodes is established.
-.Pp
 .It Ic "<path> disconnect <resource>"
 .Pp
 Executed on both primary and secondary nodes when connection for the given
 resource between the nodes is lost.
-.Pp
 .It Ic "<path> syncstart <resource>"
 .Pp
 Executed on primary node when synchronization process of secondary node is
 started.
-.Pp
 .It Ic "<path> syncdone <resource>"
 .Pp
 Executed on primary node when synchronization process of secondary node is
 completed successfully.
-.Pp
 .It Ic "<path> syncintr <resource>"
 .Pp
 Executed on primary node when synchronization process of secondary node is
 interrupted, most likely due to secondary node outage or connection failure
 between the nodes.
-.Pp
 .It Ic "<path> split-brain <resource>"
 .Pp
 Executed on both primary and secondary nodes when split-brain condition is
 detected.
-.Pp
 .El
+.Pp
 The
 .Aq path
 argument should contain full path to executable program.
@@ -330,7 +324,6 @@ It can be one of:
 .Ar init ,
 .Ar secondary ,
 .Ar primary .
-.Pp
 .It Ic metaflush on | off
 .Pp
 When set to
@@ -349,7 +342,6 @@ will disable
 automatically.
 The default value is
 .Va on .
-.Pp
 .It Ic name Aq name
 .Pp
 GEOM provider name that will appear as
@@ -445,5 +437,5 @@ resource tank {
 The
 .Nm
 was written by
-.An Pawel Jakub Dawidek Aq pjd@FreeBSD.org
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org
 under sponsorship of the FreeBSD Foundation.

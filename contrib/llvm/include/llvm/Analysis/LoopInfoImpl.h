@@ -15,9 +15,11 @@
 #ifndef LLVM_ANALYSIS_LOOPINFOIMPL_H
 #define LLVM_ANALYSIS_LOOPINFOIMPL_H
 
+#include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/IR/Dominators.h"
 
 namespace llvm {
 
@@ -31,17 +33,12 @@ namespace llvm {
 template<class BlockT, class LoopT>
 void LoopBase<BlockT, LoopT>::
 getExitingBlocks(SmallVectorImpl<BlockT *> &ExitingBlocks) const {
-  // Sort the blocks vector so that we can use binary search to do quick
-  // lookups.
-  SmallVector<BlockT*, 128> LoopBBs(block_begin(), block_end());
-  std::sort(LoopBBs.begin(), LoopBBs.end());
-
   typedef GraphTraits<BlockT*> BlockTraits;
   for (block_iterator BI = block_begin(), BE = block_end(); BI != BE; ++BI)
     for (typename BlockTraits::ChildIteratorType I =
            BlockTraits::child_begin(*BI), E = BlockTraits::child_end(*BI);
          I != E; ++I)
-      if (!std::binary_search(LoopBBs.begin(), LoopBBs.end(), *I)) {
+      if (!contains(*I)) {
         // Not in current loop? It must be an exit block.
         ExitingBlocks.push_back(*BI);
         break;
@@ -56,7 +53,7 @@ BlockT *LoopBase<BlockT, LoopT>::getExitingBlock() const {
   getExitingBlocks(ExitingBlocks);
   if (ExitingBlocks.size() == 1)
     return ExitingBlocks[0];
-  return 0;
+  return nullptr;
 }
 
 /// getExitBlocks - Return all of the successor blocks of this loop.  These
@@ -65,17 +62,12 @@ BlockT *LoopBase<BlockT, LoopT>::getExitingBlock() const {
 template<class BlockT, class LoopT>
 void LoopBase<BlockT, LoopT>::
 getExitBlocks(SmallVectorImpl<BlockT*> &ExitBlocks) const {
-  // Sort the blocks vector so that we can use binary search to do quick
-  // lookups.
-  SmallVector<BlockT*, 128> LoopBBs(block_begin(), block_end());
-  std::sort(LoopBBs.begin(), LoopBBs.end());
-
   typedef GraphTraits<BlockT*> BlockTraits;
   for (block_iterator BI = block_begin(), BE = block_end(); BI != BE; ++BI)
     for (typename BlockTraits::ChildIteratorType I =
            BlockTraits::child_begin(*BI), E = BlockTraits::child_end(*BI);
          I != E; ++I)
-      if (!std::binary_search(LoopBBs.begin(), LoopBBs.end(), *I))
+      if (!contains(*I))
         // Not in current loop? It must be an exit block.
         ExitBlocks.push_back(*I);
 }
@@ -88,24 +80,19 @@ BlockT *LoopBase<BlockT, LoopT>::getExitBlock() const {
   getExitBlocks(ExitBlocks);
   if (ExitBlocks.size() == 1)
     return ExitBlocks[0];
-  return 0;
+  return nullptr;
 }
 
 /// getExitEdges - Return all pairs of (_inside_block_,_outside_block_).
 template<class BlockT, class LoopT>
 void LoopBase<BlockT, LoopT>::
 getExitEdges(SmallVectorImpl<Edge> &ExitEdges) const {
-  // Sort the blocks vector so that we can use binary search to do quick
-  // lookups.
-  SmallVector<BlockT*, 128> LoopBBs(block_begin(), block_end());
-  array_pod_sort(LoopBBs.begin(), LoopBBs.end());
-
   typedef GraphTraits<BlockT*> BlockTraits;
   for (block_iterator BI = block_begin(), BE = block_end(); BI != BE; ++BI)
     for (typename BlockTraits::ChildIteratorType I =
            BlockTraits::child_begin(*BI), E = BlockTraits::child_end(*BI);
          I != E; ++I)
-      if (!std::binary_search(LoopBBs.begin(), LoopBBs.end(), *I))
+      if (!contains(*I))
         // Not in current loop? It must be an exit block.
         ExitEdges.push_back(Edge(*BI, *I));
 }
@@ -121,14 +108,14 @@ template<class BlockT, class LoopT>
 BlockT *LoopBase<BlockT, LoopT>::getLoopPreheader() const {
   // Keep track of nodes outside the loop branching to the header...
   BlockT *Out = getLoopPredecessor();
-  if (!Out) return 0;
+  if (!Out) return nullptr;
 
   // Make sure there is only one exit out of the preheader.
   typedef GraphTraits<BlockT*> BlockTraits;
   typename BlockTraits::ChildIteratorType SI = BlockTraits::child_begin(Out);
   ++SI;
   if (SI != BlockTraits::child_end(Out))
-    return 0;  // Multiple exits from the block, must not be a preheader.
+    return nullptr;  // Multiple exits from the block, must not be a preheader.
 
   // The predecessor has exactly one successor, so it is a preheader.
   return Out;
@@ -142,7 +129,7 @@ BlockT *LoopBase<BlockT, LoopT>::getLoopPreheader() const {
 template<class BlockT, class LoopT>
 BlockT *LoopBase<BlockT, LoopT>::getLoopPredecessor() const {
   // Keep track of nodes outside the loop branching to the header...
-  BlockT *Out = 0;
+  BlockT *Out = nullptr;
 
   // Loop over the predecessors of the header node...
   BlockT *Header = getHeader();
@@ -153,7 +140,7 @@ BlockT *LoopBase<BlockT, LoopT>::getLoopPredecessor() const {
     typename InvBlockTraits::NodeType *N = *PI;
     if (!contains(N)) {     // If the block is not in the loop...
       if (Out && Out != N)
-        return 0;             // Multiple predecessors outside the loop
+        return nullptr;     // Multiple predecessors outside the loop
       Out = N;
     }
   }
@@ -173,11 +160,11 @@ BlockT *LoopBase<BlockT, LoopT>::getLoopLatch() const {
     InvBlockTraits::child_begin(Header);
   typename InvBlockTraits::ChildIteratorType PE =
     InvBlockTraits::child_end(Header);
-  BlockT *Latch = 0;
+  BlockT *Latch = nullptr;
   for (; PI != PE; ++PI) {
     typename InvBlockTraits::NodeType *N = *PI;
     if (contains(N)) {
-      if (Latch) return 0;
+      if (Latch) return nullptr;
       Latch = N;
     }
   }
@@ -201,7 +188,7 @@ addBasicBlockToLoop(BlockT *NewBB, LoopInfoBase<BlockT, LoopT> &LIB) {
   assert((Blocks.empty() || LIB[getHeader()] == this) &&
          "Incorrect LI specified for this loop!");
   assert(NewBB && "Cannot add a null basic block to the loop!");
-  assert(LIB[NewBB] == 0 && "BasicBlock already in the loop!");
+  assert(!LIB[NewBB] && "BasicBlock already in the loop!");
 
   LoopT *L = static_cast<LoopT *>(this);
 
@@ -210,7 +197,7 @@ addBasicBlockToLoop(BlockT *NewBB, LoopInfoBase<BlockT, LoopT> &LIB) {
 
   // Add the basic block to this loop and all parent loops...
   while (L) {
-    L->Blocks.push_back(NewBB);
+    L->addBlockEntry(NewBB);
     L = L->getParentLoop();
   }
 }
@@ -223,12 +210,12 @@ template<class BlockT, class LoopT>
 void LoopBase<BlockT, LoopT>::
 replaceChildLoopWith(LoopT *OldChild, LoopT *NewChild) {
   assert(OldChild->ParentLoop == this && "This loop is already broken!");
-  assert(NewChild->ParentLoop == 0 && "NewChild already has a parent!");
+  assert(!NewChild->ParentLoop && "NewChild already has a parent!");
   typename std::vector<LoopT *>::iterator I =
     std::find(SubLoops.begin(), SubLoops.end(), OldChild);
   assert(I != SubLoops.end() && "OldChild not in loop!");
   *I = NewChild;
-  OldChild->ParentLoop = 0;
+  OldChild->ParentLoop = nullptr;
   NewChild->ParentLoop = static_cast<LoopT *>(this);
 }
 
@@ -250,11 +237,6 @@ void LoopBase<BlockT, LoopT>::verifyLoop() const {
   // Keep track of the number of BBs visited.
   unsigned NumVisited = 0;
 
-  // Sort the blocks vector so that we can use binary search to do quick
-  // lookups.
-  SmallVector<BlockT*, 128> LoopBBs(block_begin(), block_end());
-  std::sort(LoopBBs.begin(), LoopBBs.end());
-
   // Check the individual blocks.
   for ( ; BI != BE; ++BI) {
     BlockT *BB = *BI;
@@ -266,7 +248,7 @@ void LoopBase<BlockT, LoopT>::verifyLoop() const {
     for (typename BlockTraits::ChildIteratorType SI =
            BlockTraits::child_begin(BB), SE = BlockTraits::child_end(BB);
          SI != SE; ++SI)
-      if (std::binary_search(LoopBBs.begin(), LoopBBs.end(), *SI)) {
+      if (contains(*SI)) {
         HasInsideLoopSuccs = true;
         break;
       }
@@ -275,7 +257,7 @@ void LoopBase<BlockT, LoopT>::verifyLoop() const {
            InvBlockTraits::child_begin(BB), PE = InvBlockTraits::child_end(BB);
          PI != PE; ++PI) {
       BlockT *N = *PI;
-      if (std::binary_search(LoopBBs.begin(), LoopBBs.end(), N))
+      if (contains(N))
         HasInsideLoopPreds = true;
       else
         OutsideLoopPreds.push_back(N);
@@ -288,11 +270,10 @@ void LoopBase<BlockT, LoopT>::verifyLoop() const {
       // though it is permitted if the predecessor is not itself actually
       // reachable.
       BlockT *EntryBB = BB->getParent()->begin();
-        for (df_iterator<BlockT *> NI = df_begin(EntryBB),
-               NE = df_end(EntryBB); NI != NE; ++NI)
-          for (unsigned i = 0, e = OutsideLoopPreds.size(); i != e; ++i)
-            assert(*NI != OutsideLoopPreds[i] &&
-                   "Loop has multiple entry points!");
+      for (BlockT *CB : depth_first(EntryBB))
+        for (unsigned i = 0, e = OutsideLoopPreds.size(); i != e; ++i)
+          assert(CB != OutsideLoopPreds[i] &&
+                 "Loop has multiple entry points!");
     }
     assert(HasInsideLoopPreds && "Loop block has no in-loop predecessors!");
     assert(HasInsideLoopSuccs && "Loop block has no in-loop successors!");
@@ -309,7 +290,7 @@ void LoopBase<BlockT, LoopT>::verifyLoop() const {
     // Each block in each subloop should be contained within this loop.
     for (block_iterator BI = (*I)->block_begin(), BE = (*I)->block_end();
          BI != BE; ++BI) {
-        assert(std::binary_search(LoopBBs.begin(), LoopBBs.end(), *BI) &&
+        assert(contains(*BI) &&
                "Loop does not contain all the blocks of a subloop!");
     }
 
@@ -342,7 +323,7 @@ void LoopBase<BlockT, LoopT>::print(raw_ostream &OS, unsigned Depth) const {
   for (unsigned i = 0; i < getBlocks().size(); ++i) {
     if (i) OS << ",";
     BlockT *BB = getBlocks()[i];
-    WriteAsOperand(OS, BB, false);
+    BB->printAsOperand(OS, false);
     if (BB == getHeader())    OS << "<header>";
     if (BB == getLoopLatch()) OS << "<latch>";
     if (isLoopExiting(BB))    OS << "<exiting>";
@@ -418,7 +399,7 @@ static void discoverAndMapSubloop(LoopT *L, ArrayRef<BlockT*> Backedges,
     }
   }
   L->getSubLoopsVector().reserve(NumSubloops);
-  L->getBlocksVector().reserve(NumBlocks);
+  L->reserveBlocks(NumBlocks);
 }
 
 namespace {
@@ -489,15 +470,14 @@ void PopulateLoopsDFS<BlockT, LoopT>::insertIntoLoop(BlockT *Block) {
 
     // For convenience, Blocks and Subloops are inserted in postorder. Reverse
     // the lists, except for the loop header, which is always at the beginning.
-    std::reverse(Subloop->getBlocksVector().begin()+1,
-                 Subloop->getBlocksVector().end());
+    Subloop->reverseBlock(1);
     std::reverse(Subloop->getSubLoopsVector().begin(),
                  Subloop->getSubLoopsVector().end());
 
     Subloop = Subloop->getParentLoop();
   }
   for (; Subloop; Subloop = Subloop->getParentLoop())
-    Subloop->getBlocksVector().push_back(Block);
+    Subloop->addBlockEntry(Block);
 }
 
 /// Analyze LoopInfo discovers loops during a postorder DominatorTree traversal

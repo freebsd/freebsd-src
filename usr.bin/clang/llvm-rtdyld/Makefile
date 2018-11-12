@@ -1,19 +1,24 @@
 # $FreeBSD$
 
-NO_MAN=
+MAN=
 .include <bsd.own.mk>
 
 PROG_CXX=llvm-rtdyld
-DPADD=	${LIBZ}
-LDADD=	-lz
 
 SRCDIR=	tools/llvm-rtdyld
 SRCS=	llvm-rtdyld.cpp
 
 LIBDEPS=llvmdebuginfo \
-	llvmjit \
+	llvmmcjit \
 	llvmexecutionengine \
 	llvmruntimedyld \
+	llvmaarch64disassembler \
+	llvmaarch64codegen \
+	llvmaarch64asmparser \
+	llvmaarch64desc \
+	llvmaarch64info \
+	llvmaarch64instprinter \
+	llvmaarch64utils \
 	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
@@ -26,32 +31,44 @@ LIBDEPS=llvmdebuginfo \
 	llvmmipsdesc \
 	llvmmipsinfo \
 	llvmmipsinstprinter \
+	llvmpowerpcdisassembler \
 	llvmpowerpccodegen \
-	llvmpowerpcdesc \
-	llvmpowerpcinstprinter \
 	llvmpowerpcasmparser \
+	llvmpowerpcdesc \
 	llvmpowerpcinfo \
+	llvmpowerpcinstprinter \
+	llvmsparcdisassembler \
+	llvmsparccodegen \
+	llvmsparcasmparser \
+	llvmsparcdesc \
+	llvmsparcinfo \
+	llvmsparcinstprinter \
 	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
-	llvmmcparser \
 	llvmcodegen \
-	llvmobjcarcopts \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmx86desc \
-	llvmx86info \
 	llvmtarget \
+	llvmx86desc \
+	llvmobject \
+	llvmmcparser \
+	llvmbitreader \
+	llvmmcdisassembler \
+	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
-	llvmobject \
 	llvmx86utils \
 	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"
+
+DPADD+=	${LIBZ}
+LDADD+=	-lz

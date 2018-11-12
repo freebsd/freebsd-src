@@ -11,7 +11,7 @@
  */
 #if __has_builtin(__c11_atomic_exchange)
 #define ATOMIC_SWAP(addr, val)\
-	__c11_atomic_exchange((_Atomic(__typeof__(val))*)addr, val, __ATOMIC_ACQ_REL)
+	__c11_atomic_exchange(reinterpret_cast<_Atomic(__typeof__(val))*>(addr), val, __ATOMIC_ACQ_REL)
 #elif __has_builtin(__sync_swap)
 #define ATOMIC_SWAP(addr, val)\
 	__sync_swap(addr, val)
@@ -22,7 +22,7 @@
 
 #if __has_builtin(__c11_atomic_load)
 #define ATOMIC_LOAD(addr)\
-	__c11_atomic_load((_Atomic(__typeof__(*addr))*)addr, __ATOMIC_ACQUIRE)
+	__c11_atomic_load(reinterpret_cast<_Atomic(__typeof__(*addr))*>(addr), __ATOMIC_ACQUIRE)
 #else
 #define ATOMIC_LOAD(addr)\
 	(__sync_synchronize(), *addr)

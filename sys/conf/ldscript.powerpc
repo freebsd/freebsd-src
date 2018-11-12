@@ -1,6 +1,7 @@
 /* $FreeBSD$ */
 
-OUTPUT_FORMAT("elf32-powerpc", "elf32-powerpc", "elf32-powerpc")
+OUTPUT_FORMAT("elf32-powerpc-freebsd", "elf32-powerpc-freebsd",
+	      "elf32-powerpc-freebsd")
 OUTPUT_ARCH(powerpc)
 ENTRY(__start)
 SEARCH_DIR(/usr/lib);
@@ -10,6 +11,7 @@ SECTIONS
   /* Read-only sections, merged into text segment: */
 
   . = kernbase + SIZEOF_HEADERS;
+  PROVIDE (begin = . - SIZEOF_HEADERS);
 
   .text      :
   {

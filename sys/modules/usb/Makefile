@@ -25,7 +25,13 @@
 # SUCH DAMAGE.
 #
 
-.include <bsd.own.mk>
+SYSDIR?=${.CURDIR}/../..
+.include "${SYSDIR}/conf/kern.opts.mk"
+
+#
+# Allow USB modules to be built in parallel
+#
+SUBDIR_PARALLEL=
 
 #
 # Check for common USB debug flags to pass when building the USB
@@ -44,12 +50,13 @@ MAKE+=" DEBUG_FLAGS+=-DUSB_REQ_DEBUG"
 
 SUBDIR = usb
 SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} ${_at91dci} \
-	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw}
+	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw} ${_saf1761otg}
 SUBDIR += ${_rum} ${_run} ${_runfw} ${_uath} upgt usie ural ${_zyd} ${_urtw} 
 SUBDIR += ${_urtwn} ${_urtwnfw}
-SUBDIR += atp uhid ukbd ums udbp ufm uep wsp
+SUBDIR += atp uhid ukbd ums udbp ufm uep wsp ugold uled
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
+SUBDIR += udl
 SUBDIR += uether aue axe axge cdce cue ${_kue} mos rue smsc udav uhso ipheth
 SUBDIR += urndis
 SUBDIR += usfs umass urio
@@ -94,6 +101,10 @@ _urtw=		urtw
 
 .if ${MACHINE_CPUARCH} == "avr32"
 _avr32dci=	avr32dci
+.endif
+
+.if ${MACHINE_CPUARCH} == "mips"
+_saf1761otg=	saf1761otg
 .endif
 
 .include <bsd.subdir.mk>

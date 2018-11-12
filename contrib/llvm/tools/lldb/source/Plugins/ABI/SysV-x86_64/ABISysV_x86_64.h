@@ -61,19 +61,23 @@ public:
         
     virtual bool
     RegisterIsVolatile (const lldb_private::RegisterInfo *reg_info);
-    
-    virtual bool
-    StackUsesFrames ()
-    {
-        return true;
-    }
-    
+
+    // The SysV x86_64 ABI requires that stack frames be 16 byte aligned.
+    // When there is a trap handler on the stack, e.g. _sigtramp in userland
+    // code, we've seen that the stack pointer is often not aligned properly
+    // before the handler is invoked.  This means that lldb will stop the unwind
+    // early -- before the function which caused the trap.
+    //
+    // To work around this, we relax that alignment to be just word-size (8-bytes).
+    // Whitelisting the trap handlers for user space would be easy (_sigtramp) but
+    // in other environments there can be a large number of different functions
+    // involved in async traps.
     virtual bool
     CallFrameAddressIsValid (lldb::addr_t cfa)
     {
-        // Make sure the stack call frame addresses are 16 byte aligned
-        if (cfa & (16ull - 1ull))
-            return false;   // Not 16 byte aligned
+        // Make sure the stack call frame addresses are 8 byte aligned
+        if (cfa & (8ull - 1ull))
+            return false;   // Not 8 byte aligned
         if (cfa == 0)
             return false;   // Zero is not a valid stack address
         return true;
@@ -84,12 +88,6 @@ public:
     {
         // We have a 64 bit address space, so anything is valid as opcodes
         // aren't fixed width...
-        return true;
-    }
-
-    virtual bool
-    FunctionCallsChangeCFA ()
-    {
         return true;
     }
 

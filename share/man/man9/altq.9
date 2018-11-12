@@ -237,7 +237,7 @@ sets a flag to indicate that a driver was converted to use the new macros.
 .Nm
 can be enabled only on interfaces with this flag.
 .Sh COMPATIBILITY
-.Ss Vt ifaltq Ss structure
+.Ss Vt ifaltq structure
 In order to keep compatibility with the existing code, the new
 output queue structure
 .Vt ifaltq
@@ -256,7 +256,6 @@ still work with
     struct mbuf *ifq_tail;             |    struct mbuf *ifq_tail;
     int          ifq_len;              |    int          ifq_len;
     int          ifq_maxlen;           |    int          ifq_maxlen;
-    int          ifq_drops;            |    int          ifq_drops;
  };                                    |    /* driver queue fields */
                                        |    ......
                                        |    /* altq related fields */

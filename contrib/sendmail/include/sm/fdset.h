@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: fdset.h,v 1.6 2013/11/22 20:51:31 ca Exp $
+ *	$Id: fdset.h,v 1.6 2013-11-22 20:51:31 ca Exp $
  */
 
 #ifndef	SM_FDSET_H
@@ -17,9 +17,9 @@
 **	before.
 */
 
-#  define SM_FD_SET(fd, pfdset)		FD_SET(fd, pfdset)
-#  define SM_FD_ISSET(fd, pfdset)	FD_ISSET(fd, pfdset)
-#  define SM_FD_SETSIZE			FD_SETSIZE
-#  define SM_FD_OK_SELECT(fd)		(FD_SETSIZE <= 0 || (fd) < FD_SETSIZE)
+#define SM_FD_SET(fd, pfdset)	FD_SET(fd, pfdset)
+#define SM_FD_ISSET(fd, pfdset)	FD_ISSET(fd, pfdset)
+#define SM_FD_SETSIZE		FD_SETSIZE
+#define SM_FD_OK_SELECT(fd)	(SM_FD_SETSIZE <= 0 || (fd) < SM_FD_SETSIZE)
 
 #endif /* SM_FDSET_H */

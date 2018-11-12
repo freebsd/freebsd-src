@@ -48,6 +48,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kstack_pages.h"
+
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -106,10 +108,6 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
@@ -128,7 +126,7 @@ static const struct arm_devmap_entry iq81342_devmap[] = {
 		    IOP34X_HWADDR,
 		    IOP34X_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 		    /*
@@ -139,14 +137,14 @@ static const struct arm_devmap_entry iq81342_devmap[] = {
 		    IOP34X_PCIX_OIOBAR &~ (0x100000 - 1),
 		    0x100000,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 		    IOP34X_PCE1_VADDR,
 		    IOP34X_PCE1,
 		    IOP34X_PCE1_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {	
 		    0,
@@ -227,7 +225,7 @@ initarm(struct arm_boot_params *abp)
 	valloc_pages(irqstack, IRQ_STACK_SIZE);
 	valloc_pages(abtstack, ABT_STACK_SIZE);
 	valloc_pages(undstack, UND_STACK_SIZE);
-	valloc_pages(kernelstack, KSTACK_PAGES);
+	valloc_pages(kernelstack, kstack_pages);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 	/*
 	 * Now we start construction of the L1 page table
@@ -294,17 +292,14 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
-	cpu_setup("");
+	cpu_setup();
 
 	i80321_calibrate_delay();
-	i81342_sdram_bounds(&obio_bs_tag, IOP34X_VADDR, &memstart, &memsize);
+	i81342_sdram_bounds(obio_bs_tag, IOP34X_VADDR, &memstart, &memsize);
 	physmem = memsize / PAGE_SIZE;
 	cninit();
 	/* Set stack for exception handlers */
 	
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 				
 	init_proc0(kernelstack.pv_va);
@@ -330,6 +325,10 @@ initarm(struct arm_boot_params *abp)
 	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
 	arm_physmem_hardware_region(SDRAM_START, memsize);
+	arm_physmem_exclude_region(freemem_pt, KERNPHYSADDR -
+	    freemem_pt, EXFLAG_NOALLOC);
+	arm_physmem_exclude_region(freemempos, KERNPHYSADDR - 0x100000 -
+	    freemempos, EXFLAG_NOALLOC);
 	arm_physmem_exclude_region(abp->abp_physaddr, 
 	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
 	arm_physmem_init_kernel_globals();

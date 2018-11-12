@@ -1,10 +1,11 @@
 # $FreeBSD$
 
 LIB=	hdb
-LDFLAGS=	-Wl,--no-undefined
+LDFLAGS=	-Wl,--no-undefined ${LDAPLDFLAGS}
 VERSION_MAP=	${KRB5DIR}/lib/hdb/version-script.map
-LDADD=	-lasn1 -lcom_err -lkrb5 -lroken -lheimsqlite
-DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBKRB5} ${LIBROKEN} ${LIBHEIMSQLITE} ${LDAPDPADD}
+LIBADD=	asn1 com_err krb5 roken sqlite3
+LDADD=	${LDAPLDADD}
+DPADD=	${LDAPDPADD}
 
 MAN=	HDB.3 hdb_entry_ex.3
 
@@ -56,7 +57,7 @@ SRCS=	common.c \
 	${GEN:S/.x$/.c/:S/.hx$/.h/}
 
 CFLAGS+=-I${KRB5DIR}/lib/hdb -I${KRB5DIR}/lib/asn1 \
-	-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/sqlite \
+	-I${KRB5DIR}/lib/roken -I${.CURDIR}/../../../contrib/sqlite3/ \
 	-I${KRB5DIR}/lib/krb5 \
 	-I. ${LDAPCFLAGS}
 CFLAGS+=-DHDB_DB_DIR="\"/var/heimdal\""
@@ -84,16 +85,22 @@ GEN=	asn1_Salt.x \
 CLEANFILES=	${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} hdb_asn1_files \
 		hdb_asn1-template.[ch]*
 
+.ORDER: ${GEN}
 ${GEN}: hdb.asn1
 	${ASN1_COMPILE} ${.ALLSRC:M*.asn1} hdb_asn1
 
 .SUFFIXES: .h .c .x .hx
 
 .x.c:   
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cat ${.IMPSRC} > ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 
 .hx.h:
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cat ${.IMPSRC} > ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
+
+# This makefile generates a lot of its headers
+# so tell bsd.sys.mk not to try and stage them before they are built.
+# Note: this is rare
+NO_BEFOREBUILD_INCLUDES=
 
 .include <bsd.lib.mk>
 

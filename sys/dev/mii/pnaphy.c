@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -82,7 +81,8 @@ static driver_t pnaphy_driver = {
 
 DRIVER_MODULE(pnaphy, miibus, pnaphy_driver, pnaphy_devclass, 0, 0);
 
-static int	pnaphy_service(struct mii_softc *, struct mii_data *,int);
+static int	pnaphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
 
 static const struct mii_phydesc pnaphys[] = {
 	MII_PHY_DESC(yyAMD, 79c901home),
@@ -112,18 +112,18 @@ pnaphy_attach(device_t dev)
 }
 
 static int
-pnaphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+pnaphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
 		break;
 
 	case MII_MEDIACHG:
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_HPNA_1:
-			mii_phy_setmedia(sc);
+			mii_phy_setmedia(sc, media);
 			break;
 		default:
 			return (EINVAL);
@@ -137,7 +137,7 @@ pnaphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T)
 		mii->mii_media_active = IFM_ETHER | IFM_HPNA_1;
 

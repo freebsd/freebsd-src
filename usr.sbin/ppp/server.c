@@ -248,7 +248,7 @@ server_LocalOpen(struct bundle *bundle, const char *name, mode_t mask)
 
   oldmask = (mode_t)-1;		/* Silence compiler */
 
-  if (server.cfg.sockname && !strcmp(server.cfg.sockname, name))
+  if (server.cfg.sockname[0] != '\0' && !strcmp(server.cfg.sockname, name))
     server_Close(bundle);
 
   memset(&ifsun, '\0', sizeof ifsun);

@@ -152,7 +152,7 @@ pnphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
+		if ((if_getflags(mii->mii_ifp) & IFF_UP) == 0)
 			break;
 
 		/*
@@ -180,7 +180,7 @@ pnphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		/*
 		 * Is the interface even up?
 		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
+		if ((if_getflags(mii->mii_ifp) & IFF_UP) == 0)
 			return (0);
 
 		break;
@@ -201,7 +201,7 @@ pnphy_status(struct mii_softc *sc)
 	int reg;
 	struct dc_softc		*dc_sc;
 
-	dc_sc = mii->mii_ifp->if_softc;
+	dc_sc = if_getsoftc(mii->mii_ifp);
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;

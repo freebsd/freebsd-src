@@ -27,6 +27,8 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kstack_pages.h"
+
 #include <sys/errno.h>
 
 #include <machine/asi.h>
@@ -517,7 +519,7 @@ fs_nofault_end:
 ENTRY(fs_fault)
 	retl
 	 mov	-1, %o0
-END(fsfault)
+END(fs_fault)
 
 	.globl	fas_nofault_begin
 fas_nofault_begin:

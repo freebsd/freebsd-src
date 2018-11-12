@@ -76,7 +76,8 @@ void PPConditionalDirectiveRecord::addCondDirectiveLoc(
 }
 
 void PPConditionalDirectiveRecord::If(SourceLocation Loc,
-                                      SourceRange ConditionRange) {
+                                      SourceRange ConditionRange,
+                                      ConditionValueKind ConditionValue) {
   addCondDirectiveLoc(CondDirectiveLoc(Loc, CondDirectiveStack.back()));
   CondDirectiveStack.push_back(Loc);
 }
@@ -97,6 +98,7 @@ void PPConditionalDirectiveRecord::Ifndef(SourceLocation Loc,
 
 void PPConditionalDirectiveRecord::Elif(SourceLocation Loc,
                                         SourceRange ConditionRange,
+                                        ConditionValueKind ConditionValue,
                                         SourceLocation IfLoc) {
   addCondDirectiveLoc(CondDirectiveLoc(Loc, CondDirectiveStack.back()));
   CondDirectiveStack.back() = Loc;

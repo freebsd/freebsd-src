@@ -896,6 +896,7 @@ static struct setlist Setlist[] = {
     { "forw1",	"alternate end of line character", NULL, termForw1Charp },
     { "forw2",	"alternate end of line character", NULL, termForw2Charp },
     { "ayt",	"alternate AYT character", NULL, termAytCharp },
+    { "baudrate", "set remote baud rate", DoBaudRate, ComPortBaudRate },
     { NULL, NULL, NULL, NULL }
 };
 

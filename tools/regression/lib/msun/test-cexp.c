@@ -31,6 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+
 #include <assert.h>
 #include <complex.h>
 #include <fenv.h>
@@ -39,8 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 #include "test-utils.h"
-
-#define	N(i)	(sizeof(i) / sizeof((i)[0]))
 
 #pragma STDC FENV_ACCESS	ON
 #pragma	STDC CX_LIMITED_RANGE	OFF
@@ -116,7 +116,8 @@ test_nan()
 
 	/* cexp(x + NaNi) = NaN + NaNi and optionally raises invalid */
 	/* cexp(NaN + yi) = NaN + NaNi and optionally raises invalid (|y|>0) */
-	for (i = 0; i < N(finites); i++) {
+	for (i = 0; i < nitems(finites); i++) {
+		printf("# Run %d..\n", i);
 		testall(CMPLXL(finites[i], NAN), CMPLXL(NAN, NAN),
 			ALL_STD_EXCEPT & ~FE_INVALID, 0, 0);
 		if (finites[i] == 0.0)
@@ -147,7 +148,8 @@ test_inf(void)
 	int i;
 
 	/* cexp(x + inf i) = NaN + NaNi and raises invalid */
-	for (i = 0; i < N(finites); i++) {
+	for (i = 0; i < nitems(finites); i++) {
+		printf("# Run %d..\n", i);
 		testall(CMPLXL(finites[i], INFINITY), CMPLXL(NAN, NAN),
 			ALL_STD_EXCEPT, FE_INVALID, 1);
 	}
@@ -187,8 +189,9 @@ test_reals(void)
 {
 	int i;
 
-	for (i = 0; i < N(finites); i++) {
+	for (i = 0; i < nitems(finites); i++) {
 		/* XXX could check exceptions more meticulously */
+		printf("# Run %d..\n", i);
 		test(cexp, CMPLXL(finites[i], 0.0),
 		     CMPLXL(exp(finites[i]), 0.0),
 		     FE_INVALID | FE_DIVBYZERO, 0, 1);
@@ -209,7 +212,8 @@ test_imaginaries(void)
 {
 	int i;
 
-	for (i = 0; i < N(finites); i++) {
+	for (i = 0; i < nitems(finites); i++) {
+		printf("# Run %d..\n", i);
 		test(cexp, CMPLXL(0.0, finites[i]),
 		     CMPLXL(cos(finites[i]), sin(finites[i])),
 		     ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
@@ -240,7 +244,8 @@ test_small(void)
 	double x, y;
 	int i;
 
-	for (i = 0; i < N(tests); i += 4) {
+	for (i = 0; i < nitems(tests); i += 4) {
+		printf("# Run %d..\n", i);
 		a = tests[i];
 		b = tests[i + 1];
 		x = tests[i + 2];
@@ -297,8 +302,12 @@ main(int argc, char *argv[])
 	test_inf();
 	printf("ok 3 - cexp inf\n");
 
+#if defined(__i386__)
+	printf("not ok 4 - cexp reals # TODO: PR # 191676 fails assertion on i386\n");
+#else
 	test_reals();
 	printf("ok 4 - cexp reals\n");
+#endif
 
 	test_imaginaries();
 	printf("ok 5 - cexp imaginaries\n");

@@ -180,8 +180,7 @@ mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
 			rangesptr += offset_cells;
 		}
 
-		if (fdt_data_verify((void *)rangesptr, par_addr_cells -
-		    offset_cells)) {
+		if ((par_addr_cells - offset_cells) > 2) {
 			rv = ERANGE;
 			goto out;
 		}
@@ -189,7 +188,7 @@ mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
 		    par_addr_cells - offset_cells);
 		rangesptr += par_addr_cells - offset_cells;
 
-		if (fdt_data_verify((void *)rangesptr, size_cells)) {
+		if (size_cells > 2) {
 			rv = ERANGE;
 			goto out;
 		}
@@ -235,14 +234,14 @@ mv_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap, vm_offset_t io_va
 	devmap->pd_pa = io_space.base_parent;
 	devmap->pd_size = io_space.len;
 	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	devmap->pd_cache = PTE_NOCACHE;
+	devmap->pd_cache = PTE_DEVICE;
 	devmap++;
 
 	devmap->pd_va = (mem_va ? mem_va : mem_space.base_parent);
 	devmap->pd_pa = mem_space.base_parent;
 	devmap->pd_size = mem_space.len;
 	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	devmap->pd_cache = PTE_NOCACHE;
+	devmap->pd_cache = PTE_DEVICE;
 	return (0);
 }
 
@@ -1171,7 +1170,7 @@ mv_pcib_alloc_msi(device_t dev, device_t child, int count,
 
 	for (i = start; i < start + count; i++) {
 		setbit(&sc->sc_msi_bitmap, i);
-		irqs[i] = MSI_IRQ + i;
+		*irqs++ = MSI_IRQ + i;
 	}
 	debugf("%s: start: %x count: %x\n", __func__, start, count);
 

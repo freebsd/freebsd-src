@@ -27,6 +27,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/sdt.h>
 
 SDT_PROVIDER_DEFINE(sdt);
@@ -47,5 +48,6 @@ sdt_probe_stub(uint32_t id, uintptr_t arg0, uintptr_t arg1,
     uintptr_t arg2, uintptr_t arg3, uintptr_t arg4)
 {
 
-	printf("sdt_probe_stub: Why did this get called?\n");
+	printf("sdt_probe_stub: unexpectedly called\n");
+	kdb_backtrace();
 }

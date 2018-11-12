@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/time.h>
 #include <geom/geom_disk.h>
 
 #include <dev/mmc/mmcbrvar.h>
@@ -86,6 +87,8 @@ struct mmcsd_softc {
 	daddr_t eblock, eend;	/* Range remaining after the last erase. */
 	int running;
 	int suspend;
+	int log_count;
+	struct timeval log_time;
 };
 
 static const char *errmsg[] =
@@ -98,6 +101,8 @@ static const char *errmsg[] =
 	"Invalid",
 	"NO MEMORY"
 };
+
+#define	LOG_PPS		5 /* Log no more than 5 errors per second. */
 
 /* bus entry points */
 static int mmcsd_attach(device_t dev);
@@ -155,14 +160,16 @@ mmcsd_attach(device_t dev)
 	d->d_dump = mmcsd_dump;
 	d->d_name = "mmcsd";
 	d->d_drv1 = sc;
-	d->d_maxsize = 4*1024*1024;	/* Maximum defined SD card AU size. */
 	d->d_sectorsize = mmc_get_sector_size(dev);
+	d->d_maxsize = mmc_get_max_data(dev) * d->d_sectorsize;
 	d->d_mediasize = (off_t)mmc_get_media_size(dev) * d->d_sectorsize;
-	d->d_stripeoffset = 0;
 	d->d_stripesize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	d->d_unit = device_get_unit(dev);
 	d->d_flags = DISKFLAG_CANDELETE;
-	d->d_delmaxsize = mmc_get_erase_sector(dev) * d->d_sectorsize * 1; /* conservative */
+	d->d_delmaxsize = mmc_get_erase_sector(dev) * d->d_sectorsize;
+	strlcpy(d->d_ident, mmc_get_card_sn_string(dev), sizeof(d->d_ident));
+	strlcpy(d->d_descr, mmc_get_card_id_string(dev), sizeof(d->d_descr));
+
 	/*
 	 * Display in most natural units.  There's no cards < 1MB.  The SD
 	 * standard goes to 2GiB due to its reliance on FAT, but the data
@@ -188,7 +195,7 @@ mmcsd_attach(device_t dev)
 	speed = mmcbr_get_clock(device_get_parent(dev));
 	maxblocks = mmc_get_max_data(dev);
 	device_printf(dev, "%ju%cB <%s>%s at %s %d.%01dMHz/%dbit/%d-block\n",
-	    mb, unit, mmc_get_card_id_string(dev),
+	    mb, unit, d->d_descr,
 	    mmc_get_read_only(dev) ? " (read-only)" : "",
 	    device_get_nameunit(device_get_parent(dev)),
 	    speed / 1000000, (speed / 100000) % 10,
@@ -364,8 +371,10 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 		}
 		MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
 		if (req.cmd->error != MMC_ERR_NONE) {
-			device_printf(dev, "Error indicated: %d %s\n",
-			    req.cmd->error, mmcsd_errmsg(req.cmd->error));
+			if (ppsratecheck(&sc->log_time, &sc->log_count, LOG_PPS)) {
+				device_printf(dev, "Error indicated: %d %s\n",
+				    req.cmd->error, mmcsd_errmsg(req.cmd->error));
+			}
 			break;
 		}
 		block += numblocks;

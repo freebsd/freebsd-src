@@ -114,9 +114,6 @@ struct edit_baton_t
   /* Possibly diff repos against text-bases instead of working files. */
   svn_boolean_t diff_pristine;
 
-  /* Hash whose keys are const char * changelist names. */
-  apr_hash_t *changelist_hash;
-
   /* Cancel function/baton */
   svn_cancel_func_t cancel_func;
   void *cancel_baton;
@@ -238,42 +235,25 @@ struct file_baton_t
  * calculating diffs.  USE_TEXT_BASE defines whether to compare
  * against working files or text-bases.  REVERSE_ORDER defines which
  * direction to perform the diff.
- *
- * CHANGELIST_FILTER is a list of const char * changelist names, used to
- * filter diff output responses to only those items in one of the
- * specified changelists, empty (or NULL altogether) if no changelist
- * filtering is requested.
  */
 static svn_error_t *
 make_edit_baton(struct edit_baton_t **edit_baton,
                 svn_wc__db_t *db,
                 const char *anchor_abspath,
                 const char *target,
-                const svn_wc_diff_callbacks4_t *callbacks,
-                void *callback_baton,
+                const svn_diff_tree_processor_t *processor,
                 svn_depth_t depth,
                 svn_boolean_t ignore_ancestry,
                 svn_boolean_t show_copies_as_adds,
                 svn_boolean_t use_text_base,
                 svn_boolean_t reverse_order,
-                const apr_array_header_t *changelist_filter,
                 svn_cancel_func_t cancel_func,
                 void *cancel_baton,
                 apr_pool_t *pool)
 {
-  apr_hash_t *changelist_hash = NULL;
   struct edit_baton_t *eb;
-  const svn_diff_tree_processor_t *processor;
 
   SVN_ERR_ASSERT(svn_dirent_is_absolute(anchor_abspath));
-
-  if (changelist_filter && changelist_filter->nelts)
-    SVN_ERR(svn_hash_from_cstring_keys(&changelist_hash, changelist_filter,
-                                       pool));
-
-  SVN_ERR(svn_wc__wrap_diff_callbacks(&processor,
-                                      callbacks, callback_baton, TRUE,
-                                      pool, pool));
 
   if (reverse_order)
     processor = svn_diff__tree_processor_reverse_create(processor, NULL, pool);
@@ -295,7 +275,6 @@ make_edit_baton(struct edit_baton_t **edit_baton,
   eb->ignore_ancestry = ignore_ancestry;
   eb->local_before_remote = reverse_order;
   eb->diff_pristine = use_text_base;
-  eb->changelist_hash = changelist_hash;
   eb->cancel_func = cancel_func;
   eb->cancel_baton = cancel_baton;
   eb->pool = pool;
@@ -409,7 +388,6 @@ svn_wc__diff_base_working_diff(svn_wc__db_t *db,
                                const char *local_abspath,
                                const char *relpath,
                                svn_revnum_t revision,
-                               apr_hash_t *changelist_hash,
                                const svn_diff_tree_processor_t *processor,
                                void *processor_dir_baton,
                                svn_boolean_t diff_pristine,
@@ -436,12 +414,11 @@ svn_wc__diff_base_working_diff(svn_wc__db_t *db,
   apr_hash_t *base_props;
   apr_hash_t *local_props;
   apr_array_header_t *prop_changes;
-  const char *changelist;
 
   SVN_ERR(svn_wc__db_read_info(&status, NULL, &db_revision, NULL, NULL, NULL,
                                NULL, NULL, NULL, NULL, &working_checksum, NULL,
                                NULL, NULL, NULL, NULL, NULL, &recorded_size,
-                               &recorded_time, &changelist, NULL, NULL,
+                               &recorded_time, NULL, NULL, NULL,
                                &had_props, &props_mod, NULL, NULL, NULL,
                                db, local_abspath, scratch_pool, scratch_pool));
   checksum = working_checksum;
@@ -449,12 +426,6 @@ svn_wc__diff_base_working_diff(svn_wc__db_t *db,
   assert(status == svn_wc__db_status_normal
          || status == svn_wc__db_status_added
          || (status == svn_wc__db_status_deleted && diff_pristine));
-
-  /* If the item is not a member of a specified changelist (and there are
-     some specified changelists), skip it. */
-  if (changelist_hash && !svn_hash_gets(changelist_hash, changelist))
-    return SVN_NO_ERROR;
-
 
   if (status != svn_wc__db_status_normal)
     {
@@ -780,7 +751,6 @@ walk_local_nodes_diff(struct edit_baton_t *eb,
                 SVN_ERR(svn_wc__diff_local_only_file(db, child_abspath,
                                                      child_relpath,
                                                      eb->processor, dir_baton,
-                                                     eb->changelist_hash,
                                                      eb->diff_pristine,
                                                      eb->cancel_func,
                                                      eb->cancel_baton,
@@ -790,7 +760,6 @@ walk_local_nodes_diff(struct edit_baton_t *eb,
                                                     child_relpath,
                                                     depth_below_here,
                                                     eb->processor, dir_baton,
-                                                    eb->changelist_hash,
                                                     eb->diff_pristine,
                                                     eb->cancel_func,
                                                     eb->cancel_baton,
@@ -826,7 +795,6 @@ walk_local_nodes_diff(struct edit_baton_t *eb,
                                                 db, child_abspath,
                                                 child_relpath,
                                                 eb->revnum,
-                                                eb->changelist_hash,
                                                 eb->processor, dir_baton,
                                                 eb->diff_pristine,
                                                 eb->cancel_func,
@@ -849,7 +817,6 @@ walk_local_nodes_diff(struct edit_baton_t *eb,
                 SVN_ERR(svn_wc__diff_local_only_file(db, child_abspath,
                                                      child_relpath,
                                                      eb->processor, dir_baton,
-                                                     eb->changelist_hash,
                                                      eb->diff_pristine,
                                                      eb->cancel_func,
                                                      eb->cancel_baton,
@@ -858,7 +825,6 @@ walk_local_nodes_diff(struct edit_baton_t *eb,
                 SVN_ERR(svn_wc__diff_local_only_dir(db, child_abspath,
                                                      child_relpath, depth_below_here,
                                                      eb->processor, dir_baton,
-                                                     eb->changelist_hash,
                                                      eb->diff_pristine,
                                                      eb->cancel_func,
                                                      eb->cancel_baton,
@@ -870,13 +836,9 @@ walk_local_nodes_diff(struct edit_baton_t *eb,
   if (compared)
     return SVN_NO_ERROR;
 
-    /* Check for local property mods on this directory, if we haven't
-     already reported them and we aren't changelist-filted.
-     ### it should be noted that we do not currently allow directories
-     ### to be part of changelists, so if a changelist is provided, the
-     ### changelist check will always fail. */
+  /* Check for local property mods on this directory, if we haven't
+     already reported them. */
   if (! skip
-      && ! eb->changelist_hash
       && ! in_anchor_not_target
       && props_mod)
     {
@@ -919,7 +881,6 @@ svn_wc__diff_local_only_file(svn_wc__db_t *db,
                              const char *relpath,
                              const svn_diff_tree_processor_t *processor,
                              void *processor_parent_baton,
-                             apr_hash_t *changelist_hash,
                              svn_boolean_t diff_pristine,
                              svn_cancel_func_t cancel_func,
                              void *cancel_baton,
@@ -932,7 +893,6 @@ svn_wc__diff_local_only_file(svn_wc__db_t *db,
   const svn_checksum_t *checksum;
   const char *original_repos_relpath;
   svn_revnum_t original_revision;
-  const char *changelist;
   svn_boolean_t had_props;
   svn_boolean_t props_mod;
   apr_hash_t *pristine_props;
@@ -948,7 +908,7 @@ svn_wc__diff_local_only_file(svn_wc__db_t *db,
                                NULL, NULL, NULL, NULL, &checksum, NULL,
                                &original_repos_relpath, NULL, NULL,
                                &original_revision, NULL, NULL, NULL,
-                               &changelist, NULL, NULL, &had_props,
+                               NULL, NULL, NULL, &had_props,
                                &props_mod, NULL, NULL, NULL,
                                db, local_abspath,
                                scratch_pool, scratch_pool));
@@ -958,10 +918,6 @@ svn_wc__diff_local_only_file(svn_wc__db_t *db,
              || status == svn_wc__db_status_added
              || (status == svn_wc__db_status_deleted && diff_pristine)));
 
-
-  if (changelist && changelist_hash
-      && !svn_hash_gets(changelist_hash, changelist))
-    return SVN_NO_ERROR;
 
   if (status == svn_wc__db_status_deleted)
     {
@@ -1065,12 +1021,19 @@ svn_wc__diff_local_only_dir(svn_wc__db_t *db,
                             svn_depth_t depth,
                             const svn_diff_tree_processor_t *processor,
                             void *processor_parent_baton,
-                            apr_hash_t *changelist_hash,
                             svn_boolean_t diff_pristine,
                             svn_cancel_func_t cancel_func,
                             void *cancel_baton,
                             apr_pool_t *scratch_pool)
 {
+  svn_wc__db_status_t status;
+  svn_node_kind_t kind;
+  svn_boolean_t had_props;
+  svn_boolean_t props_mod;
+  const char *original_repos_relpath;
+  svn_revnum_t original_revision;
+  svn_diff_source_t *copyfrom_src = NULL;
+  apr_hash_t *pristine_props;
   const apr_array_header_t *children;
   int i;
   apr_pool_t *iterpool;
@@ -1083,6 +1046,47 @@ svn_wc__diff_local_only_dir(svn_wc__db_t *db,
   apr_hash_t *nodes;
   apr_hash_t *conflicts;
 
+  SVN_ERR(svn_wc__db_read_info(&status, &kind, NULL, NULL, NULL, NULL,
+                               NULL, NULL, NULL, NULL, NULL, NULL,
+                               &original_repos_relpath, NULL, NULL,
+                               &original_revision, NULL, NULL, NULL,
+                               NULL, NULL, NULL, &had_props,
+                               &props_mod, NULL, NULL, NULL,
+                               db, local_abspath,
+                               scratch_pool, scratch_pool));
+  if (original_repos_relpath)
+    {
+      copyfrom_src = svn_diff__source_create(original_revision, scratch_pool);
+      copyfrom_src->repos_relpath = original_repos_relpath;
+    }
+
+  /* svn_wc__db_status_incomplete should never happen, as the result won't be
+     stable or guaranteed related to what is in the repository for this
+     revision, but without this it would be hard to diagnose that status... */
+  assert(kind == svn_node_dir
+         && (status == svn_wc__db_status_normal
+             || status == svn_wc__db_status_incomplete
+             || status == svn_wc__db_status_added
+             || (status == svn_wc__db_status_deleted && diff_pristine)));
+
+  if (status == svn_wc__db_status_deleted)
+    {
+      assert(diff_pristine);
+
+      SVN_ERR(svn_wc__db_read_pristine_info(NULL, NULL, NULL, NULL, NULL,
+                                            NULL, NULL, NULL, &had_props,
+                                            &pristine_props,
+                                            db, local_abspath,
+                                            scratch_pool, scratch_pool));
+      props_mod = FALSE;
+    }
+  else if (!had_props)
+    pristine_props = apr_hash_make(scratch_pool);
+  else
+    SVN_ERR(svn_wc__db_read_pristine_props(&pristine_props,
+                                           db, local_abspath,
+                                           scratch_pool, scratch_pool));
+
   /* Report the addition of the directory's contents. */
   iterpool = svn_pool_create(scratch_pool);
 
@@ -1090,10 +1094,11 @@ svn_wc__diff_local_only_dir(svn_wc__db_t *db,
                                 relpath,
                                 NULL,
                                 right_src,
-                                NULL /* copyfrom_src */,
+                                copyfrom_src,
                                 processor_parent_baton,
                                 processor,
                                 scratch_pool, iterpool));
+  /* ### skip_children is not used */
 
   SVN_ERR(svn_wc__db_read_children_info(&nodes, &conflicts, db, local_abspath,
                                         scratch_pool, iterpool));
@@ -1138,7 +1143,6 @@ svn_wc__diff_local_only_dir(svn_wc__db_t *db,
           SVN_ERR(svn_wc__diff_local_only_file(db, child_abspath,
                                                child_relpath,
                                                processor, pdb,
-                                               changelist_hash,
                                                diff_pristine,
                                                cancel_func, cancel_baton,
                                                scratch_pool));
@@ -1150,7 +1154,6 @@ svn_wc__diff_local_only_dir(svn_wc__db_t *db,
               SVN_ERR(svn_wc__diff_local_only_dir(db, child_abspath,
                                                   child_relpath, depth_below_here,
                                                   processor, pdb,
-                                                  changelist_hash,
                                                   diff_pristine,
                                                   cancel_func, cancel_baton,
                                                   iterpool));
@@ -1165,17 +1168,19 @@ svn_wc__diff_local_only_dir(svn_wc__db_t *db,
   if (!skip)
     {
       apr_hash_t *right_props;
-      if (diff_pristine)
-        SVN_ERR(svn_wc__db_read_pristine_props(&right_props, db, local_abspath,
-                                               scratch_pool, scratch_pool));
+
+      if (props_mod && !diff_pristine)
+        SVN_ERR(svn_wc__db_read_props(&right_props, db, local_abspath,
+                                      scratch_pool, scratch_pool));
       else
-        SVN_ERR(svn_wc__get_actual_props(&right_props, db, local_abspath,
-                                         scratch_pool, scratch_pool));
+        right_props = svn_prop_hash_dup(pristine_props, scratch_pool);
 
       SVN_ERR(processor->dir_added(relpath,
-                                   NULL /* copyfrom_src */,
+                                   copyfrom_src,
                                    right_src,
-                                   NULL,
+                                   copyfrom_src
+                                     ? pristine_props
+                                     : NULL,
                                    right_props,
                                    pdb,
                                    processor,
@@ -1246,7 +1251,6 @@ handle_local_only(struct dir_baton_t *pb,
                       svn_relpath_join(pb->relpath, name, scratch_pool),
                       repos_delete ? svn_depth_infinity : depth,
                       eb->processor, pb->pdb,
-                      eb->changelist_hash,
                       eb->diff_pristine,
                       eb->cancel_func, eb->cancel_baton,
                       scratch_pool));
@@ -1257,7 +1261,6 @@ handle_local_only(struct dir_baton_t *pb,
                       svn_dirent_join(pb->local_abspath, name, scratch_pool),
                       svn_relpath_join(pb->relpath, name, scratch_pool),
                       eb->processor, pb->pdb,
-                      eb->changelist_hash,
                       eb->diff_pristine,
                       eb->cancel_func, eb->cancel_baton,
                       scratch_pool));
@@ -2032,7 +2035,14 @@ close_file(void *file_baton,
   const char *repos_file;
   apr_hash_t *repos_props;
 
-  if (!fb->skip && expected_md5_digest != NULL)
+  if (fb->skip)
+    {
+      svn_pool_destroy(fb->pool); /* destroys scratch_pool and fb */
+      SVN_ERR(maybe_done(pb));
+      return SVN_NO_ERROR;
+    }
+
+  if (expected_md5_digest != NULL)
     {
       svn_checksum_t *expected_checksum;
       const svn_checksum_t *result_checksum;
@@ -2087,11 +2097,7 @@ close_file(void *file_baton,
       }
   }
 
-  if (fb->skip)
-    {
-      /* Diff processor requested skipping information */
-    }
-  else if (fb->repos_only)
+  if (fb->repos_only)
     {
       SVN_ERR(eb->processor->file_deleted(fb->relpath,
                                           fb->left_src,
@@ -2271,6 +2277,7 @@ svn_wc__get_diff_editor(const svn_delta_editor_t **editor,
   struct svn_wc__shim_fetch_baton_t *sfb;
   svn_delta_shim_callbacks_t *shim_callbacks =
                                 svn_delta_shim_callbacks_default(result_pool);
+  const svn_diff_tree_processor_t *diff_processor;
 
   SVN_ERR_ASSERT(svn_dirent_is_absolute(anchor_abspath));
 
@@ -2278,12 +2285,28 @@ svn_wc__get_diff_editor(const svn_delta_editor_t **editor,
   if (use_git_diff_format)
     show_copies_as_adds = TRUE;
 
+  SVN_ERR(svn_wc__wrap_diff_callbacks(&diff_processor,
+                                      callbacks, callback_baton, TRUE,
+                                      result_pool, scratch_pool));
+
+  /* Apply changelist filtering to the output */
+  if (changelist_filter && changelist_filter->nelts)
+    {
+      apr_hash_t *changelist_hash;
+
+      SVN_ERR(svn_hash_from_cstring_keys(&changelist_hash, changelist_filter,
+                                         result_pool));
+      diff_processor = svn_wc__changelist_filter_tree_processor_create(
+                         diff_processor, wc_ctx, anchor_abspath,
+                         changelist_hash, result_pool);
+    }
+
   SVN_ERR(make_edit_baton(&eb,
                           wc_ctx->db,
                           anchor_abspath, target,
-                          callbacks, callback_baton,
+                          diff_processor,
                           depth, ignore_ancestry, show_copies_as_adds,
-                          use_text_base, reverse_order, changelist_filter,
+                          use_text_base, reverse_order,
                           cancel_func, cancel_baton,
                           result_pool));
 
@@ -2390,8 +2413,8 @@ wrap_dir_opened(void **new_dir_baton,
   wc_diff_wrap_baton_t *wb = processor->baton;
   svn_boolean_t tree_conflicted = FALSE;
 
-  assert(left_source || right_source);
-  assert(!copyfrom_source || !right_source);
+  assert(left_source || right_source);      /* Must exist at one point. */
+  assert(!left_source || !copyfrom_source); /* Either existed or added. */
 
   /* Maybe store state and tree_conflicted in baton? */
   if (left_source != NULL)
@@ -2749,3 +2772,329 @@ svn_wc__wrap_diff_callbacks(const svn_diff_tree_processor_t **diff_processor,
   *diff_processor = processor;
   return SVN_NO_ERROR;
 }
+
+/* =====================================================================
+ * A tree processor filter that filters by changelist membership
+ * =====================================================================
+ *
+ * The current implementation queries the WC for the changelist of each
+ * file as it comes through, and sets the 'skip' flag for a non-matching
+ * file.
+ *
+ * (It doesn't set the 'skip' flag for a directory, as we need to receive
+ * the changed/added/deleted/closed call to know when it is closed, in
+ * order to preserve the strict open-close semantics for the wrapped tree
+ * processor.)
+ *
+ * It passes on the opening and closing of every directory, even if there
+ * are no file changes to be passed on inside that directory.
+ */
+
+typedef struct filter_tree_baton_t
+{
+  const svn_diff_tree_processor_t *processor;
+  svn_wc_context_t *wc_ctx;
+  /* WC path of the root of the diff (where relpath = "") */
+  const char *root_local_abspath;
+  /* Hash whose keys are const char * changelist names. */
+  apr_hash_t *changelist_hash;
+} filter_tree_baton_t;
+
+static svn_error_t *
+filter_dir_opened(void **new_dir_baton,
+                  svn_boolean_t *skip,
+                  svn_boolean_t *skip_children,
+                  const char *relpath,
+                  const svn_diff_source_t *left_source,
+                  const svn_diff_source_t *right_source,
+                  const svn_diff_source_t *copyfrom_source,
+                  void *parent_dir_baton,
+                  const svn_diff_tree_processor_t *processor,
+                  apr_pool_t *result_pool,
+                  apr_pool_t *scratch_pool)
+{
+  struct filter_tree_baton_t *fb = processor->baton;
+
+  SVN_ERR(fb->processor->dir_opened(new_dir_baton, skip, skip_children,
+                                    relpath,
+                                    left_source, right_source,
+                                    copyfrom_source,
+                                    parent_dir_baton,
+                                    fb->processor,
+                                    result_pool, scratch_pool));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_dir_added(const char *relpath,
+                 const svn_diff_source_t *copyfrom_source,
+                 const svn_diff_source_t *right_source,
+                 /*const*/ apr_hash_t *copyfrom_props,
+                 /*const*/ apr_hash_t *right_props,
+                 void *dir_baton,
+                 const svn_diff_tree_processor_t *processor,
+                 apr_pool_t *scratch_pool)
+{
+  struct filter_tree_baton_t *fb = processor->baton;
+
+  SVN_ERR(fb->processor->dir_closed(relpath,
+                                    NULL,
+                                    right_source,
+                                    dir_baton,
+                                    fb->processor,
+                                    scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_dir_deleted(const char *relpath,
+                   const svn_diff_source_t *left_source,
+                   /*const*/ apr_hash_t *left_props,
+                   void *dir_baton,
+                   const svn_diff_tree_processor_t *processor,
+                   apr_pool_t *scratch_pool)
+{
+  struct filter_tree_baton_t *fb = processor->baton;
+
+  SVN_ERR(fb->processor->dir_closed(relpath,
+                                    left_source,
+                                    NULL,
+                                    dir_baton,
+                                    fb->processor,
+                                    scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_dir_changed(const char *relpath,
+                   const svn_diff_source_t *left_source,
+                   const svn_diff_source_t *right_source,
+                   /*const*/ apr_hash_t *left_props,
+                   /*const*/ apr_hash_t *right_props,
+                   const apr_array_header_t *prop_changes,
+                   void *dir_baton,
+                   const struct svn_diff_tree_processor_t *processor,
+                   apr_pool_t *scratch_pool)
+{
+  struct filter_tree_baton_t *fb = processor->baton;
+
+  SVN_ERR(fb->processor->dir_closed(relpath,
+                                    left_source,
+                                    right_source,
+                                    dir_baton,
+                                    fb->processor,
+                                    scratch_pool));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_dir_closed(const char *relpath,
+                  const svn_diff_source_t *left_source,
+                  const svn_diff_source_t *right_source,
+                  void *dir_baton,
+                  const svn_diff_tree_processor_t *processor,
+                  apr_pool_t *scratch_pool)
+{
+  struct filter_tree_baton_t *fb = processor->baton;
+
+  SVN_ERR(fb->processor->dir_closed(relpath,
+                                    left_source,
+                                    right_source,
+                                    dir_baton,
+                                    fb->processor,
+                                    scratch_pool));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_file_opened(void **new_file_baton,
+                   svn_boolean_t *skip,
+                   const char *relpath,
+                   const svn_diff_source_t *left_source,
+                   const svn_diff_source_t *right_source,
+                   const svn_diff_source_t *copyfrom_source,
+                   void *dir_baton,
+                   const svn_diff_tree_processor_t *processor,
+                   apr_pool_t *result_pool,
+                   apr_pool_t *scratch_pool)
+{
+  struct filter_tree_baton_t *fb = processor->baton;
+  const char *local_abspath
+    = svn_dirent_join(fb->root_local_abspath, relpath, scratch_pool);
+
+  /* Skip if not a member of a given changelist */
+  if (! svn_wc__changelist_match(fb->wc_ctx, local_abspath,
+                                 fb->changelist_hash, scratch_pool))
+    {
+      *skip = TRUE;
+      return SVN_NO_ERROR;
+    }
+
+  SVN_ERR(fb->processor->file_opened(new_file_baton,
+                                     skip,
+                                     relpath,
+                                     left_source,
+                                     right_source,
+                                     copyfrom_source,
+                                     dir_baton,
+                                     fb->processor,
+                                     result_pool,
+                                     scratch_pool));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_file_added(const char *relpath,
+                  const svn_diff_source_t *copyfrom_source,
+                  const svn_diff_source_t *right_source,
+                  const char *copyfrom_file,
+                  const char *right_file,
+                  /*const*/ apr_hash_t *copyfrom_props,
+                  /*const*/ apr_hash_t *right_props,
+                  void *file_baton,
+                  const svn_diff_tree_processor_t *processor,
+                  apr_pool_t *scratch_pool)
+{
+  struct filter_tree_baton_t *fb = processor->baton;
+
+  SVN_ERR(fb->processor->file_added(relpath,
+                                    copyfrom_source,
+                                    right_source,
+                                    copyfrom_file,
+                                    right_file,
+                                    copyfrom_props,
+                                    right_props,
+                                    file_baton,
+                                    fb->processor,
+                                    scratch_pool));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_file_deleted(const char *relpath,
+                    const svn_diff_source_t *left_source,
+                    const char *left_file,
+                    /*const*/ apr_hash_t *left_props,
+                    void *file_baton,
+                    const svn_diff_tree_processor_t *processor,
+                    apr_pool_t *scratch_pool)
+{
+  struct filter_tree_baton_t *fb = processor->baton;
+
+  SVN_ERR(fb->processor->file_deleted(relpath,
+                                      left_source,
+                                      left_file,
+                                      left_props,
+                                      file_baton,
+                                      fb->processor,
+                                      scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_file_changed(const char *relpath,
+                    const svn_diff_source_t *left_source,
+                    const svn_diff_source_t *right_source,
+                    const char *left_file,
+                    const char *right_file,
+                    /*const*/ apr_hash_t *left_props,
+                    /*const*/ apr_hash_t *right_props,
+                    svn_boolean_t file_modified,
+                    const apr_array_header_t *prop_changes,
+                    void *file_baton,
+                    const svn_diff_tree_processor_t *processor,
+                    apr_pool_t *scratch_pool)
+{
+  struct filter_tree_baton_t *fb = processor->baton;
+
+  SVN_ERR(fb->processor->file_changed(relpath,
+                                      left_source,
+                                      right_source,
+                                      left_file,
+                                      right_file,
+                                      left_props,
+                                      right_props,
+                                      file_modified,
+                                      prop_changes,
+                                      file_baton,
+                                      fb->processor,
+                                      scratch_pool));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_file_closed(const char *relpath,
+                   const svn_diff_source_t *left_source,
+                   const svn_diff_source_t *right_source,
+                   void *file_baton,
+                   const svn_diff_tree_processor_t *processor,
+                   apr_pool_t *scratch_pool)
+{
+  struct filter_tree_baton_t *fb = processor->baton;
+
+  SVN_ERR(fb->processor->file_closed(relpath,
+                                     left_source,
+                                     right_source,
+                                     file_baton,
+                                     fb->processor,
+                                     scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_node_absent(const char *relpath,
+                   void *dir_baton,
+                   const svn_diff_tree_processor_t *processor,
+                   apr_pool_t *scratch_pool)
+{
+  struct filter_tree_baton_t *fb = processor->baton;
+
+  SVN_ERR(fb->processor->node_absent(relpath,
+                                     dir_baton,
+                                     fb->processor,
+                                     scratch_pool));
+  return SVN_NO_ERROR;
+}
+
+const svn_diff_tree_processor_t *
+svn_wc__changelist_filter_tree_processor_create(
+                                const svn_diff_tree_processor_t *processor,
+                                svn_wc_context_t *wc_ctx,
+                                const char *root_local_abspath,
+                                apr_hash_t *changelist_hash,
+                                apr_pool_t *result_pool)
+{
+  struct filter_tree_baton_t *fb;
+  svn_diff_tree_processor_t *filter;
+
+  if (! changelist_hash)
+    return processor;
+
+  fb = apr_pcalloc(result_pool, sizeof(*fb));
+  fb->processor = processor;
+  fb->wc_ctx = wc_ctx;
+  fb->root_local_abspath = root_local_abspath;
+  fb->changelist_hash = changelist_hash;
+
+  filter = svn_diff__tree_processor_create(fb, result_pool);
+  filter->dir_opened   = filter_dir_opened;
+  filter->dir_added    = filter_dir_added;
+  filter->dir_deleted  = filter_dir_deleted;
+  filter->dir_changed  = filter_dir_changed;
+  filter->dir_closed   = filter_dir_closed;
+
+  filter->file_opened   = filter_file_opened;
+  filter->file_added    = filter_file_added;
+  filter->file_deleted  = filter_file_deleted;
+  filter->file_changed  = filter_file_changed;
+  filter->file_closed   = filter_file_closed;
+
+  filter->node_absent   = filter_node_absent;
+
+  return filter;
+}
+

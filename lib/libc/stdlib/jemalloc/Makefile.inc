@@ -1,26 +1,27 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/stdlib/jemalloc
+.PATH: ${LIBC_SRCTOP}/stdlib/jemalloc
 
 JEMALLOCSRCS:= jemalloc.c arena.c atomic.c base.c bitmap.c chunk.c \
 	chunk_dss.c chunk_mmap.c ckh.c ctl.c extent.c hash.c huge.c mb.c \
-	mutex.c prof.c quarantine.c rtree.c stats.c tcache.c tsd.c util.c
+	mutex.c pages.c prof.c quarantine.c rtree.c stats.c tcache.c tsd.c \
+	util.c
 
-SYM_MAPS+=${.CURDIR}/stdlib/jemalloc/Symbol.map
+SYM_MAPS+=${LIBC_SRCTOP}/stdlib/jemalloc/Symbol.map
 
-CFLAGS+=-I${.CURDIR}/../../contrib/jemalloc/include
+CFLAGS+=-I${LIBC_SRCTOP}/../../contrib/jemalloc/include
 
 .for src in ${JEMALLOCSRCS}
 MISRCS+=jemalloc_${src}
 CLEANFILES+=jemalloc_${src}
 jemalloc_${src}:
-	ln -sf ${.CURDIR}/../../contrib/jemalloc/src/${src} ${.TARGET}
+	ln -sf ${LIBC_SRCTOP}/../../contrib/jemalloc/src/${src} ${.TARGET}
 .endfor
 
 MAN+=jemalloc.3
 CLEANFILES+=jemalloc.3
 jemalloc.3:
-	ln -sf ${.CURDIR}/../../contrib/jemalloc/doc/jemalloc.3 ${.TARGET}
+	ln -sf ${LIBC_SRCTOP}/../../contrib/jemalloc/doc/jemalloc.3 ${.TARGET}
 
 MLINKS+= \
 	jemalloc.3 malloc.3 \
@@ -39,12 +40,8 @@ MLINKS+= \
 	jemalloc.3 xallocx.3 \
 	jemalloc.3 sallocx.3 \
 	jemalloc.3 dallocx.3 \
+	jemalloc.3 sdallocx.3 \
 	jemalloc.3 nallocx.3 \
-	jemalloc.3 allocm.3 \
-	jemalloc.3 rallocm.3 \
-	jemalloc.3 sallocm.3 \
-	jemalloc.3 dallocm.3 \
-	jemalloc.3 nallocm.3 \
 	jemalloc.3 malloc.conf.5
 
 .if defined(MALLOC_PRODUCTION)

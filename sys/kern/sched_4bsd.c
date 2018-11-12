@@ -116,7 +116,7 @@ struct td_sched {
     CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
 
 static struct td_sched td_sched0;
-struct mtx sched_lock;
+static struct mtx sched_lock;
 
 static int	realstathz = 127; /* stathz is sometimes 0 and run off of hz. */
 static int	sched_tdcnt;	/* Total runnable threads in the system. */
@@ -792,6 +792,8 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 {
 	struct td_sched *ts;
 
+	childtd->td_oncpu = NOCPU;
+	childtd->td_lastcpu = NOCPU;
 	childtd->td_estcpu = td->td_estcpu;
 	childtd->td_lock = &sched_lock;
 	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
@@ -982,7 +984,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		sched_load_rem();
 
 	td->td_lastcpu = td->td_oncpu;
-	preempted = !(td->td_flags & TDF_SLICEEND);
+	preempted = !((td->td_flags & TDF_SLICEEND) ||
+	    (flags & SWT_RELINQUISH));
 	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_SLICEEND);
 	td->td_owepreempt = 0;
 	td->td_oncpu = NOCPU;
@@ -1584,7 +1587,7 @@ sched_pctcpu(struct thread *td)
 	return (ts->ts_pctcpu);
 }
 
-#ifdef	RACCT
+#ifdef RACCT
 /*
  * Calculates the contribution to the thread cpu usage for the latest
  * (unfinished) second.
@@ -1670,6 +1673,8 @@ sched_throw(struct thread *td)
 	} else {
 		lock_profile_release_lock(&sched_lock.lock_object);
 		MPASS(td->td_lock == &sched_lock);
+		td->td_lastcpu = td->td_oncpu;
+		td->td_oncpu = NOCPU;
 	}
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));

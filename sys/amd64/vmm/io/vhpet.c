@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
-#include <sys/cpuset.h>
 
 #include <dev/acpica/acpi_hpet.h>
 
@@ -44,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm_dev.h>
 
 #include "vmm_lapic.h"
+#include "vatpic.h"
 #include "vioapic.h"
 #include "vhpet.h"
 
@@ -103,7 +103,6 @@ vhpet_capabilities(void)
 	uint64_t cap = 0;
 
 	cap |= 0x8086 << 16;			/* vendor id */
-	cap |= HPET_CAP_LEG_RT;			/* legacy routing capable */
 	cap |= (VHPET_NUM_TIMERS - 1) << 8;	/* number of timers */
 	cap |= 1;				/* revision */
 	cap &= ~HPET_CAP_COUNT_SIZE;		/* 32-bit timer */
@@ -126,15 +125,6 @@ vhpet_timer_msi_enabled(struct vhpet *vhpet, int n)
 {
 	const uint64_t msi_enable = HPET_TCAP_FSB_INT_DEL | HPET_TCNF_FSB_EN;
 
-	/*
-	 * LegacyReplacement Route configuration takes precedence over MSI
-	 * for timers 0 and 1.
-	 */
-	if (n == 0 || n == 1) {
-		if (vhpet->config & HPET_CNF_LEG_RT)
-			return (false);
-	}
-
 	if ((vhpet->timer[n].cap_config & msi_enable) == msi_enable)
 		return (true);
 	else
@@ -150,19 +140,6 @@ vhpet_timer_ioapic_pin(struct vhpet *vhpet, int n)
 	 */
 	if (vhpet_timer_msi_enabled(vhpet, n))
 		return (0);
-
-	if (vhpet->config & HPET_CNF_LEG_RT) {
-		/*
-		 * In "legacy routing" timers 0 and 1 are connected to
-		 * ioapic pins 2 and 8 respectively.
-		 */
-		switch (n) {
-		case 0:
-			return (2);
-		case 1:
-			return (8);
-		}
-	}
 
 	return ((vhpet->timer[n].cap_config & HPET_TCNF_INT_ROUTE) >> 9);
 }
@@ -226,12 +203,6 @@ vhpet_timer_edge_trig(struct vhpet *vhpet, int n)
 
 	KASSERT(!vhpet_timer_msi_enabled(vhpet, n), ("vhpet_timer_edge_trig: "
 	    "timer %d is using MSI", n));
-
-	/* The legacy replacement interrupts are always edge triggered */
-	if (vhpet->config & HPET_CNF_LEG_RT) {
-		if (n == 0 || n == 1)
-			return (true);
-	}
 
 	if ((vhpet->timer[n].cap_config & HPET_TCNF_INT_TYPE) == 0)
 		return (true);
@@ -548,6 +519,13 @@ vhpet_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t val, int size,
 		counter = vhpet_counter(vhpet, nowptr);
 		oldval = vhpet->config;
 		update_register(&vhpet->config, data, mask);
+
+		/*
+		 * LegacyReplacement Routing is not supported so clear the
+		 * bit explicitly.
+		 */
+		vhpet->config &= ~HPET_CNF_LEG_RT;
+
 		if ((oldval ^ vhpet->config) & HPET_CNF_ENABLE) {
 			if (vhpet_counter_enabled(vhpet)) {
 				vhpet_start_counting(vhpet);

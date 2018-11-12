@@ -25,11 +25,12 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/rmlock.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -64,11 +65,6 @@
 #endif
 
 #include <netinet/if_ether.h>
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
 
 #include <net/if_sppp.h>
 
@@ -524,7 +520,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 
 	if (ifp->if_flags & IFF_UP)
 		/* Count received bytes, add FCS and one flag */
-		ifp->if_ibytes += m->m_pkthdr.len + 3;
+		if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len + 3);
 
 	if (m->m_pkthdr.len <= PPP_HEADER_LEN) {
 		/* Too small packet, drop it. */
@@ -536,8 +532,8 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		m_freem (m);
 		SPPP_UNLOCK(sp);
 	  drop2:
-		++ifp->if_ierrors;
-		++ifp->if_iqdrops;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		return;
 	}
 
@@ -576,7 +572,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				sppp_cp_send (sp, PPP_LCP, PROTO_REJ,
 					++sp->pp_seq[IDX_LCP], m->m_pkthdr.len + 2,
 					&h->protocol);
-			++ifp->if_noproto;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			goto drop;
 		case PPP_LCP:
 			sppp_cp_input(&lcp, sp, m);
@@ -672,14 +668,6 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			do_account++;
 			break;
 #endif
-#ifdef IPX
-		case PPP_IPX:
-			/* IPX IPXCP not implemented yet */
-			if (sp->pp_phase == PHASE_NETWORK)
-				isr = NETISR_IPX;
-			do_account++;
-			break;
-#endif
 		}
 		break;
 	case CISCO_MULTICAST:
@@ -696,7 +684,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		}
 		switch (ntohs (h->protocol)) {
 		default:
-			++ifp->if_noproto;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			goto invalid;
 		case CISCO_KEEPALIVE:
 			sppp_cisco_input (sp, m);
@@ -712,12 +700,6 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			isr = NETISR_IPV6;
-			do_account++;
-			break;
-#endif
-#ifdef IPX
-		case ETHERTYPE_IPX:
-			isr = NETISR_IPX;
 			do_account++;
 			break;
 #endif
@@ -926,7 +908,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 nobufs:		if (debug)
 			log(LOG_DEBUG, SPP_FMT "no memory for transmit header\n",
 				SPP_ARGS(ifp));
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		SPPP_UNLOCK(sp);
 		return (ENOBUFS);
 	}
@@ -984,15 +966,9 @@ nobufs:		if (debug)
 		}
 		break;
 #endif
-#ifdef IPX
-	case AF_IPX:     /* Novell IPX Protocol */
-		h->protocol = htons (sp->pp_mode == IFF_CISCO ?
-			ETHERTYPE_IPX : PPP_IPX);
-		break;
-#endif
 	default:
 		m_freem (m);
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		SPPP_UNLOCK(sp);
 		return (EAFNOSUPPORT);
 	}
@@ -1007,7 +983,7 @@ out:
 	else
 		IFQ_HANDOFF_ADJ(ifp, m, 3, error);
 	if (error) {
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		SPPP_UNLOCK(sp);
 		return (rv? rv: ENOBUFS);
 	}
@@ -1031,7 +1007,7 @@ sppp_attach(struct ifnet *ifp)
 	mtx_init(&sp->mtx, "sppp", MTX_NETWORK_LOCK, MTX_DEF | MTX_RECURSE);
 	
 	/* Initialize keepalive handler. */
- 	callout_init(&sp->keepalive_callout, CALLOUT_MPSAFE);
+ 	callout_init(&sp->keepalive_callout, 1);
 	callout_reset(&sp->keepalive_callout, hz * 10, sppp_keepalive,
  		    (void *)sp); 
 
@@ -1063,7 +1039,7 @@ sppp_attach(struct ifnet *ifp)
 #ifdef INET6
 	sp->confflags |= CONF_ENABLE_IPV6;
 #endif
- 	callout_init(&sp->ifstart_callout, CALLOUT_MPSAFE);
+ 	callout_init(&sp->ifstart_callout, 1);
 	sp->if_start = ifp->if_start;
 	ifp->if_start = sppp_ifstart;
 	sp->pp_comp = malloc(sizeof(struct slcompress), M_TEMP, M_WAITOK);
@@ -1419,7 +1395,7 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 			(u_long)ch->par2, (u_int)ch->rel, (u_int)ch->time0, (u_int)ch->time1);
 
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 
 /*
@@ -1468,7 +1444,7 @@ sppp_cp_send(struct sppp *sp, u_short proto, u_char type,
 		log(-1, ">\n");
 	}
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 
 /*
@@ -1510,7 +1486,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 				log(-1, SPP_FMT "%s invalid conf-req length %d\n",
 				       SPP_ARGS(ifp), cp->name,
 				       len);
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			break;
 		}
 		/* handle states where RCR doesn't get a SCA/SCN */
@@ -1566,7 +1542,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			       SPP_ARGS(ifp), cp->name,
 			       sppp_cp_type_name(h->type),
 			       sppp_state_name(sp->state[cp->protoidx]));
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		}
 		break;
 	case CONF_ACK:
@@ -1575,7 +1551,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 				log(-1, SPP_FMT "%s id mismatch 0x%x != 0x%x\n",
 				       SPP_ARGS(ifp), cp->name,
 				       h->ident, sp->confid[cp->protoidx]);
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			break;
 		}
 		switch (sp->state[cp->protoidx]) {
@@ -1610,7 +1586,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			       SPP_ARGS(ifp), cp->name,
 			       sppp_cp_type_name(h->type),
 			       sppp_state_name(sp->state[cp->protoidx]));
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		}
 		break;
 	case CONF_NAK:
@@ -1620,7 +1596,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 				log(-1, SPP_FMT "%s id mismatch 0x%x != 0x%x\n",
 				       SPP_ARGS(ifp), cp->name,
 				       h->ident, sp->confid[cp->protoidx]);
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			break;
 		}
 		if (h->type == CONF_NAK)
@@ -1660,7 +1636,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			       SPP_ARGS(ifp), cp->name,
 			       sppp_cp_type_name(h->type),
 			       sppp_state_name(sp->state[cp->protoidx]));
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		}
 		break;
 
@@ -1693,7 +1669,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			       SPP_ARGS(ifp), cp->name,
 			       sppp_cp_type_name(h->type),
 			       sppp_state_name(sp->state[cp->protoidx]));
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		}
 		break;
 	case TERM_ACK:
@@ -1724,7 +1700,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			       SPP_ARGS(ifp), cp->name,
 			       sppp_cp_type_name(h->type),
 			       sppp_state_name(sp->state[cp->protoidx]));
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		}
 		break;
 	case CODE_REJ:
@@ -1751,7 +1727,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			       SPP_ARGS(ifp), cp->name,
 			       sppp_cp_type_name(h->type),
 			       sppp_state_name(sp->state[cp->protoidx]));
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		}
 		break;
 	case PROTO_REJ:
@@ -1810,7 +1786,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			       SPP_ARGS(ifp), cp->name,
 			       sppp_cp_type_name(h->type),
 			       sppp_state_name(sp->state[cp->protoidx]));
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		}
 		break;
 	    }
@@ -1826,7 +1802,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			if (debug)
 				log(-1, SPP_FMT "lcp echo req but lcp closed\n",
 				       SPP_ARGS(ifp));
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			break;
 		}
 		if (len < 8) {
@@ -1860,7 +1836,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		if (cp->proto != PPP_LCP)
 			goto illegal;
 		if (h->ident != sp->lcp.echoid) {
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			break;
 		}
 		if (len < 8) {
@@ -1885,7 +1861,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			       SPP_ARGS(ifp), cp->name, h->type);
 		sppp_cp_send(sp, cp->proto, CODE_REJ,
 			     ++sp->pp_seq[cp->protoidx], m->m_pkthdr.len, h);
-		++ifp->if_ierrors;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 	}
 }
 
@@ -2171,7 +2147,7 @@ sppp_lcp_init(struct sppp *sp)
 	sp->lcp.max_terminate = 2;
 	sp->lcp.max_configure = 10;
 	sp->lcp.max_failure = 10;
- 	callout_init(&sp->ch[IDX_LCP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_LCP], 1);
 }
 
 static void
@@ -2862,7 +2838,7 @@ sppp_ipcp_init(struct sppp *sp)
 	sp->fail_counter[IDX_IPCP] = 0;
 	sp->pp_seq[IDX_IPCP] = 0;
 	sp->pp_rseq[IDX_IPCP] = 0;
- 	callout_init(&sp->ch[IDX_IPCP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_IPCP], 1);
 }
 
 static void
@@ -3421,7 +3397,7 @@ sppp_ipv6cp_init(struct sppp *sp)
 	sp->fail_counter[IDX_IPV6CP] = 0;
 	sp->pp_seq[IDX_IPV6CP] = 0;
 	sp->pp_rseq[IDX_IPV6CP] = 0;
- 	callout_init(&sp->ch[IDX_IPV6CP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_IPV6CP], 1);
 }
 
 static void
@@ -4226,7 +4202,7 @@ sppp_chap_init(struct sppp *sp)
 	sp->fail_counter[IDX_CHAP] = 0;
 	sp->pp_seq[IDX_CHAP] = 0;
 	sp->pp_rseq[IDX_CHAP] = 0;
- 	callout_init(&sp->ch[IDX_CHAP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_CHAP], 1);
 }
 
 static void
@@ -4548,8 +4524,8 @@ sppp_pap_init(struct sppp *sp)
 	sp->fail_counter[IDX_PAP] = 0;
 	sp->pp_seq[IDX_PAP] = 0;
 	sp->pp_rseq[IDX_PAP] = 0;
- 	callout_init(&sp->ch[IDX_PAP], CALLOUT_MPSAFE);
- 	callout_init(&sp->pap_my_to_ch, CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_PAP], 1);
+ 	callout_init(&sp->pap_my_to_ch, 1);
 }
 
 static void
@@ -4766,7 +4742,7 @@ sppp_auth_send(const struct cp *cp, struct sppp *sp,
 		log(-1, ">\n");
 	}
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 
 /*
@@ -4779,7 +4755,7 @@ sppp_qflush(struct ifqueue *ifq)
 
 	n = ifq->ifq_head;
 	while ((m = n)) {
-		n = m->m_act;
+		n = m->m_nextpkt;
 		m_freem (m);
 	}
 	ifq->ifq_head = 0;
@@ -5086,7 +5062,8 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 	 * Check the cmd word first before attempting to fetch all the
 	 * data.
 	 */
-	if ((subcmd = fuword(ifr->ifr_data)) == -1) {
+	rv = fueword(ifr->ifr_data, &subcmd);
+	if (rv == -1) {
 		rv = EFAULT;
 		goto quit;
 	}

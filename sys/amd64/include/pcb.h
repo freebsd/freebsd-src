@@ -85,8 +85,7 @@ struct pcb {
 	/* copyin/out fault recovery */
 	caddr_t		pcb_onfault;
 
-	/* 32-bit segment descriptor */
-	struct user_segment_descriptor pcb_gs32sd;
+	uint64_t	pcb_pad0;
 
 	/* local tss, with i/o bitmap; NULL for common */
 	struct amd64tss *pcb_tssp;
@@ -97,14 +96,18 @@ struct pcb {
 	register_t	pcb_lstar;
 	register_t	pcb_cstar;
 	register_t	pcb_sfmask;
-	register_t	pcb_xsmask;
-
-	/* fpu context for suspend/resume */
-	void		*pcb_fpususpend;
 
 	struct savefpu	*pcb_save;
 
-	uint64_t	pcb_pad[3];
+	uint64_t	pcb_pad[5];
+};
+
+/* Per-CPU state saved during suspend and resume. */
+struct susppcb {
+	struct pcb	sp_pcb;
+
+	/* fpu context for suspend/resume */
+	void		*sp_fpususpend;
 };
 #endif
 

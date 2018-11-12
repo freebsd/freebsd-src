@@ -1,11 +1,11 @@
 # $FreeBSD$
 
 # capability sources
-.PATH: ${.CURDIR}/../../sys/kern ${.CURDIR}/capability
+.PATH: ${LIBC_SRCTOP}/../../sys/kern ${LIBC_SRCTOP}/capability
 
 SRCS+=	subr_capability.c
 
-SYM_MAPS+=	${.CURDIR}/capability/Symbol.map
+SYM_MAPS+=	${LIBC_SRCTOP}/capability/Symbol.map
 
 MAN+=	cap_rights_init.3
 

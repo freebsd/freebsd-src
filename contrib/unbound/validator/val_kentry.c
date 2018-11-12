@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -39,13 +39,14 @@
  * This file contains functions for dealing with validator key entries.
  */
 #include "config.h"
-#include <ldns/ldns.h>
 #include "validator/val_kentry.h"
 #include "util/data/packed_rrset.h"
 #include "util/data/dname.h"
 #include "util/storage/lookup3.h"
 #include "util/regional.h"
 #include "util/net_help.h"
+#include "ldns/rrdef.h"
+#include "ldns/keyraw.h"
 
 size_t 
 key_entry_sizefunc(void* key, void* data)
@@ -275,8 +276,8 @@ key_entry_setup(struct regional* region,
 
 struct key_entry_key* 
 key_entry_create_null(struct regional* region,
-	uint8_t* name, size_t namelen, uint16_t dclass, uint32_t ttl,
-	uint32_t now)
+	uint8_t* name, size_t namelen, uint16_t dclass, time_t ttl,
+	time_t now)
 {
 	struct key_entry_key* k;
 	struct key_entry_data* d;
@@ -294,7 +295,7 @@ key_entry_create_null(struct regional* region,
 struct key_entry_key* 
 key_entry_create_rrset(struct regional* region,
 	uint8_t* name, size_t namelen, uint16_t dclass,
-	struct ub_packed_rrset_key* rrset, uint8_t* sigalg, uint32_t now)
+	struct ub_packed_rrset_key* rrset, uint8_t* sigalg, time_t now)
 {
 	struct key_entry_key* k;
 	struct key_entry_data* d;
@@ -321,8 +322,8 @@ key_entry_create_rrset(struct regional* region,
 
 struct key_entry_key* 
 key_entry_create_bad(struct regional* region,
-	uint8_t* name, size_t namelen, uint16_t dclass, uint32_t ttl, 
-	uint32_t now)
+	uint8_t* name, size_t namelen, uint16_t dclass, time_t ttl, 
+	time_t now)
 {
 	struct key_entry_key* k;
 	struct key_entry_data* d;
@@ -377,7 +378,7 @@ dnskey_get_keysize(struct packed_rrset_data* data, size_t idx)
 	algo = (int)data->rr_data[idx][2+3];
 	pk = (unsigned char*)data->rr_data[idx]+2+4;
 	pklen = (unsigned)data->rr_len[idx]-2-4;
-	return ldns_rr_dnskey_key_size_raw(pk, pklen, algo);
+	return sldns_rr_dnskey_key_size_raw(pk, pklen, algo);
 }
 
 /** get dnskey flags from data */

@@ -471,7 +471,7 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 		if (hinfo->ber_p == NULL)
 			hinfo->ber_p =
 			    malloc((MAX_FSIZE + MAX_OHSIZE) * sizeof(uint64_t),
-			    M_NG_PIPE, M_NOWAIT);
+			    M_NG_PIPE, M_WAITOK);
 		current->ber = new->ber;
 
 		/*

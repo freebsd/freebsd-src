@@ -126,7 +126,7 @@ UnwindPlan::Row::RegisterLocation::Dump (Stream &s, const UnwindPlan* unwind_pla
 
         case inOtherRegister: 
             {
-                const RegisterInfo *other_reg_info = NULL;
+                const RegisterInfo *other_reg_info = nullptr;
                 if (unwind_plan)
                     other_reg_info = unwind_plan->GetRegisterInfo (thread, m_location.reg_num);
                 if (other_reg_info)
@@ -153,6 +153,7 @@ UnwindPlan::Row::RegisterLocation::Dump (Stream &s, const UnwindPlan* unwind_pla
 void
 UnwindPlan::Row::Clear ()
 {
+    m_cfa_type = CFAIsRegisterPlusOffset;
     m_offset = 0;
     m_cfa_reg_num = LLDB_INVALID_REGNUM;
     m_cfa_offset = 0;
@@ -167,7 +168,7 @@ UnwindPlan::Row::Dump (Stream& s, const UnwindPlan* unwind_plan, Thread* thread,
     if (base_addr != LLDB_INVALID_ADDRESS)
         s.Printf ("0x%16.16" PRIx64 ": CFA=", base_addr + GetOffset());
     else
-        s.Printf ("0x%8.8" PRIx64 ": CFA=", GetOffset());
+        s.Printf ("%4" PRId64 ": CFA=", GetOffset());
             
     if (reg_info)
         s.Printf ("%s", reg_info->name);
@@ -189,10 +190,11 @@ UnwindPlan::Row::Dump (Stream& s, const UnwindPlan* unwind_plan, Thread* thread,
 }
 
 UnwindPlan::Row::Row() :
-    m_offset(0),
-    m_cfa_reg_num(LLDB_INVALID_REGNUM),
-    m_cfa_offset(0),
-    m_register_locations()
+    m_offset (0),
+    m_cfa_type (CFAIsRegisterPlusOffset),
+    m_cfa_reg_num (LLDB_INVALID_REGNUM),
+    m_cfa_offset (0),
+    m_register_locations ()
 {
 }
 
@@ -206,6 +208,16 @@ UnwindPlan::Row::GetRegisterInfo (uint32_t reg_num, UnwindPlan::Row::RegisterLoc
         return true;
     }
     return false;
+}
+
+void
+UnwindPlan::Row::RemoveRegisterInfo (uint32_t reg_num)
+{
+    collection::const_iterator pos = m_register_locations.find(reg_num);
+    if (pos != m_register_locations.end())
+    {
+        m_register_locations.erase(pos);
+    }
 }
 
 void
@@ -301,6 +313,23 @@ UnwindPlan::Row::operator == (const UnwindPlan::Row& rhs) const
 {
     if (m_offset != rhs.m_offset || m_cfa_reg_num != rhs.m_cfa_reg_num || m_cfa_offset != rhs.m_cfa_offset)
         return false;
+
+    if (m_cfa_type != rhs.m_cfa_type)
+        return false;
+
+    if (m_cfa_type == CFAIsRegisterPlusOffset)
+    {
+        if (m_cfa_reg_num != rhs.m_cfa_reg_num)
+            return false;
+        if (m_cfa_offset != rhs.m_cfa_offset)
+            return false;
+    }
+    if (m_cfa_type == CFAIsRegisterDereferenced)
+    {
+        if (m_cfa_reg_num != rhs.m_cfa_reg_num)
+            return false;
+    }
+
     return m_register_locations == rhs.m_register_locations;
 }
 
@@ -311,6 +340,19 @@ UnwindPlan::AppendRow (const UnwindPlan::RowSP &row_sp)
         m_row_list.push_back(row_sp);
     else
         m_row_list.back() = row_sp;
+}
+
+void
+UnwindPlan::InsertRow (const UnwindPlan::RowSP &row_sp)
+{
+    collection::iterator it = m_row_list.begin();
+    while (it != m_row_list.end()) {
+        RowSP row = *it;
+        if (row->GetOffset() > row_sp->GetOffset())
+            break;
+        it++;
+    }
+    m_row_list.insert(it, row_sp);
 }
 
 UnwindPlan::RowSP
@@ -326,7 +368,7 @@ UnwindPlan::GetRowForFunctionOffset (int offset) const
             collection::const_iterator pos, end = m_row_list.end();
             for (pos = m_row_list.begin(); pos != end; ++pos)
             {
-                if ((*pos)->GetOffset() <= offset)
+                if ((*pos)->GetOffset() <= static_cast<lldb::offset_t>(offset))
                     row = *pos;
                 else
                     break;
@@ -381,7 +423,7 @@ UnwindPlan::PlanValidAtAddress (Address addr)
         if (log)
         {
             StreamString s;
-            if (addr.Dump (&s, NULL, Address::DumpStyleSectionNameOffset))
+            if (addr.Dump (&s, nullptr, Address::DumpStyleSectionNameOffset))
             {
                 log->Printf ("UnwindPlan is invalid -- no unwind rows for UnwindPlan '%s' at address %s",
                              m_source_name.GetCString(), s.GetData());
@@ -397,13 +439,13 @@ UnwindPlan::PlanValidAtAddress (Address addr)
 
     // If the 0th Row of unwind instructions is missing, or if it doesn't provide
     // a register to use to find the Canonical Frame Address, this is not a valid UnwindPlan.
-    if (GetRowAtIndex(0).get() == NULL || GetRowAtIndex(0)->GetCFARegister() == LLDB_INVALID_REGNUM)
+    if (GetRowAtIndex(0).get() == nullptr || GetRowAtIndex(0)->GetCFARegister() == LLDB_INVALID_REGNUM)
     {
         Log *log(GetLogIfAllCategoriesSet (LIBLLDB_LOG_UNWIND));
         if (log)
         {
             StreamString s;
-            if (addr.Dump (&s, NULL, Address::DumpStyleSectionNameOffset))
+            if (addr.Dump (&s, nullptr, Address::DumpStyleSectionNameOffset))
             {
                 log->Printf ("UnwindPlan is invalid -- no CFA register defined in row 0 for UnwindPlan '%s' at address %s",
                              m_source_name.GetCString(), s.GetData());
@@ -435,6 +477,44 @@ UnwindPlan::Dump (Stream& s, Thread *thread, lldb::addr_t base_addr) const
     if (!m_source_name.IsEmpty())
     {
         s.Printf ("This UnwindPlan originally sourced from %s\n", m_source_name.GetCString());
+    }
+    if (m_lsda_address.IsValid() && m_personality_func_addr.IsValid())
+    {
+        TargetSP target_sp(thread->CalculateTarget());
+        addr_t lsda_load_addr = m_lsda_address.GetLoadAddress (target_sp.get());
+        addr_t personality_func_load_addr = m_personality_func_addr.GetLoadAddress (target_sp.get());
+        
+        if (lsda_load_addr != LLDB_INVALID_ADDRESS && personality_func_load_addr != LLDB_INVALID_ADDRESS)
+        {
+            s.Printf("LSDA address 0x%" PRIx64 ", personality routine is at address 0x%" PRIx64 "\n",
+                     lsda_load_addr, personality_func_load_addr);
+        }
+    }
+    s.Printf ("This UnwindPlan is sourced from the compiler: ");
+    switch (m_plan_is_sourced_from_compiler)
+    {
+        case eLazyBoolYes:
+            s.Printf ("yes.\n");
+            break;
+        case eLazyBoolNo:
+            s.Printf ("no.\n");
+            break;
+        case eLazyBoolCalculate:
+            s.Printf ("not specified.\n");
+            break;
+    }
+    s.Printf ("This UnwindPlan is valid at all instruction locations: ");
+    switch (m_plan_is_valid_at_all_instruction_locations)
+    {
+        case eLazyBoolYes:
+            s.Printf ("yes.\n");
+            break;
+        case eLazyBoolNo:
+            s.Printf ("no.\n");
+            break;
+        case eLazyBoolCalculate:
+            s.Printf ("not specified.\n");
+            break;
     }
     if (m_plan_valid_address_range.GetBaseAddress().IsValid() && m_plan_valid_address_range.GetByteSize() > 0)
     {
@@ -480,6 +560,6 @@ UnwindPlan::GetRegisterInfo (Thread* thread, uint32_t unwind_reg) const
                 return reg_ctx->GetRegisterInfoAtIndex (reg);
         }
     }
-    return NULL;
+    return nullptr;
 }
     

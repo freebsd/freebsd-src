@@ -24,13 +24,11 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <gelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_checksum.c 2225 2011-11-26 18:55:54Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_checksum.c 3174 2015-03-27 17:13:41Z emaste $");
 
 static unsigned long
 _libelf_sum(unsigned long c, const unsigned char *s, size_t size)
@@ -44,7 +42,7 @@ _libelf_sum(unsigned long c, const unsigned char *s, size_t size)
 	return (c);
 }
 
-unsigned long
+long
 _libelf_checksum(Elf *e, int elfclass)
 {
 	size_t shn;
@@ -90,11 +88,11 @@ _libelf_checksum(Elf *e, int elfclass)
 		d = NULL;
 		while ((d = elf_rawdata(scn, d)) != NULL)
 			checksum = _libelf_sum(checksum,
-			    (unsigned char *) d->d_buf, d->d_size);
+			    (unsigned char *) d->d_buf, (size_t) d->d_size);
 	}
 
 	/*
 	 * Return a 16-bit checksum compatible with Solaris.
 	 */
-	return (((checksum >> 16) & 0xFFFFUL) + (checksum & 0xFFFFUL));
+	return (long) (((checksum >> 16) & 0xFFFFUL) + (checksum & 0xFFFFUL));
 }

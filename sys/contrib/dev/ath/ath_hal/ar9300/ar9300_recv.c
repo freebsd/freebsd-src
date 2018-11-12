@@ -113,6 +113,8 @@ ar9300_stop_dma_receive(struct ath_hal *ah, u_int timeout)
 #define AH_RX_STOP_DMA_TIMEOUT 10000   /* usec */
 #define AH_TIME_QUANTUM        100     /* usec */
 
+    OS_MARK(ah, AH_MARK_RX_CTL, AH_MARK_RX_CTL_DMA_STOP);
+
     if (timeout == 0) {
         timeout = AH_RX_STOP_DMA_TIMEOUT;
     }
@@ -156,6 +158,9 @@ ar9300_stop_dma_receive(struct ath_hal *ah, u_int timeout)
     }
 
     OS_REG_WRITE(ah, AR_MACMISC, org_value);
+
+    OS_MARK(ah, AH_MARK_RX_CTL,
+        status ? AH_MARK_RX_CTL_DMA_STOP_OK : AH_MARK_RX_CTL_DMA_STOP_ERR);
 
     return status;
 #undef AH_RX_STOP_DMA_TIMEOUT

@@ -4,11 +4,8 @@ PROG=	pkg
 SRCS=	pkg.c dns_utils.c config.c
 MAN=	pkg.7
 
-CFLAGS+=-I${.CURDIR}/../../contrib/libyaml/include
-.PATH:	${.CURDIR}/../../contrib/libyaml/include
-DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBFETCH} ${LIBYAML} ${LIBSBUF} ${LIBSSL} \
-	${LIBCRYPTO}
-LDADD=	-larchive -lelf -lfetch -lyaml -lsbuf -lssl -lcrypto
-USEPRIVATELIB=	yaml
+CFLAGS+=-I${.CURDIR}/../../contrib/libucl/include
+.PATH:	${.CURDIR}/../../contrib/libucl/include
+LIBADD=	archive fetch ucl sbuf crypto
 
 .include <bsd.prog.mk>

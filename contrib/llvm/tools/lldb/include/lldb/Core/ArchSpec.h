@@ -13,6 +13,7 @@
 #if defined(__cplusplus)
 
 #include "lldb/lldb-private.h"
+#include "lldb/Core/ConstString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 
@@ -49,6 +50,7 @@ public:
         eCore_arm_armv7m,
         eCore_arm_armv7em,
         eCore_arm_xscale,  
+
         eCore_thumb,
         eCore_thumbv4t,
         eCore_thumbv5,
@@ -56,11 +58,14 @@ public:
         eCore_thumbv6,
         eCore_thumbv6m,
         eCore_thumbv7,
-        eCore_thumbv7f,
         eCore_thumbv7s,
         eCore_thumbv7k,
+        eCore_thumbv7f,
         eCore_thumbv7m,
         eCore_thumbv7em,
+        eCore_arm_arm64,
+        eCore_arm_armv8,
+        eCore_arm_aarch64,
         
         eCore_mips64,
 
@@ -88,10 +93,21 @@ public:
         eCore_x86_32_i386,
         eCore_x86_32_i486,
         eCore_x86_32_i486sx,
+        eCore_x86_32_i686,
         
         eCore_x86_64_x86_64,
+        eCore_x86_64_x86_64h, // Haswell enabled x86_64
+        eCore_hexagon_generic,
+        eCore_hexagon_hexagonv4,
+        eCore_hexagon_hexagonv5,
+
         eCore_uknownMach32,
         eCore_uknownMach64,
+
+        eCore_kalimba3,
+        eCore_kalimba4,
+        eCore_kalimba5,
+
         kNumCores,
 
         kCore_invalid,
@@ -101,6 +117,8 @@ public:
         kCore_ppc_any,
         kCore_ppc64_any,
         kCore_x86_32_any,
+        kCore_x86_64_any,
+        kCore_hexagon_any,
 
         kCore_arm_first     = eCore_arm_generic,
         kCore_arm_last      = eCore_arm_xscale,
@@ -115,8 +133,19 @@ public:
         kCore_ppc64_last    = eCore_ppc64_ppc970_64,
 
         kCore_x86_32_first  = eCore_x86_32_i386,
-        kCore_x86_32_last   = eCore_x86_32_i486sx
+        kCore_x86_32_last   = eCore_x86_32_i686,
+
+        kCore_x86_64_first  = eCore_x86_64_x86_64,
+        kCore_x86_64_last   = eCore_x86_64_x86_64h,
+
+        kCore_hexagon_first  = eCore_hexagon_generic,
+        kCore_hexagon_last   = eCore_hexagon_hexagonv5,
+
+        kCore_kalimba_first = eCore_kalimba3,
+        kCore_kalimba_last = eCore_kalimba5
     };
+
+    typedef void (* StopInfoOverrideCallbackType)(lldb_private::Thread &thread);
 
     //------------------------------------------------------------------
     /// Default constructor.
@@ -203,6 +232,27 @@ public:
     GetMachine () const;
 
     //------------------------------------------------------------------
+    /// Returns the distribution id of the architecture.
+    ///
+    /// This will be something like "ubuntu", "fedora", etc. on Linux.
+    ///
+    /// @return A ConstString ref containing the distribution id,
+    ///         potentially empty.
+    //------------------------------------------------------------------
+    const ConstString&
+    GetDistributionId () const;
+
+    //------------------------------------------------------------------
+    /// Set the distribution id of the architecture.
+    ///
+    /// This will be something like "ubuntu", "fedora", etc. on Linux.
+    /// This should be the same value returned by
+    /// HostInfo::GetDistributionId ().
+    ///------------------------------------------------------------------
+    void
+    SetDistributionId (const char* distribution_id);
+
+    //------------------------------------------------------------------
     /// Tests if this ArchSpec is valid.
     ///
     /// @return True if the current architecture is valid, false
@@ -271,7 +321,7 @@ public:
     ///
     /// @param[in] cpu The required CPU type.
     ///
-    /// @return True if the object and CPU type were sucessfully set.
+    /// @return True if the object and CPU type were successfully set.
     //------------------------------------------------------------------
     bool
     SetArchitecture (ArchitectureType arch_type, 
@@ -319,6 +369,24 @@ public:
     uint32_t
     GetMachOCPUSubType () const;
 
+    //------------------------------------------------------------------
+    /// Architecture data byte width accessor
+    ///
+    /// @return the size in 8-bit (host) bytes of a minimum addressable
+    /// unit from the Architecture's data bus
+    //------------------------------------------------------------------
+    uint32_t
+    GetDataByteSize() const;
+
+    //------------------------------------------------------------------
+    /// Architecture code byte width accessor
+    ///
+    /// @return the size in 8-bit (host) bytes of a minimum addressable
+    /// unit from the Architecture's code bus
+    //------------------------------------------------------------------
+    uint32_t
+    GetCodeByteSize() const;
+ 
     //------------------------------------------------------------------
     /// Architecture tripple accessor.
     ///
@@ -392,6 +460,30 @@ public:
     bool
     IsCompatibleMatch (const ArchSpec& rhs) const;
 
+    //------------------------------------------------------------------
+    /// Get a stop info override callback for the current architecture.
+    ///
+    /// Most platform specific code should go in lldb_private::Platform,
+    /// but there are cases where no matter which platform you are on
+    /// certain things hold true.
+    ///
+    /// This callback is currently intended to handle cases where a
+    /// program stops at an instruction that won't get executed and it
+    /// allows the stop reasonm, like "breakpoint hit", to be replaced
+    /// with a different stop reason like "no stop reason".
+    ///
+    /// This is specifically used for ARM in Thumb code when we stop in
+    /// an IT instruction (if/then/else) where the instruction won't get
+    /// executed and therefore it wouldn't be correct to show the program
+    /// stopped at the current PC. The code is generic and applies to all
+    /// ARM CPUs.
+    ///
+    /// @return NULL or a valid stop info override callback for the
+    ///     current architecture.
+    //------------------------------------------------------------------
+    StopInfoOverrideCallbackType
+    GetStopInfoOverrideCallback () const;
+
 protected:
     bool
     IsEqualTo (const ArchSpec& rhs, bool exact_match) const;
@@ -399,6 +491,8 @@ protected:
     llvm::Triple m_triple;
     Core m_core;
     lldb::ByteOrder m_byte_order;
+
+    ConstString m_distribution_id;
 
     // Called when m_def or m_entry are changed.  Fills in all remaining
     // members with default values.

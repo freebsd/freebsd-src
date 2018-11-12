@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2012-2014 Baptiste Daroussin <bapt@FreeBSD.org>
  * Copyright (c) 2013 Bryan Drewery <bdrewery@FreeBSD.org>
  * All rights reserved.
  *
@@ -47,9 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
-#include <yaml.h>
+#include <ucl.h>
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -126,7 +125,8 @@ extract_pkg_static(int fd, char *p, int sz)
 	if (r == ARCHIVE_OK)
 		ret = 0;
 	else
-		warnx("fail to extract pkg-static");
+		warnx("failed to extract pkg-static: %s",
+		    archive_error_string(a));
 
 cleanup:
 	archive_read_free(a);
@@ -176,14 +176,11 @@ fetch_to_fd(const char *url, char *path)
 	/* To store _https._tcp. + hostname + \0 */
 	int fd;
 	int retry, max_retry;
-	off_t done, r;
-	time_t now, last;
+	ssize_t r;
 	char buf[10240];
 	char zone[MAXHOSTNAMELEN + 13];
 	static const char *mirror_type = NULL;
 
-	done = 0;
-	last = 0;
 	max_retry = 3;
 	current = mirrors = NULL;
 	remote = NULL;
@@ -201,7 +198,11 @@ fetch_to_fd(const char *url, char *path)
 
 	retry = max_retry;
 
-	u = fetchParseURL(url);
+	if ((u = fetchParseURL(url)) == NULL) {
+		warn("fetchParseURL('%s')", url);
+		return (-1);
+	}
+
 	while (remote == NULL) {
 		if (retry == max_retry) {
 			if (strcmp(u->scheme, "file") != 0 &&
@@ -233,19 +234,16 @@ fetch_to_fd(const char *url, char *path)
 		}
 	}
 
-	while (done < st.size) {
-		if ((r = fread(buf, 1, sizeof(buf), remote)) < 1)
-			break;
-
+	while ((r = fread(buf, 1, sizeof(buf), remote)) > 0) {
 		if (write(fd, buf, r) != r) {
 			warn("write()");
 			goto fetchfail;
 		}
+	}
 
-		done += r;
-		now = time(NULL);
-		if (now > last || done == st.size)
-			last = now;
+	if (r != 0) {
+		warn("An error occurred while fetching pkg(8)");
+		goto fetchfail;
 	}
 
 	if (ferror(remote))
@@ -268,38 +266,28 @@ cleanup:
 }
 
 static struct fingerprint *
-parse_fingerprint(yaml_document_t *doc, yaml_node_t *node)
+parse_fingerprint(ucl_object_t *obj)
 {
-	yaml_node_pair_t *pair;
-	yaml_char_t *function, *fp;
+	const ucl_object_t *cur;
+	ucl_object_iter_t it = NULL;
+	const char *function, *fp, *key;
 	struct fingerprint *f;
 	hash_t fct = HASH_UNKNOWN;
 
 	function = fp = NULL;
 
-	pair = node->data.mapping.pairs.start;
-	while (pair < node->data.mapping.pairs.top) {
-		yaml_node_t *key = yaml_document_get_node(doc, pair->key);
-		yaml_node_t *val = yaml_document_get_node(doc, pair->value);
-
-		if (key->data.scalar.length <= 0) {
-			++pair;
+	while ((cur = ucl_iterate_object(obj, &it, true))) {
+		key = ucl_object_key(cur);
+		if (cur->type != UCL_STRING)
+			continue;
+		if (strcasecmp(key, "function") == 0) {
+			function = ucl_object_tostring(cur);
 			continue;
 		}
-
-		if (val->type != YAML_SCALAR_NODE) {
-			++pair;
+		if (strcasecmp(key, "fingerprint") == 0) {
+			fp = ucl_object_tostring(cur);
 			continue;
 		}
-
-		if (strcasecmp(key->data.scalar.value, "function") == 0)
-			function = val->data.scalar.value;
-		else if (strcasecmp(key->data.scalar.value, "fingerprint")
-		    == 0)
-			fp = val->data.scalar.value;
-
-		++pair;
-		continue;
 	}
 
 	if (fp == NULL || function == NULL)
@@ -309,7 +297,7 @@ parse_fingerprint(yaml_document_t *doc, yaml_node_t *node)
 		fct = HASH_SHA256;
 
 	if (fct == HASH_UNKNOWN) {
-		fprintf(stderr, "Unsupported hashing function: %s\n", function);
+		warnx("Unsupported hashing function: %s", function);
 		return (NULL);
 	}
 
@@ -335,10 +323,8 @@ free_fingerprint_list(struct fingerprint_list* list)
 static struct fingerprint *
 load_fingerprint(const char *dir, const char *filename)
 {
-	yaml_parser_t parser;
-	yaml_document_t doc;
-	yaml_node_t *node;
-	FILE *fp;
+	ucl_object_t *obj = NULL;
+	struct ucl_parser *p = NULL;
 	struct fingerprint *f;
 	char path[MAXPATHLEN];
 
@@ -346,24 +332,23 @@ load_fingerprint(const char *dir, const char *filename)
 
 	snprintf(path, MAXPATHLEN, "%s/%s", dir, filename);
 
-	if ((fp = fopen(path, "r")) == NULL)
+	p = ucl_parser_new(0);
+	if (!ucl_parser_add_file(p, path)) {
+		warnx("%s: %s", path, ucl_parser_get_error(p));
+		ucl_parser_free(p);
 		return (NULL);
+	}
 
-	yaml_parser_initialize(&parser);
-	yaml_parser_set_input_file(&parser, fp);
-	yaml_parser_load(&parser, &doc);
+	obj = ucl_parser_get_object(p);
 
-	node = yaml_document_get_root_node(&doc);
-	if (node == NULL || node->type != YAML_MAPPING_NODE)
-		goto out;
+	if (obj->type == UCL_OBJECT)
+		f = parse_fingerprint(obj);
 
-	f = parse_fingerprint(&doc, node);
-	f->name = strdup(filename);
+	if (f != NULL)
+		f->name = strdup(filename);
 
-out:
-	yaml_document_delete(&doc);
-	yaml_parser_delete(&parser);
-	fclose(fp);
+	ucl_object_unref(obj);
+	ucl_parser_free(p);
 
 	return (f);
 }
@@ -383,8 +368,11 @@ load_fingerprints(const char *path, int *count)
 		return (NULL);
 	STAILQ_INIT(fingerprints);
 
-	if ((d = opendir(path)) == NULL)
+	if ((d = opendir(path)) == NULL) {
+		free(fingerprints);
+
 		return (NULL);
+	}
 
 	while ((ent = readdir(d))) {
 		if (strcmp(ent->d_name, ".") == 0 ||
@@ -779,7 +767,13 @@ bootstrap_pkg(bool force)
 		goto fetchfail;
 
 	if (signature_type != NULL &&
-	    strcasecmp(signature_type, "FINGERPRINTS") == 0) {
+	    strcasecmp(signature_type, "NONE") != 0) {
+		if (strcasecmp(signature_type, "FINGERPRINTS") != 0) {
+			warnx("Signature type %s is not supported for "
+			    "bootstrapping.", signature_type);
+			goto cleanup;
+		}
+
 		snprintf(tmpsig, MAXPATHLEN, "%s/pkg.txz.sig.XXXXXX",
 		    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP);
 		snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz.sig",
@@ -811,8 +805,11 @@ cleanup:
 		close(fd_sig);
 		unlink(tmpsig);
 	}
-	close(fd_pkg);
-	unlink(tmppkg);
+
+	if (fd_pkg != -1) {
+		close(fd_pkg);
+		unlink(tmppkg);
+	}
 
 	return (ret);
 }
@@ -861,10 +858,16 @@ bootstrap_pkg_local(const char *pkgpath, bool force)
 
 	if (config_string(SIGNATURE_TYPE, &signature_type) != 0) {
 		warnx("Error looking up SIGNATURE_TYPE");
-		return (-1);
+		goto cleanup;
 	}
 	if (signature_type != NULL &&
-	    strcasecmp(signature_type, "FINGERPRINTS") == 0) {
+	    strcasecmp(signature_type, "NONE") != 0) {
+		if (strcasecmp(signature_type, "FINGERPRINTS") != 0) {
+			warnx("Signature type %s is not supported for "
+			    "bootstrapping.", signature_type);
+			goto cleanup;
+		}
+
 		snprintf(path, sizeof(path), "%s.sig", pkgpath);
 
 		if ((fd_sig = open(path, O_RDONLY)) == -1) {

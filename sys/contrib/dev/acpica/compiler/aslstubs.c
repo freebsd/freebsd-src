@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,17 +53,10 @@
 
 
 /*
- * Stubs to simplify linkage to the ACPI CA core subsystem.
+ * Stubs to simplify linkage to the ACPICA core subsystem.
  * Things like Events, Global Lock, etc. are not used
  * by the compiler, so they are stubbed out here.
  */
-ACPI_PHYSICAL_ADDRESS
-AeLocalGetRootPointer (
-    void)
-{
-    return (0);
-}
-
 void
 AcpiNsExecModuleCodeList (
     void)
@@ -172,15 +165,6 @@ AcpiEvInitializeRegion (
     return (AE_OK);
 }
 
-void
-AcpiExDoDebugObject (
-    ACPI_OPERAND_OBJECT     *SourceDesc,
-    UINT32                  Level,
-    UINT32                  Index)
-{
-    return;
-}
-
 ACPI_STATUS
 AcpiExReadDataFromField (
     ACPI_WALK_STATE         *WalkState,
@@ -223,30 +207,66 @@ AcpiExLoadOp (
     return (AE_SUPPORT);
 }
 
+void
+AcpiExDoDebugObject (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    UINT32                  Level,
+    UINT32                  Index)
+{
+    return;
+}
+
+void
+AcpiExStartTraceMethod (
+    ACPI_NAMESPACE_NODE     *MethodNode,
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_WALK_STATE         *WalkState)
+{
+    return;
+}
+
+void
+AcpiExStopTraceMethod (
+    ACPI_NAMESPACE_NODE     *MethodNode,
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_WALK_STATE         *WalkState)
+{
+    return;
+}
+
+void
+AcpiExStartTraceOpcode (
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_WALK_STATE         *WalkState)
+{
+    return;
+}
+
+void
+AcpiExStopTraceOpcode (
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_WALK_STATE         *WalkState)
+
+{
+    return;
+}
+
+void
+AcpiExTracePoint (
+    ACPI_TRACE_EVENT_TYPE   Type,
+    BOOLEAN                 Begin,
+    UINT8                   *Aml,
+    char                    *Pathname)
+{
+    return;
+}
+
 ACPI_STATUS
 AcpiTbFindTable (
     char                    *Signature,
     char                    *OemId,
     char                    *OemTableId,
     UINT32                  *TableIndex)
-{
-    return (AE_SUPPORT);
-}
-
-/* OSL interfaces */
-
-ACPI_THREAD_ID
-AcpiOsGetThreadId (
-    void)
-{
-    return (0xFFFF);
-}
-
-ACPI_STATUS
-AcpiOsExecute (
-    ACPI_EXECUTE_TYPE       Type,
-    ACPI_OSD_EXEC_CALLBACK  Function,
-    void                    *Context)
 {
     return (AE_SUPPORT);
 }

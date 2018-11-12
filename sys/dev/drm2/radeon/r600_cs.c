@@ -43,6 +43,9 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 					struct radeon_cs_reloc **cs_reloc);
 typedef int (*next_reloc_t)(struct radeon_cs_parser*, struct radeon_cs_reloc**);
 static next_reloc_t r600_cs_packet_next_reloc = &r600_cs_packet_next_reloc_mm;
+#ifdef FREEBSD_WIP /* FreeBSD: to please GCC 4.2. */
+extern void r600_cs_legacy_get_tiling_conf(struct drm_device *dev, u32 *npipes, u32 *nbanks, u32 *group_size);
+#endif
 
 
 struct r600_cs_track {
@@ -186,7 +189,7 @@ static const struct gpu_formats color_formats_table[] = {
 
 bool r600_fmt_is_valid_color(u32 format)
 {
-	if (format >= DRM_ARRAY_SIZE(color_formats_table))
+	if (format >= ARRAY_SIZE(color_formats_table))
 		return false;
 
 	if (color_formats_table[format].valid_color)
@@ -197,7 +200,7 @@ bool r600_fmt_is_valid_color(u32 format)
 
 bool r600_fmt_is_valid_texture(u32 format, enum radeon_family family)
 {
-	if (format >= DRM_ARRAY_SIZE(color_formats_table))
+	if (format >= ARRAY_SIZE(color_formats_table))
 		return false;
 
 	if (family < color_formats_table[format].min_family)
@@ -211,7 +214,7 @@ bool r600_fmt_is_valid_texture(u32 format, enum radeon_family family)
 
 int r600_fmt_get_blocksize(u32 format)
 {
-	if (format >= DRM_ARRAY_SIZE(color_formats_table))
+	if (format >= ARRAY_SIZE(color_formats_table))
 		return 0;
 
 	return color_formats_table[format].blocksize;
@@ -221,7 +224,7 @@ int r600_fmt_get_nblocksx(u32 format, u32 w)
 {
 	unsigned bw;
 
-	if (format >= DRM_ARRAY_SIZE(color_formats_table))
+	if (format >= ARRAY_SIZE(color_formats_table))
 		return 0;
 
 	bw = color_formats_table[format].blockwidth;
@@ -235,7 +238,7 @@ int r600_fmt_get_nblocksy(u32 format, u32 h)
 {
 	unsigned bh;
 
-	if (format >= DRM_ARRAY_SIZE(color_formats_table))
+	if (format >= ARRAY_SIZE(color_formats_table))
 		return 0;
 
 	bh = color_formats_table[format].blockheight;
@@ -1117,7 +1120,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	int r;
 
 	i = (reg >> 7);
-	if (i >= DRM_ARRAY_SIZE(r600_reg_safe_bm)) {
+	if (i >= ARRAY_SIZE(r600_reg_safe_bm)) {
 		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
 		return -EINVAL;
 	}
@@ -1741,7 +1744,7 @@ static bool r600_is_safe_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	u32 m, i;
 
 	i = (reg >> 7);
-	if (i >= DRM_ARRAY_SIZE(r600_reg_safe_bm)) {
+	if (i >= ARRAY_SIZE(r600_reg_safe_bm)) {
 		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
 		return false;
 	}
@@ -2400,7 +2403,7 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 	if (p->track == NULL) {
 		/* initialize tracker, we are in kms */
 		track = malloc(sizeof(*track),
-		    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (track == NULL)
 			return -ENOMEM;
 		r600_cs_track_init(track);
@@ -2447,7 +2450,7 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 #if 0
 	for (r = 0; r < p->ib.length_dw; r++) {
 		DRM_INFO("%05d  0x%08X\n", r, p->ib.ptr[r]);
-		DRM_MDELAY(1);
+		mdelay(1);
 	}
 #endif
 	free(p->track, DRM_MEM_DRIVER);
@@ -2461,7 +2464,7 @@ static int r600_cs_parser_relocs_legacy(struct radeon_cs_parser *p)
 		return 0;
 	}
 	p->relocs = malloc(sizeof(struct radeon_cs_reloc),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (p->relocs == NULL) {
 		return -ENOMEM;
 	}
@@ -2502,7 +2505,7 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 	int r;
 
 	/* initialize tracker */
-	track = malloc(sizeof(*track), DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	track = malloc(sizeof(*track), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (track == NULL)
 		return -ENOMEM;
 	r600_cs_track_init(track);
@@ -2510,7 +2513,7 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 	/* initialize parser */
 	memset(&parser, 0, sizeof(struct radeon_cs_parser));
 	parser.filp = filp;
-	parser.dev = dev->device;
+	parser.dev = dev->dev;
 	parser.rdev = NULL;
 	parser.family = family;
 	parser.track = track;
@@ -2754,7 +2757,7 @@ int r600_dma_cs_parse(struct radeon_cs_parser *p)
 #if 0
 	for (r = 0; r < p->ib->length_dw; r++) {
 		DRM_INFO("%05d  0x%08X\n", r, p->ib.ptr[r]);
-		DRM_MDELAY(1);
+		mdelay(1);
 	}
 #endif
 	return 0;

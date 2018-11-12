@@ -16,6 +16,7 @@
 // Other libraries and framework includes
 #include "lldb/Breakpoint/Watchpoint.h"
 #include "lldb/Core/Module.h"
+#include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/State.h"
 #include "lldb/Host/FileSpec.h"
@@ -28,7 +29,11 @@
 #include "ProcessPOSIX.h"
 #include "ProcessPOSIXLog.h"
 #include "Plugins/Process/Utility/InferiorCallPOSIX.h"
-#include "ProcessMonitor.h"
+#if defined(__FreeBSD__)
+#include "Plugins/Process/FreeBSD/ProcessMonitor.h"
+#else
+#include "Plugins/Process/Linux/ProcessMonitor.h"
+#endif
 #include "POSIXThread.h"
 
 using namespace lldb;
@@ -70,8 +75,8 @@ ProcessPOSIX::Initialize()
 //------------------------------------------------------------------------------
 // Constructors and destructors.
 
-ProcessPOSIX::ProcessPOSIX(Target& target, Listener &listener)
-    : Process(target, listener),
+ProcessPOSIX::ProcessPOSIX(Target& target, Listener &listener, UnixSignalsSP &unix_signals_sp)
+    : Process(target, listener, unix_signals_sp),
       m_byte_order(lldb::endian::InlHostByteOrder()),
       m_monitor(NULL),
       m_module(NULL),
@@ -140,8 +145,8 @@ ProcessPOSIX::DoAttachToProcessWithID(lldb::pid_t pid)
     // Resolve the executable module
     ModuleSP exe_module_sp;
     FileSpecList executable_search_paths (Target::GetDefaultExecutableSearchPaths());
-    error = platform_sp->ResolveExecutable(process_info.GetExecutableFile(),
-                                           m_target.GetArchitecture(),
+    ModuleSpec exe_module_spec(process_info.GetExecutableFile(), m_target.GetArchitecture());
+    error = platform_sp->ResolveExecutable(exe_module_spec,
                                            exe_module_sp,
                                            executable_search_paths.GetSize() ? &executable_search_paths : NULL);
     if (!error.Success())
@@ -176,31 +181,31 @@ ProcessPOSIX::WillLaunch(Module* module)
 }
 
 const char *
-ProcessPOSIX::GetFilePath(
-    const lldb_private::ProcessLaunchInfo::FileAction *file_action,
-    const char *default_path)
+ProcessPOSIX::GetFilePath(const lldb_private::FileAction *file_action, const char *default_path,
+                          const char *dbg_pts_path)
 {
-    const char *pts_name = "/dev/pts/";
     const char *path = NULL;
 
     if (file_action)
     {
-        if (file_action->GetAction () == ProcessLaunchInfo::FileAction::eFileActionOpen)
+        if (file_action->GetAction() == FileAction::eFileActionOpen)
+        {
             path = file_action->GetPath();
             // By default the stdio paths passed in will be pseudo-terminal
             // (/dev/pts). If so, convert to using a different default path
             // instead to redirect I/O to the debugger console. This should
             //  also handle user overrides to /dev/null or a different file.
-            if (::strncmp(path, pts_name, ::strlen(pts_name)) == 0)
+            if (!path || (dbg_pts_path &&
+                          ::strncmp(path, dbg_pts_path, ::strlen(dbg_pts_path)) == 0))
                 path = default_path;
+        }
     }
-
     return path;
 }
 
 Error
 ProcessPOSIX::DoLaunch (Module *module,
-                       const ProcessLaunchInfo &launch_info)
+                        ProcessLaunchInfo &launch_info)
 {
     Error error;
     assert(m_monitor == NULL);
@@ -217,21 +222,23 @@ ProcessPOSIX::DoLaunch (Module *module,
 
     SetPrivateState(eStateLaunching);
 
-    const lldb_private::ProcessLaunchInfo::FileAction *file_action;
+    const lldb_private::FileAction *file_action;
 
     // Default of NULL will mean to use existing open file descriptors
     const char *stdin_path = NULL;
     const char *stdout_path = NULL;
     const char *stderr_path = NULL;
 
+    const char * dbg_pts_path = launch_info.GetPTY().GetSlaveName(NULL,0);
+
     file_action = launch_info.GetFileActionForFD (STDIN_FILENO);
-    stdin_path = GetFilePath(file_action, stdin_path);
+    stdin_path = GetFilePath(file_action, stdin_path, dbg_pts_path);
 
     file_action = launch_info.GetFileActionForFD (STDOUT_FILENO);
-    stdout_path = GetFilePath(file_action, stdout_path);
+    stdout_path = GetFilePath(file_action, stdout_path, dbg_pts_path);
 
     file_action = launch_info.GetFileActionForFD (STDERR_FILENO);
-    stderr_path = GetFilePath(file_action, stderr_path);
+    stderr_path = GetFilePath(file_action, stderr_path, dbg_pts_path);
 
     m_monitor = new ProcessMonitor (this, 
                                     module,
@@ -241,6 +248,7 @@ ProcessPOSIX::DoLaunch (Module *module,
                                     stdout_path, 
                                     stderr_path,
                                     working_dir,
+                                    launch_info,
                                     error);
 
     m_module = module;
@@ -257,6 +265,31 @@ ProcessPOSIX::DoLaunch (Module *module,
 void
 ProcessPOSIX::DidLaunch()
 {
+}
+
+Error
+ProcessPOSIX::DoResume()
+{
+    StateType state = GetPrivateState();
+
+    assert(state == eStateStopped);
+
+    SetPrivateState(eStateRunning);
+
+    bool did_resume = false;
+
+    Mutex::Locker lock(m_thread_list.GetMutex());
+
+    uint32_t thread_count = m_thread_list.GetSize(false);
+    for (uint32_t i = 0; i < thread_count; ++i)
+    {
+        POSIXThread *thread = static_cast<POSIXThread*>(
+            m_thread_list.GetThreadAtIndex(i, false).get());
+        did_resume = thread->Resume() || did_resume;
+    }
+    assert(did_resume && "Process resume failed!");
+
+    return Error();
 }
 
 addr_t
@@ -310,11 +343,14 @@ ProcessPOSIX::DoDestroy()
 
     if (!HasExited())
     {
-        // Drive the exit event to completion (do not keep the inferior in
-        // limbo).
+        assert(m_monitor);
         m_exit_now = true;
-
-        if ((m_monitor == NULL || kill(m_monitor->GetPID(), SIGKILL)) && error.Success())
+        if (GetID() == LLDB_INVALID_PROCESS_ID)
+        {
+            error.SetErrorString("invalid process id");
+            return error;
+        }
+        if (!m_monitor->Kill())
         {
             error.SetErrorToErrno();
             return error;
@@ -339,16 +375,124 @@ ProcessPOSIX::DoDidExec()
             ProcessInstanceInfo process_info;
             platform_sp->GetProcessInfo(GetID(), process_info);
             ModuleSP exe_module_sp;
+            ModuleSpec exe_module_spec(process_info.GetExecutableFile(), target->GetArchitecture());
             FileSpecList executable_search_paths (Target::GetDefaultExecutableSearchPaths());
-            Error error = platform_sp->ResolveExecutable(process_info.GetExecutableFile(),
-                                                   target->GetArchitecture(),
-                                                   exe_module_sp,
-                                                   executable_search_paths.GetSize() ? &executable_search_paths : NULL);
+            Error error = platform_sp->ResolveExecutable(exe_module_spec,
+                                                         exe_module_sp,
+                                                         executable_search_paths.GetSize() ? &executable_search_paths : NULL);
             if (!error.Success())
                 return;
             target->SetExecutableModule(exe_module_sp, true);
         }
     }
+}
+
+void
+ProcessPOSIX::SendMessage(const ProcessMessage &message)
+{
+    Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet (POSIX_LOG_PROCESS));
+
+    Mutex::Locker lock(m_message_mutex);
+
+    Mutex::Locker thread_lock(m_thread_list.GetMutex());
+
+    POSIXThread *thread = static_cast<POSIXThread*>(
+        m_thread_list.FindThreadByID(message.GetTID(), false).get());
+
+    switch (message.GetKind())
+    {
+    case ProcessMessage::eInvalidMessage:
+        return;
+
+    case ProcessMessage::eAttachMessage:
+        SetPrivateState(eStateStopped);
+        return;
+
+    case ProcessMessage::eLimboMessage:
+        assert(thread);
+        thread->SetState(eStateStopped);
+        if (message.GetTID() == GetID())
+        {
+            m_exit_status = message.GetExitStatus();
+            if (m_exit_now)
+            {
+                SetPrivateState(eStateExited);
+                m_monitor->Detach(GetID());
+            }
+            else
+            {
+                StopAllThreads(message.GetTID());
+                SetPrivateState(eStateStopped);
+            }
+        }
+        else
+        {
+            StopAllThreads(message.GetTID());
+            SetPrivateState(eStateStopped);
+        }
+        break;
+
+    case ProcessMessage::eExitMessage:
+        if (thread != nullptr)
+            thread->SetState(eStateExited);
+        else
+        {
+            if (log)
+                log->Warning ("ProcessPOSIX::%s eExitMessage for TID %" PRIu64 " failed to find a thread to mark as eStateExited, ignoring", __FUNCTION__, message.GetTID ());
+        }
+
+        // FIXME: I'm not sure we need to do this.
+        if (message.GetTID() == GetID())
+        {
+            SetExitStatus(message.GetExitStatus(), NULL);
+        }
+        else if (!IsAThreadRunning())
+            SetPrivateState(eStateStopped);
+        break;
+
+    case ProcessMessage::eSignalMessage:
+    case ProcessMessage::eSignalDeliveredMessage:
+        if (message.GetSignal() == SIGSTOP &&
+            AddThreadForInitialStopIfNeeded(message.GetTID()))
+            return;
+        // Intentional fall-through
+
+    case ProcessMessage::eBreakpointMessage:
+    case ProcessMessage::eTraceMessage:
+    case ProcessMessage::eWatchpointMessage:
+    case ProcessMessage::eCrashMessage:
+        assert(thread);
+        thread->SetState(eStateStopped);
+        StopAllThreads(message.GetTID());
+        SetPrivateState(eStateStopped);
+        break;
+
+    case ProcessMessage::eNewThreadMessage:
+    {
+        lldb::tid_t  new_tid = message.GetChildTID();
+        if (WaitingForInitialStop(new_tid))
+        {
+            m_monitor->WaitForInitialTIDStop(new_tid);
+        }
+        assert(thread);
+        thread->SetState(eStateStopped);
+        StopAllThreads(message.GetTID());
+        SetPrivateState(eStateStopped);
+        break;
+    }
+
+    case ProcessMessage::eExecMessage:
+    {
+        assert(thread);
+        thread->SetState(eStateStopped);
+        StopAllThreads(message.GetTID());
+        SetPrivateState(eStateStopped);
+        break;
+    }
+    }
+
+
+    m_message_queue.push(message);
 }
 
 void 
@@ -506,37 +650,29 @@ ProcessPOSIX::DoDeallocateMemory(lldb::addr_t addr)
     return error;
 }
 
-addr_t
-ProcessPOSIX::ResolveIndirectFunction(const Address *address, Error &error)
-{
-    addr_t function_addr = LLDB_INVALID_ADDRESS;
-    if (address == NULL) {
-        error.SetErrorStringWithFormat("unable to determine direct function call for NULL address");
-    } else if (!InferiorCall(this, address, function_addr)) {
-        function_addr = LLDB_INVALID_ADDRESS;
-        error.SetErrorStringWithFormat("unable to determine direct function call for indirect function %s",
-                                       address->CalculateSymbolContextSymbol()->GetName().AsCString());
-    }
-    return function_addr;
-}
-
 size_t
 ProcessPOSIX::GetSoftwareBreakpointTrapOpcode(BreakpointSite* bp_site)
 {
+    static const uint8_t g_aarch64_opcode[] = { 0x00, 0x00, 0x20, 0xD4 };
     static const uint8_t g_i386_opcode[] = { 0xCC };
 
     ArchSpec arch = GetTarget().GetArchitecture();
     const uint8_t *opcode = NULL;
     size_t opcode_size = 0;
 
-    switch (arch.GetCore())
+    switch (arch.GetMachine())
     {
     default:
         assert(false && "CPU type not supported!");
         break;
 
-    case ArchSpec::eCore_x86_32_i386:
-    case ArchSpec::eCore_x86_64_x86_64:
+    case llvm::Triple::aarch64:
+        opcode = g_aarch64_opcode;
+        opcode_size = sizeof(g_aarch64_opcode);
+        break;
+
+    case llvm::Triple::x86:
+    case llvm::Triple::x86_64:
         opcode = g_i386_opcode;
         opcode_size = sizeof(g_i386_opcode);
         break;
@@ -753,12 +889,6 @@ ProcessPOSIX::PutSTDIN(const char *buf, size_t len, Error &error)
     return status;
 }
 
-UnixSignals &
-ProcessPOSIX::GetUnixSignals()
-{
-    return m_signals;
-}
-
 //------------------------------------------------------------------------------
 // Utility functions.
 
@@ -813,4 +943,17 @@ ProcessPOSIX::IsAThreadRunning()
         }
     }
     return is_running;
+}
+
+const DataBufferSP
+ProcessPOSIX::GetAuxvData ()
+{
+    // If we're the local platform, we can ask the host for auxv data.
+    PlatformSP platform_sp = m_target.GetPlatform ();
+    if (platform_sp && platform_sp->IsHost ())
+        return lldb_private::Host::GetAuxvData(this);
+
+    // Somewhat unexpected - the process is not running locally or we don't have a platform.
+    assert (false && "no platform or not the host - how did we get here with ProcessPOSIX?");
+    return DataBufferSP ();
 }

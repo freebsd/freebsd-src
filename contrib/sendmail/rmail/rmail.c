@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: rmail.c,v 8.63 2013/11/22 20:51:53 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: rmail.c,v 8.63 2013-11-22 20:51:53 ca Exp $")
 
 /*
  * RMAIL -- UUCP mail server.

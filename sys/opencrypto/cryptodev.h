@@ -23,6 +23,12 @@
  * PURPOSE.
  *
  * Copyright (c) 2001 Theo de Raadt
+ * Copyright (c) 2014 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by John-Mark Gurney
+ * under sponsorship of the FreeBSD Foundation and
+ * Rubicon Communications, LLC (Netgate).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -72,6 +78,7 @@
 #define	SHA2_512_HASH_LEN	64
 #define	MD5_KPDK_HASH_LEN	16
 #define	SHA1_KPDK_HASH_LEN	20
+#define	AES_GMAC_HASH_LEN	16
 /* Maximum hash algorithm result length */
 #define	HASH_MAX_LEN		SHA2_512_HASH_LEN /* Keep this updated */
 
@@ -80,40 +87,87 @@
 #define	MD5_HMAC_BLOCK_LEN		64
 #define	SHA1_HMAC_BLOCK_LEN		64
 #define	RIPEMD160_HMAC_BLOCK_LEN	64
-#define	SHA2_256_HMAC_BLOCK_LEN		64
-#define	SHA2_384_HMAC_BLOCK_LEN		128
-#define	SHA2_512_HMAC_BLOCK_LEN		128
+#define	SHA2_256_HMAC_BLOCK_LEN	64
+#define	SHA2_384_HMAC_BLOCK_LEN	128
+#define	SHA2_512_HMAC_BLOCK_LEN	128
 /* Maximum HMAC block length */
-#define	HMAC_MAX_BLOCK_LEN		SHA2_512_HMAC_BLOCK_LEN /* Keep this updated */
+#define	HMAC_MAX_BLOCK_LEN	SHA2_512_HMAC_BLOCK_LEN /* Keep this updated */
 #define	HMAC_IPAD_VAL			0x36
 #define	HMAC_OPAD_VAL			0x5C
+/* HMAC Key Length */
+#define	NULL_HMAC_KEY_LEN		0
+#define	MD5_HMAC_KEY_LEN		16
+#define	SHA1_HMAC_KEY_LEN		20
+#define	RIPEMD160_HMAC_KEY_LEN		20
+#define	SHA2_256_HMAC_KEY_LEN		32
+#define	SHA2_384_HMAC_KEY_LEN		48
+#define	SHA2_512_HMAC_KEY_LEN		64
+#define	AES_128_GMAC_KEY_LEN		16
+#define	AES_192_GMAC_KEY_LEN		24
+#define	AES_256_GMAC_KEY_LEN		32
 
 /* Encryption algorithm block sizes */
-#define NULL_BLOCK_LEN		4
-#define DES_BLOCK_LEN		8
-#define DES3_BLOCK_LEN		8
-#define BLOWFISH_BLOCK_LEN	8
-#define SKIPJACK_BLOCK_LEN	8
-#define CAST128_BLOCK_LEN	8
-#define RIJNDAEL128_BLOCK_LEN	16
-#define AES_BLOCK_LEN		RIJNDAEL128_BLOCK_LEN
-#define CAMELLIA_BLOCK_LEN	16
-#define EALG_MAX_BLOCK_LEN	AES_BLOCK_LEN /* Keep this updated */
+#define	NULL_BLOCK_LEN		4	/* IPsec to maintain alignment */
+#define	DES_BLOCK_LEN		8
+#define	DES3_BLOCK_LEN		8
+#define	BLOWFISH_BLOCK_LEN	8
+#define	SKIPJACK_BLOCK_LEN	8
+#define	CAST128_BLOCK_LEN	8
+#define	RIJNDAEL128_BLOCK_LEN	16
+#define	AES_BLOCK_LEN		16
+#define	AES_ICM_BLOCK_LEN	1
+#define	ARC4_BLOCK_LEN		1
+#define	CAMELLIA_BLOCK_LEN	16
+#define	EALG_MAX_BLOCK_LEN	AES_BLOCK_LEN /* Keep this updated */
+
+/* IV Lengths */
+
+#define	ARC4_IV_LEN		1
+#define	AES_GCM_IV_LEN		12
+#define	AES_XTS_IV_LEN		8
+#define	AES_XTS_ALPHA		0x87	/* GF(2^128) generator polynomial */
+
+/* Min and Max Encryption Key Sizes */
+#define	NULL_MIN_KEY		0
+#define	NULL_MAX_KEY		256 /* 2048 bits, max key */
+#define	DES_MIN_KEY		8
+#define	DES_MAX_KEY		DES_MIN_KEY
+#define	TRIPLE_DES_MIN_KEY	24
+#define	TRIPLE_DES_MAX_KEY	TRIPLE_DES_MIN_KEY
+#define	BLOWFISH_MIN_KEY	5
+#define	BLOWFISH_MAX_KEY	56 /* 448 bits, max key */
+#define	CAST_MIN_KEY		5
+#define	CAST_MAX_KEY		16
+#define	SKIPJACK_MIN_KEY	10
+#define	SKIPJACK_MAX_KEY	SKIPJACK_MIN_KEY
+#define	RIJNDAEL_MIN_KEY	16
+#define	RIJNDAEL_MAX_KEY	32
+#define	AES_MIN_KEY		RIJNDAEL_MIN_KEY
+#define	AES_MAX_KEY		RIJNDAEL_MAX_KEY
+#define	AES_XTS_MIN_KEY		(2 * AES_MIN_KEY)
+#define	AES_XTS_MAX_KEY		(2 * AES_MAX_KEY)
+#define	ARC4_MIN_KEY		1
+#define	ARC4_MAX_KEY		32
+#define	CAMELLIA_MIN_KEY	8
+#define	CAMELLIA_MAX_KEY	32
+
+/* Maximum hash algorithm result length */
+#define	AALG_MAX_RESULT_LEN	64 /* Keep this updated */
 
 #define	CRYPTO_ALGORITHM_MIN	1
-#define CRYPTO_DES_CBC		1
-#define CRYPTO_3DES_CBC		2
-#define CRYPTO_BLF_CBC		3
-#define CRYPTO_CAST_CBC		4
-#define CRYPTO_SKIPJACK_CBC	5
-#define CRYPTO_MD5_HMAC		6
-#define CRYPTO_SHA1_HMAC	7
-#define CRYPTO_RIPEMD160_HMAC	8
-#define CRYPTO_MD5_KPDK		9
-#define CRYPTO_SHA1_KPDK	10
-#define CRYPTO_RIJNDAEL128_CBC	11 /* 128 bit blocksize */
-#define CRYPTO_AES_CBC		11 /* 128 bit blocksize -- the same as above */
-#define CRYPTO_ARC4		12
+#define	CRYPTO_DES_CBC		1
+#define	CRYPTO_3DES_CBC		2
+#define	CRYPTO_BLF_CBC		3
+#define	CRYPTO_CAST_CBC		4
+#define	CRYPTO_SKIPJACK_CBC	5
+#define	CRYPTO_MD5_HMAC		6
+#define	CRYPTO_SHA1_HMAC	7
+#define	CRYPTO_RIPEMD160_HMAC	8
+#define	CRYPTO_MD5_KPDK		9
+#define	CRYPTO_SHA1_KPDK	10
+#define	CRYPTO_RIJNDAEL128_CBC	11 /* 128 bit blocksize */
+#define	CRYPTO_AES_CBC		11 /* 128 bit blocksize -- the same as above */
+#define	CRYPTO_ARC4		12
 #define	CRYPTO_MD5		13
 #define	CRYPTO_SHA1		14
 #define	CRYPTO_NULL_HMAC	15
@@ -122,9 +176,18 @@
 #define	CRYPTO_SHA2_256_HMAC	18
 #define	CRYPTO_SHA2_384_HMAC	19
 #define	CRYPTO_SHA2_512_HMAC	20
-#define CRYPTO_CAMELLIA_CBC	21
+#define	CRYPTO_CAMELLIA_CBC	21
 #define	CRYPTO_AES_XTS		22
-#define	CRYPTO_ALGORITHM_MAX	22 /* Keep updated - see below */
+#define	CRYPTO_AES_ICM		23 /* commonly known as CTR mode */
+#define	CRYPTO_AES_NIST_GMAC	24 /* cipher side */
+#define	CRYPTO_AES_NIST_GCM_16	25 /* 16 byte ICV */
+#define	CRYPTO_AES_128_NIST_GMAC 26 /* auth side */
+#define	CRYPTO_AES_192_NIST_GMAC 27 /* auth side */
+#define	CRYPTO_AES_256_NIST_GMAC 28 /* auth side */
+#define	CRYPTO_ALGORITHM_MAX	28 /* Keep updated - see below */
+
+#define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
+				 (x) <= CRYPTO_ALGORITHM_MAX)
 
 /* Algorithm flags */
 #define	CRYPTO_ALG_FLAG_SUPPORTED	0x01 /* Algorithm is supported */
@@ -179,6 +242,20 @@ struct crypt_op {
 	u_int		len;
 	caddr_t		src, dst;	/* become iov[] inside kernel */
 	caddr_t		mac;		/* must be big enough for chosen MAC */
+	caddr_t		iv;
+};
+
+/* op and flags the same as crypt_op */
+struct crypt_aead {
+	u_int32_t	ses;
+	u_int16_t	op;		/* i.e. COP_ENCRYPT */
+	u_int16_t	flags;
+	u_int		len;
+	u_int		aadlen;
+	u_int		ivlen;
+	caddr_t		src, dst;	/* become iov[] inside kernel */
+	caddr_t		aad;		/* additional authenticated data */
+	caddr_t		tag;		/* must fit for chosen TAG length */
 	caddr_t		iv;
 };
 
@@ -239,6 +316,7 @@ struct crypt_kop {
 #define	CIOCGSESSION2	_IOWR('c', 106, struct session2_op)
 #define	CIOCKEY2	_IOWR('c', 107, struct crypt_kop)
 #define	CIOCFINDDEV	_IOWR('c', 108, struct crypt_find_op)
+#define	CIOCCRYPTAEAD	_IOWR('c', 109, struct crypt_aead)
 
 struct cryptotstat {
 	struct timespec	acc;		/* total accumulated time */
@@ -269,6 +347,14 @@ struct cryptostats {
 };
 
 #ifdef _KERNEL
+
+#if 0
+#define CRYPTDEB(s)	do { printf("%s:%d: %s\n", __FILE__, __LINE__, s); \
+			} while (0)
+#else
+#define CRYPTDEB(s)	do { } while (0)
+#endif
+
 /* Standard initialization structure beginning */
 struct cryptoini {
 	int		cri_alg;	/* Algorithm to use */
@@ -292,14 +378,15 @@ struct cryptodesc {
 					   place, so don't copy. */
 #define	CRD_F_IV_EXPLICIT	0x04	/* IV explicitly provided */
 #define	CRD_F_DSA_SHA_NEEDED	0x08	/* Compute SHA-1 of buffer for DSA */
+#define	CRD_F_COMP		0x0f    /* Set when doing compression */
 #define	CRD_F_KEY_EXPLICIT	0x10	/* Key explicitly provided */
-#define CRD_F_COMP		0x0f    /* Set when doing compression */
 
 	struct cryptoini	CRD_INI; /* Initialization/context data */
-#define crd_iv		CRD_INI.cri_iv
-#define crd_key		CRD_INI.cri_key
-#define crd_alg		CRD_INI.cri_alg
-#define crd_klen	CRD_INI.cri_klen
+#define	crd_esn		CRD_INI.cri_esn
+#define	crd_iv		CRD_INI.cri_iv
+#define	crd_key		CRD_INI.cri_key
+#define	crd_alg		CRD_INI.cri_alg
+#define	crd_klen	CRD_INI.cri_klen
 
 	struct cryptodesc *crd_next;
 };
@@ -324,9 +411,8 @@ struct cryptop {
 					 */
 	int		crp_flags;
 
-#define CRYPTO_F_IMBUF		0x0001	/* Input/output are mbuf chains */
-#define CRYPTO_F_IOV		0x0002	/* Input/output are uio */
-#define CRYPTO_F_REL		0x0004	/* Must return data in same place */
+#define	CRYPTO_F_IMBUF		0x0001	/* Input/output are mbuf chains */
+#define	CRYPTO_F_IOV		0x0002	/* Input/output are uio */
 #define	CRYPTO_F_BATCH		0x0008	/* Batch op if possible */
 #define	CRYPTO_F_CBIMM		0x0010	/* Do callback immediately */
 #define	CRYPTO_F_DONE		0x0020	/* Operation completed */
@@ -341,12 +427,12 @@ struct cryptop {
 	struct bintime	crp_tstamp;	/* performance time stamp */
 };
 
-#define CRYPTO_BUF_CONTIG	0x0
-#define CRYPTO_BUF_IOV		0x1
-#define CRYPTO_BUF_MBUF		0x2
+#define	CRYPTO_BUF_CONTIG	0x0
+#define	CRYPTO_BUF_IOV		0x1
+#define	CRYPTO_BUF_MBUF		0x2
 
-#define CRYPTO_OP_DECRYPT	0x0
-#define CRYPTO_OP_ENCRYPT	0x1
+#define	CRYPTO_OP_DECRYPT	0x0
+#define	CRYPTO_OP_ENCRYPT	0x1
 
 /*
  * Hints passed to process methods.
@@ -381,9 +467,9 @@ MALLOC_DECLARE(M_CRYPTO_DATA);
 
 extern	int crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int hard);
 extern	int crypto_freesession(u_int64_t sid);
-#define CRYPTOCAP_F_HARDWARE	CRYPTO_FLAG_HARDWARE
-#define CRYPTOCAP_F_SOFTWARE	CRYPTO_FLAG_SOFTWARE
-#define CRYPTOCAP_F_SYNC	0x04000000	/* operates synchronously */
+#define	CRYPTOCAP_F_HARDWARE	CRYPTO_FLAG_HARDWARE
+#define	CRYPTOCAP_F_SOFTWARE	CRYPTO_FLAG_SOFTWARE
+#define	CRYPTOCAP_F_SYNC	0x04000000	/* operates synchronously */
 extern	int32_t crypto_get_driverid(device_t dev, int flags);
 extern	int crypto_find_driver(const char *);
 extern	device_t crypto_find_device_byhid(int hid);
@@ -418,9 +504,14 @@ extern	int crypto_devallowsoft;	/* only use hardware crypto */
 struct uio;
 extern	void cuio_copydata(struct uio* uio, int off, int len, caddr_t cp);
 extern	void cuio_copyback(struct uio* uio, int off, int len, caddr_t cp);
-extern	struct iovec *cuio_getptr(struct uio *uio, int loc, int *off);
+extern	int cuio_getptr(struct uio *uio, int loc, int *off);
 extern	int cuio_apply(struct uio *uio, int off, int len,
 	    int (*f)(void *, void *, u_int), void *arg);
+
+struct mbuf;
+struct iovec;
+extern	int crypto_mbuftoiov(struct mbuf *mbuf, struct iovec **iovptr,
+	    int *cnt, int *allocated);
 
 extern	void crypto_copyback(int flags, caddr_t buf, int off, int size,
 	    caddr_t in);

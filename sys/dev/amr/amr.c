@@ -563,7 +563,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
     struct amr_linux_ioctl	ali;
     void			*dp, *temp;
     int				error;
-    int				adapter, len, ac_flags = 0;
+    int				len, ac_flags = 0;
     int				logical_drives_changed = 0;
     u_int32_t			linux_version = 0x02100000;
     u_int8_t			status;
@@ -605,8 +605,6 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    len = max(ali.outlen, ali.inlen);
 	else
 	    len = ali.ui.fcs.length;
-
-	adapter = (ali.ui.fcs.adapno) ^ 'm' << 8;
 
 	mb = (void *)&ali.mbox[0];
 
@@ -761,7 +759,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
     void			*dp, *au_buffer;
     unsigned long		au_length, real_length;
     unsigned char		*au_cmd;
-    int				*au_statusp, au_direction;
+    int				*au_statusp;
     int				error;
     struct amr_passthrough	*ap;	/* 60 bytes */
     int				logical_drives_changed = 0;
@@ -793,7 +791,6 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	au_cmd = arg.au32->au_cmd;
 	au_buffer = (void *)(u_int64_t)arg.au32->au_buffer;
 	au_length = arg.au32->au_length;
-	au_direction = arg.au32->au_direction;
 	au_statusp = &arg.au32->au_status;
 	break;
 #endif
@@ -803,7 +800,6 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	au_cmd = arg.au->au_cmd;
 	au_buffer = (void *)arg.au->au_buffer;
 	au_length = arg.au->au_length;
-	au_direction = arg.au->au_direction;
 	au_statusp = &arg.au->au_status;
 	break;
 

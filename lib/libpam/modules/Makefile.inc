@@ -2,8 +2,8 @@
 
 PAMDIR=		${.CURDIR}/../../../../contrib/openpam
 
-NO_INSTALLLIB=
-NO_PROFILE=
+MK_INSTALLLIB=	no
+MK_PROFILE=	no
 
 CFLAGS+= -I${PAMDIR}/include -I${.CURDIR}/../../libpam
 
@@ -14,8 +14,7 @@ CFLAGS+= -I${PAMDIR}/include -I${.CURDIR}/../../libpam
 NO_PIC=
 .else
 SHLIB_NAME?=	${LIB}.so.${SHLIB_MAJOR}
-DPADD+=		${LIBPAM}
-LDADD+=		-lpam
+LIBADD+=	pam
 .endif
 
 .include "../Makefile.inc"

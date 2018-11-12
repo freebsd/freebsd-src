@@ -10,7 +10,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/Hashing.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/edit_distance.h"
 #include <bitset>
 
@@ -37,23 +36,42 @@ static bool ascii_isdigit(char x) {
   return x >= '0' && x <= '9';
 }
 
-/// compare_lower - Compare strings, ignoring case.
-int StringRef::compare_lower(StringRef RHS) const {
-  for (size_t I = 0, E = min(Length, RHS.Length); I != E; ++I) {
-    unsigned char LHC = ascii_tolower(Data[I]);
-    unsigned char RHC = ascii_tolower(RHS.Data[I]);
+// strncasecmp() is not available on non-POSIX systems, so define an
+// alternative function here.
+static int ascii_strncasecmp(const char *LHS, const char *RHS, size_t Length) {
+  for (size_t I = 0; I < Length; ++I) {
+    unsigned char LHC = ascii_tolower(LHS[I]);
+    unsigned char RHC = ascii_tolower(RHS[I]);
     if (LHC != RHC)
       return LHC < RHC ? -1 : 1;
   }
+  return 0;
+}
 
+/// compare_lower - Compare strings, ignoring case.
+int StringRef::compare_lower(StringRef RHS) const {
+  if (int Res = ascii_strncasecmp(Data, RHS.Data, std::min(Length, RHS.Length)))
+    return Res;
   if (Length == RHS.Length)
     return 0;
   return Length < RHS.Length ? -1 : 1;
 }
 
+/// Check if this string starts with the given \p Prefix, ignoring case.
+bool StringRef::startswith_lower(StringRef Prefix) const {
+  return Length >= Prefix.Length &&
+      ascii_strncasecmp(Data, Prefix.Data, Prefix.Length) == 0;
+}
+
+/// Check if this string ends with the given \p Suffix, ignoring case.
+bool StringRef::endswith_lower(StringRef Suffix) const {
+  return Length >= Suffix.Length &&
+      ascii_strncasecmp(end() - Suffix.Length, Suffix.Data, Suffix.Length) == 0;
+}
+
 /// compare_numeric - Compare strings, handle embedded numbers.
 int StringRef::compare_numeric(StringRef RHS) const {
-  for (size_t I = 0, E = min(Length, RHS.Length); I != E; ++I) {
+  for (size_t I = 0, E = std::min(Length, RHS.Length); I != E; ++I) {
     // Check for sequences of digits.
     if (ascii_isdigit(Data[I]) && ascii_isdigit(RHS.Data[I])) {
       // The longer sequence of numbers is considered larger.
@@ -85,10 +103,10 @@ int StringRef::compare_numeric(StringRef RHS) const {
 // Compute the edit distance between the two given strings.
 unsigned StringRef::edit_distance(llvm::StringRef Other,
                                   bool AllowReplacements,
-                                  unsigned MaxEditDistance) {
+                                  unsigned MaxEditDistance) const {
   return llvm::ComputeEditDistance(
-      llvm::ArrayRef<char>(data(), size()),
-      llvm::ArrayRef<char>(Other.data(), Other.size()),
+      makeArrayRef(data(), size()),
+      makeArrayRef(Other.data(), Other.size()),
       AllowReplacements, MaxEditDistance);
 }
 
@@ -128,7 +146,7 @@ size_t StringRef::find(StringRef Str, size_t From) const {
 
   // For short haystacks or unsupported needles fall back to the naive algorithm
   if (Length < 16 || N > 255 || N == 0) {
-    for (size_t e = Length - N + 1, i = min(From, e); i != e; ++i)
+    for (size_t e = Length - N + 1, i = std::min(From, e); i != e; ++i)
       if (substr(i, N).equals(Str))
         return i;
     return npos;
@@ -183,7 +201,7 @@ StringRef::size_type StringRef::find_first_of(StringRef Chars,
   for (size_type i = 0; i != Chars.size(); ++i)
     CharBits.set((unsigned char)Chars[i]);
 
-  for (size_type i = min(From, Length), e = Length; i != e; ++i)
+  for (size_type i = std::min(From, Length), e = Length; i != e; ++i)
     if (CharBits.test((unsigned char)Data[i]))
       return i;
   return npos;
@@ -192,7 +210,7 @@ StringRef::size_type StringRef::find_first_of(StringRef Chars,
 /// find_first_not_of - Find the first character in the string that is not
 /// \arg C or npos if not found.
 StringRef::size_type StringRef::find_first_not_of(char C, size_t From) const {
-  for (size_type i = min(From, Length), e = Length; i != e; ++i)
+  for (size_type i = std::min(From, Length), e = Length; i != e; ++i)
     if (Data[i] != C)
       return i;
   return npos;
@@ -208,7 +226,7 @@ StringRef::size_type StringRef::find_first_not_of(StringRef Chars,
   for (size_type i = 0; i != Chars.size(); ++i)
     CharBits.set((unsigned char)Chars[i]);
 
-  for (size_type i = min(From, Length), e = Length; i != e; ++i)
+  for (size_type i = std::min(From, Length), e = Length; i != e; ++i)
     if (!CharBits.test((unsigned char)Data[i]))
       return i;
   return npos;
@@ -224,7 +242,7 @@ StringRef::size_type StringRef::find_last_of(StringRef Chars,
   for (size_type i = 0; i != Chars.size(); ++i)
     CharBits.set((unsigned char)Chars[i]);
 
-  for (size_type i = min(From, Length) - 1, e = -1; i != e; --i)
+  for (size_type i = std::min(From, Length) - 1, e = -1; i != e; --i)
     if (CharBits.test((unsigned char)Data[i]))
       return i;
   return npos;
@@ -233,7 +251,7 @@ StringRef::size_type StringRef::find_last_of(StringRef Chars,
 /// find_last_not_of - Find the last character in the string that is not
 /// \arg C, or npos if not found.
 StringRef::size_type StringRef::find_last_not_of(char C, size_t From) const {
-  for (size_type i = min(From, Length) - 1, e = -1; i != e; --i)
+  for (size_type i = std::min(From, Length) - 1, e = -1; i != e; --i)
     if (Data[i] != C)
       return i;
   return npos;
@@ -249,7 +267,7 @@ StringRef::size_type StringRef::find_last_not_of(StringRef Chars,
   for (size_type i = 0, e = Chars.size(); i != e; ++i)
     CharBits.set((unsigned char)Chars[i]);
 
-  for (size_type i = min(From, Length) - 1, e = -1; i != e; --i)
+  for (size_type i = std::min(From, Length) - 1, e = -1; i != e; --i)
     if (!CharBits.test((unsigned char)Data[i]))
       return i;
   return npos;
@@ -263,7 +281,7 @@ void StringRef::split(SmallVectorImpl<StringRef> &A,
   // rest.data() is used to distinguish cases like "a," that splits into
   // "a" + "" and "a" that splits into "a" + 0.
   for (int splits = 0;
-       rest.data() != NULL && (MaxSplit < 0 || splits < MaxSplit);
+       rest.data() != nullptr && (MaxSplit < 0 || splits < MaxSplit);
        ++splits) {
     std::pair<StringRef, StringRef> p = rest.split(Separators);
 
@@ -272,7 +290,7 @@ void StringRef::split(SmallVectorImpl<StringRef> &A,
     rest = p.second;
   }
   // If we have a tail left, add it.
-  if (rest.data() != NULL && (rest.size() != 0 || KeepEmpty))
+  if (rest.data() != nullptr && (rest.size() != 0 || KeepEmpty))
     A.push_back(rest);
 }
 

@@ -4,7 +4,7 @@
  * parse_conf.h,v 4.7 2005/06/25 10:58:45 kardel RELEASE_20050625_A
  *
  * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
- * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
+ * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,13 +41,13 @@
 /*
  * field location structure
  */
-#define O_DAY	0
+#define O_DAY   0
 #define O_MONTH 1
-#define O_YEAR	2
-#define O_HOUR	3
-#define O_MIN	4
-#define	O_SEC	5
-#define O_WDAY	6
+#define O_YEAR  2
+#define O_HOUR  3
+#define O_MIN   4
+#define O_SEC   5
+#define O_WDAY  6
 #define O_FLAGS 7
 #define O_ZONE  8
 #define O_UTCHOFFSET 9

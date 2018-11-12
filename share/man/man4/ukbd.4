@@ -127,7 +127,9 @@ Make the keyboards available through a character device in
 The above lines will put the French ISO keymap in the ukbd driver.
 You can specify any keymap in
 .Pa /usr/share/syscons/keymaps
-with this option.
+or
+.Pa /usr/share/vt/keymaps
+(depending on the console driver being used) with this option.
 .Pp
 .D1 Cd "options KBD_DISABLE_KEYMAP_LOADING"
 .Pp
@@ -151,21 +153,22 @@ driver to the kernel.
 .Xr syscons 4 ,
 .Xr uhci 4 ,
 .Xr usb 4 ,
+.Xr vt 4 ,
 .Xr config 8
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 driver was written by
-.An Lennart Augustsson Aq augustss@cs.chalmers.se
+.An Lennart Augustsson Aq Mt augustss@cs.chalmers.se
 for
 .Nx
 and was substantially rewritten for
 .Fx
 by
-.An Kazutaka YOKOTA Aq yokota@zodiac.mech.utsunomiya-u.ac.jp .
+.An Kazutaka YOKOTA Aq Mt yokota@zodiac.mech.utsunomiya-u.ac.jp .
 .Pp
 This manual page was written by
-.An Nick Hibma Aq n_hibma@FreeBSD.org
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org
 with a large amount of input from
-.An Kazutaka YOKOTA Aq yokota@zodiac.mech.utsunomiya-u.ac.jp .
+.An Kazutaka YOKOTA Aq Mt yokota@zodiac.mech.utsunomiya-u.ac.jp .

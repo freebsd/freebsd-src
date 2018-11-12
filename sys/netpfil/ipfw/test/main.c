@@ -75,6 +75,9 @@ struct cfg_s {
 #define BACKLOG	30
 	uint32_t	llmask;
 	struct list_head ll[BACKLOG + 10];
+
+	double *q_wfi;	/* (byte) Worst-case Fair Index of the flows  */
+	double wfi;	/* (byte) Worst-case Fair Index of the system */
 };
 
 /* FI2Q and Q2FI converts from flow_id to dn_queue and back.
@@ -145,6 +148,39 @@ dequeue(struct cfg_s *c)
 	return m;
 }
 
+static void
+gnet_stats_enq(struct cfg_s *c, struct mbuf *mb)
+{
+	struct dn_sch_inst *si = c->si;
+	struct dn_queue *_q = FI2Q(c, mb->flow_id);
+
+	if (_q->ni.length == 1) {
+		_q->ni.bytes = 0;
+		_q->ni.sch_bytes = si->ni.bytes;
+	}
+}
+
+static void
+gnet_stats_deq(struct cfg_s *c, struct mbuf *mb)
+{
+	struct dn_sch_inst *si = c->si;
+	struct dn_queue *_q = FI2Q(c, mb->flow_id);
+	int len = mb->m_pkthdr.len;
+
+	_q->ni.bytes += len;
+	si->ni.bytes += len;
+
+	if (_q->ni.length == 0) {
+		double bytes = (double)_q->ni.bytes;
+		double sch_bytes = (double)si->ni.bytes - _q->ni.sch_bytes;
+		double weight = (double)_q->fs->fs.par[0] / c->wsum;
+		double wfi = sch_bytes * weight - bytes;
+
+		if (c->q_wfi[mb->flow_id] < wfi)
+			c->q_wfi[mb->flow_id] = wfi;
+	}
+}
+
 static int
 mainloop(struct cfg_s *c)
 {
@@ -164,6 +200,7 @@ mainloop(struct cfg_s *c)
 			} else {
 				ND("enqueue ok");
 				c->pending++;
+				gnet_stats_enq(c, m);
 			}
 		}
 		if (c->can_dequeue) {
@@ -172,6 +209,7 @@ mainloop(struct cfg_s *c)
 				c->pending--;
 				drop(c, m);
 				c->drop--;	/* compensate */
+				gnet_stats_deq(c, m);
 			}
 		}
 	}
@@ -187,7 +225,8 @@ dump(struct cfg_s *c)
 
 	for (i=0; i < c->flows; i++) {
 		q = FI2Q(c, i);
-		DX(1, "queue %4d tot %10lld", i, q->ni.tot_bytes);
+		DX(1, "queue %4d tot %10llu", i,
+		    (unsigned long long)q->ni.tot_bytes);
 	}
 	DX(1, "done %d loops\n", c->loops);
 	return 0;
@@ -373,6 +412,9 @@ init(struct cfg_s *c)
 			extern moduledata_t *_g_dn_wf2qp;
 			extern moduledata_t *_g_dn_rr;
 			extern moduledata_t *_g_dn_qfq;
+#ifdef WITH_QFQP
+			extern moduledata_t *_g_dn_qfqp;
+#endif
 #ifdef WITH_KPS
 			extern moduledata_t *_g_dn_kps;
 #endif
@@ -384,6 +426,11 @@ init(struct cfg_s *c)
 				mod = _g_dn_fifo;
 			else if (!strcmp(av[1], "qfq"))
 				mod = _g_dn_qfq;
+#ifdef WITH_QFQP
+			else if (!strcmp(av[1], "qfq+") ||
+			    !strcmp(av[1], "qfqp") )
+				mod = _g_dn_qfqp;
+#endif
 #ifdef WITH_KPS
 			else if (!strcmp(av[1], "kps"))
 				mod = _g_dn_kps;
@@ -447,10 +494,11 @@ init(struct cfg_s *c)
 	}
 	/* allocate queues, flowsets and one scheduler */
 	c->q = calloc(c->flows, c->q_len);
+	c->q_wfi = (double *)calloc(c->flows, sizeof(double));
 	c->fs = calloc(c->flowsets, sizeof(struct dn_fsk));
 	c->si = calloc(1, c->si_len);
 	c->sched = calloc(c->flows, c->schk_len);
-	if (c->q == NULL || c->fs == NULL) {
+	if (c->q == NULL || c->fs == NULL || !c->q_wfi) {
 		D("error allocating memory for flows");
 		exit(1);
 	}
@@ -520,11 +568,13 @@ main(int ac, char *av[])
 	ll *= 1000;	/* convert to nanoseconds */
 	ll /= c._enqueue;
 	sprintf(msg, "1::%d", c.flows);
-	D("%-8s n %d %d time %d.%06d %8.3f qlen %d %d flows %s drops %d",
-		c.name, c._enqueue, c.loops,
-		(int)c.time.tv_sec, (int)c.time.tv_usec, ll,
-		c.th_min, c.th_max,
-		c.fs_config ? c.fs_config : msg, c.drop);
+	for (i = 0; i < c.flows; i++) {
+		if (c.wfi < c.q_wfi[i])
+			c.wfi = c.q_wfi[i];
+	}
+	D("sched=%-12s\ttime=%d.%03d sec (%.0f nsec)\twfi=%.02f\tflow=%-16s",
+	   c.name, (int)c.time.tv_sec, (int)c.time.tv_usec / 1000, ll, c.wfi,
+	   c.fs_config ? c.fs_config : msg);
 	dump(&c);
 	DX(1, "done ac %d av %p", ac, av);
 	for (i=0; i < ac; i++)

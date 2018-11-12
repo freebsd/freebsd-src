@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2008 The NetBSD Foundation, Inc.
+/* Copyright (c) 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,18 +21,16 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#if !defined(ATF_C_MAP_H)
-#define ATF_C_MAP_H
+#if !defined(ATF_C_DETAIL_MAP_H)
+#define ATF_C_DETAIL_MAP_H
 
 #include <stdarg.h>
 #include <stdbool.h>
 
+#include <atf-c/detail/list.h>
 #include <atf-c/error_fwd.h>
-
-#include "list.h"
 
 /* ---------------------------------------------------------------------
  * The "atf_map_citer" type.
@@ -116,4 +111,4 @@ atf_error_t atf_map_insert(atf_map_t *, const char *, void *, bool);
          !atf_equal_map_citer_map_citer((iter), atf_map_end_c(map)); \
          iter = atf_map_citer_next(iter))
 
-#endif /* ATF_C_MAP_H */
+#endif /* !defined(ATF_C_DETAIL_MAP_H) */

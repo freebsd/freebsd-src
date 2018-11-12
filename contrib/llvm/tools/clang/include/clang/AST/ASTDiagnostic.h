@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_DIAGNOSTICAST_H
-#define LLVM_CLANG_DIAGNOSTICAST_H
+#ifndef LLVM_CLANG_AST_ASTDIAGNOSTIC_H
+#define LLVM_CLANG_AST_ASTDIAGNOSTIC_H
 
 #include "clang/Basic/Diagnostic.h"
 
@@ -16,7 +16,7 @@ namespace clang {
   namespace diag {
     enum {
 #define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,\
-             SFINAE,ACCESS,NOWERROR,SHOWINSYSHEADER,CATEGORY) ENUM,
+             SFINAE,NOWERROR,SHOWINSYSHEADER,CATEGORY) ENUM,
 #define ASTSTART
 #include "clang/Basic/DiagnosticASTKinds.inc"
 #undef DIAG
@@ -36,12 +36,9 @@ namespace clang {
   void FormatASTNodeDiagnosticArgument(
       DiagnosticsEngine::ArgumentKind Kind,
       intptr_t Val,
-      const char *Modifier,
-      unsigned ModLen,
-      const char *Argument,
-      unsigned ArgLen,
-      const DiagnosticsEngine::ArgumentValue *PrevArgs,
-      unsigned NumPrevArgs,
+      StringRef Modifier,
+      StringRef Argument,
+      ArrayRef<DiagnosticsEngine::ArgumentValue> PrevArgs,
       SmallVectorImpl<char> &Output,
       void *Cookie,
       ArrayRef<intptr_t> QualTypeVals);

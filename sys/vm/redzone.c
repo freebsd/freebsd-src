@@ -41,8 +41,7 @@ static u_long redzone_extra_mem = 0;
 SYSCTL_ULONG(_vm_redzone, OID_AUTO, extra_mem, CTLFLAG_RD, &redzone_extra_mem,
     0, "Extra memory allocated by redzone");     
 static int redzone_panic = 0;
-TUNABLE_INT("vm.redzone.panic", &redzone_panic);
-SYSCTL_INT(_vm_redzone, OID_AUTO, panic, CTLFLAG_RW, &redzone_panic, 0,
+SYSCTL_INT(_vm_redzone, OID_AUTO, panic, CTLFLAG_RWTUN, &redzone_panic, 0,
     "Panic when buffer corruption is detected");     
 
 #define	REDZONE_CHSIZE	(16)

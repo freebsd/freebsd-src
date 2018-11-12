@@ -112,8 +112,7 @@ SymbolRef SymExpr::symbol_iterator::operator*() {
 }
 
 void SymExpr::symbol_iterator::expand() {
-  const SymExpr *SE = itr.back();
-  itr.pop_back();
+  const SymExpr *SE = itr.pop_back_val();
 
   switch (SE->getKind()) {
     case SymExpr::RegionValueKind:
@@ -327,11 +326,7 @@ QualType SymbolRegionValue::getType() const {
 }
 
 SymbolManager::~SymbolManager() {
-  for (SymbolDependTy::const_iterator I = SymbolDependencies.begin(),
-       E = SymbolDependencies.end(); I != E; ++I) {
-    delete I->second;
-  }
-
+  llvm::DeleteContainerSeconds(SymbolDependencies);
 }
 
 bool SymbolManager::canSymbolicate(QualType T) {
@@ -352,7 +347,7 @@ bool SymbolManager::canSymbolicate(QualType T) {
 void SymbolManager::addSymbolDependency(const SymbolRef Primary,
                                         const SymbolRef Dependent) {
   SymbolDependTy::iterator I = SymbolDependencies.find(Primary);
-  SymbolRefSmallVectorTy *dependencies = 0;
+  SymbolRefSmallVectorTy *dependencies = nullptr;
   if (I == SymbolDependencies.end()) {
     dependencies = new SymbolRefSmallVectorTy();
     SymbolDependencies[Primary] = dependencies;
@@ -366,7 +361,7 @@ const SymbolRefSmallVectorTy *SymbolManager::getDependentSymbols(
                                                      const SymbolRef Primary) {
   SymbolDependTy::const_iterator I = SymbolDependencies.find(Primary);
   if (I == SymbolDependencies.end())
-    return 0;
+    return nullptr;
   return I->second;
 }
 
@@ -436,6 +431,9 @@ bool SymbolReaper::isLiveRegion(const MemRegion *MR) {
   if (isa<MemSpaceRegion>(MR))
     return true;
 
+  if (isa<CodeTextRegion>(MR))
+    return true;
+
   return false;
 }
 
@@ -489,7 +487,7 @@ bool SymbolReaper::isLive(SymbolRef sym) {
 
 bool
 SymbolReaper::isLive(const Stmt *ExprVal, const LocationContext *ELCtx) const {
-  if (LCtx == 0)
+  if (LCtx == nullptr)
     return false;
 
   if (LCtx != ELCtx) {

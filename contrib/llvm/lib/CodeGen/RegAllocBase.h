@@ -34,11 +34,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_REGALLOCBASE
-#define LLVM_CODEGEN_REGALLOCBASE
+#ifndef LLVM_LIB_CODEGEN_REGALLOCBASE_H
+#define LLVM_LIB_CODEGEN_REGALLOCBASE_H
 
-#include "llvm/ADT/OwningPtr.h"
-#include "llvm/CodeGen/LiveIntervalUnion.h"
+#include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
 
 namespace llvm {
@@ -57,6 +56,7 @@ class Spiller;
 /// live range splitting. They must also override enqueue/dequeue to provide an
 /// assignment order.
 class RegAllocBase {
+  virtual void anchor();
 protected:
   const TargetRegisterInfo *TRI;
   MachineRegisterInfo *MRI;
@@ -65,7 +65,8 @@ protected:
   LiveRegMatrix *Matrix;
   RegisterClassInfo RegClassInfo;
 
-  RegAllocBase(): TRI(0), MRI(0), VRM(0), LIS(0), Matrix(0) {}
+  RegAllocBase()
+    : TRI(nullptr), MRI(nullptr), VRM(nullptr), LIS(nullptr), Matrix(nullptr) {}
 
   virtual ~RegAllocBase() {}
 
@@ -90,10 +91,13 @@ protected:
   // or new set of split live virtual registers. It is up to the splitter to
   // converge quickly toward fully spilled live ranges.
   virtual unsigned selectOrSplit(LiveInterval &VirtReg,
-                                 SmallVectorImpl<LiveInterval*> &splitLVRs) = 0;
+                                 SmallVectorImpl<unsigned> &splitLVRs) = 0;
 
   // Use this group name for NamedRegionTimer.
-  static const char *TimerGroupName;
+  static const char TimerGroupName[];
+
+  /// Method called when the allocator is about to remove a LiveInterval.
+  virtual void aboutToRemoveInterval(LiveInterval &LI) {}
 
 public:
   /// VerifyEnabled - True when -verify-regalloc is given.
@@ -105,4 +109,4 @@ private:
 
 } // end namespace llvm
 
-#endif // !defined(LLVM_CODEGEN_REGALLOCBASE)
+#endif

@@ -1,10 +1,9 @@
 # $FreeBSD$
 
 PROG=	mkctm
-NO_MAN=
+MAN=
 
-DPADD=	${LIBMD}
-LDADD=	-lmd
+LIBADD=	md
 
 test:	mkctm
 	rm -f tst.out*

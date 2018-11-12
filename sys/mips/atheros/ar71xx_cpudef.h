@@ -29,6 +29,16 @@
 #ifndef	__AR71XX_CPUDEF_H__
 #define	__AR71XX_CPUDEF_H__
 
+typedef enum {
+	AR71XX_CPU_DDR_FLUSH_GE0,
+	AR71XX_CPU_DDR_FLUSH_GE1,
+	AR71XX_CPU_DDR_FLUSH_USB,
+	AR71XX_CPU_DDR_FLUSH_PCIE,
+	AR71XX_CPU_DDR_FLUSH_WMAC,
+	AR71XX_CPU_DDR_FLUSH_PCIE_EP,
+	AR71XX_CPU_DDR_FLUSH_CHECKSUM,
+} ar71xx_flush_ddr_id_t;
+
 struct ar71xx_cpu_def {
 	void (* detect_mem_size) (void);
 	void (* detect_sys_frequency) (void);
@@ -38,7 +48,6 @@ struct ar71xx_cpu_def {
 	void (* ar71xx_chip_set_pll_ge) (int, int, uint32_t);
 	void (* ar71xx_chip_set_mii_speed) (uint32_t, uint32_t);
 	void (* ar71xx_chip_set_mii_if) (uint32_t, ar71xx_mii_mode);
-	void (* ar71xx_chip_ddr_flush_ge) (int);
 	uint32_t (* ar71xx_chip_get_eth_pll) (unsigned int, int);
 
 	/*
@@ -51,7 +60,7 @@ struct ar71xx_cpu_def {
 	 * This flush is done before the IRQ is handled to make
 	 * sure the driver correctly sees any memory updates.
 	 */
-	void (* ar71xx_chip_ddr_flush_ip2) (void);
+	void (* ar71xx_chip_ddr_flush) (ar71xx_flush_ddr_id_t id);
 	/*
 	 * The USB peripheral init code is subtly different for
 	 * each chip.
@@ -63,6 +72,10 @@ struct ar71xx_cpu_def {
 	void (* ar71xx_chip_reset_wmac) (void);
 
 	void (* ar71xx_chip_init_gmac) (void);
+
+	void (* ar71xx_chip_reset_nfc) (int);
+
+	void (* ar71xx_chip_gpio_out_configure) (int, uint8_t);
 };
 
 extern struct ar71xx_cpu_def * ar71xx_cpu_ops;
@@ -102,9 +115,9 @@ static inline void ar71xx_device_set_mii_if(int unit, ar71xx_mii_mode mii_cfg)
 	ar71xx_cpu_ops->ar71xx_chip_set_mii_if(unit, mii_cfg);
 }
 
-static inline void ar71xx_device_flush_ddr_ge(int unit)
+static inline void ar71xx_device_flush_ddr(ar71xx_flush_ddr_id_t id)
 {
-	ar71xx_cpu_ops->ar71xx_chip_ddr_flush_ge(unit);
+	ar71xx_cpu_ops->ar71xx_chip_ddr_flush(id);
 }
 
 static inline uint32_t ar71xx_device_get_eth_pll(unsigned int unit, int speed)
@@ -135,9 +148,17 @@ static inline void ar71xx_init_gmac(void)
 		ar71xx_cpu_ops->ar71xx_chip_init_gmac();
 }
 
-static inline void ar71xx_device_ddr_flush_ip2(void)
+static inline void ar71xx_reset_nfc(int active)
 {
-	ar71xx_cpu_ops->ar71xx_chip_ddr_flush_ip2();
+
+	if (ar71xx_cpu_ops->ar71xx_chip_reset_nfc)
+		ar71xx_cpu_ops->ar71xx_chip_reset_nfc(active);
+}
+
+static inline void ar71xx_gpio_ouput_configure(int gpio, uint8_t func)
+{
+	if (ar71xx_cpu_ops->ar71xx_chip_gpio_out_configure)
+		ar71xx_cpu_ops->ar71xx_chip_gpio_out_configure(gpio, func);
 }
 
 /* XXX shouldn't be here! */

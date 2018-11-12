@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /**
  * \file
@@ -38,12 +38,13 @@
  */
 
 #include "config.h"
-#include <ldns/ldns.h>
 #include "util/net_help.h"
 #include "util/log.h"
 #include "util/data/dname.h"
 #include "util/module.h"
 #include "util/regional.h"
+#include "ldns/parseutil.h"
+#include "ldns/wire2str.h"
 #include <fcntl.h>
 #ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
@@ -155,11 +156,16 @@ log_addr(enum verbosity_value v, const char* str,
 		case AF_INET6: family="ip6";
 			sinaddr = &((struct sockaddr_in6*)addr)->sin6_addr;
 			break;
-		case AF_UNIX: family="unix"; break;
+		case AF_LOCAL:
+			dest[0]=0;
+			(void)inet_ntop(af, sinaddr, dest,
+				(socklen_t)sizeof(dest));
+			verbose(v, "%s local %s", str, dest);
+			return; /* do not continue and try to get port */
 		default: break;
 	}
 	if(inet_ntop(af, sinaddr, dest, (socklen_t)sizeof(dest)) == 0) {
-		strncpy(dest, "(inet_ntop error)", sizeof(dest));
+		(void)strlcpy(dest, "(inet_ntop error)", sizeof(dest));
 	}
 	dest[sizeof(dest)-1] = 0;
 	port = ntohs(((struct sockaddr_in*)addr)->sin_port);
@@ -180,7 +186,7 @@ extstrtoaddr(const char* str, struct sockaddr_storage* addr,
 		if(s-str >= MAX_ADDR_STRLEN) {
 			return 0;
 		}
-		strncpy(buf, str, MAX_ADDR_STRLEN);
+		(void)strlcpy(buf, str, sizeof(buf));
 		buf[s-str] = 0;
 		port = atoi(s+1);
 		if(port == 0 && strcmp(s+1,"0")!=0) {
@@ -210,7 +216,7 @@ ipstrtoaddr(const char* ip, int port, struct sockaddr_storage* addr,
 		if((s=strchr(ip, '%'))) { /* ip6%interface, rfc 4007 */
 			if(s-ip >= MAX_ADDR_STRLEN)
 				return 0;
-			strncpy(buf, ip, MAX_ADDR_STRLEN);
+			(void)strlcpy(buf, ip, sizeof(buf));
 			buf[s-ip]=0;
 			sa->sin6_scope_id = (uint32_t)atoi(s+1);
 			ip = buf;
@@ -280,15 +286,15 @@ log_nametypeclass(enum verbosity_value v, const char* str, uint8_t* name,
 	else if(type == LDNS_RR_TYPE_MAILB) ts = "MAILB";
 	else if(type == LDNS_RR_TYPE_MAILA) ts = "MAILA";
 	else if(type == LDNS_RR_TYPE_ANY) ts = "ANY";
-	else if(ldns_rr_descript(type) && ldns_rr_descript(type)->_name)
-		ts = ldns_rr_descript(type)->_name;
+	else if(sldns_rr_descript(type) && sldns_rr_descript(type)->_name)
+		ts = sldns_rr_descript(type)->_name;
 	else {
 		snprintf(t, sizeof(t), "TYPE%d", (int)type);
 		ts = t;
 	}
-	if(ldns_lookup_by_id(ldns_rr_classes, (int)dclass) &&
-		ldns_lookup_by_id(ldns_rr_classes, (int)dclass)->name)
-		cs = ldns_lookup_by_id(ldns_rr_classes, (int)dclass)->name;
+	if(sldns_lookup_by_id(sldns_rr_classes, (int)dclass) &&
+		sldns_lookup_by_id(sldns_rr_classes, (int)dclass)->name)
+		cs = sldns_lookup_by_id(sldns_rr_classes, (int)dclass)->name;
 	else {
 		snprintf(c, sizeof(c), "CLASS%d", (int)dclass);
 		cs = c;
@@ -312,11 +318,11 @@ void log_name_addr(enum verbosity_value v, const char* str, uint8_t* zone,
 		case AF_INET6: family="";
 			sinaddr = &((struct sockaddr_in6*)addr)->sin6_addr;
 			break;
-		case AF_UNIX: family="unix_family "; break;
+		case AF_LOCAL: family="local "; break;
 		default: break;
 	}
 	if(inet_ntop(af, sinaddr, dest, (socklen_t)sizeof(dest)) == 0) {
-		strncpy(dest, "(inet_ntop error)", sizeof(dest));
+		(void)strlcpy(dest, "(inet_ntop error)", sizeof(dest));
 	}
 	dest[sizeof(dest)-1] = 0;
 	port = ntohs(((struct sockaddr_in*)addr)->sin_port);
@@ -326,6 +332,26 @@ void log_name_addr(enum verbosity_value v, const char* str, uint8_t* zone,
 			str, namebuf, family, dest, (int)port, (int)addrlen);
 	else	verbose(v, "%s <%s> %s%s#%d",
 			str, namebuf, family, dest, (int)port);
+}
+
+void log_err_addr(const char* str, const char* err,
+	struct sockaddr_storage* addr, socklen_t addrlen)
+{
+	uint16_t port;
+	char dest[100];
+	int af = (int)((struct sockaddr_in*)addr)->sin_family;
+	void* sinaddr = &((struct sockaddr_in*)addr)->sin_addr;
+	if(af == AF_INET6)
+		sinaddr = &((struct sockaddr_in6*)addr)->sin6_addr;
+	if(inet_ntop(af, sinaddr, dest, (socklen_t)sizeof(dest)) == 0) {
+		(void)strlcpy(dest, "(inet_ntop error)", sizeof(dest));
+	}
+	dest[sizeof(dest)-1] = 0;
+	port = ntohs(((struct sockaddr_in*)addr)->sin_port);
+	if(verbosity >= 4)
+		log_err("%s: %s for %s port %d (len %d)", str, err, dest,
+			(int)port, (int)addrlen);
+	else	log_err("%s: %s for %s", str, err, dest);
 }
 
 int
@@ -592,9 +618,14 @@ void* listen_sslctx_create(char* key, char* pem, char* verifypem)
 		log_crypto_err("could not SSL_CTX_new");
 		return NULL;
 	}
-	/* no SSLv2 because has defects */
+	/* no SSLv2, SSLv3 because has defects */
 	if(!(SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)){
 		log_crypto_err("could not set SSL_OP_NO_SSLv2");
+		SSL_CTX_free(ctx);
+		return NULL;
+	}
+	if(!(SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)){
+		log_crypto_err("could not set SSL_OP_NO_SSLv3");
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
@@ -647,6 +678,11 @@ void* connect_sslctx_create(char* key, char* pem, char* verifypem)
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
+	if(!(SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)) {
+		log_crypto_err("could not set SSL_OP_NO_SSLv3");
+		SSL_CTX_free(ctx);
+		return NULL;
+	}
 	if(key && key[0]) {
 		if(!SSL_CTX_use_certificate_file(ctx, pem, SSL_FILETYPE_PEM)) {
 			log_err("error in client certificate %s", pem);
@@ -668,7 +704,7 @@ void* connect_sslctx_create(char* key, char* pem, char* verifypem)
 		}
 	}
 	if(verifypem && verifypem[0]) {
-		if(!SSL_CTX_load_verify_locations(ctx, verifypem, NULL) != 1) {
+		if(!SSL_CTX_load_verify_locations(ctx, verifypem, NULL)) {
 			log_crypto_err("error in SSL_CTX verify");
 			SSL_CTX_free(ctx);
 			return NULL;

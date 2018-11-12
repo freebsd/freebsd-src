@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehcireg.h>
 
 #include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xxreg.h> /* for stuff in ar71xx_cpudef.h */
+#include <mips/atheros/ar71xx_cpudef.h>
 #include <mips/atheros/ar71xx_bus_space_reversed.h>
 
 #define EHCI_HC_DEVSTR		"AR71XX Integrated USB 2.0 controller"
@@ -78,6 +80,15 @@ ar71xx_ehci_probe(device_t self)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
+static void
+ar71xx_ehci_intr(void *arg)
+{
+
+	/* XXX TODO: should really see if this was our interrupt.. */
+	ar71xx_device_flush_ddr(AR71XX_CPU_DDR_FLUSH_USB);
+	ehci_interrupt(arg);
+}
+
 static int
 ar71xx_ehci_attach(device_t self)
 {
@@ -90,6 +101,7 @@ ar71xx_ehci_attach(device_t self)
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,
@@ -118,7 +130,7 @@ ar71xx_ehci_attach(device_t self)
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");
 		goto error;
@@ -133,9 +145,8 @@ ar71xx_ehci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "Atheros");
 
-
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)ehci_interrupt, sc, &sc->sc_intr_hdl);
+	    NULL, ar71xx_ehci_intr, sc, &sc->sc_intr_hdl);
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);
 		sc->sc_intr_hdl = NULL;
@@ -159,6 +170,11 @@ ar71xx_ehci_attach(device_t self)
 		case AR71XX_SOC_AR9132:
 		case AR71XX_SOC_AR9330:
 		case AR71XX_SOC_AR9331:
+		case AR71XX_SOC_AR9341:
+		case AR71XX_SOC_AR9342:
+		case AR71XX_SOC_AR9344:
+		case AR71XX_SOC_QCA9556:
+		case AR71XX_SOC_QCA9558:
 			sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
 			break;
 		default:
@@ -171,7 +187,6 @@ ar71xx_ehci_attach(device_t self)
 	 * registers. The AR724x/AR913x offsets aren't 0.
 	*/
 	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
-
 
 	(void) ehci_reset(sc);
 
@@ -256,4 +271,6 @@ static driver_t ehci_driver = {
 static devclass_t ehci_devclass;
 
 DRIVER_MODULE(ehci, nexus, ehci_driver, ehci_devclass, 0, 0);
+DRIVER_MODULE(ehci, apb, ehci_driver, ehci_devclass, 0, 0);
+
 MODULE_DEPEND(ehci, usb, 1, 1, 1);

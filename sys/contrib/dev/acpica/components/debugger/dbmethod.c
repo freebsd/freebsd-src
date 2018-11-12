@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,31 +41,17 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acdispat.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/acdebug.h>
-#include <contrib/dev/acpica/include/acdisasm.h>
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/acpredef.h>
 
 
-#ifdef ACPI_DEBUGGER
-
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbmethod")
-
-
-/* Local prototypes */
-
-static ACPI_STATUS
-AcpiDbWalkForExecute (
-    ACPI_HANDLE             ObjHandle,
-    UINT32                  NestingLevel,
-    void                    *Context,
-    void                    **ReturnValue);
 
 
 /*******************************************************************************
@@ -90,6 +76,7 @@ AcpiDbSetMethodBreakpoint (
     ACPI_PARSE_OBJECT       *Op)
 {
     UINT32                  Address;
+    UINT32                  AmlOffset;
 
 
     if (!Op)
@@ -100,11 +87,13 @@ AcpiDbSetMethodBreakpoint (
 
     /* Get and verify the breakpoint address */
 
-    Address = ACPI_STRTOUL (Location, NULL, 16);
-    if (Address <= Op->Common.AmlOffset)
+    Address = strtoul (Location, NULL, 16);
+    AmlOffset = (UINT32) ACPI_PTR_DIFF (Op->Common.Aml,
+                    WalkState->ParserState.AmlStart);
+    if (Address <= AmlOffset)
     {
         AcpiOsPrintf ("Breakpoint %X is beyond current address %X\n",
-            Address, Op->Common.AmlOffset);
+            Address, AmlOffset);
     }
 
     /* Save breakpoint in current walk */
@@ -185,11 +174,16 @@ AcpiDbSetMethodData (
         return;
     }
 
-    Value = ACPI_STRTOUL (ValueArg, NULL, 16);
+    Value = strtoul (ValueArg, NULL, 16);
 
     if (Type == 'N')
     {
         Node = AcpiDbConvertToNode (IndexArg);
+        if (!Node)
+        {
+            return;
+        }
+
         if (Node->Type != ACPI_TYPE_INTEGER)
         {
             AcpiOsPrintf ("Can only set Integer nodes\n");
@@ -202,7 +196,7 @@ AcpiDbSetMethodData (
 
     /* Get the index and value */
 
-    Index = ACPI_STRTOUL (IndexArg, NULL, 16);
+    Index = strtoul (IndexArg, NULL, 16);
 
     WalkState = AcpiDsGetCurrentWalkState (AcpiGbl_CurrentWalkList);
     if (!WalkState)
@@ -230,12 +224,13 @@ AcpiDbSetMethodData (
 
         if (Index > ACPI_METHOD_MAX_ARG)
         {
-            AcpiOsPrintf ("Arg%u - Invalid argument name\n", Index);
+            AcpiOsPrintf ("Arg%u - Invalid argument name\n",
+                Index);
             goto Cleanup;
         }
 
-        Status = AcpiDsStoreObjectToLocal (ACPI_REFCLASS_ARG, Index, ObjDesc,
-                    WalkState);
+        Status = AcpiDsStoreObjectToLocal (ACPI_REFCLASS_ARG,
+            Index, ObjDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
             goto Cleanup;
@@ -244,7 +239,7 @@ AcpiDbSetMethodData (
         ObjDesc = WalkState->Arguments[Index].Object;
 
         AcpiOsPrintf ("Arg%u: ", Index);
-        AcpiDmDisplayInternalObject (ObjDesc, WalkState);
+        AcpiDbDisplayInternalObject (ObjDesc, WalkState);
         break;
 
     case 'L':
@@ -253,12 +248,13 @@ AcpiDbSetMethodData (
 
         if (Index > ACPI_METHOD_MAX_LOCAL)
         {
-            AcpiOsPrintf ("Local%u - Invalid local variable name\n", Index);
+            AcpiOsPrintf ("Local%u - Invalid local variable name\n",
+                Index);
             goto Cleanup;
         }
 
-        Status = AcpiDsStoreObjectToLocal (ACPI_REFCLASS_LOCAL, Index, ObjDesc,
-                    WalkState);
+        Status = AcpiDsStoreObjectToLocal (ACPI_REFCLASS_LOCAL,
+            Index, ObjDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
             goto Cleanup;
@@ -267,7 +263,7 @@ AcpiDbSetMethodData (
         ObjDesc = WalkState->LocalVariables[Index].Object;
 
         AcpiOsPrintf ("Local%u: ", Index);
-        AcpiDmDisplayInternalObject (ObjDesc, WalkState);
+        AcpiDbDisplayInternalObject (ObjDesc, WalkState);
         break;
 
     default:
@@ -310,7 +306,7 @@ AcpiDbDisassembleAml (
 
     if (Statements)
     {
-        NumStatements = ACPI_STRTOUL (Statements, NULL, 0);
+        NumStatements = strtoul (Statements, NULL, 0);
     }
 
 #ifdef ACPI_DISASSEMBLER
@@ -358,7 +354,7 @@ AcpiDbDisassembleMethod (
 
     ObjDesc = Method->Object;
 
-    Op = AcpiPsCreateScopeOp ();
+    Op = AcpiPsCreateScopeOp (ObjDesc->Method.AmlStart);
     if (!Op)
     {
         return (AE_NO_MEMORY);
@@ -398,15 +394,16 @@ AcpiDbDisassembleMethod (
     WalkState->ParseFlags |= ACPI_PARSE_DISASSEMBLE;
 
     Status = AcpiPsParseAml (WalkState);
+
+#ifdef ACPI_DISASSEMBLER
     (void) AcpiDmParseDeferredOps (Op);
 
     /* Now we can disassemble the method */
 
-    AcpiGbl_DbOpt_verbose = FALSE;
-#ifdef ACPI_DISASSEMBLER
+    AcpiGbl_DmOpt_Verbose = FALSE;
     AcpiDmDisassemble (NULL, Op, 0);
+    AcpiGbl_DmOpt_Verbose = TRUE;
 #endif
-    AcpiGbl_DbOpt_verbose = TRUE;
 
     AcpiPsDeleteParseTree (Op);
 
@@ -417,196 +414,3 @@ AcpiDbDisassembleMethod (
     AcpiUtReleaseOwnerId (&ObjDesc->Method.OwnerId);
     return (AE_OK);
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbWalkForExecute
- *
- * PARAMETERS:  Callback from WalkNamespace
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Batch execution module. Currently only executes predefined
- *              ACPI names.
- *
- ******************************************************************************/
-
-static ACPI_STATUS
-AcpiDbWalkForExecute (
-    ACPI_HANDLE             ObjHandle,
-    UINT32                  NestingLevel,
-    void                    *Context,
-    void                    **ReturnValue)
-{
-    ACPI_NAMESPACE_NODE         *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
-    ACPI_DB_EXECUTE_WALK        *Info = (ACPI_DB_EXECUTE_WALK *) Context;
-    char                        *Pathname;
-    const ACPI_PREDEFINED_INFO  *Predefined;
-    ACPI_DEVICE_INFO            *ObjInfo;
-    ACPI_OBJECT_LIST            ParamObjects;
-    ACPI_OBJECT                 Params[ACPI_METHOD_NUM_ARGS];
-    ACPI_OBJECT                 *ThisParam;
-    ACPI_BUFFER                 ReturnObj;
-    ACPI_STATUS                 Status;
-    UINT16                      ArgTypeList;
-    UINT8                       ArgCount;
-    UINT8                       ArgType;
-    UINT32                      i;
-
-
-    /* The name must be a predefined ACPI name */
-
-    Predefined = AcpiUtMatchPredefinedMethod (Node->Name.Ascii);
-    if (!Predefined)
-    {
-        return (AE_OK);
-    }
-
-    if (Node->Type == ACPI_TYPE_LOCAL_SCOPE)
-    {
-        return (AE_OK);
-    }
-
-    Pathname = AcpiNsGetExternalPathname (Node);
-    if (!Pathname)
-    {
-        return (AE_OK);
-    }
-
-    /* Get the object info for number of method parameters */
-
-    Status = AcpiGetObjectInfo (ObjHandle, &ObjInfo);
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
-
-    ParamObjects.Count = 0;
-    ParamObjects.Pointer = NULL;
-
-    if (ObjInfo->Type == ACPI_TYPE_METHOD)
-    {
-        /* Setup default parameters (with proper types) */
-
-        ArgTypeList = Predefined->Info.ArgumentList;
-        ArgCount = METHOD_GET_ARG_COUNT (ArgTypeList);
-
-        /*
-         * Setup the ACPI-required number of arguments, regardless of what
-         * the actual method defines. If there is a difference, then the
-         * method is wrong and a warning will be issued during execution.
-         */
-        ThisParam = Params;
-        for (i = 0; i < ArgCount; i++)
-        {
-            ArgType = METHOD_GET_NEXT_TYPE (ArgTypeList);
-            ThisParam->Type = ArgType;
-
-            switch (ArgType)
-            {
-            case ACPI_TYPE_INTEGER:
-
-                ThisParam->Integer.Value = 1;
-                break;
-
-            case ACPI_TYPE_STRING:
-
-                ThisParam->String.Pointer = "This is the default argument string";
-                ThisParam->String.Length = ACPI_STRLEN (ThisParam->String.Pointer);
-                break;
-
-            case ACPI_TYPE_BUFFER:
-
-                ThisParam->Buffer.Pointer = (UINT8 *) Params; /* just a garbage buffer */
-                ThisParam->Buffer.Length = 48;
-                break;
-
-             case ACPI_TYPE_PACKAGE:
-
-                ThisParam->Package.Elements = NULL;
-                ThisParam->Package.Count = 0;
-                break;
-
-           default:
-
-                AcpiOsPrintf ("%s: Unsupported argument type: %u\n",
-                    Pathname, ArgType);
-                break;
-            }
-
-            ThisParam++;
-        }
-
-        ParamObjects.Count = ArgCount;
-        ParamObjects.Pointer = Params;
-    }
-
-    ACPI_FREE (ObjInfo);
-    ReturnObj.Pointer = NULL;
-    ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
-
-    /* Do the actual method execution */
-
-    AcpiGbl_MethodExecuting = TRUE;
-
-    Status = AcpiEvaluateObject (Node, NULL, &ParamObjects, &ReturnObj);
-
-    AcpiOsPrintf ("%-32s returned %s\n", Pathname, AcpiFormatException (Status));
-    AcpiGbl_MethodExecuting = FALSE;
-    ACPI_FREE (Pathname);
-
-    /* Ignore status from method execution */
-
-    Status = AE_OK;
-
-    /* Update count, check if we have executed enough methods */
-
-    Info->Count++;
-    if (Info->Count >= Info->MaxCount)
-    {
-        Status = AE_CTRL_TERMINATE;
-    }
-
-    return (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDbBatchExecute
- *
- * PARAMETERS:  CountArg            - Max number of methods to execute
- *
- * RETURN:      None
- *
- * DESCRIPTION: Namespace batch execution. Execute predefined names in the
- *              namespace, up to the max count, if specified.
- *
- ******************************************************************************/
-
-void
-AcpiDbBatchExecute (
-    char                    *CountArg)
-{
-    ACPI_DB_EXECUTE_WALK    Info;
-
-
-    Info.Count = 0;
-    Info.MaxCount = ACPI_UINT32_MAX;
-
-    if (CountArg)
-    {
-        Info.MaxCount = ACPI_STRTOUL (CountArg, NULL, 0);
-    }
-
-
-    /* Search all nodes in namespace */
-
-    (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-                AcpiDbWalkForExecute, NULL, (void *) &Info, NULL);
-
-    AcpiOsPrintf ("Evaluated %u predefined names in the namespace\n", Info.Count);
-}
-
-#endif /* ACPI_DEBUGGER */

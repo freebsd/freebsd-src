@@ -63,7 +63,7 @@ ENTRY(sigsetjmp)
 	movq	$0,%rsi			/* (sigset_t*)set  */
 	leaq	72(%rcx),%rdx		/* 9,10 (sigset_t*)oset */
 	/* stack is 16-byte aligned */
-	call	PIC_PLT(CNAME(_sigprocmask))
+	call	__libc_sigprocmask
 	popq	%rdi
 2:	movq	%rdi,%rcx
 	movq	0(%rsp),%rdx		/* retval */
@@ -91,7 +91,7 @@ ENTRY(__siglongjmp)
 	leaq	72(%rdx),%rsi		/* (sigset_t*)set  */
 	movq	$0,%rdx			/* (sigset_t*)oset */
 	subq	$0x8,%rsp		/* make the stack 16-byte aligned */
-	call	PIC_PLT(CNAME(_sigprocmask))
+	call	__libc_sigprocmask
 	addq	$0x8,%rsp
 	popq	%rsi
 	popq	%rdi			/* jmpbuf */
@@ -105,7 +105,6 @@ ENTRY(__siglongjmp)
 	movq	40(%rdx),%r13
 	movq	48(%rdx),%r14
 	movq	56(%rdx),%r15
-	fninit
 	fldcw	64(%rdx)
 	testq	%rax,%rax
 	jnz	1f

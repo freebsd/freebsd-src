@@ -145,13 +145,22 @@ apr_status_t apr_socket_create(apr_socket_t **new, int ofamily, int type,
 #ifndef HAVE_SOCK_CLOEXEC
     {
         int flags;
+        apr_status_t rv;
 
-        if ((flags = fcntl((*new)->socketdes, F_GETFD)) == -1)
-            return errno;
+        if ((flags = fcntl((*new)->socketdes, F_GETFD)) == -1) {
+            rv = errno;
+            close((*new)->socketdes);
+            (*new)->socketdes = -1;
+            return rv;
+        }
 
         flags |= FD_CLOEXEC;
-        if (fcntl((*new)->socketdes, F_SETFD, flags) == -1)
-            return errno;
+        if (fcntl((*new)->socketdes, F_SETFD, flags) == -1) {
+            rv = errno;
+            close((*new)->socketdes);
+            (*new)->socketdes = -1;
+            return rv;
+        }
     }
 #endif
 
@@ -207,7 +216,20 @@ apr_status_t apr_socket_accept(apr_socket_t **new, apr_socket_t *sock,
     sa.salen = sizeof(sa.sa);
 
 #ifdef HAVE_ACCEPT4
-    s = accept4(sock->socketdes, (struct sockaddr *)&sa.sa, &sa.salen, SOCK_CLOEXEC);
+    {
+        int flags = SOCK_CLOEXEC;
+
+#if defined(SOCK_NONBLOCK) && APR_O_NONBLOCK_INHERITED
+        /* With FreeBSD accept4() (avail in 10+), O_NONBLOCK is not inherited
+         * (unlike Linux).  Mimic the accept() behavior here in a way that
+         * may help other platforms.
+         */
+        if (apr_is_option_set(sock, APR_SO_NONBLOCK) == 1) {
+            flags |= SOCK_NONBLOCK;
+        }
+#endif
+        s = accept4(sock->socketdes, (struct sockaddr *)&sa.sa, &sa.salen, flags);
+    }
 #else
     s = accept(sock->socketdes, (struct sockaddr *)&sa.sa, &sa.salen);
 #endif
@@ -293,13 +315,22 @@ apr_status_t apr_socket_accept(apr_socket_t **new, apr_socket_t *sock,
 #ifndef HAVE_ACCEPT4
     {
         int flags;
+        apr_status_t rv;
 
-        if ((flags = fcntl((*new)->socketdes, F_GETFD)) == -1)
-            return errno;
+        if ((flags = fcntl((*new)->socketdes, F_GETFD)) == -1) {
+            rv = errno;
+            close((*new)->socketdes);
+            (*new)->socketdes = -1;
+            return rv;
+        }
 
         flags |= FD_CLOEXEC;
-        if (fcntl((*new)->socketdes, F_SETFD, flags) == -1)
-            return errno;
+        if (fcntl((*new)->socketdes, F_SETFD, flags) == -1) {
+            rv = errno;
+            close((*new)->socketdes);
+            (*new)->socketdes = -1;
+            return rv;
+        }
     }
 #endif
 

@@ -4,7 +4,7 @@
 
 PROG=	athaggrstats
 
-SRCS=	main.c statfoo.c athaggrstats.c opt_ah.h ah_osdep.h
+SRCS=	main.c athaggrstats.c opt_ah.h ah_osdep.h
 
 CLEANFILES+=	opt_ah.h
 
@@ -12,6 +12,8 @@ CLEANFILES+=	opt_ah.h
 
 CFLAGS+=-DATH_SUPPORT_ANI
 CFLAGS+=-DATH_SUPPORT_TDMA
+CFLAGS+=-I${.CURDIR}/../../../../lib/libbsdstat/
+LIBADD+=	bsdstat
 
 opt_ah.h:
 	echo "#define AH_DEBUG 1" > opt_ah.h

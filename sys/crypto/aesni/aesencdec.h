@@ -1,5 +1,6 @@
 /*-
  * Copyright 2013 John-Mark Gurney <jmg@FreeBSD.org>
+ * Copyright 2015 Netflix, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +27,11 @@
  * $FreeBSD$
  *
  */
+
+#ifndef _AESENCDEC_H_
+#define _AESENCDEC_H_
+
+#include <crypto/aesni/aesni_os.h>
 
 #include <wmmintrin.h>
 
@@ -103,6 +109,7 @@ aesni_dec8(int rounds, const __m128i *keysched, __m128i a,
 	out[7] = _mm_aesdeclast_si128(h, keysched[i + 1]);
 }
 
+/* rounds is passed in as rounds - 1 */
 static inline __m128i
 aesni_enc(int rounds, const __m128i *keysched, const __m128i from)
 {
@@ -110,11 +117,13 @@ aesni_enc(int rounds, const __m128i *keysched, const __m128i from)
 	int i;
 
 	tmp = from ^ keysched[0];
-
-	for (i = 0; i < rounds; i++)
+	for (i = 1; i < rounds; i += 2) {
+		tmp = _mm_aesenc_si128(tmp, keysched[i]);
 		tmp = _mm_aesenc_si128(tmp, keysched[i + 1]);
+	}
 
-	return _mm_aesenclast_si128(tmp, keysched[i + 1]);
+	tmp = _mm_aesenc_si128(tmp, keysched[rounds]);
+	return _mm_aesenclast_si128(tmp, keysched[rounds + 1]);
 }
 
 static inline __m128i
@@ -125,8 +134,13 @@ aesni_dec(int rounds, const __m128i *keysched, const __m128i from)
 
 	tmp = from ^ keysched[0];
 
-	for (i = 0; i < rounds; i++)
+	for (i = 1; i < rounds; i += 2) {
+		tmp = _mm_aesdec_si128(tmp, keysched[i]);
 		tmp = _mm_aesdec_si128(tmp, keysched[i + 1]);
+	}
 
-	return _mm_aesdeclast_si128(tmp, keysched[i + 1]);
+	tmp = _mm_aesdec_si128(tmp, keysched[rounds]);
+	return _mm_aesdeclast_si128(tmp, keysched[rounds + 1]);
 }
+
+#endif /* _AESENCDEC_H_ */

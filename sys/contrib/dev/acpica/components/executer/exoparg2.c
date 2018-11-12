@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-
-#define __EXOPARG2_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -371,7 +368,7 @@ AcpiExOpcode_2A_1T_1R (
          * Copy the raw buffer data with no transform.
          * (NULL terminated already)
          */
-        ACPI_MEMCPY (ReturnDesc->String.Pointer,
+        memcpy (ReturnDesc->String.Pointer,
             Operand[0]->Buffer.Pointer, Length);
         break;
 
@@ -415,6 +412,8 @@ AcpiExOpcode_2A_1T_1R (
             }
 
             ReturnDesc->Reference.TargetType = ACPI_TYPE_BUFFER_FIELD;
+            ReturnDesc->Reference.IndexPointer =
+                &(Operand[0]->Buffer.Pointer [Index]);
             break;
 
         case ACPI_TYPE_BUFFER:
@@ -426,6 +425,8 @@ AcpiExOpcode_2A_1T_1R (
             }
 
             ReturnDesc->Reference.TargetType = ACPI_TYPE_BUFFER_FIELD;
+            ReturnDesc->Reference.IndexPointer =
+                &(Operand[0]->Buffer.Pointer [Index]);
             break;
 
         case ACPI_TYPE_PACKAGE:
@@ -437,7 +438,8 @@ AcpiExOpcode_2A_1T_1R (
             }
 
             ReturnDesc->Reference.TargetType = ACPI_TYPE_PACKAGE;
-            ReturnDesc->Reference.Where = &Operand[0]->Package.Elements [Index];
+            ReturnDesc->Reference.Where =
+                &Operand[0]->Package.Elements [Index];
             break;
 
         default:

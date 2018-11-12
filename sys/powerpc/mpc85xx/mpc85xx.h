@@ -30,6 +30,8 @@
 #ifndef _MPC85XX_H_
 #define _MPC85XX_H_
 
+#include <machine/platformvar.h>
+
 /*
  * Configuration control and status registers
  */
@@ -83,5 +85,8 @@ int law_enable(int trgt, u_long addr, u_long size);
 int law_disable(int trgt, u_long addr, u_long size);
 int law_getmax(void);
 int law_pci_target(struct resource *, int *, int *);
+
+DECLARE_CLASS(mpc85xx_platform);
+int mpc85xx_attach(platform_t);
 
 #endif /* _MPC85XX_H_ */

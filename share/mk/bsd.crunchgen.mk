@@ -48,7 +48,7 @@ CRUNCH_GENERATE_LINKS?=	yes
 CLEANFILES+= $(CONF) *.o *.lo *.c *.mk *.cache *.a *.h
 
 # Don't try to extract debug info from ${PROG}.
-NO_DEBUG_FILES=
+MK_DEBUG_FILES=no
 
 # Program names and their aliases contribute hardlinks to 'rescue' executable,
 # except for those that get suppressed.
@@ -106,11 +106,12 @@ $(CONF): Makefile
 .endfor
 .endfor
 
+CRUNCHGEN?= crunchgen
 # XXX Make sure we don't pass -P to crunchgen(1).
 .MAKEFLAGS:= ${.MAKEFLAGS:N-P}
 .ORDER: $(OUTPUTS) objs
-$(OUTPUTS): $(CONF)
-	MAKE=${MAKE} MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -fq -m $(OUTMK) \
+$(OUTPUTS): $(CONF) .META
+	MAKE=${MAKE} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${CRUNCHGEN} -fq -m $(OUTMK) \
 	    -c $(OUTC) $(CONF)
 
 $(PROG): $(OUTPUTS) objs

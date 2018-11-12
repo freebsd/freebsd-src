@@ -6,8 +6,7 @@ PROG=	pwd
 
 SRCS=	pwd.c
 
-DPADD=	${LIBCAPSICUM} ${LIBCASPER} ${LIBNV} ${LIBPJDLOG} ${LIBUTIL}
-LDADD=	-lcapsicum -lcasper -lnv -lpjdlog -lutil
+LIBADD=	casper nv pjdlog
 
 BINDIR=	/libexec/casper
 
@@ -17,6 +16,6 @@ CFLAGS+=-I${.CURDIR}/../../../lib/libcasper
 CFLAGS+=-I${.CURDIR}/../../../lib/libpjdlog
 CFLAGS+=-I${.CURDIR}/../../../sbin/casper
 
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

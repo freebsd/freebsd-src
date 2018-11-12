@@ -53,7 +53,18 @@ public:
     if (E->getCond()->isValueDependent())
       return;
     // Only the selected subexpression matters; the other one is not evaluated.
-    return this->Visit(E->getChosenSubExpr(Context));
+    return this->Visit(E->getChosenSubExpr());
+  }
+
+  void VisitGenericSelectionExpr(GenericSelectionExpr *E) {
+    // The controlling expression of a generic selection is not evaluated.
+
+    // Don't visit either child expression if the condition is type-dependent.
+    if (E->isResultDependent())
+      return;
+    // Only the selected subexpression matters; the other subexpressions and the
+    // controlling expression are not evaluated.
+    return this->Visit(E->getResultExpr());
   }
 
   void VisitDesignatedInitExpr(DesignatedInitExpr *E) {

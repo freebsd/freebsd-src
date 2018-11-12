@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,10 +22,11 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
+#include "atf-c++/detail/exceptions.hpp"
 
 #if defined(HAVE_CONFIG_H)
-#include "bconfig.h"
+#include "config.h"
 #endif
 
 #include <cstdarg>
@@ -37,11 +35,10 @@
 #include <new>
 
 extern "C" {
-#include "../../atf-c/error.h"
-};
+#include "atf-c/error.h"
+}
 
-#include "exceptions.hpp"
-#include "sanity.hpp"
+#include "atf-c++/detail/sanity.hpp"
 
 // ------------------------------------------------------------------------
 // The "system_error" type.

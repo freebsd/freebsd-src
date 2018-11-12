@@ -95,31 +95,10 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
-
-/*
- * This is a hook which is initialised by the dtrace module
- * to handle traps which might occur during DTrace probe
- * execution.
- */
-dtrace_trap_func_t	dtrace_trap_func;
-
-dtrace_doubletrap_func_t	dtrace_doubletrap_func;
-
-/*
- * This is a hook which is initialised by the systrace module
- * when it is loaded. This keeps the DTrace syscall provider
- * implementation opaque. 
- */
-systrace_probe_func_t	systrace_probe_func;
-
-/*
- * These hooks are necessary for the pid and usdt providers.
- */
-dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
-dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 #endif
 
-extern void trap(struct trapframe *frame);
+extern void __noinline trap(struct trapframe *frame);
+extern void trap_check(struct trapframe *frame);
 extern void syscall(struct trapframe *frame);
 void dblfault_handler(struct trapframe *frame);
 
@@ -165,20 +144,18 @@ static char *trap_msg[] = {
 
 #ifdef KDB
 static int kdb_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RW,
+SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RWTUN,
 	&kdb_on_nmi, 0, "Go to KDB on NMI");
-TUNABLE_INT("machdep.kdb_on_nmi", &kdb_on_nmi);
 #endif
 static int panic_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
+SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RWTUN,
 	&panic_on_nmi, 0, "Panic on NMI");
-TUNABLE_INT("machdep.panic_on_nmi", &panic_on_nmi);
 static int prot_fault_translation;
-SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
+SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RWTUN,
     &prot_fault_translation, 0,
     "Select signal to deliver on protection fault");
 static int uprintf_signal;
-SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RW,
+SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RWTUN,
     &uprintf_signal, 0,
     "Print debugging information on trap signal to ctty");
 
@@ -192,6 +169,9 @@ SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RW,
 void
 trap(struct trapframe *frame)
 {
+#ifdef KDTRACE_HOOKS
+	struct reg regs;
+#endif
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
 	int i = 0, ucode = 0, code;
@@ -239,36 +219,6 @@ trap(struct trapframe *frame)
 		goto out;
 	}
 
-#ifdef KDTRACE_HOOKS
-	/*
-	 * A trap can occur while DTrace executes a probe. Before
-	 * executing the probe, DTrace blocks re-scheduling and sets
-	 * a flag in it's per-cpu flags to indicate that it doesn't
-	 * want to fault. On returning from the probe, the no-fault
-	 * flag is cleared and finally re-scheduling is enabled.
-	 *
-	 * If the DTrace kernel module has registered a trap handler,
-	 * call it and if it returns non-zero, assume that it has
-	 * handled the trap and modified the trap frame so that this
-	 * function can return normally.
-	 */
-	if (type == T_DTRACE_RET || type == T_BPTFLT) {
-		struct reg regs;
-
-		fill_frame_regs(frame, &regs);
-		if (type == T_BPTFLT &&
-		    dtrace_pid_probe_ptr != NULL &&
-		    dtrace_pid_probe_ptr(&regs) == 0)
-			goto out;
-		else if (type == T_DTRACE_RET &&
-		    dtrace_return_probe_ptr != NULL &&
-		    dtrace_return_probe_ptr(&regs) == 0)
-			goto out;
-	}
-	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
-		goto out;
-#endif
-
 	if ((frame->tf_rflags & PSL_I) == 0) {
 		/*
 		 * Buggy application or kernel code has disabled
@@ -307,8 +257,8 @@ trap(struct trapframe *frame)
 		td->td_pticks = 0;
 		td->td_frame = frame;
 		addr = frame->tf_rip;
-		if (td->td_ucred != p->p_ucred) 
-			cred_update_thread(td);
+		if (td->td_cowgen != p->p_cowgen)
+			thread_cow_update(td);
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
@@ -319,6 +269,14 @@ trap(struct trapframe *frame)
 		case T_BPTFLT:		/* bpt instruction fault */
 		case T_TRCTRAP:		/* trace trap */
 			enable_intr();
+#ifdef KDTRACE_HOOKS
+			if (type == T_BPTFLT) {
+				fill_frame_regs(frame, &regs);
+				if (dtrace_pid_probe_ptr != NULL &&
+				    dtrace_pid_probe_ptr(&regs) == 0)
+					goto out;
+			}
+#endif
 			frame->tf_rflags &= ~PSL_T;
 			i = SIGTRAP;
 			ucode = (type == T_TRCTRAP ? TRAP_TRACE : TRAP_BRKPT);
@@ -343,6 +301,10 @@ trap(struct trapframe *frame)
 		case T_TSSFLT:		/* invalid TSS fault */
 			i = SIGBUS;
 			ucode = BUS_OBJERR;
+			break;
+		case T_ALIGNFLT:
+			i = SIGBUS;
+			ucode = BUS_ADRALN;
 			break;
 		case T_DOUBLEFLT:	/* double fault */
 		default:
@@ -444,6 +406,15 @@ trap(struct trapframe *frame)
 				goto userout;
 			i = SIGFPE;
 			break;
+#ifdef KDTRACE_HOOKS
+		case T_DTRACE_RET:
+			enable_intr();
+			fill_frame_regs(frame, &regs);
+			if (dtrace_return_probe_ptr != NULL &&
+			    dtrace_return_probe_ptr(&regs) == 0)
+				goto out;
+			break;
+#endif
 		}
 	} else {
 		/* kernel trap */
@@ -465,15 +436,13 @@ trap(struct trapframe *frame)
 		case T_XMMFLT:		/* SIMD floating-point exception */
 		case T_FPOPFLT:		/* FPU operand fetch fault */
 			/*
-			 * XXXKIB for now disable any FPU traps in kernel
-			 * handler registration seems to be overkill
+			 * For now, supporting kernel handler
+			 * registration for FPU traps is overkill.
 			 */
 			trap_fatal(frame, 0);
 			goto out;
 
 		case T_STKFLT:		/* stack fault */
-			break;
-
 		case T_PROTFLT:		/* general protection fault */
 		case T_SEGNPFLT:	/* segment not present fault */
 			if (td->td_intr_nesting_level != 0)
@@ -632,6 +601,22 @@ user:
 userout:
 out:
 	return;
+}
+
+/*
+ * Ensure that we ignore any DTrace-induced faults. This function cannot
+ * be instrumented, so it cannot generate such faults itself.
+ */
+void
+trap_check(struct trapframe *frame)
+{
+
+#ifdef KDTRACE_HOOKS
+	if (dtrace_trap_func != NULL &&
+	    (*dtrace_trap_func)(frame, frame->tf_trapno) != 0)
+		return;
+#endif
+	trap(frame);
 }
 
 static int
@@ -855,14 +840,8 @@ trap_fatal(frame, eva)
 	if (frame->tf_rflags & PSL_RF)
 		printf("resume, ");
 	printf("IOPL = %ld\n", (frame->tf_rflags & PSL_IOPL) >> 12);
-	printf("current process		= ");
-	if (curproc) {
-		printf("%lu (%s)\n",
-		    (u_long)curproc->p_pid, curthread->td_name ?
-		    curthread->td_name : "");
-	} else {
-		printf("Idle\n");
-	}
+	printf("current process		= %d (%s)\n",
+	    curproc->p_pid, curthread->td_name);
 
 #ifdef KDB
 	if (debugger_on_panic || kdb_active)

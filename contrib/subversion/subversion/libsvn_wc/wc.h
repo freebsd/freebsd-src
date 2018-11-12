@@ -157,6 +157,8 @@ extern "C" {
  * The bump to 31 added the inherited_props column in the NODES table.
  * Bumped in r1395109.
  *
+ * == 1.8.x shipped with format 31
+ * 
  * Please document any further format changes here.
  */
 
@@ -187,6 +189,10 @@ extern "C" {
 
 /* A version < this has no work queue (see workqueue.h).  */
 #define SVN_WC__HAS_WORK_QUEUE 13
+
+/* While we still have this DB version we should verify if there is
+   sqlite_stat1 table on opening */
+#define SVN_WC__ENSURE_STAT1_TABLE 31
 
 /* Return a string indicating the released version (or versions) of
  * Subversion that used WC format number WC_FORMAT, or some other

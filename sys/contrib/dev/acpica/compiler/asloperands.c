@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -913,8 +912,8 @@ OpnDoDefinitionBlock (
          * We will use the AML filename that is embedded in the source file
          * for the output filename.
          */
-        Filename = ACPI_ALLOCATE (strlen (Gbl_DirectoryPath) +
-                    strlen ((char *) Child->Asl.Value.Buffer) + 1);
+        Filename = UtStringCacheCalloc (strlen (Gbl_DirectoryPath) +
+            strlen ((char *) Child->Asl.Value.Buffer) + 1);
 
         /* Prepend the current directory path */
 
@@ -922,6 +921,7 @@ OpnDoDefinitionBlock (
         strcat (Filename, (char *) Child->Asl.Value.Buffer);
 
         Gbl_OutputFilenamePrefix = Filename;
+        UtConvertBackslashes (Gbl_OutputFilenamePrefix);
     }
     Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
 
@@ -932,13 +932,13 @@ OpnDoDefinitionBlock (
     if (Child->Asl.Value.String)
     {
         Gbl_TableSignature = Child->Asl.Value.String;
-        if (ACPI_STRLEN (Gbl_TableSignature) != 4)
+        if (strlen (Gbl_TableSignature) != ACPI_NAME_SIZE)
         {
             AslError (ASL_ERROR, ASL_MSG_TABLE_SIGNATURE, Child,
-                "Length not exactly 4");
+                "Length is not exactly 4");
         }
 
-        for (i = 0; i < 4; i++)
+        for (i = 0; i < ACPI_NAME_SIZE; i++)
         {
             if (!isalnum ((int) Gbl_TableSignature[i]))
             {
@@ -967,9 +967,9 @@ OpnDoDefinitionBlock (
     Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
     if (Child->Asl.Value.String)
     {
-        Length = ACPI_STRLEN (Child->Asl.Value.String);
-        Gbl_TableId = AcpiOsAllocate (Length + 1);
-        ACPI_STRCPY (Gbl_TableId, Child->Asl.Value.String);
+        Length = strlen (Child->Asl.Value.String);
+        Gbl_TableId = UtStringCacheCalloc (Length + 1);
+        strcpy (Gbl_TableId, Child->Asl.Value.String);
 
         /*
          * Convert anything non-alphanumeric to an underscore. This

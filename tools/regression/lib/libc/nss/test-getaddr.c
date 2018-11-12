@@ -448,6 +448,7 @@ main(int argc, char **argv)
 		switch (c) {
 		case '4':
 			hints.ai_family = PF_INET;
+			break;
 		case '6':
 			hints.ai_family = PF_INET6;
 			break;

@@ -1,9 +1,11 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+TESTSDIR=	${TESTSBASE}/bin/sh/${.CURDIR:T}
 
-FILESDIR=	${TESTSBASE}/bin/sh/errors
-KYUAFILE=	no
+.PATH: ${.CURDIR:H}
+ATF_TESTS_SH=	functional_test
+
+FILESDIR=	${TESTSDIR}
 
 FILES=		assignment-error1.0
 FILES+=		assignment-error2.0
@@ -17,6 +19,8 @@ FILES+=		bad-parm-exp3.2 bad-parm-exp3.2.stderr
 FILES+=		bad-parm-exp4.2 bad-parm-exp4.2.stderr
 FILES+=		bad-parm-exp5.2 bad-parm-exp5.2.stderr
 FILES+=		bad-parm-exp6.2 bad-parm-exp6.2.stderr
+FILES+=		bad-parm-exp7.0
+FILES+=		bad-parm-exp8.0
 FILES+=		option-error.0
 FILES+=		redirection-error.0
 FILES+=		redirection-error2.2

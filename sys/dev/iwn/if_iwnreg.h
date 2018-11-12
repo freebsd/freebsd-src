@@ -489,6 +489,7 @@ struct iwn_tx_cmd {
 #define IWN_CMD_TXPOWER_DBM		149
 #define IWN_CMD_TXPOWER			151
 #define IWN5000_CMD_TX_ANT_CONFIG	152
+#define IWN_CMD_TXPOWER_DBM_V1		152
 #define IWN_CMD_BT_COEX			155
 #define IWN_CMD_GET_STATISTICS		156
 #define IWN_CMD_SET_CRITICAL_TEMP	164
@@ -585,9 +586,13 @@ struct iwn_rxon {
 #define IWN_RXON_ANTENNA_B	(1 <<  9)
 #define IWN_RXON_TSF		(1 << 15)
 #define IWN_RXON_HT_HT40MINUS	(1 << 22)
+
 #define IWN_RXON_HT_PROTMODE(x)	(x << 23)
+
+/* 0=legacy, 1=pure40, 2=mixed */
 #define IWN_RXON_HT_MODEPURE40	(1 << 25)
 #define IWN_RXON_HT_MODEMIXED	(2 << 25)
+
 #define IWN_RXON_CTS_TO_SELF	(1 << 30)
 
 	uint32_t	filter;
@@ -1266,18 +1271,91 @@ struct iwn_ucode_info {
 } __packed;
 
 /* Structures for IWN_TX_DONE notification. */
-#define	IWN_TX_STATUS_MSK		0xff
-#define	TX_STATUS_SUCCESS		0x01
-#define	TX_STATUS_DIRECT_DONE		0x02
 
-#define IWN_TX_SUCCESS			0x00
-#define IWN_TX_FAIL			0x80	/* all failures have 0x80 set */
-#define IWN_TX_FAIL_SHORT_LIMIT		0x82	/* too many RTS retries */
-#define IWN_TX_FAIL_LONG_LIMIT		0x83	/* too many retries */
-#define IWN_TX_FAIL_FIFO_UNDERRRUN	0x84	/* tx fifo not kept running */
-#define IWN_TX_FAIL_DEST_IN_PS		0x88	/* sta found in power save */
-#define IWN_TX_FAIL_TX_LOCKED		0x90	/* waiting to see traffic */
-#define IWN_TX_FAIL_STA_INVALID		0x8b	/* XXX STA invalid (???) */
+/*
+ * TX command response is sent after *agn* transmission attempts.
+ *
+ * both postpone and abort status are expected behavior from uCode. there is
+ * no special operation required from driver; except for RFKILL_FLUSH,
+ * which required tx flush host command to flush all the tx frames in queues
+ */
+#define	IWN_TX_STATUS_MSK		0x000000ff
+#define	IWN_TX_STATUS_DELAY_MSK		0x00000040
+#define	IWN_TX_STATUS_ABORT_MSK		0x00000080
+#define	IWN_TX_PACKET_MODE_MSK		0x0000ff00
+#define	IWN_TX_FIFO_NUMBER_MSK		0x00070000
+#define	IWN_TX_RESERVED			0x00780000
+#define	IWN_TX_POWER_PA_DETECT_MSK	0x7f800000
+#define	IWN_TX_ABORT_REQUIRED_MSK	0x80000000
+
+/* Success status */
+#define	IWN_TX_STATUS_SUCCESS		0x01
+#define	IWN_TX_STATUS_DIRECT_DONE	0x02
+
+/* postpone TX */
+#define	IWN_TX_STATUS_POSTPONE_DELAY		0x40
+#define	IWN_TX_STATUS_POSTPONE_FEW_BYTES	0x41
+#define	IWN_TX_STATUS_POSTPONE_BT_PRIO		0x42
+#define	IWN_TX_STATUS_POSTPONE_QUIET_PERIOD	0x43
+#define	IWN_TX_STATUS_POSTPONE_CALC_TTAK	0x44
+
+/* Failures */
+#define	IWN_TX_FAIL			0x80	/* all failures have 0x80 set */
+#define	IWN_TX_STATUS_FAIL_INTERNAL_CROSSED_RETRY	0x81
+#define	IWN_TX_FAIL_SHORT_LIMIT		0x82	/* too many RTS retries */
+#define	IWN_TX_FAIL_LONG_LIMIT		0x83	/* too many retries */
+#define	IWN_TX_FAIL_FIFO_UNDERRRUN	0x84	/* tx fifo not kept running */
+#define	IWN_TX_STATUS_FAIL_DRAIN_FLOW	0x85
+#define	IWN_TX_STATUS_FAIL_RFKILL_FLUSH	0x86
+#define	IWN_TX_STATUS_FAIL_LIFE_EXPIRE	0x87
+#define	IWN_TX_FAIL_DEST_IN_PS		0x88	/* sta found in power save */
+#define	IWN_TX_STATUS_FAIL_HOST_ABORTED	0x89
+#define	IWN_TX_STATUS_FAIL_BT_RETRY	0x8a
+#define	IWN_TX_FAIL_STA_INVALID		0x8b	/* XXX STA invalid (???) */
+#define	IWN_TX_STATUS_FAIL_FRAG_DROPPED	0x8c
+#define	IWN_TX_STATUS_FAIL_TID_DISABLE	0x8d
+#define	IWN_TX_STATUS_FAIL_FIFO_FLUSHED	0x8e
+#define	IWN_TX_STATUS_FAIL_INSUFFICIENT_CF_POLL	0x8f
+#define	IWN_TX_FAIL_TX_LOCKED		0x90	/* waiting to see traffic */
+#define	IWN_TX_STATUS_FAIL_NO_BEACON_ON_RADAR	0x91
+
+/*
+ * TX command response for A-MPDU packet responses.
+ *
+ * The status response is different to the non A-MPDU responses.
+ * In addition, the sequence number is treated as the sequence
+ * number of the TX command, NOT the 802.11 sequence number!
+ */
+#define	IWN_AGG_TX_STATE_TRANSMITTED		0x00
+#define	IWN_AGG_TX_STATE_UNDERRUN_MSK		0x01
+#define	IWN_AGG_TX_STATE_FEW_BYTES_MSK		0x04
+#define	IWN_AGG_TX_STATE_ABORT_MSK		0x08
+
+#define	IWN_AGG_TX_STATE_LAST_SENT_TTL_MSK	0x10
+#define	IWN_AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK	0x20
+
+#define	IWN_AGG_TX_STATE_SCD_QUERY_MSK		0x80
+
+#define	IWN_AGG_TX_STATE_TEST_BAD_CRC32_MSK	0x100
+
+#define	IWN_AGG_TX_STATE_RESPONSE_MSK		0x1ff
+#define	IWN_AGG_TX_STATE_DUMP_TX_MSK		0x200
+#define	IWN_AGG_TX_STATE_DELAY_TX_MSK		0x400
+
+#define	IWN_AGG_TX_STATUS_MSK		0x00000fff
+#define	IWN_AGG_TX_TRY_MSK		0x0000f000
+
+#define	IWN_AGG_TX_STATE_LAST_SENT_MSK		\
+	    (IWN_AGG_TX_STATE_LAST_SENT_TTL_MSK | \
+	     IWN_AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK)
+
+/* # tx attempts for first frame in aggregation */
+#define	IWN_AGG_TX_STATE_TRY_CNT_POS	12
+#define	IWN_AGG_TX_STATE_TRY_CNT_MSK	0xf000
+
+/* Command ID and sequence number of Tx command for this frame */
+#define	IWN_AGG_TX_STATE_SEQ_NUM_POS	16
+#define	IWN_AGG_TX_STATE_SEQ_NUM_MSK	0xffff0000
 
 struct iwn4965_tx_stat {
 	uint8_t		nframes;
@@ -1404,6 +1482,12 @@ struct iwn_compressed_ba {
 	uint64_t	bitmap;
 	uint16_t	qid;
 	uint16_t	ssn;
+	/* extra fields starting with iwn5000 */
+#if 0
+	uint8_t		txed;		/* number of frames sent */
+	uint8_t		txed_2_done;	/* number of frames acked */
+	uint16_t	reserved1;
+#endif
 } __packed;
 
 /* Structure for IWN_START_SCAN notification. */
@@ -1509,13 +1593,27 @@ struct iwn_rx_ht_phy_stats {
 	uint32_t	good_ampdu_crc32;
 	uint32_t	ampdu;
 	uint32_t	fragment;
-	uint32_t	reserved;
+	uint32_t	unsupport_mcs;
 } __packed;
 
 struct iwn_rx_stats {
 	struct iwn_rx_phy_stats		ofdm;
 	struct iwn_rx_phy_stats		cck;
 	struct iwn_rx_general_stats	general;
+	struct iwn_rx_ht_phy_stats	ht;
+} __packed;
+
+struct iwn_rx_general_stats_bt {
+	struct iwn_rx_general_stats common;
+	/* additional stats for bt */
+	uint32_t num_bt_kills;
+	uint32_t reserved[2];
+} __packed;
+
+struct iwn_rx_stats_bt {
+	struct iwn_rx_phy_stats		ofdm;
+	struct iwn_rx_phy_stats		cck;
+	struct iwn_rx_general_stats_bt	general_bt;
 	struct iwn_rx_ht_phy_stats	ht;
 } __packed;
 
@@ -1530,7 +1628,7 @@ struct iwn_tx_stats {
 	uint32_t	exp_ack;
 	uint32_t	ack;
 	uint32_t	msdu;
-	uint32_t	busrt_err1;
+	uint32_t	burst_err1;
 	uint32_t	burst_err2;
 	uint32_t	cts_collision;
 	uint32_t	ack_collision;
@@ -1544,15 +1642,21 @@ struct iwn_tx_stats {
 	uint32_t	underrun;
 	uint32_t	bt_ht_kill;
 	uint32_t	rx_ba_resp;
-	uint32_t	reserved[2];
+	/*
+	 * 6000 series only - LSB=ant A, ant B, ant C, MSB=reserved
+	 * TX power on chain in 1/2 dBm.
+	 */
+	uint32_t	tx_power;
+	uint32_t	reserved[1];
 } __packed;
 
 struct iwn_general_stats {
-	uint32_t	temp;
-	uint32_t	temp_m;
+	uint32_t	temp;		/* radio temperature */
+	uint32_t	temp_m;		/* radio voltage */
 	uint32_t	burst_check;
 	uint32_t	burst;
-	uint32_t	reserved1[4];
+	uint32_t	wait_for_silence_timeout_cnt;
+	uint32_t	reserved1[3];
 	uint32_t	sleep;
 	uint32_t	slot_out;
 	uint32_t	slot_idle;
@@ -1563,7 +1667,11 @@ struct iwn_general_stats {
 	uint32_t	probe;
 	uint32_t	reserved2[2];
 	uint32_t	rx_enabled;
-	uint32_t	reserved3[3];
+	/*
+	 * This is the number of times we have to re-tune
+	 * in order to get out of bad PHY status.
+	 */
+	uint32_t	num_of_sos_states;
 } __packed;
 
 struct iwn_stats {
@@ -1571,8 +1679,30 @@ struct iwn_stats {
 	struct iwn_rx_stats		rx;
 	struct iwn_tx_stats		tx;
 	struct iwn_general_stats	general;
+	uint32_t			reserved1[2];
 } __packed;
 
+struct iwn_bt_activity_stats {
+	/* Tx statistics */
+	uint32_t hi_priority_tx_req_cnt;
+	uint32_t hi_priority_tx_denied_cnt;
+	uint32_t lo_priority_tx_req_cnt;
+	uint32_t lo_priority_tx_denied_cnt;
+	/* Rx statistics */
+	uint32_t hi_priority_rx_req_cnt;
+	uint32_t hi_priority_rx_denied_cnt;
+	uint32_t lo_priority_rx_req_cnt;
+	uint32_t lo_priority_rx_denied_cnt;
+} __packed;
+
+struct iwn_stats_bt {
+	uint32_t			flags;
+	struct iwn_rx_stats_bt		rx_bt;
+	struct iwn_tx_stats		tx;
+	struct iwn_general_stats	general;
+	struct iwn_bt_activity_stats	activity;
+	uint32_t			reserved1[2];
+};
 
 /* Firmware error dump. */
 struct iwn_fw_dump {
@@ -1610,7 +1740,7 @@ struct iwn_fw_tlv {
 #define IWN_FW_TLV_INIT_DATA		4
 #define IWN_FW_TLV_BOOT_TEXT		5
 #define IWN_FW_TLV_PBREQ_MAXLEN		6
-#define	IWN_FW_TLV_PAN				7
+#define	IWN_FW_TLV_PAN			7
 #define	IWN_FW_TLV_RUNT_EVTLOG_PTR	8
 #define	IWN_FW_TLV_RUNT_EVTLOG_SIZE	9
 #define	IWN_FW_TLV_RUNT_ERRLOG_PTR	10
@@ -1621,7 +1751,7 @@ struct iwn_fw_tlv {
 #define IWN_FW_TLV_PHY_CALIB		15
 #define	IWN_FW_TLV_WOWLAN_INST		16
 #define	IWN_FW_TLV_WOWLAN_DATA		17
-#define	IWN_FW_TLV_FLAGS			18
+#define	IWN_FW_TLV_FLAGS		18
 
 	uint16_t	alt;
 	uint32_t	len;
@@ -2149,7 +2279,7 @@ static const char * const iwn_fw_errmsg[] = {
 	"NMI_INTERRUPT_DATA_ACTION_PT",
 	"NMI_TRM_HW_ER",
 	"NMI_INTERRUPT_TRM",
-	"NMI_INTERRUPT_BREAKPOINT"
+	"NMI_INTERRUPT_BREAKPOINT",
 	"DEBUG_0",
 	"DEBUG_1",
 	"DEBUG_2",

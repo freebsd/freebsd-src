@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -79,8 +78,9 @@ static driver_t xmphy_driver = {
 
 DRIVER_MODULE(xmphy, miibus, xmphy_driver, xmphy_devclass, 0, 0);
 
-static int	xmphy_service(struct mii_softc *, struct mii_data *, int);
-static void	xmphy_status(struct mii_softc *);
+static int	xmphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	xmphy_status(struct mii_softc *, if_media_t);
 static int	xmphy_mii_phy_auto(struct mii_softc *);
 
 static const struct mii_phydesc xmphys[] = {
@@ -114,23 +114,23 @@ xmphy_attach(device_t dev)
 	    &xmphy_funcs, 0);
 	sc->mii_anegticks = MII_ANEGTICKS;
 
-	PHY_RESET(sc);
+	PHY_RESET(sc, 0);
 
-#define	ADD(m, c)	ifmedia_add(&sc->mii_pdata->mii_media, (m), (c), NULL)
 #define PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
 	device_printf(dev, " ");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, 0, sc->mii_inst),
-	    XMPHY_BMCR_FDX);
+	mii_phy_add_media(sc->mii_pdata,
+	    IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, 0, sc->mii_inst));
 	PRINT("1000baseSX");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, sc->mii_inst), 0);
+	mii_phy_add_media(sc->mii_pdata,
+	    IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, sc->mii_inst));
 	PRINT("1000baseSX-FDX");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
+	mii_phy_add_media(sc->mii_pdata,
+	    IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst));
 	PRINT("auto");
 
 	printf("\n");
 
-#undef ADD
 #undef PRINT
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
@@ -138,9 +138,9 @@ xmphy_attach(device_t dev)
 }
 
 static int
-xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+xmphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
 
 	switch (cmd) {
@@ -148,7 +148,7 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_AUTO:
 #ifdef foo
 			/*
@@ -160,8 +160,8 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			(void)xmphy_mii_phy_auto(sc);
 			break;
 		case IFM_1000_SX:
-			PHY_RESET(sc);
-			if ((ife->ifm_media & IFM_FDX) != 0) {
+			PHY_RESET(sc, media);
+			if ((media & IFM_FDX) != 0) {
 				PHY_WRITE(sc, XMPHY_MII_ANAR, XMPHY_ANAR_FDX);
 				PHY_WRITE(sc, XMPHY_MII_BMCR, XMPHY_BMCR_FDX);
 			} else {
@@ -178,7 +178,7 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		/*
 		 * Only used for autonegotiation.
 		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+		if (IFM_SUBTYPE(media) != IFM_AUTO)
 			break;
 
 		/*
@@ -196,13 +196,13 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		sc->mii_ticks = 0;
 
-		PHY_RESET(sc);
+		PHY_RESET(sc, media);
 		xmphy_mii_phy_auto(sc);
 		return (0);
 	}
 
 	/* Update the media status. */
-	xmphy_status(sc);
+	xmphy_status(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -210,7 +210,7 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-xmphy_status(struct mii_softc *sc)
+xmphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr, anlpar;

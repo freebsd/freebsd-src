@@ -33,6 +33,7 @@
 #include "svn_ra.h"
 #include "svn_dav.h"
 #include "svn_xml.h"
+#include "svn_ctype.h"
 
 #include "../libsvn_ra/ra_loader.h"
 #include "svn_private_config.h"
@@ -227,7 +228,9 @@ capabilities_headers_iterator_callback(void *baton,
     }
 
   /* SVN-specific headers -- if present, server supports HTTP protocol v2 */
-  else if (strncmp(key, "SVN", 3) == 0)
+  else if (!svn_ctype_casecmp(key[0], 'S')
+           && !svn_ctype_casecmp(key[1], 'V')
+           && !svn_ctype_casecmp(key[2], 'N'))
     {
       /* If we've not yet seen any information about supported POST
          requests, we'll initialize the list/hash with "create-txn"
@@ -302,7 +305,7 @@ capabilities_headers_iterator_callback(void *baton,
           /* May contain multiple values, separated by commas. */
           int i;
           apr_array_header_t *vals = svn_cstring_split(val, ",", TRUE,
-                                                       opt_ctx->pool);
+                                                       session->pool);
 
           for (i = 0; i < vals->nelts; i++)
             {

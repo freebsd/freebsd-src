@@ -94,6 +94,7 @@ struct var vps4;
 static struct var voptind;
 struct var vdisvfork;
 
+struct localvar *localvars;
 int forcelocal;
 
 static const struct varinit varinit[] = {
@@ -141,6 +142,7 @@ static const int locale_categories[7] = {
 static int varequal(const char *, const char *);
 static struct var *find_var(const char *, struct var ***, int *);
 static int localevar(const char *);
+static void setvareq_const(const char *s, int flags);
 
 extern char **environ;
 
@@ -183,7 +185,7 @@ initvar(void)
 			setvareq(*envp, VEXPORT|VTEXTFIXED);
 		}
 	}
-	setvareq("OPTIND=1", VTEXTFIXED);
+	setvareq_const("OPTIND=1", 0);
 }
 
 /*
@@ -249,6 +251,7 @@ setvar(const char *name, const char *val, int flags)
 		vallen = strlen(val);
 		len += vallen;
 	}
+	INTOFF;
 	nameeq = ckmalloc(len);
 	memcpy(nameeq, name, namelen);
 	nameeq[namelen] = '=';
@@ -257,6 +260,7 @@ setvar(const char *name, const char *val, int flags)
 	else
 		nameeq[namelen + 1] = '\0';
 	setvareq(nameeq, flags);
+	INTON;
 }
 
 static int
@@ -289,6 +293,7 @@ change_env(const char *s, int set)
 	char *eqp;
 	char *ss;
 
+	INTOFF;
 	ss = savestr(s);
 	if ((eqp = strchr(ss, '=')) != NULL)
 		*eqp = '\0';
@@ -297,6 +302,7 @@ change_env(const char *s, int set)
 	else
 		(void) unsetenv(ss);
 	ckfree(ss);
+	INTON;
 
 	return;
 }
@@ -321,10 +327,16 @@ setvareq(char *s, int flags)
 		mklocal(s);
 	vp = find_var(s, &vpp, &nlen);
 	if (vp != NULL) {
-		if (vp->flags & VREADONLY)
+		if (vp->flags & VREADONLY) {
+			if ((flags & (VTEXTFIXED|VSTACK)) == 0)
+				ckfree(s);
 			error("%.*s: is read only", vp->name_len, s);
-		if (flags & VNOSET)
+		}
+		if (flags & VNOSET) {
+			if ((flags & (VTEXTFIXED|VSTACK)) == 0)
+				ckfree(s);
 			return;
+		}
 		INTOFF;
 
 		if (vp->func && (flags & VNOFUNC) == 0)
@@ -357,15 +369,18 @@ setvareq(char *s, int flags)
 		return;
 	}
 	/* not found */
-	if (flags & VNOSET)
+	if (flags & VNOSET) {
+		if ((flags & (VTEXTFIXED|VSTACK)) == 0)
+			ckfree(s);
 		return;
+	}
+	INTOFF;
 	vp = ckmalloc(sizeof (*vp));
 	vp->flags = flags;
 	vp->text = s;
 	vp->name_len = nlen;
 	vp->next = *vpp;
 	vp->func = NULL;
-	INTOFF;
 	*vpp = vp;
 	if ((vp->flags & VEXPORT) && localevar(s)) {
 		change_env(s, 1);
@@ -375,6 +390,12 @@ setvareq(char *s, int flags)
 	INTON;
 }
 
+
+static void
+setvareq_const(const char *s, int flags)
+{
+	setvareq(__DECONST(char *, s), flags | VTEXTFIXED);
+}
 
 
 /*
@@ -773,6 +794,7 @@ poplocalvars(void)
 	struct localvar *lvp;
 	struct var *vp;
 
+	INTOFF;
 	while ((lvp = localvars) != NULL) {
 		localvars = lvp->next;
 		vp = lvp->vp;
@@ -790,6 +812,7 @@ poplocalvars(void)
 		}
 		ckfree(lvp);
 	}
+	INTON;
 }
 
 
@@ -828,18 +851,21 @@ unsetcmd(int argc __unused, char **argv __unused)
 	if (flg_func == 0 && flg_var == 0)
 		flg_var = 1;
 
+	INTOFF;
 	for (ap = argptr; *ap ; ap++) {
 		if (flg_func)
 			ret |= unsetfunc(*ap);
 		if (flg_var)
 			ret |= unsetvar(*ap);
 	}
+	INTON;
 	return ret;
 }
 
 
 /*
  * Unset the specified variable.
+ * Called with interrupts off.
  */
 
 int
@@ -853,9 +879,8 @@ unsetvar(const char *s)
 		return (0);
 	if (vp->flags & VREADONLY)
 		return (1);
-	INTOFF;
 	if (vp->text[vp->name_len + 1] != '\0')
-		setvar(s, nullstr, 0);
+		setvar(s, "", 0);
 	if ((vp->flags & VEXPORT) && localevar(vp->text)) {
 		change_env(s, 0);
 		setlocale(LC_ALL, "");
@@ -869,7 +894,6 @@ unsetvar(const char *s)
 		*vpp = vp->next;
 		ckfree(vp);
 	}
-	INTON;
 	return (0);
 }
 

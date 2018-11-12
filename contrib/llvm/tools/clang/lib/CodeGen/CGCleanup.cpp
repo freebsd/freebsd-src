@@ -17,8 +17,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CodeGenFunction.h"
 #include "CGCleanup.h"
+#include "CodeGenFunction.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -50,7 +50,7 @@ DominatingValue<RValue>::saved_type::save(CodeGenFunction &CGF, RValue rv) {
     CodeGenFunction::ComplexPairTy V = rv.getComplexVal();
     llvm::Type *ComplexTy =
       llvm::StructType::get(V.first->getType(), V.second->getType(),
-                            (void*) 0);
+                            (void*) nullptr);
     llvm::Value *addr = CGF.CreateTempAlloca(ComplexTy, "saved-complex");
     CGF.Builder.CreateStore(V.first, CGF.Builder.CreateStructGEP(addr, 0));
     CGF.Builder.CreateStore(V.second, CGF.Builder.CreateStructGEP(addr, 1));
@@ -184,7 +184,7 @@ void EHScopeStack::popCleanup() {
   StartOfData += Cleanup.getAllocatedSize();
 
   // Destroy the cleanup.
-  Cleanup.~EHCleanupScope();
+  Cleanup.Destroy();
 
   // Check whether we can shrink the branch-fixups stack.
   if (!BranchFixups.empty()) {
@@ -245,7 +245,7 @@ void EHScopeStack::popNullFixups() {
   assert(BranchFixups.size() >= MinSize && "fixup stack out of order");
 
   while (BranchFixups.size() > MinSize &&
-         BranchFixups.back().Destination == 0)
+         BranchFixups.back().Destination == nullptr)
     BranchFixups.pop_back();
 }
 
@@ -263,7 +263,7 @@ void CodeGenFunction::initFullExprCleanup() {
 
   // Set that as the active flag in the cleanup.
   EHCleanupScope &cleanup = cast<EHCleanupScope>(*EHStack.begin());
-  assert(cleanup.getActiveFlag() == 0 && "cleanup already has active flag?");
+  assert(!cleanup.getActiveFlag() && "cleanup already has active flag?");
   cleanup.setActiveFlag(active);
 
   if (cleanup.isNormalCleanup()) cleanup.setTestFlagInNormalCleanup();
@@ -283,7 +283,7 @@ static void ResolveAllBranchFixups(CodeGenFunction &CGF,
   for (unsigned I = 0, E = CGF.EHStack.getNumBranchFixups(); I != E; ++I) {
     // Skip this fixup if its destination isn't set.
     BranchFixup &Fixup = CGF.EHStack.getBranchFixup(I);
-    if (Fixup.Destination == 0) continue;
+    if (Fixup.Destination == nullptr) continue;
 
     // If there isn't an OptimisticBranchBlock, then InitialBranch is
     // still pointing directly to its destination; forward it to the
@@ -293,7 +293,7 @@ static void ResolveAllBranchFixups(CodeGenFunction &CGF,
     //   lbl:
     // i.e. where there's an unresolved fixup inside a single cleanup
     // entry which we're currently popping.
-    if (Fixup.OptimisticBranchBlock == 0) {
+    if (Fixup.OptimisticBranchBlock == nullptr) {
       new llvm::StoreInst(CGF.Builder.getInt32(Fixup.DestinationIndex),
                           CGF.getNormalCleanupDestSlot(),
                           Fixup.InitialBranch);
@@ -301,7 +301,8 @@ static void ResolveAllBranchFixups(CodeGenFunction &CGF,
     }
 
     // Don't add this case to the switch statement twice.
-    if (!CasesAdded.insert(Fixup.Destination)) continue;
+    if (!CasesAdded.insert(Fixup.Destination).second)
+      continue;
 
     Switch->addCase(CGF.Builder.getInt32(Fixup.DestinationIndex),
                     Fixup.Destination);
@@ -347,7 +348,7 @@ void CodeGenFunction::ResolveBranchFixups(llvm::BasicBlock *Block) {
     BranchFixup &Fixup = EHStack.getBranchFixup(I);
     if (Fixup.Destination != Block) continue;
 
-    Fixup.Destination = 0;
+    Fixup.Destination = nullptr;
     ResolvedAny = true;
 
     // If it doesn't have an optimistic branch block, LatestBranch is
@@ -357,7 +358,7 @@ void CodeGenFunction::ResolveBranchFixups(llvm::BasicBlock *Block) {
       continue;
 
     // Don't process the same optimistic branch block twice.
-    if (!ModifiedOptimisticBlocks.insert(BranchBB))
+    if (!ModifiedOptimisticBlocks.insert(BranchBB).second)
       continue;
 
     llvm::SwitchInst *Switch = TransitionToCleanupSwitch(*this, BranchBB);
@@ -371,8 +372,7 @@ void CodeGenFunction::ResolveBranchFixups(llvm::BasicBlock *Block) {
 }
 
 /// Pops cleanup blocks until the given savepoint is reached.
-void CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old,
-                                       SourceLocation EHLoc) {
+void CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old) {
   assert(Old.isValid());
 
   while (EHStack.stable_begin() != Old) {
@@ -384,8 +384,35 @@ void CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old,
     bool FallThroughIsBranchThrough =
       Old.strictlyEncloses(Scope.getEnclosingNormalCleanup());
 
-    PopCleanupBlock(FallThroughIsBranchThrough, EHLoc);
+    PopCleanupBlock(FallThroughIsBranchThrough);
   }
+}
+
+/// Pops cleanup blocks until the given savepoint is reached, then add the
+/// cleanups from the given savepoint in the lifetime-extended cleanups stack.
+void
+CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old,
+                                  size_t OldLifetimeExtendedSize) {
+  PopCleanupBlocks(Old);
+
+  // Move our deferred cleanups onto the EH stack.
+  for (size_t I = OldLifetimeExtendedSize,
+              E = LifetimeExtendedCleanupStack.size(); I != E; /**/) {
+    // Alignment should be guaranteed by the vptrs in the individual cleanups.
+    assert((I % llvm::alignOf<LifetimeExtendedCleanupHeader>() == 0) &&
+           "misaligned cleanup stack entry");
+
+    LifetimeExtendedCleanupHeader &Header =
+        reinterpret_cast<LifetimeExtendedCleanupHeader&>(
+            LifetimeExtendedCleanupStack[I]);
+    I += sizeof(Header);
+
+    EHStack.pushCopyOfCleanup(Header.getKind(),
+                              &LifetimeExtendedCleanupStack[I],
+                              Header.getSize());
+    I += Header.getSize();
+  }
+  LifetimeExtendedCleanupStack.resize(OldLifetimeExtendedSize);
 }
 
 static llvm::BasicBlock *CreateNormalEntry(CodeGenFunction &CGF,
@@ -447,7 +474,7 @@ static void EmitCleanup(CodeGenFunction &CGF,
 
   // If there's an active flag, load it and skip the cleanup if it's
   // false.
-  llvm::BasicBlock *ContBB = 0;
+  llvm::BasicBlock *ContBB = nullptr;
   if (ActiveFlag) {
     ContBB = CGF.createBasicBlock("cleanup.done");
     llvm::BasicBlock *CleanupBB = CGF.createBasicBlock("cleanup.action");
@@ -502,7 +529,7 @@ static void destroyOptimisticNormalEntry(CodeGenFunction &CGF,
   llvm::BasicBlock *unreachableBB = CGF.getUnreachableBlock();
   for (llvm::BasicBlock::use_iterator
          i = entry->use_begin(), e = entry->use_end(); i != e; ) {
-    llvm::Use &use = i.getUse();
+    llvm::Use &use = *i;
     ++i;
 
     use.set(unreachableBB);
@@ -533,8 +560,7 @@ static void destroyOptimisticNormalEntry(CodeGenFunction &CGF,
 /// Pops a cleanup block.  If the block includes a normal cleanup, the
 /// current insertion point is threaded through the cleanup, as are
 /// any branch fixups on the cleanup.
-void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough,
-                                      SourceLocation EHLoc) {
+void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
   assert(!EHStack.empty() && "cleanup stack is empty!");
   assert(isa<EHCleanupScope>(*EHStack.begin()) && "top not a cleanup!");
   EHCleanupScope &Scope = cast<EHCleanupScope>(*EHStack.begin());
@@ -543,15 +569,15 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough,
   // Remember activation information.
   bool IsActive = Scope.isActive();
   llvm::Value *NormalActiveFlag =
-    Scope.shouldTestFlagInNormalCleanup() ? Scope.getActiveFlag() : 0;
+    Scope.shouldTestFlagInNormalCleanup() ? Scope.getActiveFlag() : nullptr;
   llvm::Value *EHActiveFlag = 
-    Scope.shouldTestFlagInEHCleanup() ? Scope.getActiveFlag() : 0;
+    Scope.shouldTestFlagInEHCleanup() ? Scope.getActiveFlag() : nullptr;
 
   // Check whether we need an EH cleanup.  This is only true if we've
   // generated a lazy EH cleanup block.
   llvm::BasicBlock *EHEntry = Scope.getCachedEHDispatchBlock();
-  assert(Scope.hasEHBranches() == (EHEntry != 0));
-  bool RequiresEHCleanup = (EHEntry != 0);
+  assert(Scope.hasEHBranches() == (EHEntry != nullptr));
+  bool RequiresEHCleanup = (EHEntry != nullptr);
   EHScopeStack::stable_iterator EHParent = Scope.getEnclosingEHScope();
 
   // Check the three conditions which might require a normal cleanup:
@@ -565,7 +591,7 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough,
 
   // - whether there's a fallthrough
   llvm::BasicBlock *FallthroughSource = Builder.GetInsertBlock();
-  bool HasFallthrough = (FallthroughSource != 0 && IsActive);
+  bool HasFallthrough = (FallthroughSource != nullptr && IsActive);
 
   // Branch-through fall-throughs leave the insertion point set to the
   // end of the last cleanup, which points to the current scope.  The
@@ -695,7 +721,7 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough,
       //   - if fall-through is a branch-through
       //   - if there are fixups that will be optimistically forwarded
       //     to the enclosing cleanup
-      llvm::BasicBlock *BranchThroughDest = 0;
+      llvm::BasicBlock *BranchThroughDest = nullptr;
       if (Scope.hasBranchThroughs() ||
           (FallthroughSource && FallthroughIsBranchThrough) ||
           (HasFixups && HasEnclosingCleanups)) {
@@ -704,7 +730,7 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough,
         BranchThroughDest = CreateNormalEntry(*this, cast<EHCleanupScope>(S));
       }
 
-      llvm::BasicBlock *FallthroughDest = 0;
+      llvm::BasicBlock *FallthroughDest = nullptr;
       SmallVector<llvm::Instruction*, 2> InstsToAppend;
 
       // If there's exactly one branch-after and no other threads,
@@ -835,8 +861,7 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough,
 
   // Emit the EH cleanup if required.
   if (RequiresEHCleanup) {
-    if (CGDebugInfo *DI = getDebugInfo())
-      DI->EmitLocation(Builder, EHLoc);
+    ApplyDebugLocation AutoRestoreLocation(*this, CurEHLocation);
 
     CGBuilderTy::InsertPoint SavedIP = Builder.saveAndClearIP();
 
@@ -916,7 +941,7 @@ void CodeGenFunction::EmitBranchThroughCleanup(JumpDest Dest) {
     Fixup.Destination = Dest.getBlock();
     Fixup.DestinationIndex = Dest.getDestIndex();
     Fixup.InitialBranch = BI;
-    Fixup.OptimisticBranchBlock = 0;
+    Fixup.OptimisticBranchBlock = nullptr;
 
     Builder.ClearInsertionPoint();
     return;

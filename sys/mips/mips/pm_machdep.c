@@ -133,12 +133,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sfp = (struct sigframe *)((vm_offset_t)(regs->sp - 
 		    sizeof(struct sigframe)) & ~(sizeof(__int64_t) - 1));
 
-	/* Translate the signal if appropriate */
-	if (p->p_sysent->sv_sigtbl) {
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-	}
-
 	/* Build the argument list for the signal handler. */
 	regs->a0 = sig;
 	regs->a2 = (register_t)(intptr_t)&sfp->sf_uc;
@@ -183,27 +177,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
-
-#ifdef GONE_IN_7
-/*
- * Build siginfo_t for SA thread
- */
-void
-cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
-{
-	struct proc *p;
-	struct thread *td;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	bzero(si, sizeof(*si));
-	si->si_signo = sig;
-	si->si_code = code;
-	/* XXXKSE fill other fields */
-}
-#endif
 
 /*
  * System call to cleanup state after a signal
@@ -396,7 +369,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 }
 
 int
-set_mcontext(struct thread *td, const mcontext_t *mcp)
+set_mcontext(struct thread *td, mcontext_t *mcp)
 {
 	struct trapframe *tp;
 
@@ -413,7 +386,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	td->td_frame->mullo = mcp->mullo;
 	td->td_frame->mulhi = mcp->mulhi;
 	td->td_md.md_tls = mcp->mc_tls;
-	/* Dont let user to set any bits in Status and casue registers */
+	/* Dont let user to set any bits in status and cause registers. */
 
 	return (0);
 }

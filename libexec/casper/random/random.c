@@ -30,13 +30,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/nv.h>
+
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <libcapsicum.h>
 #include <libcasper.h>
-#include <nv.h>
 #include <pjdlog.h>
 
 #define	MAXSIZE	(1024 * 1024)

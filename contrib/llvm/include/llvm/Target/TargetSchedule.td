@@ -72,17 +72,32 @@ def instregex;
 //
 // Target hooks allow subtargets to associate LoadLatency and
 // HighLatency with groups of opcodes.
+//
+// See MCSchedule.h for detailed comments.
 class SchedMachineModel {
   int IssueWidth = -1; // Max micro-ops that may be scheduled per cycle.
-  int MinLatency = -1; // Determines which instrucions are allowed in a group.
+  int MinLatency = -1; // Determines which instructions are allowed in a group.
                        // (-1) inorder (0) ooo, (1): inorder +var latencies.
-  int ILPWindow = -1;  // Cycles of latency likely hidden by hardware buffers.
+  int MicroOpBufferSize = -1; // Max micro-ops that can be buffered.
+  int LoopMicroOpBufferSize = -1; // Max micro-ops that can be buffered for
+                                  // optimized loop dispatch/execution.
   int LoadLatency = -1; // Cycles for loads to access the cache.
   int HighLatency = -1; // Approximation of cycles for "high latency" ops.
   int MispredictPenalty = -1; // Extra cycles for a mispredicted branch.
 
   // Per-cycle resources tables.
   ProcessorItineraries Itineraries = NoItineraries;
+
+  bit PostRAScheduler = 0; // Enable Post RegAlloc Scheduler pass.
+
+  // Subtargets that define a model for only a subset of instructions
+  // that have a scheduling class (itinerary class or SchedRW list)
+  // and may actually be generated for that subtarget must clear this
+  // bit. Otherwise, the scheduler considers an unmodelled opcode to
+  // be an error. This should only be set during initial bringup,
+  // or there will be no way to catch simple errors in the model
+  // resulting from changes to the instruction definitions.
+  bit CompleteModel = 1;
 
   bit NoModel = 0; // Special tag to indicate missing machine model.
 }
@@ -103,14 +118,46 @@ class ProcResourceKind;
 // resources implies using one of the super resoruces.
 //
 // ProcResourceUnits normally model a few buffered resources within an
-// out-of-order engine that the compiler attempts to conserve.
-// Buffered resources may be held for multiple clock cycles, but the
-// scheduler does not pin them to a particular clock cycle relative to
-// instruction dispatch. Setting Buffered=0 changes this to an
-// in-order resource. In this case, the scheduler counts down from the
-// cycle that the instruction issues in-order, forcing an interlock
-// with subsequent instructions that require the same resource until
-// the number of ResourceCyles specified in WriteRes expire.
+// out-of-order engine. Buffered resources may be held for multiple
+// clock cycles, but the scheduler does not pin them to a particular
+// clock cycle relative to instruction dispatch. Setting BufferSize=0
+// changes this to an in-order issue/dispatch resource. In this case,
+// the scheduler counts down from the cycle that the instruction
+// issues in-order, forcing a stall whenever a subsequent instruction
+// requires the same resource until the number of ResourceCyles
+// specified in WriteRes expire. Setting BufferSize=1 changes this to
+// an in-order latency resource. In this case, the scheduler models
+// producer/consumer stalls between instructions that use the
+// resource.
+//
+// Examples (all assume an out-of-order engine):
+//
+// Use BufferSize = -1 for "issue ports" fed by a unified reservation
+// station. Here the size of the reservation station is modeled by
+// MicroOpBufferSize, which should be the minimum size of either the
+// register rename pool, unified reservation station, or reorder
+// buffer.
+//
+// Use BufferSize = 0 for resources that force "dispatch/issue
+// groups". (Different processors define dispath/issue
+// differently. Here we refer to stage between decoding into micro-ops
+// and moving them into a reservation station.) Normally NumMicroOps
+// is sufficient to limit dispatch/issue groups. However, some
+// processors can form groups of with only certain combinitions of
+// instruction types. e.g. POWER7.
+//
+// Use BufferSize = 1 for in-order execution units. This is used for
+// an in-order pipeline within an out-of-order core where scheduling
+// dependent operations back-to-back is guaranteed to cause a
+// bubble. e.g. Cortex-a9 floating-point.
+//
+// Use BufferSize > 1 for out-of-order executions units with a
+// separate reservation station. This simply models the size of the
+// reservation station.
+//
+// To model both dispatch/issue groups and in-order execution units,
+// create two types of units, one with BufferSize=0 and one with
+// BufferSize=1.
 //
 // SchedModel ties these units to a processor for any stand-alone defs
 // of this class. Instances of subclass ProcResource will be automatically
@@ -119,7 +166,7 @@ class ProcResourceUnits<ProcResourceKind kind, int num> {
   ProcResourceKind Kind = kind;
   int NumUnits = num;
   ProcResourceKind Super = ?;
-  bit Buffered = 1;
+  int BufferSize = -1;
   SchedMachineModel SchedModel = ?;
 }
 
@@ -136,6 +183,7 @@ class ProcResource<int num> : ProcResourceKind,
 class ProcResGroup<list<ProcResource> resources> : ProcResourceKind {
   list<ProcResource> Resources = resources;
   SchedMachineModel SchedModel = ?;
+  int BufferSize = -1;
 }
 
 // A target architecture may define SchedReadWrite types and associate

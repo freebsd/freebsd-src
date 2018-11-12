@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <sys/kdb.h>
 
@@ -72,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #define TIMER_ENABLE		(1<<0)
 #define TIMER_AUTORELOAD	(1<<1)
 #define TIMER_OSC24M		(1<<2) /* oscillator = 24mhz */
-#define TIMER_PRESCALAR		(4<<4) /* prescalar = 16 */
+#define TIMER_PRESCALAR		(0<<4) /* prescalar = 1 */
 
 #define SYS_TIMER_CLKSRC	24000000 /* clock source */
 
@@ -293,12 +292,6 @@ int
 a10_timer_get_timerfreq(struct a10_timer_softc *sc)
 {
 	return (sc->timer0_freq);
-}
-
-void
-cpu_initclocks(void)
-{
-	cpu_initclocks_bsp();
 }
 
 static int

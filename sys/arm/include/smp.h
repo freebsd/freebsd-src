@@ -10,11 +10,13 @@
 #define IPI_PREEMPT	2
 #define IPI_RENDEZVOUS	3
 #define IPI_STOP	4
-#define IPI_STOP_HARD	5
+#define IPI_STOP_HARD	4
 #define IPI_HARDCLOCK	6
 #define IPI_TLB		7
+#define IPI_CACHE	8
 
 void	init_secondary(int cpu);
+void	mpentry(void);
 
 void	ipi_all_but_self(u_int ipi);
 void	ipi_cpu(int cpu, u_int ipi);
@@ -23,7 +25,7 @@ void	ipi_selected(cpuset_t cpus, u_int ipi);
 /* PIC interface */
 void	pic_ipi_send(cpuset_t cpus, u_int ipi);
 void	pic_ipi_clear(int ipi);
-int	pic_ipi_get(int arg);
+int	pic_ipi_read(int arg);
 
 /* Platform interface */
 void	platform_mp_setmaxid(void);

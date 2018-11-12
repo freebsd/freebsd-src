@@ -401,7 +401,7 @@ INTERRUPT(int_critical_input)
 	STANDARD_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_CRIT)
 	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_crit_interrupt)
+	bl	CNAME(powerpc_interrupt)
 	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
 	rfci
 
@@ -413,7 +413,7 @@ INTERRUPT(int_machine_check)
 	STANDARD_PROLOG(SPR_SPRG3, PC_BOOKE_MCHKSAVE, SPR_MCSRR0, SPR_MCSRR1)
 	FRAME_SETUP(SPR_SPRG3, PC_BOOKE_MCHKSAVE, EXC_MCHK)
 	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_mchk_interrupt)
+	bl	CNAME(powerpc_interrupt)
 	FRAME_LEAVE(SPR_MCSRR0, SPR_MCSRR1)
 	rfmci
 
@@ -443,8 +443,8 @@ INTERRUPT(int_external_input)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_EXI)
 	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_extr_interrupt)
-	b	trapexit
+	bl	CNAME(powerpc_interrupt)
+	b	clear_we
 
 
 INTERRUPT(int_alignment)
@@ -475,8 +475,8 @@ INTERRUPT(int_decrementer)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_DECR)
 	addi	%r3, %r1, 8
-	bl	CNAME(powerpc_decr_interrupt)
-	b	trapexit
+	bl	CNAME(powerpc_interrupt)
+	b	clear_we
 
 
 /*****************************************************************************
@@ -495,6 +495,19 @@ INTERRUPT(int_watchdog)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_WDOG)
 	b	trap_common
+
+
+#ifdef HWPMC_HOOKS
+/*****************************************************************************
+ * PMC Interrupt
+ ****************************************************************************/
+INTERRUPT(int_performance_counter)
+	STANDARD_PROLOG(SPR_SPRG3, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
+	FRAME_SETUP(SPR_SPRG3, PC_TEMPSAVE, EXC_PERF)
+	addi	%r3, %r1, 8
+	bl	CNAME(powerpc_interrupt)
+	b	trapexit
+#endif
 
 
 /*****************************************************************************
@@ -542,8 +555,11 @@ INTERRUPT(int_data_tlb_error)
 
 search_kernel_pmap:
 	/* Load r26 with kernel_pmap address */
-	lis	%r26, kernel_pmap_store@h
-	ori	%r26, %r26, kernel_pmap_store@l
+	bl	1f
+	.long kernel_pmap_store-.
+1:	mflr	%r21
+	lwz	%r26, 0(%r21)
+	add	%r26, %r21, %r26	/* kernel_pmap_store in r26 */
 
 	/* Force kernel tid, set TID to 0 in MAS1. */
 	li	%r21, 0
@@ -588,6 +604,9 @@ search_failed:
 	isync
 	mtspr	SPR_MAS3, %r23
 	isync
+
+	bl	zero_mas7
+	bl	zero_mas8
 
 	tlbwe
 	msync
@@ -681,8 +700,10 @@ tlb_fill_entry:
 
 	/* Setup MAS3 value in r23. */
 	lwz	%r23, PTE_RPN(%r25)		/* get pte->rpn */
+	rlwinm	%r22, %r23, 12, 0, 20		/* extract MAS3 portion of RPN */
 
-	rlwimi	%r23, %r21, 24, 26, 31		/* insert protection bits from pte */
+	rlwimi	%r22, %r21, 24, 26, 31		/* insert protection bits from pte */
+	rlwinm	%r23, %r23, 12, 28, 31		/* MAS7 portion of RPN */
 
 	/* Load MAS registers. */
 	mtspr	SPR_MAS0, %r29
@@ -691,8 +712,14 @@ tlb_fill_entry:
 	isync
 	mtspr	SPR_MAS2, %r27
 	isync
-	mtspr	SPR_MAS3, %r23
+	mtspr	SPR_MAS3, %r22
 	isync
+	mtspr	SPR_MAS7, %r23
+	isync
+
+	mflr	%r21
+	bl	zero_mas8
+	mtlr	%r21
 
 	tlbwe
 	isync
@@ -737,12 +764,17 @@ INTERRUPT(int_debug)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_DEBUG)
 	GET_CPUINFO(%r3)
 	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0)(%r3)
-	lis	%r4, interrupt_vector_base@ha
-	addi	%r4, %r4, interrupt_vector_base@l
+	bl	0f
+	.long	interrupt_vector_base-.
+	.long	interrupt_vector_top-.
+0:	mflr	%r5
+	lwz	%r4,0(%r5)	/* interrupt_vector_base in r4 */
+	add	%r4,%r4,%r5
 	cmplw	cr0, %r3, %r4
 	blt	1f
-	lis	%r4, interrupt_vector_top@ha
-	addi	%r4, %r4, interrupt_vector_top@l
+	lwz	%r4,4(%r5)	/* interrupt_vector_top in r4 */
+	add	%r4,%r4,%r5
+	addi	%r4,%r4,4
 	cmplw	cr0, %r3, %r4
 	bge	1f
 	/* Disable single-stepping for the interrupt handlers. */
@@ -857,6 +889,12 @@ dbleave:
 	FRAME_LEAVE(SPR_SRR0, SPR_SRR1)
 	rfi
 #endif /* KDB */
+
+clear_we:
+	lwz	%r3, (FRAME_SRR1+8)(%r1)
+	rlwinm	%r3, %r3, 0, 14, 12
+	stw	%r3, (FRAME_SRR1+8)(%r1)
+	b	trapexit
 
 #ifdef SMP
 ENTRY(tlb_lock)

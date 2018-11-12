@@ -52,6 +52,12 @@ __FBSDID("$FreeBSD$");
 #define	round_line32(x)		(((x) + 31) & ~31)
 #define	trunc_line32(x)		((x) & ~31)
 
+#define	round_line64(x)		(((x) + 63) & ~63)
+#define	trunc_line64(x)		((x) & ~63)
+
+#define	round_line128(x)	(((x) + 127) & ~127)
+#define	trunc_line128(x)	((x) & ~127)
+
 #if defined(CPU_NLM)
 static __inline void
 xlp_sync(void)
@@ -100,6 +106,10 @@ static int pdcache_size;
 static int pdcache_stride;
 static int pdcache_loopcount;
 static int pdcache_way_mask;
+static int sdcache_size;
+static int sdcache_stride;
+static int sdcache_loopcount;
+static int sdcache_way_mask;
 
 void
 mipsNN_cache_init(struct mips_cpuinfo * cpuinfo)
@@ -141,6 +151,11 @@ mipsNN_cache_init(struct mips_cpuinfo * cpuinfo)
 	picache_way_mask = cpuinfo->l1.ic_nways - 1;
 	pdcache_size = cpuinfo->l1.dc_size;
 	pdcache_way_mask = cpuinfo->l1.dc_nways - 1;
+
+	sdcache_stride = cpuinfo->l2.dc_nsets * cpuinfo->l2.dc_linesize;
+	sdcache_loopcount = cpuinfo->l2.dc_nways;
+	sdcache_size = cpuinfo->l2.dc_size;
+	sdcache_way_mask = cpuinfo->l2.dc_nways - 1;
 
 #define CACHE_DEBUG
 #ifdef CACHE_DEBUG
@@ -201,6 +216,29 @@ mipsNN_icache_sync_all_32(void)
 }
 
 void
+mipsNN_icache_sync_all_64(void)
+{
+	vm_offset_t va, eva;
+
+	va = MIPS_PHYS_TO_KSEG0(0);
+	eva = va + picache_size;
+
+	/*
+	 * Since we're hitting the whole thing, we don't have to
+	 * worry about the N different "ways".
+	 */
+
+	mips_intern_dcache_wbinv_all();
+
+	while (va < eva) {
+		cache_r4k_op_32lines_64(va, CACHE_R4K_I|CACHEOP_R4K_INDEX_INV);
+		va += (32 * 64);
+	}
+
+	SYNC;
+}
+
+void
 mipsNN_icache_sync_range_16(vm_offset_t va, vm_size_t size)
 {
 	vm_offset_t eva;
@@ -241,6 +279,29 @@ mipsNN_icache_sync_range_32(vm_offset_t va, vm_size_t size)
 	while (va < eva) {
 		cache_op_r4k_line(va, CACHE_R4K_I|CACHEOP_R4K_HIT_INV);
 		va += 32;
+	}
+
+	SYNC;
+}
+
+void
+mipsNN_icache_sync_range_64(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva;
+
+	eva = round_line64(va + size);
+	va = trunc_line64(va);
+
+	mips_intern_dcache_wb_range(va, (eva - va));
+
+	while ((eva - va) >= (32 * 64)) {
+		cache_r4k_op_32lines_64(va, CACHE_R4K_I|CACHEOP_R4K_HIT_INV);
+		va += (32 * 64);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_I|CACHEOP_R4K_HIT_INV);
+		va += 64;
 	}
 
 	SYNC;
@@ -333,6 +394,49 @@ mipsNN_icache_sync_range_index_32(vm_offset_t va, vm_size_t size)
 }
 
 void
+mipsNN_icache_sync_range_index_64(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva, tmpva;
+	int i, stride, loopcount;
+
+	/*
+	 * Since we're doing Index ops, we expect to not be able
+	 * to access the address we've been given.  So, get the
+	 * bits that determine the cache index, and make a KSEG0
+	 * address out of them.
+	 */
+	va = MIPS_PHYS_TO_KSEG0(va & picache_way_mask);
+
+	eva = round_line64(va + size);
+	va = trunc_line64(va);
+
+	/*
+	 * GCC generates better code in the loops if we reference local
+	 * copies of these global variables.
+	 */
+	stride = picache_stride;
+	loopcount = picache_loopcount;
+
+	mips_intern_dcache_wbinv_range_index(va, (eva - va));
+
+	while ((eva - va) >= (8 * 64)) {
+		tmpva = va;
+		for (i = 0; i < loopcount; i++, tmpva += stride)
+			cache_r4k_op_8lines_64(tmpva,
+			    CACHE_R4K_I|CACHEOP_R4K_INDEX_INV);
+		va += 8 * 64;
+	}
+
+	while (va < eva) {
+		tmpva = va;
+		for (i = 0; i < loopcount; i++, tmpva += stride)
+			cache_op_r4k_line(tmpva,
+			    CACHE_R4K_I|CACHEOP_R4K_INDEX_INV);
+		va += 64;
+	}
+}
+
+void
 mipsNN_pdcache_wbinv_all_16(void)
 {
 	vm_offset_t va, eva;
@@ -377,6 +481,28 @@ mipsNN_pdcache_wbinv_all_32(void)
 }
 
 void
+mipsNN_pdcache_wbinv_all_64(void)
+{
+	vm_offset_t va, eva;
+
+	va = MIPS_PHYS_TO_KSEG0(0);
+	eva = va + pdcache_size;
+
+	/*
+	 * Since we're hitting the whole thing, we don't have to
+	 * worry about the N different "ways".
+	 */
+
+	while (va < eva) {
+		cache_r4k_op_32lines_64(va,
+		    CACHE_R4K_D|CACHEOP_R4K_INDEX_WB_INV);
+		va += (32 * 64);
+	}
+
+	SYNC;
+}
+
+void
 mipsNN_pdcache_wbinv_range_16(vm_offset_t va, vm_size_t size)
 {
 	vm_offset_t eva;
@@ -415,6 +541,28 @@ mipsNN_pdcache_wbinv_range_32(vm_offset_t va, vm_size_t size)
 	while (va < eva) {
 		cache_op_r4k_line(va, CACHE_R4K_D|CACHEOP_R4K_HIT_WB_INV);
 		va += 32;
+	}
+
+	SYNC;
+}
+
+void
+mipsNN_pdcache_wbinv_range_64(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva;
+
+	eva = round_line64(va + size);
+	va = trunc_line64(va);
+
+	while ((eva - va) >= (32 * 64)) {
+		cache_r4k_op_32lines_64(va,
+		    CACHE_R4K_D|CACHEOP_R4K_HIT_WB_INV);
+		va += (32 * 64);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_D|CACHEOP_R4K_HIT_WB_INV);
+		va += 64;
 	}
 
 	SYNC;
@@ -501,6 +649,47 @@ mipsNN_pdcache_wbinv_range_index_32(vm_offset_t va, vm_size_t size)
 		va += 32;
 	}
 }
+
+void
+mipsNN_pdcache_wbinv_range_index_64(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva, tmpva;
+	int i, stride, loopcount;
+
+	/*
+	 * Since we're doing Index ops, we expect to not be able
+	 * to access the address we've been given.  So, get the
+	 * bits that determine the cache index, and make a KSEG0
+	 * address out of them.
+	 */
+	va = MIPS_PHYS_TO_KSEG0(va & pdcache_way_mask);
+
+	eva = round_line64(va + size);
+	va = trunc_line64(va);
+
+	/*
+	 * GCC generates better code in the loops if we reference local
+	 * copies of these global variables.
+	 */
+	stride = pdcache_stride;
+	loopcount = pdcache_loopcount;
+
+	while ((eva - va) >= (8 * 64)) {
+		tmpva = va;
+		for (i = 0; i < loopcount; i++, tmpva += stride)
+			cache_r4k_op_8lines_64(tmpva,
+			    CACHE_R4K_D|CACHEOP_R4K_INDEX_WB_INV);
+		va += 8 * 64;
+	}
+
+	while (va < eva) {
+		tmpva = va;
+		for (i = 0; i < loopcount; i++, tmpva += stride)
+			cache_op_r4k_line(tmpva,
+			    CACHE_R4K_D|CACHEOP_R4K_INDEX_WB_INV);
+		va += 64;
+	}
+}
  
 void
 mipsNN_pdcache_inv_range_16(vm_offset_t va, vm_size_t size)
@@ -539,6 +728,27 @@ mipsNN_pdcache_inv_range_32(vm_offset_t va, vm_size_t size)
 	while (va < eva) {
 		cache_op_r4k_line(va, CACHE_R4K_D|CACHEOP_R4K_HIT_INV);
 		va += 32;
+	}
+
+	SYNC;
+}
+
+void
+mipsNN_pdcache_inv_range_64(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva;
+
+	eva = round_line64(va + size);
+	va = trunc_line64(va);
+
+	while ((eva - va) >= (32 * 64)) {
+		cache_r4k_op_32lines_64(va, CACHE_R4K_D|CACHEOP_R4K_HIT_INV);
+		va += (32 * 64);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_D|CACHEOP_R4K_HIT_INV);
+		va += 64;
 	}
 
 	SYNC;
@@ -586,6 +796,26 @@ mipsNN_pdcache_wb_range_32(vm_offset_t va, vm_size_t size)
 	SYNC;
 }
 
+void
+mipsNN_pdcache_wb_range_64(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva;
+
+	eva = round_line64(va + size);
+	va = trunc_line64(va);
+
+	while ((eva - va) >= (32 * 64)) {
+		cache_r4k_op_32lines_64(va, CACHE_R4K_D|CACHEOP_R4K_HIT_WB);
+		va += (32 * 64);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_D|CACHEOP_R4K_HIT_WB);
+		va += 64;
+	}
+
+	SYNC;
+}
 
 #ifdef CPU_CNMIPS
 
@@ -635,4 +865,511 @@ mipsNN_pdcache_wb_range_128(vm_offset_t va, vm_size_t size)
 	SYNC;
 }
 
+#else
+
+void
+mipsNN_icache_sync_all_128(void)
+{
+	vm_offset_t va, eva;
+
+	va = MIPS_PHYS_TO_KSEG0(0);
+	eva = va + picache_size;
+
+	/*
+	 * Since we're hitting the whole thing, we don't have to
+	 * worry about the N different "ways".
+	 */
+
+	mips_intern_dcache_wbinv_all();
+
+	while (va < eva) {
+		cache_r4k_op_32lines_128(va, CACHE_R4K_I|CACHEOP_R4K_INDEX_INV);
+		va += (32 * 128);
+	}
+
+	SYNC;
+}
+
+void
+mipsNN_icache_sync_range_128(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva;
+
+	eva = round_line128(va + size);
+	va = trunc_line128(va);
+
+	mips_intern_dcache_wb_range(va, (eva - va));
+
+	while ((eva - va) >= (32 * 128)) {
+		cache_r4k_op_32lines_128(va, CACHE_R4K_I|CACHEOP_R4K_HIT_INV);
+		va += (32 * 128);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_I|CACHEOP_R4K_HIT_INV);
+		va += 128;
+	}
+
+	SYNC;
+}
+
+void
+mipsNN_icache_sync_range_index_128(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva, tmpva;
+	int i, stride, loopcount;
+
+	/*
+	 * Since we're doing Index ops, we expect to not be able
+	 * to access the address we've been given.  So, get the
+	 * bits that determine the cache index, and make a KSEG0
+	 * address out of them.
+	 */
+	va = MIPS_PHYS_TO_KSEG0(va & picache_way_mask);
+
+	eva = round_line128(va + size);
+	va = trunc_line128(va);
+
+	/*
+	 * GCC generates better code in the loops if we reference local
+	 * copies of these global variables.
+	 */
+	stride = picache_stride;
+	loopcount = picache_loopcount;
+
+	mips_intern_dcache_wbinv_range_index(va, (eva - va));
+
+	while ((eva - va) >= (32 * 128)) {
+		tmpva = va;
+		for (i = 0; i < loopcount; i++, tmpva += stride)
+			cache_r4k_op_32lines_128(tmpva,
+			    CACHE_R4K_I|CACHEOP_R4K_INDEX_INV);
+		va += 32 * 128;
+	}
+
+	while (va < eva) {
+		tmpva = va;
+		for (i = 0; i < loopcount; i++, tmpva += stride)
+			cache_op_r4k_line(tmpva,
+			    CACHE_R4K_I|CACHEOP_R4K_INDEX_INV);
+		va += 128;
+	}
+}
+
+void
+mipsNN_pdcache_wbinv_all_128(void)
+{
+	vm_offset_t va, eva;
+
+	va = MIPS_PHYS_TO_KSEG0(0);
+	eva = va + pdcache_size;
+
+	/*
+	 * Since we're hitting the whole thing, we don't have to
+	 * worry about the N different "ways".
+	 */
+
+	while (va < eva) {
+		cache_r4k_op_32lines_128(va,
+		    CACHE_R4K_D|CACHEOP_R4K_INDEX_WB_INV);
+		va += (32 * 128);
+	}
+
+	SYNC;
+}
+
+
+void
+mipsNN_pdcache_wbinv_range_128(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva;
+
+	eva = round_line128(va + size);
+	va = trunc_line128(va);
+
+	while ((eva - va) >= (32 * 128)) {
+		cache_r4k_op_32lines_128(va,
+		    CACHE_R4K_D|CACHEOP_R4K_HIT_WB_INV);
+		va += (32 * 128);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_D|CACHEOP_R4K_HIT_WB_INV);
+		va += 128;
+	}
+
+	SYNC;
+}
+
+void
+mipsNN_pdcache_wbinv_range_index_128(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva, tmpva;
+	int i, stride, loopcount;
+
+	/*
+	 * Since we're doing Index ops, we expect to not be able
+	 * to access the address we've been given.  So, get the
+	 * bits that determine the cache index, and make a KSEG0
+	 * address out of them.
+	 */
+	va = MIPS_PHYS_TO_KSEG0(va & pdcache_way_mask);
+
+	eva = round_line128(va + size);
+	va = trunc_line128(va);
+
+	/*
+	 * GCC generates better code in the loops if we reference local
+	 * copies of these global variables.
+	 */
+	stride = pdcache_stride;
+	loopcount = pdcache_loopcount;
+
+	while ((eva - va) >= (32 * 128)) {
+		tmpva = va;
+		for (i = 0; i < loopcount; i++, tmpva += stride)
+			cache_r4k_op_32lines_128(tmpva,
+			    CACHE_R4K_D|CACHEOP_R4K_INDEX_WB_INV);
+		va += 32 * 128;
+	}
+
+	while (va < eva) {
+		tmpva = va;
+		for (i = 0; i < loopcount; i++, tmpva += stride)
+			cache_op_r4k_line(tmpva,
+			    CACHE_R4K_D|CACHEOP_R4K_INDEX_WB_INV);
+		va += 128;
+	}
+}
+
+void
+mipsNN_pdcache_inv_range_128(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva;
+
+	eva = round_line128(va + size);
+	va = trunc_line128(va);
+
+	while ((eva - va) >= (32 * 128)) {
+		cache_r4k_op_32lines_128(va, CACHE_R4K_D|CACHEOP_R4K_HIT_INV);
+		va += (32 * 128);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_D|CACHEOP_R4K_HIT_INV);
+		va += 128;
+	}
+
+	SYNC;
+}
+
+void
+mipsNN_pdcache_wb_range_128(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva;
+
+	eva = round_line128(va + size);
+	va = trunc_line128(va);
+
+	while ((eva - va) >= (32 * 128)) {
+		cache_r4k_op_32lines_128(va, CACHE_R4K_D|CACHEOP_R4K_HIT_WB);
+		va += (32 * 128);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_D|CACHEOP_R4K_HIT_WB);
+		va += 128;
+	}
+
+	SYNC;
+}
+
 #endif
+
+void
+mipsNN_sdcache_wbinv_all_32(void)
+{
+	vm_offset_t va = MIPS_PHYS_TO_KSEG0(0);
+	vm_offset_t eva = va + sdcache_size;
+
+	while (va < eva) {
+		cache_r4k_op_32lines_32(va,
+		    CACHE_R4K_SD|CACHEOP_R4K_INDEX_WB_INV);
+		va += (32 * 32);
+	}
+}
+
+void
+mipsNN_sdcache_wbinv_all_64(void)
+{
+	vm_offset_t va = MIPS_PHYS_TO_KSEG0(0);
+	vm_offset_t eva = va + sdcache_size;
+
+	while (va < eva) {
+		cache_r4k_op_32lines_64(va,
+		    CACHE_R4K_SD|CACHEOP_R4K_INDEX_WB_INV);
+		va += (32 * 64);
+	}
+}
+
+void
+mipsNN_sdcache_wbinv_range_32(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva = round_line32(va + size);
+
+	va = trunc_line32(va);
+
+	while ((eva - va) >= (32 * 32)) {
+		cache_r4k_op_32lines_32(va,
+		    CACHE_R4K_SD|CACHEOP_R4K_HIT_WB_INV);
+		va += (32 * 32);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_WB_INV);
+		va += 32;
+	}
+}
+
+void
+mipsNN_sdcache_wbinv_range_64(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva = round_line64(va + size);
+
+	va = trunc_line64(va);
+
+	while ((eva - va) >= (32 * 64)) {
+		cache_r4k_op_32lines_64(va,
+		    CACHE_R4K_SD|CACHEOP_R4K_HIT_WB_INV);
+		va += (32 * 64);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_WB_INV);
+		va += 64;
+	}
+}
+
+void
+mipsNN_sdcache_wbinv_range_index_32(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva;
+
+	/*
+	 * Since we're doing Index ops, we expect to not be able
+	 * to access the address we've been given.  So, get the
+	 * bits that determine the cache index, and make a KSEG0
+	 * address out of them.
+	 */
+	va = MIPS_PHYS_TO_KSEG0(va & (sdcache_size - 1));
+
+	eva = round_line32(va + size);
+	va = trunc_line32(va);
+
+	while ((eva - va) >= (32 * 32)) {
+		cache_r4k_op_32lines_32(va,
+		    CACHE_R4K_SD|CACHEOP_R4K_INDEX_WB_INV);
+		va += (32 * 32);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_INDEX_WB_INV);
+		va += 32;
+	}
+}
+
+void
+mipsNN_sdcache_wbinv_range_index_64(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva;
+
+	/*
+	 * Since we're doing Index ops, we expect to not be able
+	 * to access the address we've been given.  So, get the
+	 * bits that determine the cache index, and make a KSEG0
+	 * address out of them.
+	 */
+	va = MIPS_PHYS_TO_KSEG0(va & (sdcache_size - 1));
+
+	eva = round_line64(va + size);
+	va = trunc_line64(va);
+
+	while ((eva - va) >= (32 * 64)) {
+		cache_r4k_op_32lines_64(va,
+		    CACHE_R4K_SD|CACHEOP_R4K_INDEX_WB_INV);
+		va += (32 * 64);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_INDEX_WB_INV);
+		va += 64;
+	}
+}
+
+void
+mipsNN_sdcache_inv_range_32(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva = round_line32(va + size);
+
+	va = trunc_line32(va);
+
+	while ((eva - va) >= (32 * 32)) {
+		cache_r4k_op_32lines_32(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_INV);
+		va += (32 * 32);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_INV);
+		va += 32;
+	}
+}
+
+void
+mipsNN_sdcache_inv_range_64(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva = round_line64(va + size);
+
+	va = trunc_line64(va);
+
+	while ((eva - va) >= (32 * 64)) {
+		cache_r4k_op_32lines_64(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_INV);
+		va += (32 * 64);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_INV);
+		va += 64;
+	}
+}
+
+void
+mipsNN_sdcache_wb_range_32(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva = round_line32(va + size);
+
+	va = trunc_line32(va);
+
+	while ((eva - va) >= (32 * 32)) {
+		cache_r4k_op_32lines_32(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_WB);
+		va += (32 * 32);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_WB);
+		va += 32;
+	}
+}
+
+void
+mipsNN_sdcache_wb_range_64(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva = round_line64(va + size);
+
+	va = trunc_line64(va);
+
+	while ((eva - va) >= (32 * 64)) {
+		cache_r4k_op_32lines_64(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_WB);
+		va += (32 * 64);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_WB);
+		va += 64;
+	}
+}
+
+void
+mipsNN_sdcache_wbinv_all_128(void)
+{
+	vm_offset_t va = MIPS_PHYS_TO_KSEG0(0);
+	vm_offset_t eva = va + sdcache_size;
+
+	while (va < eva) {
+		cache_r4k_op_32lines_128(va,
+		    CACHE_R4K_SD|CACHEOP_R4K_INDEX_WB_INV);
+		va += (32 * 128);
+	}
+}
+
+void
+mipsNN_sdcache_wbinv_range_128(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva = round_line128(va + size);
+
+	va = trunc_line128(va);
+
+	while ((eva - va) >= (32 * 128)) {
+		cache_r4k_op_32lines_128(va,
+		    CACHE_R4K_SD|CACHEOP_R4K_HIT_WB_INV);
+		va += (32 * 128);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_WB_INV);
+		va += 128;
+	}
+}
+
+void
+mipsNN_sdcache_wbinv_range_index_128(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva;
+
+	/*
+	 * Since we're doing Index ops, we expect to not be able
+	 * to access the address we've been given.  So, get the
+	 * bits that determine the cache index, and make a KSEG0
+	 * address out of them.
+	 */
+	va = MIPS_PHYS_TO_KSEG0(va & (sdcache_size - 1));
+
+	eva = round_line128(va + size);
+	va = trunc_line128(va);
+
+	while ((eva - va) >= (32 * 128)) {
+		cache_r4k_op_32lines_128(va,
+		    CACHE_R4K_SD|CACHEOP_R4K_INDEX_WB_INV);
+		va += (32 * 128);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_INDEX_WB_INV);
+		va += 128;
+	}
+}
+
+void
+mipsNN_sdcache_inv_range_128(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva = round_line128(va + size);
+
+	va = trunc_line128(va);
+
+	while ((eva - va) >= (32 * 128)) {
+		cache_r4k_op_32lines_128(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_INV);
+		va += (32 * 128);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_INV);
+		va += 128;
+	}
+}
+
+void
+mipsNN_sdcache_wb_range_128(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t eva = round_line128(va + size);
+
+	va = trunc_line128(va);
+
+	while ((eva - va) >= (32 * 128)) {
+		cache_r4k_op_32lines_128(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_WB);
+		va += (32 * 128);
+	}
+
+	while (va < eva) {
+		cache_op_r4k_line(va, CACHE_R4K_SD|CACHEOP_R4K_HIT_WB);
+		va += 128;
+	}
+}

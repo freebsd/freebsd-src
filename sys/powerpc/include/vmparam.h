@@ -38,7 +38,7 @@
 #define	USRSTACK	SHAREDPAGE
 
 #ifndef	MAXTSIZ
-#define	MAXTSIZ		(64*1024*1024)		/* max text size */
+#define	MAXTSIZ		(1*1024*1024*1024)		/* max text size */
 #endif
 
 #ifndef	DFLDSIZ
@@ -136,13 +136,12 @@ struct pmap_physseg {
 #endif
 
 /*
- * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
+ * Create two free page pools: VM_FREEPOOL_DEFAULT is the default pool
  * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
  * the pool from which physical pages for small UMA objects are
  * allocated.
  */
-#define	VM_NFREEPOOL		3
-#define	VM_FREEPOOL_CACHE	2
+#define	VM_NFREEPOOL		2
 #define	VM_FREEPOOL_DEFAULT	0
 #define	VM_FREEPOOL_DIRECT	1
 
@@ -197,4 +196,19 @@ struct pmap_physseg {
 
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
 
+/*
+ * On 32-bit OEA, the only purpose for which sf_buf is used is to implement
+ * an opaque pointer required by the machine-independent parts of the kernel.
+ * That pointer references the vm_page that is "mapped" by the sf_buf.  The
+ * actual mapping is provided by the direct virtual-to-physical mapping.
+ *
+ * On OEA64 and Book-E, we need to do something a little more complicated. Use
+ * the runtime-detected hw_direct_map to pick between the two cases. Our
+ * friends in vm_machdep.c will do the same to ensure nothing gets confused.
+ */
+#define	SFBUF
+#define	SFBUF_NOMD
+#define	SFBUF_OPTIONAL_DIRECT_MAP	hw_direct_map
+#define	SFBUF_PHYS_DMAP(x)		(x)
+ 
 #endif /* _MACHINE_VMPARAM_H_ */

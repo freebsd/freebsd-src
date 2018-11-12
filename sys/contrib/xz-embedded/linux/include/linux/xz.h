@@ -256,6 +256,22 @@ XZ_EXTERN void xz_dec_end(struct xz_dec *s);
 #	endif
 #endif
 
+/*
+ * If CRC64 support has been enabled with XZ_USE_CRC64, a CRC64
+ * implementation is needed too.
+ */
+#ifndef XZ_USE_CRC64
+#	undef XZ_INTERNAL_CRC64
+#	define XZ_INTERNAL_CRC64 0
+#endif
+#ifndef XZ_INTERNAL_CRC64
+#	ifdef __KERNEL__
+#		error Using CRC64 in the kernel has not been implemented.
+#	else
+#		define XZ_INTERNAL_CRC64 1
+#	endif
+#endif
+
 #if XZ_INTERNAL_CRC32
 /*
  * This must be called before any other xz_* function to initialize
@@ -269,6 +285,21 @@ XZ_EXTERN void xz_crc32_init(void);
  * the previously returned value is passed as the third argument.
  */
 XZ_EXTERN uint32_t xz_crc32(const uint8_t *buf, size_t size, uint32_t crc);
+#endif
+
+#if XZ_INTERNAL_CRC64
+/*
+ * This must be called before any other xz_* function (except xz_crc32_init())
+ * to initialize the CRC64 lookup table.
+ */
+XZ_EXTERN void xz_crc64_init(void);
+
+/*
+ * Update CRC64 value using the polynomial from ECMA-182. To start a new
+ * calculation, the third argument must be zero. To continue the calculation,
+ * the previously returned value is passed as the third argument.
+ */
+XZ_EXTERN uint64_t xz_crc64(const uint8_t *buf, size_t size, uint64_t crc);
 #endif
 
 #ifdef __cplusplus

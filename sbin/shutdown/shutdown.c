@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <pwd.h>
@@ -322,7 +323,8 @@ timewarn(int timeleft)
 		(void)fprintf(pf, "System going down in %d minute%s\n\n",
 		    timeleft / 60, (timeleft > 60) ? "s" : "");
 	else if (timeleft)
-		(void)fprintf(pf, "System going down in 30 seconds\n\n");
+		(void)fprintf(pf, "System going down in %s30 seconds\n\n",
+		    (offset > 0 && offset < 30 ? "less than " : ""));
 	else
 		(void)fprintf(pf, "System going down IMMEDIATELY\n\n");
 
@@ -415,6 +417,7 @@ getoffset(char *timearg)
 	char *p;
 	time_t now;
 	int this_year;
+	char *timeunit;
 
 	(void)time(&now);
 
@@ -427,8 +430,25 @@ getoffset(char *timearg)
 	if (*timearg == '+') {				/* +minutes */
 		if (!isdigit(*++timearg))
 			badtime();
-		if ((offset = atoi(timearg) * 60) < 0)
+		errno = 0;
+		offset = strtol(timearg, &timeunit, 10);
+		if (offset < 0 || offset == LONG_MAX || errno != 0)
 			badtime();
+		if (timeunit[0] == '\0' || strcasecmp(timeunit, "m") == 0 ||
+		    strcasecmp(timeunit, "min") == 0 ||
+		    strcasecmp(timeunit, "mins") == 0) {
+			offset *= 60;
+		} else if (strcasecmp(timeunit, "h") == 0 ||
+		    strcasecmp(timeunit, "hour") == 0 ||
+		    strcasecmp(timeunit, "hours") == 0) {
+			offset *= 60 * 60;
+		} else if (strcasecmp(timeunit, "s") == 0 ||
+		    strcasecmp(timeunit, "sec") == 0 ||
+		    strcasecmp(timeunit, "secs") == 0) {
+			offset *= 1;
+		} else {
+			badtime();
+		}
 		shuttime = now + offset;
 		return;
 	}

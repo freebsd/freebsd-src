@@ -28,8 +28,6 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef __ARM_EABI__
-
 /*
  * This implements
  *  void __aeabi_memset(void *dest, size_t len, int c)
@@ -44,6 +42,3 @@ ENTRY_NP(__aeabi_memset)
 	mov	r1, r3
 	b	memset
 END(__aeabi_memset)
-
-#endif
-

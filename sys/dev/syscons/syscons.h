@@ -145,9 +145,9 @@
 /*
    The following #defines are hard-coded for a maximum text
    resolution corresponding to a maximum framebuffer
-   resolution of 1600x1200 with an 8x8 font...
+   resolution of 1920x1200 with an 8x8 font...
 */
-#define	COL		200
+#define	COL		240
 #define	ROW		150
 
 #define PCBURST		128

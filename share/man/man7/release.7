@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2013
+.Dd February 20, 2015
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -138,6 +138,11 @@ configuration file supports the following variables:
 .Bl -tag -width Ev
 .It Va CHROOTDIR
 The directory within which the release will be built.
+.It Va CHROOT_MAKEENV
+Additional
+.Xr make 1
+arguments to pass through, which directly affect the
+tuning of the build chroot.
 .It Va SVNROOT
 The
 .Xr svn 1
@@ -245,7 +250,221 @@ Setting this also sets
 Set to a non-empty value to include the
 .Cm dvdrom
 target.
+.It Va WITH_COMPRESSED_IMAGES
+Set to a non-empty value to compress the release images with
+.Xr xz 1 .
+The original
+.Pq uncompressed
+images are not removed.
+.It Va XZ_THREADS Pq Vt int
+Set to the number of threads
+.Xr xz 1
+should use when compressing images.
+By default,
+.Va XZ_THREADS
+is set to
+.Va 0 ,
+which uses all available cores on the system.
+.It Va VCSCMD
+The command run to obtain the source trees.
+Defaults to
+.Qq Cm svn checkout .
+.It Va CHROOTBUILD_SKIP
+If defined, the
+.Li buildworld ,
+.Li installworld ,
+and
+.Li distribution
+stages of the
+.Xr chroot 8
+build environment setup are skipped.
+This is intended solely for cases where the
+.Xr chroot 8
+userland are provided by alternate means.
+.It Va SRC_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/src
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/src
+is expected to exist by alternative means.
+.It Va DOC_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/doc
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/doc
+is expected to exist by alternative means.
+.It Va PORTS_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/ports
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/ports
+is expected to exist by alternative means.
 .El
+.Sh EMBEDDED BUILDS
+The following
+.Fa release.conf
+variables are relevant only to release builds for embedded systems:
+.Bl -tag -width Ev
+.It Va EMBEDDEDBUILD
+Set to a non-null value to enable functionality for embedded device
+release builds.
+.Pq This option is considered highly experimental.
+.Pp
+When set,
+.Va WITH_DVD
+is unset, and
+.Va NODOC
+is defined.
+Additionally,
+.Va XDEV
+and
+.Va XDEV_ARCH
+must also be defined.
+When the build environment is created,
+.Fa release.sh
+runs a separate build script located in an architecture-specific
+directory in
+.Pa src/release/${XDEV}/ .
+.It Va EMBEDDEDPORTS
+Set to the list of any ports that are required for the target device
+in the format of
+.Fa category/port .
+The
+.Fa devel/subversion
+port is built by default.
+.It Va CROCHETSRC
+Set to the source URL for the Crochet build tool.
+.It Va CROCHETBRANCH
+Set to the subversion branch from
+.Va ${CROCHETSRC}
+to use.
+Defaults to
+.Pa trunk .
+.It Va UBOOTSRC
+Set to the source URL of u-boot, if required.
+.It Va UBOOTBRANCH
+Set to the subversion branch from
+.Va ${UBOOTSRC}
+to use.
+Defaults to
+.Pa trunk .
+.It Va UBOOTDIR
+Set to the target directory within
+.Va ${CHROOTDIR}
+to check out
+.Va ${UBOOTSRC}/${UBOOTBRANCH} .
+.El
+.Sh VIRTUAL MACHINE DISK IMAGES
+The following
+.Fa release.conf
+variables are relevant only to virtual machine disk image builds:
+.Bl -tag -width Ev
+.It Va WITH_VMIMAGES
+Set to a non-null value to build virtual machine disk images as part
+of the release build.
+.Va WITH_VMIMAGES
+may also be specified as an envirionment variable passed to
+.Xr make 1 .
+.Pp
+The option requires
+.Xr mkimg 1
+version 20140927 or later.
+.It Va WITH_COMPRESSED_VMIMAGES
+Set to a non-null value to compress the virtual machine disk images with
+.Xr xz 1
+as part of the
+.Cm install
+.Xr make 1
+target.
+Note that compressing virtual machine disk images may take a very long
+time on some systems.
+.It Va VMBASE
+Set to change the name of the resulting virtual machine disk image file.
+The default value is
+.Va vm .
+.It Va VMSIZE
+Set to change the size of the virtual machine disk capacity.
+The default value is
+.Va 20G .
+See
+.Xr truncate 1
+for valid values.
+.Pp
+Virtual machine disk images are, by default, created as sparse images.
+When
+.Va WITH_COMPRESSED_VMIMAGES
+is used, the resulting files compressed with
+.Xr xz 1
+compress to roughly the same size, regardless of the specified disk image
+size.
+.It Va VMFORMATS
+Set to the target virtual disk image format(s) to create.
+By default, the
+.Va vhdf , Va vmdk , Va qcow2 ,
+and
+.Va raw
+formats are created.
+See
+.Xr mkimg 1
+for valid format values
+.Pq requires version 20140927 or later .
+.El
+.Pp
+For a list of supported
+.Va VMFORMATS
+values
+.Pq including cloud hosting provider formats
+along with a brief description, run:
+.Bd -literal -offset indent
+cd /usr/src
+make -C release list-vmtargets
+.Ed
+.Sh CLOUD HOSTING MACHINE IMAGES
+The
+.Fx
+release build tools support building virtual machine images for various
+cloud hosting providers, each with their own specific configuration to
+include support for each hosting provider by default.
+.Pp
+The following
+.Xr make 1
+environment variables are supported:
+.Bl -tag -width Ev
+.It Va CLOUDWARE
+Set to a list of one or more cloud hosting providers, enclosed in quotes.
+Requires
+.Va WITH_CLOUDWARE
+to also be set.
+.It Va WITH_CLOUDWARE
+Set to a non-empty value to enable building virtual machine images
+for various cloud hosting providers.
+Requires
+.Va CLOUDWARE
+to also be set.
+.El
+.Pp
+Additionally, the
+.Va CLOUDWARE
+and
+.Va WITH_CLOUDWARE
+variables can be added to
+.Pa release.conf ,
+and used in conjunction with
+.Pa release.sh .
+.Pp
+For a list of supported
+.Va CLOUDWARE
+values, run:
+.Bd -literal -offset indent
+cd /usr/src
+make -C release list-cloudware
+.Ed
 .Sh MAKEFILE TARGETS
 The release makefile
 .Pq Pa src/release/Makefile
@@ -302,6 +521,31 @@ Creates a directory named
 .Pa ftp
 containing the distribution files used in network installations
 and suitable for upload to an FTP mirror.
+.It Cm vm-image
+Creates virtual machine disk images in various formats.
+The
+.Cm vm-image
+target requires the
+.Va WITH_VMIMAGES
+.Xr make 1
+envirionment variable to be set to a non-null value.
+.It Cm vm-cloudware
+Builds
+.Fx
+virtual machine images for various cloud hosting providers.
+See
+.Qq CLOUD HOSTING MACHINE IMAGES
+for implementation details.
+.It Cm list-cloudware
+Displays the list of valid
+.Va CLOUDWARE
+values.
+.It Cm list-vmtargets
+Displays the list of valid
+.Va VMFORMAT
+and
+.Va CLOUDWARE
+values.
 .El
 .Pp
 Major subtargets called by targets above:
@@ -310,7 +554,7 @@ Major subtargets called by targets above:
 Generates all the distribution archives
 .Pq base, kernel, ports, doc
 applicable on this platform.
-.It Cm system
+.It Cm disc1
 Builds a bootable installation system containing all the distribution files
 packaged by the
 .Cm packagesystem
@@ -408,8 +652,11 @@ Typically, one only needs to set
 .It Pa /usr/src/Makefile
 .It Pa /usr/src/Makefile.inc1
 .It Pa /usr/src/release/Makefile
+.It Pa /usr/src/release/Makefile.vm
 .It Pa /usr/src/release/release.sh
 .It Pa /usr/src/release/release.conf.sample
+.It Pa /usr/src/release/tools/*.conf
+.It Pa /usr/src/release/tools/vmimage.subr
 .El
 .Sh EXAMPLES
 The following sequence of commands can be used to build a
@@ -531,10 +778,10 @@ and
 .An Poul-Henning Kamp .
 .Pp
 This manual page was originally written by
-.An Murray Stokely Aq murray@FreeBSD.org .
+.An Murray Stokely Aq Mt murray@FreeBSD.org .
 .Pp
 It was updated by
-.An Nathan Whitehorn Aq nwhitehorn@FreeBSD.org
+.An Nathan Whitehorn Aq Mt nwhitehorn@FreeBSD.org
 to include the
 .Fa generate-release.sh
 script used for the
@@ -542,7 +789,7 @@ script used for the
 release cycle.
 .Pp
 It was later updated by
-.An Glen Barber Aq gjb@FreeBSD.org
+.An Glen Barber Aq Mt gjb@FreeBSD.org
 to include the
 .Fa release.sh
 script used for the

@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: worker.c,v 8.25 2013/11/22 20:51:37 ca Exp $")
+SM_RCSID("@(#)$Id: worker.c,v 8.25 2013-11-22 20:51:37 ca Exp $")
 
 #include "libmilter.h"
 
@@ -254,7 +254,7 @@ nonblocking(int fd, const char *name)
 }
 
 /*
-**  MI_POOL_CONTROLER_INIT -- Launch the worker pool controller
+**  MI_POOL_CONTROLLER_INIT -- Launch the worker pool controller
 **		Must be called before starting sessions.
 **
 **	Parameters:

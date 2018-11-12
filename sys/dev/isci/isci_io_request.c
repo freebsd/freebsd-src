@@ -680,7 +680,7 @@ isci_request_construct(struct ISCI_REQUEST *request,
 	request->dma_tag = io_buffer_dma_tag;
 	request->physical_address = physical_address;
 	bus_dmamap_create(request->dma_tag, 0, &request->dma_map);
-	callout_init(&request->timer, CALLOUT_MPSAFE);
+	callout_init(&request->timer, 1);
 }
 
 static void
@@ -731,8 +731,9 @@ isci_io_request_construct(void *arg, bus_dma_segment_t *seg, int nseg,
 	}
 
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY)
-		callout_reset(&io_request->parent.timer, ccb->ccb_h.timeout,
-		    isci_io_request_timeout, io_request);
+		callout_reset_sbt(&io_request->parent.timer,
+		    SBT_1MS * ccb->ccb_h.timeout, 0, isci_io_request_timeout,
+		    io_request, 0);
 }
 
 void
@@ -983,7 +984,8 @@ isci_io_request_execute_smp_io(union ccb *ccb,
 	}
 
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY)
-		callout_reset(&io_request->parent.timer, ccb->ccb_h.timeout,
-		    isci_io_request_timeout, request);
+		callout_reset_sbt(&io_request->parent.timer,
+		    SBT_1MS *  ccb->ccb_h.timeout, 0, isci_io_request_timeout,
+		    request, 0);
 }
 #endif

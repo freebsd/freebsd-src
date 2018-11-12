@@ -244,12 +244,6 @@ uart_tty_param(struct tty *tp, struct termios *t)
 		return (ENODEV);
 	if (t->c_ispeed != t->c_ospeed && t->c_ospeed != 0)
 		return (EINVAL);
-	/* Fixate certain parameters for system devices. */
-	if (sc->sc_sysdev != NULL) {
-		t->c_ispeed = t->c_ospeed = sc->sc_sysdev->baudrate;
-		t->c_cflag |= CLOCAL;
-		t->c_cflag &= ~HUPCL;
-	}
 	if (t->c_ospeed == 0) {
 		UART_SETSIG(sc, SER_DDTR | SER_DRTS);
 		return (0);
@@ -386,7 +380,7 @@ uart_tty_attach(struct uart_softc *sc)
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
 		sprintf(((struct consdev *)sc->sc_sysdev->cookie)->cn_name,
 		    "ttyu%r", unit);
-		tty_init_console(tp, 0);
+		tty_init_console(tp, sc->sc_sysdev->baudrate);
 	}
 
 	swi_add(&tty_intr_event, uart_driver_name, uart_tty_intr, sc, SWI_TTY,
@@ -409,4 +403,14 @@ uart_tty_detach(struct uart_softc *sc)
 	tty_rel_gone(tp);
 
 	return (0);
+}
+
+struct mtx *
+uart_tty_getlock(struct uart_softc *sc)
+{
+
+	if (sc->sc_u.u_tty.tp != NULL)
+		return (tty_getlock(sc->sc_u.u_tty.tp));
+	else
+		return (NULL);
 }

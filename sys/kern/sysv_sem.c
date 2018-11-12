@@ -196,7 +196,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, semmns, CTLFLAG_RDTUN, &seminfo.semmns, 0,
     "Maximum number of semaphores in the system");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semmnu, CTLFLAG_RDTUN, &seminfo.semmnu, 0,
     "Maximum number of undo structures in the system");
-SYSCTL_INT(_kern_ipc, OID_AUTO, semmsl, CTLFLAG_RW, &seminfo.semmsl, 0,
+SYSCTL_INT(_kern_ipc, OID_AUTO, semmsl, CTLFLAG_RWTUN, &seminfo.semmsl, 0,
     "Max semaphores per id");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semopm, CTLFLAG_RDTUN, &seminfo.semopm, 0,
     "Max operations per semop call");
@@ -204,9 +204,9 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, semume, CTLFLAG_RDTUN, &seminfo.semume, 0,
     "Max undo entries per process");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semusz, CTLFLAG_RDTUN, &seminfo.semusz, 0,
     "Size in bytes of undo structure");
-SYSCTL_INT(_kern_ipc, OID_AUTO, semvmx, CTLFLAG_RW, &seminfo.semvmx, 0,
+SYSCTL_INT(_kern_ipc, OID_AUTO, semvmx, CTLFLAG_RWTUN, &seminfo.semvmx, 0,
     "Semaphore maximum value");
-SYSCTL_INT(_kern_ipc, OID_AUTO, semaem, CTLFLAG_RW, &seminfo.semaem, 0,
+SYSCTL_INT(_kern_ipc, OID_AUTO, semaem, CTLFLAG_RWTUN, &seminfo.semaem, 0,
     "Adjust on exit max value");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, sema, CTLTYPE_OPAQUE | CTLFLAG_RD,
     NULL, 0, sysctl_sema, "", "Semaphore id pool");
@@ -249,16 +249,6 @@ seminit(void)
 {
 	int i, error;
 
-	TUNABLE_INT_FETCH("kern.ipc.semmni", &seminfo.semmni);
-	TUNABLE_INT_FETCH("kern.ipc.semmns", &seminfo.semmns);
-	TUNABLE_INT_FETCH("kern.ipc.semmnu", &seminfo.semmnu);
-	TUNABLE_INT_FETCH("kern.ipc.semmsl", &seminfo.semmsl);
-	TUNABLE_INT_FETCH("kern.ipc.semopm", &seminfo.semopm);
-	TUNABLE_INT_FETCH("kern.ipc.semume", &seminfo.semume);
-	TUNABLE_INT_FETCH("kern.ipc.semusz", &seminfo.semusz);
-	TUNABLE_INT_FETCH("kern.ipc.semvmx", &seminfo.semvmx);
-	TUNABLE_INT_FETCH("kern.ipc.semaem", &seminfo.semaem);
-
 	sem = malloc(sizeof(struct sem) * seminfo.semmns, M_SEM, M_WAITOK);
 	sema = malloc(sizeof(struct semid_kernel) * seminfo.semmni, M_SEM,
 	    M_WAITOK);
@@ -288,11 +278,11 @@ seminit(void)
 	semexit_tag = EVENTHANDLER_REGISTER(process_exit, semexit_myhook, NULL,
 	    EVENTHANDLER_PRI_ANY);
 
-	error = syscall_helper_register(sem_syscalls);
+	error = syscall_helper_register(sem_syscalls, SY_THR_STATIC_KLD);
 	if (error != 0)
 		return (error);
 #ifdef COMPAT_FREEBSD32
-	error = syscall32_helper_register(sem32_syscalls);
+	error = syscall32_helper_register(sem32_syscalls, SY_THR_STATIC_KLD);
 	if (error != 0)
 		return (error);
 #endif
@@ -925,12 +915,14 @@ sys_semget(struct thread *td, struct semget_args *uap)
 			goto done2;
 		}
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		error = racct_add(td->td_proc, RACCT_NSEM, nsems);
-		PROC_UNLOCK(td->td_proc);
-		if (error != 0) {
-			error = ENOSPC;
-			goto done2;
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			error = racct_add(td->td_proc, RACCT_NSEM, nsems);
+			PROC_UNLOCK(td->td_proc);
+			if (error != 0) {
+				error = ENOSPC;
+				goto done2;
+			}
 		}
 #endif
 		DPRINTF(("semid %d is available\n", semid));
@@ -1019,12 +1011,15 @@ sys_semop(struct thread *td, struct semop_args *uap)
 		return (E2BIG);
 	} else {
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		if (nsops > racct_get_available(td->td_proc, RACCT_NSEMOP)) {
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			if (nsops >
+			    racct_get_available(td->td_proc, RACCT_NSEMOP)) {
+				PROC_UNLOCK(td->td_proc);
+				return (E2BIG);
+			}
 			PROC_UNLOCK(td->td_proc);
-			return (E2BIG);
 		}
-		PROC_UNLOCK(td->td_proc);
 #endif
 
 		sops = malloc(nsops * sizeof(*sops), M_TEMP, M_WAITOK);

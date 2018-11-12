@@ -2,7 +2,6 @@
 
 PROG=		ath3kfw
 MAN=		ath3kfw.8
-DPADD+=		${LIBUSB}
-LDADD+=		-lusb
+LIBADD+=	usb
 
 .include <bsd.prog.mk>

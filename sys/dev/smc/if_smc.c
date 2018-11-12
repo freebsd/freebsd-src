@@ -512,7 +512,7 @@ smc_start_locked(struct ifnet *ifp)
 	len += (len & 1);
 	if (len > ETHER_MAX_LEN - ETHER_CRC_LEN) {
 		if_printf(ifp, "large packet discarded\n");
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		return; /* XXX readcheck? */
 	}
@@ -527,7 +527,7 @@ smc_start_locked(struct ifnet *ifp)
 	 * Work out how many 256 byte "pages" we need.  We have to include the
 	 * control data for the packet in this calculation.
 	 */
-	npages = (len * PKT_CTRL_DATA_LEN) >> 8;
+	npages = (len + PKT_CTRL_DATA_LEN) >> 8;
 	if (npages == 0)
 		npages = 1;
 
@@ -598,7 +598,7 @@ smc_task_tx(void *context, int pending)
 	 */
 	if (packet & ARR_FAILED) {
 		IFQ_DRV_PREPEND(&ifp->if_snd, m);
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		smc_start_locked(ifp);
 		SMC_UNLOCK(sc);
@@ -655,7 +655,7 @@ smc_task_tx(void *context, int pending)
 	/*
 	 * Finish up.
 	 */
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	SMC_UNLOCK(sc);
 	BPF_MTAP(ifp, m0);
@@ -693,8 +693,7 @@ smc_task_rx(void *context, int pending)
 		if (m == NULL) {
 			break;
 		}
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			m_freem(m);
 			break;
 		}
@@ -721,7 +720,7 @@ smc_task_rx(void *context, int pending)
 		if (status & (RX_TOOSHORT | RX_TOOLNG | RX_BADCRC | RX_ALGNERR)) {
 			smc_mmu_wait(sc);
 			smc_write_2(sc, MMUCR, MMUCR_CMD_RELEASE);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			m_freem(m);
 			break;
 		}
@@ -777,7 +776,7 @@ smc_task_rx(void *context, int pending)
 		m = mhead;
 		mhead = mhead->m_next;
 		m->m_next = NULL;
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		(*ifp->if_input)(ifp, m);
 	}
 }
@@ -806,12 +805,24 @@ static int
 smc_intr(void *context)
 {
 	struct smc_softc	*sc;
-	
+	uint32_t curbank;
+
 	sc = (struct smc_softc *)context;
+
+	/*
+	 * Save current bank and restore later in this function
+	 */
+	curbank = (smc_read_2(sc, BSR) & BSR_BANK_MASK);
+
 	/*
 	 * Block interrupts in order to let smc_task_intr to kick in
 	 */
+	smc_select_bank(sc, 2);
 	smc_write_1(sc, MSK, 0);
+
+	/* Restore bank */
+	smc_select_bank(sc, curbank);
+
 	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
 	return (FILTER_HANDLED);
 }
@@ -845,13 +856,19 @@ smc_task_intr(void *context, int pending)
 		 */
 		packet = smc_read_1(sc, FIFO_TX);
 		if ((packet & FIFO_EMPTY) == 0) {
+			callout_stop(&sc->smc_watchdog);
+			smc_select_bank(sc, 2);
 			smc_write_1(sc, PNR, packet);
 			smc_write_2(sc, PTR, 0 | PTR_READ | 
 			    PTR_AUTO_INCR);
-			tcr = smc_read_2(sc, DATA0);
+			smc_select_bank(sc, 0);
+			tcr = smc_read_2(sc, EPHSR);
+#if 0
 			if ((tcr & EPHSR_TX_SUC) == 0)
 				device_printf(sc->smc_dev,
 				    "bad packet\n");
+#endif
+			smc_select_bank(sc, 2);
 			smc_mmu_wait(sc);
 			smc_write_2(sc, MMUCR, MMUCR_CMD_RELEASE_PKT);
 
@@ -892,7 +909,7 @@ smc_task_intr(void *context, int pending)
 	 */
 	if (status & RX_OVRN_INT) {
 		smc_write_1(sc, ACK, RX_OVRN_INT);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 	}
 
 	/*
@@ -909,10 +926,9 @@ smc_task_intr(void *context, int pending)
 		smc_select_bank(sc, 0);
 		counter = smc_read_2(sc, ECR);
 		smc_select_bank(sc, 2);
-		ifp->if_collisions +=
-		    (counter & ECR_SNGLCOL_MASK) >> ECR_SNGLCOL_SHIFT;
-		ifp->if_collisions +=
-		    (counter & ECR_MULCOL_MASK) >> ECR_MULCOL_SHIFT;
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+		    ((counter & ECR_SNGLCOL_MASK) >> ECR_SNGLCOL_SHIFT) +
+		    ((counter & ECR_MULCOL_MASK) >> ECR_MULCOL_SHIFT));
 
 		/*
 		 * See if there are any packets to transmit.
@@ -923,6 +939,7 @@ smc_task_intr(void *context, int pending)
 	/*
 	 * Update the interrupt mask.
 	 */
+	smc_select_bank(sc, 2);
 	if ((ifp->if_capenable & IFCAP_POLLING) == 0)
 		smc_write_1(sc, MSK, sc->smc_mask);
 

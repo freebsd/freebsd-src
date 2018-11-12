@@ -107,7 +107,7 @@ public:
   SourceLocation getLocStart() const LLVM_READONLY { return AtCatchLoc; }
   SourceLocation getLocEnd() const LLVM_READONLY { return Body->getLocEnd(); }
 
-  bool hasEllipsis() const { return getCatchParamDecl() == 0; }
+  bool hasEllipsis() const { return getCatchParamDecl() == nullptr; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCAtCatchStmtClass;
@@ -181,13 +181,12 @@ private:
       HasFinally(HasFinally) { }
 
 public:
-  static ObjCAtTryStmt *Create(ASTContext &Context, SourceLocation atTryLoc, 
-                               Stmt *atTryStmt,
+  static ObjCAtTryStmt *Create(const ASTContext &Context,
+                               SourceLocation atTryLoc, Stmt *atTryStmt,
                                Stmt **CatchStmts, unsigned NumCatchStmts,
                                Stmt *atFinallyStmt);
-  static ObjCAtTryStmt *CreateEmpty(ASTContext &Context, 
-                                    unsigned NumCatchStmts,
-                                    bool HasFinally);
+  static ObjCAtTryStmt *CreateEmpty(const ASTContext &Context,
+                                    unsigned NumCatchStmts, bool HasFinally);
   
   /// \brief Retrieve the location of the @ in the \@try.
   SourceLocation getAtTryLoc() const { return AtTryLoc; }
@@ -223,13 +222,13 @@ public:
   /// \brief Retrieve the \@finally statement, if any.
   const ObjCAtFinallyStmt *getFinallyStmt() const {
     if (!HasFinally)
-      return 0;
+      return nullptr;
     
     return cast_or_null<ObjCAtFinallyStmt>(getStmts()[1 + NumCatchStmts]);
   }
   ObjCAtFinallyStmt *getFinallyStmt() {
     if (!HasFinally)
-      return 0;
+      return nullptr;
     
     return cast_or_null<ObjCAtFinallyStmt>(getStmts()[1 + NumCatchStmts]);
   }

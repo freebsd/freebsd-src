@@ -88,7 +88,7 @@ struct nfsexstuff {
      bcmp(&(f1)->fh_fid, &(f2)->fh_fid, sizeof(struct fid)) == 0)
 
 #define	NFSLOCKHASH(f) 							\
-	(&nfslockhash[nfsrv_hashfh(f) % NFSLOCKHASHSIZE])
+	(&nfslockhash[nfsrv_hashfh(f) % nfsrv_lockhashsize])
 
 #define	NFSFPVNODE(f)	((struct vnode *)((f)->f_data))
 #define	NFSFPCRED(f)	((f)->f_cred)
@@ -114,4 +114,10 @@ struct nfsexstuff {
  */
 #define	NFSRV_MINFH	(sizeof (fhandle_t))
 #define	NFSRV_MAXFH	(sizeof (fhandle_t))
+
+/* Use this macro for debug printfs. */
+#define	NFSD_DEBUG(level, ...)	do {					\
+		if (nfsd_debuglevel >= (level))				\
+			printf(__VA_ARGS__);				\
+	} while (0)
 

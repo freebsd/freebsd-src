@@ -1,7 +1,12 @@
 /*-
  * Copyright (c) 2005-2008 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * Copyright (c) 2010 Konstantin Belousov <kib@FreeBSD.org>
+ * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by John-Mark Gurney
+ * under sponsorship of the FreeBSD Foundation and
+ * Rubicon Communications, LLC (Netgate).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,20 +44,44 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/bus.h>
 #include <sys/uio.h>
+#include <sys/mbuf.h>
+#include <sys/smp.h>
 #include <crypto/aesni/aesni.h>
 #include <cryptodev_if.h>
+#include <opencrypto/gmac.h>
+
+static struct mtx_padalign *ctx_mtx;
+static struct fpu_kern_ctx **ctx_fpu;
 
 struct aesni_softc {
+	int	dieing;
 	int32_t cid;
 	uint32_t sid;
 	TAILQ_HEAD(aesni_sessions_head, aesni_session) sessions;
 	struct rwlock lock;
 };
 
+#define AQUIRE_CTX(i, ctx)					\
+	do {							\
+		(i) = PCPU_GET(cpuid);				\
+		mtx_lock(&ctx_mtx[(i)]);			\
+		(ctx) = ctx_fpu[(i)];				\
+	} while (0)
+#define RELEASE_CTX(i, ctx)					\
+	do {							\
+		mtx_unlock(&ctx_mtx[(i)]);			\
+		(i) = -1;					\
+		(ctx) = NULL;					\
+	} while (0)
+
 static int aesni_newsession(device_t, uint32_t *sidp, struct cryptoini *cri);
 static int aesni_freesession(device_t, uint64_t tid);
 static void aesni_freesession_locked(struct aesni_softc *sc,
     struct aesni_session *ses);
+static int aesni_cipher_setup(struct aesni_session *ses,
+    struct cryptoini *encini);
+static int aesni_cipher_process(struct aesni_session *ses,
+    struct cryptodesc *enccrd, struct cryptodesc *authcrd, struct cryptop *crp);
 
 MALLOC_DEFINE(M_AESNI, "aesni_data", "AESNI Data");
 
@@ -75,23 +104,45 @@ aesni_probe(device_t dev)
 		return (EINVAL);
 	}
 
-	if ((cpu_feature & CPUID_SSE2) == 0) {
-		device_printf(dev, "No SSE2 support but AESNI!?!\n");
+	if ((cpu_feature2 & CPUID2_SSE41) == 0) {
+		device_printf(dev, "No SSE4.1 support.\n");
 		return (EINVAL);
 	}
 
-	device_set_desc_copy(dev, "AES-CBC,AES-XTS");
+	device_set_desc_copy(dev, "AES-CBC,AES-XTS,AES-GCM,AES-ICM");
 	return (0);
+}
+
+static void
+aensi_cleanctx(void)
+{
+	int i;
+
+	/* XXX - no way to return driverid */
+	CPU_FOREACH(i) {
+		if (ctx_fpu[i] != NULL) {
+			mtx_destroy(&ctx_mtx[i]);
+			fpu_kern_free_ctx(ctx_fpu[i]);
+		}
+		ctx_fpu[i] = NULL;
+	}
+	free(ctx_mtx, M_AESNI);
+	ctx_mtx = NULL;
+	free(ctx_fpu, M_AESNI);
+	ctx_fpu = NULL;
 }
 
 static int
 aesni_attach(device_t dev)
 {
 	struct aesni_softc *sc;
+	int i;
 
 	sc = device_get_softc(dev);
+	sc->dieing = 0;
 	TAILQ_INIT(&sc->sessions);
 	sc->sid = 1;
+
 	sc->cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE |
 	    CRYPTOCAP_F_SYNC);
 	if (sc->cid < 0) {
@@ -99,8 +150,23 @@ aesni_attach(device_t dev)
 		return (ENOMEM);
 	}
 
+	ctx_mtx = malloc(sizeof *ctx_mtx * (mp_maxid + 1), M_AESNI,
+	    M_WAITOK|M_ZERO);
+	ctx_fpu = malloc(sizeof *ctx_fpu * (mp_maxid + 1), M_AESNI,
+	    M_WAITOK|M_ZERO);
+
+	CPU_FOREACH(i) {
+		ctx_fpu[i] = fpu_kern_alloc_ctx(0);
+		mtx_init(&ctx_mtx[i], "anifpumtx", NULL, MTX_DEF|MTX_NEW);
+	}
+
 	rw_init(&sc->lock, "aesni_lock");
 	crypto_register(sc->cid, CRYPTO_AES_CBC, 0, 0);
+	crypto_register(sc->cid, CRYPTO_AES_ICM, 0, 0);
+	crypto_register(sc->cid, CRYPTO_AES_NIST_GCM_16, 0, 0);
+	crypto_register(sc->cid, CRYPTO_AES_128_NIST_GMAC, 0, 0);
+	crypto_register(sc->cid, CRYPTO_AES_192_NIST_GMAC, 0, 0);
+	crypto_register(sc->cid, CRYPTO_AES_256_NIST_GMAC, 0, 0);
 	crypto_register(sc->cid, CRYPTO_AES_XTS, 0, 0);
 	return (0);
 }
@@ -112,6 +178,7 @@ aesni_detach(device_t dev)
 	struct aesni_session *ses;
 
 	sc = device_get_softc(dev);
+
 	rw_wlock(&sc->lock);
 	TAILQ_FOREACH(ses, &sc->sessions, next) {
 		if (ses->used) {
@@ -121,14 +188,18 @@ aesni_detach(device_t dev)
 			return (EBUSY);
 		}
 	}
+	sc->dieing = 1;
 	while ((ses = TAILQ_FIRST(&sc->sessions)) != NULL) {
 		TAILQ_REMOVE(&sc->sessions, ses, next);
-		fpu_kern_free_ctx(ses->fpu_ctx);
 		free(ses, M_AESNI);
 	}
 	rw_wunlock(&sc->lock);
-	rw_destroy(&sc->lock);
 	crypto_unregister_all(sc->cid);
+
+	rw_destroy(&sc->lock);
+
+	aensi_cleanctx();
+
 	return (0);
 }
 
@@ -140,28 +211,52 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	struct cryptoini *encini;
 	int error;
 
-	if (sidp == NULL || cri == NULL)
+	if (sidp == NULL || cri == NULL) {
+		CRYPTDEB("no sidp or cri");
 		return (EINVAL);
+	}
 
 	sc = device_get_softc(dev);
+	if (sc->dieing)
+		return (EINVAL);
+
 	ses = NULL;
 	encini = NULL;
 	for (; cri != NULL; cri = cri->cri_next) {
 		switch (cri->cri_alg) {
 		case CRYPTO_AES_CBC:
+		case CRYPTO_AES_ICM:
 		case CRYPTO_AES_XTS:
-			if (encini != NULL)
+		case CRYPTO_AES_NIST_GCM_16:
+			if (encini != NULL) {
+				CRYPTDEB("encini already set");
 				return (EINVAL);
+			}
 			encini = cri;
 			break;
+		case CRYPTO_AES_128_NIST_GMAC:
+		case CRYPTO_AES_192_NIST_GMAC:
+		case CRYPTO_AES_256_NIST_GMAC:
+			/*
+			 * nothing to do here, maybe in the future cache some
+			 * values for GHASH
+			 */
+			break;
 		default:
+			CRYPTDEB("unhandled algorithm");
 			return (EINVAL);
 		}
 	}
-	if (encini == NULL)
+	if (encini == NULL) {
+		CRYPTDEB("no cipher");
 		return (EINVAL);
+	}
 
 	rw_wlock(&sc->lock);
+	if (sc->dieing) {
+		rw_wunlock(&sc->lock);
+		return (EINVAL);
+	}
 	/*
 	 * Free sessions goes first, so if first session is used, we need to
 	 * allocate one.
@@ -170,13 +265,6 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	if (ses == NULL || ses->used) {
 		ses = malloc(sizeof(*ses), M_AESNI, M_NOWAIT | M_ZERO);
 		if (ses == NULL) {
-			rw_wunlock(&sc->lock);
-			return (ENOMEM);
-		}
-		ses->fpu_ctx = fpu_kern_alloc_ctx(FPU_KERN_NORMAL |
-		    FPU_KERN_NOWAIT);
-		if (ses->fpu_ctx == NULL) {
-			free(ses, M_AESNI);
 			rw_wunlock(&sc->lock);
 			return (ENOMEM);
 		}
@@ -191,6 +279,7 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 
 	error = aesni_cipher_setup(ses, encini);
 	if (error != 0) {
+		CRYPTDEB("setup failed");
 		rw_wlock(&sc->lock);
 		aesni_freesession_locked(sc, ses);
 		rw_wunlock(&sc->lock);
@@ -204,15 +293,14 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 static void
 aesni_freesession_locked(struct aesni_softc *sc, struct aesni_session *ses)
 {
-	struct fpu_kern_ctx *ctx;
 	uint32_t sid;
+
+	rw_assert(&sc->lock, RA_WLOCKED);
 
 	sid = ses->id;
 	TAILQ_REMOVE(&sc->sessions, ses, next);
-	ctx = ses->fpu_ctx;
-	bzero(ses, sizeof(*ses));
+	*ses = (struct aesni_session){};
 	ses->id = sid;
-	ses->fpu_ctx = ctx;
 	TAILQ_INSERT_HEAD(&sc->sessions, ses, next);
 }
 
@@ -244,11 +332,13 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 {
 	struct aesni_softc *sc = device_get_softc(dev);
 	struct aesni_session *ses = NULL;
-	struct cryptodesc *crd, *enccrd;
-	int error;
+	struct cryptodesc *crd, *enccrd, *authcrd;
+	int error, needauth;
 
 	error = 0;
 	enccrd = NULL;
+	authcrd = NULL;
+	needauth = 0;
 
 	/* Sanity check. */
 	if (crp == NULL)
@@ -262,6 +352,7 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 	for (crd = crp->crp_desc; crd != NULL; crd = crd->crd_next) {
 		switch (crd->crd_alg) {
 		case CRYPTO_AES_CBC:
+		case CRYPTO_AES_ICM:
 		case CRYPTO_AES_XTS:
 			if (enccrd != NULL) {
 				error = EINVAL;
@@ -269,11 +360,41 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 			}
 			enccrd = crd;
 			break;
+
+		case CRYPTO_AES_NIST_GCM_16:
+			if (enccrd != NULL) {
+				error = EINVAL;
+				goto out;
+			}
+			enccrd = crd;
+			needauth = 1;
+			break;
+
+		case CRYPTO_AES_128_NIST_GMAC:
+		case CRYPTO_AES_192_NIST_GMAC:
+		case CRYPTO_AES_256_NIST_GMAC:
+			if (authcrd != NULL) {
+				error = EINVAL;
+				goto out;
+			}
+			authcrd = crd;
+			needauth = 1;
+			break;
+
 		default:
-			return (EINVAL);
+			error = EINVAL;
+			goto out;
 		}
 	}
-	if (enccrd == NULL || (enccrd->crd_len % AES_BLOCK_LEN) != 0) {
+
+	if (enccrd == NULL || (needauth && authcrd == NULL)) {
+		error = EINVAL;
+		goto out;
+	}
+
+	/* CBC & XTS can only handle full blocks for now */
+	if ((enccrd->crd_alg == CRYPTO_AES_CBC || enccrd->crd_alg ==
+	    CRYPTO_AES_XTS) && (enccrd->crd_len % AES_BLOCK_LEN) != 0) {
 		error = EINVAL;
 		goto out;
 	}
@@ -289,7 +410,7 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 		goto out;
 	}
 
-	error = aesni_cipher_process(ses, enccrd, crp);
+	error = aesni_cipher_process(ses, enccrd, authcrd, crp);
 	if (error != 0)
 		goto out;
 
@@ -303,21 +424,26 @@ uint8_t *
 aesni_cipher_alloc(struct cryptodesc *enccrd, struct cryptop *crp,
     int *allocated)
 {
+	struct mbuf *m;
 	struct uio *uio;
 	struct iovec *iov;
 	uint8_t *addr;
 
-	if (crp->crp_flags & CRYPTO_F_IMBUF)
-		goto alloc;
-	else if (crp->crp_flags & CRYPTO_F_IOV) {
+	if (crp->crp_flags & CRYPTO_F_IMBUF) {
+		m = (struct mbuf *)crp->crp_buf;
+		if (m->m_next != NULL)
+			goto alloc;
+		addr = mtod(m, uint8_t *);
+	} else if (crp->crp_flags & CRYPTO_F_IOV) {
 		uio = (struct uio *)crp->crp_buf;
 		if (uio->uio_iovcnt != 1)
 			goto alloc;
 		iov = uio->uio_iov;
-		addr = (u_char *)iov->iov_base + enccrd->crd_skip;
+		addr = (uint8_t *)iov->iov_base;
 	} else
-		addr = (u_char *)crp->crp_buf;
+		addr = (uint8_t *)crp->crp_buf;
 	*allocated = 0;
+	addr += enccrd->crd_skip;
 	return (addr);
 
 alloc:
@@ -354,3 +480,185 @@ static devclass_t aesni_devclass;
 DRIVER_MODULE(aesni, nexus, aesni_driver, aesni_devclass, 0, 0);
 MODULE_VERSION(aesni, 1);
 MODULE_DEPEND(aesni, crypto, 1, 1, 1);
+
+static int
+aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini)
+{
+	struct fpu_kern_ctx *ctx;
+	int error;
+	int kt, ctxidx;
+
+	kt = is_fpu_kern_thread(0);
+	if (!kt) {
+		AQUIRE_CTX(ctxidx, ctx);
+		error = fpu_kern_enter(curthread, ctx,
+		    FPU_KERN_NORMAL | FPU_KERN_KTHR);
+		if (error != 0)
+			goto out;
+	}
+
+	error = aesni_cipher_setup_common(ses, encini->cri_key,
+	    encini->cri_klen);
+
+	if (!kt) {
+		fpu_kern_leave(curthread, ctx);
+out:
+		RELEASE_CTX(ctxidx, ctx);
+	}
+	return (error);
+}
+
+/*
+ * authcrd contains the associated date.
+ */
+static int
+aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
+    struct cryptodesc *authcrd, struct cryptop *crp)
+{
+	struct fpu_kern_ctx *ctx;
+	uint8_t iv[AES_BLOCK_LEN];
+	uint8_t tag[GMAC_DIGEST_LEN];
+	uint8_t *buf, *authbuf;
+	int error, allocated, authallocated;
+	int ivlen, encflag;
+	int kt, ctxidx;
+
+	encflag = (enccrd->crd_flags & CRD_F_ENCRYPT) == CRD_F_ENCRYPT;
+
+	if ((enccrd->crd_alg == CRYPTO_AES_ICM ||
+	    enccrd->crd_alg == CRYPTO_AES_NIST_GCM_16) &&
+	    (enccrd->crd_flags & CRD_F_IV_EXPLICIT) == 0)
+		return (EINVAL);
+
+	buf = aesni_cipher_alloc(enccrd, crp, &allocated);
+	if (buf == NULL)
+		return (ENOMEM);
+
+	authbuf = NULL;
+	authallocated = 0;
+	if (authcrd != NULL) {
+		authbuf = aesni_cipher_alloc(authcrd, crp, &authallocated);
+		if (authbuf == NULL) {
+			error = ENOMEM;
+			goto out1;
+		}
+	}
+
+	kt = is_fpu_kern_thread(0);
+	if (!kt) {
+		AQUIRE_CTX(ctxidx, ctx);
+		error = fpu_kern_enter(curthread, ctx,
+		    FPU_KERN_NORMAL|FPU_KERN_KTHR);
+		if (error != 0)
+			goto out2;
+	}
+
+	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
+		error = aesni_cipher_setup_common(ses, enccrd->crd_key,
+		    enccrd->crd_klen);
+		if (error != 0)
+			goto out;
+	}
+
+	/* XXX - validate that enccrd and authcrd have/use same key? */
+	switch (enccrd->crd_alg) {
+	case CRYPTO_AES_CBC:
+	case CRYPTO_AES_ICM:
+		ivlen = AES_BLOCK_LEN;
+		break;
+	case CRYPTO_AES_XTS:
+		ivlen = 8;
+		break;
+	case CRYPTO_AES_NIST_GCM_16:
+		ivlen = 12;	/* should support arbitarily larger */
+		break;
+	}
+
+	/* Setup iv */
+	if (encflag) {
+		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
+			bcopy(enccrd->crd_iv, iv, ivlen);
+		else
+			arc4rand(iv, ivlen, 0);
+		
+		if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0)
+			crypto_copyback(crp->crp_flags, crp->crp_buf,
+			    enccrd->crd_inject, ivlen, iv);
+	} else {
+		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
+			bcopy(enccrd->crd_iv, iv, ivlen);
+		else
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    enccrd->crd_inject, ivlen, iv);
+	}
+
+	if (authcrd != NULL && !encflag)
+		crypto_copydata(crp->crp_flags, crp->crp_buf,
+		    authcrd->crd_inject, GMAC_DIGEST_LEN, tag);
+	else
+		bzero(tag, sizeof tag);
+
+	/* Do work */
+	switch (ses->algo) {
+	case CRYPTO_AES_CBC:
+		if (encflag)
+			aesni_encrypt_cbc(ses->rounds, ses->enc_schedule,
+			    enccrd->crd_len, buf, buf, iv);
+		else
+			aesni_decrypt_cbc(ses->rounds, ses->dec_schedule,
+			    enccrd->crd_len, buf, iv);
+		break;
+	case CRYPTO_AES_ICM:
+		/* encryption & decryption are the same */
+		aesni_encrypt_icm(ses->rounds, ses->enc_schedule,
+		    enccrd->crd_len, buf, buf, iv);
+		break;
+	case CRYPTO_AES_XTS:
+		if (encflag)
+			aesni_encrypt_xts(ses->rounds, ses->enc_schedule,
+			    ses->xts_schedule, enccrd->crd_len, buf, buf,
+			    iv);
+		else
+			aesni_decrypt_xts(ses->rounds, ses->dec_schedule,
+			    ses->xts_schedule, enccrd->crd_len, buf, buf,
+			    iv);
+		break;
+	case CRYPTO_AES_NIST_GCM_16:
+		if (encflag)
+			AES_GCM_encrypt(buf, buf, authbuf, iv, tag,
+			    enccrd->crd_len, authcrd->crd_len, ivlen,
+			    ses->enc_schedule, ses->rounds);
+		else {
+			if (!AES_GCM_decrypt(buf, buf, authbuf, iv, tag,
+			    enccrd->crd_len, authcrd->crd_len, ivlen,
+			    ses->enc_schedule, ses->rounds))
+				error = EBADMSG;
+		}
+		break;
+	}
+
+	if (allocated)
+		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
+		    enccrd->crd_len, buf);
+
+	if (!error && authcrd != NULL) {
+		crypto_copyback(crp->crp_flags, crp->crp_buf,
+		    authcrd->crd_inject, GMAC_DIGEST_LEN, tag);
+	}
+
+out:
+	if (!kt) {
+		fpu_kern_leave(curthread, ctx);
+out2:
+		RELEASE_CTX(ctxidx, ctx);
+	}
+
+out1:
+	if (allocated) {
+		bzero(buf, enccrd->crd_len);
+		free(buf, M_AESNI);
+	}
+	if (authallocated)
+		free(authbuf, M_AESNI);
+	return (error);
+}

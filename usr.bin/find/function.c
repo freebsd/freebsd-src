@@ -404,7 +404,6 @@ f_acl(PLAN *plan __unused, FTSENT *entry)
 	acl_free(facl);
 	if (ret) {
 		warn("%s", entry->fts_accpath);
-		acl_free(facl);
 		return (0);
 	}
 	if (trivial)
@@ -671,7 +670,13 @@ doexec:	if ((plan->flags & F_NEEDOK) && !queryuser(plan->e_argv))
 		plan->e_psize = plan->e_pbsize;
 	}
 	pid = waitpid(pid, &status, 0);
-	return (pid != -1 && WIFEXITED(status) && !WEXITSTATUS(status));
+	if (pid != -1 && WIFEXITED(status) && !WEXITSTATUS(status))
+		return (1);
+	if (plan->flags & F_EXECPLUS) {
+		exitstatus = 1;
+		return (1);
+	}
+	return (0);
 }
 
 /*
@@ -1501,7 +1506,7 @@ c_size(OPTION *option, char ***argvp)
 			scale = 0x40000000LL;
 			break;
 		case 'T':                       /* terabytes 1<<40 */
-			scale = 0x1000000000LL;
+			scale = 0x10000000000LL;
 			break;
 		case 'P':                       /* petabytes 1<<50 */
 			scale = 0x4000000000000LL;
@@ -1774,7 +1779,8 @@ f_false(PLAN *plan __unused, FTSENT *entry __unused)
 int
 f_quit(PLAN *plan __unused, FTSENT *entry __unused)
 {
-	exit(0);
+	finish_execplus();
+	exit(exitstatus);
 }
 
 /* c_quit == c_simple */

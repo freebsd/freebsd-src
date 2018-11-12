@@ -49,6 +49,24 @@ typedef struct  ipf_authstat {
 	frauthent_t	*fas_faelist;
 } ipf_authstat_t;
 
+typedef	struct ipf_auth_softc_s {
+	ipfrwlock_t	ipf_authlk;
+	ipfmutex_t	ipf_auth_mx;
+	int		ipf_auth_size;
+	int		ipf_auth_used;
+	int		ipf_auth_replies;
+	int		ipf_auth_defaultage;
+	int		ipf_auth_lock;
+	ipf_authstat_t	ipf_auth_stats;
+	frauth_t	*ipf_auth;
+	mb_t		**ipf_auth_pkts;
+	int		ipf_auth_start;
+	int		ipf_auth_end;
+	int		ipf_auth_next;
+	frauthent_t	*ipf_auth_entries;
+	frentry_t	*ipf_auth_ip;
+	frentry_t	*ipf_auth_rules;
+} ipf_auth_softc_t;
 
 extern	frentry_t *ipf_auth_check __P((fr_info_t *, u_32_t *));
 extern	void	ipf_auth_expire __P((ipf_main_softc_t *));

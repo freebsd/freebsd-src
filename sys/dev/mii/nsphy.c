@@ -70,8 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -104,9 +102,10 @@ static driver_t nsphy_driver = {
 
 DRIVER_MODULE(nsphy, miibus, nsphy_driver, nsphy_devclass, 0, 0);
 
-static int	nsphy_service(struct mii_softc *, struct mii_data *, int);
-static void	nsphy_status(struct mii_softc *);
-static void	nsphy_reset(struct mii_softc *);
+static int	nsphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	nsphy_status(struct mii_softc *, if_media_t);
+static void	nsphy_reset(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc nsphys[] = {
 	MII_PHY_DESC(xxNATSEMI, DP83840),
@@ -129,22 +128,21 @@ nsphy_probe(device_t dev)
 static int
 nsphy_attach(device_t dev)
 {
-	const char *nic;
 	u_int flags;
 
-	nic = device_get_name(device_get_parent(device_get_parent(dev)));
 	flags = MIIF_NOMANPAUSE;
 	/*
 	 * Am79C971 wedge when isolating all of their external PHYs.
 	 */
-	if (strcmp(nic, "pcn") == 0)
+	if (mii_dev_mac_match(dev,"pcn"))
 		flags |= MIIF_NOISOLATE;
 	mii_phy_dev_attach(dev, flags, &nsphy_funcs, 1);
 	return (0);
 }
 
 static int
-nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+nsphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 	int reg;
 
@@ -186,10 +184,10 @@ nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 */
 		reg |= 0x0100 | 0x0400;
 
-		if (strcmp(mii->mii_ifp->if_dname, "fxp") == 0)
+		if (mii_phy_mac_match(sc, "fxp"))
 			PHY_WRITE(sc, MII_NSPHY_PCR, reg);
 
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -199,7 +197,7 @@ nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -207,10 +205,9 @@ nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-nsphy_status(struct mii_softc *sc)
+nsphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, par, anlpar;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -280,13 +277,12 @@ nsphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_100_TX;
 		mii->mii_media_active |= IFM_HDX;
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active = media;
 }
 
 static void
-nsphy_reset(struct mii_softc *sc)
+nsphy_reset(struct mii_softc *sc, if_media_t media)
 {
-	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
 	int reg, i;
 
 	if (sc->mii_flags & MIIF_NOISOLATE)
@@ -320,8 +316,8 @@ nsphy_reset(struct mii_softc *sc)
 	}
 
 	if ((sc->mii_flags & MIIF_NOISOLATE) == 0) {
-		if ((ife == NULL && sc->mii_inst != 0) ||
-		    (ife != NULL && IFM_INST(ife->ifm_media) != sc->mii_inst))
+		if ((media == 0 && sc->mii_inst != 0) ||
+		    (media != 0 && IFM_INST(media) != sc->mii_inst))
 			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
 	}
 }

@@ -50,6 +50,7 @@
 #include <sys/linker.h>
 #include <sys/linker_set.h>
 #include <sys/lock.h>
+#include <sys/lockstat.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
@@ -197,6 +198,8 @@ sdt_enable(void *arg __unused, dtrace_id_t id, void *parg)
 
 	probe->id = id;
 	probe->sdtp_lf->nenabled++;
+	if (strcmp(probe->prov->name, "lockstat") == 0)
+		lockstat_enabled++;
 }
 
 static void
@@ -206,6 +209,8 @@ sdt_disable(void *arg __unused, dtrace_id_t id, void *parg)
 
 	KASSERT(probe->sdtp_lf->nenabled > 0, ("no probes enabled"));
 
+	if (strcmp(probe->prov->name, "lockstat") == 0)
+		lockstat_enabled--;
 	probe->id = 0;
 	probe->sdtp_lf->nenabled--;
 }
@@ -257,27 +262,28 @@ sdt_kld_load(void *arg __unused, struct linker_file *lf)
 	struct sdt_probe **probe, **p_begin, **p_end;
 	struct sdt_argtype **argtype, **a_begin, **a_end;
 
-	if (linker_file_lookup_set(lf, "sdt_providers_set", &begin, &end, NULL))
-		return;
-	for (prov = begin; prov < end; prov++)
-		sdt_create_provider(*prov);
+	if (linker_file_lookup_set(lf, "sdt_providers_set", &begin, &end,
+	    NULL) == 0) {
+		for (prov = begin; prov < end; prov++)
+			sdt_create_provider(*prov);
+	}
 
 	if (linker_file_lookup_set(lf, "sdt_probes_set", &p_begin, &p_end,
-	    NULL))
-		return;
-	for (probe = p_begin; probe < p_end; probe++) {
-		(*probe)->sdtp_lf = lf;
-		sdt_create_probe(*probe);
-		TAILQ_INIT(&(*probe)->argtype_list);
+	    NULL) == 0) {
+		for (probe = p_begin; probe < p_end; probe++) {
+			(*probe)->sdtp_lf = lf;
+			sdt_create_probe(*probe);
+			TAILQ_INIT(&(*probe)->argtype_list);
+		}
 	}
 
 	if (linker_file_lookup_set(lf, "sdt_argtypes_set", &a_begin, &a_end,
-	    NULL))
-		return;
-	for (argtype = a_begin; argtype < a_end; argtype++) {
-		(*argtype)->probe->n_args++;
-		TAILQ_INSERT_TAIL(&(*argtype)->probe->argtype_list, *argtype,
-		    argtype_entry);
+	    NULL) == 0) {
+		for (argtype = a_begin; argtype < a_end; argtype++) {
+			(*argtype)->probe->n_args++;
+			TAILQ_INSERT_TAIL(&(*argtype)->probe->argtype_list,
+			    *argtype, argtype_entry);
+		}
 	}
 }
 

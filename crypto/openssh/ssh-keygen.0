@@ -4,7 +4,7 @@ NAME
      ssh-keygen - authentication key generation, management and conversion
 
 SYNOPSIS
-     ssh-keygen [-q] [-b bits] -t type [-N new_passphrase] [-C comment]
+     ssh-keygen [-q] [-b bits] [-t type] [-N new_passphrase] [-C comment]
                 [-f output_keyfile]
      ssh-keygen -p [-P old_passphrase] [-N new_passphrase] [-f keyfile]
      ssh-keygen -i [-m key_format] [-f input_keyfile]
@@ -559,4 +559,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.4                    December 21, 2013                   OpenBSD 5.4
+OpenBSD 5.5                    February 5, 2014                    OpenBSD 5.5

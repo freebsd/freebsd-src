@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acevents.h>
@@ -50,7 +49,6 @@
 #include <contrib/dev/acpica/include/acresrc.h>
 #include <contrib/dev/acpica/include/actables.h>
 
-#ifdef ACPI_DEBUGGER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbcmds")
@@ -87,6 +85,9 @@ AcpiDbDoOneSleepState (
     UINT8                   SleepState);
 
 
+static char                 *AcpiDbTraceMethodName = NULL;
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbConvertToNode
@@ -112,11 +113,11 @@ AcpiDbConvertToNode (
     {
         /* Numeric argument, convert */
 
-        Address = ACPI_STRTOUL (InString, NULL, 16);
+        Address = strtoul (InString, NULL, 16);
         Node = ACPI_TO_POINTER (Address);
         if (!AcpiOsReadable (Node, sizeof (ACPI_NAMESPACE_NODE)))
         {
-            AcpiOsPrintf ("Address %p is invalid in this address space\n",
+            AcpiOsPrintf ("Address %p is invalid",
                 Node);
             return (NULL);
         }
@@ -125,7 +126,7 @@ AcpiDbConvertToNode (
 
         if (ACPI_GET_DESCRIPTOR_TYPE (Node) != ACPI_DESC_TYPE_NAMED)
         {
-            AcpiOsPrintf ("Address %p is not a valid NS node [%s]\n",
+            AcpiOsPrintf ("Address %p is not a valid namespace node [%s]\n",
                     Node, AcpiUtGetDescriptorName (Node));
             return (NULL);
         }
@@ -139,6 +140,9 @@ AcpiDbConvertToNode (
         Node = AcpiDbLocalNsLookup (InString);
         if (!Node)
         {
+            AcpiOsPrintf (
+                "Could not find [%s] in namespace, defaulting to root node\n",
+                InString);
             Node = AcpiGbl_RootNode;
         }
     }
@@ -188,7 +192,7 @@ AcpiDbSleep (
 
     /* Convert argument to binary and invoke the sleep state */
 
-    SleepState = (UINT8) ACPI_STRTOUL (ObjectArg, NULL, 0);
+    SleepState = (UINT8) strtoul (ObjectArg, NULL, 0);
     AcpiDbDoOneSleepState (SleepState);
     return_ACPI_STATUS (AE_OK);
 }
@@ -200,7 +204,7 @@ AcpiDbSleep (
  *
  * PARAMETERS:  SleepState          - Desired sleep state (0-5)
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Simulate a sleep/wake sequence
  *
@@ -337,7 +341,8 @@ AcpiDbDisplayTableInfo (
 
     /* Header */
 
-    AcpiOsPrintf ("Idx ID Status    Type            Sig  Address  Len   Header\n");
+    AcpiOsPrintf ("Idx ID    Status Type                    "
+        "TableHeader (Sig, Address, Length, Misc)\n");
 
     /* Walk the entire root table list */
 
@@ -362,35 +367,30 @@ AcpiDbDisplayTableInfo (
 
         switch (TableDesc->Flags & ACPI_TABLE_ORIGIN_MASK)
         {
-        case ACPI_TABLE_ORIGIN_UNKNOWN:
+        case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
 
-            AcpiOsPrintf ("Unknown   ");
+            AcpiOsPrintf ("External/virtual  ");
             break;
 
-        case ACPI_TABLE_ORIGIN_MAPPED:
+        case ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL:
 
-            AcpiOsPrintf ("Mapped    ");
+            AcpiOsPrintf ("Internal/physical ");
             break;
 
-        case ACPI_TABLE_ORIGIN_ALLOCATED:
+        case ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL:
 
-            AcpiOsPrintf ("Allocated ");
-            break;
-
-        case ACPI_TABLE_ORIGIN_OVERRIDE:
-
-            AcpiOsPrintf ("Override  ");
+            AcpiOsPrintf ("Internal/virtual  ");
             break;
 
         default:
 
-            AcpiOsPrintf ("INVALID   ");
+            AcpiOsPrintf ("INVALID TYPE      ");
             break;
         }
 
         /* Make sure that the table is mapped */
 
-        Status = AcpiTbVerifyTable (TableDesc);
+        Status = AcpiTbValidateTable (TableDesc);
         if (ACPI_FAILURE (Status))
         {
             return;
@@ -440,8 +440,6 @@ AcpiDbUnloadAcpiTable (
     Node = AcpiDbConvertToNode (ObjectName);
     if (!Node)
     {
-        AcpiOsPrintf ("Could not find [%s] in namespace\n",
-            ObjectName);
         return;
     }
 
@@ -503,7 +501,8 @@ AcpiDbSendNotify (
     else
     {
         AcpiOsPrintf (
-            "Named object [%4.4s] Type %s, must be Device/Thermal/Processor type\n",
+            "Named object [%4.4s] Type %s, "
+            "must be Device/Thermal/Processor type\n",
             AcpiUtGetNodeName (Node), AcpiUtGetTypeName (Node->Type));
     }
 }
@@ -536,8 +535,7 @@ AcpiDbDisplayInterfaces (
 
     if (!ActionArg)
     {
-        (void) AcpiOsAcquireMutex (AcpiGbl_OsiMutex,
-                    ACPI_WAIT_FOREVER);
+        (void) AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
 
         NextInterface = AcpiGbl_SupportedInterfaces;
         while (NextInterface)
@@ -546,6 +544,7 @@ AcpiDbDisplayInterfaces (
             {
                 AcpiOsPrintf ("%s\n", NextInterface->Name);
             }
+
             NextInterface = NextInterface->Next;
         }
 
@@ -567,7 +566,7 @@ AcpiDbDisplayInterfaces (
 
     /* Install - install an interface */
 
-    SubString = ACPI_STRSTR ("INSTALL", ActionArg);
+    SubString = strstr ("INSTALL", ActionArg);
     if (SubString)
     {
         Status = AcpiInstallInterface (InterfaceNameArg);
@@ -581,7 +580,7 @@ AcpiDbDisplayInterfaces (
 
     /* Remove - remove an interface */
 
-    SubString = ACPI_STRSTR ("REMOVE", ActionArg);
+    SubString = strstr ("REMOVE", ActionArg);
     if (SubString)
     {
         Status = AcpiRemoveInterface (InterfaceNameArg);
@@ -651,7 +650,8 @@ AcpiDbDisplayTemplate (
 
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Could not convert Buffer to a resource list: %s, %s\n",
+        AcpiOsPrintf (
+            "Could not convert Buffer to a resource list: %s, %s\n",
             BufferArg, AcpiFormatException (Status));
         goto DumpBuffer;
     }
@@ -712,7 +712,8 @@ AcpiDmCompareAmlResources (
     if (Aml1BufferLength != Aml2BufferLength)
     {
         AcpiOsPrintf (
-            "**** Buffer length mismatch in converted AML: Original %X, New %X ****\n",
+            "**** Buffer length mismatch in converted "
+            "AML: Original %X, New %X ****\n",
             Aml1BufferLength, Aml2BufferLength);
     }
 
@@ -736,16 +737,18 @@ AcpiDmCompareAmlResources (
         if (Aml1Length != Aml2Length)
         {
             AcpiOsPrintf (
-                "**** Length mismatch in descriptor [%.2X] type %2.2X, Offset %8.8X Len1 %X, Len2 %X ****\n",
+                "**** Length mismatch in descriptor [%.2X] type %2.2X, "
+                "Offset %8.8X Len1 %X, Len2 %X ****\n",
                 Count, ResourceType, Offset, Aml1Length, Aml2Length);
         }
 
         /* Check for descriptor byte match */
 
-        else if (ACPI_MEMCMP (Aml1, Aml2, Aml1Length))
+        else if (memcmp (Aml1, Aml2, Aml1Length))
         {
             AcpiOsPrintf (
-                "**** Data mismatch in descriptor [%.2X] type %2.2X, Offset %8.8X ****\n",
+                "**** Data mismatch in descriptor [%.2X] type %2.2X, "
+                "Offset %8.8X ****\n",
                 Count, ResourceType, Offset);
 
             for (i = 0; i < Aml1Length; i++)
@@ -753,7 +756,8 @@ AcpiDmCompareAmlResources (
                 if (Aml1[i] != Aml2[i])
                 {
                     AcpiOsPrintf (
-                        "Mismatch at byte offset %.2X: is %2.2X, should be %2.2X\n",
+                        "Mismatch at byte offset %.2X: is %2.2X, "
+                        "should be %2.2X\n",
                         i, Aml2[i], Aml1[i]);
                 }
             }
@@ -830,7 +834,7 @@ AcpiDmTestResourceConversion (
 
     /* Convert internal resource list to external AML resource template */
 
-    Status = AcpiRsCreateAmlResources (ResourceBuffer.Pointer, &NewAml);
+    Status = AcpiRsCreateAmlResources (&ResourceBuffer, &NewAml);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("AcpiRsCreateAmlResources failed: %s\n",
@@ -842,8 +846,8 @@ AcpiDmTestResourceConversion (
 
     OriginalAml = ReturnBuffer.Pointer;
 
-    AcpiDmCompareAmlResources (
-        OriginalAml->Buffer.Pointer, (ACPI_RSDESC_SIZE) OriginalAml->Buffer.Length,
+    AcpiDmCompareAmlResources (OriginalAml->Buffer.Pointer,
+        (ACPI_RSDESC_SIZE) OriginalAml->Buffer.Length,
         NewAml.Pointer, (ACPI_RSDESC_SIZE) NewAml.Length);
 
     /* Cleanup and exit */
@@ -918,10 +922,15 @@ AcpiDbDeviceResources (
 
     /* Get handles to the resource methods for this device */
 
-    (void) AcpiGetHandle (Node, METHOD_NAME__PRT, ACPI_CAST_PTR (ACPI_HANDLE, &PrtNode));
-    (void) AcpiGetHandle (Node, METHOD_NAME__CRS, ACPI_CAST_PTR (ACPI_HANDLE, &CrsNode));
-    (void) AcpiGetHandle (Node, METHOD_NAME__PRS, ACPI_CAST_PTR (ACPI_HANDLE, &PrsNode));
-    (void) AcpiGetHandle (Node, METHOD_NAME__AEI, ACPI_CAST_PTR (ACPI_HANDLE, &AeiNode));
+    (void) AcpiGetHandle (Node, METHOD_NAME__PRT,
+        ACPI_CAST_PTR (ACPI_HANDLE, &PrtNode));
+    (void) AcpiGetHandle (Node, METHOD_NAME__CRS,
+        ACPI_CAST_PTR (ACPI_HANDLE, &CrsNode));
+    (void) AcpiGetHandle (Node, METHOD_NAME__PRS,
+        ACPI_CAST_PTR (ACPI_HANDLE, &PrsNode));
+    (void) AcpiGetHandle (Node, METHOD_NAME__AEI,
+        ACPI_CAST_PTR (ACPI_HANDLE, &AeiNode));
+
     if (!PrtNode && !CrsNode && !PrsNode && !AeiNode)
     {
         goto Cleanup;   /* Nothing to do */
@@ -1042,7 +1051,7 @@ GetCrs:
         }
 
 EndCrs:
-        ACPI_FREE_BUFFER (ReturnBuffer);
+        ACPI_FREE (ReturnBuffer.Pointer);
     }
 
 
@@ -1075,7 +1084,8 @@ GetPrs:
             goto GetAei;
         }
 
-        AcpiRsDumpResourceList (ACPI_CAST_PTR (ACPI_RESOURCE, AcpiGbl_DbBuffer));
+        AcpiRsDumpResourceList (ACPI_CAST_PTR (
+            ACPI_RESOURCE, AcpiGbl_DbBuffer));
     }
 
 
@@ -1108,7 +1118,8 @@ GetAei:
             goto Cleanup;
         }
 
-        AcpiRsDumpResourceList (ACPI_CAST_PTR (ACPI_RESOURCE, AcpiGbl_DbBuffer));
+        AcpiRsDumpResourceList (ACPI_CAST_PTR (
+            ACPI_RESOURCE, AcpiGbl_DbBuffer));
     }
 
 
@@ -1144,10 +1155,10 @@ AcpiDbDisplayResources (
 
     /* Asterisk means "display resources for all devices" */
 
-    if (!ObjectArg || (!ACPI_STRCMP (ObjectArg, "*")))
+    if (!ObjectArg || (!strcmp (ObjectArg, "*")))
     {
         (void) AcpiWalkNamespace (ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-                    ACPI_UINT32_MAX, AcpiDbDeviceResources, NULL, NULL, NULL);
+            ACPI_UINT32_MAX, AcpiDbDeviceResources, NULL, NULL, NULL);
     }
     else
     {
@@ -1158,7 +1169,8 @@ AcpiDbDisplayResources (
         {
             if (Node->Type != ACPI_TYPE_DEVICE)
             {
-                AcpiOsPrintf ("%4.4s: Name is not a device object (%s)\n",
+                AcpiOsPrintf (
+                    "%4.4s: Name is not a device object (%s)\n",
                     Node->Name.Ascii, AcpiUtGetTypeName (Node->Type));
             }
             else
@@ -1192,14 +1204,25 @@ AcpiDbGenerateGpe (
     char                    *GpeArg,
     char                    *BlockArg)
 {
-    UINT32                  BlockNumber;
+    UINT32                  BlockNumber = 0;
     UINT32                  GpeNumber;
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
 
 
-    GpeNumber   = ACPI_STRTOUL (GpeArg, NULL, 0);
-    BlockNumber = ACPI_STRTOUL (BlockArg, NULL, 0);
+    GpeNumber = strtoul (GpeArg, NULL, 0);
 
+    /*
+     * If no block arg, or block arg == 0 or 1, use the FADT-defined
+     * GPE blocks.
+     */
+    if (BlockArg)
+    {
+        BlockNumber = strtoul (BlockArg, NULL, 0);
+        if (BlockNumber == 1)
+        {
+            BlockNumber = 0;
+        }
+    }
 
     GpeEventInfo = AcpiEvGetGpeEventInfo (ACPI_TO_POINTER (BlockNumber),
         GpeNumber);
@@ -1212,6 +1235,19 @@ AcpiDbGenerateGpe (
     (void) AcpiEvGpeDispatch (NULL, GpeEventInfo, GpeNumber);
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbGenerateSci
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Simulate an SCI -- just call the SCI dispatch.
+ *
+ ******************************************************************************/
+
 void
 AcpiDbGenerateSci (
     void)
@@ -1221,4 +1257,94 @@ AcpiDbGenerateSci (
 
 #endif /* !ACPI_REDUCED_HARDWARE */
 
-#endif /* ACPI_DEBUGGER */
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbTrace
+ *
+ * PARAMETERS:  EnableArg           - ENABLE/AML to enable tracer
+ *                                    DISABLE to disable tracer
+ *              MethodArg           - Method to trace
+ *              OnceArg             - Whether trace once
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Control method tracing facility
+ *
+ ******************************************************************************/
+
+void
+AcpiDbTrace (
+    char                    *EnableArg,
+    char                    *MethodArg,
+    char                    *OnceArg)
+{
+    UINT32                  DebugLevel = 0;
+    UINT32                  DebugLayer = 0;
+    UINT32                  Flags = 0;
+
+
+    if (EnableArg)
+    {
+        AcpiUtStrupr (EnableArg);
+    }
+
+    if (OnceArg)
+    {
+        AcpiUtStrupr (OnceArg);
+    }
+
+    if (MethodArg)
+    {
+        if (AcpiDbTraceMethodName)
+        {
+            ACPI_FREE (AcpiDbTraceMethodName);
+            AcpiDbTraceMethodName = NULL;
+        }
+
+        AcpiDbTraceMethodName = ACPI_ALLOCATE (strlen (MethodArg) + 1);
+        if (!AcpiDbTraceMethodName)
+        {
+            AcpiOsPrintf ("Failed to allocate method name (%s)\n",
+                MethodArg);
+            return;
+        }
+
+        strcpy (AcpiDbTraceMethodName, MethodArg);
+    }
+
+    if (!strcmp (EnableArg, "ENABLE") ||
+        !strcmp (EnableArg, "METHOD") ||
+        !strcmp (EnableArg, "OPCODE"))
+    {
+        if (!strcmp (EnableArg, "ENABLE"))
+        {
+            /* Inherit current console settings */
+
+            DebugLevel = AcpiGbl_DbConsoleDebugLevel;
+            DebugLayer = AcpiDbgLayer;
+        }
+        else
+        {
+            /* Restrict console output to trace points only */
+
+            DebugLevel = ACPI_LV_TRACE_POINT;
+            DebugLayer = ACPI_EXECUTER;
+        }
+
+        Flags = ACPI_TRACE_ENABLED;
+
+        if (!strcmp (EnableArg, "OPCODE"))
+        {
+            Flags |= ACPI_TRACE_OPCODE;
+        }
+
+        if (OnceArg && !strcmp (OnceArg, "ONCE"))
+        {
+            Flags |= ACPI_TRACE_ONESHOT;
+        }
+    }
+
+    (void) AcpiDebugTrace (AcpiDbTraceMethodName,
+        DebugLevel, DebugLayer, Flags);
+}

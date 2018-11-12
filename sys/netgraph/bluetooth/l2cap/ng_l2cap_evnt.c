@@ -57,7 +57,10 @@
  ******************************************************************************/
 
 static int ng_l2cap_process_signal_cmd (ng_l2cap_con_p);
+static int ng_l2cap_process_lesignal_cmd (ng_l2cap_con_p);
 static int ng_l2cap_process_cmd_rej    (ng_l2cap_con_p, u_int8_t);
+static int ng_l2cap_process_cmd_urq    (ng_l2cap_con_p, u_int8_t);
+static int ng_l2cap_process_cmd_urs    (ng_l2cap_con_p, u_int8_t);
 static int ng_l2cap_process_con_req    (ng_l2cap_con_p, u_int8_t);
 static int ng_l2cap_process_con_rsp    (ng_l2cap_con_p, u_int8_t);
 static int ng_l2cap_process_cfg_req    (ng_l2cap_con_p, u_int8_t);
@@ -74,6 +77,9 @@ static int send_l2cap_con_rej
 	(ng_l2cap_con_p, u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 static int send_l2cap_cfg_rsp
 	(ng_l2cap_con_p, u_int8_t, u_int16_t, u_int16_t, struct mbuf *);
+static int send_l2cap_param_urs
+       (ng_l2cap_con_p , u_int8_t , u_int16_t);
+
 static int get_next_l2cap_opt
 	(struct mbuf *, int *, ng_l2cap_cfg_opt_p, ng_l2cap_cfg_opt_val_p);
 
@@ -124,7 +130,10 @@ ng_l2cap_receive(ng_l2cap_con_p con)
 		m_adj(con->rx_pkt, sizeof(*hdr));
 		error = ng_l2cap_process_signal_cmd(con);
 		break;
-
+  	case NG_L2CAP_LESIGNAL_CID:
+		m_adj(con->rx_pkt, sizeof(*hdr));
+		error = ng_l2cap_process_lesignal_cmd(con);
+		break;
 	case NG_L2CAP_CLT_CID: /* Connectionless packet */
 		error = ng_l2cap_l2ca_clt_receive(con);
 		break;
@@ -264,6 +273,105 @@ ng_l2cap_process_signal_cmd(ng_l2cap_con_p con)
 
 	return (0);
 } /* ng_l2cap_process_signal_cmd */
+static int
+ng_l2cap_process_lesignal_cmd(ng_l2cap_con_p con)
+{
+	ng_l2cap_p		 l2cap = con->l2cap;
+	ng_l2cap_cmd_hdr_t	*hdr = NULL;
+	struct mbuf		*m = NULL;
+
+	while (con->rx_pkt != NULL) {
+		/* Verify packet length */
+		if (con->rx_pkt->m_pkthdr.len < sizeof(*hdr)) {
+			NG_L2CAP_ERR(
+"%s: %s - invalid L2CAP signaling command. Packet too small, len=%d\n",
+				__func__, NG_NODE_NAME(l2cap->node),
+				con->rx_pkt->m_pkthdr.len);
+			NG_FREE_M(con->rx_pkt);
+
+			return (EMSGSIZE);
+		}
+
+		/* Get signaling command */
+		NG_L2CAP_M_PULLUP(con->rx_pkt, sizeof(*hdr));
+		if (con->rx_pkt == NULL)
+			return (ENOBUFS);
+
+		hdr = mtod(con->rx_pkt, ng_l2cap_cmd_hdr_t *);
+		hdr->length = le16toh(hdr->length);
+		m_adj(con->rx_pkt, sizeof(*hdr));
+
+		/* Verify command length */
+		if (con->rx_pkt->m_pkthdr.len < hdr->length) {
+			NG_L2CAP_ERR(
+"%s: %s - invalid L2CAP signaling command, code=%#x, ident=%d. " \
+"Invalid command length=%d, m_pkthdr.len=%d\n",
+				__func__, NG_NODE_NAME(l2cap->node),
+				hdr->code, hdr->ident, hdr->length,
+				con->rx_pkt->m_pkthdr.len);
+			NG_FREE_M(con->rx_pkt);
+
+			return (EMSGSIZE);
+		}
+
+		/* Get the command, save the rest (if any) */
+		if (con->rx_pkt->m_pkthdr.len > hdr->length)
+			m = m_split(con->rx_pkt, hdr->length, M_NOWAIT);
+		else
+			m = NULL;
+
+		/* Process command */
+		switch (hdr->code) {
+		case NG_L2CAP_CMD_REJ:
+			ng_l2cap_process_cmd_rej(con, hdr->ident);
+			break;
+		case NG_L2CAP_CMD_PARAM_UPDATE_REQUEST:
+			ng_l2cap_process_cmd_urq(con, hdr->ident);
+			break;
+		case NG_L2CAP_CMD_PARAM_UPDATE_RESPONSE:
+			ng_l2cap_process_cmd_urs(con, hdr->ident);
+			break;
+			
+
+		default:
+			NG_L2CAP_ERR(
+"%s: %s - unknown L2CAP signaling command, code=%#x, ident=%d, length=%d\n",
+				__func__, NG_NODE_NAME(l2cap->node),
+				hdr->code, hdr->ident, hdr->length);
+
+			/*
+			 * Send L2CAP_CommandRej. Do not really care 
+			 * about the result
+			 */
+
+			send_l2cap_reject(con, hdr->ident,
+				NG_L2CAP_REJ_NOT_UNDERSTOOD, 0, 0, 0);
+			NG_FREE_M(con->rx_pkt);
+			break;
+		}
+
+		con->rx_pkt = m;
+	}
+
+	return (0);
+} /* ng_l2cap_process_signal_cmd */
+/*Update Paramater Request*/
+static int ng_l2cap_process_cmd_urq(ng_l2cap_con_p con, uint8_t ident)
+{
+	/*We do not implement paramter negotiasion for now*/
+	send_l2cap_param_urs(con, ident, NG_L2CAP_UPDATE_PARAM_ACCEPT);
+	NG_FREE_M(con->rx_pkt);
+	return 0;
+}
+
+static int ng_l2cap_process_cmd_urs(ng_l2cap_con_p con, uint8_t ident)
+{
+	/* We only support master side yet .*/
+	//send_l2cap_reject(con,ident ... );
+	
+	NG_FREE_M(con->rx_pkt);
+	return 0;
+}
 
 /*
  * Process L2CAP_CommandRej command
@@ -352,7 +460,8 @@ ng_l2cap_process_con_req(ng_l2cap_con_p con, u_int8_t ident)
 	ng_l2cap_chan_p		 ch = NULL;
 	int			 error = 0;
 	u_int16_t		 dcid, psm;
-
+	int idtype;
+	
 	/* Get command parameters */
 	NG_L2CAP_M_PULLUP(m, sizeof(*cp));
 	if (m == NULL)
@@ -364,13 +473,20 @@ ng_l2cap_process_con_req(ng_l2cap_con_p con, u_int8_t ident)
 
 	NG_FREE_M(m);
 	con->rx_pkt = NULL;
+	if(dcid == NG_L2CAP_ATT_CID)
+		idtype = NG_L2CAP_L2CA_IDTYPE_ATT;
+	else if( con->linktype != NG_HCI_LINK_ACL)
+		idtype = NG_L2CAP_L2CA_IDTYPE_LE;
+	else
+		idtype = NG_L2CAP_L2CA_IDTYPE_BREDR;
 
 	/*
 	 * Create new channel and send L2CA_ConnectInd notification 
 	 * to the upper layer protocol.
 	 */
 
-	ch = ng_l2cap_new_chan(l2cap, con, psm);
+	ch = ng_l2cap_new_chan(l2cap, con, psm, idtype);
+
 	if (ch == NULL)
 		return (send_l2cap_con_rej(con, ident, 0, dcid,
 				NG_L2CAP_NO_RESOURCES));
@@ -486,7 +602,8 @@ ng_l2cap_process_con_rsp(ng_l2cap_con_p con, u_int8_t ident)
 			 */
 
 			cmd->ch->dcid = dcid;
-			cmd->ch->state = NG_L2CAP_CONFIG;
+			cmd->ch->state = (cmd->ch->scid == NG_L2CAP_ATT_CID)?
+			  NG_L2CAP_OPEN : NG_L2CAP_CONFIG;
 		} else
 			/* There was an error, so close the channel */
 			NG_L2CAP_INFO(
@@ -541,7 +658,7 @@ ng_l2cap_process_cfg_req(ng_l2cap_con_p con, u_int8_t ident)
 	m_adj(m, sizeof(*cp));
 
 	/* Check if we have this channel and it is in valid state */
-	ch = ng_l2cap_chan_by_scid(l2cap, dcid);
+	ch = ng_l2cap_chan_by_scid(l2cap, dcid, NG_L2CAP_L2CA_IDTYPE_BREDR);
 	if (ch == NULL) {
 		NG_L2CAP_ERR(
 "%s: %s - unexpected L2CAP_ConfigReq command. " \
@@ -826,7 +943,7 @@ ng_l2cap_process_discon_req(ng_l2cap_con_p con, u_int8_t ident)
 	NG_FREE_M(con->rx_pkt);
 
 	/* Check if we have this channel and it is in valid state */
-	ch = ng_l2cap_chan_by_scid(l2cap, dcid);
+	ch = ng_l2cap_chan_by_scid(l2cap, dcid, NG_L2CAP_L2CA_IDTYPE_BREDR);
 	if (ch == NULL) {
 		NG_L2CAP_ERR(
 "%s: %s - unexpected L2CAP_DisconnectReq message. " \
@@ -1238,6 +1355,34 @@ send_l2cap_cfg_rsp(ng_l2cap_con_p con, u_int8_t ident, u_int16_t scid,
 	}
 
 	_ng_l2cap_cfg_rsp(cmd->aux, cmd->ident, scid, 0, result, opt);
+	if (cmd->aux == NULL) {
+		ng_l2cap_free_cmd(cmd);
+
+		return (ENOBUFS);
+	}
+
+	/* Link command to the queue */
+	ng_l2cap_link_cmd(con, cmd);
+	ng_l2cap_lp_deliver(con);
+
+	return (0);
+} /* send_l2cap_cfg_rsp */
+
+static int 
+send_l2cap_param_urs(ng_l2cap_con_p con, u_int8_t ident,
+		     u_int16_t result)
+{
+	ng_l2cap_cmd_p	cmd = NULL;
+
+	cmd = ng_l2cap_new_cmd(con, NULL, ident,
+			       NG_L2CAP_CMD_PARAM_UPDATE_RESPONSE,
+			       0);
+	if (cmd == NULL) {
+
+		return (ENOMEM);
+	}
+
+	_ng_l2cap_cmd_urs(cmd->aux, cmd->ident, result);
 	if (cmd->aux == NULL) {
 		ng_l2cap_free_cmd(cmd);
 

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_MANAGED_STATIC_H
-#define LLVM_SUPPORT_MANAGED_STATIC_H
+#ifndef LLVM_SUPPORT_MANAGEDSTATIC_H
+#define LLVM_SUPPORT_MANAGEDSTATIC_H
 
 #include "llvm/Support/Atomic.h"
 #include "llvm/Support/Threading.h"
@@ -47,7 +47,7 @@ protected:
   void RegisterManagedStatic(void *(*creator)(), void (*deleter)(void*)) const;
 public:
   /// isConstructed - Return true if this object has not been created yet.
-  bool isConstructed() const { return Ptr != 0; }
+  bool isConstructed() const { return Ptr != nullptr; }
 
   void destroy() const;
 };
@@ -99,14 +99,10 @@ public:
 /// llvm_shutdown - Deallocate and destroy all ManagedStatic variables.
 void llvm_shutdown();
 
-
 /// llvm_shutdown_obj - This is a simple helper class that calls
 /// llvm_shutdown() when it is destroyed.
 struct llvm_shutdown_obj {
   llvm_shutdown_obj() { }
-  explicit llvm_shutdown_obj(bool multithreaded) {
-    if (multithreaded) llvm_start_multithreaded();
-  }
   ~llvm_shutdown_obj() { llvm_shutdown(); }
 };
 

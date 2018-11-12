@@ -19,7 +19,6 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
@@ -31,7 +30,7 @@ class RegisterClassInfo {
     bool ProperSubClass;
     uint8_t MinCost;
     uint16_t LastCostChange;
-    OwningArrayPtr<MCPhysReg> Order;
+    std::unique_ptr<MCPhysReg[]> Order;
 
     RCInfo()
       : Tag(0), NumRegs(0), ProperSubClass(false), MinCost(0),
@@ -43,7 +42,7 @@ class RegisterClassInfo {
   };
 
   // Brief cached information for each register class.
-  OwningArrayPtr<RCInfo> RegClass;
+  std::unique_ptr<RCInfo[]> RegClass;
 
   // Tag changes whenever cached information needs to be recomputed. An RCInfo
   // entry is valid when its tag matches.
@@ -54,13 +53,15 @@ class RegisterClassInfo {
 
   // Callee saved registers of last MF. Assumed to be valid until the next
   // runOnFunction() call.
-  const uint16_t *CalleeSaved;
+  const MCPhysReg *CalleeSaved;
 
   // Map register number to CalleeSaved index + 1;
   SmallVector<uint8_t, 4> CSRNum;
 
   // Reserved registers in the current MF.
   BitVector Reserved;
+
+  std::unique_ptr<unsigned[]> PSetLimits;
 
   // Compute all information about RC.
   void compute(const TargetRegisterClass *RC) const;
@@ -126,8 +127,19 @@ public:
   unsigned getLastCostChange(const TargetRegisterClass *RC) {
     return get(RC).LastCostChange;
   }
+
+  /// Get the register unit limit for the given pressure set index.
+  ///
+  /// RegisterClassInfo adjusts this limit for reserved registers.
+  unsigned getRegPressureSetLimit(unsigned Idx) const {
+    if (!PSetLimits[Idx])
+      PSetLimits[Idx] = computePSetLimit(Idx);
+    return PSetLimits[Idx];
+  }
+
+protected:
+  unsigned computePSetLimit(unsigned Idx) const;
 };
 } // end namespace llvm
 
 #endif
-

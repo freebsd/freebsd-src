@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,7 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
-#define __EVXFGPE_C__
+#define EXPORT_ACPI_INTERFACES
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -140,12 +139,23 @@ AcpiEnableGpe (
 
     Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
 
-    /* Ensure that we have a valid GPE number */
-
+    /*
+     * Ensure that we have a valid GPE number and that there is some way
+     * of handling the GPE (handler or a GPE method). In other words, we
+     * won't allow a valid GPE to be enabled if there is no way to handle it.
+     */
     GpeEventInfo = AcpiEvGetGpeEventInfo (GpeDevice, GpeNumber);
     if (GpeEventInfo)
     {
-        Status = AcpiEvAddGpeReference (GpeEventInfo);
+        if (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags) !=
+            ACPI_GPE_DISPATCH_NONE)
+        {
+            Status = AcpiEvAddGpeReference (GpeEventInfo);
+        }
+        else
+        {
+            Status = AE_NO_HANDLER;
+        }
     }
 
     AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
@@ -211,12 +221,21 @@ ACPI_EXPORT_SYMBOL (AcpiDisableGpe)
  * RETURN:      Status
  *
  * DESCRIPTION: Enable or disable an individual GPE. This function bypasses
- *              the reference count mechanism used in the AcpiEnableGpe and
- *              AcpiDisableGpe interfaces -- and should be used with care.
+ *              the reference count mechanism used in the AcpiEnableGpe(),
+ *              AcpiDisableGpe() interfaces.
+ *              This API is typically used by the GPE raw handler mode driver
+ *              to switch between the polling mode and the interrupt mode after
+ *              the driver has enabled the GPE.
+ *              The APIs should be invoked in this order:
+ *               AcpiEnableGpe()              <- Ensure the reference count > 0
+ *               AcpiSetGpe(ACPI_GPE_DISABLE) <- Enter polling mode
+ *               AcpiSetGpe(ACPI_GPE_ENABLE)  <- Leave polling mode
+ *               AcpiDisableGpe()             <- Decrease the reference count
  *
- * Note: Typically used to disable a runtime GPE for short period of time,
- * then re-enable it, without disturbing the existing reference counts. This
- * is useful, for example, in the Embedded Controller (EC) driver.
+ * Note: If a GPE is shared by 2 silicon components, then both the drivers
+ *       should support GPE polling mode or disabling the GPE for long period
+ *       for one driver may break the other. So use it with care since all
+ *       firmware _Lxx/_Exx handlers currently rely on the GPE interrupt mode.
  *
  ******************************************************************************/
 
@@ -251,7 +270,7 @@ AcpiSetGpe (
     {
     case ACPI_GPE_ENABLE:
 
-        Status = AcpiEvEnableGpe (GpeEventInfo);
+        Status = AcpiHwLowSetGpe (GpeEventInfo, ACPI_GPE_ENABLE);
         break;
 
     case ACPI_GPE_DISABLE:
@@ -271,6 +290,60 @@ UnlockAndExit:
 }
 
 ACPI_EXPORT_SYMBOL (AcpiSetGpe)
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiMarkGpeForWake
+ *
+ * PARAMETERS:  GpeDevice           - Parent GPE Device. NULL for GPE0/GPE1
+ *              GpeNumber           - GPE level within the GPE block
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Mark a GPE as having the ability to wake the system. Simply
+ *              sets the ACPI_GPE_CAN_WAKE flag.
+ *
+ * Some potential callers of AcpiSetupGpeForWake may know in advance that
+ * there won't be any notify handlers installed for device wake notifications
+ * from the given GPE (one example is a button GPE in Linux). For these cases,
+ * AcpiMarkGpeForWake should be used instead of AcpiSetupGpeForWake.
+ * This will set the ACPI_GPE_CAN_WAKE flag for the GPE without trying to
+ * setup implicit wake notification for it (since there's no handler method).
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiMarkGpeForWake (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber)
+{
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
+    ACPI_STATUS             Status = AE_BAD_PARAMETER;
+    ACPI_CPU_FLAGS          Flags;
+
+
+    ACPI_FUNCTION_TRACE (AcpiMarkGpeForWake);
+
+
+    Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
+
+    /* Ensure that we have a valid GPE number */
+
+    GpeEventInfo = AcpiEvGetGpeEventInfo (GpeDevice, GpeNumber);
+    if (GpeEventInfo)
+    {
+        /* Mark the GPE as a possible wake event */
+
+        GpeEventInfo->Flags |= ACPI_GPE_CAN_WAKE;
+        Status = AE_OK;
+    }
+
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+    return_ACPI_STATUS (Status);
+}
+
+ACPI_EXPORT_SYMBOL (AcpiMarkGpeForWake)
 
 
 /*******************************************************************************
@@ -366,7 +439,7 @@ AcpiSetupGpeForWake (
      * known as an "implicit notify". Note: The GPE is assumed to be
      * level-triggered (for windows compatibility).
      */
-    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+    if (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags) ==
             ACPI_GPE_DISPATCH_NONE)
     {
         /*
@@ -381,7 +454,7 @@ AcpiSetupGpeForWake (
      * If we already have an implicit notify on this GPE, add
      * this device to the notify list.
      */
-    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+    if (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags) ==
             ACPI_GPE_DISPATCH_NOTIFY)
     {
         /* Ensure that the device is not already in the list */
@@ -738,6 +811,44 @@ AcpiEnableAllRuntimeGpes (
 ACPI_EXPORT_SYMBOL (AcpiEnableAllRuntimeGpes)
 
 
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiEnableAllWakeupGpes
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Enable all "wakeup" GPEs and disable all of the other GPEs, in
+ *              all GPE blocks.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEnableAllWakeupGpes (
+    void)
+{
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE (AcpiEnableAllWakeupGpes);
+
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiHwEnableAllWakeupGpes ();
+    (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
+
+    return_ACPI_STATUS (Status);
+}
+
+ACPI_EXPORT_SYMBOL (AcpiEnableAllWakeupGpes)
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiInstallGpeBlock
@@ -790,11 +901,26 @@ AcpiInstallGpeBlock (
         goto UnlockAndExit;
     }
 
+    /* Validate the parent device */
+
+    if (Node->Type != ACPI_TYPE_DEVICE)
+    {
+        Status = AE_TYPE;
+        goto UnlockAndExit;
+    }
+
+    if (Node->Object)
+    {
+        Status = AE_ALREADY_EXISTS;
+        goto UnlockAndExit;
+    }
+
     /*
      * For user-installed GPE Block Devices, the GpeBlockBaseNumber
      * is always zero
      */
-    Status = AcpiEvCreateGpeBlock (Node, GpeBlockAddress, RegisterCount,
+    Status = AcpiEvCreateGpeBlock (Node, GpeBlockAddress->Address,
+                GpeBlockAddress->SpaceId, RegisterCount,
                 0, InterruptNumber, &GpeBlock);
     if (ACPI_FAILURE (Status))
     {
@@ -880,6 +1006,14 @@ AcpiRemoveGpeBlock (
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
+        goto UnlockAndExit;
+    }
+
+    /* Validate the parent device */
+
+    if (Node->Type != ACPI_TYPE_DEVICE)
+    {
+        Status = AE_TYPE;
         goto UnlockAndExit;
     }
 

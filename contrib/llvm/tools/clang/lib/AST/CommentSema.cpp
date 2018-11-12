@@ -29,8 +29,8 @@ Sema::Sema(llvm::BumpPtrAllocator &Allocator, const SourceManager &SourceMgr,
            DiagnosticsEngine &Diags, CommandTraits &Traits,
            const Preprocessor *PP) :
     Allocator(Allocator), SourceMgr(SourceMgr), Diags(Diags), Traits(Traits),
-    PP(PP), ThisDeclInfo(NULL), BriefCommand(NULL), ReturnsCommand(NULL),
-    HeaderfileCommand(NULL) {
+    PP(PP), ThisDeclInfo(nullptr), BriefCommand(nullptr),
+    HeaderfileCommand(nullptr) {
 }
 
 void Sema::setDecl(const Decl *D) {
@@ -69,8 +69,12 @@ void Sema::actOnBlockCommandFinish(BlockCommandComment *Command,
   Command->setParagraph(Paragraph);
   checkBlockCommandEmptyParagraph(Command);
   checkBlockCommandDuplicate(Command);
-  checkReturnsCommand(Command);
-  checkDeprecatedCommand(Command);
+  if (ThisDeclInfo) {
+    // These checks only make sense if the comment is attached to a
+    // declaration.
+    checkReturnsCommand(Command);
+    checkDeprecatedCommand(Command);
+  }
 }
 
 ParamCommandComment *Sema::actOnParamCommandStart(
@@ -99,10 +103,10 @@ void Sema::checkFunctionDeclVerbatimLine(const BlockCommandComment *Comment) {
   unsigned DiagSelect;
   switch (Comment->getCommandID()) {
     case CommandTraits::KCI_function:
-      DiagSelect = !isAnyFunctionDecl() ? 1 : 0;
+      DiagSelect = (!isAnyFunctionDecl() && !isFunctionTemplateDecl())? 1 : 0;
       break;
     case CommandTraits::KCI_functiongroup:
-      DiagSelect = !isAnyFunctionDecl() ? 2 : 0;
+      DiagSelect = (!isAnyFunctionDecl() && !isFunctionTemplateDecl())? 2 : 0;
       break;
     case CommandTraits::KCI_method:
       DiagSelect = !isObjCMethodDecl() ? 3 : 0;
@@ -123,7 +127,7 @@ void Sema::checkFunctionDeclVerbatimLine(const BlockCommandComment *Comment) {
     << (DiagSelect-1) << (DiagSelect-1)
     << Comment->getSourceRange();
 }
-  
+
 void Sema::checkContainerDeclVerbatimLine(const BlockCommandComment *Comment) {
   const CommandInfo *Info = Traits.getCommandInfo(Comment->getCommandID());
   if (!Info->IsRecordLikeDeclarationCommand)
@@ -131,7 +135,12 @@ void Sema::checkContainerDeclVerbatimLine(const BlockCommandComment *Comment) {
   unsigned DiagSelect;
   switch (Comment->getCommandID()) {
     case CommandTraits::KCI_class:
-      DiagSelect = !isClassOrStructDecl() ? 1 : 0;
+      DiagSelect = (!isClassOrStructDecl() && !isClassTemplateDecl()) ? 1 : 0;
+      // Allow @class command on @interface declarations.
+      // FIXME. Currently, \class and @class are indistinguishable. So,
+      // \class is also allowed on an @interface declaration
+      if (DiagSelect && Comment->getCommandMarker() && isObjCInterfaceDecl())
+        DiagSelect = 0;
       break;
     case CommandTraits::KCI_interface:
       DiagSelect = !isObjCInterfaceDecl() ? 2 : 0;
@@ -206,59 +215,43 @@ void Sema::checkContainerDecl(const BlockCommandComment *Comment) {
     << Comment->getSourceRange();
 }
 
+/// \brief Turn a string into the corresponding PassDirection or -1 if it's not
+/// valid.
+static int getParamPassDirection(StringRef Arg) {
+  return llvm::StringSwitch<int>(Arg)
+      .Case("[in]", ParamCommandComment::In)
+      .Case("[out]", ParamCommandComment::Out)
+      .Cases("[in,out]", "[out,in]", ParamCommandComment::InOut)
+      .Default(-1);
+}
+
 void Sema::actOnParamCommandDirectionArg(ParamCommandComment *Command,
                                          SourceLocation ArgLocBegin,
                                          SourceLocation ArgLocEnd,
                                          StringRef Arg) {
-  ParamCommandComment::PassDirection Direction;
   std::string ArgLower = Arg.lower();
-  // TODO: optimize: lower Name first (need an API in SmallString for that),
-  // after that StringSwitch.
-  if (ArgLower == "[in]")
-    Direction = ParamCommandComment::In;
-  else if (ArgLower == "[out]")
-    Direction = ParamCommandComment::Out;
-  else if (ArgLower == "[in,out]" || ArgLower == "[out,in]")
-    Direction = ParamCommandComment::InOut;
-  else {
-    // Remove spaces.
-    std::string::iterator O = ArgLower.begin();
-    for (std::string::iterator I = ArgLower.begin(), E = ArgLower.end();
-         I != E; ++I) {
-      const char C = *I;
-      if (C != ' ' && C != '\n' && C != '\r' &&
-          C != '\t' && C != '\v' && C != '\f')
-        *O++ = C;
-    }
-    ArgLower.resize(O - ArgLower.begin());
+  int Direction = getParamPassDirection(ArgLower);
 
-    bool RemovingWhitespaceHelped = false;
-    if (ArgLower == "[in]") {
-      Direction = ParamCommandComment::In;
-      RemovingWhitespaceHelped = true;
-    } else if (ArgLower == "[out]") {
-      Direction = ParamCommandComment::Out;
-      RemovingWhitespaceHelped = true;
-    } else if (ArgLower == "[in,out]" || ArgLower == "[out,in]") {
-      Direction = ParamCommandComment::InOut;
-      RemovingWhitespaceHelped = true;
-    } else {
-      Direction = ParamCommandComment::In;
-      RemovingWhitespaceHelped = false;
-    }
+  if (Direction == -1) {
+    // Try again with whitespace removed.
+    ArgLower.erase(
+        std::remove_if(ArgLower.begin(), ArgLower.end(), clang::isWhitespace),
+        ArgLower.end());
+    Direction = getParamPassDirection(ArgLower);
 
     SourceRange ArgRange(ArgLocBegin, ArgLocEnd);
-    if (RemovingWhitespaceHelped)
+    if (Direction != -1) {
+      const char *FixedName = ParamCommandComment::getDirectionAsString(
+          (ParamCommandComment::PassDirection)Direction);
       Diag(ArgLocBegin, diag::warn_doc_param_spaces_in_direction)
-        << ArgRange
-        << FixItHint::CreateReplacement(
-                          ArgRange,
-                          ParamCommandComment::getDirectionAsString(Direction));
-    else
-      Diag(ArgLocBegin, diag::warn_doc_param_invalid_direction)
-        << ArgRange;
+          << ArgRange << FixItHint::CreateReplacement(ArgRange, FixedName);
+    } else {
+      Diag(ArgLocBegin, diag::warn_doc_param_invalid_direction) << ArgRange;
+      Direction = ParamCommandComment::In; // Sane fall back.
+    }
   }
-  Command->setDirection(Direction, /* Explicit = */ true);
+  Command->setDirection((ParamCommandComment::PassDirection)Direction,
+                        /*Explicit=*/true);
 }
 
 void Sema::actOnParamCommandParamNameArg(ParamCommandComment *Command,
@@ -326,17 +319,15 @@ void Sema::actOnTParamCommandParamNameArg(TParamCommandComment *Command,
   SmallVector<unsigned, 2> Position;
   if (resolveTParamReference(Arg, TemplateParameters, &Position)) {
     Command->setPosition(copyArray(llvm::makeArrayRef(Position)));
-    llvm::StringMap<TParamCommandComment *>::iterator PrevCommandIt =
-        TemplateParameterDocs.find(Arg);
-    if (PrevCommandIt != TemplateParameterDocs.end()) {
+    TParamCommandComment *&PrevCommand = TemplateParameterDocs[Arg];
+    if (PrevCommand) {
       SourceRange ArgRange(ArgLocBegin, ArgLocEnd);
       Diag(ArgLocBegin, diag::warn_doc_tparam_duplicate)
         << Arg << ArgRange;
-      TParamCommandComment *PrevCommand = PrevCommandIt->second;
       Diag(PrevCommand->getLocation(), diag::note_doc_tparam_previous)
         << PrevCommand->getParamNameRange();
     }
-    TemplateParameterDocs[Arg] = Command;
+    PrevCommand = Command;
     return;
   }
 
@@ -492,6 +483,7 @@ HTMLEndTagComment *Sema::actOnHTMLEndTag(SourceLocation LocBegin,
   if (isHTMLEndTagForbidden(TagName)) {
     Diag(HET->getLocation(), diag::warn_doc_html_end_forbidden)
       << TagName << HET->getSourceRange();
+    HET->setIsMalformed();
     return HET;
   }
 
@@ -507,15 +499,19 @@ HTMLEndTagComment *Sema::actOnHTMLEndTag(SourceLocation LocBegin,
   if (!FoundOpen) {
     Diag(HET->getLocation(), diag::warn_doc_html_end_unbalanced)
       << HET->getSourceRange();
+    HET->setIsMalformed();
     return HET;
   }
 
   while (!HTMLOpenTags.empty()) {
-    const HTMLStartTagComment *HST = HTMLOpenTags.back();
-    HTMLOpenTags.pop_back();
+    HTMLStartTagComment *HST = HTMLOpenTags.pop_back_val();
     StringRef LastNotClosedTagName = HST->getTagName();
-    if (LastNotClosedTagName == TagName)
+    if (LastNotClosedTagName == TagName) {
+      // If the start tag is malformed, end tag is malformed as well.
+      if (HST->isMalformed())
+        HET->setIsMalformed();
       break;
+    }
 
     if (isHTMLEndTagOptional(LastNotClosedTagName))
       continue;
@@ -529,16 +525,18 @@ HTMLEndTagComment *Sema::actOnHTMLEndTag(SourceLocation LocBegin,
                                                 HET->getLocation(),
                                                 &CloseLineInvalid);
 
-    if (OpenLineInvalid || CloseLineInvalid || OpenLine == CloseLine)
+    if (OpenLineInvalid || CloseLineInvalid || OpenLine == CloseLine) {
       Diag(HST->getLocation(), diag::warn_doc_html_start_end_mismatch)
         << HST->getTagName() << HET->getTagName()
         << HST->getSourceRange() << HET->getSourceRange();
-    else {
+      HST->setIsMalformed();
+    } else {
       Diag(HST->getLocation(), diag::warn_doc_html_start_end_mismatch)
         << HST->getTagName() << HET->getTagName()
         << HST->getSourceRange();
       Diag(HET->getLocation(), diag::note_doc_html_end_tag)
         << HET->getSourceRange();
+      HST->setIsMalformed();
     }
   }
 
@@ -549,6 +547,18 @@ FullComment *Sema::actOnFullComment(
                               ArrayRef<BlockContentComment *> Blocks) {
   FullComment *FC = new (Allocator) FullComment(Blocks, ThisDeclInfo);
   resolveParamCommandIndexes(FC);
+
+  // Complain about HTML tags that are not closed.
+  while (!HTMLOpenTags.empty()) {
+    HTMLStartTagComment *HST = HTMLOpenTags.pop_back_val();
+    if (isHTMLEndTagOptional(HST->getTagName()))
+      continue;
+
+    Diag(HST->getLocation(), diag::warn_doc_html_missing_end_tag)
+      << HST->getTagName() << HST->getSourceRange();
+    HST->setIsMalformed();
+  }
+
   return FC;
 }
 
@@ -573,8 +583,11 @@ void Sema::checkBlockCommandEmptyParagraph(BlockCommandComment *Command) {
 void Sema::checkReturnsCommand(const BlockCommandComment *Command) {
   if (!Traits.getCommandInfo(Command->getCommandID())->IsReturnsCommand)
     return;
+
+  assert(ThisDeclInfo && "should not call this check on a bare comment");
+
   if (isFunctionDecl()) {
-    if (ThisDeclInfo->ResultType->isVoidType()) {
+    if (ThisDeclInfo->ReturnType->isVoidType()) {
       unsigned DiagKind;
       switch (ThisDeclInfo->CommentDecl->getKind()) {
       default:
@@ -601,7 +614,7 @@ void Sema::checkReturnsCommand(const BlockCommandComment *Command) {
   }
   else if (isObjCPropertyDecl())
     return;
-  
+
   Diag(Command->getLocation(),
        diag::warn_doc_returns_not_attached_to_a_function_decl)
     << Command->getCommandMarker()
@@ -611,19 +624,13 @@ void Sema::checkReturnsCommand(const BlockCommandComment *Command) {
 
 void Sema::checkBlockCommandDuplicate(const BlockCommandComment *Command) {
   const CommandInfo *Info = Traits.getCommandInfo(Command->getCommandID());
-  const BlockCommandComment *PrevCommand = NULL;
+  const BlockCommandComment *PrevCommand = nullptr;
   if (Info->IsBriefCommand) {
     if (!BriefCommand) {
       BriefCommand = Command;
       return;
     }
     PrevCommand = BriefCommand;
-  } else if (Info->IsReturnsCommand) {
-    if (!ReturnsCommand) {
-      ReturnsCommand = Command;
-      return;
-    }
-    PrevCommand = ReturnsCommand;
   } else if (Info->IsHeaderfileCommand) {
     if (!HeaderfileCommand) {
       HeaderfileCommand = Command;
@@ -656,6 +663,8 @@ void Sema::checkBlockCommandDuplicate(const BlockCommandComment *Command) {
 void Sema::checkDeprecatedCommand(const BlockCommandComment *Command) {
   if (!Traits.getCommandInfo(Command->getCommandID())->IsDeprecatedCommand)
     return;
+
+  assert(ThisDeclInfo && "should not call this check on a bare comment");
 
   const Decl *D = ThisDeclInfo->CommentDecl;
   if (!D)
@@ -715,7 +724,7 @@ void Sema::resolveParamCommandIndexes(const FullComment *FC) {
   SmallVector<ParamCommandComment *, 8> ParamVarDocs;
 
   ArrayRef<const ParmVarDecl *> ParamVars = getParamVars();
-  ParamVarDocs.resize(ParamVars.size(), NULL);
+  ParamVarDocs.resize(ParamVars.size(), nullptr);
 
   // First pass over all \\param commands: resolve all parameter names.
   for (Comment::child_iterator I = FC->child_begin(), E = FC->child_end();
@@ -728,6 +737,10 @@ void Sema::resolveParamCommandIndexes(const FullComment *FC) {
     // Check that referenced parameter name is in the function decl.
     const unsigned ResolvedParamIndex = resolveParmVarReference(ParamName,
                                                                 ParamVars);
+    if (ResolvedParamIndex == ParamCommandComment::VarArgParamIndex) {
+      PCC->setIsVarArgParam();
+      continue;
+    }
     if (ResolvedParamIndex == ParamCommandComment::InvalidParamIndex) {
       UnresolvedParamCommands.push_back(PCC);
       continue;
@@ -798,14 +811,27 @@ bool Sema::isAnyFunctionDecl() {
   return isFunctionDecl() && ThisDeclInfo->CurrentDecl &&
          isa<FunctionDecl>(ThisDeclInfo->CurrentDecl);
 }
-  
+
+bool Sema::isFunctionOrMethodVariadic() {
+  if (!isAnyFunctionDecl() && !isObjCMethodDecl() && !isFunctionTemplateDecl())
+    return false;
+  if (const FunctionDecl *FD =
+        dyn_cast<FunctionDecl>(ThisDeclInfo->CurrentDecl))
+    return FD->isVariadic();
+  if (const FunctionTemplateDecl *FTD =
+        dyn_cast<FunctionTemplateDecl>(ThisDeclInfo->CurrentDecl))
+    return FTD->getTemplatedDecl()->isVariadic();
+  if (const ObjCMethodDecl *MD =
+        dyn_cast<ObjCMethodDecl>(ThisDeclInfo->CurrentDecl))
+    return MD->isVariadic();
+  return false;
+}
+
 bool Sema::isObjCMethodDecl() {
   return isFunctionDecl() && ThisDeclInfo->CurrentDecl &&
          isa<ObjCMethodDecl>(ThisDeclInfo->CurrentDecl);
 }
-  
-/// isFunctionPointerVarDecl - returns 'true' if declaration is a pointer to
-/// function decl.
+
 bool Sema::isFunctionPointerVarDecl() {
   if (!ThisDeclInfo)
     return false;
@@ -819,7 +845,7 @@ bool Sema::isFunctionPointerVarDecl() {
   }
   return false;
 }
-  
+
 bool Sema::isObjCPropertyDecl() {
   if (!ThisDeclInfo)
     return false;
@@ -841,8 +867,8 @@ bool Sema::isRecordLikeDecl() {
     return false;
   if (!ThisDeclInfo->IsFilled)
     inspectThisDecl();
-  return isUnionDecl() || isClassOrStructDecl() 
-         || isObjCInterfaceDecl() || isObjCProtocolDecl();
+  return isUnionDecl() || isClassOrStructDecl() || isObjCInterfaceDecl() ||
+         isObjCProtocolDecl();
 }
 
 bool Sema::isUnionDecl() {
@@ -855,7 +881,7 @@ bool Sema::isUnionDecl() {
     return RD->isUnion();
   return false;
 }
-  
+
 bool Sema::isClassOrStructDecl() {
   if (!ThisDeclInfo)
     return false;
@@ -866,6 +892,24 @@ bool Sema::isClassOrStructDecl() {
          !isUnionDecl();
 }
 
+bool Sema::isClassTemplateDecl() {
+  if (!ThisDeclInfo)
+    return false;
+  if (!ThisDeclInfo->IsFilled)
+    inspectThisDecl();
+  return ThisDeclInfo->CurrentDecl &&
+          (isa<ClassTemplateDecl>(ThisDeclInfo->CurrentDecl));
+}
+
+bool Sema::isFunctionTemplateDecl() {
+  if (!ThisDeclInfo)
+    return false;
+  if (!ThisDeclInfo->IsFilled)
+    inspectThisDecl();
+  return ThisDeclInfo->CurrentDecl &&
+         (isa<FunctionTemplateDecl>(ThisDeclInfo->CurrentDecl));
+}
+
 bool Sema::isObjCInterfaceDecl() {
   if (!ThisDeclInfo)
     return false;
@@ -874,7 +918,7 @@ bool Sema::isObjCInterfaceDecl() {
   return ThisDeclInfo->CurrentDecl &&
          isa<ObjCInterfaceDecl>(ThisDeclInfo->CurrentDecl);
 }
-  
+
 bool Sema::isObjCProtocolDecl() {
   if (!ThisDeclInfo)
     return false;
@@ -883,7 +927,7 @@ bool Sema::isObjCProtocolDecl() {
   return ThisDeclInfo->CurrentDecl &&
          isa<ObjCProtocolDecl>(ThisDeclInfo->CurrentDecl);
 }
-  
+
 ArrayRef<const ParmVarDecl *> Sema::getParamVars() {
   if (!ThisDeclInfo->IsFilled)
     inspectThisDecl();
@@ -901,6 +945,8 @@ unsigned Sema::resolveParmVarReference(StringRef Name,
     if (II && II->getName() == Name)
       return i;
   }
+  if (Name == "..." && isFunctionOrMethodVariadic())
+    return ParamCommandComment::VarArgParamIndex;
   return ParamCommandComment::InvalidParamIndex;
 }
 
@@ -917,7 +963,7 @@ class SimpleTypoCorrector {
 public:
   SimpleTypoCorrector(StringRef Typo) :
       Typo(Typo), MaxEditDistance((Typo.size() + 2) / 3),
-      BestDecl(NULL), BestEditDistance(MaxEditDistance + 1),
+      BestDecl(nullptr), BestEditDistance(MaxEditDistance + 1),
       BestIndex(0), NextIndex(0)
   { }
 
@@ -925,7 +971,7 @@ public:
 
   const NamedDecl *getBestDecl() const {
     if (BestEditDistance > MaxEditDistance)
-      return NULL;
+      return nullptr;
 
     return BestDecl;
   }

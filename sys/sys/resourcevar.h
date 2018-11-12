@@ -47,21 +47,22 @@
  * Locking key:
  *      b - created at fork, never changes
  *      c - locked by proc mtx
- *      j - locked by proc slock
  *      k - only accessed by curthread
+ *      w - locked by proc itim lock
+ *	w2 - locked by proc prof lock
  */
 struct pstats {
 #define	pstat_startzero	p_cru
 	struct	rusage p_cru;		/* Stats for reaped children. */
-	struct	itimerval p_timer[3];	/* (j) Virtual-time timers. */
+	struct	itimerval p_timer[3];	/* (w) Virtual-time timers. */
 #define	pstat_endzero	pstat_startcopy
 
 #define	pstat_startcopy	p_prof
 	struct uprof {			/* Profile arguments. */
-		caddr_t	pr_base;	/* (c + j) Buffer base. */
-		u_long	pr_size;	/* (c + j) Buffer size. */
-		u_long	pr_off;		/* (c + j) PC offset. */
-		u_long	pr_scale;	/* (c + j) PC scaling. */
+		caddr_t	pr_base;	/* (c + w2) Buffer base. */
+		u_long	pr_size;	/* (c + w2) Buffer size. */
+		u_long	pr_off;		/* (c + w2) PC offset. */
+		u_long	pr_scale;	/* (c + w2) PC scaling. */
 	} p_prof;
 #define	pstat_endcopy	p_start
 	struct	timeval p_start;	/* (b) Starting time. */
@@ -89,7 +90,7 @@ struct racct;
  * Locking guide:
  * (a) Constant from inception
  * (b) Lockless, updated using atomics
- * (c) Locked by global uihashtbl_mtx
+ * (c) Locked by global uihashtbl_lock
  * (d) Locked by the ui_vmsize_mtx
  */
 struct uidinfo {
@@ -102,7 +103,9 @@ struct uidinfo {
 	long	ui_kqcnt;		/* (b) number of kqueues */
 	uid_t	ui_uid;			/* (a) uid */
 	u_int	ui_ref;			/* (b) reference count */
+#ifdef	RACCT
 	struct racct *ui_racct;		/* (a) resource accounting */
+#endif
 };
 
 #define	UIDINFO_VMSIZE_LOCK(ui)		mtx_lock(&((ui)->ui_vmsize_mtx))
@@ -127,13 +130,16 @@ int	 kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 struct plimit
 	*lim_alloc(void);
 void	 lim_copy(struct plimit *dst, struct plimit *src);
-rlim_t	 lim_cur(struct proc *p, int which);
+rlim_t	 lim_cur(struct thread *td, int which);
+rlim_t	 lim_cur_proc(struct proc *p, int which);
 void	 lim_fork(struct proc *p1, struct proc *p2);
 void	 lim_free(struct plimit *limp);
 struct plimit
 	*lim_hold(struct plimit *limp);
-rlim_t	 lim_max(struct proc *p, int which);
-void	 lim_rlimit(struct proc *p, int which, struct rlimit *rlp);
+rlim_t	 lim_max(struct thread *td, int which);
+rlim_t	 lim_max_proc(struct proc *p, int which);
+void	 lim_rlimit(struct thread *td, int which, struct rlimit *rlp);
+void	 lim_rlimit_proc(struct proc *p, int which, struct rlimit *rlp);
 void	 ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
 	    struct rusage_ext *rux2);
 void	 rucollect(struct rusage *ru, struct rusage *ru2);
@@ -148,8 +154,10 @@ struct uidinfo
 void	 uifree(struct uidinfo *uip);
 void	 uihashinit(void);
 void	 uihold(struct uidinfo *uip);
+#ifdef	RACCT
 void	 ui_racct_foreach(void (*callback)(struct racct *racct,
 	    void *arg2, void *arg3), void *arg2, void *arg3);
+#endif
 
 #endif /* _KERNEL */
 #endif /* !_SYS_RESOURCEVAR_H_ */

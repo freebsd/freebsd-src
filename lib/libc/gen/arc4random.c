@@ -1,4 +1,4 @@
-/*	$OpenBSD: arc4random.c,v 1.22 2010/12/22 08:23:42 otto Exp $	*/
+/*	$OpenBSD: arc4random.c,v 1.24 2013/06/11 16:59:50 deraadt Exp $	*/
 
 /*
  * Copyright (c) 1996, David Mazieres <dm@uun.org>
@@ -182,8 +182,7 @@ arc4_stir_if_needed(void)
 {
 	pid_t pid = getpid();
 
-	if (arc4_count <= 0 || !rs_initialized || arc4_stir_pid != pid)
-	{
+	if (arc4_count <= 0 || !rs_initialized || arc4_stir_pid != pid) {
 		arc4_stir_pid = pid;
 		arc4_stir();
 	}
@@ -276,18 +275,8 @@ arc4random_uniform(u_int32_t upper_bound)
 	if (upper_bound < 2)
 		return 0;
 
-#if (ULONG_MAX > 0xffffffffUL)
-	min = 0x100000000UL % upper_bound;
-#else
-	/* Calculate (2**32 % upper_bound) avoiding 64-bit math */
-	if (upper_bound > 0x80000000)
-		min = 1 + ~upper_bound;		/* 2**32 - upper_bound */
-	else {
-		/* (2**32 - (x * 2)) % x == 2**32 % x when x <= 2**31 */
-		min = ((0xffffffff - (upper_bound * 2)) + 1) % upper_bound;
-	}
-#endif
-
+	/* 2**32 % x == (2**32 - x) % x */
+	min = -upper_bound % upper_bound;
 	/*
 	 * This could theoretically loop forever but each retry has
 	 * p > 0.5 (worst case, usually far better) of selecting a

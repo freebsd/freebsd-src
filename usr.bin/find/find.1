@@ -31,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2014
+.Dd April 13, 2014
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -384,6 +384,12 @@ is replaced with as many pathnames as possible for each invocation of
 .Ar utility .
 This behaviour is similar to that of
 .Xr xargs 1 .
+The primary always returns true;
+if at least one invocation of
+.Ar utility
+returns a non-zero exit status,
+.Nm
+will return a non-zero exit status.
 .It Ic -execdir Ar utility Oo Ar argument ... Oc Li \&;
 The
 .Ic -execdir
@@ -406,6 +412,12 @@ is replaced with as many pathnames as possible for each invocation of
 .Ar utility .
 This behaviour is similar to that of
 .Xr xargs 1 .
+The primary always returns true;
+if at least one invocation of
+.Ar utility
+returns a non-zero exit status,
+.Nm
+will return a non-zero exit status.
 .It Ic -flags Oo Cm - Ns | Ns Cm + Oc Ns Ar flags , Ns Ar notflags
 The flags are specified using symbolic names (see
 .Xr chflags 1 ) .
@@ -766,7 +778,7 @@ option was specified.
 .It Ic -quit
 Causes
 .Nm
-to immediately terminate successfully.
+to terminate immediately.
 .It Ic -regex Ar pattern
 True if the whole path of the file matches
 .Ar pattern
@@ -1003,7 +1015,7 @@ and
 as well as
 .Ic -amin , -anewer , -cmin , -cnewer , -delete , -empty , -fstype ,
 .Ic -iname , -inum , -iregex , -ls , -maxdepth , -mindepth , -mmin ,
-.Ic -path , -print0 , -regex, -sparse
+.Ic -path , -print0 , -regex , -sparse
 and all of the
 .Ic -B*
 birthtime related primaries are extensions to

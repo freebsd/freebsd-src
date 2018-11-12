@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  */
 /*
@@ -135,8 +135,18 @@ extern int aok;
 
 /*
  * DTrace SDT probes have different signatures in userland than they do in
- * kernel.  If they're being used in kernel code, re-define them out of
+ * the kernel.  If they're being used in kernel code, re-define them out of
  * existence for their counterparts in libzpool.
+ *
+ * Here's an example of how to use the set-error probes in userland:
+ * zfs$target:::set-error /arg0 == EBUSY/ {stack();}
+ *
+ * Here's an example of how to use DTRACE_PROBE probes in userland:
+ * If there is a probe declared as follows:
+ * DTRACE_PROBE2(zfs__probe_name, uint64_t, blkid, dnode_t *, dn);
+ * Then you can use it as follows:
+ * zfs$target:::probe2 /copyinstr(arg0) == "zfs__probe_name"/
+ *     {printf("%u %p\n", arg1, arg2);}
  */
 
 #ifdef DTRACE_PROBE
@@ -424,8 +434,10 @@ typedef struct vnode {
 	uint64_t	v_size;
 	int		v_fd;
 	char		*v_path;
+	int		v_dump_fd;
 } vnode_t;
 
+extern char *vn_dumpdir;
 #define	AV_SCANSTAMP_SZ	32		/* length of anti-virus scanstamp */
 
 typedef struct xoptattr {
@@ -533,7 +545,7 @@ extern vnode_t *rootdir;
 extern void delay(clock_t ticks);
 
 #define	SEC_TO_TICK(sec)	((sec) * hz)
-#define	NSEC_TO_TICK(usec)	((usec) / (NANOSEC / hz))
+#define	NSEC_TO_TICK(nsec)	((nsec) / (NANOSEC / hz))
 
 #define	gethrestime_sec() time(NULL)
 #define	gethrestime(t) \
@@ -558,7 +570,7 @@ extern void delay(clock_t ticks);
 
 extern uint64_t physmem;
 
-extern int highbit(ulong_t i);
+extern int highbit64(uint64_t i);
 extern int random_get_bytes(uint8_t *ptr, size_t len);
 extern int random_get_pseudo_bytes(uint8_t *ptr, size_t len);
 
@@ -643,13 +655,6 @@ extern int zfs_secpolicy_rename_perms(const char *from, const char *to,
 extern int zfs_secpolicy_destroy_perms(const char *name, cred_t *cr);
 extern zoneid_t getzoneid(void);
 /* Random compatibility stuff. */
-#define	lbolt	(gethrtime() >> 23)
-#define	lbolt64	(gethrtime() >> 23)
-
-extern uint64_t physmem;
-
-#define	gethrestime_sec()	time(NULL)
-
 #define	pwrite64(d, p, n, o)	pwrite(d, p, n, o)
 #define	readdir64(d)		readdir(d)
 #define	SIGPENDING(td)		(0)

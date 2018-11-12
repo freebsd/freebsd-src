@@ -46,7 +46,6 @@
 #define KEYCTL_ESP_AUTH			10
 #define KEYCTL_AH_KEYMIN		11
 #define KEYCTL_PREFERED_OLDSA		12
-#define KEYCTL_MAXID			13
 
 #ifdef _KERNEL
 #define _ARRAYLEN(p) (sizeof(p)/sizeof(p[0]))

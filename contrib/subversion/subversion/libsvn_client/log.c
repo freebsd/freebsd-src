@@ -814,10 +814,12 @@ svn_client_log5(const apr_array_header_t *targets,
   svn_ra_session_t *ra_session;
   const char *old_session_url;
   const char *ra_target;
+  const char *path_or_url;
   svn_opt_revision_t youngest_opt_rev;
   svn_revnum_t youngest_rev;
   svn_revnum_t oldest_rev;
   svn_opt_revision_t peg_rev;
+  svn_client__pathrev_t *ra_session_loc;
   svn_client__pathrev_t *actual_loc;
   apr_array_header_t *log_segments;
   apr_array_header_t *revision_ranges;
@@ -837,7 +839,7 @@ svn_client_log5(const apr_array_header_t *targets,
   SVN_ERR(resolve_log_targets(&relative_targets, &ra_target, &peg_rev,
                               targets, ctx, pool, pool));
 
-  SVN_ERR(svn_client__ra_session_from_path2(&ra_session, &actual_loc,
+  SVN_ERR(svn_client__ra_session_from_path2(&ra_session, &ra_session_loc,
                                             ra_target, NULL, &peg_rev, &peg_rev,
                                             ctx, pool));
 
@@ -851,27 +853,40 @@ svn_client_log5(const apr_array_header_t *targets,
                                                    opt_rev_ranges, &peg_rev,
                                                    ctx, pool,  pool));
 
+  /* For some peg revisions we must resolve revision and url via a local path
+     so use the original RA_TARGET. For others, use the potentially corrected
+     (redirected) ra session URL. */
+  if (peg_rev.kind == svn_opt_revision_previous ||
+      peg_rev.kind == svn_opt_revision_base ||
+      peg_rev.kind == svn_opt_revision_committed ||
+      peg_rev.kind == svn_opt_revision_working)
+    path_or_url = ra_target;
+  else
+    path_or_url = ra_session_loc->url;
+
   /* Make ACTUAL_LOC and RA_SESSION point to the youngest operative rev. */
   youngest_opt_rev.kind = svn_opt_revision_number;
   youngest_opt_rev.value.number = youngest_rev;
   SVN_ERR(svn_client__resolve_rev_and_url(&actual_loc, ra_session,
-                                          ra_target, &peg_rev,
+                                          path_or_url, &peg_rev,
                                           &youngest_opt_rev, ctx, pool));
   SVN_ERR(svn_client__ensure_ra_session_url(&old_session_url, ra_session,
                                             actual_loc->url, pool));
 
   /* Save us an RA layer round trip if we are on the repository root and
-     know the result in advance.  All the revision data has already been
-     validated.
+     know the result in advance, or if we don't need multiple ranges.
+     All the revision data has already been validated.
    */
-  if (strcmp(actual_loc->url, actual_loc->repos_root_url) == 0)
+  if (strcmp(actual_loc->url, actual_loc->repos_root_url) == 0
+      || opt_rev_ranges->nelts <= 1)
     {
       svn_location_segment_t *segment = apr_pcalloc(pool, sizeof(*segment));
       log_segments = apr_array_make(pool, 1, sizeof(segment));
 
       segment->range_start = oldest_rev;
       segment->range_end = actual_loc->rev;
-      segment->path = "";
+      segment->path = svn_uri_skip_ancestor(actual_loc->repos_root_url,
+                                            actual_loc->url, pool);
       APR_ARRAY_PUSH(log_segments, svn_location_segment_t *) = segment;
     }
   else

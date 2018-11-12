@@ -7,12 +7,26 @@
 .
     bin
     ..
-    games
-    ..
     include
+        private
+            bsdstat
+            ..
+            ucl
+            ..
+        ..
     ..
     lib
         aout
+        ..
+        clang
+            3.6.1
+                include
+                ..
+                lib
+                    freebsd
+                    ..
+                ..
+            ..
         ..
         compat
             aout
@@ -24,15 +38,15 @@
         ..
         i18n
         ..
-        private
+        libxo
+            encoder
+            ..
         ..
     ..
     lib32
         dtrace
         ..
         i18n
-        ..
-        private
         ..
     ..
     libdata
@@ -101,8 +115,14 @@
             ..
             include
             ..
+            includes
+                include
+                ..
+            ..
         ..
         bsdinstall
+        ..
+        hyperv
         ..
         lpr
             ru
@@ -120,6 +140,8 @@
     sbin
     ..
     share
+        atf
+        ..
         bsdconfig
             media
             ..
@@ -163,6 +185,8 @@
         doc
             IPv6
             ..
+            atf
+            ..
             atm
             ..
             legal
@@ -180,8 +204,24 @@
             ncurses
             ..
             ntp
+                drivers
+                    icons
+                    ..
+                    scripts
+                    ..
+                ..
+                hints
+                ..
+                icons
+                ..
+                pic
+                ..
+                scripts
+                ..
             ..
             papers
+            ..
+            pjdfstest
             ..
             psd
                 01.cacm
@@ -258,14 +298,6 @@
                 ..
                 07.mail
                 ..
-                10.exref
-                ..
-                11.edit
-                ..
-                12.vi
-                ..
-                13.viref
-                ..
                 18.msdiffs
                 ..
                 19.memacros
@@ -297,9 +329,9 @@
             ..
             csh
             ..
-            cvsup
-            ..
             diskless
+            ..
+            dma
             ..
             drivers
             ..
@@ -394,6 +426,8 @@
                 ..
             ..
             tcsh
+            ..
+            uefisign
             ..
         ..
         games
@@ -688,6 +722,8 @@
             ja_JP.UTF-8
             ..
             ja_JP.eucJP
+            ..
+            kk_Cyrl_KZ.UTF-8
             ..
             kk_KZ.PT154
             ..
@@ -1400,6 +1436,12 @@
         ..
         vi
             catalog
+            ..
+        ..
+        vt
+            fonts
+            ..
+            keymaps
             ..
         ..
         zoneinfo

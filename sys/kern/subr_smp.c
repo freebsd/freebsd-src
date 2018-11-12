@@ -59,6 +59,9 @@ cpuset_t logical_cpus_mask;
 
 void (*cpustop_restartfunc)(void);
 #endif
+
+static int sysctl_kern_smp_active(SYSCTL_HANDLER_ARGS);
+
 /* This is used in modules that need to work in both SMP and UP. */
 cpuset_t all_cpus;
 
@@ -78,23 +81,20 @@ SYSCTL_INT(_kern_smp, OID_AUTO, maxid, CTLFLAG_RD|CTLFLAG_CAPRD, &mp_maxid, 0,
 SYSCTL_INT(_kern_smp, OID_AUTO, maxcpus, CTLFLAG_RD|CTLFLAG_CAPRD, &mp_maxcpus,
     0, "Max number of CPUs that the system was compiled for.");
 
-int smp_active = 0;	/* are the APs allowed to run? */
-SYSCTL_INT(_kern_smp, OID_AUTO, active, CTLFLAG_RW, &smp_active, 0,
-    "Number of Auxillary Processors (APs) that were successfully started");
+SYSCTL_PROC(_kern_smp, OID_AUTO, active, CTLFLAG_RD | CTLTYPE_INT, NULL, 0,
+    sysctl_kern_smp_active, "I", "Indicates system is running in SMP mode");
 
 int smp_disabled = 0;	/* has smp been disabled? */
 SYSCTL_INT(_kern_smp, OID_AUTO, disabled, CTLFLAG_RDTUN|CTLFLAG_CAPRD,
     &smp_disabled, 0, "SMP has been disabled from the loader");
-TUNABLE_INT("kern.smp.disabled", &smp_disabled);
 
 int smp_cpus = 1;	/* how many cpu's running */
 SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD|CTLFLAG_CAPRD, &smp_cpus, 0,
     "Number of CPUs online");
 
 int smp_topology = 0;	/* Which topology we're using. */
-SYSCTL_INT(_kern_smp, OID_AUTO, topology, CTLFLAG_RD, &smp_topology, 0,
+SYSCTL_INT(_kern_smp, OID_AUTO, topology, CTLFLAG_RDTUN, &smp_topology, 0,
     "Topology override setting; 0 is default provided by hardware.");
-TUNABLE_INT("kern.smp.topology", &smp_topology);
 
 #ifdef SMP
 /* Enable forwarding of a signal to a process running on a different CPU */
@@ -455,8 +455,13 @@ smp_rendezvous_action(void)
 	 * This means that no member of smp_rv_* pseudo-structure will be
 	 * accessed by this target CPU after this point; in particular,
 	 * memory pointed by smp_rv_func_arg.
+	 *
+	 * The release semantic ensures that all accesses performed by
+	 * the current CPU are visible when smp_rendezvous_cpus()
+	 * returns, by synchronizing with the
+	 * atomic_load_acq_int(&smp_rv_waiters[3]).
 	 */
-	atomic_add_int(&smp_rv_waiters[3], 1);
+	atomic_add_rel_int(&smp_rv_waiters[3], 1);
 
 	td->td_critnest--;
 	KASSERT(owepreempt == td->td_owepreempt,
@@ -522,6 +527,11 @@ smp_rendezvous_cpus(cpuset_t map,
 	 * CPUs to finish the rendezvous, so that smp_rv_*
 	 * pseudo-structure and the arg are guaranteed to not
 	 * be in use.
+	 *
+	 * Load acquire synchronizes with the release add in
+	 * smp_rendezvous_action(), which ensures that our caller sees
+	 * all memory actions done by the called functions on other
+	 * CPUs.
 	 */
 	while (atomic_load_acq_int(&smp_rv_waiters[3]) < ncpus)
 		cpu_spinwait();
@@ -831,3 +841,15 @@ quiesce_all_cpus(const char *wmesg, int prio)
 
 	return quiesce_cpus(all_cpus, wmesg, prio);
 }
+
+/* Extra care is taken with this sysctl because the data type is volatile */
+static int
+sysctl_kern_smp_active(SYSCTL_HANDLER_ARGS)
+{
+	int error, active;
+
+	active = smp_started;
+	error = SYSCTL_OUT(req, &active, sizeof(active));
+	return (error);
+}
+

@@ -49,13 +49,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -137,32 +130,15 @@
  * Map a region of device bus space into CPU virtual address space.
  */
 
-static __inline int bus_space_map(bus_space_tag_t t, bus_addr_t addr,
-				  bus_size_t size, int flags,
-				  bus_space_handle_t *bshp);
-
-static __inline int
-bus_space_map(bus_space_tag_t t __unused, bus_addr_t addr,
-	      bus_size_t size __unused, int flags __unused,
-	      bus_space_handle_t *bshp)
-{
-
-	*bshp = addr;
-	return (0);
-}
+int bus_space_map(bus_space_tag_t tag, bus_addr_t addr, bus_size_t size,
+    int flags, bus_space_handle_t *bshp);
 
 /*
  * Unmap a region of device bus space.
  */
 
-static __inline void bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
-				     bus_size_t size);
-
-static __inline void
-bus_space_unmap(bus_space_tag_t t __unused, bus_space_handle_t bsh __unused,
-		bus_size_t size __unused)
-{
-}
+void bus_space_unmap(bus_space_tag_t tag, bus_space_handle_t bsh,
+    bus_size_t size);
 
 /*
  * Get a new handle for a subregion of an already-mapped area of bus space.

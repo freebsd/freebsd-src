@@ -17,7 +17,7 @@
 
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolutionNormalization.h"
-#include "llvm/Support/ValueHandle.h"
+#include "llvm/IR/ValueHandle.h"
 
 namespace llvm {
 
@@ -86,7 +86,7 @@ private:
 
   /// Deleted - Implementation of CallbackVH virtual function to
   /// receive notification when the User is deleted.
-  virtual void deleted();
+  void deleted() override;
 };
 
 template<> struct ilist_traits<IVStrideUse>
@@ -122,18 +122,18 @@ class IVUsers : public LoopPass {
   LoopInfo *LI;
   DominatorTree *DT;
   ScalarEvolution *SE;
-  DataLayout *TD;
+  const DataLayout *DL;
   SmallPtrSet<Instruction*,16> Processed;
 
   /// IVUses - A list of all tracked IV uses of induction variable expressions
   /// we are interested in.
   ilist<IVStrideUse> IVUses;
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const;
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
 
-  virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
+  bool runOnLoop(Loop *L, LPPassManager &LPM) override;
 
-  virtual void releaseMemory();
+  void releaseMemory() override;
 
 public:
   static char ID; // Pass ID, replacement for typeid
@@ -169,12 +169,12 @@ public:
     return Processed.count(Inst);
   }
 
-  void print(raw_ostream &OS, const Module* = 0) const;
+  void print(raw_ostream &OS, const Module* = nullptr) const override;
 
   /// dump - This method is used for debugging.
   void dump() const;
 protected:
-  bool AddUsersImpl(Instruction *I, SmallPtrSet<Loop*,16> &SimpleLoopNests);
+  bool AddUsersImpl(Instruction *I, SmallPtrSetImpl<Loop*> &SimpleLoopNests);
 };
 
 Pass *createIVUsersPass();

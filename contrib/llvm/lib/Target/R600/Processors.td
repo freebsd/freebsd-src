@@ -9,40 +9,116 @@
 
 class Proc<string Name, ProcessorItineraries itin, list<SubtargetFeature> Features>
 : Processor<Name, itin, Features>;
+
+//===----------------------------------------------------------------------===//
+// R600
+//===----------------------------------------------------------------------===//
 def : Proc<"",           R600_VLIW5_Itin,
-    [FeatureR600ALUInst, FeatureVertexCache]>;
+    [FeatureR600, FeatureVertexCache]>;
+
 def : Proc<"r600",       R600_VLIW5_Itin,
-    [FeatureR600ALUInst , FeatureVertexCache]>;
+    [FeatureR600 , FeatureVertexCache, FeatureWavefrontSize64]>;
+
+def : Proc<"r630",       R600_VLIW5_Itin,
+    [FeatureR600, FeatureVertexCache, FeatureWavefrontSize32]>;
+
 def : Proc<"rs880",      R600_VLIW5_Itin,
-    [FeatureR600ALUInst]>;
+    [FeatureR600, FeatureWavefrontSize16]>;
+
 def : Proc<"rv670",      R600_VLIW5_Itin,
-    [FeatureR600ALUInst, FeatureFP64, FeatureVertexCache]>;
+    [FeatureR600, FeatureFP64, FeatureVertexCache, FeatureWavefrontSize64]>;
+
+//===----------------------------------------------------------------------===//
+// R700
+//===----------------------------------------------------------------------===//
+
 def : Proc<"rv710",      R600_VLIW5_Itin,
-    [FeatureVertexCache]>;
+    [FeatureR700, FeatureVertexCache, FeatureWavefrontSize32]>;
+
 def : Proc<"rv730",      R600_VLIW5_Itin,
-    [FeatureVertexCache]>;
+    [FeatureR700, FeatureVertexCache, FeatureWavefrontSize32]>;
+
 def : Proc<"rv770",      R600_VLIW5_Itin,
-    [FeatureFP64, FeatureVertexCache]>;
+    [FeatureR700, FeatureFP64, FeatureVertexCache, FeatureWavefrontSize64]>;
+
+//===----------------------------------------------------------------------===//
+// Evergreen
+//===----------------------------------------------------------------------===//
+
 def : Proc<"cedar",      R600_VLIW5_Itin,
-    [FeatureByteAddress, FeatureImages, FeatureVertexCache]>;
+    [FeatureEvergreen, FeatureVertexCache, FeatureWavefrontSize32,
+     FeatureCFALUBug]>;
+
 def : Proc<"redwood",    R600_VLIW5_Itin,
-    [FeatureByteAddress, FeatureImages, FeatureVertexCache]>;
+    [FeatureEvergreen, FeatureVertexCache, FeatureWavefrontSize64,
+     FeatureCFALUBug]>;
+
 def : Proc<"sumo",       R600_VLIW5_Itin,
-    [FeatureByteAddress, FeatureImages]>;
+    [FeatureEvergreen, FeatureWavefrontSize64, FeatureCFALUBug]>;
+
 def : Proc<"juniper",    R600_VLIW5_Itin,
-    [FeatureByteAddress, FeatureImages, FeatureVertexCache]>;
+    [FeatureEvergreen, FeatureVertexCache, FeatureWavefrontSize64]>;
+
 def : Proc<"cypress",    R600_VLIW5_Itin,
-    [FeatureByteAddress, FeatureImages, FeatureFP64, FeatureVertexCache]>;
+    [FeatureEvergreen, FeatureFP64, FeatureVertexCache,
+     FeatureWavefrontSize64]>;
+
+//===----------------------------------------------------------------------===//
+// Northern Islands
+//===----------------------------------------------------------------------===//
+
 def : Proc<"barts",      R600_VLIW5_Itin,
-    [FeatureByteAddress, FeatureImages, FeatureVertexCache]>;
+    [FeatureNorthernIslands, FeatureVertexCache, FeatureCFALUBug]>;
+
 def : Proc<"turks",      R600_VLIW5_Itin,
-    [FeatureByteAddress, FeatureImages, FeatureVertexCache]>;
+    [FeatureNorthernIslands, FeatureVertexCache, FeatureCFALUBug]>;
+
 def : Proc<"caicos",     R600_VLIW5_Itin,
-    [FeatureByteAddress, FeatureImages]>;
+    [FeatureNorthernIslands, FeatureCFALUBug]>;
+
 def : Proc<"cayman",     R600_VLIW4_Itin,
-    [FeatureByteAddress, FeatureImages, FeatureFP64]>;def : Proc<"SI",         SI_Itin, [Feature64BitPtr, FeatureFP64]>;
-def : Proc<"tahiti",     SI_Itin, [Feature64BitPtr, FeatureFP64]>;
-def : Proc<"pitcairn",   SI_Itin, [Feature64BitPtr, FeatureFP64]>;
-def : Proc<"verde",      SI_Itin, [Feature64BitPtr, FeatureFP64]>;
-def : Proc<"oland",      SI_Itin, [Feature64BitPtr, FeatureFP64]>;
-def : Proc<"hainan",     SI_Itin, [Feature64BitPtr, FeatureFP64]>;
+    [FeatureNorthernIslands, FeatureFP64, FeatureCaymanISA]>;
+
+//===----------------------------------------------------------------------===//
+// Southern Islands
+//===----------------------------------------------------------------------===//
+
+def : ProcessorModel<"SI",       SIFullSpeedModel, [FeatureSouthernIslands]>;
+
+def : ProcessorModel<"tahiti",   SIFullSpeedModel, [FeatureSouthernIslands]>;
+
+def : ProcessorModel<"pitcairn", SIQuarterSpeedModel, [FeatureSouthernIslands]>;
+
+def : ProcessorModel<"verde",    SIQuarterSpeedModel, [FeatureSouthernIslands]>;
+
+def : ProcessorModel<"oland",    SIQuarterSpeedModel, [FeatureSouthernIslands]>;
+
+def : ProcessorModel<"hainan",   SIQuarterSpeedModel, [FeatureSouthernIslands]>;
+
+//===----------------------------------------------------------------------===//
+// Sea Islands
+//===----------------------------------------------------------------------===//
+
+def : ProcessorModel<"bonaire",    SIQuarterSpeedModel, [FeatureSeaIslands]>;
+
+def : ProcessorModel<"kabini",     SIQuarterSpeedModel, [FeatureSeaIslands]>;
+
+def : ProcessorModel<"kaveri",     SIQuarterSpeedModel, [FeatureSeaIslands]>;
+
+def : ProcessorModel<"hawaii",     SIFullSpeedModel, [FeatureSeaIslands]>;
+
+def : ProcessorModel<"mullins",    SIQuarterSpeedModel, [FeatureSeaIslands]>;
+
+//===----------------------------------------------------------------------===//
+// Volcanic Islands
+//===----------------------------------------------------------------------===//
+
+def : ProcessorModel<"tonga",   SIQuarterSpeedModel,
+  [FeatureVolcanicIslands, FeatureSGPRInitBug]
+>;
+
+def : ProcessorModel<"iceland", SIQuarterSpeedModel,
+  [FeatureVolcanicIslands, FeatureSGPRInitBug]
+>;
+
+def : ProcessorModel<"carrizo", SIQuarterSpeedModel, [FeatureVolcanicIslands]>;

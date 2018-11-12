@@ -99,8 +99,9 @@ static driver_t xlphy_driver = {
 
 DRIVER_MODULE(xlphy, miibus, xlphy_driver, xlphy_devclass, 0, 0);
 
-static int	xlphy_service(struct mii_softc *, struct mii_data *, int);
-static void	xlphy_reset(struct mii_softc *);
+static int	xlphy_service(struct mii_softc *, struct mii_data *, mii_cmd_t,
+		    if_media_t);
+static void	xlphy_reset(struct mii_softc *, if_media_t);
 
 /*
  * Some 3Com internal PHYs report zero for OUI and model, others use
@@ -144,7 +145,8 @@ xlphy_attach(device_t dev)
 }
 
 static int
-xlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+xlphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t ifm)
 {
 
 	switch (cmd) {
@@ -152,7 +154,7 @@ xlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, ifm);
 		break;
 
 	case MII_TICK:
@@ -164,7 +166,7 @@ xlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, ifm);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -172,10 +174,10 @@ xlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-xlphy_reset(struct mii_softc *sc)
+xlphy_reset(struct mii_softc *sc, if_media_t media)
 {
 
-	mii_phy_reset(sc);
+	mii_phy_reset(sc, media);
 
 	/*
 	 * XXX 3Com PHY doesn't set the BMCR properly after

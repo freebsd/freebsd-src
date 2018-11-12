@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1995                    *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Juergen Pfeifer                         1999,2008               *
  ****************************************************************************/
 
 /* p_delete.c
@@ -36,19 +37,22 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_delete.c,v 1.8 2005/02/19 16:38:45 tom Exp $")
+MODULE_ID("$Id: p_delete.c,v 1.10 2010/01/23 21:22:16 tom Exp $")
 
 NCURSES_EXPORT(int)
 del_panel(PANEL * pan)
 {
   int err = OK;
 
-  T((T_CALLED("del_panel(%p)"), pan));
+  T((T_CALLED("del_panel(%p)"), (void *)pan));
   if (pan)
     {
       dBug(("--> del_panel %s", USER_PTR(pan->user)));
-      HIDE_PANEL(pan, err, OK);
-      free((void *)pan);
+      {
+	GetHook(pan);
+	HIDE_PANEL(pan, err, OK);
+	free((void *)pan);
+      }
     }
   else
     err = ERR;

@@ -375,7 +375,7 @@ pic_ipi_send(cpuset_t cpus, u_int ipi)
 }
 
 int
-pic_ipi_get(int i __unused)
+pic_ipi_read(int i __unused)
 {
 	uint32_t val;
 

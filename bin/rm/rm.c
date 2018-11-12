@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <fts.h>
 #include <grp.h>
+#include <locale.h>
 #include <pwd.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -85,6 +86,8 @@ main(int argc, char *argv[])
 {
 	int ch;
 	char *p;
+
+	(void)setlocale(LC_ALL, "");
 
 	/*
 	 * Test for the special case where the utility is called as
@@ -335,7 +338,7 @@ err:
 		warn("%s", p->fts_path);
 		eval = 1;
 	}
-	if (errno)
+	if (!fflag && errno)
 		err(1, "fts_read");
 	fts_close(fts);
 }

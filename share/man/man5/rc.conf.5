@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd August 23, 2015
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -63,18 +63,37 @@ The file
 is used to override settings in
 .Pa /etc/rc.conf
 for historical reasons.
+.Pp
 In addition to
 .Pa /etc/rc.conf.local
 you can also place smaller configuration files for each
 .Xr rc 8
 script in the
 .Pa /etc/rc.conf.d
-directory, which will be included by the
+directory or
+.Ao Ar dir Ac Ns Pa /rc.conf.d
+directories specified in
+.Va local_startup ,
+which will be included by the
 .Va load_rc_config
 function.
 For jail configurations you could use the file
 .Pa /etc/rc.conf.d/jail
 to store jail specific configuration options.
+If
+.Va local_startup
+contains
+.Pa /usr/local/etc/rc.d
+and
+.Pa /opt/conf ,
+.Pa /usr/local/rc.conf.d/jail
+and
+.Pa /opt/conf/rc.conf.d/jail
+will be loaded.
+If
+.Ao Ar dir Ac Ns Pa /rc.conf.d/ Ns Ao Ar name Ac
+is a directory,
+all of files in the directory will be loaded.
 Also see the
 .Va rc_conf_files
 variable below.
@@ -1180,6 +1199,19 @@ or
 .Li inet6 2001:db8:1-f::1/64 .
 This notation allows address and prefix length part only,
 not the other address modifiers.
+Note that the maximum number of the generated addresses from a range
+specification is limited to an integer value specified in
+.Va netif_ipexpand_max
+in
+.Xr rc.conf 5
+because a small typo can unexpectedly generate a large number of addresses.
+The default value is
+.Li 2048 .
+It can be increased by adding the following line into
+.Xr rc.conf 5 :
+.Bd -literal
+netif_ipexpand_max="4096"
+.Ed
 .Pp
 In the case of
 .Li 192.0.2.5-23/24 ,
@@ -1498,7 +1530,6 @@ interface as described in RFC 4941.
 This is the IPv6 equivalent of
 .Va network_interfaces .
 Normally manual configuration of this variable is not needed.
-.Pp
 .It Va ipv6_cpe_wanif
 .Pq Vt str
 If the variable is set to an interface name,
@@ -2263,14 +2294,6 @@ is set to
 these are the flags to pass to the
 .Xr nfscbd 8
 daemon.
-.It Va oldnfs_server_enable
-.Pq Vt bool
-If
-.Va oldnfs_server_enable
-is set to
-.Dq Li YES ,
-force the NFS server daemons to run the old NFS server code
-that does not support NFSv4.
 .It Va mountd_enable
 .Pq Vt bool
 If set to
@@ -2775,16 +2798,8 @@ these are the flags to pass to the routing daemon.
 .Pq Vt str
 The IPv6 equivalent of
 .Va routed_flags .
-.It Va mrouted_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the multicast routing daemon,
-.Xr mrouted 8 .
 .It Va mroute6d_enable
 .Pq Vt bool
-The IPv6 equivalent of
-.Va mrouted_enable .
 If set to
 .Dq Li YES ,
 run the IPv6 multicast routing daemon.
@@ -2798,19 +2813,8 @@ and
 may be installed from the
 .Fx
 Ports Collection.
-.It Va mrouted_flags
-.Pq Vt str
-If
-.Va mrouted_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr mrouted 8
-daemon.
 .It Va mroute6d_flags
 .Pq Vt str
-The IPv6 equivalent of
-.Va mrouted_flags .
 If
 .Va mroute6d_enable
 is set to
@@ -2845,27 +2849,6 @@ If
 is set to
 .Dq Li YES
 this is the list of interfaces to use.
-.It Va ipxgateway_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-enable the routing of IPX traffic.
-.It Va ipxrouted_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the
-.Xr IPXrouted 8
-daemon at system boot time.
-.It Va ipxrouted_flags
-.Pq Vt str
-If
-.Va ipxrouted_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr IPXrouted 8
-daemon.
 .It Va arpproxy_all
 .Pq Vt bool
 If set to
@@ -2938,15 +2921,6 @@ This can be set to
 .Pq Vt str
 IPv6 Site Level Aggregator for
 .Xr stf 4 .
-.It Va ipv6_faith_prefix
-.Pq Vt str
-If not set to
-.Dq Li NO ,
-this is the faith prefix to enable a FAITH IPv6-to-IPv4 TCP
-translator.
-You also need
-.Xr faithd 8
-setup.
 .It Va ipv6_ipv4mapping
 .Pq Vt bool
 If set to
@@ -3133,8 +3107,13 @@ set to this device.
 If set to
 .Dq Li NO ,
 no keymap is installed, otherwise the value is used to install
-the keymap file in
-.Pa /usr/share/syscons/keymaps/ Ns Ao Ar value Ac Ns Pa .kbd .
+the keymap file found in
+.Pa /usr/share/syscons/keymaps/ Ns Ao Ar value Ac Ns Pa .kbd
+(if using
+.Xr syscons 4 ) or
+.Pa /usr/share/vt/keymaps/ Ns Ao Ar value Ac Ns Pa .kbd
+(if using
+.Xr vt 4 ) .
 .It Va keyrate
 .Pq Vt str
 The keyboard repeat speed.
@@ -3169,6 +3148,9 @@ If set to
 no screen map is installed, otherwise the value is used to install
 the screen map file in
 .Pa /usr/share/syscons/scrnmaps/ Ns Aq Ar value .
+This parameter is ignored when using
+.Xr vt 4
+as the console driver.
 .It Va font8x16
 .Pq Vt str
 If set to
@@ -3176,7 +3158,9 @@ If set to
 the default 8x16 font value is used for screen size requests, otherwise
 the value in
 .Pa /usr/share/syscons/fonts/ Ns Aq Ar value
-is used.
+or
+.Pa /usr/share/vt/fonts/ Ns Aq Ar value
+is used (depending on the console driver being used).
 .It Va font8x14
 .Pq Vt str
 If set to
@@ -3184,7 +3168,9 @@ If set to
 the default 8x14 font value is used for screen size requests, otherwise
 the value in
 .Pa /usr/share/syscons/fonts/ Ns Aq Ar value
-is used.
+or
+.Pa /usr/share/vt/fonts/ Ns Aq Ar value
+is used (depending on the console driver being used).
 .It Va font8x8
 .Pq Vt str
 If set to
@@ -3192,7 +3178,9 @@ If set to
 the default 8x8 font value is used for screen size requests, otherwise
 the value in
 .Pa /usr/share/syscons/fonts/ Ns Aq Ar value
-is used.
+or
+.Pa /usr/share/vt/fonts/ Ns Aq Ar value
+is used (depending on the console driver being used).
 .It Va blanktime
 .Pq Vt int
 If set to
@@ -3399,6 +3387,8 @@ For example,
 .Dq Fl h Li 200
 will set the
 .Xr syscons 4
+or
+.Xr vt 4
 scrollback (history) buffer to 200 lines.
 .It Va cron_enable
 .Pq Vt bool
@@ -4005,27 +3995,11 @@ set from
 .Va jail_ Ns Ao Ar jname Ac Ns Va _sysvipc_allow
 .El
 .\" -----------------------------------------------------
-.It Va harvest_interrupt
-.Pq Vt bool
-Set to
-.Dq Li YES
-to use hardware interrupts as an entropy source.
-Refer to
-.Xr random 4
-for more information.
-.It Va harvest_ethernet
-.Pq Vt bool
-Set to
-.Dq Li YES
-to use LAN traffic as an entropy source.
-Refer to
-.Xr random 4
-for more information.
-.It Va harvest_p_to_p
-.Pq Vt bool
-Set to
-.Dq Li YES
-to use serial line traffic as an entropy source.
+.It Va harvest_mask
+.Pq Vt int
+Set to a bit-mask
+representing the entropy sources
+you wish to harvest.
 Refer to
 .Xr random 4
 for more information.
@@ -4035,17 +4009,54 @@ Set to
 .Dq Li NO
 to disable caching entropy via
 .Xr cron 8 .
-Otherwise set to the directory used to store entropy files in.
+Otherwise set to the directory
+in which the entropy files are stored.
+To be useful,
+there must be
+a system cron job
+that regularly writes and rotates
+files here.
+All files found
+will be used at boot time.
+The default is
+.Pa /var/db/entropy .
 .It Va entropy_file
 .Pq Vt str
 Set to
 .Dq Li NO
 to disable caching entropy through reboots.
-Otherwise set to the filename used to store cached entropy through
-reboots.
-This file should be located on the root file system to seed the
-.Xr random 4
-device as early as possible in the boot process.
+Otherwise set to the name
+of a file used to store cached entropy.
+This file should be located
+on a file system that is readable
+before all the volumes specified in
+.Xr fstab 5
+are mounted.
+By default,
+.Pa /entropy
+is used,
+but if
+.Pa /var/db/entropy-file
+is found it will also be used.
+This will be of some use to
+.Xr bsdinstall 8 .
+.It Va entropy_boot_file
+.Pq Vt str
+Set to
+.Dq Li NO
+to disable
+very early caching entropy
+through reboots.
+Otherwise set to the filename
+used to read
+very early reboot cached entropy.
+This file should be located where
+.Xr loader 8
+can read it.
+See also
+.Xr loader.conf 5 .
+The default location is
+.Pa /boot/entropy .
 .It Va entropy_save_sz
 .Pq Vt int
 Size of the entropy cache files saved by
@@ -4429,6 +4440,31 @@ interface if desired.
 Defines the total number of seconds to wait for link to become usable,
 polled at a 1-second interval.
 The default is 30.
+.It Va rctl_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+load
+.Xr rctl 8
+rules from the defined ruleset.
+The kernel must be built with
+.Cd "options RACCT"
+and
+.Cd "options RCTL" .
+.It Va rctl_rules
+.Pq Vt str
+Set to
+.Pa /etc/rctl.conf
+by default.
+This variables contains the
+.Xr rctl.conf 5
+ruleset to load for
+.Xr rctl 8 .
+.It Va iovctl_files
+.Pq Vt str
+A space-separated list of configuration files used by
+.Xr iovctl 8 .
+The default value is an empty string.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -4462,6 +4498,8 @@ The default is 30.
 .Xr fstab 5 ,
 .Xr ipf 5 ,
 .Xr ipnat 5 ,
+.Xr jail.conf 5 ,
+.Xr loader.conf 5 ,
 .Xr motd 5 ,
 .Xr newsyslog.conf 5 ,
 .Xr pf.conf 5 ,
@@ -4470,6 +4508,7 @@ The default is 30.
 .Xr amd 8 ,
 .Xr apm 8 ,
 .Xr atm 8 ,
+.Xr bsdinstall 8 ,
 .Xr bthidd 8 ,
 .Xr chkprintcap 8 ,
 .Xr chown 8 ,
@@ -4481,18 +4520,19 @@ The default is 30.
 .Xr hcsecd 8 ,
 .Xr ifconfig 8 ,
 .Xr inetd 8 ,
+.Xr iovctl 8 ,
 .Xr ipf 8 ,
 .Xr ipfw 8 ,
 .Xr ipnat 8 ,
 .Xr jail 8 ,
 .Xr kldxref 8 ,
+.Xr loader 8 ,
 .Xr lpd 8 ,
 .Xr mdconfig 8 ,
 .Xr mdmfs 8 ,
 .Xr mixer 8 ,
 .Xr mountd 8 ,
 .Xr moused 8 ,
-.Xr mrouted 8 ,
 .Xr newfs 8 ,
 .Xr newsyslog 8 ,
 .Xr nfsd 8 ,
@@ -4509,9 +4549,9 @@ The default is 30.
 .Xr rfcomm_pppd 8 ,
 .Xr route 8 ,
 .Xr routed 8 ,
-.Xr rpcbind 8 ,
 .Xr rpc.lockd 8 ,
 .Xr rpc.statd 8 ,
+.Xr rpcbind 8 ,
 .Xr rwhod 8 ,
 .Xr savecore 8 ,
 .Xr sdpd 8 ,

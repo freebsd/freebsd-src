@@ -43,12 +43,8 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_media.h>
-#include <net/if_arp.h>
 #include <net/ethernet.h>
-#include <net/if_vlan_var.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -61,11 +57,12 @@
 #define	TRUEPHY_FRAMELEN(mtu)	\
     (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + (mtu) + ETHER_CRC_LEN)
 
-static int	truephy_service(struct mii_softc *, struct mii_data *, int);
+static int	truephy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
 static int	truephy_attach(device_t);
 static int	truephy_probe(device_t);
-static void	truephy_reset(struct mii_softc *);
-static void	truephy_status(struct mii_softc *);
+static void	truephy_reset(struct mii_softc *, if_media_t);
+static void	truephy_status(struct mii_softc *, if_media_t);
 
 static device_method_t truephy_methods[] = {
 	/* device interface */
@@ -153,7 +150,7 @@ truephy_attach(device_t dev)
 	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE,
 	   &truephy_funcs, 0);
 
-	PHY_RESET(sc);
+	PHY_RESET(sc, 0);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
 	if (sc->mii_capabilities & BMSR_EXTSTAT) {
@@ -163,7 +160,7 @@ truephy_attach(device_t dev)
 	}
 
 	device_printf(dev, " ");
-	mii_phy_add_media(sc);
+	mii_phy_generic_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
@@ -171,9 +168,9 @@ truephy_attach(device_t dev)
 }
 
 static int
-truephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+truephy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmcr;
 
 	switch (cmd) {
@@ -181,19 +178,19 @@ truephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+		if (IFM_SUBTYPE(media) != IFM_AUTO) {
 			bmcr = PHY_READ(sc, MII_BMCR) & ~BMCR_AUTOEN;
 			PHY_WRITE(sc, MII_BMCR, bmcr);
 			PHY_WRITE(sc, MII_BMCR, bmcr | BMCR_PDOWN);
 		}
 
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+		if (IFM_SUBTYPE(media) != IFM_AUTO) {
 			bmcr = PHY_READ(sc, MII_BMCR) & ~BMCR_PDOWN;
 			PHY_WRITE(sc, MII_BMCR, bmcr);
 
-			if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+			if (IFM_SUBTYPE(media) == IFM_1000_T) {
 				PHY_WRITE(sc, MII_BMCR,
 				    bmcr | BMCR_AUTOEN | BMCR_STARTNEG);
 			}
@@ -207,7 +204,7 @@ truephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -215,12 +212,12 @@ truephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-truephy_reset(struct mii_softc *sc)
+truephy_reset(struct mii_softc *sc, if_media_t media)
 {
 	int i;
 
 	if (sc->mii_mpd_model == MII_MODEL_AGERE_ET1011) {
-		mii_phy_reset(sc);
+		mii_phy_reset(sc, media);
 		return;
 	}
 
@@ -244,9 +241,7 @@ truephy_reset(struct mii_softc *sc)
 	PHY_WRITE(sc, TRUEPHY_CTRL,
 		  TRUEPHY_CTRL_DIAG | TRUEPHY_CTRL_RSV1 | TRUEPHY_CTRL_RSV0);
 
-#define N(arr)	(int)(sizeof(arr) / sizeof(arr[0]))
-
-	for (i = 0; i < N(truephy_dspcode); ++i) {
+	for (i = 0; i < nitems(truephy_dspcode); ++i) {
 		const struct truephy_dsp *dsp = &truephy_dspcode[i];
 
 		PHY_WRITE(sc, TRUEPHY_INDEX, dsp->index);
@@ -256,16 +251,14 @@ truephy_reset(struct mii_softc *sc)
 		PHY_READ(sc, TRUEPHY_DATA);
 	}
 
-#undef N
-
 	PHY_READ(sc, MII_BMCR);
 	PHY_READ(sc, TRUEPHY_CTRL);
 	PHY_WRITE(sc, MII_BMCR, BMCR_AUTOEN |  BMCR_S1000);
 	PHY_WRITE(sc, TRUEPHY_CTRL, TRUEPHY_CTRL_RSV1);
 
-	mii_phy_reset(sc);
+	mii_phy_reset(sc, media);
 
-	if (TRUEPHY_FRAMELEN(sc->mii_pdata->mii_ifp->if_mtu) > 2048) {
+	if (TRUEPHY_FRAMELEN((MIIBUS_READVAR(sc->mii_dev, MIIVAR_MTU)) > 2048)) {
 		int conf;
 
 		conf = PHY_READ(sc, TRUEPHY_CONF);
@@ -276,7 +269,7 @@ truephy_reset(struct mii_softc *sc)
 }
 
 static void
-truephy_status(struct mii_softc *sc)
+truephy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr, sr;

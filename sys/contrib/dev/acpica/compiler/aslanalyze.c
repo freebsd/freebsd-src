@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 #include <string.h>
@@ -68,8 +67,8 @@ AnIsInternalMethod (
     ACPI_PARSE_OBJECT       *Op)
 {
 
-    if ((!ACPI_STRCMP (Op->Asl.ExternalName, "\\_OSI")) ||
-        (!ACPI_STRCMP (Op->Asl.ExternalName, "_OSI")))
+    if ((!strcmp (Op->Asl.ExternalName, "\\_OSI")) ||
+        (!strcmp (Op->Asl.ExternalName, "_OSI")))
     {
         return (TRUE);
     }
@@ -95,8 +94,8 @@ AnGetInternalMethodReturnType (
     ACPI_PARSE_OBJECT       *Op)
 {
 
-    if ((!ACPI_STRCMP (Op->Asl.ExternalName, "\\_OSI")) ||
-        (!ACPI_STRCMP (Op->Asl.ExternalName, "_OSI")))
+    if ((!strcmp (Op->Asl.ExternalName, "\\_OSI")) ||
+        (!strcmp (Op->Asl.ExternalName, "_OSI")))
     {
         return (ACPI_BTYPE_STRING);
     }
@@ -463,7 +462,7 @@ ApCheckForGpeNameConflict (
 
     /* Verify 3rd/4th chars are a valid hex value */
 
-    GpeNumber = ACPI_STRTOUL (&Name[2], NULL, 16);
+    GpeNumber = strtoul (&Name[2], NULL, 16);
     if (GpeNumber == ACPI_UINT32_MAX)
     {
         return;
@@ -568,4 +567,52 @@ ApCheckRegMethod (
     /* No region found, issue warning */
 
     AslError (ASL_WARNING, ASL_MSG_NO_REGION, Op, NULL);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    ApFindNameInScope
+ *
+ * PARAMETERS:  Name                - Name to search for
+ *              Op                  - Current parse op
+ *
+ * RETURN:      TRUE if name found in the same scope as Op.
+ *
+ * DESCRIPTION: Determine if a name appears in the same scope as Op, as either
+ *              a Method() or a Name().
+ *
+ ******************************************************************************/
+
+BOOLEAN
+ApFindNameInScope (
+    char                    *Name,
+    ACPI_PARSE_OBJECT       *Op)
+{
+    ACPI_PARSE_OBJECT       *Next;
+    ACPI_PARSE_OBJECT       *Parent;
+
+
+    /* Get the start of the current scope */
+
+    Parent = Op->Asl.Parent;
+    Next = Parent->Asl.Child;
+
+    /* Search entire scope for a match to the name */
+
+    while (Next)
+    {
+        if ((Next->Asl.ParseOpcode == PARSEOP_METHOD) ||
+            (Next->Asl.ParseOpcode == PARSEOP_NAME))
+        {
+            if (ACPI_COMPARE_NAME (Name, Next->Asl.NameSeg))
+            {
+                return (TRUE);
+            }
+        }
+
+        Next = Next->Asl.Next;
+    }
+
+    return (FALSE);
 }

@@ -584,11 +584,11 @@ UDItype __umulsidi3 (USItype, USItype);
 
 #if defined (__mips__) && W_TYPE_SIZE == 32
 #define umul_ppmm(w1, w0, u, v) \
-  __asm__ ("multu %2,%3"						\
-	   : "=l" ((USItype) (w0)),					\
-	     "=h" ((USItype) (w1))					\
-	   : "d" ((USItype) (u)),					\
-	     "d" ((USItype) (v)))
+	do {								\
+	UDItype __x = (UDItype) (USItype) (u) * (USItype) (v);		\
+	 w1 = __x >> 32;						\
+	 w0 = __x;							\
+	} while (0)
 #define UMUL_TIME 10
 #define UDIV_TIME 100
 #endif /* __mips__ */
@@ -1086,8 +1086,8 @@ UDItype __umulsidi3 (USItype, USItype);
    	   "bcs,a,pn %%xcc, 1f\n\t"					\
    	   "add %0, 1, %0\n"						\
 	   "1:"								\
-	   : "=r" ((UDItype)(sh)),				      	\
-	     "=&r" ((UDItype)(sl))				      	\
+	   : "=r" (sh),						      	\
+	     "=&r" (sl)						      	\
 	   : "%rJ" ((UDItype)(ah)),				     	\
 	     "rI" ((UDItype)(bh)),				      	\
 	     "%rJ" ((UDItype)(al)),				     	\
@@ -1100,8 +1100,8 @@ UDItype __umulsidi3 (USItype, USItype);
    	   "bcs,a,pn %%xcc, 1f\n\t"					\
    	   "sub %0, 1, %0\n\t"						\
 	   "1:"								\
-	   : "=r" ((UDItype)(sh)),				      	\
-	     "=&r" ((UDItype)(sl))				      	\
+	   : "=r" (sh),						      	\
+	     "=&r" (sl)						      	\
 	   : "rJ" ((UDItype)(ah)),				     	\
 	     "rI" ((UDItype)(bh)),				      	\
 	     "rJ" ((UDItype)(al)),				     	\
@@ -1133,8 +1133,8 @@ UDItype __umulsidi3 (USItype, USItype);
 		   "sllx %3,32,%3\n\t"					\
 		   "add %1,%3,%1\n\t"					\
 		   "add %5,%2,%0"					\
-	   : "=r" ((UDItype)(wh)),					\
-	     "=&r" ((UDItype)(wl)),					\
+	   : "=r" (wh),							\
+	     "=&r" (wl),						\
 	     "=&r" (tmp1), "=&r" (tmp2), "=&r" (tmp3), "=&r" (tmp4)	\
 	   : "r" ((UDItype)(u)),					\
 	     "r" ((UDItype)(v))						\

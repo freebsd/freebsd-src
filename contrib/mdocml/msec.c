@@ -1,4 +1,4 @@
-/*	$Id: msec.c,v 1.10 2011/12/02 01:37:14 schwarze Exp $ */
+/*	$Id: msec.c,v 1.14 2014/12/21 14:14:35 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -14,11 +14,10 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
-#include <stdlib.h>
+#include <sys/types.h>
+
 #include <string.h>
 
 #include "mandoc.h"

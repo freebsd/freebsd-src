@@ -113,9 +113,8 @@ static int
 null_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	const struct ieee80211_bpf_params *params)
 {
-	struct ifnet *ifp = ni->ni_ic->ic_ifp;
 
-	if_printf(ifp, "missing ic_raw_xmit callback, drop frame\n");
+	ic_printf(ni->ni_ic, "missing ic_raw_xmit callback, drop frame\n");
 	m_freem(m);
 	return ENETDOWN;
 }
@@ -123,23 +122,23 @@ null_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 void
 ieee80211_proto_attach(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
+	uint8_t hdrlen;
 
 	/* override the 802.3 setting */
-	ifp->if_hdrlen = ic->ic_headroom
+	hdrlen = ic->ic_headroom
 		+ sizeof(struct ieee80211_qosframe_addr4)
 		+ IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN
 		+ IEEE80211_WEP_EXTIVLEN;
 	/* XXX no way to recalculate on ifdetach */
-	if (ALIGN(ifp->if_hdrlen) > max_linkhdr) {
+	if (ALIGN(hdrlen) > max_linkhdr) {
 		/* XXX sanity check... */
-		max_linkhdr = ALIGN(ifp->if_hdrlen);
+		max_linkhdr = ALIGN(hdrlen);
 		max_hdr = max_linkhdr + max_protohdr;
 		max_datalen = MHLEN - max_hdr;
 	}
 	ic->ic_protmode = IEEE80211_PROT_CTSONLY;
 
-	TASK_INIT(&ic->ic_parent_task, 0, parent_updown, ifp);
+	TASK_INIT(&ic->ic_parent_task, 0, parent_updown, ic);
 	TASK_INIT(&ic->ic_mcast_task, 0, update_mcast, ic);
 	TASK_INIT(&ic->ic_promisc_task, 0, update_promisc, ic);
 	TASK_INIT(&ic->ic_chan_task, 0, update_channel, ic);
@@ -189,13 +188,16 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	int i;
 
 	/* override the 802.3 setting */
-	ifp->if_hdrlen = ic->ic_ifp->if_hdrlen;
+	ifp->if_hdrlen = ic->ic_headroom
+                + sizeof(struct ieee80211_qosframe_addr4)
+                + IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN
+                + IEEE80211_WEP_EXTIVLEN;
 
 	vap->iv_rtsthreshold = IEEE80211_RTS_DEFAULT;
 	vap->iv_fragthreshold = IEEE80211_FRAG_DEFAULT;
 	vap->iv_bmiss_max = IEEE80211_BMISS_MAX;
 	callout_init_mtx(&vap->iv_swbmiss, IEEE80211_LOCK_OBJ(ic), 0);
-	callout_init(&vap->iv_mgtsend, CALLOUT_MPSAFE);
+	callout_init(&vap->iv_mgtsend, 1);
 	TASK_INIT(&vap->iv_nstate_task, 0, ieee80211_newstate_cb, vap);
 	TASK_INIT(&vap->iv_swbmiss_task, 0, beacon_swmiss, vap);
 	/*
@@ -251,7 +253,7 @@ ieee80211_proto_vdetach(struct ieee80211vap *vap)
 {
 #define	FREEAPPIE(ie) do { \
 	if (ie != NULL) \
-		free(ie, M_80211_NODE_IE); \
+		IEEE80211_FREE(ie, M_80211_NODE_IE); \
 } while (0)
 	/*
 	 * Detach operating mode module.
@@ -651,7 +653,7 @@ ieee80211_set_shortslottime(struct ieee80211com *ic, int onoff)
 		ic->ic_flags &= ~IEEE80211_F_SHSLOT;
 	/* notify driver */
 	if (ic->ic_updateslot != NULL)
-		ic->ic_updateslot(ic->ic_ifp);
+		ic->ic_updateslot(ic);
 }
 
 /*
@@ -1156,27 +1158,25 @@ ieee80211_wme_updateparams(struct ieee80211vap *vap)
 static void
 parent_updown(void *arg, int npending)
 {
-	struct ifnet *parent = arg;
+	struct ieee80211com *ic = arg;
 
-	parent->if_ioctl(parent, SIOCSIFFLAGS, NULL);
+	ic->ic_parent(ic);
 }
 
 static void
 update_mcast(void *arg, int npending)
 {
 	struct ieee80211com *ic = arg;
-	struct ifnet *parent = ic->ic_ifp;
 
-	ic->ic_update_mcast(parent);
+	ic->ic_update_mcast(ic);
 }
 
 static void
 update_promisc(void *arg, int npending)
 {
 	struct ieee80211com *ic = arg;
-	struct ifnet *parent = ic->ic_ifp;
 
-	ic->ic_update_promisc(parent);
+	ic->ic_update_promisc(ic);
 }
 
 static void
@@ -1218,6 +1218,41 @@ ieee80211_waitfor_parent(struct ieee80211com *ic)
 }
 
 /*
+ * Check to see whether the current channel needs reset.
+ *
+ * Some devices don't handle being given an invalid channel
+ * in their operating mode very well (eg wpi(4) will throw a
+ * firmware exception.)
+ *
+ * Return 0 if we're ok, 1 if the channel needs to be reset.
+ *
+ * See PR kern/202502.
+ */
+static int
+ieee80211_start_check_reset_chan(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	if ((vap->iv_opmode == IEEE80211_M_IBSS &&
+	     IEEE80211_IS_CHAN_NOADHOC(ic->ic_curchan)) ||
+	    (vap->iv_opmode == IEEE80211_M_HOSTAP &&
+	     IEEE80211_IS_CHAN_NOHOSTAP(ic->ic_curchan)))
+		return (1);
+	return (0);
+}
+
+/*
+ * Reset the curchan to a known good state.
+ */
+static void
+ieee80211_start_reset_chan(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	ic->ic_curchan = &ic->ic_channels[0];
+}
+
+/*
  * Start a vap running.  If this is the first vap to be
  * set running on the underlying device then we
  * automatically bring the device up.
@@ -1227,7 +1262,6 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 {
 	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *parent = ic->ic_ifp;
 
 	IEEE80211_LOCK_ASSERT(ic);
 
@@ -1249,12 +1283,15 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 		 * We are not running; if this we are the first vap
 		 * to be brought up auto-up the parent if necessary.
 		 */
-		if (ic->ic_nrunning++ == 0 &&
-		    (parent->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		if (ic->ic_nrunning++ == 0) {
+
+			/* reset the channel to a known good channel */
+			if (ieee80211_start_check_reset_chan(vap))
+				ieee80211_start_reset_chan(vap);
+
 			IEEE80211_DPRINTF(vap,
 			    IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
-			    "%s: up parent %s\n", __func__, parent->if_xname);
-			parent->if_flags |= IFF_UP;
+			    "%s: up parent %s\n", __func__, ic->ic_name);
 			ieee80211_runtask(ic, &ic->ic_parent_task);
 			return;
 		}
@@ -1263,8 +1300,7 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 	 * If the parent is up and running, then kick the
 	 * 802.11 state machine as appropriate.
 	 */
-	if ((parent->if_drv_flags & IFF_DRV_RUNNING) &&
-	    vap->iv_roaming != IEEE80211_ROAMING_MANUAL) {
+	if (vap->iv_roaming != IEEE80211_ROAMING_MANUAL) {
 		if (vap->iv_opmode == IEEE80211_M_STA) {
 #if 0
 			/* XXX bypasses scan too easily; disable for now */
@@ -1347,7 +1383,6 @@ ieee80211_stop_locked(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
-	struct ifnet *parent = ic->ic_ifp;
 
 	IEEE80211_LOCK_ASSERT(ic);
 
@@ -1357,12 +1392,10 @@ ieee80211_stop_locked(struct ieee80211vap *vap)
 	ieee80211_new_state_locked(vap, IEEE80211_S_INIT, -1);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;	/* mark us stopped */
-		if (--ic->ic_nrunning == 0 &&
-		    (parent->if_drv_flags & IFF_DRV_RUNNING)) {
+		if (--ic->ic_nrunning == 0) {
 			IEEE80211_DPRINTF(vap,
 			    IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
-			    "down parent %s\n", parent->if_xname);
-			parent->if_flags &= ~IFF_UP;
+			    "down parent %s\n", ic->ic_name);
 			ieee80211_runtask(ic, &ic->ic_parent_task);
 		}
 	}

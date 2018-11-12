@@ -211,6 +211,7 @@ public:
     friend class ImmutableMap;
 
   public:
+    typedef ptrdiff_t difference_type;
     typedef typename ImmutableMap<KeyT,ValT,ValInfo>::value_type value_type;
     typedef typename ImmutableMap<KeyT,ValT,ValInfo>::value_type_ref reference;
     typedef typename iterator::value_type *pointer;
@@ -240,14 +241,14 @@ public:
       if (T) return &T->getValue().second;
     }
 
-    return 0;
+    return nullptr;
   }
   
   /// getMaxElement - Returns the <key,value> pair in the ImmutableMap for
   ///  which key is the highest in the ordering of keys in the map.  This
   ///  method returns NULL if the map is empty.
   value_type* getMaxElement() const {
-    return Root ? &(Root->getMaxElement()->getValue()) : 0;
+    return Root ? &(Root->getMaxElement()->getValue()) : nullptr;
   }
 
   //===--------------------------------------------------===//

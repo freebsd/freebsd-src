@@ -40,13 +40,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>		/* XXXGL: if_rlreg.h contamination */
+#include <sys/mutex.h>		/* XXXGL: if_rlreg.h contamination */
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/bus.h>
 #include <sys/taskqueue.h>	/* XXXGL: if_rlreg.h contamination */
 
-#include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "miidevs.h"
 
 #include <machine/bus.h>
-#include <pci/if_rlreg.h>
+#include <dev/rl/if_rlreg.h>
 
 #include "miibus_if.h"
 
@@ -80,8 +80,9 @@ static driver_t rlphy_driver = {
 
 DRIVER_MODULE(rlphy, miibus, rlphy_driver, rlphy_devclass, 0, 0);
 
-static int	rlphy_service(struct mii_softc *, struct mii_data *, int);
-static void	rlphy_status(struct mii_softc *);
+static int	rlphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	rlphy_status(struct mii_softc *, if_media_t);
 
 /*
  * RealTek internal PHYs don't have vendor/device ID registers;
@@ -108,15 +109,13 @@ static const struct mii_phy_funcs rlphy_funcs = {
 static int
 rlphy_probe(device_t dev)
 {
-	const char *nic;
 	int rv;
 
 	rv = mii_phy_dev_probe(dev, rlphys, BUS_PROBE_DEFAULT);
 	if (rv <= 0)
 		return (rv);
 
-	nic = device_get_name(device_get_parent(device_get_parent(dev)));
-	if (strcmp(nic, "rl") == 0 || strcmp(nic, "re") == 0)
+	if (mii_dev_mac_match(dev, "rl") || mii_dev_mac_match(dev, "re"))
 		return (mii_phy_dev_probe(dev, rlintphys, BUS_PROBE_DEFAULT));
 	return (ENXIO);
 }
@@ -134,7 +133,8 @@ rlphy_attach(device_t dev)
 }
 
 static int
-rlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+rlphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 
 	switch (cmd) {
@@ -142,7 +142,7 @@ rlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -154,7 +154,7 @@ rlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -162,10 +162,9 @@ rlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-rlphy_status(struct mii_softc *phy)
+rlphy_status(struct mii_softc *phy, if_media_t media)
 {
 	struct mii_data *mii = phy->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, anlpar;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -257,5 +256,5 @@ rlphy_status(struct mii_softc *phy)
 		}
 		mii->mii_media_active |= IFM_HDX;
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active = media;
 }

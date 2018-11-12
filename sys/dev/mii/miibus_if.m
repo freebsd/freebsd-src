@@ -31,10 +31,11 @@ METHOD void statchg {
 };
 
 #
-# Notify bus about PHY link change.
+# Read software configuration data from device on MII bus.
 #
-METHOD void linkchg {
+METHOD uint64_t readvar {
 	device_t		dev;
+	int			var;
 };
 
 #

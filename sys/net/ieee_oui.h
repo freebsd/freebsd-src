@@ -62,6 +62,6 @@
  * allocated for any reason.
  */
 
-/* Allocate 64K to bhyve */
+/* Allocate 20 bits to bhyve */
 #define OUI_FREEBSD_BHYVE_LOW	OUI_FREEBSD(0x000001)
-#define OUI_FREEBSD_BHYVE_HIGH	OUI_FREEBSD(0x00ffff)
+#define OUI_FREEBSD_BHYVE_HIGH	OUI_FREEBSD(0x0fffff)

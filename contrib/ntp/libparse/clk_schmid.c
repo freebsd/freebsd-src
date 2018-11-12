@@ -1,13 +1,13 @@
 /*
  * /src/NTP/ntp4-dev/libparse/clk_schmid.c,v 4.9 2005/04/16 17:32:10 kardel RELEASE_20050508_A
- *  
+ *
  * clk_schmid.c,v 4.9 2005/04/16 17:32:10 kardel RELEASE_20050508_A
  *
  * Schmid clock support
  * based on information and testing from Adam W. Feigin et. al (Swisstime iis.ethz.ch)
  *
- * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
- * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
+ * Copyright (c) 1995-2015 by Frank Kardel <kardel <AT> ntp.org>
+ * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,7 +52,7 @@
 #include <stdio.h>
 #else
 #include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
 /*
@@ -61,7 +61,7 @@ extern void printf P((const char *, ...));
  * The command to Schmid's DCF77 clock is a single byte; each bit
  * allows the user to select some part of the time string, as follows (the
  * output for the lsb is sent first).
- * 
+ *
  * Bit 0:	time in MEZ, 4 bytes *binary, not BCD*; hh.mm.ss.tenths
  * Bit 1:	date 3 bytes *binary, not BCD: dd.mm.yy
  * Bit 2:	week day, 1 byte (unused here)
@@ -82,15 +82,15 @@ extern void printf P((const char *, ...));
 #define WS_TIME		0x01
 #define WS_SIGNAL	0x02
 
-#define WS_ALTERNATE	0x01
+#define WS_CALLBIT	0x01  /* "call bit" used to signalize irregularities in the control facilities */
 #define WS_ANNOUNCE	0x02
 #define WS_TZ		0x0c
 #define   WS_MET	0x08
 #define   WS_MEST	0x04
 #define WS_LEAP		0x10
 
-static u_long cvt_schmid P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static unsigned long inp_schmid P((parse_t *, unsigned int, timestamp_t *));
+static parse_cvt_fnc_t cvt_schmid;
+static parse_inp_fnc_t inp_schmid;
 
 clockformat_t clock_schmid =
 {
@@ -103,7 +103,7 @@ clockformat_t clock_schmid =
   0,				/* no private data (complete messages) */
 };
 
-
+/* parse_cvt_fnc_t */
 static u_long
 cvt_schmid(
 	   unsigned char *buffer,
@@ -155,7 +155,7 @@ cvt_schmid(
 				default:
 				    return CVT_FAIL|CVT_BADFMT;
 			    }
-	  
+
 			    if (!(buffer[7] & WS_TIME))
 			    {
 				    clock_time->flags |= PARSEB_POWERUP;
@@ -168,9 +168,9 @@ cvt_schmid(
 
 			    if (buffer[7] & WS_SIGNAL)
 			    {
-				    if (buffer[8] & WS_ALTERNATE)
+				    if (buffer[8] & WS_CALLBIT)
 				    {
-					    clock_time->flags |= PARSEB_ALTERNATE;
+					    clock_time->flags |= PARSEB_CALLBIT;
 				    }
 
 				    if (buffer[8] & WS_ANNOUNCE)
@@ -184,33 +184,33 @@ cvt_schmid(
 				    }
 			    }
 
-			    clock_time->flags |= PARSEB_S_LEAP|PARSEB_S_ANTENNA;
-	  
+			    clock_time->flags |= PARSEB_S_LEAP|PARSEB_S_CALLBIT;
+
 			    return CVT_OK;
 		    }
 	}
 }
 
 /*
- * inp_schmid
+ * parse_inp_fnc_t inp_schmid
  *
- * grep data from input stream
+ * grab data from input stream
  */
 static u_long
 inp_schmid(
 	  parse_t      *parseio,
-	  unsigned int  ch,
+	  char         ch,
 	  timestamp_t  *tstamp
 	  )
 {
 	unsigned int rtc;
-	
+
 	parseprintf(DD_PARSE, ("inp_schmid(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
-	
-	switch (ch)
+
+	switch ((uint8_t)ch)
 	{
 	case 0xFD:		/*  */
-		parseprintf(DD_PARSE, ("mbg_input: ETX seen\n"));
+		parseprintf(DD_PARSE, ("inp_schmid: 0xFD seen\n"));
 		if ((rtc = parse_addchar(parseio, ch)) == PARSE_INP_SKIP)
 			return parse_end(parseio);
 		else

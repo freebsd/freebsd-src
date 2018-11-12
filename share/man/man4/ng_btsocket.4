@@ -45,8 +45,8 @@ module implements three Netgraph node types.
 Each type in its turn implements one protocol within
 .Dv PF_BLUETOOTH
 domain.
-.Sh Dv BLUETOOTH_PROTO_HCI Sh protocol
-.Ss Dv SOCK_RAW Ss HCI sockets
+.Sh Dv BLUETOOTH_PROTO_HCI protocol
+.Ss Dv SOCK_RAW HCI sockets
 Implemented by
 .Nm btsock_hci_raw
 Netgraph type.
@@ -147,7 +147,7 @@ level can be used to obtain via
 or change via
 .Xr setsockopt 2
 raw HCI socket's filter.
-.Sh Dv BLUETOOTH_PROTO_L2CAP Sh protocol
+.Sh Dv BLUETOOTH_PROTO_L2CAP protocol
 The Bluetooth L2CAP socket address is defined as follows:
 .Bd -literal -offset indent
 /* Bluetooth version of struct sockaddr for L2CAP sockets */
@@ -158,7 +158,7 @@ struct sockaddr_l2cap {
         bdaddr_t  l2cap_bdaddr; /* address */
 };
 .Ed
-.Ss Dv SOCK_RAW Ss L2CAP sockets
+.Ss Dv SOCK_RAW L2CAP sockets
 Implemented by
 .Nm btsock_l2c_raw
 Netgraph type.
@@ -204,7 +204,7 @@ The
 variable, that can be examined and set via
 .Xr sysctl 8 ,
 controls the control request timeout (in seconds) for raw L2CAP sockets.
-.Ss Dv SOCK_SEQPACKET Ss L2CAP sockets
+.Ss Dv SOCK_SEQPACKET L2CAP sockets
 Implemented by
 .Nm btsock_l2c
 Netgraph type.
@@ -264,7 +264,7 @@ Get (set) value of the flush timeout.
 Not implemented.
 .Ef
 .El
-.Sh Dv BLUETOOTH_PROTO_RFCOMM Sh protocol
+.Sh Dv BLUETOOTH_PROTO_RFCOMM protocol
 The Bluetooth RFCOMM socket address is defined as follows:
 .Bd -literal -offset indent
 /* Bluetooth version of struct sockaddr for RFCOMM sockets */
@@ -275,7 +275,7 @@ struct sockaddr_rfcomm {
         uint8_t  rfcomm_channel; /* channel */
 };
 .Ed
-.Ss Dv SOCK_STREAM Ss RFCOMM sockets
+.Ss Dv SOCK_STREAM RFCOMM sockets
 Note that RFCOMM sockets do not have associated Netgraph node type.
 RFCOMM sockets are implemented as additional layer on top of L2CAP sockets.
 RFCOMM sockets are either
@@ -348,7 +348,7 @@ The
 module was implemented in
 .Fx 5.0 .
 .Sh AUTHORS
-.An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
+.An Maksim Yevmenkin Aq Mt m_evmenkin@yahoo.com
 .Sh BUGS
 Most likely.
 Please report if found.

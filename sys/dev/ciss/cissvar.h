@@ -77,14 +77,6 @@ typedef STAILQ_HEAD(, ciss_request)	cr_qhead_t;
 #define CISS_HEARTBEAT_RATE		10
 
 /************************************************************************
- * Compatibility with older versions of FreeBSD
- */
-#if __FreeBSD_version < 440001
-#warning testing old-FreeBSD compat
-typedef struct proc	d_thread_t;
-#endif
-
-/************************************************************************
  * Driver version.  Only really significant to the ACU interface.
  */
 #define CISS_DRIVER_VERSION	20011201

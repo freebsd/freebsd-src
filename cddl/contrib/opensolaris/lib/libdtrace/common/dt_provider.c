@@ -23,11 +23,12 @@
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ */
 
 #include <sys/types.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/sysmacros.h>
 #endif
 
@@ -35,7 +36,7 @@
 #include <limits.h>
 #include <strings.h>
 #include <stdlib.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <unistd.h>
@@ -45,6 +46,8 @@
 #include <dt_module.h>
 #include <dt_string.h>
 #include <dt_list.h>
+#include <dt_pid.h>
+#include <dtrace.h>
 
 static dt_provider_t *
 dt_provider_insert(dtrace_hdl_t *dtp, dt_provider_t *pvp, uint_t h)
@@ -273,6 +276,21 @@ dt_probe_discover(dt_provider_t *pvp, const dtrace_probedesc_t *pdp)
 	nc++;
 
 	/*
+	 * The pid provider believes in giving the kernel a break. No reason to
+	 * give the kernel all the ctf containers that we're keeping ourselves
+	 * just to get it back from it. So if we're coming from a pid provider
+	 * probe and the kernel gave us no argument information we'll get some
+	 * here. If for some crazy reason the kernel knows about our userland
+	 * types then we just ignore this.
+	 */
+	if (xc == 0 && nc == 0 &&
+	    strncmp(pvp->pv_desc.dtvd_name, "pid", 3) == 0) {
+		nc = adc;
+		dt_pid_get_types(dtp, pdp, adv, &nc);
+		xc = nc;
+	}
+
+	/*
 	 * Now that we have discovered the number of native and translated
 	 * arguments from the argument descriptions, allocate a new probe ident
 	 * and corresponding dt_probe_t and hash it into the provider.
@@ -318,7 +336,8 @@ dt_probe_discover(dt_provider_t *pvp, const dtrace_probedesc_t *pdp)
 			dtt.dtt_type = CTF_ERR;
 		} else {
 			dt_node_type_assign(prp->pr_nargv[adp->dtargd_mapping],
-			    dtt.dtt_ctfp, dtt.dtt_type);
+			    dtt.dtt_ctfp, dtt.dtt_type,
+			    dtt.dtt_flags & DTT_FL_USER ? B_TRUE : B_FALSE);
 		}
 
 		if (dtt.dtt_type != CTF_ERR && (adp->dtargd_xlate[0] == '\0' ||
@@ -337,7 +356,7 @@ dt_probe_discover(dt_provider_t *pvp, const dtrace_probedesc_t *pdp)
 			dtt.dtt_type = CTF_ERR;
 		} else {
 			dt_node_type_assign(prp->pr_xargv[i],
-			    dtt.dtt_ctfp, dtt.dtt_type);
+			    dtt.dtt_ctfp, dtt.dtt_type, B_FALSE);
 		}
 
 		prp->pr_mapping[i] = adp->dtargd_mapping;
@@ -501,6 +520,8 @@ dt_probe_destroy(dt_probe_t *prp)
 
 	for (pip = prp->pr_inst; pip != NULL; pip = pip_next) {
 		pip_next = pip->pi_next;
+		dt_free(dtp, pip->pi_rname);
+		dt_free(dtp, pip->pi_fname);
 		dt_free(dtp, pip->pi_offs);
 		dt_free(dtp, pip->pi_enoffs);
 		dt_free(dtp, pip);
@@ -524,8 +545,9 @@ dt_probe_define(dt_provider_t *pvp, dt_probe_t *prp,
 
 	for (pip = prp->pr_inst; pip != NULL; pip = pip->pi_next) {
 		if (strcmp(pip->pi_fname, fname) == 0 &&
-		    ((rname == NULL && pip->pi_rname[0] == '\0') ||
-		    (rname != NULL && strcmp(pip->pi_rname, rname)) == 0))
+		    ((rname == NULL && pip->pi_rname == NULL) ||
+		    (rname != NULL && pip->pi_rname != NULL &&
+		    strcmp(pip->pi_rname, rname) == 0)))
 			break;
 	}
 
@@ -533,28 +555,18 @@ dt_probe_define(dt_provider_t *pvp, dt_probe_t *prp,
 		if ((pip = dt_zalloc(dtp, sizeof (*pip))) == NULL)
 			return (-1);
 
-		if ((pip->pi_offs = dt_zalloc(dtp,
-		    sizeof (uint32_t))) == NULL) {
-			dt_free(dtp, pip);
-			return (-1);
-		}
+		if ((pip->pi_offs = dt_zalloc(dtp, sizeof (uint32_t))) == NULL)
+			goto nomem;
 
 		if ((pip->pi_enoffs = dt_zalloc(dtp,
-		    sizeof (uint32_t))) == NULL) {
-			dt_free(dtp, pip->pi_offs);
-			dt_free(dtp, pip);
-			return (-1);
-		}
+		    sizeof (uint32_t))) == NULL)
+			goto nomem;
 
-		(void) strlcpy(pip->pi_fname, fname, sizeof (pip->pi_fname));
-		if (rname != NULL) {
-			if (strlen(rname) + 1 > sizeof (pip->pi_rname)) {
-				dt_free(dtp, pip->pi_offs);
-				dt_free(dtp, pip);
-				return (dt_set_errno(dtp, EDT_COMPILER));
-			}
-			(void) strcpy(pip->pi_rname, rname);
-		}
+		if ((pip->pi_fname = strdup(fname)) == NULL)
+			goto nomem;
+
+		if (rname != NULL && (pip->pi_rname = strdup(rname)) == NULL)
+			goto nomem;
 
 		pip->pi_noffs = 0;
 		pip->pi_maxoffs = 1;
@@ -599,6 +611,13 @@ dt_probe_define(dt_provider_t *pvp, dt_probe_t *prp,
 	(*offs)[(*noffs)++] = offset;
 
 	return (0);
+
+nomem:
+	dt_free(dtp, pip->pi_fname);
+	dt_free(dtp, pip->pi_enoffs);
+	dt_free(dtp, pip->pi_offs);
+	dt_free(dtp, pip);
+	return (dt_set_errno(dtp, EDT_NOMEM));
 }
 
 /*
@@ -638,7 +657,7 @@ dt_probe_tag(dt_probe_t *prp, uint_t argn, dt_node_t *dnp)
 	bzero(dnp, sizeof (dt_node_t));
 	dnp->dn_kind = DT_NODE_TYPE;
 
-	dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type);
+	dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type, B_FALSE);
 	dt_node_attr_assign(dnp, _dtrace_defattr);
 
 	return (dnp);

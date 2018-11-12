@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This file defines the options accepted by clang -cc1.
+//  This file defines the options accepted by clang -cc1 and clang -cc1as.
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,19 +17,24 @@ let Flags = [CC1Option, NoDriverOption] in {
 // Target Options
 //===----------------------------------------------------------------------===//
 
-def cxx_abi : Separate<["-"], "cxx-abi">,
-  HelpText<"Target a particular C++ ABI type">;
-def target_abi : Separate<["-"], "target-abi">,
-  HelpText<"Target a particular ABI type">;
+let Flags = [CC1Option, CC1AsOption, NoDriverOption] in {
+
 def target_cpu : Separate<["-"], "target-cpu">,
   HelpText<"Target a specific cpu type">;
 def target_feature : Separate<["-"], "target-feature">,
   HelpText<"Target specific attributes">;
-def target_linker_version : Separate<["-"], "target-linker-version">,
-  HelpText<"Target linker version">;
 def triple : Separate<["-"], "triple">,
   HelpText<"Specify target triple (e.g. i686-apple-darwin9)">;
+
+}
+
+def target_abi : Separate<["-"], "target-abi">,
+  HelpText<"Target a particular ABI type">;
+def target_linker_version : Separate<["-"], "target-linker-version">,
+  HelpText<"Target linker version">;
 def triple_EQ : Joined<["-"], "triple=">, Alias<triple>;
+def mfpmath : Separate<["-"], "mfpmath">,
+  HelpText<"Which unit to use for fp math">;
 
 //===----------------------------------------------------------------------===//
 // Analyzer Options
@@ -103,6 +108,9 @@ def analyzer_disable_checker : Separate<["-"], "analyzer-disable-checker">,
 def analyzer_disable_checker_EQ : Joined<["-"], "analyzer-disable-checker=">,
   Alias<analyzer_disable_checker>;
 
+def analyzer_disable_all_checks : Flag<["-"], "analyzer-disable-all-checks">,
+  HelpText<"Disable all static analyzer checks">;
+
 def analyzer_checker_help : Flag<["-"], "analyzer-checker-help">,
   HelpText<"Display the list of analyzer checkers that are available">;
 
@@ -122,26 +130,47 @@ def migrator_no_finalize_removal : Flag<["-"], "no-finalize-removal">,
 // CodeGen Options
 //===----------------------------------------------------------------------===//
 
+let Flags = [CC1Option, CC1AsOption, NoDriverOption] in {
+
+def fdebug_compilation_dir : Separate<["-"], "fdebug-compilation-dir">,
+  HelpText<"The compilation directory to embed in the debug info.">;
+def dwarf_debug_flags : Separate<["-"], "dwarf-debug-flags">,
+  HelpText<"The string to embed in the Dwarf debug flags record.">;
+def mno_exec_stack : Flag<["-"], "mnoexecstack">,
+  HelpText<"Mark the file as not needing an executable stack">;
+def massembler_fatal_warnings : Flag<["-"], "massembler-fatal-warnings">,
+  HelpText<"Make assembler warnings fatal">;
+def compress_debug_sections : Flag<["-"], "compress-debug-sections">,
+    HelpText<"Compress DWARF debug sections using zlib">;
+def msave_temp_labels : Flag<["-"], "msave-temp-labels">,
+  HelpText<"Save temporary labels in the symbol table. "
+           "Note this may change .s semantics and shouldn't generally be used "
+           "on compiler-generated code.">;
+
+}
+
 def disable_llvm_optzns : Flag<["-"], "disable-llvm-optzns">,
   HelpText<"Don't run LLVM optimization passes">;
 def disable_llvm_verifier : Flag<["-"], "disable-llvm-verifier">,
   HelpText<"Don't run the LLVM IR verifier pass">;
 def disable_red_zone : Flag<["-"], "disable-red-zone">,
   HelpText<"Do not emit code that uses the red zone.">;
-def fdebug_compilation_dir : Separate<["-"], "fdebug-compilation-dir">,
-  HelpText<"The compilation directory to embed in the debug info.">;
-def dwarf_debug_flags : Separate<["-"], "dwarf-debug-flags">,
-  HelpText<"The string to embed in the Dwarf debug flags record.">;
 def dwarf_column_info : Flag<["-"], "dwarf-column-info">,
   HelpText<"Turn on column location information.">;
 def split_dwarf : Flag<["-"], "split-dwarf">,
   HelpText<"Split out the dwarf .dwo sections">;
+def gnu_pubnames : Flag<["-"], "gnu-pubnames">,
+  HelpText<"Emit newer GNU style pubnames">;
+def arange_sections : Flag<["-"], "arange_sections">,
+  HelpText<"Emit DWARF .debug_arange sections">;
 def fforbid_guard_variables : Flag<["-"], "fforbid-guard-variables">,
   HelpText<"Emit an error if a C++ static local initializer would need a guard variable">;
 def no_implicit_float : Flag<["-"], "no-implicit-float">,
   HelpText<"Don't generate implicit floating point instructions">;
 def fdump_vtable_layouts : Flag<["-"], "fdump-vtable-layouts">,
   HelpText<"Dump the layouts of all vtables that will be emitted in a translation unit">;
+def fmerge_functions : Flag<["-"], "fmerge-functions">,
+  HelpText<"Permit merging of identical functions when optimizing.">;
 def femit_coverage_notes : Flag<["-"], "femit-coverage-notes">,
   HelpText<"Emit a gcov coverage notes file when compiling.">;
 def femit_coverage_data: Flag<["-"], "femit-coverage-data">,
@@ -157,12 +186,14 @@ def coverage_version_EQ : Joined<["-"], "coverage-version=">,
   HelpText<"Four-byte version string for gcov files.">;
 def test_coverage : Flag<["-"], "test-coverage">,
   HelpText<"Do not generate coverage files or remove coverage changes from IR">;
+def dump_coverage_mapping : Flag<["-"], "dump-coverage-mapping">,
+  HelpText<"Dump the coverage mapping records, for testing">;
 def fuse_register_sized_bitfield_access: Flag<["-"], "fuse-register-sized-bitfield-access">,
   HelpText<"Use register sized accesses to bit-fields, when possible.">;
 def relaxed_aliasing : Flag<["-"], "relaxed-aliasing">,
   HelpText<"Turn off Type Based Alias Analysis">;
-def struct_path_tbaa : Flag<["-"], "struct-path-tbaa">,
-  HelpText<"Turn on struct-path aware Type Based Alias Analysis">;
+def no_struct_path_tbaa : Flag<["-"], "no-struct-path-tbaa">,
+  HelpText<"Turn off struct-path aware Type Based Alias Analysis">;
 def masm_verbose : Flag<["-"], "masm-verbose">,
   HelpText<"Generate verbose assembly output">;
 def mcode_model : Separate<["-"], "mcode-model">,
@@ -184,8 +215,6 @@ def mfloat_abi : Separate<["-"], "mfloat-abi">,
   HelpText<"The float ABI to use">;
 def mlimit_float_precision : Separate<["-"], "mlimit-float-precision">,
   HelpText<"Limit float precision to the given value">;
-def mno_exec_stack : Flag<["-"], "mnoexecstack">,
-  HelpText<"Mark the file as not needing an executable stack">;
 def split_stacks : Flag<["-"], "split-stacks">,
   HelpText<"Try to use a split stack if possible.">;
 def mno_zero_initialized_in_bss : Flag<["-"], "mno-zero-initialized-in-bss">,
@@ -194,8 +223,6 @@ def backend_option : Separate<["-"], "backend-option">,
   HelpText<"Additional arguments to forward to LLVM backend (during code gen)">;
 def mregparm : Separate<["-"], "mregparm">,
   HelpText<"Limit the number of registers available for integer arguments">;
-def msave_temp_labels : Flag<["-"], "msave-temp-labels">,
-  HelpText<"(integrated-as) Save temporary labels">;
 def mrelocation_model : Separate<["-"], "mrelocation-model">,
   HelpText<"The relocation model to use">;
 def munwind_tables : Flag<["-"], "munwind-tables">,
@@ -204,6 +231,14 @@ def mconstructor_aliases : Flag<["-"], "mconstructor-aliases">,
   HelpText<"Emit complete constructors and destructors as aliases when possible">;
 def mlink_bitcode_file : Separate<["-"], "mlink-bitcode-file">,
   HelpText<"Link the given bitcode file before performing optimizations.">;
+def vectorize_loops : Flag<["-"], "vectorize-loops">,
+  HelpText<"Run the Loop vectorization passes">;
+def vectorize_slp : Flag<["-"], "vectorize-slp">,
+  HelpText<"Run the SLP vectorization passes">;
+def vectorize_slp_aggressive : Flag<["-"], "vectorize-slp-aggressive">,
+  HelpText<"Run the BB vectorization passes">;
+def dependent_lib : Joined<["--"], "dependent-lib=">,
+  HelpText<"Add dependent library">;
 
 //===----------------------------------------------------------------------===//
 // Dependency Output Options
@@ -211,8 +246,12 @@ def mlink_bitcode_file : Separate<["-"], "mlink-bitcode-file">,
 
 def sys_header_deps : Flag<["-"], "sys-header-deps">,
   HelpText<"Include system headers in dependency output">;
+def module_file_deps : Flag<["-"], "module-file-deps">,
+  HelpText<"Include module files in dependency output">;
 def header_include_file : Separate<["-"], "header-include-file">,
   HelpText<"Filename (or -) to write header include output to">;
+def show_includes : Flag<["--"], "show-includes">,
+  HelpText<"Print cl.exe style /showIncludes to stdout">;
 
 //===----------------------------------------------------------------------===//
 // Diagnostic Options
@@ -240,8 +279,12 @@ def ftemplate_backtrace_limit : Separate<["-"], "ftemplate-backtrace-limit">, Me
   HelpText<"Set the maximum number of entries to print in a template instantiation backtrace (0 = no limit).">;
 def fconstexpr_backtrace_limit : Separate<["-"], "fconstexpr-backtrace-limit">, MetaVarName<"<N>">,
   HelpText<"Set the maximum number of entries to print in a constexpr evaluation backtrace (0 = no limit).">;
+def fspell_checking_limit : Separate<["-"], "fspell-checking-limit">, MetaVarName<"<N>">,
+  HelpText<"Set the maximum number of times to perform spell checking on unrecognized identifiers (0 = no limit).">;
 def fmessage_length : Separate<["-"], "fmessage-length">, MetaVarName<"<N>">,
   HelpText<"Format message diagnostics so that they fit within N columns or fewer, when possible.">;
+def verify : Flag<["-"], "verify">,
+  HelpText<"Verify diagnostic output using comment directives">;
 def Wno_rewrite_macros : Flag<["-"], "Wno-rewrite-macros">,
   HelpText<"Silence ObjC rewriting warnings">;
 
@@ -252,6 +295,7 @@ def Wno_rewrite_macros : Flag<["-"], "Wno-rewrite-macros">,
 // This isn't normally used, it is just here so we can parse a
 // CompilerInvocation out of a driver-derived argument vector.
 def cc1 : Flag<["-"], "cc1">;
+def cc1as : Flag<["-"], "cc1as">;
 
 def ast_merge : Separate<["-"], "ast-merge">,
   MetaVarName<"<ast file>">,
@@ -283,8 +327,6 @@ def plugin_arg : JoinedAndSeparate<["-"], "plugin-arg-">,
     HelpText<"Pass <arg> to plugin <name>">;
 def add_plugin : Separate<["-"], "add-plugin">, MetaVarName<"<name>">,
   HelpText<"Use the named plugin action in addition to the default action">;
-def version : Flag<["-"], "version">,
-  HelpText<"Print the compiler version">;
 def ast_dump_filter : Separate<["-"], "ast-dump-filter">,
   MetaVarName<"<dump_filter>">,
   HelpText<"Use with -ast-dump or -ast-print to dump/print only AST declaration"
@@ -292,6 +334,14 @@ def ast_dump_filter : Separate<["-"], "ast-dump-filter">,
            " -ast-list to list all filterable declaration node names.">;
 def fno_modules_global_index : Flag<["-"], "fno-modules-global-index">,
   HelpText<"Do not automatically generate or update the global module index">;
+def fno_modules_error_recovery : Flag<["-"], "fno-modules-error-recovery">,
+  HelpText<"Do not automatically import modules for error recovery">;
+def fmodule_implementation_of : Separate<["-"], "fmodule-implementation-of">,
+  MetaVarName<"<name>">,
+  HelpText<"Specify the name of the module whose implementation file this is">;
+def fmodule_map_file_home_is_cwd : Flag<["-"], "fmodule-map-file-home-is-cwd">,
+  HelpText<"Use the current working directory as the home directory of "
+           "module maps specified by -fmodule-map-file=<FILE>">;
 
 let Group = Action_Group in {
 
@@ -320,8 +370,8 @@ def ast_list : Flag<["-"], "ast-list">,
   HelpText<"Build ASTs and print the list of declaration node qualified names">;
 def ast_dump : Flag<["-"], "ast-dump">,
   HelpText<"Build ASTs and then debug dump them">;
-def ast_dump_xml : Flag<["-"], "ast-dump-xml">,
-  HelpText<"Build ASTs and then debug dump them in a verbose XML format">;
+def ast_dump_lookups : Flag<["-"], "ast-dump-lookups">,
+  HelpText<"Build ASTs and then debug dump their name lookup tables">;
 def ast_view : Flag<["-"], "ast-view">,
   HelpText<"Build ASTs and view them with GraphViz">;
 def print_decl_contexts : Flag<["-"], "print-decl-contexts">,
@@ -357,8 +407,6 @@ def arcmt_modify : Flag<["-"], "arcmt-modify">,
 def arcmt_migrate : Flag<["-"], "arcmt-migrate">,
   HelpText<"Apply modifications and produces temporary files that conform to ARC">;
 
-def relocatable_pch : Flag<["-", "--"], "relocatable-pch">,
-  HelpText<"Whether to build a relocatable precompiled header">;
 def print_stats : Flag<["-"], "print-stats">,
   HelpText<"Print performance metrics and statistics">;
 def fdump_record_layouts : Flag<["-"], "fdump-record-layouts">,
@@ -381,18 +429,21 @@ def foverride_record_layout_EQ : Joined<["-"], "foverride-record-layout=">,
 // Language Options
 //===----------------------------------------------------------------------===//
 
+let Flags = [CC1Option, CC1AsOption, NoDriverOption] in {
+
+def version : Flag<["-"], "version">,
+  HelpText<"Print the compiler version">;
+def main_file_name : Separate<["-"], "main-file-name">,
+  HelpText<"Main file name to use for debug info">;
+
+}
+
 def fblocks_runtime_optional : Flag<["-"], "fblocks-runtime-optional">,
   HelpText<"Weakly link in the blocks runtime">;
 def fsjlj_exceptions : Flag<["-"], "fsjlj-exceptions">,
   HelpText<"Use SjLj style exceptions">;
-def fhidden_weak_vtables : Flag<["-"], "fhidden-weak-vtables">,
-  HelpText<"Generate weak vtables and RTTI with hidden visibility">;
-def main_file_name : Separate<["-"], "main-file-name">,
-  HelpText<"Main file name to use for debug info">;
 def split_dwarf_file : Separate<["-"], "split-dwarf-file">,
   HelpText<"File name to use for split dwarf debug info output">;
-def fno_signed_char : Flag<["-"], "fno-signed-char">,
-  HelpText<"Char is unsigned">;
 def fno_wchar : Flag<["-"], "fno-wchar">,
   HelpText<"Disable C++ builtin type wchar_t">;
 def fconstant_string_class : Separate<["-"], "fconstant-string-class">,
@@ -404,8 +455,8 @@ def fobjc_runtime_has_weak : Flag<["-"], "fobjc-runtime-has-weak">,
   HelpText<"The target Objective-C runtime supports ARC weak operations">;
 def fobjc_dispatch_method_EQ : Joined<["-"], "fobjc-dispatch-method=">,
   HelpText<"Objective-C dispatch method to use">;
-def fobjc_default_synthesize_properties : Flag<["-"], "fobjc-default-synthesize-properties">,
-  HelpText<"enable the default synthesis of Objective-C properties">;
+def disable_objc_default_synthesize_properties : Flag<["-"], "disable-objc-default-synthesize-properties">,
+  HelpText<"disable the default synthesis of Objective-C properties">;
 def fencode_extended_block_signature : Flag<["-"], "fencode-extended-block-signature">,
   HelpText<"enable extended encoding of block type signature">;
 def pic_level : Separate<["-"], "pic-level">,
@@ -432,8 +483,12 @@ def ftype_visibility : Separate<["-"], "ftype-visibility">,
   HelpText<"Default type visibility">;
 def ftemplate_depth : Separate<["-"], "ftemplate-depth">,
   HelpText<"Maximum depth of recursive template instantiation">;
+def foperator_arrow_depth : Separate<["-"], "foperator-arrow-depth">,
+  HelpText<"Maximum number of 'operator->'s to call for a member access">;
 def fconstexpr_depth : Separate<["-"], "fconstexpr-depth">,
   HelpText<"Maximum depth of recursive constexpr function calls">;
+def fconstexpr_steps : Separate<["-"], "fconstexpr-steps">,
+  HelpText<"Maximum number of steps in constexpr function evaluation">;
 def fbracket_depth : Separate<["-"], "fbracket-depth">,
   HelpText<"Maximum nesting level for parentheses, brackets, and braces">;
 def fconst_strings : Flag<["-"], "fconst-strings">,
@@ -444,6 +499,8 @@ def fno_bitfield_type_align : Flag<["-"], "fno-bitfield-type-align">,
   HelpText<"Ignore bit-field types when aligning structures">;
 def ffake_address_space_map : Flag<["-"], "ffake-address-space-map">,
   HelpText<"Use a fake address space map; OpenCL testing purposes only">;
+def faddress_space_map_mangling_EQ : Joined<["-"], "faddress-space-map-mangling=">, MetaVarName<"<yes|no|target>">,
+  HelpText<"Set the mode for address space map based mangling; OpenCL testing purposes only">;
 def funknown_anytype : Flag<["-"], "funknown-anytype">,
   HelpText<"Enable parser support for the __unknown_anytype type; for testing purposes only">;
 def fdebugger_support : Flag<["-"], "fdebugger-support">,
@@ -456,6 +513,16 @@ def fdeprecated_macro : Flag<["-"], "fdeprecated-macro">,
   HelpText<"Defines the __DEPRECATED macro">;
 def fno_deprecated_macro : Flag<["-"], "fno-deprecated-macro">,
   HelpText<"Undefines the __DEPRECATED macro">;
+def fsized_deallocation : Flag<["-"], "fsized-deallocation">,
+  HelpText<"Enable C++14 sized global deallocation functions">;
+def fobjc_subscripting_legacy_runtime : Flag<["-"], "fobjc-subscripting-legacy-runtime">,
+  HelpText<"Allow Objective-C array and dictionary subscripting in legacy runtime">;
+def vtordisp_mode_EQ : Joined<["-"], "vtordisp-mode=">,
+  HelpText<"Control vtordisp placement on win32 targets">;
+def fno_rtti_data : Flag<["-"], "fno-rtti-data">,
+  HelpText<"Control emission of RTTI data">;
+def fallow_half_arguments_and_returns : Flag<["-"], "fallow-half-arguments-and-returns">,
+  HelpText<"Allow function arguments and returns of type half">;
 
 //===----------------------------------------------------------------------===//
 // Header Search Options
@@ -463,9 +530,6 @@ def fno_deprecated_macro : Flag<["-"], "fno-deprecated-macro">,
 
 def nostdsysteminc : Flag<["-"], "nostdsysteminc">,
   HelpText<"Disable standard system #include directories">;
-def fmodule_name : Joined<["-"], "fmodule-name=">, 
-  MetaVarName<"<name>">,
-  HelpText<"Specify the name of the module to build">;           
 def fdisable_module_hash : Flag<["-"], "fdisable-module-hash">,
   HelpText<"Disable the module hash">;
 def c_isystem : JoinedOrSeparate<["-"], "c-isystem">, MetaVarName<"<directory>">,
@@ -487,14 +551,6 @@ def internal_externc_isystem : JoinedOrSeparate<["-"], "internal-externc-isystem
            "implicit extern \"C\" semantics; these are assumed to not be "
            "user-provided and are used to model system and standard headers' "
            "paths.">;
-def isystem_prefix : JoinedOrSeparate<["-"], "isystem-prefix">,
-  MetaVarName<"<prefix>">,
-  HelpText<"Treat all #include paths starting with <prefix> as including a "
-           "system header.">;
-def ino_system_prefix : JoinedOrSeparate<["-"], "ino-system-prefix">,
-  MetaVarName<"<prefix>">,
-  HelpText<"Treat all #include paths starting with <prefix> as not including a "
-           "system header.">;
 
 //===----------------------------------------------------------------------===//
 // Preprocessor Options
@@ -522,6 +578,10 @@ def cl_single_precision_constant : Flag<["-"], "cl-single-precision-constant">,
   HelpText<"OpenCL only. Treat double precision floating-point constant as single precision constant.">;
 def cl_finite_math_only : Flag<["-"], "cl-finite-math-only">,
   HelpText<"OpenCL only. Allow floating-point optimizations that assume arguments and results are not NaNs or +-Inf.">;
+def cl_kernel_arg_info : Flag<["-"], "cl-kernel-arg-info">,
+  HelpText<"OpenCL only. Generate kernel argument metadata.">;
+def cl_no_signed_zeros : Flag<["-"], "cl-no-signed-zeros">,
+  HelpText<"OpenCL only. Allow optimizations to ignore the signedness of the floating-point zero.">;
 def cl_unsafe_math_optimizations : Flag<["-"], "cl-unsafe-math-optimizations">,
   HelpText<"OpenCL only. Allow unsafe floating-point optimizations.  Also implies -cl-no-signed-zeros and -cl-mad-enable">;
 def cl_fast_relaxed_math : Flag<["-"], "cl-fast-relaxed-math">,
@@ -530,6 +590,8 @@ def cl_mad_enable : Flag<["-"], "cl-mad-enable">,
   HelpText<"OpenCL only. Enable less precise MAD instructions to be generated.">;
 def cl_std_EQ : Joined<["-"], "cl-std=">,
   HelpText<"OpenCL language standard to compile for">;
+def cl_denorms_are_zero : Flag<["-"], "cl-denorms-are-zero">,
+  HelpText<"OpenCL only. Allow denormals to be flushed to zero">;
 
 //===----------------------------------------------------------------------===//
 // CUDA Options
@@ -539,3 +601,32 @@ def fcuda_is_device : Flag<["-"], "fcuda-is-device">,
   HelpText<"Generate code for CUDA device">;
 
 } // let Flags = [CC1Option]
+
+
+//===----------------------------------------------------------------------===//
+// cc1as-only Options
+//===----------------------------------------------------------------------===//
+
+let Flags = [CC1AsOption, NoDriverOption] in {
+
+// Language Options
+def n : Flag<["-"], "n">,
+  HelpText<"Don't automatically start assembly file with a text section">;
+
+// Frontend Options
+def filetype : Separate<["-"], "filetype">,
+    HelpText<"Specify the output file type ('asm', 'null', or 'obj')">;
+
+// Transliterate Options
+def output_asm_variant : Separate<["-"], "output-asm-variant">,
+    HelpText<"Select the asm variant index to use for output">;
+def show_encoding : Flag<["-"], "show-encoding">,
+    HelpText<"Show instruction encoding information in transliterate mode">;
+def show_inst : Flag<["-"], "show-inst">,
+    HelpText<"Show internal instruction representation in transliterate mode">;
+
+// Assemble Options
+def dwarf_debug_producer : Separate<["-"], "dwarf-debug-producer">,
+  HelpText<"The string to embed in the Dwarf debug AT_producer record.">;
+
+} // let Flags = [CC1AsOption]

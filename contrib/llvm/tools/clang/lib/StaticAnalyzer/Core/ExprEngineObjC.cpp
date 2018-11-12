@@ -77,7 +77,7 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
   
   if (const DeclStmt *DS = dyn_cast<DeclStmt>(elem)) {
     const VarDecl *elemD = cast<VarDecl>(DS->getSingleDecl());
-    assert(elemD->getInit() == 0);
+    assert(elemD->getInit() == nullptr);
     elementV = state->getLValue(elemD, Pred->getLocationContext());
   }
   else {
@@ -85,7 +85,7 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
   }
   
   ExplodedNodeSet dstLocation;
-  evalLocation(dstLocation, S, elem, Pred, state, elementV, NULL, false);
+  evalLocation(dstLocation, S, elem, Pred, state, elementV, nullptr, false);
 
   ExplodedNodeSet Tmp;
   StmtNodeBuilder Bldr(Pred, Tmp, *currBldrCtx);
@@ -165,7 +165,7 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
             recVal.castAs<DefinedOrUnknownSVal>();
 
         ProgramStateRef notNilState, nilState;
-        llvm::tie(notNilState, nilState) = State->assume(receiverVal);
+        std::tie(notNilState, nilState) = State->assume(receiverVal);
         
         // There are three cases: can be nil or non-nil, must be nil, must be
         // non-nil. We ignore must be nil, and merge the rest two into non-nil.

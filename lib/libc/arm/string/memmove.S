@@ -32,6 +32,8 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+.syntax	unified
+
 #ifndef _BCOPY
 /* LINTSTUB: Func: void *memmove(void *, const void *, size_t) */
 ENTRY(memmove)
@@ -46,7 +48,9 @@ ENTRY(bcopy)
 #endif
 	/* Do the buffers overlap? */
 	cmp	r0, r1
+	it	eq
 	RETeq		/* Bail now if src/dst are the same */
+	ite	cc
 	subcc	r3, r0, r1	/* if (dst > src) r3 = dst - src */
 	subcs	r3, r1, r0	/* if (src > dsr) r3 = src - dst */
 	cmp	r3, r2		/* if (r3 < len) we have an overlap */
@@ -54,8 +58,10 @@ ENTRY(bcopy)
 
 	/* Determine copy direction */
 	cmp	r1, r0
+	it	cc
 	bcc	.Lmemmove_backwards
 
+	itt	eq
 	moveq	r0, #0			/* Quick abort for len=0 */
 	RETeq
 
@@ -86,8 +92,9 @@ ENTRY(bcopy)
 	bge	.Lmemmove_floop32
 
 	cmn	r2, #0x10
-	ldmgeia	r1!, {r3, r4, r12, lr}	/* blat a remaining 16 bytes */
-	stmgeia	r0!, {r3, r4, r12, lr}
+	ittt	ge
+	ldmiage	r1!, {r3, r4, r12, lr}	/* blat a remaining 16 bytes */
+	stmiage	r0!, {r3, r4, r12, lr}
 	subge	r2, r2, #0x10         
 	ldmia	sp!, {r4}		/* return r4 */
 
@@ -96,9 +103,10 @@ ENTRY(bcopy)
 
 	/* blat 12 bytes at a time */
 .Lmemmove_floop12:
-	ldmgeia	r1!, {r3, r12, lr}
-	stmgeia	r0!, {r3, r12, lr}
-	subges	r2, r2, #0x0c         
+	ittt	ge
+	ldmiage	r1!, {r3, r12, lr}
+	stmiage	r0!, {r3, r12, lr}
+	subsge	r2, r2, #0x0c         
 	bge	.Lmemmove_floop12
 
 .Lmemmove_fl12:
@@ -106,25 +114,30 @@ ENTRY(bcopy)
 	blt	.Lmemmove_fl4
 
 	subs	r2, r2, #4
+	itt	lt
 	ldrlt	r3, [r1], #4
 	strlt	r3, [r0], #4
-	ldmgeia	r1!, {r3, r12}
-	stmgeia	r0!, {r3, r12}
+	ittt	ge
+	ldmiage	r1!, {r3, r12}
+	stmiage	r0!, {r3, r12}
 	subge	r2, r2, #4
 
 .Lmemmove_fl4:
 	/* less than 4 bytes to go */
 	adds	r2, r2, #4
-	ldmeqia	sp!, {r0, pc}		/* done */
+	it	eq
+	ldmiaeq	sp!, {r0, pc}		/* done */
 
 	/* copy the crud byte at a time */
 	cmp	r2, #2
 	ldrb	r3, [r1], #1
 	strb	r3, [r0], #1
-	ldrgeb	r3, [r1], #1
-	strgeb	r3, [r0], #1
-	ldrgtb	r3, [r1], #1
-	strgtb	r3, [r0], #1
+	itt	ge
+	ldrbge	r3, [r1], #1
+	strbge	r3, [r0], #1
+	itt	gt
+	ldrbgt	r3, [r1], #1
+	strbgt	r3, [r0], #1
 	ldmia	sp!, {r0, pc}
 
 	/* erg - unaligned destination */
@@ -135,10 +148,12 @@ ENTRY(bcopy)
 	/* align destination with byte copies */
 	ldrb	r3, [r1], #1
 	strb	r3, [r0], #1
-	ldrgeb	r3, [r1], #1
-	strgeb	r3, [r0], #1
-	ldrgtb	r3, [r1], #1
-	strgtb	r3, [r0], #1
+	itt	ge
+	ldrbge	r3, [r1], #1
+	strbge	r3, [r0], #1
+	itt	gt
+	ldrbgt	r3, [r1], #1
+	strbgt	r3, [r0], #1
 	subs	r2, r2, r12
 	blt	.Lmemmove_fl4		/* less the 4 bytes */
 
@@ -353,12 +368,14 @@ ENTRY(bcopy)
 
 .Lmemmove_bl32:
 	cmn	r2, #0x10            
-	ldmgedb	r1!, {r3, r4, r12, lr}	/* blat a remaining 16 bytes */
-	stmgedb	r0!, {r3, r4, r12, lr}
+	ittt	ge
+	ldmdbge	r1!, {r3, r4, r12, lr}	/* blat a remaining 16 bytes */
+	stmdbge	r0!, {r3, r4, r12, lr}
 	subge	r2, r2, #0x10         
 	adds	r2, r2, #0x14         
-	ldmgedb	r1!, {r3, r12, lr}	/* blat a remaining 12 bytes */
-	stmgedb	r0!, {r3, r12, lr}
+	ittt	ge
+	ldmdbge	r1!, {r3, r12, lr}	/* blat a remaining 12 bytes */
+	stmdbge	r0!, {r3, r12, lr}
 	subge	r2, r2, #0x0c         
 	ldmia	sp!, {r4, lr}
 
@@ -366,25 +383,30 @@ ENTRY(bcopy)
 	adds	r2, r2, #8
 	blt	.Lmemmove_bl4
 	subs	r2, r2, #4
+	itt	lt
 	ldrlt	r3, [r1, #-4]!
 	strlt	r3, [r0, #-4]!
-	ldmgedb	r1!, {r3, r12}
-	stmgedb	r0!, {r3, r12}
+	ittt	ge
+	ldmdbge	r1!, {r3, r12}
+	stmdbge	r0!, {r3, r12}
 	subge	r2, r2, #4
 
 .Lmemmove_bl4:
 	/* less than 4 bytes to go */
 	adds	r2, r2, #4
+	it	eq
 	RETeq			/* done */
 
 	/* copy the crud byte at a time */
 	cmp	r2, #2
 	ldrb	r3, [r1, #-1]!
 	strb	r3, [r0, #-1]!
-	ldrgeb	r3, [r1, #-1]!
-	strgeb	r3, [r0, #-1]!
-	ldrgtb	r3, [r1, #-1]!
-	strgtb	r3, [r0, #-1]!
+	itt	ge
+	ldrbge	r3, [r1, #-1]!
+	strbge	r3, [r0, #-1]!
+	itt	gt
+	ldrbgt	r3, [r1, #-1]!
+	strbgt	r3, [r0, #-1]!
 	RET
 
 	/* erg - unaligned destination */
@@ -394,10 +416,12 @@ ENTRY(bcopy)
 	/* align destination with byte copies */
 	ldrb	r3, [r1, #-1]!
 	strb	r3, [r0, #-1]!
-	ldrgeb	r3, [r1, #-1]!
-	strgeb	r3, [r0, #-1]!
-	ldrgtb	r3, [r1, #-1]!
-	strgtb	r3, [r0, #-1]!
+	itt	ge
+	ldrbge	r3, [r1, #-1]!
+	strbge	r3, [r0, #-1]!
+	itt	gt
+	ldrbgt	r3, [r1, #-1]!
+	strbgt	r3, [r0, #-1]!
 	subs	r2, r2, r12
 	blt	.Lmemmove_bl4		/* less than 4 bytes to go */
 	ands	r12, r1, #3
@@ -580,3 +604,8 @@ ENTRY(bcopy)
 .Lmemmove_bsrcul1l4:
 	add	r1, r1, #1
 	b	.Lmemmove_bl4
+#ifndef _BCOPY
+END(memmove)
+#else
+END(bcopy)
+#endif

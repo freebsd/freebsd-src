@@ -23,6 +23,7 @@
 #include "lldb/Symbol/TypeList.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/StopInfo.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
@@ -106,7 +107,7 @@ ItaniumABILanguageRuntime::GetDynamicTypeAndAddress (ValueObject &in_value,
                 if (symbol != NULL)
                 {
                     const char *name = symbol->GetMangled().GetDemangledName().AsCString();
-                    if (strstr(name, vtable_demangled_prefix) == name)
+                    if (name && strstr(name, vtable_demangled_prefix) == name)
                     {
                         Log *log (lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_OBJECT));
                         if (log)
@@ -288,7 +289,9 @@ ItaniumABILanguageRuntime::CreateInstance (Process *process, lldb::LanguageType 
 {
     // FIXME: We have to check the process and make sure we actually know that this process supports
     // the Itanium ABI.
-    if (language == eLanguageTypeC_plus_plus)
+    if (language == eLanguageTypeC_plus_plus ||
+        language == eLanguageTypeC_plus_plus_03 ||
+        language == eLanguageTypeC_plus_plus_11)
         return new ItaniumABILanguageRuntime (process);
     else
         return NULL;
@@ -402,7 +405,9 @@ ItaniumABILanguageRuntime::CreateExceptionBreakpoint (bool catch_bp,
     FileSpecList filter_modules;
     BreakpointResolverSP exception_resolver_sp = CreateExceptionResolver (NULL, catch_bp, throw_bp, for_expressions);
     SearchFilterSP filter_sp (CreateExceptionSearchFilter ());
-    return target.CreateBreakpoint (filter_sp, exception_resolver_sp, is_internal, false);
+    const bool hardware = false;
+    const bool resolve_indirect_functions = false;
+    return target.CreateBreakpoint (filter_sp, exception_resolver_sp, is_internal, hardware, resolve_indirect_functions);
 }
 
 void

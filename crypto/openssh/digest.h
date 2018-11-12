@@ -1,4 +1,4 @@
-/* $OpenBSD: digest.h,v 1.1 2014/01/09 23:20:00 djm Exp $ */
+/* $OpenBSD: digest.h,v 1.2 2014/01/27 18:58:14 markus Exp $ */
 /*
  * Copyright (c) 2013 Damien Miller <djm@mindrot.org>
  *
@@ -30,8 +30,17 @@
 #define SSH_DIGEST_SHA512	5
 #define SSH_DIGEST_MAX		6
 
+struct ssh_digest_ctx;
+
 /* Returns the algorithm's digest length in bytes or 0 for invalid algorithm */
 size_t ssh_digest_bytes(int alg);
+
+/* Returns the block size of the digest, e.g. for implementing HMAC */
+size_t ssh_digest_blocksize(struct ssh_digest_ctx *ctx);
+
+/* Copies internal state of digest of 'from' to 'to' */
+int ssh_digest_copy_state(struct ssh_digest_ctx *from,
+    struct ssh_digest_ctx *to);
 
 /* One-shot API */
 int ssh_digest_memory(int alg, const void *m, size_t mlen,
@@ -42,7 +51,6 @@ int ssh_digest_buffer(int alg, const Buffer *b, u_char *d, size_t dlen)
 	__attribute__((__bounded__(__buffer__, 3, 4)));
 
 /* Update API */
-struct ssh_digest_ctx;
 struct ssh_digest_ctx *ssh_digest_start(int alg);
 int ssh_digest_update(struct ssh_digest_ctx *ctx, const void *m, size_t mlen)
 	__attribute__((__bounded__(__buffer__, 2, 3)));

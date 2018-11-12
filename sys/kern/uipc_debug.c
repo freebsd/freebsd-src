@@ -209,15 +209,15 @@ db_print_sbstate(short sb_state)
 
 	comma = 0;
 	if (sb_state & SBS_CANTSENDMORE) {
-		db_printf("%sSS_CANTSENDMORE", comma ? ", " : "");
+		db_printf("%sSBS_CANTSENDMORE", comma ? ", " : "");
 		comma = 1;
 	}
 	if (sb_state & SBS_CANTRCVMORE) {
-		db_printf("%sSS_CANTRCVMORE", comma ? ", " : "");
+		db_printf("%sSBS_CANTRCVMORE", comma ? ", " : "");
 		comma = 1;
 	}
 	if (sb_state & SBS_RCVATMARK) {
-		db_printf("%sSS_RCVATMARK", comma ? ", " : "");
+		db_printf("%sSBS_RCVATMARK", comma ? ", " : "");
 		comma = 1;
 	}
 }
@@ -255,8 +255,6 @@ db_print_domain(struct domain *d, const char *domain_name, int indent)
 
 	db_print_indent(indent);
 	db_printf("dom_rtattach: %p   ", d->dom_rtattach);
-	db_printf("dom_rtoffset: %d   ", d->dom_rtoffset);
-	db_printf("dom_maxrtkey: %d\n", d->dom_maxrtkey);
 
 	db_print_indent(indent);
 	db_printf("dom_ifattach: %p   ", d->dom_ifattach);
@@ -403,7 +401,8 @@ db_print_sockbuf(struct sockbuf *sb, const char *sockbufname, int indent)
 	db_printf("sb_sndptroff: %u\n", sb->sb_sndptroff);
 
 	db_print_indent(indent);
-	db_printf("sb_cc: %u   ", sb->sb_cc);
+	db_printf("sb_acc: %u   ", sb->sb_acc);
+	db_printf("sb_ccc: %u   ", sb->sb_ccc);
 	db_printf("sb_hiwat: %u   ", sb->sb_hiwat);
 	db_printf("sb_mbcnt: %u   ", sb->sb_mbcnt);
 	db_printf("sb_mbmax: %u\n", sb->sb_mbmax);

@@ -54,6 +54,7 @@
 #include <sys/buf.h>
 #include <sys/endian.h>
 #include <sys/priv.h>
+#include <sys/rwlock.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/time.h>
@@ -65,9 +66,11 @@
 #include <sys/file.h>
 
 #include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/vm_object.h>
+#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
 #include "opt_directio.h"
@@ -124,6 +127,8 @@ struct vop_vector ext2_vnodeops = {
 	.vop_close =		ext2_close,
 	.vop_create =		ext2_create,
 	.vop_fsync =		ext2_fsync,
+	.vop_getpages =		vnode_pager_local_getpages,
+	.vop_getpages_async =	vnode_pager_local_getpages_async,
 	.vop_getattr =		ext2_getattr,
 	.vop_inactive =		ext2_inactive,
 	.vop_ioctl =		ext2_ioctl,
@@ -235,8 +240,10 @@ ext2_create(struct vop_create_args *ap)
 	error =
 	    ext2_makeinode(MAKEIMODE(ap->a_vap->va_type, ap->a_vap->va_mode),
 	    ap->a_dvp, ap->a_vpp, ap->a_cnp);
-	if (error)
+	if (error != 0)
 		return (error);
+	if ((ap->a_cnp->cn_flags & MAKEENTRY) != 0)
+		cache_enter(ap->a_dvp, *ap->a_vpp, ap->a_cnp);
 	return (0);
 }
 
@@ -666,10 +673,6 @@ ext2_link(struct vop_link_args *ap)
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("ext2_link: no name");
 #endif
-	if (tdvp->v_mount != vp->v_mount) {
-		error = EXDEV;
-		goto out;
-	}
 	ip = VTOI(vp);
 	if ((nlink_t)ip->i_nlink >= EXT2_LINK_MAX) {
 		error = EMLINK;
@@ -775,10 +778,10 @@ abortit:
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
 	if (ip->i_nlink >= EXT2_LINK_MAX) {
- 		VOP_UNLOCK(fvp, 0);
- 		error = EMLINK;
- 		goto abortit;
- 	}
+		VOP_UNLOCK(fvp, 0);
+		error = EMLINK;
+		goto abortit;
+	}
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))
 	    || (dp->i_flags & APPEND)) {
 		VOP_UNLOCK(fvp, 0);
@@ -942,8 +945,8 @@ abortit:
 		 * of the target directory.
 		 */
 		if (doingdirectory && !newparent) {
-		       dp->i_nlink--;
-		       dp->i_flag |= IN_CHANGE;
+			dp->i_nlink--;
+			dp->i_flag |= IN_CHANGE;
 		}
 		vput(tdvp);
 		/*
@@ -1221,7 +1224,6 @@ ext2_rmdir(struct vop_rmdir_args *ap)
 	 *  the current directory and thus be
 	 *  non-empty.)
 	 */
-	error = 0;
 	if (ip->i_nlink != 2 || !ext2_dirempty(ip, dp->i_number, cnp->cn_cred)) {
 		error = ENOTEMPTY;
 		goto out;
@@ -1327,12 +1329,10 @@ ext2_strategy(struct vop_strategy_args *ap)
 {
 	struct buf *bp = ap->a_bp;
 	struct vnode *vp = ap->a_vp;
-	struct inode *ip;
 	struct bufobj *bo;
 	daddr_t blkno;
 	int error;
 
-	ip = VTOI(vp);
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("ext2_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
@@ -1366,7 +1366,7 @@ ext2_print(struct vop_print_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 
-	vn_printf(ip->i_devvp, "\tino %lu", (u_long)ip->i_number);
+	vn_printf(ip->i_devvp, "\tino %ju", (uintmax_t)ip->i_number);
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
 	printf("\n");
@@ -1623,7 +1623,6 @@ ext2_read(struct vop_read_args *ap)
 	return (error);
 }
 
-
 /*
  * Vnode op for reading.
  */
@@ -1723,7 +1722,7 @@ ext2_ind_read(struct vop_read_args *ap)
 			xfersize = size;
 		}
 		error = uiomove((char *)bp->b_data + blkoffset,
-  			(int)xfersize, uio);
+			(int)xfersize, uio);
 		if (error)
 			break;
 
@@ -1763,7 +1762,7 @@ ext2_ind_read(struct vop_read_args *ap)
 	}
 
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
-	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
+	    (vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
 		ip->i_flag |= IN_ACCESS;
 	return (error);
 }
@@ -1960,10 +1959,10 @@ ext2_write(struct vop_write_args *ap)
 		if (uio->uio_offset + xfersize > ip->i_size)
 			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 
-                /*
+		/*
 		 * We must perform a read-before-write if the transfer size
 		 * does not cover the entire buffer.
-                 */
+		 */
 		if (fs->e2fs_bsize > xfersize)
 			flags |= BA_CLRBUF;
 		else
@@ -2057,9 +2056,9 @@ ext2_write(struct vop_write_args *ap)
 		}
 	}
 	if (uio->uio_resid != resid) {
-               ip->i_flag |= IN_CHANGE | IN_UPDATE;
-               if (ioflag & IO_SYNC)
-                       error = ext2_update(vp, 1);
-       }
+		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		if (ioflag & IO_SYNC)
+			error = ext2_update(vp, 1);
+	}
 	return (error);
 }

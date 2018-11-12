@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: stdio.c,v 1.72 2013/11/22 20:51:43 ca Exp $")
+SM_RCSID("@(#)$Id: stdio.c,v 1.72 2013-11-22 20:51:43 ca Exp $")
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -317,7 +317,7 @@ sm_stdsetinfo(fp, what, valp)
 }
 
 /*
-**  SM_GETINFO -- get information about the open file
+**  SM_STDGETINFO -- get information about the open file
 **
 **	Parameters:
 **		fp -- file to get info for

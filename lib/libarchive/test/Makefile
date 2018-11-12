@@ -2,13 +2,12 @@
 
 LIBARCHIVEDIR=	${.CURDIR}/../../../contrib/libarchive
 
-NO_MAN=yes
+MAN=
 
 PROG=libarchive_test
 INTERNALPROG=yes  # Don't install this; it's just for testing
-DPADD=${LIBBZ2} ${LIBZ} ${LIBMD} ${LIBCRYPTO} ${LIBBSDXML}
 LDADD= -L ${.OBJDIR}/.. -larchive
-LDADD+= -lz -lbz2 -llzma -lmd -lcrypto -lbsdxml
+LIBADD=	z bz2 lzma md crypto bsdxml
 CFLAGS+= -g
 CFLAGS+= -I${.CURDIR}/.. -I${.OBJDIR}
 CFLAGS+= -I${LIBARCHIVEDIR}/libarchive -I${LIBARCHIVEDIR}/test_utils
@@ -121,6 +120,7 @@ TESTS= \
 	test_read_format_gtar_gz.c		\
 	test_read_format_gtar_lzma.c		\
 	test_read_format_gtar_sparse.c		\
+	test_read_format_gtar_sparse_skip_entry.c \
 	test_read_format_iso_Z.c		\
 	test_read_format_iso_multi_extent.c	\
 	test_read_format_iso_xorriso.c		\

@@ -33,13 +33,15 @@
  *
  */
 
+#include <machine/acle-compat.h>
 #include <machine/asm.h>
-#include <machine/asmacros.h>
 #include <machine/armreg.h>
 #include "assym.s"
 __FBSDID("$FreeBSD$");
 
-#ifdef _ARM_ARCH_6
+	.syntax	unified
+
+#if __ARM_ARCH >= 6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
 	add	tmp, tmp, #(TD_PCB)
@@ -55,8 +57,8 @@ __FBSDID("$FreeBSD$");
  * Fetch an int from the user's address space.
  */
 
-ENTRY_NP(casuword32)
 ENTRY(casuword)
+EENTRY_NP(casuword32)
 	GET_PCB(r3)
 	ldr	r3, [r3]
 
@@ -67,12 +69,12 @@ ENTRY(casuword)
 	stmfd	sp!, {r4, r5}
 	adr	r4, .Lcasuwordfault
 	str	r4, [r3, #PCB_ONFAULT]
-#ifdef _ARM_ARCH_6
-1:    
+#if __ARM_ARCH >= 6
+1:
 	cmp     r0, #KERNBASE
 	mvnhs   r0, #0
 	bhs     2f
-	
+
 	ldrex   r5, [r0]
 	cmp     r5, r1
 	movne   r0, r5
@@ -84,7 +86,7 @@ ENTRY(casuword)
 	ldrt	r5, [r0]
 	cmp	r5, r1
 	movne	r0, r5
-	streqt	r2, [r0]
+	strteq	r2, [r0]
 #endif
 	moveq	r0, r1
 2:
@@ -92,7 +94,7 @@ ENTRY(casuword)
 	mov	r1, #0x00000000
 	str	r1, [r3, #PCB_ONFAULT]
 	RET
-END(casuword32)
+EEND(casuword32)
 END(casuword)
 
 /*
@@ -104,15 +106,15 @@ END(casuword)
 	str	r0, [r3, #PCB_ONFAULT]
 	mvn	r0, #0x00000000
 	ldmfd	sp!, {r4, r5}
-	RET	
+	RET
 
 /*
  * fuword(caddr_t uaddr);
  * Fetch an int from the user's address space.
  */
 
-ENTRY_NP(fuword32)
 ENTRY(fuword)
+EENTRY_NP(fuword32)
 	GET_PCB(r2)
 	ldr	r2, [r2]
 
@@ -130,7 +132,7 @@ ENTRY(fuword)
 	str	r1, [r2, #PCB_ONFAULT]
 	mov	r0, r3
 	RET
-END(fuword32)
+EEND(fuword32)
 END(fuword)
 
 /*
@@ -203,7 +205,7 @@ Lblock_userspace_access:
 	.word	_C_LABEL(block_userspace_access)
 
 	.data
-	.align	0
+	.align	2
 	.global	_C_LABEL(block_userspace_access)
 _C_LABEL(block_userspace_access):
 	.word	0
@@ -270,7 +272,7 @@ _C_LABEL(fusubailout):
 
 fusupcbfaulttext:
 	.asciz	"Yikes - no valid PCB during fusuxxx() addr=%08x\n"
-	.align	0
+	.align	2
 #endif
 
 /*
@@ -278,8 +280,8 @@ fusupcbfaulttext:
  * Store an int in the user's address space.
  */
 
-ENTRY_NP(suword32)
 ENTRY(suword)
+EENTRY_NP(suword32)
 	GET_PCB(r2)
 	ldr	r2, [r2]
 
@@ -296,7 +298,7 @@ ENTRY(suword)
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
 	RET
-END(suword32)
+EEND(suword32)
 END(suword)
 
 /*
@@ -391,4 +393,3 @@ ENTRY(subyte)
 	str	r0, [r2, #PCB_ONFAULT]
 	RET
 END(subyte)
-

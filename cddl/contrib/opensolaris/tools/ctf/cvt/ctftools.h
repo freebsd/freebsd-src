@@ -26,8 +26,6 @@
 #ifndef _CTFTOOLS_H
 #define	_CTFTOOLS_H
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 /*
  * Functions and data structures used in the manipulation of stabs and CTF data
  */
@@ -38,6 +36,8 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <pthread.h>
+
+#include <sys/ccompile.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -435,8 +435,8 @@ int streq(const char *, const char *);
 int findelfsecidx(Elf *, const char *, const char *);
 size_t elf_ptrsz(Elf *);
 char *mktmpname(const char *, const char *);
-void terminate(const char *, ...);
-void aborterr(const char *, ...);
+void terminate(const char *, ...) __NORETURN;
+void aborterr(const char *, ...) __NORETURN;
 void set_terminate_cleanup(void (*)(void));
 void elfterminate(const char *, const char *, ...);
 void warning(const char *, ...);

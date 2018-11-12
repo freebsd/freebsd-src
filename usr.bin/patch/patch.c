@@ -23,7 +23,7 @@
  * -C option added in 1998, original code by Marc Espie, based on FreeBSD
  * behaviour
  *
- * $OpenBSD: patch.c,v 1.50 2012/05/15 19:32:02 millert Exp $
+ * $OpenBSD: patch.c,v 1.54 2014/12/13 10:31:07 tobias Exp $
  * $FreeBSD$
  *
  */
@@ -109,6 +109,8 @@ static bool	remove_empty_files = false;
 /* true if -R was specified on command line.  */
 static bool	reverse_flag_specified = false;
 
+static bool	Vflag = false;
+
 /* buffer holding the name of the rejected patch file. */
 static char	rejname[NAME_MAX + 1];
 
@@ -150,8 +152,8 @@ main(int argc, char *argv[])
 	const	char *tmpdir;
 	char	*v;
 
-	setlinebuf(stdout);
-	setlinebuf(stderr);
+	setvbuf(stdout, NULL, _IOLBF, 0);
+	setvbuf(stderr, NULL, _IOLBF, 0);
 	for (i = 0; i < MAXFILEC; i++)
 		filearg[i] = NULL;
 
@@ -201,7 +203,7 @@ main(int argc, char *argv[])
 	Argv = argv;
 	get_some_switches();
 
-	if (backup_type == none) {
+	if (!Vflag) {
 		if ((v = getenv("PATCH_VERSION_CONTROL")) == NULL)
 			v = getenv("VERSION_CONTROL");
 		if (v != NULL || !posix)
@@ -215,13 +217,13 @@ main(int argc, char *argv[])
 	for (open_patch_file(filearg[1]); there_is_another_patch();
 	    reinitialize_almost_everything()) {
 		/* for each patch in patch file */
-		
+
 		patch_seen = true;
 
 		warn_on_invalid_line = true;
 
 		if (outname == NULL)
-			outname = savestr(filearg[0]);
+			outname = xstrdup(filearg[0]);
 
 		/* for ed script just up and do it and exit */
 		if (diff_type == ED_DIFF) {
@@ -416,7 +418,7 @@ main(int argc, char *argv[])
 		}
 		set_signals(1);
 	}
-	
+
 	if (!patch_seen)
 		error = 2;
 
@@ -469,6 +471,7 @@ get_some_switches(void)
 		{"context",		no_argument,		0,	'c'},
 		{"debug",		required_argument,	0,	'x'},
 		{"directory",		required_argument,	0,	'd'},
+		{"dry-run",		no_argument,		0,	'C'},
 		{"ed",			no_argument,		0,	'e'},
 		{"force",		no_argument,		0,	'f'},
 		{"forward",		no_argument,		0,	'N'},
@@ -513,10 +516,10 @@ get_some_switches(void)
 			/* FALLTHROUGH */
 		case 'z':
 			/* must directly follow 'b' case for backwards compat */
-			simple_backup_suffix = savestr(optarg);
+			simple_backup_suffix = xstrdup(optarg);
 			break;
 		case 'B':
-			origprae = savestr(optarg);
+			origprae = xstrdup(optarg);
 			break;
 		case 'c':
 			diff_type = CONTEXT_DIFF;
@@ -554,7 +557,7 @@ get_some_switches(void)
 		case 'i':
 			if (++filec == MAXFILEC)
 				fatal("too many file arguments\n");
-			filearg[filec] = savestr(optarg);
+			filearg[filec] = xstrdup(optarg);
 			break;
 		case 'l':
 			canonicalize = true;
@@ -566,7 +569,7 @@ get_some_switches(void)
 			noreverse = true;
 			break;
 		case 'o':
-			outname = savestr(optarg);
+			outname = xstrdup(optarg);
 			break;
 		case 'p':
 			strippath = atoi(optarg);
@@ -594,6 +597,7 @@ get_some_switches(void)
 			break;
 		case 'V':
 			backup_type = get_version(optarg);
+			Vflag = true;
 			break;
 #ifdef DEBUGGING
 		case 'x':
@@ -610,12 +614,12 @@ get_some_switches(void)
 	Argv += optind;
 
 	if (Argc > 0) {
-		filearg[0] = savestr(*Argv++);
+		filearg[0] = xstrdup(*Argv++);
 		Argc--;
 		while (Argc > 0) {
 			if (++filec == MAXFILEC)
 				fatal("too many file arguments\n");
-			filearg[filec] = savestr(*Argv++);
+			filearg[filec] = xstrdup(*Argv++);
 			Argc--;
 		}
 	}
@@ -630,10 +634,10 @@ usage(void)
 	fprintf(stderr,
 "usage: patch [-bCcEeflNnRstuv] [-B backup-prefix] [-D symbol] [-d directory]\n"
 "             [-F max-fuzz] [-i patchfile] [-o out-file] [-p strip-count]\n"
-"             [-r rej-name] [-V t | nil | never] [-x number] [-z backup-ext]\n"
-"             [--posix] [origfile [patchfile]]\n"
+"             [-r rej-name] [-V t | nil | never | none] [-x number]\n"
+"             [-z backup-ext] [--posix] [origfile [patchfile]]\n"
 "       patch <patchfile\n");
-	my_exit(EXIT_SUCCESS);
+	my_exit(EXIT_FAILURE);
 }
 
 /*
@@ -742,14 +746,18 @@ abort_context_hunk(void)
 static void
 rej_line(int ch, LINENUM i)
 {
-	size_t len;
+	unsigned short len;
 	const char *line = pfetch(i);
 
-	len = strlen(line);
+	len = strnlen(line, USHRT_MAX);
 
 	fprintf(rejfp, "%c%s", ch, line);
-	if (len == 0 || line[len-1] != '\n')
-		fprintf(rejfp, "\n\\ No newline at end of file\n");
+	if (len == 0 || line[len-1] != '\n') {
+		if (len >= USHRT_MAX)
+			fprintf(rejfp, "\n\\ Line too long\n");
+		else
+			fprintf(rejfp, "\n\\ No newline at end of line\n");
+	}
 }
 
 static void
@@ -1016,7 +1024,7 @@ patch_match(LINENUM base, LINENUM offset, LINENUM fuzz)
 	LINENUM		pat_lines = pch_ptrn_lines() - fuzz;
 	const char	*ilineptr;
 	const char	*plineptr;
-	short		plinelen;
+	unsigned short	plinelen;
 
 	for (iline = base + offset + fuzz; pline <= pat_lines; pline++, iline++) {
 		ilineptr = ifetch(iline, offset >= 0);

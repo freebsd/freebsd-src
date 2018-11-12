@@ -198,7 +198,7 @@
 #define HAVE_WCWIDTH 1
 
 /* Define as const if the declaration of iconv() needs const. */
-#define ICONV_CONST const
+#define ICONV_CONST
 
 /* Support NLS. */
 #define NLS 1

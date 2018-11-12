@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -96,8 +95,9 @@ static driver_t nsgphy_driver = {
 
 DRIVER_MODULE(nsgphy, miibus, nsgphy_driver, nsgphy_devclass, 0, 0);
 
-static int	nsgphy_service(struct mii_softc *, struct mii_data *,int);
-static void	nsgphy_status(struct mii_softc *);
+static int	nsgphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	nsgphy_status(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc nsgphys[] = {
 	MII_PHY_DESC(xxNATSEMI, DP83861),
@@ -128,7 +128,7 @@ nsgphy_attach(device_t dev)
 
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &nsgphy_funcs, 0);
 
-	PHY_RESET(sc);
+	PHY_RESET(sc, 0);
 
 	/*
 	 * NB: the PHY has the 10BASE-T BMSR bits hard-wired to 0,
@@ -143,7 +143,7 @@ nsgphy_attach(device_t dev)
 	if (sc->mii_capabilities & BMSR_EXTSTAT)
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 
-	mii_phy_add_media(sc);
+	mii_phy_generic_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
@@ -151,7 +151,8 @@ nsgphy_attach(device_t dev)
 }
 
 static int
-nsgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+nsgphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 
 	switch (cmd) {
@@ -159,7 +160,7 @@ nsgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -169,7 +170,7 @@ nsgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -177,10 +178,9 @@ nsgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-nsgphy_status(struct mii_softc *sc)
+nsgphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, physup, gtsr;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -242,5 +242,5 @@ nsgphy_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active = media;
 }

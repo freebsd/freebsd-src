@@ -80,6 +80,7 @@ struct malloc_type;
 uint32_t arc4random(void);
 void	 arc4rand(void *ptr, u_int len, int reseed);
 int	 bcmp(const void *, const void *, size_t);
+int	 timingsafe_bcmp(const void *, const void *, size_t);
 void	*bsearch(const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *));
 #ifndef	HAVE_INLINE_FFS
@@ -97,12 +98,18 @@ int	 flsl(long);
 #ifndef	HAVE_INLINE_FLSLL
 int	 flsll(long long);
 #endif
+#define	bitcount64(x)	__bitcount64((uint64_t)(x))
+#define	bitcount32(x)	__bitcount32((uint32_t)(x))
+#define	bitcount16(x)	__bitcount16((uint16_t)(x))
+#define	bitcountl(x)	__bitcountl((u_long)(x))
+#define	bitcount(x)	__bitcount((u_int)(x))
 
 int	 fnmatch(const char *, const char *, int);
 int	 locc(int, char *, u_int);
 void	*memchr(const void *s, int c, size_t n);
 void	*memcchr(const void *s, int c, size_t n);
 int	 memcmp(const void *b1, const void *b2, size_t len);
+void	*memmem(const void *l, size_t l_len, const void *s, size_t s_len);
 void	 qsort(void *base, size_t nmemb, size_t size,
 	    int (*compar)(const void *, const void *));
 void	 qsort_r(void *base, size_t nmemb, size_t size, void *thunk,
@@ -117,6 +124,7 @@ int	 strcmp(const char *, const char *);
 char	*strcpy(char * __restrict, const char * __restrict);
 size_t	 strcspn(const char * __restrict, const char * __restrict) __pure;
 char	*strdup(const char *__restrict, struct malloc_type *);
+char	*strndup(const char *__restrict, size_t, struct malloc_type *);
 size_t	 strlcat(char *, const char *, size_t);
 size_t	 strlcpy(char *, const char *, size_t);
 size_t	 strlen(const char *);

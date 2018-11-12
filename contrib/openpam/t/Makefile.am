@@ -1,4 +1,4 @@
-# $Id: Makefile.am 714 2013-08-19 15:30:21Z des $
+# $Id: Makefile.am 763 2014-02-26 16:29:16Z des $
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/lib/libpam
 
@@ -6,6 +6,7 @@ noinst_HEADERS = t.h
 
 # tests
 TESTS =
+TESTS += t_openpam_ctype
 TESTS += t_openpam_readword
 TESTS += t_openpam_readlinev
 check_PROGRAMS = $(TESTS)

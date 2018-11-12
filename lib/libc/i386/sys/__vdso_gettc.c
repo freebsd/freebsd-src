@@ -31,15 +31,68 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/vdso.h>
 #include <machine/cpufunc.h>
+#include <machine/specialreg.h>
 #include "libc_private.h"
+
+static int lfence_works = -1;
+
+static int
+get_lfence_usage(void)
+{
+	u_int cpuid_supported, p[4];
+
+	if (lfence_works == -1) {
+		__asm __volatile(
+		    "	pushfl\n"
+		    "	popl	%%eax\n"
+		    "	movl    %%eax,%%ecx\n"
+		    "	xorl    $0x200000,%%eax\n"
+		    "	pushl	%%eax\n"
+		    "	popfl\n"
+		    "	pushfl\n"
+		    "	popl    %%eax\n"
+		    "	xorl    %%eax,%%ecx\n"
+		    "	je	1f\n"
+		    "	movl	$1,%0\n"
+		    "	jmp	2f\n"
+		    "1:	movl	$0,%0\n"
+		    "2:\n"
+		    : "=r" (cpuid_supported) : : "eax", "ecx");
+		if (cpuid_supported) {
+			__asm __volatile(
+			    "	pushl	%%ebx\n"
+			    "	cpuid\n"
+			    "	movl	%%ebx,%1\n"
+			    "	popl	%%ebx\n"
+			    : "=a" (p[0]), "=r" (p[1]), "=c" (p[2]), "=d" (p[3])
+			    :  "0" (0x1));
+			lfence_works = (p[3] & CPUID_SSE2) != 0;
+		} else
+			lfence_works = 0;
+	}
+	return (lfence_works);
+}
 
 static u_int
 __vdso_gettc_low(const struct vdso_timehands *th)
 {
-	uint32_t rv;
+	u_int rv;
 
+	if (get_lfence_usage() == 1)
+		lfence();
 	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
 	    : "=a" (rv) : "c" (th->th_x86_shift) : "edx");
+	return (rv);
+}
+
+static u_int
+__vdso_rdtsc32(void)
+{
+	u_int rv;
+
+	if (get_lfence_usage() == 1)
+		lfence();
+	rv = rdtsc32();
 	return (rv);
 }
 
@@ -48,7 +101,8 @@ u_int
 __vdso_gettc(const struct vdso_timehands *th)
 {
 
-	return (th->th_x86_shift > 0 ? __vdso_gettc_low(th) : rdtsc32());
+	return (th->th_x86_shift > 0 ? __vdso_gettc_low(th) :
+	    __vdso_rdtsc32());
 }
 
 #pragma weak __vdso_gettimekeep

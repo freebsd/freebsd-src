@@ -27,6 +27,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <libutil.h>
 #include <inttypes.h>
@@ -119,6 +120,53 @@ newfs_command(const char *fstype, char *command, int use_default)
 			else if (strcmp(items[i].name, "TRIM") == 0)
 				strcat(command, "-t ");
 		}
+	} else if (strcmp(fstype, "freebsd-zfs") == 0) {
+		int i;
+		DIALOG_LISTITEM items[] = {
+			{"fletcher4", "checksum algorithm: fletcher4",
+			    "Use fletcher4 for data integrity checking. "
+			    "(default)", 1 },
+			{"fletcher2", "checksum algorithm: fletcher2",
+			    "Use fletcher2 for data integrity checking. "
+			    "(not recommended)", 0 },
+			{"sha256", "checksum algorithm: sha256",
+			    "Use sha256 for data integrity checking. "
+			    "(not recommended)", 0 },
+			{"atime", "Update atimes for files",
+			    "Disable atime update", 0 },
+		};
+
+		if (!use_default) {
+			int choice;
+			choice = dlg_checklist("ZFS Options", "", 0, 0, 0,
+			    sizeof(items)/sizeof(items[0]), items, NULL,
+			    FLAG_CHECK, &i);
+			if (choice == 1) /* Cancel */
+				return;
+		}
+
+		strcpy(command, "zpool create -f -m none ");
+		if (getenv("BSDINSTALL_TMPBOOT") != NULL) {
+			char zfsboot_path[MAXPATHLEN];
+			sprintf(zfsboot_path, "%s/zfs",
+			    getenv("BSDINSTALL_TMPBOOT"));
+			mkdir(zfsboot_path, S_IRWXU | S_IRGRP | S_IXGRP |
+			    S_IROTH | S_IXOTH);
+			sprintf(command, "%s -o cachefile=%s/zpool.cache ",
+			    command, zfsboot_path);
+		}
+		for (i = 0; i < (int)(sizeof(items)/sizeof(items[0])); i++) {
+			if (items[i].state == 0)
+				continue;
+			if (strcmp(items[i].name, "fletcher4") == 0)
+				strcat(command, "-O checksum=fletcher4 ");
+			else if (strcmp(items[i].name, "fletcher2") == 0)
+				strcat(command, "-O checksum=fletcher2 ");
+			else if (strcmp(items[i].name, "sha256") == 0)
+				strcat(command, "-O checksum=sha256 ");
+			else if (strcmp(items[i].name, "atime") == 0)
+				strcat(command, "-O atime=off ");
+		}
 	} else if (strcmp(fstype, "fat32") == 0 || strcmp(fstype, "efi") == 0) {
 		int i;
 		DIALOG_LISTITEM items[] = {
@@ -158,12 +206,11 @@ newfs_command(const char *fstype, char *command, int use_default)
 	}
 }
 
-int
-gpart_partition(const char *lg_name, const char *scheme)
+const char *
+choose_part_type(const char *def_scheme)
 {
 	int cancel, choice;
-	struct gctl_req *r;
-	const char *errstr;
+	const char *scheme = NULL;
 
 	DIALOG_LISTITEM items[] = {
 		{"APM", "Apple Partition Map",
@@ -180,30 +227,61 @@ gpart_partition(const char *lg_name, const char *scheme)
 		    "Bootable on Sun SPARC systems", 0 },
 	};
 
+parttypemenu:
+	dialog_vars.default_item = __DECONST(char *, def_scheme);
+	cancel = dlg_menu("Partition Scheme",
+	    "Select a partition scheme for this volume:", 0, 0, 0,
+	    sizeof(items) / sizeof(items[0]), items, &choice, NULL);
+	dialog_vars.default_item = NULL;
+
+	if (cancel)
+		return NULL;
+
+	if (!is_scheme_bootable(items[choice].name)) {
+		char message[512];
+		sprintf(message, "This partition scheme (%s) is not "
+		    "bootable on this platform. Are you sure you want "
+		    "to proceed?", items[choice].name);
+		dialog_vars.defaultno = TRUE;
+		cancel = dialog_yesno("Warning", message, 0, 0);
+		dialog_vars.defaultno = FALSE;
+		if (cancel) /* cancel */
+			goto parttypemenu;
+	}
+
+	scheme = items[choice].name;
+
+	return scheme;
+}
+
+int
+gpart_partition(const char *lg_name, const char *scheme)
+{
+	int cancel;
+	struct gctl_req *r;
+	const char *errstr;
+
 schememenu:
 	if (scheme == NULL) {
-		dialog_vars.default_item = __DECONST(char *, default_scheme());
-		cancel = dlg_menu("Partition Scheme",
-		    "Select a partition scheme for this volume:", 0, 0, 0,
-		    sizeof(items) / sizeof(items[0]), items, &choice, NULL);
-		dialog_vars.default_item = NULL;
+		scheme = choose_part_type(default_scheme());
 
-		if (cancel)
+		if (scheme == NULL)
 			return (-1);
 
-		if (!is_scheme_bootable(items[choice].name)) {
+		if (!is_scheme_bootable(scheme)) {
 			char message[512];
 			sprintf(message, "This partition scheme (%s) is not "
 			    "bootable on this platform. Are you sure you want "
-			    "to proceed?", items[choice].name);
+			    "to proceed?", scheme);
 			dialog_vars.defaultno = TRUE;
 			cancel = dialog_yesno("Warning", message, 0, 0);
 			dialog_vars.defaultno = FALSE;
-			if (cancel) /* cancel */
+			if (cancel) { /* cancel */
+				/* Reset scheme so user can choose another */
+				scheme = NULL;
 				goto schememenu;
+			}
 		}
-
-		scheme = items[choice].name;
 	}
 
 	r = gctl_get_handle();
@@ -274,6 +352,26 @@ gpart_activate(struct gprovider *pp)
 	gctl_free(r);
 }
 
+void
+gpart_set_root(const char *lg_name, const char *attribute)
+{
+	struct gctl_req *r;
+	const char *errstr;
+
+	r = gctl_get_handle();
+	gctl_ro_param(r, "class", -1, "PART");
+	gctl_ro_param(r, "arg0", -1, lg_name);
+	gctl_ro_param(r, "flags", -1, "C");
+	gctl_ro_param(r, "verb", -1, "set");
+	gctl_ro_param(r, "attrib", -1, attribute);
+
+	errstr = gctl_issue(r);
+	if (errstr != NULL && errstr[0] != '\0') 
+		gpart_show_error("Error", "Error setting parameter on disk:",
+		    errstr);
+	gctl_free(r);
+}
+
 static void
 gpart_bootcode(struct ggeom *gp)
 {
@@ -329,7 +427,7 @@ gpart_bootcode(struct ggeom *gp)
 }
 
 static void
-gpart_partcode(struct gprovider *pp)
+gpart_partcode(struct gprovider *pp, const char *fstype)
 {
 	struct gconfig *gc;
 	const char *scheme;
@@ -344,7 +442,7 @@ gpart_partcode(struct gprovider *pp)
 	}
 
 	/* Make sure this partition scheme needs partcode on this platform */
-	if (partcode_path(scheme) == NULL)
+	if (partcode_path(scheme, fstype) == NULL)
 		return;
 
 	LIST_FOREACH(gc, &pp->lg_config, lg_config) {
@@ -356,7 +454,7 @@ gpart_partcode(struct gprovider *pp)
 
 	/* Shell out to gpart for partcode for now */
 	sprintf(command, "gpart bootcode -p %s -i %s %s",
-	    partcode_path(scheme), indexstr, pp->lg_geom->lg_name);
+	    partcode_path(scheme, fstype), indexstr, pp->lg_geom->lg_name);
 	if (system(command) != 0) {
 		sprintf(message, "Error installing partcode on partition %s",
 		    pp->lg_name);
@@ -416,15 +514,15 @@ gpart_edit(struct gprovider *pp)
 	const char *errstr, *oldtype, *scheme;
 	struct partition_metadata *md;
 	char sizestr[32];
-	char newfs[64];
+	char newfs[255];
 	intmax_t idx;
 	int hadlabel, choice, junk, nitems;
 	unsigned i;
 
 	DIALOG_FORMITEM items[] = {
 		{0, "Type:", 5, 0, 0, FALSE, "", 11, 0, 12, 15, 0,
-		    FALSE, "Filesystem type (e.g. freebsd-ufs, freebsd-swap)",
-		    FALSE},
+		    FALSE, "Filesystem type (e.g. freebsd-ufs, freebsd-zfs, "
+		    "freebsd-swap)", FALSE},
 		{0, "Size:", 5, 1, 0, FALSE, "", 11, 1, 12, 0, 0,
 		    FALSE, "Partition size. Append K, M, G for kilobytes, "
 		    "megabytes or gigabytes.", FALSE},
@@ -565,6 +663,8 @@ set_default_part_metadata(const char *name, const char *scheme,
     const char *type, const char *mountpoint, const char *newfs)
 {
 	struct partition_metadata *md;
+	char *zpool_name = NULL;
+	int i;
 
 	/* Set part metadata */
 	md = get_part_metadata(name, 1);
@@ -577,18 +677,29 @@ set_default_part_metadata(const char *name, const char *scheme,
 
 		if (newfs != NULL && newfs[0] != '\0') {
 			md->newfs = malloc(strlen(newfs) + strlen(" /dev/") +
-			    strlen(name) + 1);
-			sprintf(md->newfs, "%s /dev/%s", newfs, name);
+			    strlen(mountpoint) + 5 + strlen(name) + 1);
+			if (strcmp("freebsd-zfs", type) == 0) {
+				zpool_name = strdup((strlen(mountpoint) == 1) ?
+				    "root" : &mountpoint[1]);
+				for (i = 0; zpool_name[i] != 0; i++)
+					if (!isalnum(zpool_name[i]))
+						zpool_name[i] = '_';
+				sprintf(md->newfs, "%s %s /dev/%s", newfs,
+				    zpool_name, name);
+			} else {
+				sprintf(md->newfs, "%s /dev/%s", newfs, name);
+			}
 		}
 	}
 
 	if (strcmp(type, "freebsd-swap") == 0)
 		mountpoint = "none";
-	if (strcmp(type, "freebsd-boot") == 0)
+	if (strcmp(type, bootpart_type(scheme)) == 0)
 		md->bootcode = 1;
 
-	/* VTOC8 needs partcode in UFS partitions */
-	if (strcmp(scheme, "VTOC8") == 0 && strcmp(type, "freebsd-ufs") == 0)
+	/* VTOC8 needs partcode at the start of partitions */
+	if (strcmp(scheme, "VTOC8") == 0 && (strcmp(type, "freebsd-ufs") == 0
+	    || strcmp(type, "freebsd-zfs") == 0))
 		md->bootcode = 1;
 
 	if (mountpoint == NULL || mountpoint[0] == '\0') {
@@ -611,8 +722,13 @@ set_default_part_metadata(const char *name, const char *scheme,
 			free(md->fstab->fs_mntops);
 			free(md->fstab->fs_type);
 		}
-		md->fstab->fs_spec = malloc(strlen(name) + 6);
-		sprintf(md->fstab->fs_spec, "/dev/%s", name);
+		if (strcmp("freebsd-zfs", type) == 0) {
+			md->fstab->fs_spec = strdup(zpool_name);
+		} else {
+			md->fstab->fs_spec = malloc(strlen(name) +
+			    strlen("/dev/") + 1);
+			sprintf(md->fstab->fs_spec, "/dev/%s", name);
+		}
 		md->fstab->fs_file = strdup(mountpoint);
 		/* Get VFS from text after freebsd-, if possible */
 		if (strncmp("freebsd-", type, 8) == 0)
@@ -623,6 +739,10 @@ set_default_part_metadata(const char *name, const char *scheme,
 			md->fstab->fs_vfstype = strdup(type); /* Guess */
 		if (strcmp(type, "freebsd-swap") == 0) {
 			md->fstab->fs_type = strdup(FSTAB_SW);
+			md->fstab->fs_freq = 0;
+			md->fstab->fs_passno = 0;
+		} else if (strcmp(type, "freebsd-zfs") == 0) {
+			md->fstab->fs_type = strdup(FSTAB_RW);
 			md->fstab->fs_freq = 0;
 			md->fstab->fs_passno = 0;
 		} else {
@@ -637,6 +757,9 @@ set_default_part_metadata(const char *name, const char *scheme,
 		}
 		md->fstab->fs_mntops = strdup(md->fstab->fs_type);
 	}
+
+	if (zpool_name != NULL)
+		free(zpool_name);
 }
 
 static
@@ -748,7 +871,7 @@ gpart_create(struct gprovider *pp, char *default_type, char *default_size,
 	struct ggeom *geom;
 	const char *errstr, *scheme;
 	char sizestr[32], startstr[32], output[64], *newpartname;
-	char newfs[64], options_fstype[64];
+	char newfs[255], options_fstype[64];
 	intmax_t maxsize, size, sector, firstfree, stripe;
 	uint64_t bytes;
 	int nitems, choice, junk;
@@ -756,8 +879,8 @@ gpart_create(struct gprovider *pp, char *default_type, char *default_size,
 
 	DIALOG_FORMITEM items[] = {
 		{0, "Type:", 5, 0, 0, FALSE, "freebsd-ufs", 11, 0, 12, 15, 0,
-		    FALSE, "Filesystem type (e.g. freebsd-ufs, freebsd-swap)",
-		    FALSE},
+		    FALSE, "Filesystem type (e.g. freebsd-ufs, freebsd-zfs, "
+		    "freebsd-swap)", FALSE},
 		{0, "Size:", 5, 1, 0, FALSE, "", 11, 1, 12, 15, 0,
 		    FALSE, "Partition size. Append K, M, G for kilobytes, "
 		    "megabytes or gigabytes.", FALSE},
@@ -935,6 +1058,20 @@ addpartform:
 			goto addpartform;
 	}
 
+	/* If this is the root partition, check that this fs is bootable */
+	if (strcmp(items[2].text, "/") == 0 && !is_fs_bootable(scheme,
+	    items[0].text)) {
+		char message[512];
+		sprintf(message, "This file system (%s) is not bootable "
+		    "on this system. Are you sure you want to proceed?",
+		    items[0].text);
+		dialog_vars.defaultno = TRUE;
+		choice = dialog_yesno("Warning", message, 0, 0);
+		dialog_vars.defaultno = FALSE;
+		if (choice == 1) /* cancel */
+			goto addpartform;
+	}
+
 	/*
 	 * If this is the root partition, and we need a boot partition, ask
 	 * the user to add one.
@@ -949,7 +1086,8 @@ addpartform:
 		LIST_FOREACH(gc, &pp->lg_config, lg_config)
 			if (strcmp(gc->lg_name, "type") == 0)
 				break;
-		if (gc != NULL && strcmp(gc->lg_val, "freebsd-boot") == 0)
+		if (gc != NULL && strcmp(gc->lg_val,
+		    bootpart_type(scheme)) == 0)
 			break;
 	}
 
@@ -971,7 +1109,7 @@ addpartform:
 			gctl_ro_param(r, "arg0", -1, geom->lg_name);
 			gctl_ro_param(r, "flags", -1, GPART_FLAGS);
 			gctl_ro_param(r, "verb", -1, "add");
-			gctl_ro_param(r, "type", -1, "freebsd-boot");
+			gctl_ro_param(r, "type", -1, bootpart_type(scheme));
 			snprintf(sizestr, sizeof(sizestr), "%jd",
 			    bootpart_size(scheme) / sector);
 			gctl_ro_param(r, "size", -1, sizestr);
@@ -1031,7 +1169,7 @@ addpartform:
 	gctl_issue(r); /* Error usually expected and non-fatal */
 	gctl_free(r);
 
-	if (strcmp(items[0].text, "freebsd-boot") == 0)
+	if (strcmp(items[0].text, bootpart_type(scheme)) == 0)
 		get_part_metadata(newpartname, 1)->bootcode = 1;
 	else if (strcmp(items[0].text, "freebsd") == 0)
 		gpart_partition(newpartname, "BSD");
@@ -1176,10 +1314,20 @@ gpart_commit(struct gmesh *mesh)
 	struct gctl_req *r;
 	const char *errstr;
 	const char *modified;
+	const char *rootfs;
 
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
 		if (strcmp(classp->lg_name, "PART") == 0)
 			break;
+	}
+
+	/* Figure out what filesystem / uses */
+	rootfs = "ufs"; /* Assume ufs if nothing else present */
+	TAILQ_FOREACH(md, &part_metadata, metadata) {
+		if (md->fstab != NULL && strcmp(md->fstab->fs_file, "/") == 0) {
+			rootfs = md->fstab->fs_vfstype;
+			break;
+		}
 	}
 
 	if (strcmp(classp->lg_name, "PART") != 0) {
@@ -1221,7 +1369,7 @@ gpart_commit(struct gmesh *mesh)
 					break;
 
 			if (cp == NULL) /* No sub-partitions */
-				gpart_partcode(pp);
+				gpart_partcode(pp, rootfs);
 		}
 
 		r = gctl_get_handle();

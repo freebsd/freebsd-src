@@ -57,6 +57,7 @@
  *
  */
 
+#include <sys/syscall.h>
 #include "namespace.h"
 #include <errno.h>
 #include <link.h>
@@ -127,12 +128,10 @@ __pthread_cxa_finalize(struct dl_phdr_info *phdr_info)
 	_thr_sigact_unload(phdr_info);
 }
 
-__weak_reference(_fork, fork);
-
-pid_t _fork(void);
+__weak_reference(__thr_fork, _fork);
 
 pid_t
-_fork(void)
+__thr_fork(void)
 {
 	struct pthread *curthread;
 	struct pthread_atfork *af;
@@ -174,8 +173,15 @@ _fork(void)
 		was_threaded = 0;
 	}
 
-	/* Fork a new process: */
-	if ((ret = __sys_fork()) == 0) {
+	/*
+	 * Fork a new process.
+	 * There is no easy way to pre-resolve the __sys_fork symbol
+	 * without performing the fork.  Use the syscall(2)
+	 * indirection, the syscall symbol is resolved in
+	 * _thr_rtld_init() with side-effect free call.
+	 */
+	ret = syscall(SYS_fork);
+	if (ret == 0) {
 		/* Child process */
 		errsave = errno;
 		curthread->cancel_pending = 0;
@@ -250,6 +256,5 @@ _fork(void)
 	}
 	errno = errsave;
 
-	/* Return the process ID: */
 	return (ret);
 }

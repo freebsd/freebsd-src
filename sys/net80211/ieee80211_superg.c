@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 	memcpy(dst, src, sizeof(struct ether_header))
 
 static	int ieee80211_ffppsmin = 2;	/* pps threshold for ff aggregation */
-SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLFLAG_RW,
 	&ieee80211_ffppsmin, 0, "min packet rate before fast-frame staging");
 static	int ieee80211_ffagemax = -1;	/* max time frames held on stage q */
 SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
@@ -100,9 +100,9 @@ ieee80211_superg_attach(struct ieee80211com *ic)
 	struct ieee80211_superg *sg;
 
 	if (ic->ic_caps & IEEE80211_C_FF) {
-		sg = (struct ieee80211_superg *) malloc(
+		sg = (struct ieee80211_superg *) IEEE80211_MALLOC(
 		     sizeof(struct ieee80211_superg), M_80211_VAP,
-		     M_NOWAIT | M_ZERO);
+		     IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (sg == NULL) {
 			printf("%s: cannot allocate SuperG state block\n",
 			    __func__);
@@ -117,7 +117,7 @@ void
 ieee80211_superg_detach(struct ieee80211com *ic)
 {
 	if (ic->ic_superg != NULL) {
-		free(ic->ic_superg, M_80211_VAP);
+		IEEE80211_FREE(ic->ic_superg, M_80211_VAP);
 		ic->ic_superg = NULL;
 	}
 }
@@ -480,7 +480,7 @@ ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			ieee80211_free_node(ni);
 		} else {
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
 	} else
 		ieee80211_free_node(ni);

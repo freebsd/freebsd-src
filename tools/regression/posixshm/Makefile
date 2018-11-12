@@ -2,7 +2,7 @@
 
 PROG=	posixshm
 SRCS=	posixshm.c test.c
-NO_MAN=
+MAN=
 
 WARNS?=	3
 

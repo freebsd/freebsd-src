@@ -1,10 +1,8 @@
 # $FreeBSD$
 
-SUBDIR= doc
-
 LIB=    readline
-MAN=    doc/readline.3
-SHLIBDIR?=	/lib
+INTERNALLIB=	yes
+NO_MAN=	yes
 
 TILDESRC= tilde.c
 SRCS=     readline.c vi_mode.c funmap.c keymaps.c parens.c search.c \
@@ -15,13 +13,20 @@ SRCS=     readline.c vi_mode.c funmap.c keymaps.c parens.c search.c \
 INSTALLED_HEADERS= readline.h chardefs.h keymaps.h history.h tilde.h \
 		   rlstdc.h rlconf.h rltypedefs.h
 
-DPADD=	${LIBTERMCAP}
-LDADD=	-ltermcap
+CFLAGS+=	-I${.OBJDIR}/..
+SRCDIR=	${.CURDIR}/../../../../contrib/libreadline
 
-INCSDIR=${INCLUDEDIR}/readline
+.NOPATH: ${INSTALLED_HEADERS}
 
-.for hdr in ${INSTALLED_HEADERS}
-INCS+=	${SRCDIR}/${hdr}
+beforebuild: ${INSTALLED_HEADERS}
+CLEANFILES+= ${INSTALLED_HEADERS}
+DPSRCS+= ${INSTALLED_HEADERS}
+
+.for _h in ${INSTALLED_HEADERS}
+${_h}:	${SRCDIR}/${_h}
+	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
+
+LIBADD=	ncursesw
 
 .include <bsd.lib.mk>

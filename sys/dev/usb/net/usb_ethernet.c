@@ -155,7 +155,7 @@ ue_sysctl_parent(SYSCTL_HANDLER_ARGS)
 	const char *name;
 
 	name = device_get_nameunit(ue->ue_dev);
-	return SYSCTL_OUT(req, name, strlen(name));
+	return SYSCTL_OUT_STR(req, name);
 }
 
 int
@@ -208,6 +208,7 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	sysctl_ctx_init(&ue->ue_sysctl_ctx);
 
 	error = 0;
+	CURVNET_SET_QUIET(vnet0);
 	ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(ue->ue_dev, "could not allocate ifnet\n");
@@ -254,6 +255,8 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	if (ifp->if_capabilities & IFCAP_VLAN_MTU)
 		ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
+	CURVNET_RESTORE();
+
 	snprintf(num, sizeof(num), "%u", ue->ue_unit);
 	ue->ue_sysctl_oid = SYSCTL_ADD_NODE(&ue->ue_sysctl_ctx,
 	    &SYSCTL_NODE_CHILDREN(_net, ue),
@@ -267,6 +270,7 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 	return;
 
 fail:
+	CURVNET_RESTORE();
 	free_unr(ueunit, ue->ue_unit);
 	if (ue->ue_ifp != NULL) {
 		if_free(ue->ue_ifp);
@@ -576,7 +580,7 @@ uether_rxmbuf(struct usb_ether *ue, struct mbuf *m,
 	UE_LOCK_ASSERT(ue, MA_OWNED);
 
 	/* finalize mbuf */
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len;
 
@@ -599,14 +603,14 @@ uether_rxbuf(struct usb_ether *ue, struct usb_page_cache *pc,
 
 	m = uether_newbuf();
 	if (m == NULL) {
-		ifp->if_iqdrops++;
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		return (ENOMEM);
 	}
 
 	usbd_copy_out(pc, offset, mtod(m, uint8_t *), len);
 
 	/* finalize mbuf */
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len;
 

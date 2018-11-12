@@ -41,7 +41,7 @@
 
 dtrace:::BEGIN
 {
-	printf("%-22s %8s %6s\n", "TIME", "LASTPID", "PID/s");
+	printf("%-22s %6s\n", "TIME", "PID/s");
 	pids = 0;
 }
 
@@ -52,6 +52,6 @@ proc:::exec-success
 
 profile:::tick-1sec
 {
-	printf("%-22Y %8d %6d\n", walltimestamp, `mpid, pids);
+	printf("%-22Y %6d\n", walltimestamp, pids);
 	pids = 0;
 }

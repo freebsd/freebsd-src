@@ -18,6 +18,7 @@
 #include "Math.h"
 #include <map>
 
+namespace llvm {
 namespace PBQP {
 
   /// \brief Represents a solution to a PBQP problem.
@@ -26,8 +27,7 @@ namespace PBQP {
   class Solution {
   private:
 
-    typedef std::map<Graph::ConstNodeItr, unsigned,
-                     NodeItrComparator> SelectionsMap;
+    typedef std::map<GraphBase::NodeId, unsigned> SelectionsMap;
     SelectionsMap selections;
 
     unsigned r0Reductions, r1Reductions, r2Reductions, rNReductions;
@@ -71,23 +71,24 @@ namespace PBQP {
     unsigned numRNReductions() const { return rNReductions; }
 
     /// \brief Set the selection for a given node.
-    /// @param nItr Node iterator.
-    /// @param selection Selection for nItr.
-    void setSelection(Graph::NodeItr nItr, unsigned selection) {
-      selections[nItr] = selection;
+    /// @param nodeId Node id.
+    /// @param selection Selection for nodeId.
+    void setSelection(GraphBase::NodeId nodeId, unsigned selection) {
+      selections[nodeId] = selection;
     }
 
     /// \brief Get a node's selection.
-    /// @param nItr Node iterator.
-    /// @return The selection for nItr;
-    unsigned getSelection(Graph::ConstNodeItr nItr) const {
-      SelectionsMap::const_iterator sItr = selections.find(nItr);
+    /// @param nodeId Node id.
+    /// @return The selection for nodeId;
+    unsigned getSelection(GraphBase::NodeId nodeId) const {
+      SelectionsMap::const_iterator sItr = selections.find(nodeId);
       assert(sItr != selections.end() && "No selection for node.");
       return sItr->second;
     }
 
   };
 
-}
+} // namespace PBQP
+} // namespace llvm
 
 #endif // LLVM_CODEGEN_PBQP_SOLUTION_H

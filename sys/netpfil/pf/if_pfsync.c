@@ -247,7 +247,7 @@ static int	pfsync_init(void);
 static void	pfsync_uninit(void);
 
 SYSCTL_NODE(_net, OID_AUTO, pfsync, CTLFLAG_RW, 0, "PFSYNC");
-SYSCTL_VNET_STRUCT(_net_pfsync, OID_AUTO, stats, CTLFLAG_RW,
+SYSCTL_STRUCT(_net_pfsync, OID_AUTO, stats, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(pfsyncstats), pfsyncstats,
     "PFSYNC statistics (struct pfsyncstats, net/if_pfsync.h)");
 SYSCTL_INT(_net_pfsync, OID_AUTO, carp_demotion_factor, CTLFLAG_RW,
@@ -324,7 +324,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	ifp->if_mtu = ETHERMTU;
 	mtx_init(&sc->sc_mtx, pfsyncname, NULL, MTX_DEF);
 	mtx_init(&sc->sc_bulk_mtx, "pfsync bulk", NULL, MTX_DEF);
-	callout_init(&sc->sc_tmo, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_tmo, 1);
 	callout_init_mtx(&sc->sc_bulk_tmo, &sc->sc_bulk_mtx, 0);
 	callout_init_mtx(&sc->sc_bulkfail_tmo, &sc->sc_bulk_mtx, 0);
 
@@ -402,6 +402,10 @@ static int
 pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
+#ifndef	__NO_STRICT_ALIGNMENT
+	struct pfsync_state_key key[2];
+#endif
+	struct pfsync_state_key *kw, *ks;
 	struct pf_state	*st = NULL;
 	struct pf_state_key *skw = NULL, *sks = NULL;
 	struct pf_rule *r = NULL;
@@ -438,7 +442,8 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	else
 		r = &V_pf_default_rule;
 
-	if ((r->max_states && r->states_cur >= r->max_states))
+	if ((r->max_states &&
+	    counter_u64_fetch(r->states_cur) >= r->max_states))
 		goto cleanup;
 
 	/*
@@ -450,12 +455,19 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	if ((skw = uma_zalloc(V_pf_state_key_z, M_NOWAIT)) == NULL)
 		goto cleanup;
 
-	if (PF_ANEQ(&sp->key[PF_SK_WIRE].addr[0],
-	    &sp->key[PF_SK_STACK].addr[0], sp->af) ||
-	    PF_ANEQ(&sp->key[PF_SK_WIRE].addr[1],
-	    &sp->key[PF_SK_STACK].addr[1], sp->af) ||
-	    sp->key[PF_SK_WIRE].port[0] != sp->key[PF_SK_STACK].port[0] ||
-	    sp->key[PF_SK_WIRE].port[1] != sp->key[PF_SK_STACK].port[1]) {
+#ifndef	__NO_STRICT_ALIGNMENT
+	bcopy(&sp->key, key, sizeof(struct pfsync_state_key) * 2);
+	kw = &key[PF_SK_WIRE];
+	ks = &key[PF_SK_STACK];
+#else
+	kw = &sp->key[PF_SK_WIRE];
+	ks = &sp->key[PF_SK_STACK];
+#endif
+
+	if (PF_ANEQ(&kw->addr[0], &ks->addr[0], sp->af) ||
+	    PF_ANEQ(&kw->addr[1], &ks->addr[1], sp->af) ||
+	    kw->port[0] != ks->port[0] ||
+	    kw->port[1] != ks->port[1]) {
 		sks = uma_zalloc(V_pf_state_key_z, M_NOWAIT);
 		if (sks == NULL)
 			goto cleanup;
@@ -467,18 +479,18 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	    pfsync_alloc_scrub_memory(&sp->dst, &st->dst))
 		goto cleanup;
 
-	/* copy to state key(s) */
-	skw->addr[0] = sp->key[PF_SK_WIRE].addr[0];
-	skw->addr[1] = sp->key[PF_SK_WIRE].addr[1];
-	skw->port[0] = sp->key[PF_SK_WIRE].port[0];
-	skw->port[1] = sp->key[PF_SK_WIRE].port[1];
+	/* Copy to state key(s). */
+	skw->addr[0] = kw->addr[0];
+	skw->addr[1] = kw->addr[1];
+	skw->port[0] = kw->port[0];
+	skw->port[1] = kw->port[1];
 	skw->proto = sp->proto;
 	skw->af = sp->af;
 	if (sks != skw) {
-		sks->addr[0] = sp->key[PF_SK_STACK].addr[0];
-		sks->addr[1] = sp->key[PF_SK_STACK].addr[1];
-		sks->port[0] = sp->key[PF_SK_STACK].port[0];
-		sks->port[1] = sp->key[PF_SK_STACK].port[1];
+		sks->addr[0] = ks->addr[0];
+		sks->addr[1] = ks->addr[1];
+		sks->port[0] = ks->port[0];
+		sks->port[1] = ks->port[1];
 		sks->proto = sp->proto;
 		sks->af = sp->af;
 	}
@@ -516,18 +528,15 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	st->pfsync_time = time_uptime;
 	st->sync_state = PFSYNC_S_NONE;
 
-	/* XXX when we have nat_rule/anchors, use STATE_INC_COUNTERS */
-	r->states_cur++;
-	r->states_tot++;
-
 	if (!(flags & PFSYNC_SI_IOCTL))
 		st->state_flags |= PFSTATE_NOSYNC;
 
-	if ((error = pf_state_insert(kif, skw, sks, st)) != 0) {
-		/* XXX when we have nat_rule/anchors, use STATE_DEC_COUNTERS */
-		r->states_cur--;
+	if ((error = pf_state_insert(kif, skw, sks, st)) != 0)
 		goto cleanup_state;
-	}
+
+	/* XXX when we have nat_rule/anchors, use STATE_INC_COUNTERS */
+	counter_u64_add(r->states_cur, 1);
+	counter_u64_add(r->states_tot, 1);
 
 	if (!(flags & PFSYNC_SI_IOCTL)) {
 		st->state_flags &= ~PFSTATE_NOSYNC;
@@ -561,11 +570,12 @@ cleanup_state:	/* pf_state_insert() frees the state keys. */
 	return (error);
 }
 
-static void
-pfsync_input(struct mbuf *m, __unused int off)
+static int
+pfsync_input(struct mbuf **mp, int *offp __unused, int proto __unused)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_pkt pkt;
+	struct mbuf *m = *mp;
 	struct ip *ip = mtod(m, struct ip *);
 	struct pfsync_header *ph;
 	struct pfsync_subheader subh;
@@ -574,6 +584,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 	int rv;
 	uint16_t count;
 
+	*mp = NULL;
 	V_pfsyncstats.pfsyncs_ipackets++;
 
 	/* Verify that we have a sync interface configured. */
@@ -587,8 +598,8 @@ pfsync_input(struct mbuf *m, __unused int off)
 		goto done;
 	}
 
-	sc->sc_ifp->if_ipackets++;
-	sc->sc_ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(sc->sc_ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(sc->sc_ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	/* verify that the IP TTL is 255. */
 	if (ip->ip_ttl != PFSYNC_DFLTTL) {
 		V_pfsyncstats.pfsyncs_badttl++;
@@ -604,7 +615,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 	if (offset + sizeof(*ph) > m->m_len) {
 		if (m_pullup(m, offset + sizeof(*ph)) == NULL) {
 			V_pfsyncstats.pfsyncs_hdrops++;
-			return;
+			return (IPPROTO_DONE);
 		}
 		ip = mtod(m, struct ip *);
 	}
@@ -651,7 +662,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 		rv = (*pfsync_acts[subh.action])(&pkt, m, offset, count);
 		if (rv == -1) {
 			PF_RULES_RUNLOCK();
-			return;
+			return (IPPROTO_DONE);
 		}
 
 		offset += rv;
@@ -660,6 +671,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 
 done:
 	m_freem(m);
+	return (IPPROTO_DONE);
 }
 
 static int
@@ -685,7 +697,7 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		    pfi_kif_find(clr[i].ifname) == NULL)
 			continue;
 
-		for (int i = 0; i <= V_pf_hashmask; i++) {
+		for (int i = 0; i <= pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 			struct pf_state *s;
 relock:
@@ -1513,7 +1525,7 @@ pfsync_sendout(int schedswi)
 
 	m = m_get2(max_linkhdr + sc->sc_len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
-		sc->sc_ifp->if_oerrors++;
+		if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 		V_pfsyncstats.pfsyncs_onomem++;
 		return;
 	}
@@ -1526,7 +1538,7 @@ pfsync_sendout(int schedswi)
 	offset = sizeof(*ip);
 
 	ip->ip_len = htons(m->m_pkthdr.len);
-	ip->ip_id = htons(ip_randomid());
+	ip_fillid(ip);
 
 	/* build the pfsync header */
 	ph = (struct pfsync_header *)(m->m_data + offset);
@@ -1620,15 +1632,15 @@ pfsync_sendout(int schedswi)
 		return;
 	}
 
-	sc->sc_ifp->if_opackets++;
-	sc->sc_ifp->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(sc->sc_ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(sc->sc_ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 	sc->sc_len = PFSYNC_MINPKT;
 
 	if (!_IF_QFULL(&sc->sc_ifp->if_snd))
 		_IF_ENQUEUE(&sc->sc_ifp->if_snd, m);
 	else {
 		m_freem(m);
-		sc->sc_ifp->if_snd.ifq_drops++;
+		if_inc_counter(sc->sc_ifp, IFCOUNTER_OQDROPS, 1);
 	}
 	if (schedswi)
 		swi_sched(V_pfsync_swi_cookie, 0);
@@ -2050,7 +2062,7 @@ pfsync_bulk_update(void *arg)
 	else
 		i = sc->sc_bulk_hashid;
 
-	for (; i <= V_pf_hashmask; i++) {
+	for (; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 
 		if (s != NULL)
@@ -2269,7 +2281,7 @@ static struct protosw in_pfsync_protosw = {
 	.pr_protocol =		IPPROTO_PFSYNC,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_input =		pfsync_input,
-	.pr_output =		(pr_output_t *)rip_output,
+	.pr_output =		rip_output,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 };

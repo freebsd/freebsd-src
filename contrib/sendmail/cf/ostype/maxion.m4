@@ -16,7 +16,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: maxion.m4,v 8.18 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: maxion.m4,v 8.18 2013-11-22 20:51:15 ca Exp $')
 
 define(`QUEUE_DIR',         `/var/spool/mqueue')dnl
 define(`STATUS_FILE',       `/var/adm/log/sendmail.st')dnl

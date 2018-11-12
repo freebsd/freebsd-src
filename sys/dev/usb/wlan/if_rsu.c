@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int rsu_debug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, rsu, CTLFLAG_RW, 0, "USB rsu");
-SYSCTL_INT(_hw_usb_rsu, OID_AUTO, debug, CTLFLAG_RW, &rsu_debug, 0,
+SYSCTL_INT(_hw_usb_rsu, OID_AUTO, debug, CTLFLAG_RWTUN, &rsu_debug, 0,
     "Debug level");
 #endif
 
@@ -121,6 +121,7 @@ static const STRUCT_USB_HOST_ID rsu_devs[] = {
 	RSU_DEV_HT(SITECOMEU,		WL349V1),
 	RSU_DEV_HT(SITECOMEU,		WL353),
 	RSU_DEV_HT(SWEEX2,		LW154),
+	RSU_DEV_HT(TRENDNET,		TEW646UBH),
 #undef RSU_DEV_HT
 #undef RSU_DEV
 };
@@ -128,7 +129,8 @@ static const STRUCT_USB_HOST_ID rsu_devs[] = {
 static device_probe_t   rsu_match;
 static device_attach_t  rsu_attach;
 static device_detach_t  rsu_detach;
-static usb_callback_t   rsu_bulk_tx_callback;
+static usb_callback_t   rsu_bulk_tx_callback_be_bk;
+static usb_callback_t   rsu_bulk_tx_callback_vi_vo;
 static usb_callback_t   rsu_bulk_rx_callback;
 static usb_error_t	rsu_do_request(struct rsu_softc *,
 			    struct usb_device_request *, void *);
@@ -140,7 +142,7 @@ static void	rsu_vap_delete(struct ieee80211vap *);
 static void	rsu_scan_start(struct ieee80211com *);
 static void	rsu_scan_end(struct ieee80211com *);
 static void	rsu_set_channel(struct ieee80211com *);
-static void	rsu_update_mcast(struct ifnet *);
+static void	rsu_update_mcast(struct ieee80211com *);
 static int	rsu_alloc_rx_list(struct rsu_softc *);
 static void	rsu_free_rx_list(struct rsu_softc *);
 static int	rsu_alloc_tx_list(struct rsu_softc *);
@@ -185,16 +187,14 @@ static struct mbuf *
 static void	rsu_txeof(struct usb_xfer *, struct rsu_data *);
 static int	rsu_raw_xmit(struct ieee80211_node *, struct mbuf *, 
 		    const struct ieee80211_bpf_params *);
-static void	rsu_init(void *);
-static void	rsu_init_locked(struct rsu_softc *);
-static void	rsu_watchdog(void *);
+static void	rsu_init(struct rsu_softc *);
 static int	rsu_tx_start(struct rsu_softc *, struct ieee80211_node *, 
 		    struct mbuf *, struct rsu_data *);
-static void	rsu_start(struct ifnet *);
-static void	rsu_start_locked(struct ifnet *);
-static int	rsu_ioctl(struct ifnet *, u_long, caddr_t);
-static void	rsu_stop(struct ifnet *, int);
-static void	rsu_stop_locked(struct ifnet *, int);
+static int	rsu_transmit(struct ieee80211com *, struct mbuf *);
+static void	rsu_start(struct rsu_softc *);
+static void	rsu_parent(struct ieee80211com *);
+static void	rsu_stop(struct rsu_softc *);
+static void	rsu_ms_delay(struct rsu_softc *);
 
 static device_method_t rsu_methods[] = {
 	DEVMETHOD(device_probe,		rsu_match),
@@ -218,6 +218,13 @@ MODULE_DEPEND(rsu, usb, 1, 1, 1);
 MODULE_DEPEND(rsu, firmware, 1, 1, 1);
 MODULE_VERSION(rsu, 1);
 
+static uint8_t rsu_wme_ac_xfer_map[4] = {
+	[WME_AC_BE] = RSU_BULK_TX_BE_BK,
+	[WME_AC_BK] = RSU_BULK_TX_BE_BK,
+	[WME_AC_VI] = RSU_BULK_TX_VI_VO,
+	[WME_AC_VO] = RSU_BULK_TX_VI_VO,
+};
+
 static const struct usb_config rsu_config[RSU_N_TRANSFER] = {
 	[RSU_BULK_RX] = {
 		.type = UE_BULK,
@@ -230,7 +237,7 @@ static const struct usb_config rsu_config[RSU_N_TRANSFER] = {
 		},
 		.callback = rsu_bulk_rx_callback
 	},
-	[RSU_BULK_TX_BE] = {
+	[RSU_BULK_TX_BE_BK] = {
 		.type = UE_BULK,
 		.endpoint = 0x06,
 		.direction = UE_DIR_OUT,
@@ -240,23 +247,10 @@ static const struct usb_config rsu_config[RSU_N_TRANSFER] = {
 			.pipe_bof = 1,
 			.force_short_xfer = 1
 		},
-		.callback = rsu_bulk_tx_callback,
+		.callback = rsu_bulk_tx_callback_be_bk,
 		.timeout = RSU_TX_TIMEOUT
 	},
-	[RSU_BULK_TX_BK] = {
-		.type = UE_BULK,
-		.endpoint = 0x06,
-		.direction = UE_DIR_OUT,
-		.bufsize = RSU_TXBUFSZ,
-		.flags = {
-			.ext_buffer = 1,
-			.pipe_bof = 1,
-			.force_short_xfer = 1
-		},
-		.callback = rsu_bulk_tx_callback,
-		.timeout = RSU_TX_TIMEOUT
-	},
-	[RSU_BULK_TX_VI] = {
+	[RSU_BULK_TX_VI_VO] = {
 		.type = UE_BULK,
 		.endpoint = 0x04,
 		.direction = UE_DIR_OUT,
@@ -266,20 +260,7 @@ static const struct usb_config rsu_config[RSU_N_TRANSFER] = {
 			.pipe_bof = 1,
 			.force_short_xfer = 1
 		},
-		.callback = rsu_bulk_tx_callback,
-		.timeout = RSU_TX_TIMEOUT
-	},
-	[RSU_BULK_TX_VO] = {
-		.type = UE_BULK,
-		.endpoint = 0x04,
-		.direction = UE_DIR_OUT,
-		.bufsize = RSU_TXBUFSZ,
-		.flags = {
-			.ext_buffer = 1,
-			.pipe_bof = 1,
-			.force_short_xfer = 1
-		},
-		.callback = rsu_bulk_tx_callback,
+		.callback = rsu_bulk_tx_callback_vi_vo,
 		.timeout = RSU_TX_TIMEOUT
 	},
 };
@@ -302,8 +283,7 @@ rsu_attach(device_t self)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct rsu_softc *sc = device_get_softc(self);
-	struct ifnet *ifp;
-	struct ieee80211com *ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	int error;
 	uint8_t iface_index, bands;
 
@@ -315,7 +295,21 @@ rsu_attach(device_t self)
 	    MTX_DEF);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->calib_task, 0, 
 	    rsu_calib_task, sc);
-	callout_init(&sc->sc_watchdog_ch, 0);
+	mbufq_init(&sc->sc_snd, ifqmaxlen);
+
+	/* Allocate Tx/Rx buffers. */
+	error = rsu_alloc_rx_list(sc);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could not allocate Rx buffers\n");
+		goto fail_usb;
+	}
+
+	error = rsu_alloc_tx_list(sc);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could not allocate Tx buffers\n");
+		rsu_free_rx_list(sc);
+		goto fail_usb;
+	}
 
 	iface_index = 0;
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
@@ -332,33 +326,16 @@ rsu_attach(device_t self)
 	if (sc->cut != 3)
 		sc->cut = (sc->cut >> 1) + 1;
 	error = rsu_read_rom(sc);
+	RSU_UNLOCK(sc);
 	if (error != 0) {
 		device_printf(self, "could not read ROM\n");
 		goto fail_rom;
 	}
-	RSU_UNLOCK(sc);
-	IEEE80211_ADDR_COPY(sc->sc_bssid, &sc->rom[0x12]);
+	IEEE80211_ADDR_COPY(ic->ic_macaddr, &sc->rom[0x12]);
 	device_printf(self, "MAC/BB RTL8712 cut %d\n", sc->cut);
-	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
-	if (ifp == NULL) {
-		device_printf(self, "cannot allocate interface\n");
-		goto fail_ifalloc;
-	}
-	ic = ifp->if_l2com;
-	ifp->if_softc = sc;
-	if_initname(ifp, "rsu", device_get_unit(self));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_init = rsu_init;
-	ifp->if_ioctl = rsu_ioctl;
-	ifp->if_start = rsu_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_capabilities |= IFCAP_RXCSUM;
-	ifp->if_capenable |= IFCAP_RXCSUM;
-	ifp->if_hwassist = CSUM_TCP;
 
-	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(self);
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* Not only, but not used. */
 	ic->ic_opmode = IEEE80211_M_STA;	/* Default to BSS mode. */
 
@@ -389,7 +366,7 @@ rsu_attach(device_t self)
 	setbit(&bands, IEEE80211_MODE_11G);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic, sc->sc_bssid);
+	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = rsu_raw_xmit;
 	ic->ic_scan_start = rsu_scan_start;
 	ic->ic_scan_end = rsu_scan_end;
@@ -397,6 +374,8 @@ rsu_attach(device_t self)
 	ic->ic_vap_create = rsu_vap_create;
 	ic->ic_vap_delete = rsu_vap_delete;
 	ic->ic_update_mcast = rsu_update_mcast;
+	ic->ic_parent = rsu_parent;
+	ic->ic_transmit = rsu_transmit;
 
 	ieee80211_radiotap_attach(ic, &sc->sc_txtap.wt_ihdr,
 	    sizeof(sc->sc_txtap), RSU_TX_RADIOTAP_PRESENT, 
@@ -408,7 +387,6 @@ rsu_attach(device_t self)
 
 	return (0);
 
-fail_ifalloc:
 fail_rom:
 	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
 fail_usb:
@@ -420,23 +398,21 @@ static int
 rsu_detach(device_t self)
 {
 	struct rsu_softc *sc = device_get_softc(self);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
-	if (!device_is_attached(self))
-		return (0);
-	rsu_stop(ifp, 1);
+	RSU_LOCK(sc);
+	rsu_stop(sc);
+	RSU_UNLOCK(sc);
 	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
 	ieee80211_ifdetach(ic);
 
-	callout_drain(&sc->sc_watchdog_ch);
 	taskqueue_drain_timeout(taskqueue_thread, &sc->calib_task);
 
 	/* Free Tx/Rx buffers. */
 	rsu_free_tx_list(sc);
 	rsu_free_rx_list(sc);
 
-	if_free(ifp);
+	mbufq_drain(&sc->sc_snd);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -454,7 +430,7 @@ rsu_do_request(struct rsu_softc *sc, struct usb_device_request *req,
 	while (ntries--) {
 		err = usbd_do_request_flags(sc->sc_udev, &sc->sc_mtx,
 		    req, data, 0, NULL, 250 /* ms */);
-		if (err == 0 || !device_is_attached(sc->sc_dev))
+		if (err == 0 || err == USB_ERR_NOT_CONFIGURED)
 			break;
 		DPRINTFN(1, "Control request failed, %s (retrying)\n",
 		    usbd_errstr(err));
@@ -476,14 +452,11 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	if (!TAILQ_EMPTY(&ic->ic_vaps))         /* only one at a time */
 		return (NULL);
 
-	uvp = (struct rsu_vap *) malloc(sizeof(struct rsu_vap),
-	    M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (uvp == NULL)
-		return (NULL);
+	uvp =  malloc(sizeof(struct rsu_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	vap = &uvp->vap;
 
 	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags, bssid, mac) != 0) {
+	    flags, bssid) != 0) {
 		/* out of memory */
 		free(uvp, M_80211_VAP);
 		return (NULL);
@@ -495,7 +468,7 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	/* complete setup */
 	ieee80211_vap_attach(vap, ieee80211_media_change,
-	    ieee80211_media_status);
+	    ieee80211_media_status, mac);
 	ic->ic_opmode = opmode;
 
 	return (vap);
@@ -513,9 +486,8 @@ rsu_vap_delete(struct ieee80211vap *vap)
 static void
 rsu_scan_start(struct ieee80211com *ic)
 {
+	struct rsu_softc *sc = ic->ic_softc;
 	int error;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct rsu_softc *sc = ifp->if_softc;
 
 	/* Scanning is done by the firmware. */
 	RSU_LOCK(sc);
@@ -539,7 +511,7 @@ rsu_set_channel(struct ieee80211com *ic __unused)
 }
 
 static void
-rsu_update_mcast(struct ifnet *ifp)
+rsu_update_mcast(struct ieee80211com *ic)
 {
         /* XXX do nothing?  */
 }
@@ -599,9 +571,12 @@ rsu_alloc_tx_list(struct rsu_softc *sc)
 	if (error != 0)
 		return (error);
 
-	STAILQ_INIT(&sc->sc_tx_active);
 	STAILQ_INIT(&sc->sc_tx_inactive);
-	STAILQ_INIT(&sc->sc_tx_pending);
+
+	for (i = 0; i != RSU_N_TRANSFER; i++) {
+		STAILQ_INIT(&sc->sc_tx_active[i]);
+		STAILQ_INIT(&sc->sc_tx_pending[i]);
+	}
 
 	for (i = 0; i < RSU_TX_LIST_COUNT; i++) {
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, &sc->sc_tx[i], next);
@@ -613,12 +588,26 @@ rsu_alloc_tx_list(struct rsu_softc *sc)
 static void
 rsu_free_tx_list(struct rsu_softc *sc)
 {
+	int i;
+
+	/* prevent further allocations from TX list(s) */
+	STAILQ_INIT(&sc->sc_tx_inactive);
+
+	for (i = 0; i != RSU_N_TRANSFER; i++) {
+		STAILQ_INIT(&sc->sc_tx_active[i]);
+		STAILQ_INIT(&sc->sc_tx_pending[i]);
+	}
+
 	rsu_free_list(sc, sc->sc_tx, RSU_TX_LIST_COUNT);
 }
 
 static void
 rsu_free_rx_list(struct rsu_softc *sc)
 {
+	/* prevent further allocations from RX list(s) */
+	STAILQ_INIT(&sc->sc_rx_inactive);
+	STAILQ_INIT(&sc->sc_rx_active);
+
 	rsu_free_list(sc, sc->sc_rx, RSU_RX_LIST_COUNT);
 }
 
@@ -664,11 +653,8 @@ rsu_getbuf(struct rsu_softc *sc)
 	RSU_ASSERT_LOCKED(sc);
 
 	bf = _rsu_getbuf(sc);
-	if (bf == NULL) {
-		struct ifnet *ifp = sc->sc_ifp;
+	if (bf == NULL)
 		DPRINTF("stop queue\n");
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	}
 	return (bf);
 }
 
@@ -758,11 +744,11 @@ rsu_fw_iocmd(struct rsu_softc *sc, uint32_t iocmd)
 	int ntries;
 
 	rsu_write_4(sc, R92S_IOCMD_CTRL, iocmd);
-	DELAY(100);
+	rsu_ms_delay(sc);
 	for (ntries = 0; ntries < 50; ntries++) {
 		if (rsu_read_4(sc, R92S_IOCMD_CTRL) == 0)
 			return (0);
-		DELAY(10);
+		rsu_ms_delay(sc);
 	}
 	return (ETIMEDOUT);
 }
@@ -782,7 +768,7 @@ rsu_efuse_read_1(struct rsu_softc *sc, uint16_t addr)
 		reg = rsu_read_4(sc, R92S_EFUSE_CTRL);
 		if (reg & R92S_EFUSE_CTRL_VALID)
 			return (MS(reg, R92S_EFUSE_CTRL_DATA));
-		DELAY(5);
+		rsu_ms_delay(sc);
 	}
 	device_printf(sc->sc_dev,
 	    "could not read efuse byte at address 0x%x\n", addr);
@@ -806,7 +792,7 @@ rsu_read_rom(struct rsu_softc *sc)
 	/* Turn on 2.5V to prevent eFuse leakage. */
 	reg = rsu_read_1(sc, R92S_EFUSE_TEST + 3);
 	rsu_write_1(sc, R92S_EFUSE_TEST + 3, reg | 0x80);
-	DELAY(1000);
+	rsu_ms_delay(sc);
 	rsu_write_1(sc, R92S_EFUSE_TEST + 3, reg & ~0x80);
 
 	/* Read full ROM image. */
@@ -844,10 +830,12 @@ rsu_read_rom(struct rsu_softc *sc)
 static int
 rsu_fw_cmd(struct rsu_softc *sc, uint8_t code, void *buf, int len)
 {
+	const uint8_t which = rsu_wme_ac_xfer_map[WME_AC_VO];
 	struct rsu_data *data;
 	struct r92s_tx_desc *txd;
 	struct r92s_fw_cmd_hdr *cmd;
-	int cmdsz, xferlen;
+	int cmdsz;
+	int xferlen;
 
 	data = rsu_getbuf(sc);
 	if (data == NULL)
@@ -880,8 +868,8 @@ rsu_fw_cmd(struct rsu_softc *sc, uint8_t code, void *buf, int len)
 
 	DPRINTFN(2, "Tx cmd code=0x%x len=0x%x\n", code, cmdsz);
 	data->buflen = xferlen;
-	STAILQ_INSERT_TAIL(&sc->sc_tx_pending, data, next);
-	usbd_transfer_start(sc->sc_xfer[RSU_BULK_TX_VO]);
+	STAILQ_INSERT_TAIL(&sc->sc_tx_pending[which], data, next);
+	usbd_transfer_start(sc->sc_xfer[which]);
 
 	return (0);
 }
@@ -894,6 +882,7 @@ rsu_calib_task(void *arg, int pending __unused)
 	uint32_t reg;
 
 	DPRINTFN(6, "running calibration task\n");
+
 	RSU_LOCK(sc);
 #ifdef notyet
 	/* Read WPS PBC status. */
@@ -910,12 +899,9 @@ rsu_calib_task(void *arg, int pending __unused)
 		reg = rsu_read_4(sc, R92S_IOCMD_DATA);
 		DPRINTFN(8, "RSSI=%d%%\n", reg >> 4);
 	}
-	if (sc->sc_calibrating) {
-		RSU_UNLOCK(sc);
-		taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, 
-		    hz * 2);
-	} else
-		RSU_UNLOCK(sc);
+	if (sc->sc_calibrating)
+		taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, hz);
+	RSU_UNLOCK(sc);
 }
 
 static int
@@ -923,7 +909,7 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
 	struct rsu_vap *uvp = RSU_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
-	struct rsu_softc *sc = ic->ic_ifp->if_softc;
+	struct rsu_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 	struct ieee80211_rateset *rs;
 	enum ieee80211_state ostate;
@@ -969,11 +955,10 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 	}
 	sc->sc_calibrating = 1;
+	/* Start periodic calibration. */
+	taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, hz);
 	RSU_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
-	/* Start periodic calibration. */
-	taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, hz * 2);
-
 	return (uvp->newstate(vap, nstate, arg));
 }
 
@@ -1022,34 +1007,33 @@ static int
 rsu_site_survey(struct rsu_softc *sc, struct ieee80211vap *vap)
 {
 	struct r92s_fw_cmd_sitesurvey cmd;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	memset(&cmd, 0, sizeof(cmd));
-	if ((ic->ic_flags & IEEE80211_F_ASCAN) || sc->scan_pass == 1)
+	if ((ic->ic_flags & IEEE80211_F_ASCAN) || sc->sc_scan_pass == 1)
 		cmd.active = htole32(1);
 	cmd.limit = htole32(48);
-	if (sc->scan_pass == 1 && vap->iv_des_nssid > 0) {
+	if (sc->sc_scan_pass == 1 && vap->iv_des_nssid > 0) {
 		/* Do a directed scan for second pass. */
 		cmd.ssidlen = htole32(vap->iv_des_ssid[0].len);
 		memcpy(cmd.ssid, vap->iv_des_ssid[0].ssid,
 		    vap->iv_des_ssid[0].len);
 
 	}
-	DPRINTF("sending site survey command, pass=%d\n", sc->scan_pass);
+	DPRINTF("sending site survey command, pass=%d\n", sc->sc_scan_pass);
 	return (rsu_fw_cmd(sc, R92S_CMD_SITE_SURVEY, &cmd, sizeof(cmd)));
 }
 
 static int
 rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ndis_wlan_bssid_ex *bss;
 	struct ndis_802_11_fixed_ies *fixed;
 	struct r92s_fw_cmd_auth auth;
-	uint8_t buf[sizeof(*bss) + 128], *frm;
+	uint8_t buf[sizeof(*bss) + 128] __aligned(4);
+	uint8_t *frm;
 	uint8_t opmode;
 	int error;
 
@@ -1063,7 +1047,7 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	memset(&auth, 0, sizeof(auth));
 	if (vap->iv_flags & IEEE80211_F_WPA) {
 		auth.mode = R92S_AUTHMODE_WPA;
-		auth.dot1x = ni->ni_authmode == IEEE80211_AUTH_8021X;
+		auth.dot1x = (ni->ni_authmode == IEEE80211_AUTH_8021X);
 	} else
 		auth.mode = R92S_AUTHMODE_OPEN;
 	DPRINTF("setting auth mode to %d\n", auth.mode);
@@ -1121,8 +1105,7 @@ rsu_disconnect(struct rsu_softc *sc)
 static void
 rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
 	struct ieee80211_channel *c;
 	struct ndis_wlan_bssid_ex *bss;
@@ -1153,7 +1136,7 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 	    IEEE80211_FC0_SUBTYPE_BEACON;
 	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
 	USETW(wh->i_dur, 0);
-	IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
+	IEEE80211_ADDR_COPY(wh->i_addr1, ieee80211broadcastaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr2, bss->macaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr3, bss->macaddr);
 	*(uint16_t *)wh->i_seq = 0;
@@ -1161,7 +1144,6 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 
 	/* Finalize mbuf. */
 	m->m_pkthdr.len = m->m_len = pktlen;
-	m->m_pkthdr.rcvif = ifp;
 	/* Fix the channel. */
 	c = ieee80211_find_channel_byieee(ic, 
 	    le32toh(bss->config.dsconfig), 
@@ -1179,11 +1161,11 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 static void
 rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct r92s_event_join_bss *rsp;
+	uint32_t tmp;
 	int res;
 
 	if (__predict_false(len < sizeof(*rsp)))
@@ -1198,9 +1180,14 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 		RSU_LOCK(sc);
 		return;
 	}
+	tmp = le32toh(rsp->associd);
+	if (tmp >= vap->iv_max_aid) {
+		DPRINTF("Assoc ID overflow\n");
+		tmp = 1;
+	}
 	DPRINTF("associated with %s associd=%d\n",
-	    ether_sprintf(rsp->bss.macaddr), le32toh(rsp->associd));
-	ni->ni_associd = le32toh(rsp->associd) | 0xc000;
+	    ether_sprintf(rsp->bss.macaddr), tmp);
+	ni->ni_associd = tmp | 0xc000;
 	RSU_UNLOCK(sc);
 	ieee80211_new_state(vap, IEEE80211_S_RUN,
 	    IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
@@ -1210,8 +1197,7 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 static void
 rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	DPRINTFN(4, "Rx event code=%d len=%d\n", code, len);
@@ -1222,23 +1208,26 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 		break;
 	case R92S_EVT_SURVEY_DONE:
 		DPRINTF("site survey pass %d done, found %d BSS\n",
-		    sc->scan_pass, le32toh(*(uint32_t *)buf));
+		    sc->sc_scan_pass, le32toh(*(uint32_t *)buf));
 		if (vap->iv_state != IEEE80211_S_SCAN)
 			break;	/* Ignore if not scanning. */
-		if (sc->scan_pass == 0 && vap->iv_des_nssid != 0) {
+		if (sc->sc_scan_pass == 0 && vap->iv_des_nssid != 0) {
 			/* Schedule a directed scan for hidden APs. */
-			sc->scan_pass = 1;
+			sc->sc_scan_pass = 1;
 			RSU_UNLOCK(sc);
 			ieee80211_new_state(vap, IEEE80211_S_SCAN, -1);
 			RSU_LOCK(sc);
 			break;
 		}
-		sc->scan_pass = 0;
+		sc->sc_scan_pass = 0;
 		break;
 	case R92S_EVT_JOIN_BSS:
 		if (vap->iv_state == IEEE80211_S_AUTH)
 			rsu_event_join_bss(sc, buf, len);
 		break;
+#if 0
+XXX This event is occurring regularly, possibly due to some power saving event
+XXX and disrupts the WLAN traffic. Disable for now.
 	case R92S_EVT_DEL_STA:
 		DPRINTF("disassociated from %s\n", ether_sprintf(buf));
 		if (vap->iv_state == IEEE80211_S_RUN &&
@@ -1248,14 +1237,17 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 			RSU_LOCK(sc);
 		}
 		break;
+#endif
 	case R92S_EVT_WPS_PBC:
 		DPRINTF("WPS PBC pushed.\n");
 		break;
 	case R92S_EVT_FWDBG:
-		if (ifp->if_flags & IFF_DEBUG) {
+		if (vap->iv_ifp->if_flags & IFF_DEBUG) {
 			buf[60] = '\0';
 			printf("FWDBG: %s\n", (char *)buf);
 		}
+		break;
+	default:
 		break;
 	}
 }
@@ -1317,8 +1309,7 @@ rsu_get_rssi(struct rsu_softc *sc, int rate, void *physt)
 static struct mbuf *
 rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
 	struct r92s_rx_stat *stat;
 	uint32_t rxdw0, rxdw3;
@@ -1331,11 +1322,11 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 	rxdw3 = le32toh(stat->rxdw3);
 
 	if (__predict_false(rxdw0 & R92S_RXDW0_CRCERR)) {
-		ifp->if_ierrors++;
+		counter_u64_add(ic->ic_ierrors, 1);
 		return NULL;
 	}
 	if (__predict_false(pktlen < sizeof(*wh) || pktlen > MCLBYTES)) {
-		ifp->if_ierrors++;
+		counter_u64_add(ic->ic_ierrors, 1);
 		return NULL;
 	}
 
@@ -1353,11 +1344,9 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 
 	m = m_get2(pktlen, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL)) {
-		ifp->if_ierrors++;
+		counter_u64_add(ic->ic_ierrors, 1);
 		return NULL;
 	}
-	/* Finalize mbuf. */
-	m->m_pkthdr.rcvif = ifp;
 	/* Hardware does Rx TCP checksum offload. */
 	if (rxdw3 & R92S_RXDW3_TCPCHKVALID) {
 		if (__predict_true(rxdw3 & R92S_RXDW3_TCPCHKRPT))
@@ -1455,6 +1444,7 @@ static struct mbuf *
 rsu_rxeof(struct usb_xfer *xfer, struct rsu_data *data, int *rssi)
 {
 	struct rsu_softc *sc = data->sc;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct r92s_rx_stat *stat;
 	int len;
 
@@ -1462,7 +1452,7 @@ rsu_rxeof(struct usb_xfer *xfer, struct rsu_data *data, int *rssi)
 
 	if (__predict_false(len < sizeof(*stat))) {
 		DPRINTF("xfer too short %d\n", len);
-		sc->sc_ifp->if_ierrors++;
+		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
 	/* Determine if it is a firmware C2H event or an 802.11 frame. */
@@ -1479,8 +1469,7 @@ static void
 rsu_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct rsu_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL, *next;
@@ -1540,7 +1529,7 @@ tr_setup:
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			ifp->if_ierrors++;
+			counter_u64_add(ic->ic_ierrors, 1);
 			goto tr_setup;
 		}
 		break;
@@ -1548,80 +1537,60 @@ tr_setup:
 
 }
 
-
 static void
 rsu_txeof(struct usb_xfer *xfer, struct rsu_data *data)
 {
-	struct rsu_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct mbuf *m;
 
-	RSU_ASSERT_LOCKED(sc);
-
-	/*
-	 * Do any tx complete callback.  Note this must be done before releasing
-	 * the node reference.
-	 */
 	if (data->m) {
-		m = data->m;
-		if (m->m_flags & M_TXCB) {
-			/* XXX status? */
-			ieee80211_process_callback(data->ni, m, 0);
-		}
-		m_freem(m);
+		/* XXX status? */
+		ieee80211_tx_complete(data->ni, data->m, 0);
 		data->m = NULL;
-	}
-	if (data->ni) {
-		ieee80211_free_node(data->ni);
 		data->ni = NULL;
 	}
-	sc->sc_tx_timer = 0;
-	ifp->if_opackets++;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 static void
-rsu_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
+rsu_bulk_tx_callback_sub(struct usb_xfer *xfer, usb_error_t error,
+    uint8_t which)
 {
 	struct rsu_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct rsu_data *data;
 
 	RSU_ASSERT_LOCKED(sc);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		data = STAILQ_FIRST(&sc->sc_tx_active);
+		data = STAILQ_FIRST(&sc->sc_tx_active[which]);
 		if (data == NULL)
 			goto tr_setup;
 		DPRINTF("transfer done %p\n", data);
-		STAILQ_REMOVE_HEAD(&sc->sc_tx_active, next);
+		STAILQ_REMOVE_HEAD(&sc->sc_tx_active[which], next);
 		rsu_txeof(xfer, data);
 		STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		data = STAILQ_FIRST(&sc->sc_tx_pending);
+		data = STAILQ_FIRST(&sc->sc_tx_pending[which]);
 		if (data == NULL) {
 			DPRINTF("empty pending queue sc %p\n", sc);
 			return;
 		}
-		STAILQ_REMOVE_HEAD(&sc->sc_tx_pending, next);
-		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
+		STAILQ_REMOVE_HEAD(&sc->sc_tx_pending[which], next);
+		STAILQ_INSERT_TAIL(&sc->sc_tx_active[which], data, next);
 		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
 		DPRINTF("submitting transfer %p\n", data);
 		usbd_transfer_submit(xfer);
-		rsu_start_locked(ifp);
 		break;
 	default:
-		data = STAILQ_FIRST(&sc->sc_tx_active);
-		if (data == NULL)
-			goto tr_setup;
-		if (data->ni != NULL) {
-			ieee80211_free_node(data->ni);
-			data->ni = NULL;
-			ifp->if_oerrors++;
+		data = STAILQ_FIRST(&sc->sc_tx_active[which]);
+		if (data != NULL) {
+			STAILQ_REMOVE_HEAD(&sc->sc_tx_active[which], next);
+			rsu_txeof(xfer, data);
+			STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
 		}
+		counter_u64_add(ic->ic_oerrors, 1);
+
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
@@ -1630,25 +1599,32 @@ tr_setup:
 	}
 }
 
+static void
+rsu_bulk_tx_callback_be_bk(struct usb_xfer *xfer, usb_error_t error)
+{
+	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_BE_BK);
+}
+
+static void
+rsu_bulk_tx_callback_vi_vo(struct usb_xfer *xfer, usb_error_t error)
+{
+	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_VI_VO);
+}
+
 static int
 rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni, 
     struct mbuf *m0, struct rsu_data *data)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
         struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k = NULL;
 	struct r92s_tx_desc *txd;
-	struct usb_xfer *xfer;
-	uint8_t type, tid = 0;
-	int hasqos, xferlen;
-	struct usb_xfer *rsu_pipes[4] = {
-		sc->sc_xfer[RSU_BULK_TX_BE],
-		sc->sc_xfer[RSU_BULK_TX_BK],
-		sc->sc_xfer[RSU_BULK_TX_VI],
-		sc->sc_xfer[RSU_BULK_TX_VO]
-	};
+	uint8_t type;
+	uint8_t tid = 0;
+	uint8_t which;
+	int hasqos;
+	int xferlen;
 
 	RSU_ASSERT_LOCKED(sc);
 
@@ -1669,12 +1645,10 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	switch (type) {
 	case IEEE80211_FC0_TYPE_CTL:
 	case IEEE80211_FC0_TYPE_MGT:
-		xfer = sc->sc_xfer[RSU_BULK_TX_VO];
+		which = rsu_wme_ac_xfer_map[WME_AC_VO];
 		break;
 	default:
-		KASSERT(M_WME_GETAC(m0) < 4,
-		    ("unsupported WME pipe %d", M_WME_GETAC(m0)));
-		xfer = rsu_pipes[M_WME_GETAC(m0)];
+		which = rsu_wme_ac_xfer_map[M_WME_GETAC(m0)];
 		break;
 	}
 	hasqos = 0;
@@ -1736,108 +1710,82 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	data->buflen = xferlen;
 	data->ni = ni;
 	data->m = m0;
-	STAILQ_INSERT_TAIL(&sc->sc_tx_pending, data, next);
-	usbd_transfer_start(xfer);
+	STAILQ_INSERT_TAIL(&sc->sc_tx_pending[which], data, next);
+
+	/* start transfer, if any */
+	usbd_transfer_start(sc->sc_xfer[which]);
+	return (0);
+}
+
+static int
+rsu_transmit(struct ieee80211com *ic, struct mbuf *m)   
+{
+	struct rsu_softc *sc = ic->ic_softc;
+	int error;
+
+	RSU_LOCK(sc);
+	if (!sc->sc_running) {
+		RSU_UNLOCK(sc);
+		return (ENXIO);
+	}
+	error = mbufq_enqueue(&sc->sc_snd, m);
+	if (error) {
+		RSU_UNLOCK(sc);
+		return (error);
+	}
+	rsu_start(sc);
+	RSU_UNLOCK(sc);
 
 	return (0);
 }
 
 static void
-rsu_start(struct ifnet *ifp)
+rsu_start(struct rsu_softc *sc)
 {
-	struct rsu_softc *sc = ifp->if_softc;
-
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return;
-
-	RSU_LOCK(sc);
-	rsu_start_locked(ifp);
-	RSU_UNLOCK(sc);
-}
-
-static void
-rsu_start_locked(struct ifnet *ifp)
-{
-	struct rsu_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni;
-	struct mbuf *m;
 	struct rsu_data *bf;
+	struct mbuf *m;
 
 	RSU_ASSERT_LOCKED(sc);
 
-	for (;;) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
-			break;
+	while ((m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		bf = rsu_getbuf(sc);
 		if (bf == NULL) {
-			IFQ_DRV_PREPEND(&ifp->if_snd, m);
+			mbufq_prepend(&sc->sc_snd, m);
 			break;
 		}
+
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		m->m_pkthdr.rcvif = NULL;
 
 		if (rsu_tx_start(sc, ni, m, bf) != 0) {
-			ifp->if_oerrors++;
+			if_inc_counter(ni->ni_vap->iv_ifp,
+			    IFCOUNTER_OERRORS, 1);
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 			ieee80211_free_node(ni);
 			break;
 		}
-		sc->sc_tx_timer = 5;
-		callout_reset(&sc->sc_watchdog_ch, hz, rsu_watchdog, sc);
 	}
 }
 
 static void
-rsu_watchdog(void *arg)
+rsu_parent(struct ieee80211com *ic)
 {
-	struct rsu_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
+	struct rsu_softc *sc = ic->ic_softc;
+	int startall = 0;
 
-	if (sc->sc_tx_timer > 0) {
-		if (--sc->sc_tx_timer == 0) {
-			device_printf(sc->sc_dev, "device timeout\n");
-			/* rsu_init(ifp); XXX needs a process context! */
-			ifp->if_oerrors++;
-			return;
+	RSU_LOCK(sc);
+	if (ic->ic_nrunning > 0) {
+		if (!sc->sc_running) {
+			rsu_init(sc);
+			startall = 1;
 		}
-		callout_reset(&sc->sc_watchdog_ch, hz, rsu_watchdog, sc);
-	}
-}
+	} else if (sc->sc_running)
+		rsu_stop(sc);
+	RSU_UNLOCK(sc);
 
-static int
-rsu_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
-{
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
-
-	switch (cmd) {
-	case SIOCSIFFLAGS:
-		if (ifp->if_flags & IFF_UP) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-				rsu_init(ifp->if_softc);
-				startall = 1;
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				rsu_stop(ifp, 1);
-		}
-		if (startall)
-			ieee80211_start_all(ic);
-		break;
-	case SIOCGIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
-		break;
-	case SIOCGIFADDR:
-		error = ether_ioctl(ifp, cmd, data);
-		break;
-	default:
-		error = EINVAL;
-		break;
-	}
-
-	return (error);
+	if (startall)
+		ieee80211_start_all(ic);
 }
 
 /*
@@ -1933,7 +1881,7 @@ rsu_power_on_bcut(struct rsu_softc *sc)
 
 	/* Prevent eFuse leakage. */
 	rsu_write_1(sc, 0x37, 0xb0);
-	usb_pause_mtx(&sc->sc_mtx, 10);
+	usb_pause_mtx(&sc->sc_mtx, hz / 100);
 	rsu_write_1(sc, 0x37, 0x30);
 
 	/* Switch the control path to hardware. */
@@ -1944,7 +1892,7 @@ rsu_power_on_bcut(struct rsu_softc *sc)
 	}
 	rsu_write_1(sc, R92S_SYS_FUNC_EN + 1,
 	    rsu_read_1(sc, R92S_SYS_FUNC_EN + 1) & ~0x8c);
-	DELAY(1000);
+	rsu_ms_delay(sc);
 
 	rsu_write_1(sc, R92S_SPS0_CTRL + 1, 0x53);
 	rsu_write_1(sc, R92S_SPS0_CTRL + 0, 0x57);
@@ -1977,11 +1925,11 @@ rsu_power_on_bcut(struct rsu_softc *sc)
 	/* Enable AFE PLL macro block. */
 	reg = rsu_read_1(sc, R92S_AFE_PLL_CTRL);
 	rsu_write_1(sc, R92S_AFE_PLL_CTRL, reg | 0x11);
-	DELAY(500);
+	rsu_ms_delay(sc);
 	rsu_write_1(sc, R92S_AFE_PLL_CTRL, reg | 0x51);
-	DELAY(500);
+	rsu_ms_delay(sc);
 	rsu_write_1(sc, R92S_AFE_PLL_CTRL, reg | 0x11);
-	DELAY(500);
+	rsu_ms_delay(sc);
 
 	/* Attach AFE PLL to MACTOP/BB. */
 	rsu_write_1(sc, R92S_SYS_ISO_CTRL,
@@ -2028,14 +1976,14 @@ rsu_power_on_bcut(struct rsu_softc *sc)
 		if ((reg & (R92S_TCR_IMEM_CHK_RPT | R92S_TCR_EMEM_CHK_RPT)) ==
 		    (R92S_TCR_IMEM_CHK_RPT | R92S_TCR_EMEM_CHK_RPT))
 			break;
-		DELAY(5);
+		rsu_ms_delay(sc);
 	}
 	if (ntries == 20) {
 		DPRINTF("TxDMA is not ready\n");
 		/* Reset TxDMA. */
 		reg = rsu_read_1(sc, R92S_CR);
 		rsu_write_1(sc, R92S_CR, reg & ~R92S_CR_TXDMA_EN);
-		DELAY(2);
+		rsu_ms_delay(sc);
 		rsu_write_1(sc, R92S_CR, reg | R92S_CR_TXDMA_EN);
 	}
 }
@@ -2045,7 +1993,7 @@ rsu_power_off(struct rsu_softc *sc)
 {
 	/* Turn RF off. */
 	rsu_write_1(sc, R92S_RF_CTRL, 0x00);
-	usb_pause_mtx(&sc->sc_mtx, 5);
+	usb_pause_mtx(&sc->sc_mtx, hz / 200);
 
 	/* Turn MAC off. */
 	/* Switch control path. */
@@ -2073,6 +2021,7 @@ rsu_power_off(struct rsu_softc *sc)
 static int
 rsu_fw_loadsection(struct rsu_softc *sc, const uint8_t *buf, int len)
 {
+	const uint8_t which = rsu_wme_ac_xfer_map[WME_AC_VO];
 	struct rsu_data *data;
 	struct r92s_tx_desc *txd;
 	int mlen;
@@ -2093,12 +2042,11 @@ rsu_fw_loadsection(struct rsu_softc *sc, const uint8_t *buf, int len)
 		memcpy(&txd[1], buf, mlen);
 		data->buflen = sizeof(*txd) + mlen;
 		DPRINTF("starting transfer %p\n", data);
-		STAILQ_INSERT_TAIL(&sc->sc_tx_pending, data, next);
+		STAILQ_INSERT_TAIL(&sc->sc_tx_pending[which], data, next);
 		buf += mlen;
 		len -= mlen;
 	}
-	usbd_transfer_start(sc->sc_xfer[RSU_BULK_TX_VO]);
-
+	usbd_transfer_start(sc->sc_xfer[which]);
 	return (0);
 }
 
@@ -2113,6 +2061,11 @@ rsu_load_firmware(struct rsu_softc *sc)
 	size_t size;
 	uint32_t reg;
 	int ntries, error;
+
+	if (rsu_read_1(sc, R92S_TCR) & R92S_TCR_FWRDY) {
+		DPRINTF("Firmware already loaded\n");
+		return (0);
+	}
 
 	RSU_UNLOCK(sc);
 	/* Read firmware image from the filesystem. */
@@ -2168,19 +2121,17 @@ rsu_load_firmware(struct rsu_softc *sc)
 		goto fail;
 	}
 	/* Wait for load to complete. */
-	for (ntries = 0; ntries < 10; ntries++) {
-		usb_pause_mtx(&sc->sc_mtx, 10);
-		reg = rsu_read_2(sc, R92S_TCR);
+	for (ntries = 0; ntries != 50; ntries++) {
+		usb_pause_mtx(&sc->sc_mtx, hz / 100);
+		reg = rsu_read_1(sc, R92S_TCR);
 		if (reg & R92S_TCR_IMEM_CODE_DONE)
 			break;
 	}
-	if (ntries == 10 || !(reg & R92S_TCR_IMEM_CHK_RPT)) {
-		device_printf(sc->sc_dev, "timeout waiting for %s transfer\n",
-		    "IMEM");
+	if (ntries == 50) {
+		device_printf(sc->sc_dev, "timeout waiting for IMEM transfer\n");
 		error = ETIMEDOUT;
 		goto fail;
 	}
-
 	/* Load EMEM section. */
 	error = rsu_fw_loadsection(sc, emem, ememsz);
 	if (error != 0) {
@@ -2189,19 +2140,17 @@ rsu_load_firmware(struct rsu_softc *sc)
 		goto fail;
 	}
 	/* Wait for load to complete. */
-	for (ntries = 0; ntries < 10; ntries++) {
-		usb_pause_mtx(&sc->sc_mtx, 10);
+	for (ntries = 0; ntries != 50; ntries++) {
+		usb_pause_mtx(&sc->sc_mtx, hz / 100);
 		reg = rsu_read_2(sc, R92S_TCR);
 		if (reg & R92S_TCR_EMEM_CODE_DONE)
 			break;
 	}
-	if (ntries == 10 || !(reg & R92S_TCR_EMEM_CHK_RPT)) {
-		device_printf(sc->sc_dev, "timeout waiting for %s transfer\n",
-		    "EMEM");
+	if (ntries == 50) {
+		device_printf(sc->sc_dev, "timeout waiting for EMEM transfer\n");
 		error = ETIMEDOUT;
 		goto fail;
 	}
-
 	/* Enable CPU. */
 	rsu_write_1(sc, R92S_SYS_CLKR,
 	    rsu_read_1(sc, R92S_SYS_CLKR) | R92S_SYS_CPU_CLKSEL);
@@ -2220,9 +2169,9 @@ rsu_load_firmware(struct rsu_softc *sc)
 	}
 	/* Wait for CPU to initialize. */
 	for (ntries = 0; ntries < 100; ntries++) {
-		if (rsu_read_2(sc, R92S_TCR) & R92S_TCR_IMEM_RDY)
+		if (rsu_read_1(sc, R92S_TCR) & R92S_TCR_IMEM_RDY)
 			break;
-		DELAY(1000);
+		rsu_ms_delay(sc);
 	}
 	if (ntries == 100) {
 		device_printf(sc->sc_dev,
@@ -2235,7 +2184,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	dmem = __DECONST(struct r92s_fw_priv *, &hdr->priv);
 	memset(dmem, 0, sizeof(*dmem));
 	dmem->hci_sel = R92S_HCI_SEL_USB | R92S_HCI_SEL_8172;
-	dmem->nendpoints = sc->npipes;
+	dmem->nendpoints = 0;
 	dmem->rf_config = 0x12;	/* 1T2R */
 	dmem->vcs_type = R92S_VCS_TYPE_AUTO;
 	dmem->vcs_mode = R92S_VCS_MODE_RTS_CTS;
@@ -2252,9 +2201,9 @@ rsu_load_firmware(struct rsu_softc *sc)
 	}
 	/* Wait for load to complete. */
 	for (ntries = 0; ntries < 100; ntries++) {
-		if (rsu_read_2(sc, R92S_TCR) & R92S_TCR_DMEM_CODE_DONE)
+		if (rsu_read_1(sc, R92S_TCR) & R92S_TCR_DMEM_CODE_DONE)
 			break;
-		DELAY(1000);
+		rsu_ms_delay(sc);
 	}
 	if (ntries == 100) {
 		device_printf(sc->sc_dev, "timeout waiting for %s transfer\n",
@@ -2264,9 +2213,9 @@ rsu_load_firmware(struct rsu_softc *sc)
 	}
 	/* Wait for firmware readiness. */
 	for (ntries = 0; ntries < 60; ntries++) {
-		if (!(rsu_read_2(sc, R92S_TCR) & R92S_TCR_FWRDY))
+		if (!(rsu_read_1(sc, R92S_TCR) & R92S_TCR_FWRDY))
 			break;
-		DELAY(1000);
+		rsu_ms_delay(sc);
 	}
 	if (ntries == 60) {
 		device_printf(sc->sc_dev, 
@@ -2285,12 +2234,11 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
     const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct rsu_softc *sc = ifp->if_softc;
+	struct rsu_softc *sc = ic->ic_softc;
 	struct rsu_data *bf;
 
 	/* prevent management frames from being sent if we're not ready */
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!sc->sc_running) {
 		m_freem(m);
 		ieee80211_free_node(ni);
 		return (ENETDOWN);
@@ -2303,57 +2251,38 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		RSU_UNLOCK(sc);
 		return (ENOBUFS);
 	}
-	ifp->if_opackets++;
 	if (rsu_tx_start(sc, ni, m, bf) != 0) {
 		ieee80211_free_node(ni);
-		ifp->if_oerrors++;
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		RSU_UNLOCK(sc);
 		return (EIO);
 	}
 	RSU_UNLOCK(sc);
-	sc->sc_tx_timer = 5;
 
 	return (0);
 }
 
 static void
-rsu_init(void *arg)
+rsu_init(struct rsu_softc *sc)
 {
-	struct rsu_softc *sc = arg;
-
-	RSU_LOCK(sc);
-	rsu_init_locked(arg);
-	RSU_UNLOCK(sc);
-}
-
-static void
-rsu_init_locked(struct rsu_softc *sc)
-{
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 	struct r92s_set_pwr_mode cmd;
 	int error;
+	int i;
+
+	RSU_ASSERT_LOCKED(sc);
 
 	/* Init host async commands ring. */
 	sc->cmdq.cur = sc->cmdq.next = sc->cmdq.queued = 0;
 
-	/* Allocate Tx/Rx buffers. */
-	error = rsu_alloc_rx_list(sc);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "could not allocate Rx buffers\n");
-		return;
-	}
-	error = rsu_alloc_tx_list(sc);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "could not allocate Tx buffers\n");
-		rsu_free_rx_list(sc);
-		return;
-	}
 	/* Power on adapter. */
 	if (sc->cut == 1)
 		rsu_power_on_acut(sc);
 	else
 		rsu_power_on_bcut(sc);
+
 	/* Load firmware. */
 	error = rsu_load_firmware(sc);
 	if (error != 0)
@@ -2384,14 +2313,14 @@ rsu_init_locked(struct rsu_softc *sc)
 	    rsu_read_1(sc, 0xfe5c) | 0x80);
 
 	/* Set MAC address. */
-	rsu_write_region_1(sc, R92S_MACID, IF_LLADDR(ifp), 
-	    IEEE80211_ADDR_LEN);
+	IEEE80211_ADDR_COPY(macaddr, vap ? vap->iv_myaddr : ic->ic_macaddr);
+	rsu_write_region_1(sc, R92S_MACID, macaddr, IEEE80211_ADDR_LEN);
 
-	/* NB: it really takes that long for firmware to boot. */
-	usb_pause_mtx(&sc->sc_mtx, 1500);
+	/* It really takes 1.5 seconds for the firmware to boot: */
+	usb_pause_mtx(&sc->sc_mtx, (3 * hz) / 2);
 
-	DPRINTF("setting MAC address to %s\n", ether_sprintf(IF_LLADDR(ifp)));
-	error = rsu_fw_cmd(sc, R92S_CMD_SET_MAC_ADDRESS, IF_LLADDR(ifp),
+	DPRINTF("setting MAC address to %s\n", ether_sprintf(macaddr));
+	error = rsu_fw_cmd(sc, R92S_CMD_SET_MAC_ADDRESS, macaddr,
 	    IEEE80211_ADDR_LEN);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not set MAC address\n");
@@ -2427,40 +2356,24 @@ rsu_init_locked(struct rsu_softc *sc)
 	/* Set default channel. */
 	ic->ic_bss->ni_chan = ic->ic_ibss_chan;
 #endif
-	sc->scan_pass = 0;
+	sc->sc_scan_pass = 0;
 	usbd_transfer_start(sc->sc_xfer[RSU_BULK_RX]);
 
 	/* We're ready to go. */
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-
-	callout_reset(&sc->sc_watchdog_ch, hz, rsu_watchdog, sc);
-
+	sc->sc_running = 1;
 	return;
 fail:
-	rsu_free_rx_list(sc);
-	rsu_free_tx_list(sc);
-	return;
+	/* Need to stop all failed transfers, if any */
+	for (i = 0; i != RSU_N_TRANSFER; i++)
+		usbd_transfer_stop(sc->sc_xfer[i]);
 }
 
 static void
-rsu_stop(struct ifnet *ifp, int disable)
+rsu_stop(struct rsu_softc *sc)
 {
-	struct rsu_softc *sc = ifp->if_softc;
-
-	RSU_LOCK(sc);
-	rsu_stop_locked(ifp, disable);
-	RSU_UNLOCK(sc);
-}
-
-static void
-rsu_stop_locked(struct ifnet *ifp, int disable __unused)
-{
-	struct rsu_softc *sc = ifp->if_softc;
 	int i;
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	callout_stop(&sc->sc_watchdog_ch);
+	sc->sc_running = 0;
 	sc->sc_calibrating = 0;
 	taskqueue_cancel_timeout(taskqueue_thread, &sc->calib_task, NULL);
 
@@ -2471,3 +2384,8 @@ rsu_stop_locked(struct ifnet *ifp, int disable __unused)
 		usbd_transfer_stop(sc->sc_xfer[i]);
 }
 
+static void
+rsu_ms_delay(struct rsu_softc *sc)
+{
+	usb_pause_mtx(&sc->sc_mtx, hz / 1000);
+}

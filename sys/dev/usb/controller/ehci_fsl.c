@@ -239,6 +239,7 @@ fsl_ehci_attach(device_t self)
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,
 	    USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc))

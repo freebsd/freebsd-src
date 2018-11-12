@@ -113,6 +113,8 @@ struct ptrace_lwpinfo {
 	struct __siginfo pl_siginfo;	/* siginfo for signal */
 	char		pl_tdname[MAXCOMLEN + 1]; /* LWP name */
 	int		pl_child_pid;	/* New child pid */
+	u_int		pl_syscall_code;
+	u_int		pl_syscall_narg;
 };
 
 /* Argument structure for PT_VM_ENTRY. */

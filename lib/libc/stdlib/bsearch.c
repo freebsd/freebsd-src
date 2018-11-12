@@ -36,6 +36,13 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <stdlib.h>
 
+#ifdef	I_AM_BSEARCH_B
+#include "block_abi.h"
+#define	COMPAR(x,y)	CALL_BLOCK(compar, x, y)
+#else
+#define	COMPAR(x,y)	compar(x, y)
+#endif
+
 /*
  * Perform a binary search.
  *
@@ -52,6 +59,15 @@ __FBSDID("$FreeBSD$");
  * have to make lim 3, then halve, obtaining 1, so that we will only
  * look at item 3.
  */
+#ifdef I_AM_BSEARCH_B
+void *
+bsearch_b(key, base0, nmemb, size, compar)
+	const void *key;
+	const void *base0;
+	size_t nmemb;
+	size_t size;
+	DECLARE_BLOCK(int, compar, const void *, const void *);
+#else
 void *
 bsearch(key, base0, nmemb, size, compar)
 	const void *key;
@@ -59,6 +75,7 @@ bsearch(key, base0, nmemb, size, compar)
 	size_t nmemb;
 	size_t size;
 	int (*compar)(const void *, const void *);
+#endif
 {
 	const char *base = base0;
 	size_t lim;
@@ -67,7 +84,7 @@ bsearch(key, base0, nmemb, size, compar)
 
 	for (lim = nmemb; lim != 0; lim >>= 1) {
 		p = base + (lim >> 1) * size;
-		cmp = (*compar)(key, p);
+		cmp = COMPAR(key, p);
 		if (cmp == 0)
 			return ((void *)p);
 		if (cmp > 0) {	/* key > p: move right */

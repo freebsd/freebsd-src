@@ -29,7 +29,7 @@ public:
     static void
     Terminate ();
     
-    static lldb_private::Platform* 
+    static lldb::PlatformSP
     CreateInstance (bool force, const lldb_private::ArchSpec *arch);
 
     static lldb_private::ConstString
@@ -64,8 +64,7 @@ public:
     // lldb_private::Platform functions
     //------------------------------------------------------------
     virtual lldb_private::Error
-    ResolveExecutable (const lldb_private::FileSpec &exe_file,
-                       const lldb_private::ArchSpec &arch,
+    ResolveExecutable (const lldb_private::ModuleSpec &module_spec,
                        lldb::ModuleSP &module_sp,
                        const lldb_private::FileSpecList *module_search_paths_ptr);
 
@@ -73,9 +72,9 @@ public:
     GetDescription ();
 
     virtual lldb_private::Error
-    GetFile (const lldb_private::FileSpec &platform_file, 
-             const lldb_private::UUID *uuid_ptr,
-             lldb_private::FileSpec &local_file);
+    GetFileWithUUID (const lldb_private::FileSpec &platform_file, 
+                     const lldb_private::UUID *uuid_ptr,
+                     lldb_private::FileSpec &local_file);
 
     virtual bool
     GetProcessInfo (lldb::pid_t pid, 
@@ -92,14 +91,12 @@ public:
     DebugProcess (lldb_private::ProcessLaunchInfo &launch_info,
                   lldb_private::Debugger &debugger,
                   lldb_private::Target *target,       // Can be NULL, if NULL create a new target, else use existing one
-                  lldb_private::Listener &listener,
                   lldb_private::Error &error);
 
     virtual lldb::ProcessSP
     Attach (lldb_private::ProcessAttachInfo &attach_info,
             lldb_private::Debugger &debugger,
             lldb_private::Target *target,       // Can be NULL, if NULL create a new target, else use existing one
-            lldb_private::Listener &listener,
             lldb_private::Error &error);
 
     virtual bool
@@ -208,6 +205,9 @@ public:
                      int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
                      std::string *command_output,   // Pass NULL if you don't want the command output
                      uint32_t timeout_sec);         // Timeout in seconds to wait for shell program to finish
+
+    virtual void
+    CalculateTrapHandlerSymbolNames ();
 
 protected:
     GDBRemoteCommunicationClient m_gdb_client;

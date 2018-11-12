@@ -142,9 +142,9 @@ typedef enum {
   ctm_succeeded = 1,
   ctm_succeeded_with_ptr_to_base = 2
 } __cxa_type_match_result;
-extern "C" bool __cxa_type_match(_Unwind_Exception*, const std::type_info*,
+extern "C" __cxa_type_match_result __cxa_type_match(_Unwind_Exception*, const std::type_info*,
 				 bool, void**);
-extern "C" void __cxa_begin_cleanup (_Unwind_Exception*);
+extern "C" bool __cxa_begin_cleanup (_Unwind_Exception*);
 extern "C" void __cxa_end_cleanup (void);
 #endif
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-
-#define __EVREGION_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -159,6 +156,7 @@ AcpiEvAddressSpaceDispatch (
     ACPI_OPERAND_OBJECT     *RegionObj2;
     void                    *RegionContext = NULL;
     ACPI_CONNECTION_INFO    *Context;
+    ACPI_PHYSICAL_ADDRESS   Address;
 
 
     ACPI_FUNCTION_TRACE (EvAddressSpaceDispatch);
@@ -248,23 +246,23 @@ AcpiEvAddressSpaceDispatch (
     /* We have everything we need, we can invoke the address space handler */
 
     Handler = HandlerDesc->AddressSpace.Handler;
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
-        "Handler %p (@%p) Address %8.8X%8.8X [%s]\n",
-        &RegionObj->Region.Handler->AddressSpace, Handler,
-        ACPI_FORMAT_NATIVE_UINT (RegionObj->Region.Address + RegionOffset),
-        AcpiUtGetRegionName (RegionObj->Region.SpaceId)));
+    Address = (RegionObj->Region.Address + RegionOffset);
 
     /*
      * Special handling for GenericSerialBus and GeneralPurposeIo:
      * There are three extra parameters that must be passed to the
      * handler via the context:
-     *   1) Connection buffer, a resource template from Connection() op.
-     *   2) Length of the above buffer.
-     *   3) Actual access length from the AccessAs() op.
+     *   1) Connection buffer, a resource template from Connection() op
+     *   2) Length of the above buffer
+     *   3) Actual access length from the AccessAs() op
+     *
+     * In addition, for GeneralPurposeIo, the Address and BitWidth fields
+     * are defined as follows:
+     *   1) Address is the pin number index of the field (bit offset from
+     *      the previous Connection)
+     *   2) BitWidth is the actual bit length of the field (number of pins)
      */
-    if (((RegionObj->Region.SpaceId == ACPI_ADR_SPACE_GSBUS) ||
-            (RegionObj->Region.SpaceId == ACPI_ADR_SPACE_GPIO)) &&
+    if ((RegionObj->Region.SpaceId == ACPI_ADR_SPACE_GSBUS) &&
         Context &&
         FieldObj)
     {
@@ -274,6 +272,24 @@ AcpiEvAddressSpaceDispatch (
         Context->Length = FieldObj->Field.ResourceLength;
         Context->AccessLength = FieldObj->Field.AccessLength;
     }
+    if ((RegionObj->Region.SpaceId == ACPI_ADR_SPACE_GPIO) &&
+        Context &&
+        FieldObj)
+    {
+        /* Get the Connection (ResourceTemplate) buffer */
+
+        Context->Connection = FieldObj->Field.ResourceBuffer;
+        Context->Length = FieldObj->Field.ResourceLength;
+        Context->AccessLength = FieldObj->Field.AccessLength;
+        Address = FieldObj->Field.PinNumberIndex;
+        BitWidth = FieldObj->Field.BitLength;
+    }
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
+        "Handler %p (@%p) Address %8.8X%8.8X [%s]\n",
+        &RegionObj->Region.Handler->AddressSpace, Handler,
+        ACPI_FORMAT_UINT64 (Address),
+        AcpiUtGetRegionName (RegionObj->Region.SpaceId)));
 
     if (!(HandlerDesc->AddressSpace.HandlerFlags &
             ACPI_ADDR_HANDLER_DEFAULT_INSTALLED))
@@ -288,9 +304,8 @@ AcpiEvAddressSpaceDispatch (
 
     /* Call the handler */
 
-    Status = Handler (Function,
-        (RegionObj->Region.Address + RegionOffset), BitWidth, Value,
-        Context, RegionObj2->Extra.RegionContext);
+    Status = Handler (Function, Address, BitWidth, Value, Context,
+        RegionObj2->Extra.RegionContext);
 
     if (ACPI_FAILURE (Status))
     {
@@ -333,6 +348,7 @@ AcpiEvDetachRegion(
 {
     ACPI_OPERAND_OBJECT     *HandlerObj;
     ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_OPERAND_OBJECT     *StartDesc;
     ACPI_OPERAND_OBJECT     **LastObjPtr;
     ACPI_ADR_SPACE_SETUP    RegionSetup;
     void                    **RegionContext;
@@ -363,6 +379,7 @@ AcpiEvDetachRegion(
     /* Find this region in the handler's list */
 
     ObjDesc = HandlerObj->AddressSpace.RegionList;
+    StartDesc = ObjDesc;
     LastObjPtr = &HandlerObj->AddressSpace.RegionList;
 
     while (ObjDesc)
@@ -457,6 +474,16 @@ AcpiEvDetachRegion(
 
         LastObjPtr = &ObjDesc->Region.Next;
         ObjDesc = ObjDesc->Region.Next;
+
+        /* Prevent infinite loop if list is corrupted */
+
+        if (ObjDesc == StartDesc)
+        {
+            ACPI_ERROR ((AE_INFO,
+                "Circular handler list in region object %p",
+                RegionObj));
+            return_VOID;
+        }
     }
 
     /* If we get here, the region was not in the handler's region list */
@@ -633,10 +660,17 @@ AcpiEvExecuteRegMethods (
     ACPI_ADR_SPACE_TYPE     SpaceId)
 {
     ACPI_STATUS             Status;
+    ACPI_REG_WALK_INFO      Info;
 
 
     ACPI_FUNCTION_TRACE (EvExecuteRegMethods);
 
+    Info.SpaceId = SpaceId;
+    Info.RegRunCount = 0;
+
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_NAMES,
+        "    Running _REG methods for SpaceId %s\n",
+        AcpiUtGetRegionName (Info.SpaceId)));
 
     /*
      * Run all _REG methods for all Operation Regions for this space ID. This
@@ -645,8 +679,7 @@ AcpiEvExecuteRegMethods (
      * regions of this Space ID before we can run any _REG methods)
      */
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, Node, ACPI_UINT32_MAX,
-                ACPI_NS_WALK_UNLOCK, AcpiEvRegRun, NULL,
-                &SpaceId, NULL);
+        ACPI_NS_WALK_UNLOCK, AcpiEvRegRun, NULL, &Info, NULL);
 
     /* Special case for EC: handle "orphan" _REG methods with no region */
 
@@ -654,6 +687,10 @@ AcpiEvExecuteRegMethods (
     {
         AcpiEvOrphanEcRegMethod (Node);
     }
+
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_NAMES,
+        "    Executed %u _REG methods for SpaceId %s\n",
+        Info.RegRunCount, AcpiUtGetRegionName (Info.SpaceId)));
 
     return_ACPI_STATUS (Status);
 }
@@ -678,11 +715,11 @@ AcpiEvRegRun (
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_NAMESPACE_NODE     *Node;
-    ACPI_ADR_SPACE_TYPE     SpaceId;
     ACPI_STATUS             Status;
+    ACPI_REG_WALK_INFO      *Info;
 
 
-    SpaceId = *ACPI_CAST_PTR (ACPI_ADR_SPACE_TYPE, Context);
+    Info = ACPI_CAST_PTR (ACPI_REG_WALK_INFO, Context);
 
     /* Convert and validate the device handle */
 
@@ -714,13 +751,14 @@ AcpiEvRegRun (
 
     /* Object is a Region */
 
-    if (ObjDesc->Region.SpaceId != SpaceId)
+    if (ObjDesc->Region.SpaceId != Info->SpaceId)
     {
         /* This region is for a different address space, just ignore it */
 
         return (AE_OK);
     }
 
+    Info->RegRunCount++;
     Status = AcpiEvExecuteRegMethod (ObjDesc, ACPI_REG_CONNECT);
     return (Status);
 }

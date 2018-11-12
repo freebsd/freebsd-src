@@ -100,7 +100,7 @@ struct sockaddr_in {
 	char	sin_zero[8];
 };
 
-#if !defined(_KERNEL) && __BSD_VISIBLE
+#if !defined(_KERNEL) && __POSIX_VISIBLE >= 200112
 
 #ifndef _BYTEORDER_PROTOTYPED
 #define	_BYTEORDER_PROTOTYPED
@@ -120,7 +120,7 @@ __END_DECLS
 #define	ntohs(x)	__ntohs(x)
 #endif
 
-#endif /* !_KERNEL && __BSD_VISIBLE */
+#endif /* !_KERNEL && __POSIX_VISIBLE >= 200112 */
 
 #if __POSIX_VISIBLE >= 200112
 #define	IPPROTO_IPV6		41		/* IP6 header */
@@ -237,6 +237,7 @@ __END_DECLS
 #define	IPPROTO_IPCOMP		108		/* payload compression (IPComp) */
 #define	IPPROTO_SCTP		132		/* SCTP */
 #define	IPPROTO_MH		135		/* IPv6 Mobility Header */
+#define	IPPROTO_UDPLITE		136		/* UDP-Lite */
 #define	IPPROTO_HIP		139		/* IP6 Host Identity Protocol */
 #define	IPPROTO_SHIM6		140		/* IP6 Shim6 Protocol */
 /* 101-254: Partly Unassigned */
@@ -427,10 +428,11 @@ __END_DECLS
 #define	IP_RECVIF		20   /* bool; receive reception if w/dgram */
 /* for IPSEC */
 #define	IP_IPSEC_POLICY		21   /* int; set/get security policy */
-#define	IP_FAITH		22   /* bool; accept FAITH'ed connections */
-
+				     /* unused; was IP_FAITH */
 #define	IP_ONESBCAST		23   /* bool: send all-ones broadcast */
 #define	IP_BINDANY		24   /* bool: allow bind to any address */
+#define	IP_BINDMULTI		25   /* bool: allow multiple listeners on a tuple */
+#define	IP_RSS_LISTEN_BUCKET	26   /* int; set RSS listen bucket */
 
 /*
  * Options for controlling the firewall and dummynet.
@@ -484,6 +486,13 @@ __END_DECLS
 #define	MCAST_LEAVE_SOURCE_GROUP	83   /* leave a single source */
 #define	MCAST_BLOCK_SOURCE		84   /* block a source */
 #define	MCAST_UNBLOCK_SOURCE		85   /* unblock a source */
+
+/* Flow and RSS definitions */
+#define	IP_FLOWID		90   /* get flow id for the given socket/inp */
+#define	IP_FLOWTYPE		91   /* get flow type (M_HASHTYPE) */
+#define	IP_RSSBUCKETID		92   /* get RSS flowid -> bucket mapping */
+#define	IP_RECVFLOWID		93   /* bool; receive IP flowid/flowtype w/ datagram */
+#define	IP_RECVRSSBUCKETID	94   /* bool; receive IP RSS bucket id w/ datagram */
 
 /*
  * Defaults and limits for options
@@ -602,14 +611,7 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #define	IP_PORTRANGE_LOW	2	/* "low" - vouchsafe security */
 
 /*
- * Definitions for inet sysctl operations.
- *
- * Third level is protocol number.
- * Fourth level is desired variable within that protocol.
- */
-
-/*
- * Names for IP sysctl objects
+ * Identifiers for IP sysctl nodes
  */
 #define	IPCTL_FORWARDING	1	/* act as router */
 #define	IPCTL_SENDREDIRECTS	2	/* may send redirects when forwarding */
@@ -617,9 +619,9 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #ifdef notyet
 #define	IPCTL_DEFMTU		4	/* default MTU */
 #endif
-#define	IPCTL_RTEXPIRE		5	/* cloned route expiration time */
-#define	IPCTL_RTMINEXPIRE	6	/* min value for expiration time */
-#define	IPCTL_RTMAXCACHE	7	/* trigger level for dynamic expire */
+/*	IPCTL_RTEXPIRE		5	deprecated */
+/*	IPCTL_RTMINEXPIRE	6	deprecated */
+/*	IPCTL_RTMAXCACHE	7	deprecated */
 #define	IPCTL_SOURCEROUTE	8	/* may perform source routes */
 #define	IPCTL_DIRECTEDBROADCAST	9	/* may re-broadcast received packets */
 #define	IPCTL_INTRQMAXLEN	10	/* max length of netisr queue */
@@ -627,9 +629,8 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #define	IPCTL_STATS		12	/* ipstat structure */
 #define	IPCTL_ACCEPTSOURCEROUTE	13	/* may accept source routed packets */
 #define	IPCTL_FASTFORWARDING	14	/* use fast IP forwarding code */
-#define	IPCTL_KEEPFAITH		15	/* FAITH IPv4->IPv6 translater ctl */
+					/* 15, unused, was: IPCTL_KEEPFAITH  */
 #define	IPCTL_GIF_TTL		16	/* default TTL for gif encap packet */
-#define	IPCTL_MAXID		17
 
 #endif /* __BSD_VISIBLE */
 
@@ -641,6 +642,7 @@ int	 in_broadcast(struct in_addr, struct ifnet *);
 int	 in_canforward(struct in_addr);
 int	 in_localaddr(struct in_addr);
 int	 in_localip(struct in_addr);
+int	 in_ifhasaddr(struct ifnet *, struct in_addr);
 int	 inet_aton(const char *, struct in_addr *); /* in libkern */
 char	*inet_ntoa(struct in_addr); /* in libkern */
 char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */

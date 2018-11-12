@@ -3,7 +3,7 @@
 
 Summary: Apache Portable Runtime Utility library
 Name: apr-util
-Version: 1.5.3
+Version: 1.5.4
 Release: 1
 License: Apache Software License
 Group: System Environment/Libraries

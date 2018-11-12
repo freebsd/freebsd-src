@@ -1193,7 +1193,7 @@ _mm_srli_epi64 (__m128i __A, int __B)
 #define _mm_srli_epi32(__A, __B) \
   ((__m128i)__builtin_ia32_psrldi128 ((__v4si)(__A), __B))
 #define _mm_srli_epi64(__A, __B) \
-  ((__m128i)__builtin_ia32_psrlqi128 ((__v4si)(__A), __B))
+  ((__m128i)__builtin_ia32_psrlqi128 ((__v2di)(__A), __B))
 #endif
 
 static __inline __m128i __attribute__((__always_inline__))

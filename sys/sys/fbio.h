@@ -115,19 +115,7 @@ struct fb_info;
 
 typedef int fb_enter_t(void *priv);
 typedef int fb_leave_t(void *priv);
-typedef int fb_write_t(void *priv, int offset, void *data, int size);
-typedef int fb_read_t(void *priv, int offset, void *data, int size);
-
-/* XXX: should use priv instead of fb_info too. */
-typedef void fb_copy_t(struct fb_info *sc, uint32_t offset_to, uint32_t offset_from,
-    uint32_t size);
-typedef void fb_wr1_t(struct fb_info *sc, uint32_t offset, uint8_t value);
-typedef void fb_wr2_t(struct fb_info *sc, uint32_t offset, uint16_t value);
-typedef void fb_wr4_t(struct fb_info *sc, uint32_t offset, uint32_t value);
-
-typedef int fb_ioctl_t(struct cdev *, u_long, caddr_t, int, struct thread *);
-typedef int fb_mmap_t(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int prot, vm_memattr_t *memattr);
+typedef int fb_setblankmode_t(void *priv, int mode);
 
 struct fb_info {
 	/* Raw copy of fbtype. Do not change. */
@@ -138,29 +126,24 @@ struct fb_info {
 	int		fb_cmsize;	/* size of color map (entries) */
 	int		fb_size;	/* total size in bytes */
 
-	/* Methods. */
-	fb_write_t	*fb_write;	/* if NULL, direct mem write. */
-	fb_read_t	*fb_read;	/* if NULL, direct mem read. */
-	fb_ioctl_t	*fb_ioctl;	/* Can be NULL. */
-	fb_mmap_t	*fb_mmap;	/* Can be NULL. */
-
 	struct cdev 	*fb_cdev;
 
-	fb_wr1_t	*wr1;
-	fb_wr2_t	*wr2;
-	fb_wr4_t	*wr4;
-	fb_copy_t	*copy;
+	device_t	 fb_fbd_dev;	/* "fbd" device. */
+	device_t	 fb_video_dev;	/* Video adapter. */
+
 	fb_enter_t	*enter;
 	fb_leave_t	*leave;
+	fb_setblankmode_t *setblankmode;
 
 	intptr_t	fb_pbase;	/* For FB mmap. */
 	intptr_t	fb_vbase;	/* if NULL, use fb_write/fb_read. */
 	void		*fb_priv;	/* First argument for read/write. */
 	const char	*fb_name;
 	uint32_t	fb_flags;
+#define	FB_FLAG_NOMMAP		1	/* mmap unsupported. */
+#define	FB_FLAG_NOWRITE		2	/* disable writes for the time being */
 	int		fb_stride;
 	int		fb_bpp;		/* bits per pixel */
-#define	FB_FLAG_NOMMAP		1	/* mmap unsupported. */
 	uint32_t	fb_cmap[16];
 };
 

@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.24 2005/01/29 19:30:06 tom Exp $
+# $Id: Makefile.in,v 1.38 2014/01/18 20:19:45 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,14 +27,16 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
+# Author: Thomas E. Dickey		1996-on
 #
 # Master Makefile for ncurses library.
 
 SHELL = /bin/sh
+VPATH		= @srcdir@
 
 DESTDIR=@DESTDIR@
-CF_MFLAGS = @cf_cv_makeflags@ DESTDIR="$(DESTDIR)"
+RPATH_LIST=@RPATH_LIST@
+TOP_MFLAGS = @cf_cv_makeflags@ DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
 
 @SET_MAKE@
 
@@ -42,14 +44,21 @@ NCURSES_MAJOR	= @NCURSES_MAJOR@
 NCURSES_MINOR	= @NCURSES_MINOR@
 NCURSES_PATCH	= @NCURSES_PATCH@
 
+top_srcdir	= @top_srcdir@
+srcdir		= @srcdir@
+
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
+datarootdir	= @datarootdir@
 
 bindir		= @bindir@
 ticdir		= @TERMINFO@
 includedir	= @includedir@
+includesubdir	= @includesubdir@
 libdir		= @libdir@
 mandir		= @mandir@
+
+include_dir	= ${includedir}${includesubdir}
 
 INSTALL		= @INSTALL@
 INSTALL_DATA	= @INSTALL_DATA@
@@ -70,18 +79,22 @@ preinstall :
 	@ echo ''
 	@ echo '      bin directory: '$(bindir)
 	@ echo '      lib directory: '$(libdir)
-	@ echo '  include directory: '$(includedir)
+	@ echo '  include directory: '$(include_dir)
 	@ echo '      man directory: '$(mandir)
 @MAKE_TERMINFO@	@ echo ' terminfo directory: '$(ticdir)
 	@ echo ''
-	@ test "$(includedir)" = "$(prefix)/include" || \
+	@ test "$(include_dir)" = "$(prefix)/include" || \
 		echo '** Include-directory is not in a standard location'
-	@ test ! -f $(includedir)/termcap.h || \
-		fgrep NCURSES_VERSION $(includedir)/termcap.h >/dev/null || \
+	@ test ! -f $(include_dir)/termcap.h || \
+		fgrep NCURSES_VERSION $(include_dir)/termcap.h >/dev/null || \
 		echo '** Will overwrite non-ncurses termcap.h'
-	@ test ! -f $(includedir)/curses.h || \
-		fgrep NCURSES_VERSION $(includedir)/curses.h >/dev/null || \
+	@ test ! -f $(include_dir)/curses.h || \
+		fgrep NCURSES_VERSION $(include_dir)/curses.h >/dev/null || \
 		echo '** Will overwrite non-ncurses curses.h'
+
+distclean \
+realclean ::
+
 
 # Put the common rules here so that we can easily construct the list of
 # directories to visit.

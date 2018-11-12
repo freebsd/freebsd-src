@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-
-#define __RSUTILS_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -177,7 +174,7 @@ AcpiRsMoveData (
         case ACPI_RSC_MOVE_SERIAL_VEN:
         case ACPI_RSC_MOVE_SERIAL_RES:
 
-            ACPI_MEMCPY (Destination, Source, ItemCount);
+            memcpy (Destination, Source, ItemCount);
             return;
 
         /*
@@ -411,11 +408,11 @@ AcpiRsGetResourceSource (
          *
          * Zero the entire area of the buffer.
          */
-        TotalLength = (UINT32) ACPI_STRLEN (
+        TotalLength = (UINT32) strlen (
             ACPI_CAST_PTR (char, &AmlResourceSource[1])) + 1;
         TotalLength = (UINT32) ACPI_ROUND_UP_TO_NATIVE_WORD (TotalLength);
 
-        ACPI_MEMSET (ResourceSource->StringPtr, 0, TotalLength);
+        memset (ResourceSource->StringPtr, 0, TotalLength);
 
         /* Copy the ResourceSource string to the destination */
 
@@ -480,7 +477,7 @@ AcpiRsSetResourceSource (
 
         /* Copy the ResourceSource string */
 
-        ACPI_STRCPY (ACPI_CAST_PTR (char, &AmlResourceSource[1]),
+        strcpy (ACPI_CAST_PTR (char, &AmlResourceSource[1]),
             ResourceSource->StringPtr);
 
         /*
@@ -827,7 +824,7 @@ AcpiRsSetSrsMethodData (
      * Convert the linked list into a byte stream
      */
     Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiRsCreateAmlResources (InBuffer->Pointer, &Buffer);
+    Status = AcpiRsCreateAmlResources (InBuffer, &Buffer);
     if (ACPI_FAILURE (Status))
     {
         goto Cleanup;

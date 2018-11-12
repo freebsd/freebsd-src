@@ -2345,6 +2345,8 @@ mdns		5353/tcp   #Multicast DNS
 mdns		5353/udp   #Multicast DNS
 postgresql	5432/tcp   #PostgreSQL Database
 postgresql	5432/udp   #PostgreSQL Database
+vami		5480/tcp   #VMware Appliance Management Interface, HTTPS-like
+vami		5480/udp   #VMware Appliance Management Interface, HTTPS-like
 rplay		5555/udp
 amqp		5672/sctp  #AMQP
 amqp		5672/tcp   #AMQP
@@ -2363,6 +2365,8 @@ prosharerequest	5716/tcp   #proshare conf request
 prosharerequest	5716/udp   #proshare conf request
 prosharenotify	5717/tcp   #proshare conf notify
 prosharenotify	5717/udp   #proshare conf notify
+couchdb		5984/tcp   #CouchDB database server
+couchdb		5984/udp   #CouchDB database server
 cvsup		5999/tcp   #CVSup file transfer/John Polstra/FreeBSD
 x11		6000/tcp   #6000-6063 are assigned to X Window System
 x11		6000/udp

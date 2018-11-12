@@ -149,24 +149,25 @@ static SYSCTL_NODE(_net, OID_AUTO, isr, CTLFLAG_RW, 0, "netisr");
 #define	NETISR_DISPATCH_POLICY_MAXSTR	20 /* Used for temporary buffers. */
 static u_int	netisr_dispatch_policy = NETISR_DISPATCH_POLICY_DEFAULT;
 static int	sysctl_netisr_dispatch_policy(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_net_isr, OID_AUTO, dispatch, CTLTYPE_STRING | CTLFLAG_RW |
-    CTLFLAG_TUN, 0, 0, sysctl_netisr_dispatch_policy, "A",
+SYSCTL_PROC(_net_isr, OID_AUTO, dispatch, CTLTYPE_STRING | CTLFLAG_RWTUN,
+    0, 0, sysctl_netisr_dispatch_policy, "A",
     "netisr dispatch policy");
 
 /*
  * Allow the administrator to limit the number of threads (CPUs) to use for
  * netisr.  We don't check netisr_maxthreads before creating the thread for
- * CPU 0, so in practice we ignore values <= 1.  This must be set at boot.
- * We will create at most one thread per CPU.
+ * CPU 0. This must be set at boot. We will create at most one thread per CPU.
+ * By default we initialize this to 1 which would assign just 1 cpu (cpu0) and
+ * therefore only 1 workstream. If set to -1, netisr would use all cpus
+ * (mp_ncpus) and therefore would have those many workstreams. One workstream
+ * per thread (CPU).
  */
-static int	netisr_maxthreads = -1;		/* Max number of threads. */
-TUNABLE_INT("net.isr.maxthreads", &netisr_maxthreads);
+static int	netisr_maxthreads = 1;		/* Max number of threads. */
 SYSCTL_INT(_net_isr, OID_AUTO, maxthreads, CTLFLAG_RDTUN,
     &netisr_maxthreads, 0,
     "Use at most this many CPUs for netisr processing");
 
 static int	netisr_bindthreads = 0;		/* Bind threads to CPUs. */
-TUNABLE_INT("net.isr.bindthreads", &netisr_bindthreads);
 SYSCTL_INT(_net_isr, OID_AUTO, bindthreads, CTLFLAG_RDTUN,
     &netisr_bindthreads, 0, "Bind netisr threads to CPUs.");
 
@@ -177,7 +178,6 @@ SYSCTL_INT(_net_isr, OID_AUTO, bindthreads, CTLFLAG_RDTUN,
  */
 #define	NETISR_DEFAULT_MAXQLIMIT	10240
 static u_int	netisr_maxqlimit = NETISR_DEFAULT_MAXQLIMIT;
-TUNABLE_INT("net.isr.maxqlimit", &netisr_maxqlimit);
 SYSCTL_UINT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RDTUN,
     &netisr_maxqlimit, 0,
     "Maximum netisr per-protocol, per-CPU queue depth.");
@@ -189,7 +189,6 @@ SYSCTL_UINT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RDTUN,
  */
 #define	NETISR_DEFAULT_DEFAULTQLIMIT	256
 static u_int	netisr_defaultqlimit = NETISR_DEFAULT_DEFAULTQLIMIT;
-TUNABLE_INT("net.isr.defaultqlimit", &netisr_defaultqlimit);
 SYSCTL_UINT(_net_isr, OID_AUTO, defaultqlimit, CTLFLAG_RDTUN,
     &netisr_defaultqlimit, 0,
     "Default netisr per-protocol, per-CPU queue limit if not set by protocol");
@@ -686,12 +685,13 @@ netisr_select_cpuid(struct netisr_proto *npp, u_int dispatch_policy,
 	}
 
 	if (policy == NETISR_POLICY_FLOW) {
-		if (!(m->m_flags & M_FLOWID) && npp->np_m2flow != NULL) {
+		if (M_HASHTYPE_GET(m) == M_HASHTYPE_NONE &&
+		    npp->np_m2flow != NULL) {
 			m = npp->np_m2flow(m, source);
 			if (m == NULL)
 				return (NULL);
 		}
-		if (m->m_flags & M_FLOWID) {
+		if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 			*cpuidp =
 			    netisr_default_flow2cpu(m->m_pkthdr.flowid);
 			return (m);
@@ -1120,15 +1120,13 @@ netisr_start_swi(u_int cpuid, struct pcpu *pc)
 static void
 netisr_init(void *arg)
 {
-	char tmp[NETISR_DISPATCH_POLICY_MAXSTR];
-	u_int dispatch_policy;
-	int error;
-
 	KASSERT(curcpu == 0, ("%s: not on CPU 0", __func__));
 
 	NETISR_LOCK_INIT();
-	if (netisr_maxthreads < 1)
-		netisr_maxthreads = 1;
+	if (netisr_maxthreads == 0 || netisr_maxthreads < -1 )
+		netisr_maxthreads = 1;		/* default behavior */
+	else if (netisr_maxthreads == -1)
+		netisr_maxthreads = mp_ncpus;	/* use max cpus */
 	if (netisr_maxthreads > mp_ncpus) {
 		printf("netisr_init: forcing maxthreads from %d to %d\n",
 		    netisr_maxthreads, mp_ncpus);
@@ -1152,20 +1150,6 @@ netisr_init(void *arg)
 		netisr_bindthreads = 0;
 	}
 #endif
-
-	if (TUNABLE_STR_FETCH("net.isr.dispatch", tmp, sizeof(tmp))) {
-		error = netisr_dispatch_policy_from_str(tmp,
-		    &dispatch_policy);
-		if (error == 0 && dispatch_policy == NETISR_DISPATCH_DEFAULT)
-			error = EINVAL;
-		if (error == 0)
-			netisr_dispatch_policy = dispatch_policy;
-		else
-			printf(
-			    "%s: invalid dispatch policy %s, using default\n",
-			    __func__, tmp);
-	}
-
 	netisr_start_swi(curcpu, pcpu_find(curcpu));
 }
 SYSINIT(netisr_init, SI_SUB_SOFTINTR, SI_ORDER_FIRST, netisr_init, NULL);

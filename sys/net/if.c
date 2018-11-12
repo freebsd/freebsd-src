@@ -31,6 +31,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_device_polling.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
 
@@ -63,17 +64,22 @@
 #include <machine/stdarg.h>
 #include <vm/uma.h>
 
+#include <net/bpf.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
+#include <net/if_media.h>
+#include <net/if_vlan_var.h>
 #include <net/radix.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
+#include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -94,16 +100,13 @@
 #include <compat/freebsd32/freebsd32.h>
 #endif
 
-struct ifindex_entry {
-	struct  ifnet *ife_ifnet;
-};
+/* Interface media functions, living in if_media.c. */
+extern void 	ifmedia_alloc(struct ifnet *, struct if_attach_args *);
+extern void	ifmedia_free(struct ifnet *);
+extern int	ifmedia_ioctl(struct ifnet *, struct ifreq *, u_long);
 
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
-
-TUNABLE_INT("net.link.ifqmaxlen", &ifqmaxlen);
-SYSCTL_INT(_net_link, OID_AUTO, ifqmaxlen, CTLFLAG_RDTUN,
-    &ifqmaxlen, 0, "max send queue size");
 
 /* Log link state change events */
 static int log_link_state_change = 1;
@@ -159,22 +162,19 @@ static void	if_attachdomain(void *);
 static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
-static void	if_init(void *);
 static void	if_grow(void);
-static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
-static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
-static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
-static int	if_rtdel(struct radix_node *, void *);
-static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
 static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
-static void	if_attach_internal(struct ifnet *, int);
-static void	if_detach_internal(struct ifnet *, int);
+static void	if_attach_internal(struct ifnet *, int, struct if_clone *);
+static void	if_detach_internal(struct ifnet *, int, struct if_clone **);
+static struct ifqueue * if_snd_alloc(int);
+static void	if_snd_free(struct ifqueue *);
+static void	if_snd_qflush(if_t);
 
 #ifdef INET6
 /*
@@ -185,17 +185,28 @@ extern void	nd6_setmtu(struct ifnet *);
 #endif
 
 VNET_DEFINE(int, if_index);
-int	ifqmaxlen = IFQ_MAXLEN;
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
 VNET_DEFINE(struct ifgrouphead, ifg_head);
 
 static VNET_DEFINE(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
-VNET_DEFINE(struct ifindex_entry *, ifindex_table);
+VNET_DEFINE(struct ifnet **, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
+
+static struct iftsomax default_tsomax = {
+	/*
+	 * The TSO defaults need to be such that an NFS mbuf list of 35
+	 * mbufs totalling just below 64K works and that a chain of mbufs
+	 * can be defragged into at most 32 segments.
+	 */
+	.tsomax_bytes = MIN(IP_MAXPACKET, (32 * MCLBYTES) - (ETHER_HDR_LEN +
+	    ETHER_VLAN_ENCAP_LEN)),
+	.tsomax_segcount = 35,
+	.tsomax_segsize = 2048,
+};
 
 /*
  * The global network interface list (V_ifnet) and related state (such as
@@ -207,7 +218,9 @@ VNET_DEFINE(struct ifindex_entry *, ifindex_table);
  * inversions and deadlocks.
  */
 struct rwlock ifnet_rwlock;
+RW_SYSINIT_FLAGS(ifnet_rw, &ifnet_rwlock, "ifnet_rw", RW_RECURSE);
 struct sx ifnet_sxlock;
+SX_SYSINIT_FLAGS(ifnet_sx, &ifnet_sxlock, "ifnet_sx", SX_RECURSE);
 
 /*
  * The allocation of network interfaces is a rather non-atomic affair; we
@@ -216,12 +229,11 @@ struct sx ifnet_sxlock;
  */
 #define	IFNET_HOLD	(void *)(uintptr_t)(-1)
 
-static	if_com_alloc_t *if_com_alloc[256];
-static	if_com_free_t *if_com_free[256];
-
 static MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
+
+static struct ifops ifdead_ops;
 
 struct ifnet *
 ifnet_byindex_locked(u_short idx)
@@ -229,9 +241,9 @@ ifnet_byindex_locked(u_short idx)
 
 	if (idx > V_if_index)
 		return (NULL);
-	if (V_ifindex_table[idx].ife_ifnet == IFNET_HOLD)
+	if (V_ifindex_table[idx] == IFNET_HOLD)
 		return (NULL);
-	return (V_ifindex_table[idx].ife_ifnet);
+	return (V_ifindex_table[idx]);
 }
 
 struct ifnet *
@@ -262,23 +274,21 @@ ifnet_byindex_ref(u_short idx)
 }
 
 /*
- * Allocate an ifindex array entry; return 0 on success or an error on
- * failure.
+ * Allocate an ifindex array entry.
  */
-static int
-ifindex_alloc_locked(u_short *idxp)
+static void
+ifindex_alloc(struct ifnet *ifp)
 {
 	u_short idx;
 
-	IFNET_WLOCK_ASSERT();
-
+	IFNET_WLOCK();
 retry:
 	/*
 	 * Try to find an empty slot below V_if_index.  If we fail, take the
 	 * next slot.
 	 */
 	for (idx = 1; idx <= V_if_index; idx++) {
-		if (V_ifindex_table[idx].ife_ifnet == NULL)
+		if (V_ifindex_table[idx] == NULL)
 			break;
 	}
 
@@ -289,57 +299,32 @@ retry:
 	}
 	if (idx > V_if_index)
 		V_if_index = idx;
-	*idxp = idx;
-	return (0);
-}
-
-static void
-ifindex_free_locked(u_short idx)
-{
-
-	IFNET_WLOCK_ASSERT();
-
-	V_ifindex_table[idx].ife_ifnet = NULL;
-	while (V_if_index > 0 &&
-	    V_ifindex_table[V_if_index].ife_ifnet == NULL)
-		V_if_index--;
+	V_ifindex_table[idx] = ifp;
+	ifp->if_index = idx;
+	IFNET_WUNLOCK();
 }
 
 static void
 ifindex_free(u_short idx)
 {
 
-	IFNET_WLOCK();
-	ifindex_free_locked(idx);
-	IFNET_WUNLOCK();
-}
-
-static void
-ifnet_setbyindex_locked(u_short idx, struct ifnet *ifp)
-{
-
 	IFNET_WLOCK_ASSERT();
 
-	V_ifindex_table[idx].ife_ifnet = ifp;
-}
-
-static void
-ifnet_setbyindex(u_short idx, struct ifnet *ifp)
-{
-
-	IFNET_WLOCK();
-	ifnet_setbyindex_locked(idx, ifp);
-	IFNET_WUNLOCK();
+	V_ifindex_table[idx] = NULL;
+	while (V_if_index > 0 &&
+	    V_ifindex_table[V_if_index] == NULL)
+		V_if_index--;
 }
 
 struct ifaddr *
 ifaddr_byindex(u_short idx)
 {
-	struct ifaddr *ifa;
+	struct ifnet *ifp;
+	struct ifaddr *ifa = NULL;
 
 	IFNET_RLOCK_NOSLEEP();
-	ifa = ifnet_byindex_locked(idx)->if_addr;
-	if (ifa != NULL)
+	ifp = ifnet_byindex_locked(idx);
+	if (ifp != NULL && (ifa = ifp->if_addr) != NULL)
 		ifa_ref(ifa);
 	IFNET_RUNLOCK_NOSLEEP();
 	return (ifa);
@@ -366,17 +351,6 @@ vnet_if_init(const void *unused __unused)
 VNET_SYSINIT(vnet_if_init, SI_SUB_INIT_IF, SI_ORDER_SECOND, vnet_if_init,
     NULL);
 
-/* ARGSUSED*/
-static void
-if_init(void *dummy __unused)
-{
-
-	IFNET_LOCK_INIT();
-	if_clone_init();
-}
-SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_FIRST, if_init, NULL);
-
-
 #ifdef VIMAGE
 static void
 vnet_if_uninit(const void *unused __unused)
@@ -398,7 +372,7 @@ if_grow(void)
 {
 	int oldlim;
 	u_int n;
-	struct ifindex_entry *e;
+	struct ifnet **e;
 
 	IFNET_WLOCK_ASSERT();
 	oldlim = V_if_indexlim;
@@ -419,51 +393,264 @@ if_grow(void)
 }
 
 /*
+ * Registration/deregistration of interface types.  A type can carry
+ * common methods.  Certain drivers depend on types to be loaded.
+ */
+static SLIST_HEAD(, iftype) iftypehead = SLIST_HEAD_INITIALIZER(iftypehead);
+void
+iftype_register(struct iftype *ift)
+{
+
+	IFNET_WLOCK();
+	SLIST_INSERT_HEAD(&iftypehead, ift, ift_next);
+	IFNET_WUNLOCK();
+}
+
+void
+iftype_unregister(struct iftype *ift)
+{
+
+	IFNET_WLOCK();
+	SLIST_REMOVE(&iftypehead, ift, iftype, ift_next);
+	IFNET_WUNLOCK();
+}
+
+static struct iftype *
+iftype_find(ifType type)
+{
+	struct iftype *ift;
+
+	IFNET_RLOCK();
+	SLIST_FOREACH(ift, &iftypehead, ift_next)
+		if (ift->ift_type == type)
+			break;
+	IFNET_RUNLOCK();
+
+	return (ift);
+}
+
+#define	ifdrv_flags		__ifdrv_stack_owned
+#define	IFDRV_BLESSED		0x00000001
+
+static void
+ifdriver_bless(struct ifdriver *ifdrv, struct iftype *ift)
+{
+
+	/*
+	 * If the driver doesn't define certain op, but its type has
+	 * default implementation, then copy it.
+	 */
+	if (ift != NULL) {
+#define	COPYOP(op)	if (ifdrv->ifdrv_ops.ifop_ ## op == NULL)	\
+				ifdrv->ifdrv_ops.ifop_ ## op =		\
+				    ift->ift_ops.ifop_ ## op
+		COPYOP(input);
+		COPYOP(transmit);
+		COPYOP(output);
+		COPYOP(ioctl);
+		COPYOP(get_counter);
+		COPYOP(qflush);
+		COPYOP(resolvemulti);
+		COPYOP(reassign);
+#undef COPYOP
+#define	COPY(f)		if (ifdrv->ifdrv_ ## f == 0)			\
+				ifdrv->ifdrv_ ## f = ift->ift_ ## f
+		COPY(hdrlen);
+		COPY(addrlen);
+		COPY(dlt);
+		COPY(dlt_hdrlen);
+#undef COPY
+	}
+
+	/*
+	 * If the driver has ifdrv_maxqlen defined, then opts-in
+	 * for * generic software queue, and thus for default
+	 * ifop_qflush.
+	 */
+	if (ifdrv->ifdrv_maxqlen > 0) {
+		KASSERT(ifdrv->ifdrv_ops.ifop_qflush == NULL,
+		    ("%s: fdrv_maxqlen > 0 and ifop_qflush",
+		    ifdrv->ifdrv_name));
+		ifdrv->ifdrv_ops.ifop_qflush = if_snd_qflush;
+	}
+
+	/*
+	 * If neither driver nor its type has a definitation of an op
+	 * that is mandatory, then set it to default implementation.
+	 */
+#define	DEFAULTOP(op)	if (ifdrv->ifdrv_ops.ifop_ ## op == NULL)	\
+				ifdrv->ifdrv_ops.ifop_ ## op =		\
+				    if_ ## op ## _default
+	DEFAULTOP(get_counter);
+#undef DEFAULTOP
+
+#if defined(INET) || defined(INET6)
+	/* Use defaults for TSO, if nothing is set. */
+	if (ifdrv->ifdrv_tsomax == NULL)
+		ifdrv->ifdrv_tsomax = &default_tsomax;
+	else
+		KASSERT(ifdrv->ifdrv_tsomax->tsomax_bytes == 0 ||
+		    ifdrv->ifdrv_tsomax->tsomax_bytes >= (IP_MAXPACKET / 8),
+		    ("%s: tsomax_bytes is outside of range",
+		    ifdrv->ifdrv_name));
+#endif
+
+	ifdrv->ifdrv_ops.ifop_origin = IFOP_ORIGIN_DRIVER;
+	ifdrv->ifdrv_flags |= IFDRV_BLESSED;
+}
+
+/*
  * Allocate a struct ifnet and an index for an interface.  A layer 2
  * common structure will also be allocated if an allocation routine is
  * registered for the passed type.
+ *
+ * The only reason for this function to fail is failure to allocate a
+ * unit number, which is possible only if driver does cloning.
  */
-struct ifnet *
-if_alloc(u_char type)
+if_t
+if_attach(struct if_attach_args *ifat)
 {
+	struct ifdriver *ifdrv;
+	struct iftype *ift;
 	struct ifnet *ifp;
-	u_short idx;
+	struct ifaddr *ifa;
+	struct sockaddr_dl *sdl;
+	int socksize, ifasize, namelen, masklen;
 
-	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
-	IFNET_WLOCK();
-	if (ifindex_alloc_locked(&idx) != 0) {
-		IFNET_WUNLOCK();
-		free(ifp, M_IFNET);
-		return (NULL);
-	}
-	ifnet_setbyindex_locked(idx, IFNET_HOLD);
-	IFNET_WUNLOCK();
-	ifp->if_index = idx;
-	ifp->if_type = type;
-	ifp->if_alloctype = type;
-	if (if_com_alloc[type] != NULL) {
-		ifp->if_l2com = if_com_alloc[type](type, ifp);
-		if (ifp->if_l2com == NULL) {
-			free(ifp, M_IFNET);
-			ifindex_free(idx);
+	KASSERT(ifat->ifat_version == IF_ATTACH_VERSION,
+	    ("%s: version %d, expected %d",
+	    __func__, ifat->ifat_version, IF_ATTACH_VERSION));
+
+	ifdrv = ifat->ifat_drv;
+	ift = iftype_find(ifdrv->ifdrv_type);
+	if ((ifdrv->ifdrv_flags & IFDRV_BLESSED) == 0)
+		ifdriver_bless(ifdrv, ift);
+
+	if (ifdrv->ifdrv_clone != NULL) {
+		int error;
+
+		error = ifc_alloc_unit(ifdrv->ifdrv_clone, &ifat->ifat_dunit);
+		if (error) {
+			log(LOG_WARNING, "%s unit allocation failure: %d\n",
+			    ifdrv->ifdrv_name, error);
+			ifat->ifat_error = error;
 			return (NULL);
 		}
 	}
 
-	IF_ADDR_LOCK_INIT(ifp);
-	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
-	ifp->if_afdata_initialized = 0;
+	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK | M_ZERO);
+	ifp->if_scstore = malloc(sizeof(struct ifsoftc) * SOFTC_CACHE_SIZE,
+	    M_IFNET, M_WAITOK | M_ZERO);
+	ifp->if_nsoftcs = SOFTC_CACHE_SIZE;
+	for (int i = 0; i < IFCOUNTERS; i++)
+		ifp->if_counters[i] = counter_u64_alloc(M_WAITOK);
+#ifdef MAC
+	mac_ifnet_init(ifp);
+	mac_ifnet_create(ifp);
+#endif
+	rw_init(&ifp->if_lock, "if_lock");
+
+	ifp->if_ops = &ifdrv->ifdrv_ops;
+	ifp->if_drv = ifdrv;
+	ifp->if_type = ift;
+	
+#define	COPY(f)	ifp->if_ ## f = ifat->ifat_ ## f
+	COPY(softc);
+	COPY(mtu);
+	COPY(flags);
+	COPY(capabilities);
+	COPY(capenable);
+	COPY(hwassist);
+	COPY(baudrate);
+#undef COPY
+
+	if (ifat->ifat_mediae) {
+		KASSERT(ifp->if_ops->ifop_media_change != NULL &&
+		    ifp->if_ops->ifop_media_status != NULL,
+		    ("%s: media array but no callbacks", ifdrv->ifdrv_name));
+		ifmedia_alloc(ifp, ifat);
+	}
+
+	if (ifat->ifat_tsomax) {
+		/*
+		 * Driver wants dynamic tsomax on this interface, we
+		 * will allocate one and are responsible for freeing
+		 * it on detach.
+		 */
+		KASSERT(ifat->ifat_tsomax->tsomax_bytes == 0 ||
+		    ifat->ifat_tsomax->tsomax_bytes >= (IP_MAXPACKET / 8),
+		    ("%s: tsomax_bytes is outside of range",
+		    ifdrv->ifdrv_name));
+		ifp->if_tsomax = malloc(sizeof(struct iftsomax), M_IFNET,
+		    M_WAITOK);
+		bcopy(ifat->ifat_tsomax, ifp->if_tsomax,
+		    sizeof(struct iftsomax));
+	} else
+		ifp->if_tsomax = ifdrv->ifdrv_tsomax;
+
+	if (ifdrv->ifdrv_maxqlen > 0)
+		ifp->if_snd = if_snd_alloc(ifdrv->ifdrv_maxqlen);
+
 	IF_AFDATA_LOCK_INIT(ifp);
+	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
 	TAILQ_INIT(&ifp->if_addrhead);
 	TAILQ_INIT(&ifp->if_multiaddrs);
 	TAILQ_INIT(&ifp->if_groups);
-#ifdef MAC
-	mac_ifnet_init(ifp);
-#endif
-	ifq_init(&ifp->if_snd, ifp);
 
-	refcount_init(&ifp->if_refcount, 1);	/* Index reference. */
-	ifnet_setbyindex(ifp->if_index, ifp);
+	/* XXXGL: there is no check that name is unique. */
+	ifp->if_dunit = ifat->ifat_dunit;
+	if (ifat->ifat_name)
+		strlcpy(ifp->if_xname, ifat->ifat_name, IFNAMSIZ);
+	else if (ifat->ifat_dunit != IFAT_DUNIT_NONE)
+		snprintf(ifp->if_xname, IFNAMSIZ, "%s%d",
+		    ifdrv->ifdrv_name, ifat->ifat_dunit);
+	else
+		strlcpy(ifp->if_xname, ifdrv->ifdrv_name, IFNAMSIZ);
+
+	ifindex_alloc(ifp);
+	refcount_init(&ifp->if_refcount, 1);
+
+	/*
+	 * Allocate ifaddr to store link level address and name for this
+	 * interface.  Always save enough space for any possiable name so
+	 * we can do a rename in place later.
+	 */
+	namelen = strlen(ifp->if_xname);
+	masklen = offsetof(struct sockaddr_dl, sdl_data[0]) + IFNAMSIZ;
+	socksize = masklen + ifdrv->ifdrv_addrlen;
+	if (socksize < sizeof(*sdl))
+		socksize = sizeof(*sdl);
+	socksize = roundup2(socksize, sizeof(long));
+	ifasize = sizeof(*ifa) + 2 * socksize;
+	ifa = ifa_alloc(ifasize, M_WAITOK);
+	sdl = (struct sockaddr_dl *)(ifa + 1);
+	sdl->sdl_len = socksize;
+	sdl->sdl_family = AF_LINK;
+	bcopy(ifp->if_xname, sdl->sdl_data, namelen);
+	sdl->sdl_nlen = namelen;
+	sdl->sdl_index = ifp->if_index;
+	sdl->sdl_type = ifdrv->ifdrv_type;
+	sdl->sdl_alen = ifdrv->ifdrv_addrlen;
+	if (ifat->ifat_lla != NULL)
+		bcopy(ifat->ifat_lla, LLADDR(sdl), ifdrv->ifdrv_addrlen);
+	ifp->if_addr = ifa;
+	ifa->ifa_ifp = ifp;
+	ifa->ifa_rtrequest = link_rtrequest;
+	ifa->ifa_addr = (struct sockaddr *)sdl;
+	sdl = (struct sockaddr_dl *)(socksize + (char *)sdl);
+	ifa->ifa_netmask = (struct sockaddr *)sdl;
+	sdl->sdl_len = masklen;
+	while (namelen != 0)
+		sdl->sdl_data[--namelen] = 0xff;
+	TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
+
+	if (ift)
+		ift->ift_attach(ifp, ifat);
+
+	bpfattach(ifp, ifdrv->ifdrv_dlt, ifdrv->ifdrv_dlt_hdrlen);
+
+	if_attach_internal(ifp, 0, NULL);
+
 	return (ifp);
 }
 
@@ -479,41 +666,41 @@ if_free_internal(struct ifnet *ifp)
 	KASSERT((ifp->if_flags & IFF_DYING),
 	    ("if_free_internal: interface not dying"));
 
-	if (if_com_free[ifp->if_alloctype] != NULL)
-		if_com_free[ifp->if_alloctype](ifp->if_l2com,
-		    ifp->if_alloctype);
-
 #ifdef MAC
 	mac_ifnet_destroy(ifp);
 #endif /* MAC */
 	if (ifp->if_description != NULL)
 		free(ifp->if_description, M_IFDESCR);
 	IF_AFDATA_DESTROY(ifp);
-	IF_ADDR_LOCK_DESTROY(ifp);
-	ifq_delete(&ifp->if_snd);
+	if (ifp->if_snd)
+		if_snd_free(ifp->if_snd);
+
+	for (int i = 0; i < IFCOUNTERS; i++)
+		counter_u64_free(ifp->if_counters[i]);
+
+	if (ifp->if_tsomax != ifp->if_drv->ifdrv_tsomax)
+		free(ifp->if_tsomax, M_IFNET);
+
+	ifmedia_free(ifp);
+
+	rw_destroy(&ifp->if_lock);
 	free(ifp, M_IFNET);
 }
 
-/*
- * Deregister an interface and free the associated storage.
- */
 void
-if_free(struct ifnet *ifp)
+if_mtap(if_t ifp, struct mbuf *m, void *data, u_int dlen)
 {
 
-	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
+	if (!bpf_peers_present(ifp->if_bpf))
+		return;
 
-	CURVNET_SET_QUIET(ifp->if_vnet);
-	IFNET_WLOCK();
-	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
-	    ("%s: freeing unallocated ifnet", ifp->if_xname));
-
-	ifindex_free_locked(ifp->if_index);
-	IFNET_WUNLOCK();
-
-	if (refcount_release(&ifp->if_refcount))
-		if_free_internal(ifp);
-	CURVNET_RESTORE();
+	if (dlen == 0) {
+		if (m->m_flags & M_VLANTAG)
+			ether_vlan_mtap(ifp->if_bpf, m, NULL, 0);
+		else
+			bpf_mtap(ifp->if_bpf, m);
+	} else
+		bpf_mtap2(ifp->if_bpf, data, dlen, m);
 }
 
 /*
@@ -538,55 +725,69 @@ if_rele(struct ifnet *ifp)
 	if_free_internal(ifp);
 }
 
+/*
+ * Compute the least common TSO limit.
+ */
 void
-ifq_init(struct ifaltq *ifq, struct ifnet *ifp)
+if_tsomax_common(const struct iftsomax *from, struct iftsomax *to)
 {
-	
-	mtx_init(&ifq->ifq_mtx, ifp->if_xname, "if send queue", MTX_DEF);
 
-	if (ifq->ifq_maxlen == 0) 
-		ifq->ifq_maxlen = ifqmaxlen;
-
-	ifq->altq_type = 0;
-	ifq->altq_disc = NULL;
-	ifq->altq_flags &= ALTQF_CANTCHANGE;
-	ifq->altq_tbr  = NULL;
-	ifq->altq_ifp  = ifp;
-}
-
-void
-ifq_delete(struct ifaltq *ifq)
-{
-	mtx_destroy(&ifq->ifq_mtx);
+	/*
+	 * 1) If there is no limit currently, take the limit from
+	 * the network adapter.
+	 *
+	 * 2) If the network adapter has a limit below the current
+	 * limit, apply it.
+	 */
+	if (to->tsomax_bytes == 0 || (from->tsomax_bytes != 0 &&
+	    from->tsomax_bytes < to->tsomax_bytes)) {
+		to->tsomax_bytes = from->tsomax_bytes;
+	}
+	if (to->tsomax_segcount == 0 || (from->tsomax_segcount != 0 &&
+	    from->tsomax_segcount < to->tsomax_segcount)) {
+		to->tsomax_segcount = from->tsomax_segcount;
+	}
+	if (to->tsomax_segsize == 0 || (from->tsomax_segsize != 0 &&
+	    from->tsomax_segsize < to->tsomax_segsize)) {
+		to->tsomax_segsize = from->tsomax_segsize;
+	}
 }
 
 /*
- * Perform generic interface initalization tasks and attach the interface
- * to the list of "active" interfaces.  If vmove flag is set on entry
- * to if_attach_internal(), perform only a limited subset of initialization
- * tasks, given that we are moving from one vnet to another an ifnet which
- * has already been fully initialized.
+ * Update TSO limit of a network adapter.
  *
- * XXX:
- *  - The decision to return void and thus require this function to
- *    succeed is questionable.
- *  - We should probably do more sanity checking.  For instance we don't
- *    do anything to insure if_xname is unique or non-empty.
+ * Returns zero if no change. Else non-zero.
  */
-void
-if_attach(struct ifnet *ifp)
+int
+if_tsomax_update(if_t ifp, const struct iftsomax *new)
 {
+	int retval = 0;
 
-	if_attach_internal(ifp, 0);
+	KASSERT(ifp->if_tsomax != ifp->if_drv->ifdrv_tsomax,
+	    ("%s: interface %s (driver %s) has static if_tsomax", __func__,
+	    ifp->if_xname, ifp->if_drv->ifdrv_name));
+
+	if (ifp->if_tsomax->tsomax_bytes != new->tsomax_bytes) {
+		ifp->if_tsomax->tsomax_bytes = new->tsomax_bytes;
+		retval++;
+	}
+	if (ifp->if_tsomax->tsomax_segsize != new->tsomax_segsize) {
+		ifp->if_tsomax->tsomax_segsize = new->tsomax_segsize;
+		retval++;
+	}
+	if (ifp->if_tsomax->tsomax_segcount != new->tsomax_segcount) {
+		ifp->if_tsomax->tsomax_segcount = new->tsomax_segcount;
+		retval++;
+	}
+	KASSERT(ifp->if_tsomax->tsomax_bytes == 0 ||
+	    ifp->if_tsomax->tsomax_bytes >= (IP_MAXPACKET / 8),
+	    ("%s: tsomax_bytes is outside of range", ifp->if_xname));
+	return (retval);
 }
 
 static void
-if_attach_internal(struct ifnet *ifp, int vmove)
+if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 {
-	unsigned socksize, ifasize;
-	int namelen, masklen;
-	struct sockaddr_dl *sdl;
-	struct ifaddr *ifa;
 
 	if (ifp->if_index == 0 || ifp != ifnet_byindex(ifp->if_index))
 		panic ("%s: BUG: if_attach called without if_alloc'd input()\n",
@@ -600,79 +801,23 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 
 	if_addgroup(ifp, IFG_ALL);
 
+	/* Restore group membership for cloned interfaces. */
+	if (vmove && ifc != NULL)
+		if_clone_addgroup(ifp, ifc);
+
 	getmicrotime(&ifp->if_lastchange);
-	ifp->if_data.ifi_epoch = time_uptime;
-	ifp->if_data.ifi_datalen = sizeof(struct if_data);
+	ifp->if_epoch = time_uptime;
 
-	KASSERT((ifp->if_transmit == NULL && ifp->if_qflush == NULL) ||
-	    (ifp->if_transmit != NULL && ifp->if_qflush != NULL),
-	    ("transmit and qflush must both either be set or both be NULL"));
-	if (ifp->if_transmit == NULL) {
-		ifp->if_transmit = if_transmit;
-		ifp->if_qflush = if_qflush;
-	}
-	
-	if (!vmove) {
-#ifdef MAC
-		mac_ifnet_create(ifp);
-#endif
-
-		/*
-		 * Create a Link Level name for this device.
-		 */
-		namelen = strlen(ifp->if_xname);
-		/*
-		 * Always save enough space for any possiable name so we
-		 * can do a rename in place later.
-		 */
-		masklen = offsetof(struct sockaddr_dl, sdl_data[0]) + IFNAMSIZ;
-		socksize = masklen + ifp->if_addrlen;
-		if (socksize < sizeof(*sdl))
-			socksize = sizeof(*sdl);
-		socksize = roundup2(socksize, sizeof(long));
-		ifasize = sizeof(*ifa) + 2 * socksize;
-		ifa = ifa_alloc(ifasize, M_WAITOK);
-		sdl = (struct sockaddr_dl *)(ifa + 1);
-		sdl->sdl_len = socksize;
-		sdl->sdl_family = AF_LINK;
-		bcopy(ifp->if_xname, sdl->sdl_data, namelen);
-		sdl->sdl_nlen = namelen;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = ifp->if_type;
-		ifp->if_addr = ifa;
-		ifa->ifa_ifp = ifp;
-		ifa->ifa_rtrequest = link_rtrequest;
-		ifa->ifa_addr = (struct sockaddr *)sdl;
-		sdl = (struct sockaddr_dl *)(socksize + (caddr_t)sdl);
-		ifa->ifa_netmask = (struct sockaddr *)sdl;
-		sdl->sdl_len = masklen;
-		while (namelen != 0)
-			sdl->sdl_data[--namelen] = 0xff;
-		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
-		/* Reliably crash if used uninitialized. */
-		ifp->if_broadcastaddr = NULL;
-
-#if defined(INET) || defined(INET6)
-		/* Initialize to max value. */
-		if (ifp->if_hw_tsomax == 0)
-			ifp->if_hw_tsomax = IP_MAXPACKET;
-		KASSERT(ifp->if_hw_tsomax <= IP_MAXPACKET &&
-		    ifp->if_hw_tsomax >= IP_MAXPACKET / 8,
-		    ("%s: tsomax outside of range", __func__));
-#endif
-	}
 #ifdef VIMAGE
-	else {
-		/*
-		 * Update the interface index in the link layer address
-		 * of the interface.
-		 */
-		for (ifa = ifp->if_addr; ifa != NULL;
-		    ifa = TAILQ_NEXT(ifa, ifa_link)) {
-			if (ifa->ifa_addr->sa_family == AF_LINK) {
-				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-				sdl->sdl_index = ifp->if_index;
-			}
+	/*
+	 * Update the interface index in the link layer address
+	 * of the interface.
+	 */
+	for (ifa = ifp->if_addr; ifa != NULL;
+	    ifa = TAILQ_NEXT(ifa, ifa_link)) {
+		if (ifa->ifa_addr->sa_family == AF_LINK) {
+			sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+			sdl->sdl_index = ifp->if_index;
 		}
 	}
 #endif
@@ -798,20 +943,39 @@ if_purgemaddrs(struct ifnet *ifp)
  * how to prevent things from starting to use the interface during detach.
  */
 void
-if_detach(struct ifnet *ifp)
+if_detach(if_t ifp)
 {
 
+	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
+
+	bpfdetach(ifp);
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		if_poll_deregister(ifp);
+#endif
 	CURVNET_SET_QUIET(ifp->if_vnet);
-	if_detach_internal(ifp, 0);
+	if_detach_internal(ifp, 0, NULL);
+
+	IFNET_WLOCK();
+	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
+	    ("%s: freeing unallocated ifnet", ifp->if_xname));
+
+	ifindex_free(ifp->if_index);
+	IFNET_WUNLOCK();
+
+	if (ifp->if_drv->ifdrv_clone != NULL)
+		ifc_free_unit(ifp->if_drv->ifdrv_clone, ifp->if_dunit);
+
+	if (refcount_release(&ifp->if_refcount))
+		if_free_internal(ifp);
 	CURVNET_RESTORE();
 }
 
 static void
-if_detach_internal(struct ifnet *ifp, int vmove)
+if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 {
 	struct ifaddr *ifa;
-	struct radix_node_head	*rnh;
-	int i, j;
+	int i;
 	struct domain *dp;
  	struct ifnet *iter;
  	int found = 0;
@@ -835,6 +999,10 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		else
 			return; /* XXX this should panic as well? */
 	}
+
+	/* Check if this is a cloned interface or not. */
+	if (vmove && ifcp != NULL)
+		*ifcp = if_clone_findifc(ifp);
 
 	/*
 	 * Remove/wait for pending events.
@@ -869,11 +1037,22 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 #endif
 	if_purgemaddrs(ifp);
 
+	/* Announce that the interface is gone. */
+	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
+	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
+	if (IS_DEFAULT_VNET(curvnet))
+		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
+
 	if (!vmove) {
+		struct iftype *ift = ifp->if_type;
+
+		if (ift != NULL && ift->ift_detach != NULL)
+			ift->ift_detach(ifp);
+
 		/*
 		 * Prevent further calls into the device driver via ifnet.
 		 */
-		if_dead(ifp);
+		ifp->if_ops = &ifdead_ops;
 
 		/*
 		 * Remove link ifaddr pointer and maybe decrement if_index.
@@ -889,28 +1068,7 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		}
 	}
 
-	/*
-	 * Delete all remaining routes using this interface
-	 * Unfortuneatly the only way to do this is to slog through
-	 * the entire routing table looking for routes which point
-	 * to this interface...oh well...
-	 */
-	for (i = 1; i <= AF_MAX; i++) {
-		for (j = 0; j < rt_numfibs; j++) {
-			rnh = rt_tables_get_rnh(j, i);
-			if (rnh == NULL)
-				continue;
-			RADIX_NODE_HEAD_LOCK(rnh);
-			(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
-			RADIX_NODE_HEAD_UNLOCK(rnh);
-		}
-	}
-
-	/* Announce that the interface is gone. */
-	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
-	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
-	if (IS_DEFAULT_VNET(curvnet))
-		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
+	rt_flushifroutes(ifp);
 	if_delgroups(ifp);
 
 	/*
@@ -940,13 +1098,13 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
-	u_short idx;
+	struct if_clone *ifc;
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
 	 * mark as dead etc. so that the ifnet can be reattached later.
 	 */
-	if_detach_internal(ifp, 1);
+	if_detach_internal(ifp, 1, &ifc);
 
 	/*
 	 * Unlink the ifnet from ifindex_table[] in current vnet, and shrink
@@ -956,7 +1114,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	 * or we'd lock on one vnet and unlock on another.
 	 */
 	IFNET_WLOCK();
-	ifindex_free_locked(ifp->if_index);
+	ifindex_free(ifp->if_index);
 	IFNET_WUNLOCK();
 
 	/*
@@ -972,15 +1130,11 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	CURVNET_SET_QUIET(new_vnet);
 
 	IFNET_WLOCK();
-	if (ifindex_alloc_locked(&idx) != 0) {
-		IFNET_WUNLOCK();
-		panic("if_index overflow");
-	}
-	ifp->if_index = idx;
+	ifp->if_index = ifindex_alloc();
 	ifnet_setbyindex_locked(ifp->if_index, ifp);
 	IFNET_WUNLOCK();
 
-	if_attach_internal(ifp, 1);
+	if_attach_internal(ifp, 1, ifc);
 
 	CURVNET_RESTORE();
 }
@@ -1335,80 +1489,204 @@ if_getgroupmembers(struct ifgroupreq *data)
 }
 
 /*
- * Delete Routes for a Network Interface
- *
- * Called for each routing entry via the rnh->rnh_walktree() call above
- * to delete all route entries referencing a detaching network interface.
- *
- * Arguments:
- *	rn	pointer to node in the routing table
- *	arg	argument passed to rnh->rnh_walktree() - detaching interface
- *
- * Returns:
- *	0	successful
- *	errno	failed - reason indicated
- *
+ * Returning different software contexts associated with ifnet.
  */
-static int
-if_rtdel(struct radix_node *rn, void *arg)
+void *
+if_getsoftc(struct ifnet *ifp, ift_feature f)
 {
-	struct rtentry	*rt = (struct rtentry *)rn;
-	struct ifnet	*ifp = arg;
-	int		err;
+	struct ifsoftc *sc;
 
-	if (rt->rt_ifp == ifp) {
+	/*
+	 * Some softcs are non-optional either for performance reasons,
+	 * since they always exist and are often dereferenced, or for
+	 * historical reasons.
+	 */
+	switch (f) {
+	case IF_DRIVER_SOFTC:
+		return (ifp->if_softc);
+	case IF_LLADDR:
+		return (LLADDR((struct sockaddr_dl *)(ifp->if_addr->ifa_addr)));
+	case IF_BPF:
+		return (ifp->if_bpf);
+	case IF_NAME:
+		return (ifp->if_xname);
+	case IF_VLAN:
+		return (ifp->if_vlantrunk);
+	default:
+		/* fall through */
+		;
+	};
 
-		/*
-		 * Protect (sorta) against walktree recursion problems
-		 * with cloned routes
-		 */
-		if ((rt->rt_flags & RTF_UP) == 0)
-			return (0);
+	/*
+	 * Rest of softc live in the store and in the cache.
+	 * First check the cache.
+	 */
+	sc = ifp->if_sccache[f & (SOFTC_CACHE_SIZE - 1)];
+	if (sc != NULL && sc->ifsc_desc == f)
+		return (sc->ifsc_ptr);
 
-		err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-				rt_mask(rt),
-				rt->rt_flags|RTF_RNH_LOCKED|RTF_PINNED,
-				(struct rtentry **) NULL, rt->rt_fibnum);
-		if (err) {
-			log(LOG_WARNING, "if_rtdel: error %d\n", err);
+	/*
+	 * Then check the store.
+	 * We can do lookup lockless, since if_nsoftcs only grows.
+	 */
+	for (int i = 0; i < ifp->if_nsoftcs; i++) {
+		sc = &ifp->if_scstore[i];
+		if (sc->ifsc_desc == f) {
+			ifp->if_sccache[f & (SOFTC_CACHE_SIZE - 1)] = sc;
+			return (sc->ifsc_ptr);
 		}
 	}
 
+	/*
+	 * XXXGL: a negative cache would be not bad.
+	 */
+	return (NULL);
+}
+
+/*
+ * Set arbitrary context identified by ift_feature key.  It is responsibility
+ * of the caller to establish race safety against two if_setsoftc()s.  The
+ * function may sleep when setting new context.  The function will not sleep
+ * when clearing previously set context.  May fail only if associated context
+ * is already set.
+ */
+int
+if_setsoftc(struct ifnet *ifp, ift_feature f, void *softc)
+{
+	int i;
+
+	IF_WLOCK(ifp);
+retry:
+	for (i = 0; i < ifp->if_nsoftcs; i++)
+		if (ifp->if_scstore[i].ifsc_desc == f) {
+			IF_WUNLOCK(ifp);
+			return (EEXIST);
+		}
+
+	for (i = 0; i < ifp->if_nsoftcs; i++)
+		if (ifp->if_scstore[i].ifsc_desc == 0)
+			break;
+
+	if (i == ifp->if_nsoftcs) {
+		struct ifsoftc *new, *old;
+		u_int size;
+
+		old = ifp->if_scstore;
+		size = ifp->if_nsoftcs;
+		IF_WUNLOCK(ifp);
+		new = malloc(sizeof(struct ifsoftc) * size * 2,
+		    M_IFNET, M_WAITOK | M_ZERO);
+		IF_WLOCK(ifp);
+		if (ifp->if_scstore != old) {
+			free(new, M_IFNET);
+			goto retry;
+		}
+		bcopy(ifp->if_scstore, new, sizeof(struct ifsoftc) * size);
+		ifp->if_scstore = new;
+		ifp->if_nsoftcs = size * 2;
+		/*
+		 * XXXGL: of course there is a race here against if_getsoftc(),
+		 * which runs lockless.  We lack RCU or lightweight reference
+		 * counting.
+		 */
+		free(old, M_IFNET);
+	}
+
+	if (softc != NULL) {
+		ifp->if_scstore[i].ifsc_ptr = softc;
+		ifp->if_scstore[i].ifsc_desc = f;
+		ifp->if_sccache[f & (SOFTC_CACHE_SIZE - 1)] =
+		    &ifp->if_scstore[i];
+	} else {
+		ifp->if_scstore[i].ifsc_desc = 0;
+		ifp->if_scstore[i].ifsc_ptr = NULL;
+		ifp->if_sccache[f & (SOFTC_CACHE_SIZE - 1)] = NULL;
+	}
+	IF_WUNLOCK(ifp);
 	return (0);
 }
 
 /*
- * Wrapper functions for struct ifnet address list locking macros.  These are
- * used by kernel modules to avoid encoding programming interface or binary
- * interface assumptions that may be violated when kernel-internal locking
- * approaches change.
+ * Return counter values from counter(9)s stored in ifnet.
+ */
+uint64_t
+if_get_counter_default(struct ifnet *ifp, ift_counter cnt)
+{
+
+	KASSERT(cnt < IFCOUNTERS, ("%s: invalid cnt %d", __func__, cnt));
+
+	return (counter_u64_fetch(ifp->if_counters[cnt]));
+}
+
+/*
+ * Increase an ifnet counter. Usually used for counters shared
+ * between the stack and a driver, but function supports them all.
  */
 void
-if_addr_rlock(struct ifnet *ifp)
+if_inc_counter(struct ifnet *ifp, ift_counter cnt, int64_t inc)
 {
 
-	IF_ADDR_RLOCK(ifp);
+	KASSERT(cnt < IFCOUNTERS, ("%s: invalid cnt %d", __func__, cnt));
+
+	counter_u64_add(ifp->if_counters[cnt], inc);
 }
 
+/*
+ * Account successful transmission of an mbuf.
+ */
 void
-if_addr_runlock(struct ifnet *ifp)
+if_inc_txcounters(struct ifnet *ifp, struct mbuf *m)
 {
 
-	IF_ADDR_RUNLOCK(ifp);
+	counter_u64_add(ifp->if_counters[IFCOUNTER_OBYTES], m->m_pkthdr.len);
+	counter_u64_add(ifp->if_counters[IFCOUNTER_OPACKETS], 1);
+	if (m->m_flags & M_MCAST)
+		counter_u64_add(ifp->if_counters[IFCOUNTER_OMCASTS], 1);
 }
 
+/*
+ * Set the baudrate.
+ */
 void
-if_maddr_rlock(struct ifnet *ifp)
+if_setbaudrate(struct ifnet *ifp, uint64_t baudrate)
 {
 
-	IF_ADDR_RLOCK(ifp);
+	ifp->if_baudrate = baudrate;
 }
 
+/*
+ * Copy data from ifnet to userland API structure if_data.
+ */
 void
-if_maddr_runlock(struct ifnet *ifp)
+if_data_copy(struct ifnet *ifp, struct if_data *ifd)
 {
 
-	IF_ADDR_RUNLOCK(ifp);
+	ifd->ifi_type = if_type(ifp);
+	ifd->ifi_physical = 0;
+	ifd->ifi_addrlen = if_addrlen(ifp);
+	ifd->ifi_hdrlen = ifp->if_drv->ifdrv_hdrlen;
+	ifd->ifi_link_state = ifp->if_link_state;
+	ifd->ifi_vhid = 0;
+	ifd->ifi_datalen = sizeof(struct if_data);
+	ifd->ifi_mtu = ifp->if_mtu;
+	ifd->ifi_metric = ifp->if_metric;
+	ifd->ifi_baudrate = ifp->if_baudrate;
+	ifd->ifi_hwassist = ifp->if_hwassist;
+	ifd->ifi_epoch = ifp->if_epoch;
+	ifd->ifi_lastchange = ifp->if_lastchange;
+
+	ifd->ifi_ipackets = if_get_counter(ifp, IFCOUNTER_IPACKETS);
+	ifd->ifi_ierrors = if_get_counter(ifp, IFCOUNTER_IERRORS);
+	ifd->ifi_opackets = if_get_counter(ifp, IFCOUNTER_OPACKETS);
+	ifd->ifi_oerrors = if_get_counter(ifp, IFCOUNTER_OERRORS);
+	ifd->ifi_collisions = if_get_counter(ifp, IFCOUNTER_COLLISIONS);
+	ifd->ifi_ibytes = if_get_counter(ifp, IFCOUNTER_IBYTES);
+	ifd->ifi_obytes = if_get_counter(ifp, IFCOUNTER_OBYTES);
+	ifd->ifi_imcasts = if_get_counter(ifp, IFCOUNTER_IMCASTS);
+	ifd->ifi_omcasts = if_get_counter(ifp, IFCOUNTER_OMCASTS);
+	ifd->ifi_iqdrops = if_get_counter(ifp, IFCOUNTER_IQDROPS);
+	ifd->ifi_oqdrops = if_get_counter(ifp, IFCOUNTER_OQDROPS);
+	ifd->ifi_noproto = if_get_counter(ifp, IFCOUNTER_NOPROTO);
 }
 
 /*
@@ -1483,14 +1761,14 @@ ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-	error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
+	error = rtrequest1_fib(RTM_ADD, &info, &rt, ifa->ifa_ifp->if_fib);
 
 	if (error == 0 && rt != NULL) {
 		RT_LOCK(rt);
-		((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
-			ifa->ifa_ifp->if_type;
+		((struct sockaddr_dl *)rt->rt_gateway)->sdl_type =
+		    if_type(ifa->ifa_ifp);
 		((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-			ifa->ifa_ifp->if_index;
+		    ifa->ifa_ifp->if_index;
 		RT_REMREF(rt);
 		RT_UNLOCK(rt);
 	} else if (error != 0)
@@ -1509,13 +1787,13 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	bzero(&null_sdl, sizeof(null_sdl));
 	null_sdl.sdl_len = sizeof(null_sdl);
 	null_sdl.sdl_family = AF_LINK;
-	null_sdl.sdl_type = ifa->ifa_ifp->if_type;
+	null_sdl.sdl_type = if_type(ifa->ifa_ifp);
 	null_sdl.sdl_index = ifa->ifa_ifp->if_index;
 	bzero(&info, sizeof(info));
 	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-	error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
+	error = rtrequest1_fib(RTM_DELETE, &info, NULL, ifa->ifa_ifp->if_fib);
 
 	if (error != 0)
 		log(LOG_DEBUG, "%s: deletion failed: %u\n", __func__, error);
@@ -1524,17 +1802,17 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 }
 
 int
-ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa)
+ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa, int fib)
 {
 	struct rtentry *rt;
 
-	rt = rtalloc1_fib(sa, 0, 0, 0);
+	rt = rtalloc1_fib(sa, 0, 0, fib);
 	if (rt == NULL) {
 		log(LOG_DEBUG, "%s: fail", __func__);
 		return (EHOSTUNREACH);
 	}
 	((struct sockaddr_dl *)rt->rt_gateway)->sdl_type =
-	    ifa->ifa_ifp->if_type;
+	    if_type(ifa->ifa_ifp);
 	((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
 	    ifa->ifa_ifp->if_index;
 	RTFREE_LOCKED(rt);
@@ -1547,9 +1825,6 @@ ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa)
  * structs used to represent other address families, it is necessary
  * to perform a different comparison.
  */
-
-#define	sa_equal(a1, a2)	\
-	(bcmp((a1), (a2), ((a1))->sa_len) == 0)
 
 #define	sa_dl_equal(a1, a2)	\
 	((((struct sockaddr_dl *)(a1))->sdl_len ==			\
@@ -1618,13 +1893,15 @@ ifa_ifwithaddr_check(struct sockaddr *addr)
  */
 /* ARGSUSED */
 struct ifaddr *
-ifa_ifwithbroadaddr(struct sockaddr *addr)
+ifa_ifwithbroadaddr(struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if ((fibnum != RT_ALL_FIBS) && (ifp->if_fib != fibnum))
+			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
@@ -1651,7 +1928,7 @@ done:
  */
 /*ARGSUSED*/
 struct ifaddr *
-ifa_ifwithdstaddr(struct sockaddr *addr)
+ifa_ifwithdstaddr(struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1659,6 +1936,8 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
+			continue;
+		if ((fibnum != RT_ALL_FIBS) && (ifp->if_fib != fibnum))
 			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1684,7 +1963,7 @@ done:
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
+ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1704,12 +1983,14 @@ ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
 
 	/*
 	 * Scan though each interface, looking for ones that have addresses
-	 * in this address family.  Maintain a reference on ifa_maybe once
-	 * we find one, as we release the IF_ADDR_RLOCK() that kept it stable
-	 * when we move onto the next interface.
+	 * in this address family and the requested fib.  Maintain a reference
+	 * on ifa_maybe once we find one, as we release the IF_ADDR_RLOCK() that
+	 * kept it stable when we move onto the next interface.
 	 */
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if ((fibnum != RT_ALL_FIBS) && (ifp->if_fib != fibnum))
+			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			char *cp, *cp2, *cp3;
@@ -1733,19 +2014,6 @@ next:				continue;
 					goto done;
 				}
 			} else {
-				/*
-				 * if we have a special address handler,
-				 * then use it instead of the generic one.
-				 */
-				if (ifa->ifa_claim_addr) {
-					if ((*ifa->ifa_claim_addr)(ifa, addr)) {
-						ifa_ref(ifa);
-						IF_ADDR_RUNLOCK(ifp);
-						goto done;
-					}
-					continue;
-				}
-
 				/*
 				 * Scan all the bits in the ifa's address.
 				 * If a bit dissagrees with what we are
@@ -1873,8 +2141,6 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 	struct sockaddr *dst;
 	struct ifnet *ifp;
 
-	RT_LOCK_ASSERT(rt);
-
 	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == 0) ||
 	    ((ifp = ifa->ifa_ifp) == 0) || ((dst = rt_key(rt)) == 0))
 		return;
@@ -1921,59 +2187,14 @@ link_init_sdl(struct ifnet *ifp, struct sockaddr *paddr, u_char iftype)
 }
 
 /*
- * Mark an interface down and notify protocols of
- * the transition.
+ * Function pointers to vlan(4) module.
+ * XXXGL: shouldn't we just make vlan(4) always in kernel?
  */
-static void
-if_unroute(struct ifnet *ifp, int flag, int fam)
-{
-	struct ifaddr *ifa;
-
-	KASSERT(flag == IFF_UP, ("if_unroute: flag != IFF_UP"));
-
-	ifp->if_flags &= ~flag;
-	getmicrotime(&ifp->if_lastchange);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
-			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
-	ifp->if_qflush(ifp);
-
-	if (ifp->if_carp)
-		(*carp_linkstate_p)(ifp);
-	rt_ifmsg(ifp);
-}
-
-/*
- * Mark an interface up and notify protocols of
- * the transition.
- */
-static void
-if_route(struct ifnet *ifp, int flag, int fam)
-{
-	struct ifaddr *ifa;
-
-	KASSERT(flag == IFF_UP, ("if_route: flag != IFF_UP"));
-
-	ifp->if_flags |= flag;
-	getmicrotime(&ifp->if_lastchange);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
-			pfctlinput(PRC_IFUP, ifa->ifa_addr);
-	if (ifp->if_carp)
-		(*carp_linkstate_p)(ifp);
-	rt_ifmsg(ifp);
-#ifdef INET6
-	in6_if_up(ifp);
-#endif
-}
-
-void	(*vlan_link_state_p)(struct ifnet *);	/* XXX: private from if_vlan */
-void	(*vlan_trunk_cap_p)(struct ifnet *);		/* XXX: private from if_vlan */
+void	(*vlan_link_state_p)(struct ifnet *);
+void	(*vlan_trunk_cap_p)(struct ifnet *);
 struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
-struct	ifnet *(*vlan_devat_p)(struct ifnet *, uint16_t);
-int	(*vlan_tag_p)(struct ifnet *, uint16_t *);
-int	(*vlan_setcookie_p)(struct ifnet *, void *);
-void	*(*vlan_cookie_p)(struct ifnet *);
+struct ifnet *(*vlan_dev_p)(struct ifnet *, uint16_t);
+uint16_t (*vlan_vid_p)(struct ifnet *);
 
 /*
  * Handle a change in the interface link state. To avoid LORs
@@ -2005,10 +2226,11 @@ do_link_state_change(void *arg, int pending)
 	if (ifp->if_vlantrunk != NULL)
 		(*vlan_link_state_p)(ifp);
 
-	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
-	    IFP2AC(ifp)->ac_netgraph != NULL)
+	/* XXXGL: make ng_ether softc pointer */
+	if ((if_type(ifp) == IFT_ETHER || if_type(ifp) == IFT_L2VLAN) &&
+	    ifp->if_l2com != NULL)
 		(*ng_ether_link_state_p)(ifp, link_state);
-	if (ifp->if_carp)
+	if (if_getsoftc(ifp, IF_CARP) != NULL)
 		(*carp_linkstate_p)(ifp);
 	if (ifp->if_bridge)
 		(*bridge_linkstate_p)(ifp);
@@ -2035,8 +2257,16 @@ do_link_state_change(void *arg, int pending)
 void
 if_down(struct ifnet *ifp)
 {
+	struct ifaddr *ifa;
 
-	if_unroute(ifp, IFF_UP, AF_UNSPEC);
+	ifp->if_flags &= ~IFF_UP;
+	getmicrotime(&ifp->if_lastchange);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
+	if_qflush(ifp);
+	if (if_getsoftc(ifp, IF_CARP) != NULL)
+		(*carp_linkstate_p)(ifp);
+	rt_ifmsg(ifp);
 }
 
 /*
@@ -2046,34 +2276,18 @@ if_down(struct ifnet *ifp)
 void
 if_up(struct ifnet *ifp)
 {
+	struct ifaddr *ifa;
 
-	if_route(ifp, IFF_UP, AF_UNSPEC);
-}
-
-/*
- * Flush an interface queue.
- */
-void
-if_qflush(struct ifnet *ifp)
-{
-	struct mbuf *m, *n;
-	struct ifaltq *ifq;
-	
-	ifq = &ifp->if_snd;
-	IFQ_LOCK(ifq);
-#ifdef ALTQ
-	if (ALTQ_IS_ENABLED(ifq))
-		ALTQ_PURGE(ifq);
+	ifp->if_flags |= IFF_UP;
+	getmicrotime(&ifp->if_lastchange);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		pfctlinput(PRC_IFUP, ifa->ifa_addr);
+	if (if_getsoftc(ifp, IF_CARP) != NULL)
+		(*carp_linkstate_p)(ifp);
+	rt_ifmsg(ifp);
+#ifdef INET6
+	in6_if_up(ifp);
 #endif
-	n = ifq->ifq_head;
-	while ((m = n) != 0) {
-		n = m->m_act;
-		m_freem(m);
-	}
-	ifq->ifq_head = 0;
-	ifq->ifq_tail = 0;
-	ifq->ifq_len = 0;
-	IFQ_UNLOCK(ifq);
 }
 
 /*
@@ -2114,18 +2328,18 @@ ifunit(const char *name)
 /*
  * Hardware specific interface ioctls.
  */
-static int
-ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
+int
+if_drvioctl(struct ifnet *ifp, u_long cmd, void *data, struct thread *td)
 {
 	struct ifreq *ifr;
-	int error = 0;
-	int new_flags, temp_flags;
 	size_t namelen, onamelen;
 	size_t descrlen;
 	char *descrbuf, *odescrbuf;
 	char new_name[IFNAMSIZ];
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
+	uint32_t flags, oflags;
+	int error = 0;
 
 	ifr = (struct ifreq *)data;
 	switch (cmd) {
@@ -2134,9 +2348,14 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCGIFFLAGS:
-		temp_flags = ifp->if_flags | ifp->if_drv_flags;
-		ifr->ifr_flags = temp_flags & 0xffff;
-		ifr->ifr_flagshigh = temp_flags >> 16;
+		ifr->ifr_flags = ifp->if_flags & 0xffff;
+		ifr->ifr_flagshigh = ifp->if_flags >> 16;
+		/*
+		 * Some software may care about IFF_RUNNING, so make
+		 * it happy.
+		 */
+		if (ifp->if_flags & IFF_UP)
+			ifr->ifr_flags |= IFF_RUNNING;
 		break;
 
 	case SIOCGIFCAP:
@@ -2159,7 +2378,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCGIFPHYS:
-		ifr->ifr_phys = ifp->if_physical;
+		/* XXXGL: did this ever worked? */
+		ifr->ifr_phys = 0;
 		break;
 
 	case SIOCGIFDESCR:
@@ -2225,8 +2445,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		if (ifr->ifr_fib >= rt_numfibs)
 			return (EINVAL);
-
 		ifp->if_fib = ifr->ifr_fib;
+		(void )if_ioctl(ifp, cmd, data, td);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -2234,49 +2454,100 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		if (error)
 			return (error);
 		/*
-		 * Currently, no driver owned flags pass the IFF_CANTCHANGE
-		 * check, so we don't need special handling here yet.
+		 * Historically if_flags were 16-bit, and thus
+		 * they come from userland in two parts, that
+		 * we need to swap.  Clear IFF_RUNNING that is
+		 * no longer used in kernel.
 		 */
-		new_flags = (ifr->ifr_flags & 0xffff) |
+		ifr->ifr_flags &= ~IFF_RUNNING;
+		flags = (ifr->ifr_flags & 0xffff) |
 		    (ifr->ifr_flagshigh << 16);
-		if (ifp->if_flags & IFF_UP &&
-		    (new_flags & IFF_UP) == 0) {
+		if ((flags & IFF_CANTCHANGE) !=
+		    (ifp->if_flags & IFF_CANTCHANGE))
+			return (EINVAL);
+		/*
+		 * Pass new flags down to driver and see if it accepts them.
+		 */
+		error = if_ioctl(ifp, cmd, data, td);
+		if (error)
+			return (error);
+		flags = (ifr->ifr_flags & 0xffff) |
+		    (ifr->ifr_flagshigh << 16);
+		oflags = ifp->if_flags;
+		ifp->if_flags = flags;
+		getmicrotime(&ifp->if_lastchange);
+		/*
+		 * Manage IFF_UP flip.
+		 */
+		if (oflags & IFF_UP && (flags & IFF_UP) == 0)
 			if_down(ifp);
-		} else if (new_flags & IFF_UP &&
-		    (ifp->if_flags & IFF_UP) == 0) {
+		else if (flags & IFF_UP && (oflags & IFF_UP) == 0)
 			if_up(ifp);
-		}
-		/* See if permanently promiscuous mode bit is about to flip */
-		if ((ifp->if_flags ^ new_flags) & IFF_PPROMISC) {
-			if (new_flags & IFF_PPROMISC)
+		/* See if permanently promiscuous mode bit is about to flip. */
+		if ((oflags ^ flags) & IFF_PPROMISC) {
+			if (flags & IFF_PPROMISC)
 				ifp->if_flags |= IFF_PROMISC;
 			else if (ifp->if_pcount == 0)
 				ifp->if_flags &= ~IFF_PROMISC;
 			log(LOG_INFO, "%s: permanently promiscuous mode %s\n",
 			    ifp->if_xname,
-			    (new_flags & IFF_PPROMISC) ? "enabled" : "disabled");
+			    (flags & IFF_PPROMISC) ? "enabled" : "disabled");
 		}
-		ifp->if_flags = (ifp->if_flags & IFF_CANTCHANGE) |
-			(new_flags &~ IFF_CANTCHANGE);
-		if (ifp->if_ioctl) {
-			(void) (*ifp->if_ioctl)(ifp, cmd, data);
-		}
-		getmicrotime(&ifp->if_lastchange);
 		break;
 
 	case SIOCSIFCAP:
 		error = priv_check(td, PRIV_NET_SETIFCAP);
 		if (error)
 			return (error);
-		if (ifp->if_ioctl == NULL)
-			return (EOPNOTSUPP);
+		/*
+		 * All(?) NICs that do TSO require to perform VLAN tagging
+		 * and checksum offloading in hardware, when doing TSO.
+		 * Thus, turning TSO on implicitly turns on these features,
+		 * and turning these features off implicitly turns off TSO.
+		 */
+		if ((ifr->ifr_reqcap & IFCAP_VLAN_HWTSO) != 0)
+			ifr->ifr_reqcap |= IFCAP_VLAN_HWTAGGING;
+		if ((ifr->ifr_reqcap & IFCAP_VLAN_HWTAGGING) == 0)
+			ifr->ifr_reqcap &= ~IFCAP_VLAN_HWTSO;
+		if ((ifr->ifr_reqcap & IFCAP_TSO4) != 0)
+			ifr->ifr_reqcap |= IFCAP_TXCSUM;
+		if ((ifr->ifr_reqcap & IFCAP_TXCSUM) == 0)
+			ifr->ifr_reqcap &= ~IFCAP_TSO4;
+		if ((ifr->ifr_reqcap & IFCAP_TSO6) != 0)
+			ifr->ifr_reqcap |= IFCAP_TXCSUM_IPV6;
+		if ((ifr->ifr_reqcap & IFCAP_TXCSUM_IPV6) == 0)
+			ifr->ifr_reqcap &= ~IFCAP_TSO6;
+		/*
+		 * Now check that requested capabilities match
+		 * what interface can actually do, and whether
+		 * there is any change in the capenable.
+		 */
 		if (ifr->ifr_reqcap & ~ifp->if_capabilities)
 			return (EINVAL);
-		error = (*ifp->if_ioctl)(ifp, cmd, data);
-		if (error == 0)
-			getmicrotime(&ifp->if_lastchange);
+		if (ifr->ifr_reqcap == ifp->if_capenable)
+			return (0);
+		ifr->ifr_curcap = ifp->if_capenable;
+		/*
+		 * See if driver accepts ifr_reqcap.  It may also
+		 * adjust them.  Driver also fills in ifr_hwassist.
+		 */
+		error = if_ioctl(ifp, cmd, data, td);
+		if (error != 0)
+			break;
+#ifdef DEVICE_POLLING
+		if ((ifr->ifr_reqcap ^ ifr->ifr_curcap) & IFCAP_POLLING) {
+			if (ifr->ifr_reqcap & IFCAP_POLLING)
+				if_poll_register(ifp);
+			else
+				if_poll_deregister(ifp);
+		}
+#endif
+		ifp->if_capenable = ifr->ifr_reqcap;
+		ifp->if_hwassist = ifr->ifr_hwassist;
+		getmicrotime(&ifp->if_lastchange);
+		if (ifp->if_vlantrunk != NULL)
+			(*vlan_trunk_cap_p)(ifp);
 		break;
-
 #ifdef MAC
 	case SIOCSIFMAC:
 		error = mac_ifnet_ioctl_set(td->td_ucred, ifr, ifp);
@@ -2361,39 +2632,30 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = priv_check(td, PRIV_NET_SETIFPHYS);
 		if (error)
 			return (error);
-		if (ifp->if_ioctl == NULL)
-			return (EOPNOTSUPP);
-		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		error = if_ioctl(ifp, cmd, data, td);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
 		break;
 
 	case SIOCSIFMTU:
-	{
-		u_long oldmtu = ifp->if_mtu;
-
 		error = priv_check(td, PRIV_NET_SETIFMTU);
 		if (error)
 			return (error);
 		if (ifr->ifr_mtu < IF_MINMTU || ifr->ifr_mtu > IF_MAXMTU)
 			return (EINVAL);
-		if (ifp->if_ioctl == NULL)
-			return (EOPNOTSUPP);
-		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		if (ifr->ifr_mtu == ifp->if_mtu)
+			return (0);
+		error = if_ioctl(ifp, cmd, data, td);
 		if (error == 0) {
+			ifp->if_mtu = ifr->ifr_mtu;
 			getmicrotime(&ifp->if_lastchange);
 			rt_ifmsg(ifp);
-		}
-		/*
-		 * If the link MTU changed, do network layer specific procedure.
-		 */
-		if (ifp->if_mtu != oldmtu) {
 #ifdef INET6
 			nd6_setmtu(ifp);
 #endif
+			rt_updatemtu(ifp);
 		}
 		break;
-	}
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -2441,14 +2703,11 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 #ifdef INET6
 	case SIOCSIFPHYADDR_IN6:
 #endif
-	case SIOCSIFMEDIA:
 	case SIOCSIFGENERIC:
 		error = priv_check(td, PRIV_NET_HWIOCTL);
 		if (error)
 			return (error);
-		if (ifp->if_ioctl == NULL)
-			return (EOPNOTSUPP);
-		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		error = if_ioctl(ifp, cmd, data, td);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
 		break;
@@ -2456,11 +2715,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	case SIOCGIFSTATUS:
 	case SIOCGIFPSRCADDR:
 	case SIOCGIFPDSTADDR:
-	case SIOCGIFMEDIA:
 	case SIOCGIFGENERIC:
-		if (ifp->if_ioctl == NULL)
-			return (EOPNOTSUPP);
-		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		error = if_ioctl(ifp, cmd, data, td);
 		break;
 
 	case SIOCSIFLLADDR:
@@ -2500,6 +2756,15 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		break;
 	}
+
+	case SIOCSIFMEDIA:
+		error = priv_check(td, PRIV_NET_HWIOCTL);
+		if (error)
+			return (error);
+		/* FALLTHROUGH */
+	case SIOCGIFMEDIA:
+	case SIOCGIFXMEDIA:
+		return (ifmedia_ioctl(ifp, ifr, cmd));
 
 	default:
 		error = ENOIOCTL;
@@ -2609,7 +2874,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		return (ENXIO);
 	}
 
-	error = ifhwioctl(cmd, ifp, data, td);
+	error = if_drvioctl(ifp, cmd, data, td);
 	if (error != ENOIOCTL) {
 		if_rele(ifp);
 		CURVNET_RESTORE();
@@ -2626,18 +2891,11 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	/*
 	 * Pass the request on to the socket control method, and if the
 	 * latter returns EOPNOTSUPP, directly to the interface.
-	 *
-	 * Make an exception for the legacy SIOCSIF* requests.  Drivers
-	 * trust SIOCSIFADDR et al to come from an already privileged
-	 * layer, and do not perform any credentials checks or input
-	 * validation.
 	 */
 	error = ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd, data,
 	    ifp, td));
-	if (error == EOPNOTSUPP && ifp != NULL && ifp->if_ioctl != NULL &&
-	    cmd != SIOCSIFADDR && cmd != SIOCSIFBRDADDR &&
-	    cmd != SIOCSIFDSTADDR && cmd != SIOCSIFNETMASK)
-		error = (*ifp->if_ioctl)(ifp, cmd, data);
+	if (error == EOPNOTSUPP)
+		error = if_ioctl(ifp, cmd, data, td);
 
 	if ((oif_flags ^ ifp->if_flags) & IFF_UP) {
 #ifdef INET6
@@ -2664,10 +2922,6 @@ if_setflag(struct ifnet *ifp, int flag, int pflag, int *refcount, int onswitch)
 	struct ifreq ifr;
 	int error;
 	int oldflags, oldcount;
-
-	/* Sanity checks to catch programming errors */
-	KASSERT((flag & (IFF_DRV_OACTIVE|IFF_DRV_RUNNING)) == 0,
-	    ("%s: setting driver-owned flag %d", __func__, flag));
 
 	if (onswitch)
 		KASSERT(*refcount >= 0,
@@ -2703,13 +2957,9 @@ if_setflag(struct ifnet *ifp, int flag, int pflag, int *refcount, int onswitch)
 	}
 
 	/* Call down the driver since we've changed interface flags */
-	if (ifp->if_ioctl == NULL) {
-		error = EOPNOTSUPP;
-		goto recover;
-	}
 	ifr.ifr_flags = ifp->if_flags & 0xffff;
 	ifr.ifr_flagshigh = ifp->if_flags >> 16;
-	error = (*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+	error = if_ioctl(ifp, SIOCSIFFLAGS, (caddr_t)&ifr, curthread);
 	if (error)
 		goto recover;
 	/* Notify userland that interface flags have changed */
@@ -2937,8 +3187,6 @@ if_freemulti(struct ifmultiaddr *ifma)
 
 	KASSERT(ifma->ifma_refcount == 0, ("if_freemulti: refcount %d",
 	    ifma->ifma_refcount));
-	KASSERT(ifma->ifma_protospec == NULL,
-	    ("if_freemulti: protospec not NULL"));
 
 	if (ifma->ifma_lladdr != NULL)
 		free(ifma->ifma_lladdr, M_IFMADDR);
@@ -2996,16 +3244,13 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa,
 	 * can allocate another sockaddr structure, in that case we need to
 	 * free it later.
 	 */
-	llsa = NULL;
-	ll_ifma = NULL;
-	if (ifp->if_resolvemulti != NULL) {
-		/* Provide called function with buffer size information */
-		sdl.sdl_len = sizeof(sdl);
-		llsa = (struct sockaddr *)&sdl;
-		error = ifp->if_resolvemulti(ifp, &llsa, sa);
-		if (error)
-			goto unlock_out;
-	}
+	sdl.sdl_len = sizeof(sdl);
+	llsa = (struct sockaddr *)&sdl;
+	error = if_resolvemulti(ifp, &llsa, sa);
+	if (error == EOPNOTSUPP)
+		llsa = NULL;
+	else if (error)
+		goto unlock_out;
 
 	/*
 	 * Allocate the new address.  Don't hook it up yet, as we may also
@@ -3061,9 +3306,7 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa,
 	 * We are certain we have added something, so call down to the
 	 * interface to let them know about it.
 	 */
-	if (ifp->if_ioctl != NULL) {
-		(void) (*ifp->if_ioctl)(ifp, SIOCADDMULTI, 0);
-	}
+	if_ioctl(ifp, SIOCADDMULTI, 0, curthread);
 
 	if ((llsa != NULL) && (llsa != (struct sockaddr *)&sdl))
 		link_free_sdl(llsa);
@@ -3119,9 +3362,8 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	if (ifma == NULL)
 		return (ENOENT);
 
-	if (lastref && ifp->if_ioctl != NULL) {
-		(void)(*ifp->if_ioctl)(ifp, SIOCDELMULTI, 0);
-	}
+	if (lastref)
+		if_ioctl(ifp, SIOCDELMULTI, 0, curthread);
 
 	return (0);
 }
@@ -3187,9 +3429,8 @@ if_delmulti_ifma(struct ifmultiaddr *ifma)
 		 *  If the group was left: update the hardware hash filter.
 		 */
 		IF_ADDR_WUNLOCK(ifp);
-		if (lastref && ifp->if_ioctl != NULL) {
-			(void)(*ifp->if_ioctl)(ifp, SIOCDELMULTI, 0);
-		}
+		if (lastref)
+			if_ioctl(ifp, SIOCDELMULTI, 0, curthread);
 	}
 }
 
@@ -3298,7 +3539,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		ifa_free(ifa);
 		return (EINVAL);
 	}
-	switch (ifp->if_type) {
+	switch (if_type(ifp)) {
 	case IFT_ETHER:
 	case IFT_FDDI:
 	case IFT_XETHER:
@@ -3322,16 +3563,14 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	 * address filter.
 	 */
 	if ((ifp->if_flags & IFF_UP) != 0) {
-		if (ifp->if_ioctl) {
-			ifp->if_flags &= ~IFF_UP;
-			ifr.ifr_flags = ifp->if_flags & 0xffff;
-			ifr.ifr_flagshigh = ifp->if_flags >> 16;
-			(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
-			ifp->if_flags |= IFF_UP;
-			ifr.ifr_flags = ifp->if_flags & 0xffff;
-			ifr.ifr_flagshigh = ifp->if_flags >> 16;
-			(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
-		}
+		ifp->if_flags &= ~IFF_UP;
+		ifr.ifr_flags = ifp->if_flags & 0xffff;
+		ifr.ifr_flagshigh = ifp->if_flags >> 16;
+		if_ioctl(ifp, SIOCSIFFLAGS, &ifr, curthread);
+		ifp->if_flags |= IFF_UP;
+		ifr.ifr_flags = ifp->if_flags & 0xffff;
+		ifr.ifr_flagshigh = ifp->if_flags >> 16;
+		if_ioctl(ifp, SIOCSIFFLAGS, &ifr, curthread);
 #ifdef INET
 		/*
 		 * Also send gratuitous ARPs to notify other nodes about
@@ -3347,20 +3586,18 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 }
 
 /*
- * The name argument must be a pointer to storage which will last as
- * long as the interface does.  For physical devices, the result of
- * device_get_name(dev) is a good choice and for pseudo-devices a
- * static string works well.
+ * Return address length of the interface.
+ *
+ * For vlan(4) the address length of different instances can be different.
+ * For usual interfaces sdl->sdl_alen == ifdrv_addrlen.
  */
-void
-if_initname(struct ifnet *ifp, const char *name, int unit)
+uint8_t
+if_addrlen(const if_t ifp)
 {
-	ifp->if_dname = name;
-	ifp->if_dunit = unit;
-	if (unit != IF_DUNIT_NONE)
-		snprintf(ifp->if_xname, IFNAMSIZ, "%s%d", name, unit);
-	else
-		strlcpy(ifp->if_xname, name, IFNAMSIZ);
+	struct sockaddr_dl *sdl;
+
+	sdl = (struct sockaddr_dl *)ifp->if_addr->ifa_addr;
+	return (sdl->sdl_alen);
 }
 
 int
@@ -3376,73 +3613,173 @@ if_printf(struct ifnet *ifp, const char * fmt, ...)
 	return (retval);
 }
 
-void
-if_start(struct ifnet *ifp)
+int
+if_getmtu_family(if_t ifp, int family)
 {
+	struct domain *dp;
 
-	(*(ifp)->if_start)(ifp);
+	for (dp = domains; dp; dp = dp->dom_next)
+		if (dp->dom_family == family && dp->dom_ifmtu != NULL)
+			return (dp->dom_ifmtu(ifp));
+
+	return (ifp->if_mtu);
 }
 
 /*
- * Backwards compatibility interface for drivers 
- * that have not implemented it
+ * Methods for drivers to access interface unicast and multicast
+ * addresses.  Driver do not know 'struct ifaddr' neither 'struct ifmultiaddr'.
  */
-static int
-if_transmit(struct ifnet *ifp, struct mbuf *m)
+void
+if_foreach_addr(if_t ifp, ifaddr_cb_t cb, void *cb_arg)
 {
-	int error;
+	struct ifaddr *ifa;
 
-	IFQ_HANDOFF(ifp, m, error);
-	return (error);
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		(*cb)(cb_arg, ifa->ifa_addr, ifa->ifa_dstaddr,
+		    ifa->ifa_netmask);
+	IF_ADDR_RUNLOCK(ifp);
+}
+
+void
+if_foreach_maddr(if_t ifp, ifmaddr_cb_t cb, void *cb_arg)
+{
+	struct ifmultiaddr *ifma;
+
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+		(*cb)(cb_arg, ifma->ifma_addr);
+	IF_ADDR_RUNLOCK(ifp);
+}
+
+/*
+ * Generic software queue, that many non-high-end drivers use.  For now
+ * it is minimalistic version of classic BSD ifqueue, but we can swap it
+ * to any other implementation later.
+ */
+struct ifqueue {
+	struct mbufq	ifq_mbq;
+	struct mtx	ifq_mtx;
+};
+
+static struct ifqueue *
+if_snd_alloc(int maxlen)
+{
+	struct ifqueue *ifq;
+
+	ifq = malloc(sizeof(struct ifqueue), M_IFNET, M_WAITOK);
+	mbufq_init(&ifq->ifq_mbq, maxlen);
+	mtx_init(&ifq->ifq_mtx, "ifqueue", NULL, MTX_DEF | MTX_NEW);
+
+	return (ifq);
+}
+
+static void
+if_snd_free(struct ifqueue *ifq)
+{
+
+	mtx_destroy(&ifq->ifq_mtx);
+	free(ifq, M_IFNET);
+}
+
+/*
+ * Flush software interface queue.
+ */
+static void
+if_snd_qflush(if_t ifp)
+{
+	struct ifqueue *ifq = ifp->if_snd;
+
+	mtx_lock(&ifq->ifq_mtx);
+	mbufq_drain(&ifq->ifq_mbq);
+	mtx_unlock(&ifq->ifq_mtx);
 }
 
 int
-if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
+if_snd_len(if_t ifp)
 {
-	int active = 0;
+	struct ifqueue *ifq = ifp->if_snd;
 
-	IF_LOCK(ifq);
-	if (_IF_QFULL(ifq)) {
-		_IF_DROP(ifq);
-		IF_UNLOCK(ifq);
-		m_freem(m);
-		return (0);
-	}
-	if (ifp != NULL) {
-		ifp->if_obytes += m->m_pkthdr.len + adjust;
-		if (m->m_flags & (M_BCAST|M_MCAST))
-			ifp->if_omcasts++;
-		active = ifp->if_drv_flags & IFF_DRV_OACTIVE;
-	}
-	_IF_ENQUEUE(ifq, m);
-	IF_UNLOCK(ifq);
-	if (ifp != NULL && !active)
-		(*(ifp)->if_start)(ifp);
-	return (1);
+	return (mbufq_len(&ifq->ifq_mbq));
+}
+
+int
+if_snd_enqueue(struct ifnet *ifp, struct mbuf *m)
+{
+	struct ifqueue *ifq = ifp->if_snd;
+	int error;
+
+	mtx_lock(&ifq->ifq_mtx);
+	error = mbufq_enqueue(&ifq->ifq_mbq, m);
+	mtx_unlock(&ifq->ifq_mtx);
+	if (error)
+		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
+	return (error);
+}
+
+struct mbuf *
+if_snd_dequeue(if_t ifp)
+{
+	struct ifqueue *ifq = ifp->if_snd;
+	struct mbuf *m;
+
+	mtx_lock(&ifq->ifq_mtx);
+	m = mbufq_dequeue(&ifq->ifq_mbq);
+	mtx_unlock(&ifq->ifq_mtx);
+	return (m);
 }
 
 void
-if_register_com_alloc(u_char type,
-    if_com_alloc_t *a, if_com_free_t *f)
+if_snd_prepend(if_t ifp, struct mbuf *m)
 {
-	
-	KASSERT(if_com_alloc[type] == NULL,
-	    ("if_register_com_alloc: %d already registered", type));
-	KASSERT(if_com_free[type] == NULL,
-	    ("if_register_com_alloc: %d free already registered", type));
+	struct ifqueue *ifq = ifp->if_snd;
 
-	if_com_alloc[type] = a;
-	if_com_free[type] = f;
+	mtx_lock(&ifq->ifq_mtx);
+	mbufq_prepend(&ifq->ifq_mbq, m);
+	mtx_unlock(&ifq->ifq_mtx);
 }
 
-void
-if_deregister_com_alloc(u_char type)
+int
+if_vlanid(if_t vifp, uint16_t *vid)
 {
-	
-	KASSERT(if_com_alloc[type] != NULL,
-	    ("if_deregister_com_alloc: %d not registered", type));
-	KASSERT(if_com_free[type] != NULL,
-	    ("if_deregister_com_alloc: %d free not registered", type));
-	if_com_alloc[type] = NULL;
-	if_com_free[type] = NULL;
+
+	if (if_type(vifp) != IFT_L2VLAN)
+		return (EINVAL);
+	*vid = (*vlan_vid_p)(vifp);
+	return (0);
+}
+
+if_t
+if_vlandev(if_t parent, uint16_t vid)
+{
+
+	if (parent->if_vlantrunk == NULL)
+                return (NULL);
+	return ((*vlan_dev_p)(parent, vid));
+}
+
+if_t
+if_vlantrunk(if_t vifp)
+{
+
+	if (if_type(vifp) != IFT_L2VLAN)
+		return (NULL);
+	return ((*vlan_trunkdev_p)(vifp));
+}
+
+/*
+ * Implementation of if ops, that can be called from drivers.
+ */
+void
+if_input_noinline(if_t ifp, struct mbuf *m)
+{
+
+	return (if_input(ifp, m));
+}
+
+int
+if_transmit_noinline(if_t ifp, struct mbuf *m)
+{
+
+	return (if_transmit(ifp, m));
 }

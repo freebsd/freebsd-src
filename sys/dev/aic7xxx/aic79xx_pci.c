@@ -93,6 +93,11 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_AIC7902_PCI_REV_A4		0x3
 #define ID_AIC7902_PCI_REV_B0		0x10
 #define SUBID_HP			0x0E11
+#define DEVICE8081			0x8081
+#define DEVICE8088			0x8088
+#define DEVICE8089			0x8089
+#define ADAPTECVENDORID			0x9005
+#define SUBVENDOR9005			0x9005
 
 #define DEVID_9005_HOSTRAID(id) ((id) & 0x80)
 
@@ -292,6 +297,15 @@ ahd_find_pci_device(aic_dev_softc_t pci)
 	device = aic_pci_read_config(pci, PCIR_DEVICE, /*bytes*/2);
 	subvendor = aic_pci_read_config(pci, PCIR_SUBVEND_0, /*bytes*/2);
 	subdevice = aic_pci_read_config(pci, PCIR_SUBDEV_0, /*bytes*/2);
+
+	if ((vendor == ADAPTECVENDORID) && (subvendor == SUBVENDOR9005)) {
+		if ((device == DEVICE8081) || (device == DEVICE8088) || 
+			(device == DEVICE8089)) {
+			printf("Controller device ID conflict with PMC Adaptec HBA\n");
+			return (NULL);
+		}
+	}
+
 	full_id = ahd_compose_id(device,
 				 vendor,
 				 subdevice,
@@ -320,14 +334,12 @@ ahd_find_pci_device(aic_dev_softc_t pci)
 int
 ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 {
-	struct scb_data *shared_scb_data;
 	u_int		 command;
 	uint32_t	 devconfig;
 	uint16_t	 device; 
 	uint16_t	 subvendor; 
 	int		 error;
 
-	shared_scb_data = NULL;
 	ahd->description = entry->name;
 	/*
 	 * Record if this is a HostRAID board.

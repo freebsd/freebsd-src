@@ -38,7 +38,14 @@
 #define	SM(_v, _f)	(((_v) << _f##_S) & (_f))
 #define	MS(_v, _f)	(((_v) & (_f)) >> _f##_S)
 
+/* XXX Linux define compatibility stuff */
+#define	BIT(_m)				(1UL << (_m))
+#define	BITM(_count)			((1UL << (_count)) - 1)
+#define	BITS(_shift, _count)		(BITM(_count) << (_shift))
+
 /* Atheros specific MII registers */
+#define	MII_ATH_MMD_ADDR		0x0d
+#define	MII_ATH_MMD_DATA		0x0e
 #define	MII_ATH_DBG_ADDR		0x1d
 #define	MII_ATH_DBG_DATA		0x1e
 
@@ -117,9 +124,33 @@
 #define		AR8X16_VLAN_MEMBER		0x0000003f
 #define		AR8X16_VLAN_VALID		(1 << 11)
 
-#define	AR8X16_REG_ARL_CTRL0		0x0050
-#define	AR8X16_REG_ARL_CTRL1		0x0054
+#define	AR8216_REG_ATU			0x0050
+#define		AR8216_ATU_OP		BITS(0, 3)
+#define		AR8216_ATU_OP_NOOP		0x0
+#define		AR8216_ATU_OP_FLUSH		0x1
+#define		AR8216_ATU_OP_LOAD		0x2
+#define		AR8216_ATU_OP_PURGE		0x3
+#define		AR8216_ATU_OP_FLUSH_LOCKED	0x4
+#define		AR8216_ATU_OP_FLUSH_UNICAST	0x5
+#define		AR8216_ATU_OP_GET_NEXT		0x6
+#define		AR8216_ATU_ACTIVE		BIT(3)
+#define		AR8216_ATU_PORT_NUM		BITS(8, 4)
+#define		AR8216_ATU_FULL_VIO		BIT(12)
+#define		AR8216_ATU_ADDR4		BITS(16, 8)
+#define		AR8216_ATU_ADDR5		BITS(24, 8)
+
+#define	AR8216_REG_ATU_DATA		0x0054
+#define		AR8216_ATU_ADDR3		BITS(0, 8)
+#define		AR8216_ATU_ADDR2		BITS(8, 8)
+#define		AR8216_ATU_ADDR1		BITS(16, 8)
+#define		AR8216_ATU_ADDR0		BITS(24, 8)
+
 #define	AR8X16_REG_ARL_CTRL2		0x0058
+
+#define	AR8216_REG_ATU_CTRL		0x005C
+#define		AR8216_ATU_CTRL_AGE_EN		BIT(17)
+#define		AR8216_ATU_CTRL_AGE_TIME	BITS(0, 16)
+#define		AR8216_ATU_CTRL_AGE_TIME_S	0
 
 #define	AR8X16_REG_AT_CTRL		0x005c
 #define		AR8X16_AT_CTRL_ARP_EN		(1 << 20)
@@ -293,10 +324,6 @@
  * AR9340 switch specific definitions.
  */
 
-/* XXX Linux define compatibility stuff */
-#define	BITM(_count)			((1 << _count) - 1)
-#define	BITS(_shift, _count)		(BITM(_count) << _shift)
-
 #define	AR934X_REG_OPER_MODE0		0x04
 #define		AR934X_OPER_MODE0_MAC_GMII_EN	(1 << 6)
 #define		AR934X_OPER_MODE0_PHY_MII_EN	(1 << 10)
@@ -342,6 +369,9 @@
 #define	AR8327_NUM_PORTS		7
 #define	AR8327_NUM_PHYS			5
 #define	AR8327_PORTS_ALL		0x7f
+
+#define	AR8327_PORT_GMAC0		0
+#define	AR8327_PORT_GMAC6		6
 
 #define	AR8327_REG_MASK			0x000
 
@@ -393,6 +423,8 @@
 #define	AR8327_REG_MIB_FUNC		0x034
 #define		AR8327_MIB_CPU_KEEP		(1 << 20)
 
+#define	AR8327_REG_MDIO_CTRL		0x03c
+
 #define	AR8327_REG_SERVICE_TAG		0x048
 #define	AR8327_REG_LED_CTRL0		0x050
 #define	AR8327_REG_LED_CTRL1		0x054
@@ -413,6 +445,9 @@
 #define		AR8327_SGMII_CTRL_EN_PLL		(1 << 1)
 #define		AR8327_SGMII_CTRL_EN_RX			(1 << 2)
 #define		AR8327_SGMII_CTRL_EN_TX			(1 << 3)
+
+#define	AR8327_REG_EEE_CTRL		0x100
+#define	AR8327_EEE_CTRL_DISABLE_PHY(_i)		BIT(4 + (_i) * 2)
 
 #define	AR8327_REG_PORT_VLAN0(_i)		(0x420 + (_i) * 0x8)
 #define		AR8327_PORT_VLAN0_DEF_SVID		BITS(0, 12)

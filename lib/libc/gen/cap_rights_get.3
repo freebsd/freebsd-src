@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2013
+.Dd March 27, 2014
 .Dt CAP_RIGHTS_GET 3
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/capability.h
+.In sys/capsicum.h
 .Ft int
 .Fn cap_rights_get "int fd" "cap_rights_t *rights"
 .Sh DESCRIPTION
@@ -100,10 +100,10 @@ argument points at an invalid address.
 .El
 .Sh SEE ALSO
 .Xr cap_rights_limit 2 ,
-.Xr cap_rights_init 3 ,
 .Xr errno 2 ,
 .Xr open 2 ,
 .Xr assert 3 ,
+.Xr cap_rights_init 3 ,
 .Xr err 3 ,
 .Xr memcmp 3 ,
 .Xr memset 3 ,
@@ -115,5 +115,5 @@ Support for capabilities and capabilities mode was developed as part of the
 Project.
 .Sh AUTHORS
 This function was created by
-.An Pawel Jakub Dawidek Aq pawel@dawidek.net
+.An Pawel Jakub Dawidek Aq Mt pawel@dawidek.net
 under sponsorship of the FreeBSD Foundation.

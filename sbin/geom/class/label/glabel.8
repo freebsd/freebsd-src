@@ -130,8 +130,26 @@ GPT UUIDs (directory
 .Pa /dev/gptid/ ) .
 .El
 .Pp
-Generic labels are created in the directory
-.Pa /dev/label/ .
+Generic disk ID strings are exported as labels in the format
+.Pa /dev/diskid/GEOM_CLASS-ident
+e.g.
+.Pa /dev/diskid/DISK-6QG3Z026  .
+.Pp
+Generic labels created and managed solely by
+.Xr glabel 8
+are created in the
+.Pa /dev/label/
+directory.
+.Pp
+Note that for all label types, nested GEOM classes will cause additional
+device nodes to be created, with context-specific data appended to their
+names. E.g. for every node like
+.Pa /dev/label/bigdisk
+there will be additional entries for any partitions which the device
+contains, like
+.Pa /dev/label/bigdiskp1
+and
+.Pa /dev/label/bigdiskp1a .
 .Pp
 The first argument to
 .Nm
@@ -205,6 +223,19 @@ This can be set to a number between 0 and 2 inclusive.
 If set to 0 minimal debug information is printed, and if set to 2 the
 maximum amount of debug information is printed.
 .El
+.Bl -tag -width indent
+.It Va kern.geom.label.*.enable : No 1
+Most
+.Nm LABEL
+providers implement a
+.Xr sysctl 8
+flag and a tunable variable named in the above format. This flag
+controls if the label provider will be active, tasting devices
+and creating label nodes in the
+.Xr devfs 5
+tree. It is sometimes desirable to disable certain label types if
+they conflict with other classes in complex GEOM topologies.
+.El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
@@ -241,4 +272,4 @@ The
 utility appeared in
 .Fx 5.3 .
 .Sh AUTHORS
-.An Pawel Jakub Dawidek Aq pjd@FreeBSD.org
+.An Pawel Jakub Dawidek Aq Mt pjd@FreeBSD.org

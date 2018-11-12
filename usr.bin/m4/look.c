@@ -1,4 +1,4 @@
-/*	$OpenBSD: look.c,v 1.22 2010/09/07 19:58:09 marco Exp $	*/
+/*	$OpenBSD: look.c,v 1.24 2014/12/21 09:33:12 espie Exp $	*/
 
 /*
  * Copyright (c) 1989, 1993
@@ -51,36 +51,37 @@ __FBSDID("$FreeBSD$");
 #include "stdd.h"
 #include "extern.h"
 
-static void *hash_alloc(size_t, void *);
-static void hash_free(void *, size_t, void *);
+static void *hash_calloc(size_t, size_t, void *);
+static void hash_free(void *, void *);
 static void *element_alloc(size_t, void *);
 static void setup_definition(struct macro_definition *, const char *,
     const char *);
+static void free_definition(char *);
+static void keep(char *);
+static int string_in_use(const char *);
 
 static struct ohash_info macro_info = {
 	offsetof(struct ndblock, name),
-	NULL, hash_alloc, hash_free, element_alloc };
+	NULL, hash_calloc, hash_free, element_alloc };
 
 struct ohash macros;
 
 /* Support routines for hash tables.  */
 void *
-hash_alloc(size_t s, __unused void *u)
+hash_calloc(size_t n, size_t s, void *u __unused)
 {
-	void *storage = xalloc(s, "hash alloc");
-	if (storage)
-		memset(storage, 0, s);
+	void *storage = xcalloc(n, s, "hash alloc");
 	return storage;
 }
 
 void
-hash_free(void *p, __unused size_t s, __unused void *u)
+hash_free(void *p, void *u __unused)
 {
 	free(p);
 }
 
 void *
-element_alloc(size_t s, __unused void *u)
+element_alloc(size_t s, void *u __unused)
 {
 	return xalloc(s, "element alloc");
 }
@@ -157,7 +158,7 @@ macro_define(const char *name, const char *defn)
 	ndptr n = create_entry(name);
 	if (n->d != NULL) {
 		if (n->d->defn != null)
-			free(n->d->defn);
+			free_definition(n->d->defn);
 	} else {
 		n->d = xalloc(sizeof(struct macro_definition), NULL);
 		n->d->next = NULL;
@@ -275,3 +276,64 @@ macro_getbuiltin(const char *name)
 	else
 		return p;
 }
+
+/* XXX things are slightly more complicated than they seem.
+ * a macro may actually be "live" (in the middle of an expansion
+ * on the stack.
+ * So we actually may need to place it in an array for later...
+ */
+
+static int kept_capacity = 0;
+static int kept_size = 0;
+static char **kept = NULL;
+
+static void
+keep(char *ptr)
+{
+	if (kept_capacity <= kept_size) {
+		if (kept_capacity)
+			kept_capacity *= 2;
+		else
+			kept_capacity = 50;
+		kept = xreallocarray(kept, kept_capacity, 
+		    sizeof(char *), "Out of memory while saving %d strings\n", 
+		    kept_capacity);
+	}
+	kept[kept_size++] = ptr;
+}
+
+static int
+string_in_use(const char *ptr) 
+{
+	int i;
+	for (i = 0; i <= sp; i++) {
+		if (sstack[i] == STORAGE_MACRO && mstack[i].sstr == ptr)
+			return 1;
+		}
+	return 0;
+}
+
+
+static void
+free_definition(char *ptr)
+{
+	int i;
+
+	/* first try to free old strings */
+	for (i = 0; i < kept_size; i++) {
+		if (!string_in_use(kept[i])) {
+			kept_size--;
+			free(kept[i]);
+			if (i != kept_size) 
+				kept[i] = kept[kept_size];
+			i--;
+		}
+	}
+
+	/* then deal with us */
+	if (string_in_use(ptr))
+		keep(ptr);
+	else
+		free(ptr);
+}
+

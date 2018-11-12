@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
+ * Copyright (c) 2013-2015 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,16 +27,28 @@
  */
 
 #ifndef SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
-#define SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
+#define	SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
 
-typedef void (*event_proc_f)(struct harvest *event);
+#define	HARVESTSIZE	2	/* Max length in words of each harvested entropy unit */
 
-void random_harvestq_init(event_proc_f);
-void random_harvestq_deinit(void);
-void random_harvestq_internal(u_int64_t, const void *,
-    u_int, u_int, enum esource);
+/* These are used to queue harvested packets of entropy. The entropy
+ * buffer size is pretty arbitrary.
+ */
+struct harvest_event {
+	uint32_t	he_somecounter;		/* fast counter for clock jitter */
+	uint32_t	he_entropy[HARVESTSIZE];/* some harvested entropy */
+	uint8_t		he_size;		/* harvested entropy byte count */
+	uint8_t		he_bits;		/* stats about the entropy */
+	uint8_t		he_destination;		/* destination pool of this entropy */
+	uint8_t		he_source;		/* origin of the entropy */
+} __packed;
 
-extern int random_kthread_control;
-extern struct mtx harvest_mtx;
+void read_rate_increment(u_int);
+
+#define	RANDOM_HARVESTQ_BOOT_ENTROPY_FILE	"/boot/entropy"
+
+#define	RANDOM_HARVEST_INIT_LOCK(x)	mtx_init(&harvest_context.hc_mtx, "entropy harvest mutex", NULL, MTX_SPIN)
+#define	RANDOM_HARVEST_LOCK(x)		mtx_lock_spin(&harvest_context.hc_mtx)
+#define	RANDOM_HARVEST_UNLOCK(x)	mtx_unlock_spin(&harvest_context.hc_mtx)
 
 #endif /* SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED */

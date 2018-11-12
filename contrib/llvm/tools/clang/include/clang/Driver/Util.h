@@ -7,19 +7,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_DRIVER_UTIL_H_
-#define CLANG_DRIVER_UTIL_H_
+#ifndef LLVM_CLANG_DRIVER_UTIL_H
+#define LLVM_CLANG_DRIVER_UTIL_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
 
 namespace clang {
+class DiagnosticsEngine;
+
 namespace driver {
   class Action;
   class JobAction;
-
-  /// ArgStringList - Type used for constructing argv lists for subprocesses.
-  typedef SmallVector<const char*, 16> ArgStringList;
 
   /// ArgStringMap - Type used to map a JobAction to its result file.
   typedef llvm::DenseMap<const JobAction*, const char*> ArgStringMap;

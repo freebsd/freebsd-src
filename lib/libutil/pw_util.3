@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2012
+.Dd July 02, 2015
 .Dt PW_UTIL 3
 .Os
 .Sh NAME
@@ -48,13 +48,13 @@
 .In pwd.h
 .In libutil.h
 .Ft int
-.Fn pw_copy "int ffd" "int tfd" "const struct passwd *pw" "const struct passwd *oldpw"
+.Fn pw_copy "int ffd" "int tfd" "const struct passwd *pw" "struct passwd *oldpw"
 .Ft "struct passwd *"
 .Fn pw_dup "const struct passwd *pw"
 .Ft int
 .Fn pw_edit "int nosetuid"
 .Ft int
-.Fn pw_equal "const struct passwd *pw1" "const struct passwd pw2"
+.Fn pw_equal "const struct passwd *pw1" "const struct passwd *pw2"
 .Ft void
 .Fn pw_fini "void"
 .Ft int
@@ -222,7 +222,7 @@ and it is the caller's responsibility to free it with
 The
 .Fn pw_mkdb
 function regenerates the password database by running
-.Xr pw_mkdb 8 .
+.Xr pwd_mkdb 8 .
 If
 .Fa user
 only the record corresponding to that user will be updated.
@@ -233,7 +233,8 @@ function returns 0 in case of success and -1 in case of failure.
 The
 .Fn pw_lock
 function locks the master password file.
-It returns 0 in case of success and -1 in case of failure.
+It returns a file descriptor to the master password file on success
+and -1 on failure.
 .Pp
 The
 .Fn pw_scan
@@ -283,4 +284,4 @@ DARPA/SPAWAR contract N66001-01-C-8035
 as part of the DARPA CHATS research program.
 .Pp
 This manual page was written by
-.An Baptiste Daroussin Aq bapt@FreeBSD.org .
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org .

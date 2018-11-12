@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl_scsi_all.h>
 #include <cam/ctl/ctl_util.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
 
@@ -449,7 +448,7 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 					(F_LUNVAL(ctx) != 0) ? "     " : "",
 					(F_LUNVAL(ctx) != 0) ? "     " : "",
 					(F_LUNVAL(ctx) != 0) ? "     " : "",
-					(F_CPU(ctx) == 0)   ? "    CPU" : "");
+					(F_CPU(ctx))   ? "    CPU" : "");
 				hdr_devs = 3;
 			} else {
 				if (F_CPU(ctx))
@@ -468,8 +467,9 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 
 					if (bit_test(ctx->lun_mask, lun) == 0)
 						continue;
-					fprintf(stdout, "%15.6s%d ",
-						"lun", lun);
+					fprintf(stdout, "%15.6s%d %s",
+					    "lun", lun,
+					    (F_LUNVAL(ctx) != 0) ? "     " : "");
 					hdr_devs++;
 				}
 				fprintf(stdout, "\n");

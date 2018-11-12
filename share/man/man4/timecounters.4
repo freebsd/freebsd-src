@@ -24,27 +24,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2011
+.Dd August 12, 2015
 .Dt TIMECOUNTERS 4
 .Os
 .Sh NAME
 .Nm timecounters
 .Nd kernel time counters subsystem
 .Sh SYNOPSIS
-Kernel uses several types of time-related devices, such as: real time clocks,
+The kernel uses several types of time-related devices, such as: real time clocks,
 time counters and event timers.
-Real time clocks responsible for tracking real world time, mostly when system
+Real time clocks are responsible for tracking real world time, mostly when the system
 is down.
-Time counters are responsible for tracking purposes, when system is running.
-Event timers are responsible for generating interrupts at specified time or
+Time counters are responsible for tracking purposes, when the system is running.
+Event timers are responsible for generating interrupts at a specified time or
 periodically, to run different time-based events.
 This page is about the second.
 .Sh DESCRIPTION
-Time counters are the lowest level of time tracking in kernel.
+Time counters are the lowest level of time tracking in the kernel.
 They provide monotonically increasing timestamps with known width and
 update frequency.
-They can overflow, drift, etc and so in raw form used only in very limited
-performance-critical places like process scheduler.
+They can overflow, drift, etc and so in raw form can be used only in very limited
+performance-critical places like the process scheduler.
 .Pp
 More usable time is created by scaling the values read from the selected
 time counter and combining it with some offset, regularly updated by
@@ -54,13 +54,14 @@ on
 invocation.
 .Pp
 Different platforms provide different kinds of timer hardware.
-The goal of the time counters subsystem is to provide unified way to access
+The goal of the time counters subsystem is to provide a unified way to access
 that hardware.
 .Pp
-Each driver implementing time counters, registers them at the subsystem.
-It is possible to see the list of present time counters, like this, via
+Each driver implementing time counters registers them with the subsystem.
+It is possible to see the list of present time counters, via the
 .Va kern.timecounter
-sysctl:
+.Xr sysctl 8
+variable:
 .Bd -literal
 kern.timecounter.choice: TSC-low(-100) HPET(950) i8254(0) ACPI-fast(900) dummy(-1000000)
 kern.timecounter.tc.ACPI-fast.mask: 16777215
@@ -81,7 +82,7 @@ kern.timecounter.tc.TSC-low.frequency: 11458556
 kern.timecounter.tc.TSC-low.quality: -100
 .Ed
 .Pp
-where:
+The output nodes are defined as follows:
 .Bl -inset
 .It Va kern.timecounter.tc. Ns Ar X Ns Va .mask
 is a bitmask, defining valid counter bits,
@@ -90,15 +91,21 @@ is a present counter value,
 .It Va kern.timecounter.tc. Ns Ar X Ns Va .frequency
 is a counter update frequency,
 .It Va kern.timecounter.tc. Ns Ar X Ns Va .quality
-is an integral value, defining how good is this time counter,
-comparing to others.
-Negative value means that this time counter is broken and should not be used.
+is an integral value, defining the quality of this time counter
+compared to others.
+A negative value means this time counter is broken and should not be used.
 .El
 .Pp
-Time management code of the kernel chooses one time counter from that list.
-Current choice can be read and affected via
+The time management code of the kernel automatically switches to a
+higher-quality time counter when it registers, unless the
 .Va kern.timecounter.hardware
-tunable/sysctl.
+sysctl has been used to choose a specific device.
+.Pp
+There is no way to unregister a time counter once it has registered
+with the kernel.
+If a dynamically loaded module contains a time counter you will not
+be able to unload that module, even if the time counter it contains
+is not the one currently in use.
 .Sh SEE ALSO
 .Xr attimer 4 ,
 .Xr eventtimers 4 ,

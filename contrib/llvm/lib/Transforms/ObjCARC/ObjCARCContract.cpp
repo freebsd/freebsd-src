@@ -26,18 +26,20 @@
 // TODO: ObjCARCContract could insert PHI nodes when uses aren't
 // dominated by single calls.
 
-#define DEBUG_TYPE "objc-arc-contract"
 #include "ObjCARC.h"
+#include "ARCRuntimeEntryPoints.h"
 #include "DependencyAnalysis.h"
 #include "ProvenanceAnalysis.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/Dominators.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/Support/Debug.h"
 
 using namespace llvm;
 using namespace llvm::objcarc;
+
+#define DEBUG_TYPE "objc-arc-contract"
 
 STATISTIC(NumPeeps,       "Number of calls peephole-optimized");
 STATISTIC(NumStoreStrongs, "Number objc_storeStrong calls formed");
@@ -52,22 +54,10 @@ namespace {
     AliasAnalysis *AA;
     DominatorTree *DT;
     ProvenanceAnalysis PA;
+    ARCRuntimeEntryPoints EP;
 
     /// A flag indicating whether this optimization pass should run.
     bool Run;
-
-    /// Declarations for ObjC runtime functions, for use in creating calls to
-    /// them. These are initialized lazily to avoid cluttering up the Module
-    /// with unused declarations.
-
-    /// Declaration for objc_storeStrong().
-    Constant *StoreStrongCallee;
-    /// Declaration for objc_retainAutorelease().
-    Constant *RetainAutoreleaseCallee;
-    /// Declaration for objc_retainAutoreleaseReturnValue().
-    Constant *RetainAutoreleaseRVCallee;
-    /// Declaration for objc_retainAutoreleasedReturnValue().
-    Constant *RetainRVCallee;
 
     /// The inline asm string to insert between calls and RetainRV calls to make
     /// the optimization work on targets which need it.
@@ -78,26 +68,21 @@ namespace {
     /// "tail".
     SmallPtrSet<CallInst *, 8> StoreStrongCalls;
 
-    Constant *getStoreStrongCallee(Module *M);
-    Constant *getRetainRVCallee(Module *M);
-    Constant *getRetainAutoreleaseCallee(Module *M);
-    Constant *getRetainAutoreleaseRVCallee(Module *M);
-
     bool OptimizeRetainCall(Function &F, Instruction *Retain);
 
     bool ContractAutorelease(Function &F, Instruction *Autorelease,
                              InstructionClass Class,
-                             SmallPtrSet<Instruction *, 4>
+                             SmallPtrSetImpl<Instruction *>
                                &DependingInstructions,
-                             SmallPtrSet<const BasicBlock *, 4>
+                             SmallPtrSetImpl<const BasicBlock *>
                                &Visited);
 
     void ContractRelease(Instruction *Release,
                          inst_iterator &Iter);
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-    virtual bool doInitialization(Module &M);
-    virtual bool runOnFunction(Function &F);
+    void getAnalysisUsage(AnalysisUsage &AU) const override;
+    bool doInitialization(Module &M) override;
+    bool runOnFunction(Function &F) override;
 
   public:
     static char ID;
@@ -111,7 +96,7 @@ char ObjCARCContract::ID = 0;
 INITIALIZE_PASS_BEGIN(ObjCARCContract,
                       "objc-arc-contract", "ObjC ARC contraction", false, false)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
-INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_END(ObjCARCContract,
                     "objc-arc-contract", "ObjC ARC contraction", false, false)
 
@@ -121,76 +106,8 @@ Pass *llvm::createObjCARCContractPass() {
 
 void ObjCARCContract::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<AliasAnalysis>();
-  AU.addRequired<DominatorTree>();
+  AU.addRequired<DominatorTreeWrapperPass>();
   AU.setPreservesCFG();
-}
-
-Constant *ObjCARCContract::getStoreStrongCallee(Module *M) {
-  if (!StoreStrongCallee) {
-    LLVMContext &C = M->getContext();
-    Type *I8X = PointerType::getUnqual(Type::getInt8Ty(C));
-    Type *I8XX = PointerType::getUnqual(I8X);
-    Type *Params[] = { I8XX, I8X };
-
-    AttributeSet Attr = AttributeSet()
-      .addAttribute(M->getContext(), AttributeSet::FunctionIndex,
-                    Attribute::NoUnwind)
-      .addAttribute(M->getContext(), 1, Attribute::NoCapture);
-
-    StoreStrongCallee =
-      M->getOrInsertFunction(
-        "objc_storeStrong",
-        FunctionType::get(Type::getVoidTy(C), Params, /*isVarArg=*/false),
-        Attr);
-  }
-  return StoreStrongCallee;
-}
-
-Constant *ObjCARCContract::getRetainAutoreleaseCallee(Module *M) {
-  if (!RetainAutoreleaseCallee) {
-    LLVMContext &C = M->getContext();
-    Type *I8X = PointerType::getUnqual(Type::getInt8Ty(C));
-    Type *Params[] = { I8X };
-    FunctionType *FTy = FunctionType::get(I8X, Params, /*isVarArg=*/false);
-    AttributeSet Attribute =
-      AttributeSet().addAttribute(M->getContext(), AttributeSet::FunctionIndex,
-                                  Attribute::NoUnwind);
-    RetainAutoreleaseCallee =
-      M->getOrInsertFunction("objc_retainAutorelease", FTy, Attribute);
-  }
-  return RetainAutoreleaseCallee;
-}
-
-Constant *ObjCARCContract::getRetainAutoreleaseRVCallee(Module *M) {
-  if (!RetainAutoreleaseRVCallee) {
-    LLVMContext &C = M->getContext();
-    Type *I8X = PointerType::getUnqual(Type::getInt8Ty(C));
-    Type *Params[] = { I8X };
-    FunctionType *FTy = FunctionType::get(I8X, Params, /*isVarArg=*/false);
-    AttributeSet Attribute =
-      AttributeSet().addAttribute(M->getContext(), AttributeSet::FunctionIndex,
-                                  Attribute::NoUnwind);
-    RetainAutoreleaseRVCallee =
-      M->getOrInsertFunction("objc_retainAutoreleaseReturnValue", FTy,
-                             Attribute);
-  }
-  return RetainAutoreleaseRVCallee;
-}
-
-Constant *ObjCARCContract::getRetainRVCallee(Module *M) {
-  if (!RetainRVCallee) {
-    LLVMContext &C = M->getContext();
-    Type *I8X = PointerType::getUnqual(Type::getInt8Ty(C));
-    Type *Params[] = { I8X };
-    FunctionType *FTy = FunctionType::get(I8X, Params, /*isVarArg=*/false);
-    AttributeSet Attribute =
-      AttributeSet().addAttribute(M->getContext(), AttributeSet::FunctionIndex,
-                                  Attribute::NoUnwind);
-    RetainRVCallee =
-      M->getOrInsertFunction("objc_retainAutoreleasedReturnValue", FTy,
-                             Attribute);
-  }
-  return RetainRVCallee;
 }
 
 /// Turn objc_retain into objc_retainAutoreleasedReturnValue if the operand is a
@@ -222,7 +139,8 @@ ObjCARCContract::OptimizeRetainCall(Function &F, Instruction *Retain) {
 
   // We do not have to worry about tail calls/does not throw since
   // retain/retainRV have the same properties.
-  cast<CallInst>(Retain)->setCalledFunction(getRetainRVCallee(F.getParent()));
+  Constant *Decl = EP.get(ARCRuntimeEntryPoints::EPT_RetainRV);
+  cast<CallInst>(Retain)->setCalledFunction(Decl);
 
   DEBUG(dbgs() << "New: " << *Retain << "\n");
   return true;
@@ -232,15 +150,15 @@ ObjCARCContract::OptimizeRetainCall(Function &F, Instruction *Retain) {
 bool
 ObjCARCContract::ContractAutorelease(Function &F, Instruction *Autorelease,
                                      InstructionClass Class,
-                                     SmallPtrSet<Instruction *, 4>
+                                     SmallPtrSetImpl<Instruction *>
                                        &DependingInstructions,
-                                     SmallPtrSet<const BasicBlock *, 4>
+                                     SmallPtrSetImpl<const BasicBlock *>
                                        &Visited) {
   const Value *Arg = GetObjCArg(Autorelease);
 
   // Check that there are no instructions between the retain and the autorelease
   // (such as an autorelease_pop) which may change the count.
-  CallInst *Retain = 0;
+  CallInst *Retain = nullptr;
   if (Class == IC_AutoreleaseRV)
     FindDependencies(RetainAutoreleaseRVDep, Arg,
                      Autorelease->getParent(), Autorelease,
@@ -272,10 +190,10 @@ ObjCARCContract::ContractAutorelease(Function &F, Instruction *Autorelease,
                   "                                      Old Retain: "
                << *Retain << "\n");
 
-  if (Class == IC_AutoreleaseRV)
-    Retain->setCalledFunction(getRetainAutoreleaseRVCallee(F.getParent()));
-  else
-    Retain->setCalledFunction(getRetainAutoreleaseCallee(F.getParent()));
+  Constant *Decl = EP.get(Class == IC_AutoreleaseRV ?
+                          ARCRuntimeEntryPoints::EPT_RetainAutoreleaseRV :
+                          ARCRuntimeEntryPoints::EPT_RetainAutorelease);
+  Retain->setCalledFunction(Decl);
 
   DEBUG(dbgs() << "                                      New Retain: "
                << *Retain << "\n");
@@ -301,7 +219,7 @@ void ObjCARCContract::ContractRelease(Instruction *Release,
   BasicBlock::iterator I = Load, End = BB->end();
   ++I;
   AliasAnalysis::Location Loc = AA->getLocation(Load);
-  StoreInst *Store = 0;
+  StoreInst *Store = nullptr;
   bool SawRelease = false;
   for (; !Store || !SawRelease; ++I) {
     if (I == End)
@@ -356,9 +274,8 @@ void ObjCARCContract::ContractRelease(Instruction *Release,
     Args[0] = new BitCastInst(Args[0], I8XX, "", Store);
   if (Args[1]->getType() != I8X)
     Args[1] = new BitCastInst(Args[1], I8X, "", Store);
-  CallInst *StoreStrong =
-    CallInst::Create(getStoreStrongCallee(BB->getParent()->getParent()),
-                     Args, "", Store);
+  Constant *Decl = EP.get(ARCRuntimeEntryPoints::EPT_StoreStrong);
+  CallInst *StoreStrong = CallInst::Create(Decl, Args, "", Store);
   StoreStrong->setDoesNotThrow();
   StoreStrong->setDebugLoc(Store->getDebugLoc());
 
@@ -381,14 +298,10 @@ bool ObjCARCContract::doInitialization(Module &M) {
   if (!Run)
     return false;
 
-  // These are initialized lazily.
-  StoreStrongCallee = 0;
-  RetainAutoreleaseCallee = 0;
-  RetainAutoreleaseRVCallee = 0;
-  RetainRVCallee = 0;
+  EP.Initialize(&M);
 
   // Initialize RetainRVMarker.
-  RetainRVMarker = 0;
+  RetainRVMarker = nullptr;
   if (NamedMDNode *NMD =
         M.getNamedMetadata("clang.arc.retainAutoreleasedReturnValueMarker"))
     if (NMD->getNumOperands() == 1) {
@@ -411,7 +324,7 @@ bool ObjCARCContract::runOnFunction(Function &F) {
 
   Changed = false;
   AA = &getAnalysis<AliasAnalysis>();
-  DT = &getAnalysis<DominatorTree>();
+  DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
 
   PA.setAA(&getAnalysis<AliasAnalysis>());
 
@@ -528,17 +441,17 @@ bool ObjCARCContract::runOnFunction(Function &F) {
 
     // Don't use GetObjCArg because we don't want to look through bitcasts
     // and such; to do the replacement, the argument must have type i8*.
-    const Value *Arg = cast<CallInst>(Inst)->getArgOperand(0);
+    Value *Arg = cast<CallInst>(Inst)->getArgOperand(0);
     for (;;) {
       // If we're compiling bugpointed code, don't get in trouble.
       if (!isa<Instruction>(Arg) && !isa<Argument>(Arg))
         break;
       // Look through the uses of the pointer.
-      for (Value::const_use_iterator UI = Arg->use_begin(), UE = Arg->use_end();
+      for (Value::use_iterator UI = Arg->use_begin(), UE = Arg->use_end();
            UI != UE; ) {
-        Use &U = UI.getUse();
-        unsigned OperandNo = UI.getOperandNo();
-        ++UI; // Increment UI now, because we may unlink its element.
+        // Increment UI now, because we may unlink its element.
+        Use &U = *UI++;
+        unsigned OperandNo = U.getOperandNo();
 
         // If the call's return value dominates a use of the call's argument
         // value, rewrite the use to use the return value. We check for
@@ -563,9 +476,9 @@ bool ObjCARCContract::runOnFunction(Function &F) {
             for (unsigned i = 0, e = PHI->getNumIncomingValues(); i != e; ++i)
               if (PHI->getIncomingBlock(i) == BB) {
                 // Keep the UI iterator valid.
-                if (&PHI->getOperandUse(
-                      PHINode::getOperandNumForIncomingValue(i)) ==
-                    &UI.getUse())
+                if (UI != UE &&
+                    &PHI->getOperandUse(
+                        PHINode::getOperandNumForIncomingValue(i)) == &*UI)
                   ++UI;
                 PHI->setIncomingValue(i, Replacement);
               }
@@ -595,9 +508,8 @@ bool ObjCARCContract::runOnFunction(Function &F) {
   // If this function has no escaping allocas or suspicious vararg usage,
   // objc_storeStrong calls can be marked with the "tail" keyword.
   if (TailOkForStoreStrongs)
-    for (SmallPtrSet<CallInst *, 8>::iterator I = StoreStrongCalls.begin(),
-         E = StoreStrongCalls.end(); I != E; ++I)
-      (*I)->setTailCall();
+    for (CallInst *CI : StoreStrongCalls)
+      CI->setTailCall();
   StoreStrongCalls.clear();
 
   return Changed;

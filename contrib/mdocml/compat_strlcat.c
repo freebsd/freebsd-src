@@ -1,8 +1,6 @@
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
-#ifdef HAVE_STRLCAT
+#if HAVE_STRLCAT
 
 int dummy;
 

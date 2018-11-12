@@ -39,7 +39,7 @@ OPENPAM=	${.CURDIR}/../../../contrib/openpam
 .PATH: ${OPENPAM}/include ${OPENPAM}/lib/libpam ${OPENPAM}/doc/man
 
 LIB=	pam
-NO_PROFILE=
+MK_PROFILE=no
 
 SRCS=	openpam_asprintf.c \
 	openpam_borrow_cred.c \
@@ -66,6 +66,7 @@ SRCS=	openpam_asprintf.c \
 	openpam_straddch.c \
 	openpam_strlcat.c \
 	openpam_strlcpy.c \
+	openpam_strlset.c \
 	openpam_subst.c \
 	openpam_ttyconv.c \
 	openpam_vasprintf.c \
@@ -171,31 +172,14 @@ HEADERS=	security/openpam.h \
 
 ADD_HEADERS=	security/pam_mod_misc.h
 
-#
-# Static modules
-#
-# We build static versions of all modules and of openpam_static.o,
-# then link them all together into openpam_static_modules.o.  None of
-# the modules export any symbols, but they store structures with
-# pointers to their service functions in a linker set which the code
-# in openpam_static.c traverses to locate the individual modules.
-#
-MODULE_DIR=	../modules
-.include "${.CURDIR}/${MODULE_DIR}/modules.inc"
-STATIC_MODULES=	${MODULES:C/.*/${MODULE_DIR}\/&\/lib&.a/}
-STATICOBJS+=	openpam_static_modules.o
-CLEANFILES+=	openpam_static.o \
-		openpam_static_modules.o
-
-openpam_static_modules.o: openpam_static.o ${STATIC_MODULES}
-	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
-
-# We can't put openpam_static.c in SRCS, but we still want to scan it
-# for dependencies.
-DPSRCS=		openpam_static.c
-
 # Headers
 INCS=		${HEADERS} ${ADD_HEADERS}
 INCSDIR=	${INCLUDEDIR}/security
+
+.include <src.opts.mk>
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=        tests
+.endif
 
 .include <bsd.lib.mk>

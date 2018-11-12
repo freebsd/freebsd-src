@@ -19,8 +19,9 @@ let Constraints = "$src1 = $dst" in {
 multiclass fma3p_rm<bits<8> opc, string OpcodeStr,
                     PatFrag MemFrag128, PatFrag MemFrag256,
                     ValueType OpVT128, ValueType OpVT256,
+                    bit IsRVariantCommutable = 0, bit IsMVariantCommutable = 0,
                     SDPatternOperator Op = null_frag> {
-  let isCommutable = 1 in
+  let usesCustomInserter = 1, isCommutable = IsRVariantCommutable in
   def r     : FMA3<opc, MRMSrcReg, (outs VR128:$dst),
                    (ins VR128:$src1, VR128:$src2, VR128:$src3),
                    !strconcat(OpcodeStr,
@@ -28,7 +29,7 @@ multiclass fma3p_rm<bits<8> opc, string OpcodeStr,
                    [(set VR128:$dst, (OpVT128 (Op VR128:$src2,
                                                VR128:$src1, VR128:$src3)))]>;
 
-  let mayLoad = 1 in
+  let mayLoad = 1, isCommutable = IsMVariantCommutable in
   def m     : FMA3<opc, MRMSrcMem, (outs VR128:$dst),
                    (ins VR128:$src1, VR128:$src2, f128mem:$src3),
                    !strconcat(OpcodeStr,
@@ -36,7 +37,7 @@ multiclass fma3p_rm<bits<8> opc, string OpcodeStr,
                    [(set VR128:$dst, (OpVT128 (Op VR128:$src2, VR128:$src1,
                                                (MemFrag128 addr:$src3))))]>;
 
-  let isCommutable = 1 in
+  let usesCustomInserter = 1, isCommutable = IsRVariantCommutable in
   def rY    : FMA3<opc, MRMSrcReg, (outs VR256:$dst),
                    (ins VR256:$src1, VR256:$src2, VR256:$src3),
                    !strconcat(OpcodeStr,
@@ -44,7 +45,7 @@ multiclass fma3p_rm<bits<8> opc, string OpcodeStr,
                    [(set VR256:$dst, (OpVT256 (Op VR256:$src2, VR256:$src1,
                                                VR256:$src3)))]>, VEX_L;
 
-  let mayLoad = 1 in
+  let mayLoad = 1, isCommutable = IsMVariantCommutable in
   def mY    : FMA3<opc, MRMSrcMem, (outs VR256:$dst),
                    (ins VR256:$src1, VR256:$src2, f256mem:$src3),
                    !strconcat(OpcodeStr,
@@ -59,73 +60,86 @@ multiclass fma3p_forms<bits<8> opc132, bits<8> opc213, bits<8> opc231,
                        string OpcodeStr, string PackTy,
                        PatFrag MemFrag128, PatFrag MemFrag256,
                        SDNode Op, ValueType OpTy128, ValueType OpTy256> {
+  // For 213, both the register and memory variant are commutable.
+  // Indeed, the commutable operands are 1 and 2 and both live in registers
+  // for both variants.
   defm r213 : fma3p_rm<opc213,
                        !strconcat(OpcodeStr, "213", PackTy),
-                       MemFrag128, MemFrag256, OpTy128, OpTy256, Op>;
-let neverHasSideEffects = 1 in {
+                       MemFrag128, MemFrag256, OpTy128, OpTy256,
+                       /* IsRVariantCommutable */ 1,
+                       /* IsMVariantCommutable */ 1,
+                       Op>;
+let hasSideEffects = 0 in {
   defm r132 : fma3p_rm<opc132,
                        !strconcat(OpcodeStr, "132", PackTy),
                        MemFrag128, MemFrag256, OpTy128, OpTy256>;
+  // For 231, only the register variant is commutable.
+  // For the memory variant the folded operand must be in 3. Thus,
+  // in that case, it cannot be swapped with 2.
   defm r231 : fma3p_rm<opc231,
                        !strconcat(OpcodeStr, "231", PackTy),
-                       MemFrag128, MemFrag256, OpTy128, OpTy256>;
-} // neverHasSideEffects = 1
+                       MemFrag128, MemFrag256, OpTy128, OpTy256,
+                       /* IsRVariantCommutable */ 1,
+                       /* IsMVariantCommutable */ 0>;
+} // hasSideEffects = 0
 }
 
 // Fused Multiply-Add
 let ExeDomain = SSEPackedSingle in {
-  defm VFMADDPS    : fma3p_forms<0x98, 0xA8, 0xB8, "vfmadd", "ps", memopv4f32,
-                                 memopv8f32, X86Fmadd, v4f32, v8f32>;
-  defm VFMSUBPS    : fma3p_forms<0x9A, 0xAA, 0xBA, "vfmsub", "ps", memopv4f32,
-                                 memopv8f32, X86Fmsub, v4f32, v8f32>;
+  defm VFMADDPS    : fma3p_forms<0x98, 0xA8, 0xB8, "vfmadd", "ps", loadv4f32,
+                                 loadv8f32, X86Fmadd, v4f32, v8f32>;
+  defm VFMSUBPS    : fma3p_forms<0x9A, 0xAA, 0xBA, "vfmsub", "ps", loadv4f32,
+                                 loadv8f32, X86Fmsub, v4f32, v8f32>;
   defm VFMADDSUBPS : fma3p_forms<0x96, 0xA6, 0xB6, "vfmaddsub", "ps",
-                                 memopv4f32, memopv8f32, X86Fmaddsub,
+                                 loadv4f32, loadv8f32, X86Fmaddsub,
                                  v4f32, v8f32>;
   defm VFMSUBADDPS : fma3p_forms<0x97, 0xA7, 0xB7, "vfmsubadd", "ps",
-                                 memopv4f32, memopv8f32, X86Fmsubadd,
+                                 loadv4f32, loadv8f32, X86Fmsubadd,
                                  v4f32, v8f32>;
 }
 
 let ExeDomain = SSEPackedDouble in {
-  defm VFMADDPD    : fma3p_forms<0x98, 0xA8, 0xB8, "vfmadd", "pd", memopv2f64,
-                                 memopv4f64, X86Fmadd, v2f64, v4f64>, VEX_W;
-  defm VFMSUBPD    : fma3p_forms<0x9A, 0xAA, 0xBA, "vfmsub", "pd", memopv2f64,
-                                 memopv4f64, X86Fmsub, v2f64, v4f64>, VEX_W;
+  defm VFMADDPD    : fma3p_forms<0x98, 0xA8, 0xB8, "vfmadd", "pd", loadv2f64,
+                                 loadv4f64, X86Fmadd, v2f64, v4f64>, VEX_W;
+  defm VFMSUBPD    : fma3p_forms<0x9A, 0xAA, 0xBA, "vfmsub", "pd", loadv2f64,
+                                 loadv4f64, X86Fmsub, v2f64, v4f64>, VEX_W;
   defm VFMADDSUBPD : fma3p_forms<0x96, 0xA6, 0xB6, "vfmaddsub", "pd",
-                                 memopv2f64, memopv4f64, X86Fmaddsub,
+                                 loadv2f64, loadv4f64, X86Fmaddsub,
                                  v2f64, v4f64>, VEX_W;
   defm VFMSUBADDPD : fma3p_forms<0x97, 0xA7, 0xB7, "vfmsubadd", "pd",
-                                 memopv2f64, memopv4f64, X86Fmsubadd,
+                                 loadv2f64, loadv4f64, X86Fmsubadd,
                                  v2f64, v4f64>, VEX_W;
 }
 
 // Fused Negative Multiply-Add
 let ExeDomain = SSEPackedSingle in {
-  defm VFNMADDPS : fma3p_forms<0x9C, 0xAC, 0xBC, "vfnmadd", "ps",  memopv4f32,
-                               memopv8f32, X86Fnmadd, v4f32, v8f32>;
-  defm VFNMSUBPS : fma3p_forms<0x9E, 0xAE, 0xBE, "vfnmsub", "ps",  memopv4f32,
-                               memopv8f32, X86Fnmsub, v4f32, v8f32>;
+  defm VFNMADDPS : fma3p_forms<0x9C, 0xAC, 0xBC, "vfnmadd", "ps",  loadv4f32,
+                               loadv8f32, X86Fnmadd, v4f32, v8f32>;
+  defm VFNMSUBPS : fma3p_forms<0x9E, 0xAE, 0xBE, "vfnmsub", "ps",  loadv4f32,
+                               loadv8f32, X86Fnmsub, v4f32, v8f32>;
 }
 let ExeDomain = SSEPackedDouble in {
-  defm VFNMADDPD : fma3p_forms<0x9C, 0xAC, 0xBC, "vfnmadd", "pd", memopv2f64,
-                               memopv4f64, X86Fnmadd, v2f64, v4f64>, VEX_W;
+  defm VFNMADDPD : fma3p_forms<0x9C, 0xAC, 0xBC, "vfnmadd", "pd", loadv2f64,
+                               loadv4f64, X86Fnmadd, v2f64, v4f64>, VEX_W;
   defm VFNMSUBPD : fma3p_forms<0x9E, 0xAE, 0xBE, "vfnmsub", "pd",
-                               memopv2f64, memopv4f64, X86Fnmsub, v2f64,
+                               loadv2f64, loadv4f64, X86Fnmsub, v2f64,
                                v4f64>, VEX_W;
 }
 
 let Constraints = "$src1 = $dst" in {
 multiclass fma3s_rm<bits<8> opc, string OpcodeStr, X86MemOperand x86memop,
                     RegisterClass RC, ValueType OpVT, PatFrag mem_frag,
+                    bit IsRVariantCommutable = 0, bit IsMVariantCommutable = 0,
                     SDPatternOperator OpNode = null_frag> {
-  let isCommutable = 1 in
+  let usesCustomInserter = 1, isCommutable = IsRVariantCommutable in
   def r     : FMA3<opc, MRMSrcReg, (outs RC:$dst),
                    (ins RC:$src1, RC:$src2, RC:$src3),
                    !strconcat(OpcodeStr,
                               "\t{$src3, $src2, $dst|$dst, $src2, $src3}"),
                    [(set RC:$dst,
                      (OpVT (OpNode RC:$src2, RC:$src1, RC:$src3)))]>;
-  let mayLoad = 1 in
+
+  let mayLoad = 1, isCommutable = IsMVariantCommutable in
   def m     : FMA3<opc, MRMSrcMem, (outs RC:$dst),
                    (ins RC:$src1, RC:$src2, x86memop:$src3),
                    !strconcat(OpcodeStr,
@@ -134,51 +148,56 @@ multiclass fma3s_rm<bits<8> opc, string OpcodeStr, X86MemOperand x86memop,
                      (OpVT (OpNode RC:$src2, RC:$src1,
                             (mem_frag addr:$src3))))]>;
 }
-
-multiclass fma3s_rm_int<bits<8> opc, string OpcodeStr, Operand memop,
-                        ComplexPattern mem_cpat, Intrinsic IntId,
-                        RegisterClass RC> {
-  let isCommutable = 1 in
-  def r_Int : FMA3<opc, MRMSrcReg, (outs VR128:$dst),
-                   (ins VR128:$src1, VR128:$src2, VR128:$src3),
-                   !strconcat(OpcodeStr,
-                              "\t{$src3, $src2, $dst|$dst, $src2, $src3}"),
-                   [(set VR128:$dst, (IntId VR128:$src2, VR128:$src1,
-                     VR128:$src3))]>;
-  def m_Int : FMA3<opc, MRMSrcMem, (outs VR128:$dst),
-                   (ins VR128:$src1, VR128:$src2, memop:$src3),
-                   !strconcat(OpcodeStr,
-                              "\t{$src3, $src2, $dst|$dst, $src2, $src3}"),
-                   [(set VR128:$dst,
-                     (IntId VR128:$src2, VR128:$src1, mem_cpat:$src3))]>;
-}
 } // Constraints = "$src1 = $dst"
 
 multiclass fma3s_forms<bits<8> opc132, bits<8> opc213, bits<8> opc231,
-                       string OpStr, string PackTy, Intrinsic Int,
+                       string OpStr, string PackTy, string PT2, Intrinsic Int,
                        SDNode OpNode, RegisterClass RC, ValueType OpVT,
                        X86MemOperand x86memop, Operand memop, PatFrag mem_frag,
                        ComplexPattern mem_cpat> {
-let neverHasSideEffects = 1 in {
+let hasSideEffects = 0 in {
   defm r132 : fma3s_rm<opc132, !strconcat(OpStr, "132", PackTy),
                        x86memop, RC, OpVT, mem_frag>;
+  // See the other defm of r231 for the explanation regarding the
+  // commutable flags.
   defm r231 : fma3s_rm<opc231, !strconcat(OpStr, "231", PackTy),
-                       x86memop, RC, OpVT, mem_frag>;
+                       x86memop, RC, OpVT, mem_frag,
+                       /* IsRVariantCommutable */ 1,
+                       /* IsMVariantCommutable */ 0>;
 }
 
+// See the other defm of r213 for the explanation regarding the
+// commutable flags.
 defm r213 : fma3s_rm<opc213, !strconcat(OpStr, "213", PackTy),
-                     x86memop, RC, OpVT, mem_frag, OpNode>,
-            fma3s_rm_int<opc213, !strconcat(OpStr, "213", PackTy),
-                         memop, mem_cpat, Int, RC>;
+                     x86memop, RC, OpVT, mem_frag,
+                     /* IsRVariantCommutable */ 1,
+                     /* IsMVariantCommutable */ 1,
+                     OpNode>;
 }
 
 multiclass fma3s<bits<8> opc132, bits<8> opc213, bits<8> opc231,
                  string OpStr, Intrinsic IntF32, Intrinsic IntF64,
                  SDNode OpNode> {
-  defm SS : fma3s_forms<opc132, opc213, opc231, OpStr, "ss", IntF32, OpNode,
+  defm SS : fma3s_forms<opc132, opc213, opc231, OpStr, "ss", "SS", IntF32, OpNode,
                         FR32, f32, f32mem, ssmem, loadf32, sse_load_f32>;
-  defm SD : fma3s_forms<opc132, opc213, opc231, OpStr, "sd", IntF64, OpNode,
+  defm SD : fma3s_forms<opc132, opc213, opc231, OpStr, "sd", "PD", IntF64, OpNode,
                         FR64, f64, f64mem, sdmem, loadf64, sse_load_f64>, VEX_W;
+
+  def : Pat<(IntF32 VR128:$src1, VR128:$src2, VR128:$src3),
+            (COPY_TO_REGCLASS
+              (!cast<Instruction>(NAME#"SSr213r")
+                (COPY_TO_REGCLASS $src2, FR32),
+                (COPY_TO_REGCLASS $src1, FR32),
+                (COPY_TO_REGCLASS $src3, FR32)),
+              VR128)>;
+
+  def : Pat<(IntF64 VR128:$src1, VR128:$src2, VR128:$src3),
+            (COPY_TO_REGCLASS
+              (!cast<Instruction>(NAME#"SDr213r")
+                (COPY_TO_REGCLASS $src2, FR64),
+                (COPY_TO_REGCLASS $src1, FR64),
+                (COPY_TO_REGCLASS $src3, FR64)),
+              VR128)>;
 }
 
 defm VFMADD : fma3s<0x99, 0xA9, 0xB9, "vfmadd", int_x86_fma_vfmadd_ss,
@@ -206,48 +225,51 @@ multiclass fma4s<bits<8> opc, string OpcodeStr, RegisterClass RC,
            !strconcat(OpcodeStr,
            "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"),
            [(set RC:$dst,
-             (OpVT (OpNode RC:$src1, RC:$src2, RC:$src3)))]>, VEX_W, MemOp4;
+             (OpVT (OpNode RC:$src1, RC:$src2, RC:$src3)))]>, VEX_W, VEX_LIG, MemOp4;
   def rm : FMA4<opc, MRMSrcMem, (outs RC:$dst),
            (ins RC:$src1, RC:$src2, x86memop:$src3),
            !strconcat(OpcodeStr,
            "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"),
            [(set RC:$dst, (OpNode RC:$src1, RC:$src2,
-                           (mem_frag addr:$src3)))]>, VEX_W, MemOp4;
+                           (mem_frag addr:$src3)))]>, VEX_W, VEX_LIG, MemOp4;
   def mr : FMA4<opc, MRMSrcMem, (outs RC:$dst),
            (ins RC:$src1, x86memop:$src2, RC:$src3),
            !strconcat(OpcodeStr,
            "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"),
            [(set RC:$dst,
-             (OpNode RC:$src1, (mem_frag addr:$src2), RC:$src3))]>;
+             (OpNode RC:$src1, (mem_frag addr:$src2), RC:$src3))]>, VEX_LIG;
 // For disassembler
-let isCodeGenOnly = 1, hasSideEffects = 0 in
+let isCodeGenOnly = 1, ForceDisassemble = 1, hasSideEffects = 0 in
   def rr_REV : FMA4<opc, MRMSrcReg, (outs RC:$dst),
                (ins RC:$src1, RC:$src2, RC:$src3),
                !strconcat(OpcodeStr,
-               "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"), []>;
+               "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"), []>,
+               VEX_LIG;
 }
 
 multiclass fma4s_int<bits<8> opc, string OpcodeStr, Operand memop,
                      ComplexPattern mem_cpat, Intrinsic Int> {
+let isCodeGenOnly = 1 in {
   let isCommutable = 1 in
   def rr_Int : FMA4<opc, MRMSrcReg, (outs VR128:$dst),
                (ins VR128:$src1, VR128:$src2, VR128:$src3),
                !strconcat(OpcodeStr,
                "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"),
                [(set VR128:$dst,
-                 (Int VR128:$src1, VR128:$src2, VR128:$src3))]>, VEX_W, MemOp4;
+                 (Int VR128:$src1, VR128:$src2, VR128:$src3))]>, VEX_W, VEX_LIG, MemOp4;
   def rm_Int : FMA4<opc, MRMSrcMem, (outs VR128:$dst),
                (ins VR128:$src1, VR128:$src2, memop:$src3),
                !strconcat(OpcodeStr,
                "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"),
                [(set VR128:$dst, (Int VR128:$src1, VR128:$src2,
-                                  mem_cpat:$src3))]>, VEX_W, MemOp4;
+                                  mem_cpat:$src3))]>, VEX_W, VEX_LIG, MemOp4;
   def mr_Int : FMA4<opc, MRMSrcMem, (outs VR128:$dst),
                (ins VR128:$src1, memop:$src2, VR128:$src3),
                !strconcat(OpcodeStr,
                "\t{$src3, $src2, $src1, $dst|$dst, $src1, $src2, $src3}"),
                [(set VR128:$dst,
-                 (Int VR128:$src1, mem_cpat:$src2, VR128:$src3))]>;
+                 (Int VR128:$src1, mem_cpat:$src2, VR128:$src3))]>, VEX_LIG;
+} // isCodeGenOnly = 1
 }
 
 multiclass fma4p<bits<8> opc, string OpcodeStr, SDNode OpNode,
@@ -294,7 +316,7 @@ multiclass fma4p<bits<8> opc, string OpcodeStr, SDNode OpNode,
            [(set VR256:$dst, (OpNode VR256:$src1,
                               (ld_frag256 addr:$src2), VR256:$src3))]>, VEX_L;
 // For disassembler
-let isCodeGenOnly = 1, hasSideEffects = 0 in {
+let isCodeGenOnly = 1, ForceDisassemble = 1, hasSideEffects = 0 in {
   def rr_REV : FMA4<opc, MRMSrcReg, (outs VR128:$dst),
                (ins VR128:$src1, VR128:$src2, VR128:$src3),
                !strconcat(OpcodeStr,
@@ -338,31 +360,31 @@ defm VFNMSUBSD4 : fma4s<0x7F, "vfnmsubsd", FR64, f64mem, f64,
 
 let ExeDomain = SSEPackedSingle in {
   defm VFMADDPS4    : fma4p<0x68, "vfmaddps", X86Fmadd, v4f32, v8f32,
-                            memopv4f32, memopv8f32>;
+                            loadv4f32, loadv8f32>;
   defm VFMSUBPS4    : fma4p<0x6C, "vfmsubps", X86Fmsub, v4f32, v8f32,
-                            memopv4f32, memopv8f32>;
+                            loadv4f32, loadv8f32>;
   defm VFNMADDPS4   : fma4p<0x78, "vfnmaddps", X86Fnmadd, v4f32, v8f32,
-                            memopv4f32, memopv8f32>;
+                            loadv4f32, loadv8f32>;
   defm VFNMSUBPS4   : fma4p<0x7C, "vfnmsubps", X86Fnmsub, v4f32, v8f32,
-                            memopv4f32, memopv8f32>;
+                            loadv4f32, loadv8f32>;
   defm VFMADDSUBPS4 : fma4p<0x5C, "vfmaddsubps", X86Fmaddsub, v4f32, v8f32,
-                            memopv4f32, memopv8f32>;
+                            loadv4f32, loadv8f32>;
   defm VFMSUBADDPS4 : fma4p<0x5E, "vfmsubaddps", X86Fmsubadd, v4f32, v8f32,
-                            memopv4f32, memopv8f32>;
+                            loadv4f32, loadv8f32>;
 }
 
 let ExeDomain = SSEPackedDouble in {
   defm VFMADDPD4    : fma4p<0x69, "vfmaddpd", X86Fmadd, v2f64, v4f64,
-                            memopv2f64, memopv4f64>;
+                            loadv2f64, loadv4f64>;
   defm VFMSUBPD4    : fma4p<0x6D, "vfmsubpd", X86Fmsub, v2f64, v4f64,
-                            memopv2f64, memopv4f64>;
+                            loadv2f64, loadv4f64>;
   defm VFNMADDPD4   : fma4p<0x79, "vfnmaddpd", X86Fnmadd, v2f64, v4f64,
-                            memopv2f64, memopv4f64>;
+                            loadv2f64, loadv4f64>;
   defm VFNMSUBPD4   : fma4p<0x7D, "vfnmsubpd", X86Fnmsub, v2f64, v4f64,
-                            memopv2f64, memopv4f64>;
+                            loadv2f64, loadv4f64>;
   defm VFMADDSUBPD4 : fma4p<0x5D, "vfmaddsubpd", X86Fmaddsub, v2f64, v4f64,
-                            memopv2f64, memopv4f64>;
+                            loadv2f64, loadv4f64>;
   defm VFMSUBADDPD4 : fma4p<0x5F, "vfmsubaddpd", X86Fmsubadd, v2f64, v4f64,
-                            memopv2f64, memopv4f64>;
+                            loadv2f64, loadv4f64>;
 }
 

@@ -30,9 +30,6 @@
 #		second, and there may be multiple pairs. The files
 #		are hard-linked.
 #
-# NO_MANCOMPRESS	If you do not want unformatted manual pages to be
-#		compressed when they are installed. [not set]
-#
 # NO_MLINKS	If you do not want install manual page links. [not set]
 #
 # MANFILTER	command to pipe the raw man page through before compressing
@@ -41,7 +38,7 @@
 # MANBUILDCAT	create preformatted manual pages in addition to normal
 #		pages. [not set]
 #
-# MROFF_CMD	command and flags to create preformatted pages
+# MANDOC_CMD	command and flags to create preformatted pages
 #
 # +++ targets +++
 #
@@ -57,7 +54,7 @@ MINSTALL?=	${INSTALL} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
 CATDIR=		${MANDIR:H:S/$/\/cat/}
 CATEXT=		.cat
-MROFF_CMD?=	groff -Tascii -mtty-char -man -t
+MANDOC_CMD?=	mandoc -Tascii
 
 MCOMPRESS_CMD?=	${COMPRESS_CMD}
 MCOMPRESS_EXT?=	${COMPRESS_EXT}
@@ -77,10 +74,10 @@ MAN+=	${MAN${__sect}}
 _manpages:
 all-man: _manpages
 
-.if defined(NO_MANCOMPRESS)
+.if ${MK_MANCOMPRESS} == "no"
 
 # Make special arrangements to filter to a temporary file at build time
-# for NO_MANCOMPRESS.
+# for MK_MANCOMPRESS == no.
 .if defined(MANFILTER)
 FILTEXTENSION=		.filt
 .else
@@ -103,7 +100,7 @@ ${__target}: ${__page}
 .for __target in ${__page:T:S/$/${CATEXT}${FILTEXTENSION}/g}
 _manpages: ${__target}
 ${__target}: ${__page}
-	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} > ${.TARGET}
+	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} > ${.TARGET}
 .endfor
 .endif
 .endfor
@@ -116,7 +113,7 @@ CLEANFILES+=	${MAN:T:S/$/${CATEXT}/g}
 .for __target in ${__page:T:S/$/${CATEXT}/g}
 _manpages: ${__target}
 ${__target}: ${__page}
-	${MROFF_CMD} ${.ALLSRC} > ${.TARGET}
+	${MANDOC_CMD} ${.ALLSRC} > ${.TARGET}
 .endfor
 .endfor
 .else
@@ -130,6 +127,22 @@ _manpages: ${MAN}
 ZEXT=		${MCOMPRESS_EXT}
 
 .if defined(MAN) && !empty(MAN)
+.if ${MK_STAGING_MAN} == "yes"
+staging: stage_files
+_mansets:= ${MAN:E:O:u:M*[1-9]:@s@man$s@}
+STAGE_SETS+= ${_mansets}
+.for _page in ${MAN}
+stage_files.man${_page:T:E}: ${_page}
+STAGE_DIR.man${_page:T:E}?= ${STAGE_OBJTOP}${MANDIR}${_page:T:E}${MANSUBDIR}
+.endfor
+.if !empty(MLINKS)
+STAGE_SETS+= mlinks
+staging: stage_links
+STAGE_LINKS.mlinks:= ${MLINKS:@f@${f:S,^,${MANDIR}${f:E}${MANSUBDIR}/,}@}
+stage_links.mlinks: ${_mansets:@s@stage_files.$s@}
+.endif
+.endif
+
 CLEANFILES+=	${MAN:T:S/$/${MCOMPRESS_EXT}/g}
 CLEANFILES+=	${MAN:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g}
 .for __page in ${MAN}
@@ -147,9 +160,9 @@ ${__target}: ${__page}
 _manpages: ${__target}
 ${__target}: ${__page}
 .if defined(MANFILTER)
-	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} | ${MCOMPRESS_CMD} > ${.TARGET}
+	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} | ${MCOMPRESS_CMD} > ${.TARGET}
 .else
-	${MROFF_CMD} ${.ALLSRC} | ${MCOMPRESS_CMD} > ${.TARGET}
+	${MANDOC_CMD} ${.ALLSRC} | ${MCOMPRESS_CMD} > ${.TARGET}
 .endif
 .endfor
 .endif
@@ -162,7 +175,7 @@ maninstall: _maninstall
 _maninstall:
 .if defined(MAN) && !empty(MAN)
 _maninstall: ${MAN}
-.if defined(NO_MANCOMPRESS)
+.if ${MK_MANCOMPRESS} == "no"
 .if defined(MANFILTER)
 .for __page in ${MAN}
 	${MINSTALL} ${__page:T:S/$/${FILTEXTENSION}/g} \
@@ -173,17 +186,11 @@ _maninstall: ${MAN}
 .endif
 .endfor
 .else
-	@set ${.ALLSRC:C/\.([^.]*)$/.\1 \1/}; \
-	while : ; do \
-		case $$# in \
-			0) break;; \
-			1) echo "warn: missing extension: $$1"; break;; \
-		esac; \
-		page=$$1; shift; sect=$$1; shift; \
-		d=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}; \
-		${ECHO} ${MINSTALL} $${page} $${d}; \
-		${MINSTALL} $${page} $${d}; \
-	done
+.for _page _sect in ${.ALLSRC:C/\.([^.]*)$/.\1 \1/}
+	@d=${DESTDIR}${MANDIR}${_sect}${MANSUBDIR}; \
+	${ECHO} ${MINSTALL} ${_page} $${d}; \
+	${MINSTALL} $${page} $${d};
+.endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for __page in ${MAN}
 	${MINSTALL} ${__page:T:S/$/${CATEXT}/} \
@@ -204,35 +211,21 @@ _maninstall: ${MAN}
 .endif
 
 .if !defined(NO_MLINKS) && defined(MLINKS) && !empty(MLINKS)
-	@set ${MLINKS:C/\.([^.]*)$/.\1 \1/}; \
-	while : ; do \
-		case $$# in \
-			0) break;; \
-			[123]) echo "warn: empty MLINK: $$1 $$2 $$3"; break;; \
-		esac; \
-		name=$$1; shift; sect=$$1; shift; \
-		l=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name; \
-		name=$$1; shift; sect=$$1; shift; \
-		t=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name; \
-		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
-		rm -f $${t} $${t}${MCOMPRESS_EXT}; \
-		${INSTALL_LINK} $${l}${ZEXT} $${t}${ZEXT}; \
-	done
+.for _oname _osect _dname _dsect in ${MLINKS:C/\.([^.]*)$/.\1 \1/}
+	@l=${DESTDIR}${MANDIR}${_osect}${MANSUBDIR}/${_oname}; \
+	t=${DESTDIR}${MANDIR}${_dsect}${MANSUBDIR}/${_dname}; \
+	${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
+	rm -f $${t} $${t}${MCOMPRESS_EXT}; \
+	${INSTALL_LINK} $${l}${ZEXT} $${t}${ZEXT}
+.endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
-	@set ${MLINKS:C/\.([^.]*)$/.\1 \1/}; \
-	while : ; do \
-		case $$# in \
-			0) break;; \
-			[123]) echo "warn: empty MLINK: $$1 $$2 $$3"; break;; \
-		esac; \
-		name=$$1; shift; sect=$$1; shift; \
-		l=${DESTDIR}${CATDIR}$${sect}${MANSUBDIR}/$$name; \
-		name=$$1; shift; sect=$$1; shift; \
-		t=${DESTDIR}${CATDIR}$${sect}${MANSUBDIR}/$$name; \
-		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
-		rm -f $${t} $${t}${MCOMPRESS_EXT}; \
-		${INSTALL_LINK} $${l}${ZEXT} $${t}${ZEXT}; \
-	done
+.for _oname _osect _dname _dsect in ${MLINKS:C/\.([^.]*)$/.\1 \1/}
+	@l=${DESTDIR}${MANDIR}${_osect}${MANSUBDIR}/${_oname}; \
+	t=${DESTDIR}${MANDIR}${_dsect}${MANSUBDIR}/${_dname}; \
+	${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
+	rm -f $${t} $${t}${MCOMPRESS_EXT}; \
+	${INSTALL_LINK} $${l}${ZEXT} $${t}${ZEXT}
+.endfor
 .endif
 .endif
 
@@ -242,9 +235,9 @@ manlint:
 manlint: ${__page}lint
 ${__page}lint: ${__page}
 .if defined(MANFILTER)
-	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} -ww -z
+	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} -Tlint
 .else
-	${MROFF_CMD} -ww -z ${.ALLSRC}
+	${MANDOC_CMD} -Tlint ${.ALLSRC}
 .endif
 .endfor
 .endif

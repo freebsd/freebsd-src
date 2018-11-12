@@ -105,7 +105,7 @@ int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 
 static quad_t maxmbufmem;	/* overall real memory limit for all mbufs */
 
-SYSCTL_QUAD(_kern_ipc, OID_AUTO, maxmbufmem, CTLFLAG_RDTUN, &maxmbufmem, 0,
+SYSCTL_QUAD(_kern_ipc, OID_AUTO, maxmbufmem, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &maxmbufmem, 0,
     "Maximum real memory allocatable to various mbuf types");
 
 /*
@@ -284,7 +284,7 @@ static int	mb_zinit_pack(void *, int, int);
 static void	mb_zfini_pack(void *, int);
 
 static void	mb_reclaim(void *);
-static void    *mbuf_jumbo_alloc(uma_zone_t, int, uint8_t *, int);
+static void    *mbuf_jumbo_alloc(uma_zone_t, vm_size_t, uint8_t *, int);
 
 /* Ensure that MSIZE is a power of 2. */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
@@ -389,7 +389,7 @@ SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL);
  * pages.
  */
 static void *
-mbuf_jumbo_alloc(uma_zone_t zone, int bytes, uint8_t *flags, int wait)
+mbuf_jumbo_alloc(uma_zone_t zone, vm_size_t bytes, uint8_t *flags, int wait)
 {
 
 	/* Inform UMA that this allocator uses kernel_map/object. */
@@ -447,10 +447,9 @@ mb_dtor_mbuf(void *mem, int size, void *arg)
 	m = (struct mbuf *)mem;
 	flags = (unsigned long)arg;
 
+	KASSERT((m->m_flags & M_NOFREE) == 0, ("%s: M_NOFREE set", __func__));
 	if ((m->m_flags & M_PKTHDR) && !SLIST_EMPTY(&m->m_pkthdr.tags))
 		m_tag_delete_chain(m, NULL);
-	KASSERT((m->m_flags & M_EXT) == 0, ("%s: M_EXT set", __func__));
-	KASSERT((m->m_flags & M_NOFREE) == 0, ("%s: M_NOFREE set", __func__));
 #ifdef INVARIANTS
 	trash_dtor(mem, size, arg);
 #endif
@@ -476,7 +475,7 @@ mb_dtor_pack(void *mem, int size, void *arg)
 	KASSERT(m->m_ext.ext_arg2 == NULL, ("%s: ext_arg2 != NULL", __func__));
 	KASSERT(m->m_ext.ext_size == MCLBYTES, ("%s: ext_size != MCLBYTES", __func__));
 	KASSERT(m->m_ext.ext_type == EXT_PACKET, ("%s: ext_type != EXT_PACKET", __func__));
-	KASSERT(*m->m_ext.ref_cnt == 1, ("%s: ref_cnt != 1", __func__));
+	KASSERT(*m->m_ext.ext_cnt == 1, ("%s: ext_cnt != 1", __func__));
 #ifdef INVARIANTS
 	trash_dtor(m->m_ext.ext_buf, MCLBYTES, arg);
 #endif
@@ -548,7 +547,7 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 		m->m_ext.ext_size = size;
 		m->m_ext.ext_type = type;
 		m->m_ext.ext_flags = 0;
-		m->m_ext.ref_cnt = refcnt;
+		m->m_ext.ext_cnt = refcnt;
 	}
 
 	return (0);
@@ -647,20 +646,7 @@ m_pkthdr_init(struct mbuf *m, int how)
 	int error;
 #endif
 	m->m_data = m->m_pktdat;
-	m->m_pkthdr.rcvif = NULL;
-	SLIST_INIT(&m->m_pkthdr.tags);
-	m->m_pkthdr.len = 0;
-	m->m_pkthdr.flowid = 0;
-	m->m_pkthdr.csum_flags = 0;
-	m->m_pkthdr.fibnum = 0;
-	m->m_pkthdr.cosqos = 0;
-	m->m_pkthdr.rsstype = 0;
-	m->m_pkthdr.l2hlen = 0;
-	m->m_pkthdr.l3hlen = 0;
-	m->m_pkthdr.l4hlen = 0;
-	m->m_pkthdr.l5hlen = 0;
-	m->m_pkthdr.PH_per.sixtyfour[0] = 0;
-	m->m_pkthdr.PH_loc.sixtyfour[0] = 0;
+	bzero(&m->m_pkthdr, sizeof(m->m_pkthdr));
 #ifdef MAC
 	/* If the label init fails, fail the alloc */
 	error = mac_mbuf_init(m, how);

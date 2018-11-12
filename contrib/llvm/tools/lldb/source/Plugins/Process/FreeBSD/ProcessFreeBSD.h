@@ -101,4 +101,4 @@ protected:
 
 };
 
-#endif  // liblldb_MacOSXProcess_H_
+#endif  // liblldb_ProcessFreeBSD_H_

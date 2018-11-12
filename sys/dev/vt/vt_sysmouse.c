@@ -139,7 +139,7 @@ sysmouse_process_event(mouse_info_t *mi)
 	unsigned char buf[MOUSE_SYS_PACKETSIZE];
 	int x, y, iy, z;
 
-	random_harvest(mi, sizeof *mi, 2, RANDOM_MOUSE);
+	random_harvest_queue(mi, sizeof *mi, 2, RANDOM_MOUSE);
 
 	mtx_lock(&sysmouse_lock);
 	switch (mi->operation) {
@@ -347,9 +347,6 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 			return (EINVAL);
 
 		sysmouse_level = level;
-#ifndef SC_NO_CUTPASTE
-		vt_mouse_state((level == 0)?VT_MOUSE_SHOW:VT_MOUSE_HIDE);
-#endif
 		return (0);
 	}
 	case MOUSE_SETMODE: {
@@ -362,10 +359,6 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		case 0:
 		case 1:
 			sysmouse_level = mode->level;
-#ifndef SC_NO_CUTPASTE
-			vt_mouse_state((mode->level == 0)?VT_MOUSE_SHOW:
-			    VT_MOUSE_HIDE);
-#endif
 			break;
 		default:
 			return (EINVAL);
@@ -376,8 +369,10 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 	case MOUSE_MOUSECHAR:
 		return (0);
 	default:
+#ifdef VT_SYSMOUSE_DEBUG
 		printf("sysmouse: unknown ioctl: %c:%lx\n",
 		    (char)IOCGROUP(cmd), IOCBASECMD(cmd));
+#endif
 		return (ENOIOCTL);
 	}
 }
@@ -403,6 +398,8 @@ static void
 sysmouse_drvinit(void *unused)
 {
 
+	if (!vty_enabled(VTY_VT))
+		return;
 	mtx_init(&sysmouse_lock, "sysmouse", NULL, MTX_DEF);
 	cv_init(&sysmouse_sleep, "sysmrd");
 	make_dev(&sysmouse_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,

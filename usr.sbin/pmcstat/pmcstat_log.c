@@ -149,6 +149,7 @@ struct pmcstat_process *pmcstat_kernproc; /* kernel 'process' */
 #include "pmcpl_gprof.h"
 #include "pmcpl_callgraph.h"
 #include "pmcpl_annotate.h"
+#include "pmcpl_annotate_cg.h"
 #include "pmcpl_calltree.h"
 
 static struct pmc_plugins  {
@@ -213,6 +214,11 @@ static struct pmc_plugins  {
 		.pl_topkeypress		= pmcpl_ct_topkeypress,
 		.pl_topdisplay		= pmcpl_ct_topdisplay
 	},
+	{
+		.pl_name		= "annotate_cg",
+		.pl_process		= pmcpl_annotate_cg_process
+	},
+
 	{
 		.pl_name		= NULL
 	}
@@ -301,10 +307,10 @@ pmcstat_stats_reset(int reset_global)
 static int
 pmcstat_string_compute_hash(const char *s)
 {
-	int hash;
+	unsigned hash;
 
-	for (hash = 0; *s; s++)
-		hash ^= *s;
+	for (hash = 2166136261; *s; s++)
+		hash = (hash ^ *s) * 16777619;
 
 	return (hash & PMCSTAT_HASH_MASK);
 }
@@ -710,7 +716,8 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 				        ph.p_offset);
 				break;
 			case PT_LOAD:
-				if ((ph.p_offset & (-ph.p_align)) == 0)
+				if ((ph.p_flags & PF_X) != 0 &&
+				    (ph.p_offset & (-ph.p_align)) == 0)
 					image->pi_vaddr = ph.p_vaddr & (-ph.p_align);
 				break;
 			}
@@ -1525,7 +1532,9 @@ pmcstat_analyze_log(void)
 				free(ppm);
 			}
 
-			/* associate this process  image */
+			/*
+			 * Associate this process image.
+			 */
 			image_path = pmcstat_string_intern(
 				ev.pl_u.pl_x.pl_pathname);
 			assert(image_path != NULL);

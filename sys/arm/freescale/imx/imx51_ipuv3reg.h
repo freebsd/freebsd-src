@@ -877,43 +877,46 @@
 #define	GPU_BASE	0x30000000
 #define	GPU_SIZE	0x10000000
 
-/* Image Prossasing Unit */
-#define	IPU_BASE	0x40000000
-#define	IPU_CM_BASE	(IPU_BASE + 0x1e000000)
-#define	IPU_CM_SIZE	0x8000
-#define	IPU_IDMAC_BASE	(IPU_BASE + 0x1e008000)
-#define	IPU_IDMAC_SIZE	0x8000
-#define	IPU_DP_BASE	(IPU_BASE + 0x1e018000)
-#define	IPU_DP_SIZE	0x8000
-#define	IPU_IC_BASE	(IPU_BASE + 0x1e020000)
-#define	IPU_IC_SIZE	0x8000
-#define	IPU_IRT_BASE	(IPU_BASE + 0x1e028000)
-#define	IPU_IRT_SIZE	0x8000
-#define	IPU_CSI0_BASE	(IPU_BASE + 0x1e030000)
-#define	IPU_CSI0_SIZE	0x8000
-#define	IPU_CSI1_BASE	(IPU_BASE + 0x1e038000)
-#define	IPU_CSI1_SIZE	0x8000
-#define	IPU_DI0_BASE	(IPU_BASE + 0x1e040000)
-#define	IPU_DI0_SIZE	0x8000
-#define	IPU_DI1_BASE	(IPU_BASE + 0x1e048000)
-#define	IPU_DI1_SIZE	0x8000
-#define	IPU_SMFC_BASE	(IPU_BASE + 0x1e050000)
-#define	IPU_SMFC_SIZE	0x8000
-#define	IPU_DC_BASE	(IPU_BASE + 0x1e058000)
-#define	IPU_DC_SIZE	0x8000
-#define	IPU_DMFC_BASE	(IPU_BASE + 0x1e060000)
-#define	IPU_DMFC_SIZE	0x8000
-#define	IPU_VDI_BASE	(IPU_BASE + 0x1e068000)
-#define	IPU_VDI_SIZE	0x8000
-#define	IPU_CPMEM_BASE	(IPU_BASE + 0x1f000000)
-#define	IPU_CPMEM_SIZE	0x20000
-#define	IPU_LUT_BASE	(IPU_BASE + 0x1f020000)
-#define	IPU_LUT_SIZE	0x20000
-#define	IPU_SRM_BASE	(IPU_BASE + 0x1f040000)
-#define	IPU_SRM_SIZE	0x20000
-#define	IPU_TPM_BASE	(IPU_BASE + 0x1f060000)
-#define	IPU_TPM_SIZE	0x20000
-#define	IPU_DCTMPL_BASE	(IPU_BASE + 0x1f080000)
-#define	IPU_DCTMPL_SIZE	0x20000
+/* 
+ * Image Processing Unit 
+ *
+ * All addresses are relative to the base SoC address. 
+ */
+#define	IPU_CM_BASE(_base)	((_base) + 0x1e000000)
+#define	IPU_CM_SIZE		0x8000
+#define	IPU_IDMAC_BASE(_base)	((_base) + 0x1e008000)
+#define	IPU_IDMAC_SIZE		0x8000
+#define	IPU_DP_BASE(_base)	((_base) + 0x1e018000)
+#define	IPU_DP_SIZE		0x8000
+#define	IPU_IC_BASE(_base)	((_base) + 0x1e020000)
+#define	IPU_IC_SIZE		0x8000
+#define	IPU_IRT_BASE(_base)	((_base) + 0x1e028000)
+#define	IPU_IRT_SIZE		0x8000
+#define	IPU_CSI0_BASE(_base)	((_base) + 0x1e030000)
+#define	IPU_CSI0_SIZE		0x8000
+#define	IPU_CSI1_BASE(_base)	((_base) + 0x1e038000)
+#define	IPU_CSI1_SIZE		0x8000
+#define	IPU_DI0_BASE(_base)	((_base) + 0x1e040000)
+#define	IPU_DI0_SIZE		0x8000
+#define	IPU_DI1_BASE(_base)	((_base) + 0x1e048000)
+#define	IPU_DI1_SIZE		0x8000
+#define	IPU_SMFC_BASE(_base)	((_base) + 0x1e050000)
+#define	IPU_SMFC_SIZE		0x8000
+#define	IPU_DC_BASE(_base)	((_base) + 0x1e058000)
+#define	IPU_DC_SIZE		0x8000
+#define	IPU_DMFC_BASE(_base)	((_base) + 0x1e060000)
+#define	IPU_DMFC_SIZE		0x8000
+#define	IPU_VDI_BASE(_base)	((_base) + 0x1e068000)
+#define	IPU_VDI_SIZE		0x8000
+#define	IPU_CPMEM_BASE(_base)	((_base) + 0x1f000000)
+#define	IPU_CPMEM_SIZE		0x20000
+#define	IPU_LUT_BASE(_base)	((_base) + 0x1f020000)
+#define	IPU_LUT_SIZE		0x20000
+#define	IPU_SRM_BASE(_base)	((_base) + 0x1f040000)
+#define	IPU_SRM_SIZE		0x20000
+#define	IPU_TPM_BASE(_base)	((_base) + 0x1f060000)
+#define	IPU_TPM_SIZE		0x20000
+#define	IPU_DCTMPL_BASE(_base)	((_base) + 0x1f080000)
+#define	IPU_DCTMPL_SIZE		0x20000
 
 #endif /* _ARM_IMX_IMX51_IPUV3REG_H */

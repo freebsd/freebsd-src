@@ -15,6 +15,7 @@
 #ifndef LLVM_SUPPORT_SWAPBYTEORDER_H
 #define LLVM_SUPPORT_SWAPBYTEORDER_H
 
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
 #include <cstddef>
 #include <limits>
@@ -39,8 +40,7 @@ inline uint16_t SwapByteOrder_16(uint16_t value) {
 /// SwapByteOrder_32 - This function returns a byte-swapped representation of
 /// the 32-bit argument.
 inline uint32_t SwapByteOrder_32(uint32_t value) {
-#if defined(__llvm__) || \
-(__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)) && !defined(__ICC)
+#if defined(__llvm__) || (LLVM_GNUC_PREREQ(4, 3, 0) && !defined(__ICC))
   return __builtin_bswap32(value);
 #elif defined(_MSC_VER) && !defined(_DEBUG)
   return _byteswap_ulong(value);
@@ -56,8 +56,7 @@ inline uint32_t SwapByteOrder_32(uint32_t value) {
 /// SwapByteOrder_64 - This function returns a byte-swapped representation of
 /// the 64-bit argument.
 inline uint64_t SwapByteOrder_64(uint64_t value) {
-#if defined(__llvm__) || \
-(__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)) && !defined(__ICC)
+#if defined(__llvm__) || (LLVM_GNUC_PREREQ(4, 3, 0) && !defined(__ICC))
   return __builtin_bswap64(value);
 #elif defined(_MSC_VER) && !defined(_DEBUG)
   return _byteswap_uint64(value);
@@ -68,31 +67,36 @@ inline uint64_t SwapByteOrder_64(uint64_t value) {
 #endif
 }
 
-inline unsigned char  SwapByteOrder(unsigned char C) { return C; }
-inline   signed char  SwapByteOrder(signed char C) { return C; }
-inline          char  SwapByteOrder(char C) { return C; }
+inline unsigned char  getSwappedBytes(unsigned char C) { return C; }
+inline   signed char  getSwappedBytes(signed char C) { return C; }
+inline          char  getSwappedBytes(char C) { return C; }
 
-inline unsigned short SwapByteOrder(unsigned short C) { return SwapByteOrder_16(C); }
-inline   signed short SwapByteOrder(  signed short C) { return SwapByteOrder_16(C); }
+inline unsigned short getSwappedBytes(unsigned short C) { return SwapByteOrder_16(C); }
+inline   signed short getSwappedBytes(  signed short C) { return SwapByteOrder_16(C); }
 
-inline unsigned int   SwapByteOrder(unsigned int   C) { return SwapByteOrder_32(C); }
-inline   signed int   SwapByteOrder(  signed int   C) { return SwapByteOrder_32(C); }
+inline unsigned int   getSwappedBytes(unsigned int   C) { return SwapByteOrder_32(C); }
+inline   signed int   getSwappedBytes(  signed int   C) { return SwapByteOrder_32(C); }
 
 #if __LONG_MAX__ == __INT_MAX__
-inline unsigned long  SwapByteOrder(unsigned long  C) { return SwapByteOrder_32(C); }
-inline   signed long  SwapByteOrder(  signed long  C) { return SwapByteOrder_32(C); }
+inline unsigned long  getSwappedBytes(unsigned long  C) { return SwapByteOrder_32(C); }
+inline   signed long  getSwappedBytes(  signed long  C) { return SwapByteOrder_32(C); }
 #elif __LONG_MAX__ == __LONG_LONG_MAX__
-inline unsigned long  SwapByteOrder(unsigned long  C) { return SwapByteOrder_64(C); }
-inline   signed long  SwapByteOrder(  signed long  C) { return SwapByteOrder_64(C); }
+inline unsigned long  getSwappedBytes(unsigned long  C) { return SwapByteOrder_64(C); }
+inline   signed long  getSwappedBytes(  signed long  C) { return SwapByteOrder_64(C); }
 #else
 #error "Unknown long size!"
 #endif
 
-inline unsigned long long SwapByteOrder(unsigned long long C) {
+inline unsigned long long getSwappedBytes(unsigned long long C) {
   return SwapByteOrder_64(C);
 }
-inline signed long long SwapByteOrder(signed long long C) {
+inline signed long long getSwappedBytes(signed long long C) {
   return SwapByteOrder_64(C);
+}
+
+template<typename T>
+inline void swapByteOrder(T &Value) {
+  Value = getSwappedBytes(Value);
 }
 
 } // end namespace sys

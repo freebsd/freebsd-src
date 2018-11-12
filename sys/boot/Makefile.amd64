@@ -4,3 +4,9 @@ SUBDIR+=		efi
 SUBDIR+=		libstand32
 SUBDIR+=		zfs
 SUBDIR+=		userboot
+
+.if ${MK_FORTH} != "no"
+SUBDIR+=		ficl32
+.endif
+
+SUBDIR+=		i386

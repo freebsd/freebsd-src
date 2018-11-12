@@ -40,7 +40,6 @@
  */
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -77,11 +76,6 @@
 #include <netinet6/nd6.h>
 #endif
 
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
 #define ARCNET_ALLOW_BROKEN_ARP
 
 static struct mbuf *arc_defrag(struct ifnet *, struct mbuf *);
@@ -90,11 +84,10 @@ static int arc_resolvemulti(struct ifnet *, struct sockaddr **,
 
 u_int8_t  arcbroadcastaddr = 0;
 
-#define ARC_LLADDR(ifp)	(*(u_int8_t *)IF_LLADDR(ifp))
+#define ARC_LLADDR(ifp)	(*(u_int8_t *)if_lladdr(ifp))
 
 #define senderr(e) { error = (e); goto bad;}
 #define SIN(s)	((const struct sockaddr_in *)(s))
-#define SIPX(s)	((const struct sockaddr_ipx *)(s))
 
 /*
  * ARCnet output routine.
@@ -110,8 +103,8 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	u_int8_t		atype, adst;
 	int			loop_copy = 0;
 	int			isphds;
-#if defined(INET) || defined(INET6)
-	struct llentry		*lle;
+#ifdef INET
+	int			is_gw;
 #endif
 
 	if (!((ifp->if_flags & IFF_UP) &&
@@ -132,8 +125,11 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		else if (ifp->if_flags & IFF_NOARP)
 			adst = ntohl(SIN(dst)->sin_addr.s_addr) & 0xFF;
 		else {
-			error = arpresolve(ifp, ro ? ro->ro_rt : NULL,
-			                   m, dst, &adst, &lle);
+			is_gw = 0;
+			if (ro != NULL && ro->ro_rt != NULL &&
+			    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+				is_gw = 1;
+			error = arpresolve(ifp, is_gw, m, dst, &adst, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -171,21 +167,15 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, m, dst, (u_char *)&adst, &lle);
+		if ((m->m_flags & M_MCAST) != 0)
+			adst = arcbroadcastaddr; /* ARCnet broadcast address */
+		else
+			error = nd6_storelladdr(ifp, m, dst, (u_char *)&adst, NULL);
 		if (error)
 			return (error);
 		atype = ARCTYPE_INET6;
 		break;
 #endif
-#ifdef IPX
-	case AF_IPX:
-		adst = SIPX(dst)->sipx_addr.x_host.c_host[5];
-		atype = ARCTYPE_IPX;
-		if (adst == 0xff)
-			adst = arcbroadcastaddr;
-		break;
-#endif
-
 	case AF_UNSPEC:
 	    {
 		const struct arc_header *ah;
@@ -373,7 +363,7 @@ arc_defrag(struct ifnet *ifp, struct mbuf *m)
 	if (m->m_len < ARC_HDRNEWLEN) {
 		m = m_pullup(m, ARC_HDRNEWLEN);
 		if (m == NULL) {
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			return NULL;
 		}
 	}
@@ -393,7 +383,7 @@ arc_defrag(struct ifnet *ifp, struct mbuf *m)
 		if (m->m_len < ARC_HDRNEWLEN) {
 			m = m_pullup(m, ARC_HDRNEWLEN);
 			if (m == NULL) {
-				++ifp->if_ierrors;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return NULL;
 			}
 		}
@@ -546,11 +536,11 @@ arc_input(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	if (ah->arc_dhost == arcbroadcastaddr) {
 		m->m_flags |= M_BCAST|M_MCAST;
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 	}
 
 	atype = ah->arc_type;
@@ -600,12 +590,6 @@ arc_input(struct ifnet *ifp, struct mbuf *m)
 	case ARCTYPE_INET6:
 		m_adj(m, ARC_HDRNEWLEN);
 		isr = NETISR_IPV6;
-		break;
-#endif
-#ifdef IPX
-	case ARCTYPE_IPX:
-		m_adj(m, ARC_HDRNEWLEN);
-		isr = NETISR_IPX;
 		break;
 #endif
 	default:
@@ -688,26 +672,6 @@ arc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_init(ifp->if_softc);	/* before arpwhohas */
 			arp_ifinit(ifp, ifa);
 			break;
-#endif
-#ifdef IPX
-		/*
-		 * XXX This code is probably wrong
-		 */
-		case AF_IPX:
-		{
-			struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-
-			if (ipx_nullhost(*ina))
-				ina->x_host.c_host[5] = ARC_LLADDR(ifp);
-			else
-				arc_storelladdr(ifp, ina->x_host.c_host[5]);
-
-			/*
-			 * Set new address
-			 */
-			ifp->if_init(ifp->if_softc);
-			break;
-		}
 #endif
 		default:
 			ifp->if_init(ifp->if_softc);

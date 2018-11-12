@@ -45,6 +45,7 @@ struct iscsi_outstanding {
 	size_t				io_received;
 	uint32_t			io_initiator_task_tag;
 	uint32_t			io_datasn;
+	void				*io_icl_prv;
 };
 
 struct iscsi_session {
@@ -64,12 +65,13 @@ struct iscsi_session {
 	size_t				is_max_burst_length;
 	size_t				is_first_burst_length;
 	uint8_t				is_isid[6];
+	uint16_t			is_tsih;
 	bool				is_immediate_data;
 	size_t				is_max_data_segment_length;
 	char				is_target_alias[ISCSI_ALIAS_LEN];
 
 	TAILQ_HEAD(, iscsi_outstanding)	is_outstanding;
-	TAILQ_HEAD(, icl_pdu)		is_postponed;
+	STAILQ_HEAD(, icl_pdu)		is_postponed;
 
 	struct callout			is_callout;
 	unsigned int			is_timeout;

@@ -60,7 +60,7 @@ OptionValue::GetAsBoolean ()
 {
     if (GetType () == OptionValue::eTypeBoolean)
         return static_cast<OptionValueBoolean *>(this);
-    return NULL;
+    return nullptr;
 }
 
 const OptionValueBoolean *
@@ -68,16 +68,31 @@ OptionValue::GetAsBoolean () const
 {
     if (GetType () == OptionValue::eTypeBoolean)
         return static_cast<const OptionValueBoolean *>(this);
-    return NULL;
+    return nullptr;
 }
 
+const OptionValueChar *
+OptionValue::GetAsChar () const
+{
+    if (GetType () == OptionValue::eTypeChar)
+        return static_cast<const OptionValueChar *>(this);
+    return nullptr;
+}
+
+OptionValueChar *
+OptionValue::GetAsChar ()
+{
+    if (GetType () == OptionValue::eTypeChar)
+        return static_cast<OptionValueChar *>(this);
+    return nullptr;
+}
 
 OptionValueFileSpec *
 OptionValue::GetAsFileSpec ()
 {
     if (GetType () == OptionValue::eTypeFileSpec)
         return static_cast<OptionValueFileSpec *>(this);
-    return NULL;
+    return nullptr;
     
 }
 
@@ -86,7 +101,7 @@ OptionValue::GetAsFileSpec () const
 {
     if (GetType () == OptionValue::eTypeFileSpec)
         return static_cast<const OptionValueFileSpec *>(this);
-    return NULL;
+    return nullptr;
     
 }
 
@@ -95,7 +110,7 @@ OptionValue::GetAsFileSpecList ()
 {
     if (GetType () == OptionValue::eTypeFileSpecList)
         return static_cast<OptionValueFileSpecList *>(this);
-    return NULL;
+    return nullptr;
     
 }
 
@@ -104,7 +119,7 @@ OptionValue::GetAsFileSpecList () const
 {
     if (GetType () == OptionValue::eTypeFileSpecList)
         return static_cast<const OptionValueFileSpecList *>(this);
-    return NULL;
+    return nullptr;
     
 }
 
@@ -113,7 +128,7 @@ OptionValue::GetAsArch ()
 {
     if (GetType () == OptionValue::eTypeArch)
         return static_cast<OptionValueArch *>(this);
-    return NULL;
+    return nullptr;
 }
 
 
@@ -122,7 +137,7 @@ OptionValue::GetAsArch () const
 {
     if (GetType () == OptionValue::eTypeArch)
         return static_cast<const OptionValueArch *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValueArray *
@@ -130,7 +145,7 @@ OptionValue::GetAsArray ()
 {
     if (GetType () == OptionValue::eTypeArray)
         return static_cast<OptionValueArray *>(this);
-    return NULL;
+    return nullptr;
 }
 
 
@@ -139,7 +154,7 @@ OptionValue::GetAsArray () const
 {
     if (GetType () == OptionValue::eTypeArray)
         return static_cast<const OptionValueArray *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValueArgs *
@@ -147,7 +162,7 @@ OptionValue::GetAsArgs ()
 {
     if (GetType () == OptionValue::eTypeArgs)
         return static_cast<OptionValueArgs *>(this);
-    return NULL;
+    return nullptr;
 }
 
 
@@ -156,7 +171,7 @@ OptionValue::GetAsArgs () const
 {
     if (GetType () == OptionValue::eTypeArgs)
         return static_cast<const OptionValueArgs *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValueDictionary *
@@ -164,7 +179,7 @@ OptionValue::GetAsDictionary ()
 {
     if (GetType () == OptionValue::eTypeDictionary)
         return static_cast<OptionValueDictionary *>(this);
-    return NULL;
+    return nullptr;
 }
 
 const OptionValueDictionary *
@@ -172,7 +187,7 @@ OptionValue::GetAsDictionary () const
 {
     if (GetType () == OptionValue::eTypeDictionary)
         return static_cast<const OptionValueDictionary *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValueEnumeration *
@@ -180,7 +195,7 @@ OptionValue::GetAsEnumeration ()
 {
     if (GetType () == OptionValue::eTypeEnum)
         return static_cast<OptionValueEnumeration *>(this);
-    return NULL;
+    return nullptr;
 }
 
 const OptionValueEnumeration *
@@ -188,7 +203,7 @@ OptionValue::GetAsEnumeration () const
 {
     if (GetType () == OptionValue::eTypeEnum)
         return static_cast<const OptionValueEnumeration *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValueFormat *
@@ -196,7 +211,7 @@ OptionValue::GetAsFormat ()
 {
     if (GetType () == OptionValue::eTypeFormat)
         return static_cast<OptionValueFormat *>(this);
-    return NULL;
+    return nullptr;
 }
 
 const OptionValueFormat *
@@ -204,7 +219,7 @@ OptionValue::GetAsFormat () const
 {
     if (GetType () == OptionValue::eTypeFormat)
         return static_cast<const OptionValueFormat *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValuePathMappings *
@@ -212,7 +227,7 @@ OptionValue::GetAsPathMappings ()
 {
     if (GetType () == OptionValue::eTypePathMap)
         return static_cast<OptionValuePathMappings *>(this);
-    return NULL;
+    return nullptr;
 }
 
 const OptionValuePathMappings *
@@ -220,7 +235,7 @@ OptionValue::GetAsPathMappings () const
 {
     if (GetType () == OptionValue::eTypePathMap)
         return static_cast<const OptionValuePathMappings *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValueProperties *
@@ -228,7 +243,7 @@ OptionValue::GetAsProperties ()
 {
     if (GetType () == OptionValue::eTypeProperties)
         return static_cast<OptionValueProperties *>(this);
-    return NULL;
+    return nullptr;
 }
 
 const OptionValueProperties *
@@ -236,7 +251,7 @@ OptionValue::GetAsProperties () const
 {
     if (GetType () == OptionValue::eTypeProperties)
         return static_cast<const OptionValueProperties *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValueRegex *
@@ -244,7 +259,7 @@ OptionValue::GetAsRegex ()
 {
     if (GetType () == OptionValue::eTypeRegex)
         return static_cast<OptionValueRegex *>(this);
-    return NULL;
+    return nullptr;
 }
 
 const OptionValueRegex *
@@ -252,7 +267,7 @@ OptionValue::GetAsRegex () const
 {
     if (GetType () == OptionValue::eTypeRegex)
         return static_cast<const OptionValueRegex *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValueSInt64 *
@@ -260,7 +275,7 @@ OptionValue::GetAsSInt64 ()
 {
     if (GetType () == OptionValue::eTypeSInt64)
         return static_cast<OptionValueSInt64 *>(this);
-    return NULL;
+    return nullptr;
 }
 
 const OptionValueSInt64 *
@@ -268,7 +283,7 @@ OptionValue::GetAsSInt64 () const
 {
     if (GetType () == OptionValue::eTypeSInt64)
         return static_cast<const OptionValueSInt64 *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValueString *
@@ -276,7 +291,7 @@ OptionValue::GetAsString ()
 {
     if (GetType () == OptionValue::eTypeString)
         return static_cast<OptionValueString *>(this);
-    return NULL;
+    return nullptr;
 }
 
 const OptionValueString *
@@ -284,7 +299,7 @@ OptionValue::GetAsString () const
 {
     if (GetType () == OptionValue::eTypeString)
         return static_cast<const OptionValueString *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValueUInt64 *
@@ -292,7 +307,7 @@ OptionValue::GetAsUInt64 ()
 {
     if (GetType () == OptionValue::eTypeUInt64)
         return static_cast<OptionValueUInt64 *>(this);
-    return NULL;
+    return nullptr;
 }
 
 const OptionValueUInt64 *
@@ -300,7 +315,7 @@ OptionValue::GetAsUInt64 () const
 {
     if (GetType () == OptionValue::eTypeUInt64)
         return static_cast<const OptionValueUInt64 *>(this);
-    return NULL;
+    return nullptr;
 }
 
 OptionValueUUID *
@@ -308,7 +323,7 @@ OptionValue::GetAsUUID ()
 {
     if (GetType () == OptionValue::eTypeUUID)
         return static_cast<OptionValueUUID *>(this);
-    return NULL;
+    return nullptr;
     
 }
 
@@ -317,7 +332,7 @@ OptionValue::GetAsUUID () const
 {
     if (GetType () == OptionValue::eTypeUUID)
         return static_cast<const OptionValueUUID *>(this);
-    return NULL;
+    return nullptr;
     
 }
 
@@ -334,6 +349,27 @@ bool
 OptionValue::SetBooleanValue (bool new_value)
 {
     OptionValueBoolean *option_value = GetAsBoolean ();
+    if (option_value)
+    {
+        option_value->SetCurrentValue(new_value);
+        return true;
+    }
+    return false;
+}
+
+char
+OptionValue::GetCharValue(char fail_value) const
+{
+    const OptionValueChar *option_value = GetAsChar();
+    if (option_value)
+        return option_value->GetCurrentValue();
+    return fail_value;
+}
+
+char
+OptionValue::SetCharValue(char new_value)
+{
+    OptionValueChar *option_value = GetAsChar();
     if (option_value)
     {
         option_value->SetCurrentValue(new_value);
@@ -422,7 +458,7 @@ OptionValue::GetRegexValue () const
     const OptionValueRegex *option_value = GetAsRegex ();
     if (option_value)
         return option_value->GetCurrentValue();
-    return NULL;
+    return nullptr;
 }
 
 
@@ -520,6 +556,8 @@ OptionValue::GetBuiltinTypeAsCString (Type t)
         case eTypeArgs:         return "arguments";
         case eTypeArray:        return "array";
         case eTypeBoolean:      return "boolean";
+        case eTypeChar:
+            return "char";
         case eTypeDictionary:   return "dictionary";
         case eTypeEnum:         return "enum";
         case eTypeFileSpec:     return "file";
@@ -533,7 +571,7 @@ OptionValue::GetBuiltinTypeAsCString (Type t)
         case eTypeUInt64:       return "unsigned";
         case eTypeUUID:         return "uuid";
     }
-    return NULL;
+    return nullptr;
 }
 
 
@@ -547,6 +585,7 @@ OptionValue::CreateValueFromCStringForTypeMask (const char *value_cstr, uint32_t
     {
     case 1u << eTypeArch:       value_sp.reset(new OptionValueArch()); break;
     case 1u << eTypeBoolean:    value_sp.reset(new OptionValueBoolean(false)); break;
+    case 1u << eTypeChar:       value_sp.reset(new OptionValueChar('\0')); break;
     case 1u << eTypeFileSpec:   value_sp.reset(new OptionValueFileSpec()); break;
     case 1u << eTypeFormat:     value_sp.reset(new OptionValueFormat(eFormatInvalid));    break;
     case 1u << eTypeSInt64:     value_sp.reset(new OptionValueSInt64()); break;

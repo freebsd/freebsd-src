@@ -95,7 +95,7 @@ void		isp_put_ecmd(struct ispsoftc *, isp_ecmd_t *);
 
 #define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	4096
-#define	ATPDPHASHSIZE	16
+#define	ATPDPHASHSIZE	32
 #define	ATPDPHASH(x)	((((x) >> 24) ^ ((x) >> 16) ^ ((x) >> 8) ^ (x)) &  \
 			    ((ATPDPHASHSIZE) - 1))
 
@@ -158,11 +158,13 @@ typedef struct isp_timed_notify_ack {
 	void *isp;
 	void *not;
 	uint8_t data[64];	 /* sb QENTRY_LEN, but order of definitions is wrong */
+	struct callout timer;
 } isp_tna_t;
 
 TAILQ_HEAD(isp_ccbq, ccb_hdr);
 typedef struct tstate {
 	SLIST_ENTRY(tstate) next;
+	lun_id_t ts_lun;
 	struct cam_path *owner;
 	struct isp_ccbq waitq;		/* waiting CCBs */
 	struct ccb_hdr_slist atios;
@@ -268,6 +270,7 @@ struct isp_fc {
 	unsigned int inject_lost_data_frame;
 #endif
 #endif
+	int			num_threads;
 };
 
 struct isp_spi {
@@ -291,6 +294,7 @@ struct isp_spi {
 	struct proc *		target_proc;
 #endif
 #endif
+	int			num_threads;
 };
 
 struct isposinfo {
@@ -365,6 +369,8 @@ struct isposinfo {
 		struct isp_spi *spi;
 		void *ptr;
 	} pc;
+
+	int			is_exiting;
 };
 #define	ISP_FC_PC(isp, chan)	(&(isp)->isp_osinfo.pc.fc[(chan)])
 #define	ISP_SPI_PC(isp, chan)	(&(isp)->isp_osinfo.pc.spi[(chan)])
@@ -395,8 +401,9 @@ struct isposinfo {
 /*
  * Locking macros...
  */
-#define	ISP_LOCK(isp)	mtx_lock(&isp->isp_osinfo.lock)
-#define	ISP_UNLOCK(isp)	mtx_unlock(&isp->isp_osinfo.lock)
+#define	ISP_LOCK(isp)	mtx_lock(&(isp)->isp_osinfo.lock)
+#define	ISP_UNLOCK(isp)	mtx_unlock(&(isp)->isp_osinfo.lock)
+#define	ISP_ASSERT_LOCKED(isp)	mtx_assert(&(isp)->isp_osinfo.lock, MA_OWNED)
 
 /*
  * Required Macros/Defines
@@ -747,6 +754,7 @@ int isp_fc_scratch_acquire(ispsoftc_t *, int);
 int isp_mstohz(int);
 void isp_platform_intr(void *);
 void isp_common_dmateardown(ispsoftc_t *, struct ccb_scsiio *, uint32_t);
+void isp_fcp_reset_crn(struct isp_fc *, uint32_t, int);
 int isp_fcp_next_crn(ispsoftc_t *, uint8_t *, XS_T *);
 
 /*

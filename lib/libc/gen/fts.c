@@ -161,11 +161,7 @@ fts_open(argv, options, compar)
 
 	/* Allocate/initialize root(s). */
 	for (root = NULL, nitems = 0; *argv != NULL; ++argv, ++nitems) {
-		/* Don't allow zero-length paths. */
-		if ((len = strlen(*argv)) == 0) {
-			errno = ENOENT;
-			goto mem3;
-		}
+		len = strlen(*argv);
 
 		p = fts_alloc(sp, *argv, len);
 		p->fts_level = FTS_ROOTLEVEL;
@@ -519,7 +515,7 @@ FTSENT *
 fts_children(FTS *sp, int instr)
 {
 	FTSENT *p;
-	int fd;
+	int fd, rc, serrno;
 
 	if (instr != 0 && instr != FTS_NAMEONLY) {
 		errno = EINVAL;
@@ -575,11 +571,14 @@ fts_children(FTS *sp, int instr)
 	if ((fd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
-	if (fchdir(fd)) {
-		(void)_close(fd);
-		return (NULL);
-	}
+	serrno = (sp->fts_child == NULL) ? errno : 0;
+	rc = fchdir(fd);
+	if (rc < 0 && serrno == 0)
+		serrno = errno;
 	(void)_close(fd);
+	errno = serrno;
+	if (rc < 0)
+		return (NULL);
 	return (sp->fts_child);
 }
 
@@ -909,12 +908,13 @@ fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
 	if (ISSET(FTS_LOGICAL) || follow) {
 		if (fstatat(dfd, path, sbp, 0)) {
 			saved_errno = errno;
-			if (!fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
-				errno = 0;
-				return (FTS_SLNONE);
+			if (fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
+				p->fts_errno = saved_errno;
+				goto err;
 			}
-			p->fts_errno = saved_errno;
-			goto err;
+			errno = 0;
+			if (S_ISLNK(sbp->st_mode))
+				return (FTS_SLNONE);
 		}
 	} else if (fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
 		p->fts_errno = errno;

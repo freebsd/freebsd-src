@@ -290,12 +290,11 @@ unionfs_domount(struct mount *mp)
 		return (error);
 	}
 
-	/*
-	 * Check mnt_flag
-	 */
+	MNT_ILOCK(mp);
 	if ((ump->um_lowervp->v_mount->mnt_flag & MNT_LOCAL) &&
 	    (ump->um_uppervp->v_mount->mnt_flag & MNT_LOCAL))
 		mp->mnt_flag |= MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 
 	/*
 	 * Get new fsid

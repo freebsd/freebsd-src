@@ -128,6 +128,8 @@ struct usb_xfer_queue {
 	void    (*command) (struct usb_xfer_queue *pq);
 	uint8_t	recurse_1:1;
 	uint8_t	recurse_2:1;
+	uint8_t	recurse_3:1;
+	uint8_t	reserved:5;
 };
 
 /*
@@ -569,6 +571,7 @@ int	usbd_xfer_is_stalled(struct usb_xfer *xfer);
 void	usbd_xfer_set_flag(struct usb_xfer *xfer, int flag);
 void	usbd_xfer_clr_flag(struct usb_xfer *xfer, int flag);
 uint16_t usbd_xfer_get_timestamp(struct usb_xfer *xfer);
+uint8_t usbd_xfer_maxp_was_clamped(struct usb_xfer *xfer);
 
 void	usbd_copy_in(struct usb_page_cache *cache, usb_frlength_t offset,
 	    const void *ptr, usb_frlength_t len);
@@ -585,6 +588,8 @@ void	usbd_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
 void	usbd_frame_zero(struct usb_page_cache *cache, usb_frlength_t offset,
 	    usb_frlength_t len);
 void	usbd_start_re_enumerate(struct usb_device *udev);
+usb_error_t
+	usbd_start_set_config(struct usb_device *, uint8_t);
 
 int	usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 	    struct mtx *priv_mtx, struct usb_fifo_methods *pm,

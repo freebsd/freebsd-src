@@ -111,7 +111,7 @@ __FBSDID("$FreeBSD$");
 static VNET_DEFINE(int, ipfastforward_active);
 #define	V_ipfastforward_active		VNET(ipfastforward_active)
 
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ipfastforward_active), 0, "Enable fast IP forwarding");
 
 static struct sockaddr_in *
@@ -134,9 +134,7 @@ ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 	 * Route there and interface still up?
 	 */
 	rt = ro->ro_rt;
-	if (rt && (rt->rt_flags & RTF_UP) &&
-	    (rt->rt_ifp->if_flags & IFF_UP) &&
-	    (rt->rt_ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (rt && (rt->rt_flags & RTF_UP) && (rt->rt_ifp->if_flags & IFF_UP)) {
 		if (rt->rt_flags & RTF_GATEWAY)
 			dst = (struct sockaddr_in *)rt->rt_gateway;
 	} else {
@@ -296,9 +294,9 @@ ip_fastforward(struct mbuf *m)
 	 * Only IP packets without options
 	 */
 	if (ip->ip_hl != (sizeof(struct ip) >> 2)) {
-		if (ip_doopts == 1)
+		if (V_ip_doopts == 1)
 			return m;
-		else if (ip_doopts == 2) {
+		else if (V_ip_doopts == 2) {
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_FILTER_PROHIB,
 				0, 0);
 			return NULL;	/* mbuf already free'd */
@@ -490,23 +488,10 @@ passout:
 	 * Check if route is dampned (when ARP is unable to resolve)
 	 */
 	if ((ro.ro_rt->rt_flags & RTF_REJECT) &&
-	    (ro.ro_rt->rt_rmx.rmx_expire == 0 ||
-	    time_uptime < ro.ro_rt->rt_rmx.rmx_expire)) {
+	    (ro.ro_rt->rt_expire == 0 || time_uptime < ro.ro_rt->rt_expire)) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		goto consumed;
 	}
-
-#ifndef ALTQ
-	/*
-	 * Check if there is enough space in the interface queue
-	 */
-	if ((ifp->if_snd.ifq_len + ip_len / ifp->if_mtu + 1) >=
-	    ifp->if_snd.ifq_maxlen) {
-		IPSTAT_INC(ips_odropped);
-		/* would send source quench here but that is depreciated */
-		goto drop;
-	}
-#endif
 
 	/*
 	 * Check if media link state of interface is not down
@@ -519,13 +504,12 @@ passout:
 	/*
 	 * Check if packet fits MTU or if hardware will fragment for us
 	 */
-	if (ro.ro_rt->rt_rmx.rmx_mtu)
-		mtu = min(ro.ro_rt->rt_rmx.rmx_mtu, ifp->if_mtu);
+	if (ro.ro_rt->rt_mtu)
+		mtu = min(ro.ro_rt->rt_mtu, ifp->if_mtu);
 	else
 		mtu = ifp->if_mtu;
 
-	if (ip_len <= mtu ||
-	    (ifp->if_hwassist & CSUM_FRAGMENT && (ip_off & IP_DF) == 0)) {
+	if (ip_len <= mtu) {
 		/*
 		 * Avoid confusing lower layers.
 		 */
@@ -534,8 +518,7 @@ passout:
 		 * Send off the packet via outgoing interface
 		 */
 		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
-		error = (*ifp->if_output)(ifp, m,
-				(struct sockaddr *)dst, &ro);
+		error = if_output(ifp, m, (struct sockaddr *)dst, &ro);
 	} else {
 		/*
 		 * Handle EMSGSIZE with icmp reply needfrag for TCP MTU discovery
@@ -566,8 +549,8 @@ passout:
 				m_clrprotoflags(m);
 
 				IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
-				error = (*ifp->if_output)(ifp, m,
-					(struct sockaddr *)dst, &ro);
+				error = if_output(ifp, m,
+				    (struct sockaddr *)dst, &ro);
 				if (error)
 					break;
 			} while ((m = m0) != NULL);
@@ -585,7 +568,7 @@ passout:
 	if (error != 0)
 		IPSTAT_INC(ips_odropped);
 	else {
-		ro.ro_rt->rt_rmx.rmx_pksent++;
+		counter_u64_add(ro.ro_rt->rt_pksent, 1);
 		IPSTAT_INC(ips_forward);
 		IPSTAT_INC(ips_fastforward);
 	}

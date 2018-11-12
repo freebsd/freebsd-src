@@ -1175,7 +1175,7 @@ via_attach(device_t dev)
 	    "snd_via8233 softc");
 	via->dev = dev;
 
-	callout_init(&via->poll_timer, CALLOUT_MPSAFE);
+	callout_init(&via->poll_timer, 1);
 	via->poll_ticks = 1;
 
 	if (resource_int_value(device_get_name(dev),
@@ -1381,7 +1381,7 @@ bad:
 		bus_release_resource(dev, SYS_RES_IRQ, via->irqid, via->irq);
 	if (via->parent_dmat)
 		bus_dma_tag_destroy(via->parent_dmat);
-	if (via->sgd_dmamap)
+	if (via->sgd_addr)
 		bus_dmamap_unload(via->sgd_dmat, via->sgd_dmamap);
 	if (via->sgd_table)
 		bus_dmamem_free(via->sgd_dmat, via->sgd_table, via->sgd_dmamap);

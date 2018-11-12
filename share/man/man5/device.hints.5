@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2009
+.Dd July 23, 2015
 .Dt DEVICE.HINTS 5
 .Os
 .Sh NAME
@@ -41,9 +41,8 @@ passed to the kernel.
 It contains various variables to control the boot behavior of
 the kernel.
 These variables are typically
-.Dq device hints .
-.\" .Dq device hints ,
-.\" and other control variables.
+.Dq device hints ,
+but can include any kernel tunable values.
 .Pp
 The file contains one variable per line.
 Lines starting with the
@@ -152,12 +151,11 @@ The following example disables the ACPI driver:
 .Bd -literal -offset indent
 hint.acpi.0.disabled="1"
 .Ed
-.\" .Pp
-.\" A control variable may look like:
-.\" .Pp
-.\" .Bd -literal -offset indent
-.\" debug.acpi.layer="ACPI_RESOURCES"
-.\" .Ed
+.Pp
+Setting a tunable variable:
+.Bd -literal -offset indent
+vm.pmap.pg_ps_enabled=1
+.Ed
 .Sh SEE ALSO
 .Xr kenv 1 ,
 .Xr loader.conf 5 ,

@@ -26,6 +26,7 @@
 
 /*
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 #include <string.h>
@@ -109,7 +110,9 @@ static const struct {
 	{ EDT_BADSTACKPC, "Invalid stack program counter size" },
 	{ EDT_BADAGGVAR, "Invalid aggregation variable identifier" },
 	{ EDT_OVERSION,	"Client requested deprecated version of library" },
-	{ EDT_ENABLING_ERR, "Failed to enable probe" }
+	{ EDT_ENABLING_ERR, "Failed to enable probe" },
+	{ EDT_NOPROBES, "No probe sites found for declared provider" },
+	{ EDT_CANTLOAD, "Failed to load module" },
 };
 
 static const int _dt_nerr = sizeof (_dt_errlist) / sizeof (_dt_errlist[0]);
@@ -142,7 +145,7 @@ dtrace_errno(dtrace_hdl_t *dtp)
 	return (dtp->dt_errno);
 }
 
-#if defined(sun)
+#ifdef illumos
 int
 dt_set_errno(dtrace_hdl_t *dtp, int err)
 {

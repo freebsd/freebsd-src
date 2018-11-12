@@ -582,20 +582,19 @@ struct xl_type {
 #define XL_FLAG_USE_MMIO		0x0100
 #define	XL_FLAG_NO_MMIO			0x0200
 #define	XL_FLAG_WOL			0x0400
+#define	XL_FLAG_RUNNING			0x0800
 
 #define XL_NO_XCVR_PWR_MAGICBITS	0x0900
 
 struct xl_softc {
-	struct ifnet		*xl_ifp;	/* interface info */
+	if_t			xl_ifp;	/* interface info */
 	device_t		xl_dev;		/* device info */
-	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	xl_bhandle;
 	bus_space_tag_t		xl_btag;
 	void			*xl_intrhand;
 	struct resource		*xl_irq;
 	struct resource		*xl_res;
 	device_t		xl_miibus;
-	const struct xl_type	*xl_info;	/* 3Com adapter info */
 	bus_dma_tag_t		xl_mtag;
 	bus_dmamap_t		xl_tmpmap;	/* spare DMA map */
 	u_int8_t		xl_type;
@@ -609,6 +608,7 @@ struct xl_softc {
 	struct xl_chain_data	xl_cdata;
 	struct callout		xl_tick_callout;
 	int			xl_wdog_timer;
+	uint32_t		xl_capenable;
 	int			xl_flags;
 	struct resource		*xl_fres;
 	bus_space_handle_t	xl_fhandle;
@@ -618,9 +618,12 @@ struct xl_softc {
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
+#define	XL_MAX_MEDIAE 10
+	if_media_t		xl_mediae[XL_MAX_MEDIAE + 1];
 };
 
 #define XL_LOCK(_sc)		mtx_lock(&(_sc)->xl_mtx)
+#define XL_TRY_LOCK(_sc)	mtx_trylock(&(_sc)->xl_mtx)
 #define XL_UNLOCK(_sc)		mtx_unlock(&(_sc)->xl_mtx)
 #define XL_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->xl_mtx, MA_OWNED)
 

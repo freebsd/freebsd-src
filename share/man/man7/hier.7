@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd January 14, 2015
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -52,13 +48,25 @@ programs and configuration files used during operating system bootstrap
 .It Pa defaults/
 default bootstrapping configuration files; see
 .Xr loader.conf 5
+.It Pa dtb/
+Compiled flattened device tree (FDT) files; see
+.Xr fdt 4
+and
+.Xr dtc 1
+.It Pa firmware/
+Loadable modules containing binary firmware for hardware that needs
+firmware downloaded to it to function
 .It Pa kernel/
 pure kernel executable (the operating system loaded into memory
-at boot time).
+at boot time)
 .It Pa modules/
 third-party loadable kernel modules;
 see
 .Xr kldstat 8
+.It Pa zfs/
+Contains
+.Xr zfs 8
+zpool cache files.
 .El
 .It Pa /cdrom/
 default mount point for CD-ROM drives
@@ -90,10 +98,6 @@ see
 .Xr rc 8
 .It Pa bluetooth/
 bluetooth configuration files
-.It Pa gnats/
-gnats configuration files;
-see
-.Xr send-pr 1
 .It Pa localtime
 local timezone information;
 see
@@ -155,6 +159,10 @@ floppy disks
 .It Pa /mnt/
 empty directory commonly used by
 system administrators as a temporary mount point
+.It Pa /net/
+automounted NFS shares;
+see
+.Xr auto_master 5
 .It Pa /proc/
 process file system;
 see
@@ -179,8 +187,6 @@ common utilities, programming tools, and applications
 .It Pa compat/
 files needed to support binary compatibility with other operating systems,
 such as Linux
-.It Pa games/
-useful and semi-frivolous programs
 .It Pa include/
 standard C include files
 .Pp
@@ -230,6 +236,8 @@ WaveLAN driver
 .El
 .It Pa fs/
 .Bl -tag -width ".Pa kerberos5/" -compact
+.It Pa cd9660/
+iso9660 file system
 .It Pa fdescfs/
 per-process file descriptors file system
 .It Pa fifofs/
@@ -269,11 +277,6 @@ STRIPE GEOM class
 .Pp
 .It Pa isc/
 ISC utility library libisc include files
-.It Pa isofs/
-.Bl -tag -width ".Pa kerberos5/" -compact
-.It Pa cd9660/
-iso9660 file system
-.El
 .It Pa libmilter/
 C include files for libmilter,
 the
@@ -283,8 +286,10 @@ mail filter API
 machine-specific C include files
 .It Pa net/
 miscellaneous network C include files
-.It Pa netatalk/
-Appletalk protocol
+.It Pa net80211/
+C include files for 802.11 wireless networking;
+see
+.Xr net80211 4
 .It Pa netinet/
 C include files for Internet standard protocols;
 see
@@ -297,8 +302,6 @@ see
 kernel key-management service;
 see
 .Xr ipsec 4
-.It Pa netipx/
-IPX/SPX protocol stacks
 .It Pa netnatm/
 NATM include files;
 see
@@ -379,10 +382,15 @@ shared libraries for compatibility
 .It Pa aout/
 a.out backward compatibility libraries
 .El
+.It Pa debug/
+standalone debug data for the base system libraries and binaries
 .It Pa dtrace/
 DTrace library scripts
 .It Pa engines/
 OpenSSL (Cryptography/SSL toolkit) dynamically loadable engines
+.It Pa private/
+Private system libraries not for use by third-party programs.
+ABI and API stability are not guaranteed.
 .El
 .Pp
 .It Pa libdata/
@@ -641,6 +649,26 @@ timezone configuration information;
 see
 .Xr tzfile 5
 .El
+.It Pa vt/
+files used by vt;
+see
+.Xr vt 4
+.Bl -tag -width ".Pa scrnmaps/" -compact
+.It Pa fonts/
+console fonts;
+see
+.Xr vidcontrol 1
+and
+.Xr vidfont 1
+.It Pa keymaps/
+console keyboard maps;
+see
+.Xr kbdcontrol 1
+and
+.Xr kbdmap 1
+.\" .It Pa scrnmaps/
+.\" console screen maps
+.El
 .It Pa src/
 .Bx ,
 third-party, and/or local source files
@@ -703,7 +731,9 @@ source code for files in
 The
 .Fx
 test suite.
-See tests(7) for more details.
+See
+.Xr tests 7
+for more details.
 .El
 .It Pa /var/
 multi-purpose log, temporary, transient, and spool files

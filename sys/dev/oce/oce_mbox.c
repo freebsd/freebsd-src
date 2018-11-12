@@ -811,7 +811,6 @@ oce_config_nic_rss(POCE_SOFTC sc, uint32_t if_id, uint16_t enable_rss)
 	fwcmd->params.req.flush = OCE_FLUSH;
 	fwcmd->params.req.if_id = LE_32(if_id);
 
-	srandom(arc4random());	/* random entropy seed */
 	read_random(fwcmd->params.req.hash, sizeof(fwcmd->params.req.hash));
 	
 	rc = oce_rss_itbl_init(sc, fwcmd);
@@ -961,9 +960,9 @@ oce_get_link_status(POCE_SOFTC sc, struct link_status *link)
 		goto error;
 	}
 	/* interpret response */
-	bcopy(&fwcmd->params.rsp, link, sizeof(struct link_status));
-	link->logical_link_status = HOST_32(link->logical_link_status);
-	link->qos_link_speed = HOST_16(link->qos_link_speed);
+	link->qos_link_speed = HOST_16(fwcmd->params.rsp.qos_link_speed);
+	link->phys_port_speed = fwcmd->params.rsp.physical_port_speed;
+	link->logical_link_status = fwcmd->params.rsp.logical_link_status;
 error:
 	return rc;
 }
@@ -1876,7 +1875,7 @@ oce_mbox_cq_create(struct oce_cq *cq, uint32_t ncoalesce, uint32_t is_eventable)
 		ctx->v2.armed = 0;
 		ctx->v2.eq_id = cq->eq->eq_id;
 		if (ctx->v2.count == 3) {
-			if (cq->cq_cfg.q_len > (4*1024)-1)
+			if ((u_int)cq->cq_cfg.q_len > (4*1024)-1)
 				ctx->v2.cqe_count = (4*1024)-1;
 			else
 				ctx->v2.cqe_count = cq->cq_cfg.q_len;

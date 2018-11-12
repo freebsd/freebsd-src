@@ -1,11 +1,13 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	llvmtransformutils
 
 SRCDIR=	lib/Transforms/Utils
-SRCS=	BasicBlockUtils.cpp \
+SRCS=	ASanStackFrameLayout.cpp \
+	AddDiscriminators.cpp \
+	BasicBlockUtils.cpp \
 	BreakCriticalEdges.cpp \
 	BuildLibCalls.cpp \
 	BypassSlowDivision.cpp \
@@ -13,7 +15,10 @@ SRCS=	BasicBlockUtils.cpp \
 	CloneModule.cpp \
 	CmpInstAnalysis.cpp \
 	CodeExtractor.cpp \
+	CtorUtils.cpp \
 	DemoteRegToStack.cpp \
+	FlattenCFG.cpp \
+	GlobalStatus.cpp \
 	InlineFunction.cpp \
 	InstructionNamer.cpp \
 	IntegerDivision.cpp \
@@ -34,6 +39,7 @@ SRCS=	BasicBlockUtils.cpp \
 	SimplifyIndVar.cpp \
 	SimplifyInstructions.cpp \
 	SimplifyLibCalls.cpp \
+	SymbolRewriter.cpp \
 	UnifyFunctionExitNodes.cpp \
 	ValueMapper.cpp
 

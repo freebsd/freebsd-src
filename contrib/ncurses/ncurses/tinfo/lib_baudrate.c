@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,7 +38,6 @@
  */
 
 #include <curses.priv.h>
-#include <term.h>		/* cur_term, pad_char */
 #include <termcap.h>		/* ospeed */
 #if defined(__FreeBSD__)
 #include <sys/param.h>
@@ -50,7 +49,7 @@
  * of the indices up to B115200 fit nicely in a 'short', allowing us to retain
  * ospeed's type for compatibility.
  */
-#if (defined(__FreeBSD__) && (__FreeBSD_version < 700000)) || defined(__NetBSD__) || defined(__OpenBSD__)
+#if NCURSES_OSPEED_COMPAT && ((defined(__FreeBSD__) && (__FreeBSD_version < 700000)) || defined(__NetBSD__) || defined(__OpenBSD__))
 #undef B0
 #undef B50
 #undef B75
@@ -80,7 +79,7 @@
 #undef USE_OLD_TTY
 #endif /* USE_OLD_TTY */
 
-MODULE_ID("$Id: lib_baudrate.c,v 1.27 2008/06/28 15:19:24 tom Exp $")
+MODULE_ID("$Id: lib_baudrate.c,v 1.34 2013/12/15 01:29:02 tom Exp $")
 
 /*
  *	int
@@ -91,54 +90,55 @@ MODULE_ID("$Id: lib_baudrate.c,v 1.27 2008/06/28 15:19:24 tom Exp $")
  */
 
 struct speed {
-    int s;			/* value for 'ospeed' is an index */
+    NCURSES_OSPEED s;		/* values for 'ospeed' */
     int sp;			/* the actual speed */
 };
 
+#define DATA(number) { B##number, number }
+
 static struct speed const speeds[] =
 {
-    {B0, 0},
-    {B50, 50},
-    {B75, 75},
-    {B110, 110},
-    {B134, 134},
-    {B150, 150},
-    {B200, 200},
-    {B300, 300},
-    {B600, 600},
-    {B1200, 1200},
-    {B1800, 1800},
-    {B2400, 2400},
-    {B4800, 4800},
-    {B9600, 9600},
+    DATA(0),
+    DATA(50),
+    DATA(75),
+    DATA(110),
+    DATA(134),
+    DATA(150),
+    DATA(200),
+    DATA(300),
+    DATA(600),
+    DATA(1200),
+    DATA(1800),
+    DATA(2400),
+    DATA(4800),
+    DATA(9600),
 #ifdef B19200
-    {B19200, 19200},
-#else
-#ifdef EXTA
+    DATA(19200),
+#elif defined(EXTA)
     {EXTA, 19200},
 #endif
-#endif
 #ifdef B38400
-    {B38400, 38400},
-#else
-#ifdef EXTB
+    DATA(38400),
+#elif defined(EXTB)
     {EXTB, 38400},
 #endif
-#endif
 #ifdef B57600
-    {B57600, 57600},
+    DATA(57600),
 #endif
+    /* ifdef to prevent overflow when OLD_TTY is not available */
+#if !(NCURSES_OSPEED_COMPAT && defined(__FreeBSD__) && (__FreeBSD_version > 700000))
 #ifdef B115200
-    {B115200, 115200},
+    DATA(115200),
 #endif
 #ifdef B230400
-    {B230400, 230400},
+    DATA(230400),
 #endif
 #ifdef B460800
-    {B460800, 460800},
+    DATA(460800),
 #endif
 #ifdef B921600
-    {B921600, 921600},
+    DATA(921600),
+#endif
 #endif
 };
 
@@ -168,7 +168,7 @@ _nc_baudrate(int OSpeed)
 	    }
 	}
 #if !USE_REENTRANT
-	if (OSpeed == last_OSpeed) {
+	if (OSpeed != last_OSpeed) {
 	    last_OSpeed = OSpeed;
 	    last_baudrate = result;
 	}
@@ -195,11 +195,11 @@ _nc_ospeed(int BaudRate)
 }
 
 NCURSES_EXPORT(int)
-baudrate(void)
+NCURSES_SP_NAME(baudrate) (NCURSES_SP_DCL0)
 {
     int result;
 
-    T((T_CALLED("baudrate()")));
+    T((T_CALLED("baudrate(%p)"), (void *) SP_PARM));
 
     /*
      * In debugging, allow the environment symbol to override when we're
@@ -207,32 +207,41 @@ baudrate(void)
      * that take into account costs that depend on baudrate.
      */
 #ifdef TRACE
-    if (!isatty(fileno(SP ? SP->_ofp : stdout))
+    if (IsValidTIScreen(SP_PARM)
+	&& !isatty(fileno(SP_PARM ? SP_PARM->_ofp : stdout))
 	&& getenv("BAUDRATE") != 0) {
 	int ret;
 	if ((ret = _nc_getenv_num("BAUDRATE")) <= 0)
 	    ret = 9600;
-	ospeed = _nc_ospeed(ret);
+	ospeed = (NCURSES_OSPEED) _nc_ospeed(ret);
 	returnCode(ret);
     }
 #endif
 
-    if (cur_term != 0) {
+    if (IsValidTIScreen(SP_PARM)) {
 #ifdef USE_OLD_TTY
-	result = cfgetospeed(&cur_term->Nttyb);
-	ospeed = _nc_ospeed(result);
+	result = (int) cfgetospeed(&(TerminalOf(SP_PARM)->Nttyb));
+	ospeed = (NCURSES_OSPEED) _nc_ospeed(result);
 #else /* !USE_OLD_TTY */
 #ifdef TERMIOS
-	ospeed = cfgetospeed(&cur_term->Nttyb);
+	ospeed = (NCURSES_OSPEED) cfgetospeed(&(TerminalOf(SP_PARM)->Nttyb));
 #else
-	ospeed = cur_term->Nttyb.sg_ospeed;
+	ospeed = (NCURSES_OSPEED) TerminalOf(SP_PARM)->Nttyb.sg_ospeed;
 #endif
 	result = _nc_baudrate(ospeed);
 #endif
-	cur_term->_baudrate = result;
+	TerminalOf(SP_PARM)->_baudrate = result;
     } else {
 	result = ERR;
     }
 
     returnCode(result);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+baudrate(void)
+{
+    return NCURSES_SP_NAME(baudrate) (CURRENT_SCREEN);
+}
+#endif

@@ -37,14 +37,29 @@
 
 /*
  * On amd64 (PT_FIRSTMACH + 0) and (PT_FIRSTMACH + 1) are old values for
- * PT_GETXSTATE and PT_SETXSTATE.  They should not be (re)used.
+ * PT_GETXSTATE_OLD and PT_SETXSTATE_OLD.  They should not be (re)used.
  */
 
 #ifdef __i386__
 #define	PT_GETXMMREGS	(PT_FIRSTMACH + 0)
 #define	PT_SETXMMREGS	(PT_FIRSTMACH + 1)
 #endif
-#define	PT_GETXSTATE	(PT_FIRSTMACH + 2)
-#define	PT_SETXSTATE	(PT_FIRSTMACH + 3)
+#ifdef _KERNEL
+#define	PT_GETXSTATE_OLD (PT_FIRSTMACH + 2)
+#define	PT_SETXSTATE_OLD (PT_FIRSTMACH + 3)
+#endif
+#define	PT_GETXSTATE_INFO (PT_FIRSTMACH + 4)
+#define	PT_GETXSTATE	(PT_FIRSTMACH + 5)
+#define	PT_SETXSTATE	(PT_FIRSTMACH + 6)
+#define	PT_GETFSBASE	(PT_FIRSTMACH + 7)
+#define	PT_SETFSBASE	(PT_FIRSTMACH + 8)
+#define	PT_GETGSBASE	(PT_FIRSTMACH + 9)
+#define	PT_SETGSBASE	(PT_FIRSTMACH + 10)
+
+/* Argument structure for PT_GETXSTATE_INFO. */
+struct ptrace_xstate_info {
+	uint64_t	xsave_mask;
+	uint32_t	xsave_len;
+};
 
 #endif

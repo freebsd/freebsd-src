@@ -1,9 +1,13 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
-FILESDIR=	${TESTSBASE}/bin/sh/builtins
-KYUAFILE=	no
+TESTSDIR=	${TESTSBASE}/bin/sh/${.CURDIR:T}
+
+.PATH: ${.CURDIR:H}
+ATF_TESTS_SH=	functional_test
+
+FILESDIR=	${TESTSDIR}
 
 FILES=		alias.0 alias.0.stdout
 FILES+=		alias.1 alias.1.stderr
@@ -14,6 +18,7 @@ FILES+=		break2.0 break2.0.stdout
 FILES+=		break3.0
 FILES+=		break4.4
 FILES+=		break5.4
+FILES+=		break6.0
 FILES+=		builtin1.0
 FILES+=		case1.0
 FILES+=		case2.0
@@ -34,6 +39,7 @@ FILES+=		case16.0
 FILES+=		case17.0
 FILES+=		case18.0
 FILES+=		case19.0
+FILES+=		case20.0
 FILES+=		cd1.0
 FILES+=		cd2.0
 FILES+=		cd3.0
@@ -67,6 +73,8 @@ FILES+=		eval3.0
 FILES+=		eval4.0
 FILES+=		eval5.0
 FILES+=		eval6.0
+FILES+=		eval7.0
+FILES+=		eval8.7
 FILES+=		exec1.0
 FILES+=		exec2.0
 FILES+=		exit1.0
@@ -80,18 +88,29 @@ FILES+=		for2.0
 FILES+=		for3.0
 FILES+=		getopts1.0 getopts1.0.stdout
 FILES+=		getopts2.0 getopts2.0.stdout
+FILES+=		getopts3.0
+FILES+=		getopts4.0
+FILES+=		getopts5.0
+FILES+=		getopts6.0
+FILES+=		getopts7.0
+FILES+=		getopts8.0 getopts8.0.stdout
 FILES+=		hash1.0 hash1.0.stdout
 FILES+=		hash2.0 hash2.0.stdout
 FILES+=		hash3.0 hash3.0.stdout
 FILES+=		hash4.0
 FILES+=		jobid1.0
 FILES+=		jobid2.0
+FILES+=		kill1.0 kill2.0
 FILES+=		lineno.0 lineno.0.stdout
+FILES+=		lineno2.0
+FILES+=		lineno3.0 lineno3.0.stdout
 FILES+=		local1.0
 FILES+=		local2.0
 FILES+=		local3.0
 FILES+=		local4.0
+.if ${MK_NLS} != "no"
 FILES+=		locale1.0
+.endif
 FILES+=		printf1.0
 FILES+=		printf2.0
 FILES+=		printf3.0
@@ -103,6 +122,8 @@ FILES+=		read4.0 read4.0.stdout
 FILES+=		read5.0
 FILES+=		read6.0
 FILES+=		read7.0
+FILES+=		read8.0
+FILES+=		read9.0
 FILES+=		return1.0
 FILES+=		return2.1
 FILES+=		return3.1
@@ -119,6 +140,8 @@ FILES+=		trap11.0
 FILES+=		trap12.0
 FILES+=		trap13.0
 FILES+=		trap14.0
+FILES+=		trap15.0
+FILES+=		trap16.0
 FILES+=		trap2.0
 FILES+=		trap3.0
 FILES+=		trap4.0

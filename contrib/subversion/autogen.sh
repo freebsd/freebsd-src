@@ -23,6 +23,10 @@
 ### Run this to produce everything needed for configuration. ###
 
 
+# Some shells can produce output when running 'cd' which interferes
+# with the construct 'abs=`cd dir && pwd`'.
+(unset CDPATH) >/dev/null 2>&1 && unset CDPATH
+
 # Run tests to ensure that our build requirements are met
 RELEASE_MODE=""
 RELEASE_ARGS=""
@@ -71,48 +75,80 @@ rm -f build/config.guess build/config.sub
 $libtoolize --copy --automake --force
 
 ltpath="`dirname $libtoolize`"
-ltfile=${LIBTOOL_M4-`cd $ltpath/../share/aclocal ; pwd`/libtool.m4}
 
-if [ ! -f $ltfile ]; then
-    echo "$ltfile not found (try setting the LIBTOOL_M4 environment variable)"
+if [ "x$LIBTOOL_M4" = "x" ]; then
+    ltm4_error='(try setting the LIBTOOL_M4 environment variable)'
+    if [ -d "$ltpath/../share/aclocal/." ]; then
+        ltm4=`cd "$ltpath/../share/aclocal" && pwd`
+    else
+        echo "Libtool helper path not found $ltm4_error"
+        echo "  expected at: '$ltpath/../share/aclocal'"
+        exit 1
+    fi
+else
+    ltm4_error="(the LIBTOOL_M4 environment variable is: $LIBTOOL_M4)"
+    ltm4="$LIBTOOL_M4"
+fi
+
+ltfile="$ltm4/libtool.m4"
+if [ ! -f "$ltfile" ]; then
+    echo "$ltfile not found $ltm4_error"
     exit 1
 fi
 
-echo "Copying libtool helper: $ltfile"
+echo "Copying libtool helper:  $ltfile"
 # An ancient helper might already be present from previous builds,
 # and it might be write-protected (e.g. mode 444, seen on FreeBSD).
 # This would cause cp to fail and print an error message, but leave
 # behind a potentially outdated libtool helper.  So, remove before
 # copying:
 rm -f build/libtool.m4
-cp $ltfile build/libtool.m4
+cp "$ltfile" build/libtool.m4
 
 for file in ltoptions.m4 ltsugar.m4 ltversion.m4 lt~obsolete.m4; do
     rm -f build/$file
 
     if [ $lt_major_version -ge 2 ]; then
-        ltfile=${LIBTOOL_M4-`cd $ltpath/../share/aclocal ; pwd`/$file}
+        ltfile="$ltm4/$file"
 
-        if [ ! -f $ltfile ]; then
-            echo "$ltfile not found (try setting the LIBTOOL_M4 environment variable)"
+        if [ ! -f "$ltfile" ]; then
+            echo "$ltfile not found $ltm4_error"
             exit 1
         fi
 
-        echo "Copying libtool helper: $ltfile"
-        cp $ltfile build/$file
+        echo "Copying libtool helper:  $ltfile"
+        cp "$ltfile" "build/$file"
     fi
 done
 
 if [ $lt_major_version -ge 2 ]; then
-    for file in config.guess config.sub; do
-        configfile=${LIBTOOL_CONFIG-`cd $ltpath/../share/libtool/config ; pwd`/$file}
+    if [ "x$LIBTOOL_CONFIG" = "x" ]; then
+        ltconfig_error='(try setting the LIBTOOL_CONFIG environment variable)'
+        if [ -d "$ltpath/../share/libtool/config/." ]; then
+            ltconfig=`cd "$ltpath/../share/libtool/config" && pwd`
+        elif [ -d "$ltpath/../share/libtool/build-aux/." ]; then
+            ltconfig=`cd "$ltpath/../share/libtool/build-aux" && pwd`
+        else
+            echo "Autoconf helper path not found $ltconfig_error"
+            echo "  expected at: '$ltpath/../share/libtool/config'"
+            echo "           or: '$ltpath/../share/libtool/build-aux'"
+            exit 1
+        fi
+    else
+        ltconfig_error="(the LIBTOOL_CONFIG environment variable is: $LIBTOOL_CONFIG)"
+        ltconfig="$LIBTOOL_CONFIG"
+    fi
 
-        if [ ! -f $configfile ]; then
-            echo "$configfile not found (try setting the LIBTOOL_CONFIG environment variable)"
+    for file in config.guess config.sub; do
+        configfile="$ltconfig/$file"
+
+        if [ ! -f "$configfile" ]; then
+            echo "$configfile not found $ltconfig_error"
             exit 1
         fi
 
-	cp $configfile build/$file
+        echo "Copying autoconf helper: $configfile"
+	cp "$configfile" build/$file
     done
 fi
 

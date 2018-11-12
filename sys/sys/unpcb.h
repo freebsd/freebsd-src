@@ -74,8 +74,8 @@ struct unpcb {
 	struct	unp_head unp_refs;	/* referencing socket linked list */
 	LIST_ENTRY(unpcb) unp_reflink;	/* link in unp_refs list */
 	struct	sockaddr_un *unp_addr;	/* bound address of socket */
-	int	unp_cc;			/* copy of rcv.sb_cc */
-	int	unp_mbcnt;		/* copy of rcv.sb_mbcnt */
+	int	reserved1;
+	int	reserved2;
 	unp_gen_t unp_gencnt;		/* generation count of this instance */
 	short	unp_flags;		/* flags */
 	short	unp_gcflag;		/* Garbage collector flags. */
@@ -106,6 +106,7 @@ struct unpcb {
 #define	UNPGC_REF			0x1	/* unpcb has external ref. */
 #define	UNPGC_DEAD			0x2	/* unpcb might be dead. */
 #define	UNPGC_SCANNED			0x4	/* Has been scanned. */
+#define	UNPGC_IGNORE_RIGHTS		0x8	/* Attached rights are freed */
 
 /*
  * These flags are used to handle non-atomicity in connect() and bind()

@@ -1,14 +1,14 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
 SUBDIR=	${_colldef} \
 	${_dict} \
 	${_doc} \
-	dtrace \
+	${_dtrace} \
 	${_examples} \
 	${_i18n} \
 	keys \
@@ -28,12 +28,17 @@ SUBDIR=	${_colldef} \
 	termcap \
 	${_tests} \
 	${_timedef} \
+	${_vt} \
 	${_zoneinfo}
 
 # NB: keep these sorted by MK_* knobs
 
 .if ${MK_BSNMP} != "no"
 _snmp=		snmp
+.endif
+
+.if ${MK_CDDL} != "no"
+_dtrace=	dtrace
 .endif
 
 .if ${MK_DICT} != "no"
@@ -83,6 +88,10 @@ _syscons=	syscons
 
 .if ${MK_TESTS} != "no"
 _tests=		tests
+.endif
+
+.if ${MK_VT} != "no"
+_vt=		vt
 .endif
 
 .if ${MK_ZONEINFO} != "no"

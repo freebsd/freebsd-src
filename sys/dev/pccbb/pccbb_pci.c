@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
@@ -258,32 +259,6 @@ cbb_pci_probe(device_t brdev)
 }
 
 /*
- * Still need this because the pci code only does power for type 0
- * header devices.
- */
-static void
-cbb_powerstate_d0(device_t dev)
-{
-	u_int32_t membase, irq;
-
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		/* Save important PCI config data. */
-		membase = pci_read_config(dev, CBBR_SOCKBASE, 4);
-		irq = pci_read_config(dev, PCIR_INTLINE, 4);
-
-		/* Reset the power state. */
-		device_printf(dev, "chip is in D%d power mode "
-		    "-- setting to D0\n", pci_get_powerstate(dev));
-
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-
-		/* Restore PCI config data. */
-		pci_write_config(dev, CBBR_SOCKBASE, membase, 4);
-		pci_write_config(dev, PCIR_INTLINE, irq, 4);
-	}
-}
-
-/*
  * Print out the config space
  */
 static void
@@ -303,13 +278,15 @@ cbb_print_config(device_t dev)
 static int
 cbb_pci_attach(device_t brdev)
 {
+#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
 	static int curr_bus_number = 2; /* XXX EVILE BAD (see below) */
+	uint32_t pribus;
+#endif
 	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
 	int rid;
 	device_t parent;
-	uint32_t pribus;
 
 	parent = device_get_parent(brdev);
 	mtx_init(&sc->mtx, device_get_nameunit(brdev), "cbb", MTX_DEF);
@@ -318,11 +295,15 @@ cbb_pci_attach(device_t brdev)
 	sc->cbdev = NULL;
 	sc->exca[0].pccarddev = NULL;
 	sc->domain = pci_get_domain(brdev);
-	sc->secbus = pci_read_config(brdev, PCIR_SECBUS_2, 1);
-	sc->subbus = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 	sc->pribus = pcib_get_bus(parent);
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	pci_write_config(brdev, PCIR_PRIBUS_2, sc->pribus, 1);
+	pcib_setup_secbus(brdev, &sc->bus, 1);
+#else
+	sc->bus.sec = pci_read_config(brdev, PCIR_SECBUS_2, 1);
+	sc->bus.sub = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
+#endif
 	SLIST_INIT(&sc->rl);
-	cbb_powerstate_d0(brdev);
 
 	rid = CBBR_SOCKBASE;
 	sc->base_res = bus_alloc_resource_any(brdev, SYS_RES_MEMORY, &rid,
@@ -352,9 +333,9 @@ cbb_pci_attach(device_t brdev)
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "pribus",
 	    CTLFLAG_RD, &sc->pribus, 0, "Primary bus number");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "secbus",
-	    CTLFLAG_RD, &sc->secbus, 0, "Secondary bus number");
+	    CTLFLAG_RD, &sc->bus.sec, 0, "Secondary bus number");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "subbus",
-	    CTLFLAG_RD, &sc->subbus, 0, "Subordinate bus number");
+	    CTLFLAG_RD, &sc->bus.sub, 0, "Subordinate bus number");
 #if 0
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "memory",
 	    CTLFLAG_RD, &sc->subbus, 0, "Memory window open");
@@ -366,15 +347,16 @@ cbb_pci_attach(device_t brdev)
 	    CTLFLAG_RD, &sc->subbus, 0, "io range 2 open");
 #endif
 
+#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
 	/*
 	 * This is a gross hack.  We should be scanning the entire pci
 	 * tree, assigning bus numbers in a way such that we (1) can
 	 * reserve 1 extra bus just in case and (2) all sub busses
 	 * are in an appropriate range.
 	 */
-	DEVPRINTF((brdev, "Secondary bus is %d\n", sc->secbus));
+	DEVPRINTF((brdev, "Secondary bus is %d\n", sc->bus.sec));
 	pribus = pci_read_config(brdev, PCIR_PRIBUS_2, 1);
-	if (sc->secbus == 0 || sc->pribus != pribus) {
+	if (sc->bus.sec == 0 || sc->pribus != pribus) {
 		if (curr_bus_number <= sc->pribus)
 			curr_bus_number = sc->pribus + 1;
 		if (pribus != sc->pribus) {
@@ -382,13 +364,14 @@ cbb_pci_attach(device_t brdev)
 			    sc->pribus));
 			pci_write_config(brdev, PCIR_PRIBUS_2, sc->pribus, 1);
 		}
-		sc->secbus = curr_bus_number++;
-		sc->subbus = curr_bus_number++;
+		sc->bus.sec = curr_bus_number++;
+		sc->bus.sub = curr_bus_number++;
 		DEVPRINTF((brdev, "Secondary bus set to %d subbus %d\n",
-		    sc->secbus, sc->subbus));
-		pci_write_config(brdev, PCIR_SECBUS_2, sc->secbus, 1);
-		pci_write_config(brdev, PCIR_SUBBUS_2, sc->subbus, 1);
+		    sc->bus.sec, sc->bus.sub));
+		pci_write_config(brdev, PCIR_SECBUS_2, sc->bus.sec, 1);
+		pci_write_config(brdev, PCIR_SUBBUS_2, sc->bus.sub, 1);
 	}
+#endif
 
 	/* attach children */
 	sc->cbdev = device_add_child(brdev, "cardbus", -1);
@@ -458,20 +441,17 @@ cbb_chipinit(struct cbb_softc *sc)
 	uint32_t mux, sysctrl, reg;
 
 	/* Set CardBus latency timer */
-	if (pci_read_config(sc->dev, PCIR_SECLAT_1, 1) < 0x20)
-		pci_write_config(sc->dev, PCIR_SECLAT_1, 0x20, 1);
+	if (pci_read_config(sc->dev, PCIR_SECLAT_2, 1) < 0x20)
+		pci_write_config(sc->dev, PCIR_SECLAT_2, 0x20, 1);
 
 	/* Set PCI latency timer */
 	if (pci_read_config(sc->dev, PCIR_LATTIMER, 1) < 0x20)
 		pci_write_config(sc->dev, PCIR_LATTIMER, 0x20, 1);
 
-	/* Restore bus configuration */
-	pci_write_config(sc->dev, PCIR_PRIBUS_2, sc->pribus, 1);
-	pci_write_config(sc->dev, PCIR_SECBUS_2, sc->secbus, 1);
-	pci_write_config(sc->dev, PCIR_SUBBUS_2, sc->subbus, 1);
-
-	/* Enable memory access */
+	/* Enable DMA, memory access for this card and I/O acces for children */
 	pci_enable_busmaster(sc->dev);
+	pci_enable_io(sc->dev, SYS_RES_IOPORT);
+	pci_enable_io(sc->dev, SYS_RES_MEMORY);
 
 	/* disable Legacy IO */
 	switch (sc->chipset) {
@@ -522,10 +502,26 @@ cbb_chipinit(struct cbb_softc *sc)
 		 * properly initialized.
 		 *
 		 * The TI125X parts have a different register.
+		 *
+		 * Note: Only the lower two nibbles matter. When set
+		 * to 0, the MFUNC{0,1} pins are GPIO, which isn't
+		 * going to work out too well because we specifically
+		 * program these parts to parallel interrupt signalling
+		 * elsewhere. We preserve the upper bits of this
+		 * register since changing them have subtle side effects
+		 * for different variants of the card and are
+		 * extremely difficult to exaustively test.
+		 *
+		 * Also, the TI 1510/1520 changed the default for the MFUNC
+		 * register from 0x0 to 0x1000 to enable IRQSER by default.
+		 * We want to be careful to avoid overriding that, and the
+		 * below test will do that. Should this check prove to be
+		 * too permissive, we should just check against 0 and 0x1000
+		 * and not touch it otherwise.
 		 */
 		mux = pci_read_config(sc->dev, CBBR_MFUNC, 4);
 		sysctrl = pci_read_config(sc->dev, CBBR_SYSCTRL, 4);
-		if (mux == 0) {
+		if ((mux & (CBBM_MFUNC_PIN0 | CBBM_MFUNC_PIN1)) == 0) {
 			mux = (mux & ~CBBM_MFUNC_PIN0) |
 			    CBBM_MFUNC_PIN0_INTA;
 			if ((sysctrl & CBBM_SYSCTRL_INTRTIE) == 0)
@@ -538,7 +534,8 @@ cbb_chipinit(struct cbb_softc *sc)
 		/*
 		 * Disable zoom video.  Some machines initialize this
 		 * improperly and exerpience has shown that this helps
-		 * prevent strange behavior.
+		 * prevent strange behavior. We don't support zoom
+		 * video anyway, so no harm can come from this.
 		 */
 		pci_write_config(sc->dev, CBBR_MMCTRL, 0, 4);
 		break;
@@ -783,6 +780,58 @@ cbb_pci_filt(void *arg)
 	return retval;
 }
 
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+static struct resource *
+cbb_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct cbb_softc *sc;
+
+	sc = device_get_softc(bus);
+	if (type == PCI_RES_BUS)
+		return (pcib_alloc_subbus(&sc->bus, child, rid, start, end,
+		    count, flags));
+	return (cbb_alloc_resource(bus, child, type, rid, start, end, count,
+	    flags));
+}
+
+static int
+cbb_pci_adjust_resource(device_t bus, device_t child, int type,
+    struct resource *r, u_long start, u_long end)
+{
+	struct cbb_softc *sc;
+
+	sc = device_get_softc(bus);
+	if (type == PCI_RES_BUS) {
+		if (!rman_is_region_manager(r, &sc->bus.rman))
+			return (EINVAL);
+		return (rman_adjust_resource(r, start, end));
+	}
+	return (bus_generic_adjust_resource(bus, child, type, r, start, end));
+}
+
+static int
+cbb_pci_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct cbb_softc *sc;
+	int error;
+
+	sc = device_get_softc(bus);
+	if (type == PCI_RES_BUS) {
+		if (!rman_is_region_manager(r, &sc->bus.rman))
+			return (EINVAL);
+		if (rman_get_flags(r) & RF_ACTIVE) {
+			error = bus_deactivate_resource(child, type, rid, r);
+			if (error)
+				return (error);
+		}
+		return (rman_release_resource(r));
+	}
+	return (cbb_release_resource(bus, child, type, rid, r));
+}
+#endif
+
 /************************************************************************/
 /* PCI compat methods							*/
 /************************************************************************/
@@ -814,20 +863,76 @@ cbb_write_config(device_t brdev, u_int b, u_int s, u_int f, u_int reg, uint32_t 
 	    b, s, f, reg, val, width);
 }
 
+static int
+cbb_pci_suspend(device_t brdev)
+{
+	int			error = 0;
+	struct cbb_softc	*sc = device_get_softc(brdev);
+
+	error = bus_generic_suspend(brdev);
+	if (error != 0)
+		return (error);
+	cbb_set(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
+	sc->cardok = 0;				/* Card is bogus now */
+	return (0);
+}
+
+static int
+cbb_pci_resume(device_t brdev)
+{
+	int	error = 0;
+	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
+	uint32_t tmp;
+
+	/*
+	 * In the APM and early ACPI era, BIOSes saved the PCI config
+	 * registers. As chips became more complicated, that functionality moved
+	 * into the ACPI code / tables. We must therefore, restore the settings
+	 * we made here to make sure the device come back. Transitions to Dx
+	 * from D0 and back to D0 cause the bridge to lose its config space, so
+	 * all the bus mappings and such are preserved.
+	 *
+	 * The PCI layer handles standard PCI registers like the
+	 * command register and BARs, but cbb-specific registers are
+	 * handled here.
+	 */
+	sc->chipinit(sc);
+
+	/* reset interrupt -- Do we really need to do this? */
+	tmp = cbb_get(sc, CBB_SOCKET_EVENT);
+	cbb_set(sc, CBB_SOCKET_EVENT, tmp);
+
+	/* CSC Interrupt: Card detect interrupt on */
+	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
+
+	/* Signal the thread to wakeup. */
+	wakeup(&sc->intrhand);
+
+	error = bus_generic_resume(brdev);
+
+	return (error);
+}
+
 static device_method_t cbb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			cbb_pci_probe),
 	DEVMETHOD(device_attach,		cbb_pci_attach),
 	DEVMETHOD(device_detach,		cbb_detach),
 	DEVMETHOD(device_shutdown,		cbb_pci_shutdown),
-	DEVMETHOD(device_suspend,		cbb_suspend),
-	DEVMETHOD(device_resume,		cbb_resume),
+	DEVMETHOD(device_suspend,		cbb_pci_suspend),
+	DEVMETHOD(device_resume,		cbb_pci_resume),
 
 	/* bus methods */
 	DEVMETHOD(bus_read_ivar,		cbb_read_ivar),
 	DEVMETHOD(bus_write_ivar,		cbb_write_ivar),
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	DEVMETHOD(bus_alloc_resource,		cbb_pci_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,		cbb_pci_adjust_resource),
+	DEVMETHOD(bus_release_resource,		cbb_pci_release_resource),
+#else
 	DEVMETHOD(bus_alloc_resource,		cbb_alloc_resource),
 	DEVMETHOD(bus_release_resource,		cbb_release_resource),
+#endif
 	DEVMETHOD(bus_activate_resource,	cbb_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	cbb_deactivate_resource),
 	DEVMETHOD(bus_driver_added,		cbb_driver_added),

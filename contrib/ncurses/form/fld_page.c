@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_page.c,v 1.9 2004/12/11 21:58:19 tom Exp $")
+MODULE_ID("$Id: fld_page.c,v 1.12 2012/06/10 00:12:47 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -47,16 +47,16 @@ MODULE_ID("$Id: fld_page.c,v 1.9 2004/12/11 21:58:19 tom Exp $")
 NCURSES_EXPORT(int)
 set_new_page(FIELD *field, bool new_page_flag)
 {
-  T((T_CALLED("set_new_page(%p,%d)"), field, new_page_flag));
+  T((T_CALLED("set_new_page(%p,%d)"), (void *)field, new_page_flag));
 
   Normalize_Field(field);
   if (field->form)
     RETURN(E_CONNECTED);
 
   if (new_page_flag)
-    field->status |= _NEWPAGE;
+    SetStatus(field, _NEWPAGE);
   else
-    field->status &= ~_NEWPAGE;
+    ClrStatus(field, _NEWPAGE);
 
   RETURN(E_OK);
 }
@@ -74,7 +74,7 @@ set_new_page(FIELD *field, bool new_page_flag)
 NCURSES_EXPORT(bool)
 new_page(const FIELD *field)
 {
-  T((T_CALLED("new_page(%p)"), field));
+  T((T_CALLED("new_page(%p)"), (const void *)field));
 
   returnBool((Normalize_Field(field)->status & _NEWPAGE) ? TRUE : FALSE);
 }

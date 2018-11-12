@@ -37,6 +37,8 @@
 
 #define CPU_IVAR_PCPU		1
 #define CPU_IVAR_NOMINAL_MHZ	2
+#define CPU_IVAR_CPUID_SIZE	3
+#define CPU_IVAR_CPUID		4
 
 static __inline struct pcpu *cpu_get_pcpu(device_t dev)
 {
@@ -52,6 +54,20 @@ static __inline int32_t cpu_get_nominal_mhz(device_t dev)
 	    CPU_IVAR_NOMINAL_MHZ, &v) != 0)
 		return (-1);
 	return ((int32_t)v);
+}
+
+static __inline const uint32_t *cpu_get_cpuid(device_t dev, size_t *count)
+{
+	uintptr_t v = 0;
+	if (BUS_READ_IVAR(device_get_parent(dev), dev,
+	    CPU_IVAR_CPUID_SIZE, &v) != 0)
+		return (NULL);
+	*count = (size_t)v;
+
+	if (BUS_READ_IVAR(device_get_parent(dev), dev,
+	    CPU_IVAR_CPUID, &v) != 0)
+		return (NULL);
+	return ((const uint32_t *)v);
 }
 
 /*

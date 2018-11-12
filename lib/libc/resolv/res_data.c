@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: res_data.c,v 1.3.18.2 2007/09/14 05:35:47 marka Exp $";
+static const char rcsid[] = "$Id: res_data.c,v 1.7 2008/12/11 09:59:00 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -106,13 +106,6 @@ res_init(void) {
 		_res.retry = RES_DFLRETRY;
 	if (!(_res.options & RES_INIT))
 		_res.options = RES_DEFAULT;
-
-	/*
-	 * This one used to initialize implicitly to zero, so unless the app
-	 * has set it to something in particular, we can randomize it now.
-	 */
-	if (!_res.id)
-		_res.id = res_randomid();
 
 	return (__res_vinit(&_res, 1));
 }
@@ -262,6 +255,16 @@ res_querydomain(const char *name,
 	return (res_nquerydomain(&_res, name, domain,
 				 class, type,
 				 answer, anslen));
+}
+
+u_int
+res_randomid(void) {
+	if ((_res.options & RES_INIT) == 0U && res_init() == -1) {
+		RES_SET_H_ERRNO(&_res, NETDB_INTERNAL);
+		return (-1);
+	}
+
+	return (res_nrandomid(&_res));
 }
 
 int

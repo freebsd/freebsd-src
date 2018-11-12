@@ -46,18 +46,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/gpio.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
 #include "gpio_if.h"
 
 #include <arm/freescale/vybrid/vf_common.h>
+#include <arm/freescale/vybrid/vf_port.h>
 
 #define	GPIO_PDOR(n)	(0x00 + 0x40 * (n >> 5))
 #define	GPIO_PSOR(n)	(0x04 + 0x40 * (n >> 5))
@@ -68,13 +69,12 @@ __FBSDID("$FreeBSD$");
 #define	GPIO_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	GPIO_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
 
-#define	NPORTS		5
-#define	NGPIO		(NPORTS * 32)
 #define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
 
 /*
  * GPIO interface
  */
+static device_t vf_gpio_get_bus(device_t);
 static int vf_gpio_pin_max(device_t, int *);
 static int vf_gpio_pin_getcaps(device_t, uint32_t, uint32_t *);
 static int vf_gpio_pin_getname(device_t, uint32_t, char *);
@@ -85,39 +85,22 @@ static int vf_gpio_pin_get(device_t, uint32_t, unsigned int *);
 static int vf_gpio_pin_toggle(device_t, uint32_t pin);
 
 struct vf_gpio_softc {
-	struct resource		*res[6];
+	struct resource		*res[1];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 
+	device_t		sc_busdev;
 	struct mtx		sc_mtx;
 	int			gpio_npins;
 	struct gpio_pin		gpio_pins[NGPIO];
-	void			*gpio_ih[NPORTS];
 };
 
 struct vf_gpio_softc *gpio_sc;
 
 static struct resource_spec vf_gpio_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		2,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		3,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		4,	RF_ACTIVE },
 	{ -1, 0 }
 };
-
-static int
-vf_gpio_intr(void *arg)
-{
-	struct vf_gpio_softc *sc;
-	sc = arg;
-
-	/* TODO: interrupt handling */
-
-	return (FILTER_HANDLED);
-}
-
 
 static int
 vf_gpio_probe(device_t dev)
@@ -137,32 +120,24 @@ static int
 vf_gpio_attach(device_t dev)
 {
 	struct vf_gpio_softc *sc;
-	int irq, i;
+	int i;
 
 	sc = device_get_softc(dev);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	if (bus_alloc_resources(dev, vf_gpio_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
+		mtx_destroy(&sc->sc_mtx);
 		return (ENXIO);
 	}
-
-	gpio_sc = sc;
 
 	/* Memory interface */
 	sc->bst = rman_get_bustag(sc->res[0]);
 	sc->bsh = rman_get_bushandle(sc->res[0]);
 
-	sc->gpio_npins = NGPIO;
+	gpio_sc = sc;
 
-	for (irq = 0; irq < NPORTS; irq ++) {
-		if ((bus_setup_intr(dev, sc->res[1 + irq], INTR_TYPE_MISC,
-		    vf_gpio_intr, NULL, sc, &sc->gpio_ih[irq]))) {
-			device_printf(dev,
-			    "WARNING: unable to register interrupt handler\n");
-			return (ENXIO);
-		}
-	}
+	sc->gpio_npins = NGPIO;
 
 	for (i = 0; i < sc->gpio_npins; i++) {
 		sc->gpio_pins[i].gp_pin = i;
@@ -174,10 +149,24 @@ vf_gpio_attach(device_t dev)
 		    "vf_gpio%d.%d", device_get_unit(dev), i);
 	}
 
-	device_add_child(dev, "gpioc", device_get_unit(dev));
-	device_add_child(dev, "gpiobus", device_get_unit(dev));
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL) {
+		bus_release_resources(dev, vf_gpio_spec, sc->res);
+		mtx_destroy(&sc->sc_mtx);
+		return (ENXIO);
+	}
 
-	return (bus_generic_attach(dev));
+	return (0);
+}
+
+static device_t
+vf_gpio_get_bus(device_t dev)
+{
+	struct vf_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->sc_busdev);
 }
 
 static int
@@ -270,7 +259,7 @@ vf_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 		return (EINVAL);
 
 	GPIO_LOCK(sc);
-	*val = (READ4(sc, GPIO_PDOR(i)) & (1 << (i % 32)));
+	*val = (READ4(sc, GPIO_PDIR(i)) & (1 << (i % 32))) ? 1 : 0;
 	GPIO_UNLOCK(sc);
 
 	return (0);
@@ -340,15 +329,6 @@ vf_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (i >= sc->gpio_npins)
 		return (EINVAL);
 
-	/* Check for unwanted flags. */
-	if ((flags & sc->gpio_pins[i].gp_caps) != flags)
-		return (EINVAL);
-
-	/* Can't mix input/output together */
-	if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) ==
-	    (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT))
-		return (EINVAL);
-
 	vf_gpio_pin_configure(sc, &sc->gpio_pins[i], flags);
 
 	return (0);
@@ -384,6 +364,7 @@ static device_method_t vf_gpio_methods[] = {
 	DEVMETHOD(device_attach,	vf_gpio_attach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		vf_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		vf_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname,	vf_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getcaps,	vf_gpio_pin_getcaps),

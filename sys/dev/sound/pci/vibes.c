@@ -730,13 +730,11 @@ sv_attach(device_t dev) {
 
 	pci_enable_busmaster(dev);
 
-#if __FreeBSD_version > 500000
         if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
                 device_printf(dev, "chip is in D%d power mode "
                               "-- setting to D0\n", pci_get_powerstate(dev));
                 pci_set_powerstate(dev, PCI_POWERSTATE_D0);
         }
-#endif
 	sc->enh_rid  = SV_PCI_ENHANCED;
 	sc->enh_type = SYS_RES_IOPORT;
 	sc->enh_reg  = bus_alloc_resource(dev, sc->enh_type,

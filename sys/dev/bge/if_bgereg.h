@@ -2852,7 +2852,7 @@ struct bge_gib {
  */
 
 #define	BGE_NSEG_JUMBO	4
-#define	BGE_NSEG_NEW	32
+#define	BGE_NSEG_NEW	35
 #define	BGE_TSOSEG_SZ	4096
 
 /* Maximum DMA address for controllers that have 40bit DMA address bug. */
@@ -2953,7 +2953,7 @@ struct bge_bcom_hack {
 #define	ASF_STACKUP		4
 
 struct bge_softc {
-	struct ifnet		*bge_ifp;	/* interface info */
+	if_t			bge_ifp;	/* interface info */
 	device_t		bge_dev;
 	struct mtx		bge_mtx;
 	device_t		bge_miibus;
@@ -2961,7 +2961,6 @@ struct bge_softc {
 	struct resource		*bge_irq;
 	struct resource		*bge_res;	/* MAC mapped I/O */
 	struct resource		*bge_res2;	/* APE mapped I/O */
-	struct ifmedia		bge_ifmedia;	/* TBI media info */
 	int			bge_expcap;
 	int			bge_expmrq;
 	int			bge_msicap;
@@ -2996,6 +2995,7 @@ struct bge_softc {
 #define	BGE_FLAG_4K_RDMA_BUG	0x10000000
 #define	BGE_FLAG_MBOX_REORDER	0x20000000
 #define	BGE_FLAG_RDMA_BUG	0x40000000
+#define	BGE_FLAG_RUNNING	0x80000000
 	uint32_t		bge_mfw_flags;	/* Management F/W flags */
 #define	BGE_MFW_ON_RXCPU	0x00000001
 #define	BGE_MFW_ON_APE		0x00000002
@@ -3034,7 +3034,7 @@ struct bge_softc {
 	uint32_t		bge_rx_max_coal_bds;
 	uint32_t		bge_tx_max_coal_bds;
 	uint32_t		bge_mi_mode;
-	int			bge_if_flags;
+	uint32_t		bge_if_flags;
 	int			bge_txcnt;
 	int			bge_link;	/* link state */
 	int			bge_link_evt;	/* pending link event */
@@ -3042,13 +3042,15 @@ struct bge_softc {
 	int			bge_forced_collapse;
 	int			bge_forced_udpcsum;
 	int			bge_msi;
-	int			bge_csum_features;
 	struct callout		bge_stat_ch;
 	uint32_t		bge_rx_discards;
 	uint32_t		bge_rx_inerrs;
 	uint32_t		bge_rx_nobds;
 	uint32_t		bge_tx_discards;
 	uint32_t		bge_tx_collisions;
+	uint32_t		bge_mtu;
+	uint32_t		bge_capenable;
+	uint64_t		bge_hwassist;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif /* DEVICE_POLLING */
@@ -3060,6 +3062,7 @@ struct bge_softc {
 #define	BGE_LOCK_INIT(_sc, _name) \
 	mtx_init(&(_sc)->bge_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
 #define	BGE_LOCK(_sc)		mtx_lock(&(_sc)->bge_mtx)
+#define	BGE_TRYLOCK(_sc)	mtx_trylock(&(_sc)->bge_mtx)
 #define	BGE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->bge_mtx, MA_OWNED)
 #define	BGE_UNLOCK(_sc)		mtx_unlock(&(_sc)->bge_mtx)
 #define	BGE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->bge_mtx)

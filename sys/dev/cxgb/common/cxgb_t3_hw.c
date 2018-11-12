@@ -1520,7 +1520,7 @@ static void t3_clear_faults(adapter_t *adapter, int port_id)
  */
 void t3_link_changed(adapter_t *adapter, int port_id)
 {
-	int link_ok, speed, duplex, fc, link_fault;
+	int link_ok, speed, duplex, fc, link_fault, link_state;
 	struct port_info *pi = adap2pinfo(adapter, port_id);
 	struct cphy *phy = &pi->phy;
 	struct cmac *mac = &pi->mac;
@@ -1532,7 +1532,14 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 	fc = lc->fc;
 	link_fault = 0;
 
-	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
+	phy->ops->get_link_status(phy, &link_state, &speed, &duplex, &fc);
+	link_ok = (link_state == PHY_LINK_UP);
+	if (link_state != PHY_LINK_PARTIAL)
+		phy->rst = 0;
+	else if (++phy->rst == 3) {
+		phy->ops->reset(phy, 0);
+		phy->rst = 0;
+	}
 
 	if (link_ok == 0)
 		pi->link_fault = LF_NO;

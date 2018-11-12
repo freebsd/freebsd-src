@@ -39,7 +39,7 @@
 static int
 dt_strdata_add(dtrace_hdl_t *dtp, dtrace_recdesc_t *rec, void ***data, int *max)
 {
-	int maxformat;
+	int maxformat, rval;
 	dtrace_fmtdesc_t fmt;
 	void *result;
 
@@ -63,8 +63,9 @@ dt_strdata_add(dtrace_hdl_t *dtp, dtrace_recdesc_t *rec, void ***data, int *max)
 		return (dt_set_errno(dtp, EDT_NOMEM));
 
 	if (dt_ioctl(dtp, DTRACEIOC_FORMAT, &fmt) == -1) {
+		rval = dt_set_errno(dtp, errno);
 		free(fmt.dtfd_string);
-		return (dt_set_errno(dtp, errno));
+		return (rval);
 	}
 
 	while (rec->dtrd_format > (maxformat = *max)) {
@@ -155,7 +156,7 @@ dt_epid_add(dtrace_hdl_t *dtp, dtrace_epid_t id)
 	enabled->dtepd_epid = id;
 	enabled->dtepd_nrecs = 1;
 
-#if defined(sun)
+#ifdef illumos
 	if (dt_ioctl(dtp, DTRACEIOC_EPROBE, enabled) == -1) {
 #else
 	if (dt_ioctl(dtp, DTRACEIOC_EPROBE, &enabled) == -1) {
@@ -179,7 +180,7 @@ dt_epid_add(dtrace_hdl_t *dtp, dtrace_epid_t id)
 		if ((enabled = nenabled) == NULL)
 			return (dt_set_errno(dtp, EDT_NOMEM));
 
-#if defined(sun)
+#ifdef illumos
 		rval = dt_ioctl(dtp, DTRACEIOC_EPROBE, enabled);
 #else
 		rval = dt_ioctl(dtp, DTRACEIOC_EPROBE, &enabled);
@@ -355,7 +356,7 @@ dt_aggid_add(dtrace_hdl_t *dtp, dtrace_aggid_t id)
 		agg->dtagd_id = id;
 		agg->dtagd_nrecs = 1;
 
-#if defined(sun)
+#ifdef illumos
 		if (dt_ioctl(dtp, DTRACEIOC_AGGDESC, agg) == -1) {
 #else
 		if (dt_ioctl(dtp, DTRACEIOC_AGGDESC, &agg) == -1) {
@@ -378,7 +379,7 @@ dt_aggid_add(dtrace_hdl_t *dtp, dtrace_aggid_t id)
 			if ((agg = nagg) == NULL)
 				return (dt_set_errno(dtp, EDT_NOMEM));
 
-#if defined(sun)
+#ifdef illumos
 			rval = dt_ioctl(dtp, DTRACEIOC_AGGDESC, agg);
 #else
 			rval = dt_ioctl(dtp, DTRACEIOC_AGGDESC, &agg);

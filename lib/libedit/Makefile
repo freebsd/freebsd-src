@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.34 2005/05/28 12:02:53 lukem Exp $
+#	$NetBSD: Makefile,v 1.37 2009/01/18 12:17:49 lukem Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
@@ -7,11 +7,10 @@ SHLIB_MAJOR=	7
 SHLIBDIR?= /lib
 
 OSRCS=	chared.c common.c el.c emacs.c fcns.c filecomplete.c help.c \
-	hist.c key.c map.c \
-	parse.c prompt.c read.c refresh.c search.c sig.c term.c tty.c vi.c
+	hist.c keymacro.c map.c chartype.c \
+	parse.c prompt.c read.c refresh.c search.c sig.c terminal.c tty.c vi.c
 
-DPADD=	${LIBNCURSES}
-LDADD=	-lncurses
+LIBADD=	ncursesw
 
 MAN=	editline.3 editrc.5
 
@@ -35,7 +34,10 @@ CLEANFILES+= common.h editline.c emacs.h fcns.c fcns.h help.c help.h vi.h
 
 INCS=	histedit.h
 
-CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit
+OSRCS+=	eln.c
+SRCS+=	tokenizern.c historyn.c
+CLEANFILES+=	tokenizern.c historyn.c
+CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit -DWIDECHAR
 CFLAGS+= #-DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
 CFLAGS+= #-DDEBUG_PASTE -DDEBUG_EDIT
 
@@ -66,13 +68,19 @@ help.h: ${ASRC} makelist
 editline.c: ${OSRCS}
 	sh ${.CURDIR}/makelist -e ${.ALLSRC:T} > ${.TARGET}
 
+tokenizern.c: makelist Makefile
+	sh ${.CURDIR}/makelist -n tokenizer.c > ${.TARGET}
+
+historyn.c: makelist Makefile
+	sh ${.CURDIR}/makelist -n history.c > ${.TARGET}
+
 # minimal dependency to make "make depend" optional
 editline.o editline.po editline.So editline.ln:	\
 	common.h emacs.h fcns.c fcns.h help.c help.h vi.h
 
-test.o: ${.CURDIR}/TEST/test.c
+tc1.o: ${.CURDIR}/TEST/tc1.c
 
-test: test.o libedit.a ${DPADD} ${LIBTERMCAP}
+test: tc1.o libedit.a ${DPADD} ${LIBTERMCAP}
 	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET} libedit.a ${LDADD}
 
 .include <bsd.lib.mk>

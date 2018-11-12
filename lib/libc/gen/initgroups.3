@@ -28,7 +28,7 @@
 .\"     @(#)initgroups.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd October 26, 2014
 .Dt INITGROUPS 3
 .Os
 .Sh NAME
@@ -80,14 +80,3 @@ The
 .Fn initgroups
 function appeared in
 .Bx 4.2 .
-.Sh BUGS
-The
-.Fn getgrouplist
-function called by
-.Fn initgroups
-uses the routines based on
-.Xr getgrent 3 .
-If the invoking program uses any of these routines,
-the group structure will
-be overwritten in the call to
-.Fn initgroups .

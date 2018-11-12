@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 1992-2014 The FreeBSD Project. All rights reserved.
+ * Copyright (C) 1992-2015 The FreeBSD Project. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,9 +28,13 @@
 
 /* Copyrights macros  */
 
+/* Add a FreeBSD vendor copyright here */
+#define	COPYRIGHT_Vendor \
+	""
+
 /* FreeBSD */
 #define COPYRIGHT_FreeBSD \
-	"Copyright (c) 1992-2014 The FreeBSD Project.\n"
+	"Copyright (c) 1992-2015 The FreeBSD Project.\n"
 
 /* Foundation */
 #define	TRADEMARK_Foundation \
@@ -48,5 +52,6 @@
 #define COPYRIGHT_PC98
 #endif
 
-char copyright[] = COPYRIGHT_FreeBSD COPYRIGHT_PC98 COPYRIGHT_UCB;
+char copyright[] = COPYRIGHT_Vendor COPYRIGHT_FreeBSD COPYRIGHT_PC98 \
+    COPYRIGHT_UCB;
 char trademark[] = TRADEMARK_Foundation;

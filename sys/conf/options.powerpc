@@ -24,7 +24,6 @@ PS3			opt_platform.h
 MAMBO
 PSERIES
 PSIM
-WII			opt_platform.h
 
 SC_OFWFB		opt_ofwfb.h
 
@@ -33,3 +32,4 @@ OFWCONS_POLL_HZ		opt_ofw.h
 # AGP debugging support
 AGP_DEBUG		opt_agp.h
 
+MIKROTIK

@@ -672,13 +672,15 @@ fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
 {
 	long ssl_ctx_options;
 
-	ssl_ctx_options = SSL_OP_ALL | SSL_OP_NO_TICKET;
-	if (getenv("SSL_ALLOW_SSL2") == NULL)
-		ssl_ctx_options |= SSL_OP_NO_SSLv2;
-	if (getenv("SSL_NO_SSL3") != NULL)
+	ssl_ctx_options = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_TICKET;
+	if (getenv("SSL_ALLOW_SSL3") == NULL)
 		ssl_ctx_options |= SSL_OP_NO_SSLv3;
 	if (getenv("SSL_NO_TLS1") != NULL)
 		ssl_ctx_options |= SSL_OP_NO_TLSv1;
+	if (getenv("SSL_NO_TLS1_1") != NULL)
+		ssl_ctx_options |= SSL_OP_NO_TLSv1_1;
+	if (getenv("SSL_NO_TLS1_2") != NULL)
+		ssl_ctx_options |= SSL_OP_NO_TLSv1_2;
 	if (verbose)
 		fetch_info("SSL options: %lx", ssl_ctx_options);
 	SSL_CTX_set_options(ctx, ssl_ctx_options);
@@ -688,6 +690,8 @@ fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
 /*
  * Configure peer verification based on environment.
  */
+#define LOCAL_CERT_FILE	"/usr/local/etc/ssl/cert.pem"
+#define BASE_CERT_FILE	"/etc/ssl/cert.pem"
 static int
 fetch_ssl_setup_peer_verification(SSL_CTX *ctx, int verbose)
 {
@@ -696,8 +700,12 @@ fetch_ssl_setup_peer_verification(SSL_CTX *ctx, int verbose)
 	const char *ca_cert_file, *ca_cert_path, *crl_file;
 
 	if (getenv("SSL_NO_VERIFY_PEER") == NULL) {
-		ca_cert_file = getenv("SSL_CA_CERT_FILE") != NULL ?
-		    getenv("SSL_CA_CERT_FILE") : "/etc/ssl/cert.pem";
+		ca_cert_file = getenv("SSL_CA_CERT_FILE");
+		if (ca_cert_file == NULL &&
+		    access(LOCAL_CERT_FILE, R_OK) == 0)
+			ca_cert_file = LOCAL_CERT_FILE;
+		if (ca_cert_file == NULL)
+			ca_cert_file = BASE_CERT_FILE;
 		ca_cert_path = getenv("SSL_CA_CERT_PATH");
 		if (verbose) {
 			fetch_info("Peer verification enabled");
@@ -867,8 +875,8 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 	}
 
 	if (verbose) {
-		fetch_info("SSL connection established using %s",
-		    SSL_get_cipher(conn->ssl));
+		fetch_info("%s connection established using %s",
+		    SSL_get_version(conn->ssl), SSL_get_cipher(conn->ssl));
 		name = X509_get_subject_name(conn->ssl_cert);
 		str = X509_NAME_oneline(name, 0, 0);
 		fetch_info("Certificate subject: %s", str);
@@ -1104,6 +1112,9 @@ fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 			errno = 0;
 			pfd.revents = 0;
 			if (poll(&pfd, 1, deltams) < 0) {
+				/* POSIX compliance */
+				if (errno == EAGAIN)
+					continue;
 				if (errno == EINTR && fetchRestartCalls)
 					continue;
 				return (-1);

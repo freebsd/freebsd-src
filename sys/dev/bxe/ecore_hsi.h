@@ -1,9 +1,5 @@
 /*-
- * Copyright (c) 2007-2013 Broadcom Corporation. All rights reserved.
- *
- * Eric Davis        <edavis@broadcom.com>
- * David Christensen <davidch@broadcom.com>
- * Gary Zambrano     <zambrano@broadcom.com>
+ * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Broadcom Corporation nor the name of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written consent.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -2543,9 +2536,9 @@ struct shmem2_region {
 	#define SHMEM_EEE_SUPPORTED_MASK	   0x000f0000
 	#define SHMEM_EEE_SUPPORTED_SHIFT	   16
 	#define SHMEM_EEE_ADV_STATUS_MASK	   0x00f00000
-		#define SHMEM_EEE_100M_ADV	   (1<<0)
-		#define SHMEM_EEE_1G_ADV	   (1<<1)
-		#define SHMEM_EEE_10G_ADV	   (1<<2)
+		#define SHMEM_EEE_100M_ADV	   (1U<<0)
+		#define SHMEM_EEE_1G_ADV	   (1U<<1)
+		#define SHMEM_EEE_10G_ADV	   (1U<<2)
 	#define SHMEM_EEE_ADV_STATUS_SHIFT	   20
 	#define	SHMEM_EEE_LP_ADV_STATUS_MASK	   0x0f000000
 	#define SHMEM_EEE_LP_ADV_STATUS_SHIFT	   24

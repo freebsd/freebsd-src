@@ -3,7 +3,6 @@
 
 PROG=	dc
 SRCS=	dc.c bcode.c inout.c mem.c stack.c
-DPADD=	${LIBCRYPTO}
-LDADD=	-lcrypto
+LIBADD=	crypto
 
 .include <bsd.prog.mk>

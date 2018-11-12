@@ -11,7 +11,7 @@ IBSRCDIR=	${IBCOMMONDIR}/src
 
 LIB=		ibcommon
 SHLIB_MAJOR=	1
-NO_PROFILE=
+MK_PROFILE=	no
 
 SRCS=	sysfs.c util.c hash.c stack.c time.c
 

@@ -1377,8 +1377,8 @@ func_infer_tag ()
     $opt_debug
 
     # FreeBSD-specific: where we install compilers with non-standard names
-    tag_compilers_CC="*cc cc* *gcc gcc* clang"
-    tag_compilers_CXX="*c++ c++* *g++ g++* clang++"
+    tag_compilers_CC="*cc cc* *gcc gcc* clang*"
+    tag_compilers_CXX="*c++ c++* *g++ g++* clang++*"
     base_compiler=`set -- "$@"; echo $1`
 
     # If $tagname isn't set, then try to infer if the default "CC" tag applies

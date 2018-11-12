@@ -41,7 +41,7 @@
 
 
 int tws_ioctl(struct cdev *dev, long unsigned int cmd, caddr_t buf, int flags, 
-                                                    d_thread_t *proc);
+                                                    struct thread *td);
 void tws_passthru_complete(struct tws_request *req);
 extern void tws_circular_aenq_insert(struct tws_softc *sc,
                     struct tws_circular_q *cq, struct tws_event_packet *aen);
@@ -60,7 +60,7 @@ extern void tws_timeout(void *arg);
 
 int
 tws_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, int flags, 
-                                                    d_thread_t *proc)
+                                                    struct thread *td)
 {
     struct tws_softc *sc = (struct tws_softc *)(dev->si_drv1);
     int error;
@@ -103,8 +103,7 @@ tws_passthru(struct tws_softc *sc, void *buf)
     do {
         req = tws_get_request(sc, TWS_REQ_TYPE_PASSTHRU);
         if ( !req ) {
-            sc->chan = (void *)sc;
-            error = tsleep(sc->chan,  0, "tws_sleep", TWS_IOCTL_TIMEOUT*hz);
+            error = tsleep(sc,  0, "tws_sleep", TWS_IOCTL_TIMEOUT*hz);
             if ( error == EWOULDBLOCK ) {
                 return(ETIMEDOUT);
             }
@@ -203,7 +202,7 @@ out_data:
     //
     req->state = TWS_REQ_STATE_FREE;
 
-    wakeup_one(sc->chan);
+    wakeup_one(sc);
 
     return(error);
 }

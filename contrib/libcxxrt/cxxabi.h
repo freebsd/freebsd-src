@@ -110,7 +110,7 @@ struct __cxa_exception
 	 * handler count reaches 0 (which it doesn't with the top bit set).
 	 */
 	int handlerCount;
-#ifdef __arm__
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 	/**
 	 * The ARM EH ABI requires the unwind library to keep track of exceptions
 	 * during cleanups.  These support nesting, so we need to keep a list of

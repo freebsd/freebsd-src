@@ -165,6 +165,16 @@ typedef unsigned char _Bool;
 #	include <memory.h>
 #endif
 
+// As of MSVC 2013, inline and restrict are supported with
+// non-standard keywords.
+#if defined(_WIN32) && defined(_MSC_VER)
+#	ifndef inline
+#		define inline __inline
+#	endif
+#	ifndef restrict
+#		define restrict __restrict
+#	endif
+#endif
 
 ////////////
 // Macros //

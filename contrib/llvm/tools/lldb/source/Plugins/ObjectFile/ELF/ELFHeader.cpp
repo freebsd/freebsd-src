@@ -173,6 +173,12 @@ ELFHeader::GetRelocationJumpSlotType() const
     default:
         assert(false && "architecture not supported");
         break;
+    case EM_PPC:
+        slot = R_PPC_JMP_SLOT;
+        break;
+    case EM_PPC64:
+        slot = R_PPC64_JMP_SLOT;
+        break;
     case EM_386:
     case EM_486:
         slot = R_386_JUMP_SLOT;
@@ -182,6 +188,15 @@ ELFHeader::GetRelocationJumpSlotType() const
         break;
     case EM_ARM:
         slot = R_ARM_JUMP_SLOT;
+        break;
+    case EM_HEXAGON:
+        slot = R_HEX_JMP_SLOT;
+        break;
+    case EM_AARCH64:
+        slot = R_AARCH64_JUMP_SLOT;
+        break;
+    case EM_MIPS:
+        slot = R_MIPS_JUMP_SLOT;
         break;
     }
 

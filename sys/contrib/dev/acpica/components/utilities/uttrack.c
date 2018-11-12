@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,6 @@
  * AcpiUtTrackAllocation to add an element to the list; deletion
  * occurs in the body of AcpiUtFree.
  */
-
-#define __UTTRACK_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -115,7 +113,7 @@ AcpiUtCreateList (
         return (AE_NO_MEMORY);
     }
 
-    ACPI_MEMSET (Cache, 0, sizeof (ACPI_MEMORY_LIST));
+    memset (Cache, 0, sizeof (ACPI_MEMORY_LIST));
 
     Cache->ListName   = ListName;
     Cache->ObjectSize = ObjectSize;
@@ -151,10 +149,23 @@ AcpiUtAllocateAndTrack (
     ACPI_STATUS             Status;
 
 
-    Allocation = AcpiUtAllocate (Size + sizeof (ACPI_DEBUG_MEM_HEADER),
-                    Component, Module, Line);
+    /* Check for an inadvertent size of zero bytes */
+
+    if (!Size)
+    {
+        ACPI_WARNING ((Module, Line,
+            "Attempt to allocate zero bytes, allocating 1 byte"));
+        Size = 1;
+    }
+
+    Allocation = AcpiOsAllocate (Size + sizeof (ACPI_DEBUG_MEM_HEADER));
     if (!Allocation)
     {
+        /* Report allocation error */
+
+        ACPI_WARNING ((Module, Line,
+            "Could not allocate size %u", (UINT32) Size));
+
         return (NULL);
     }
 
@@ -204,8 +215,16 @@ AcpiUtAllocateZeroedAndTrack (
     ACPI_STATUS             Status;
 
 
-    Allocation = AcpiUtAllocateZeroed (Size + sizeof (ACPI_DEBUG_MEM_HEADER),
-                    Component, Module, Line);
+    /* Check for an inadvertent size of zero bytes */
+
+    if (!Size)
+    {
+        ACPI_WARNING ((Module, Line,
+            "Attempt to allocate zero bytes, allocating 1 byte"));
+        Size = 1;
+    }
+
+    Allocation = AcpiOsAllocateZeroed (Size + sizeof (ACPI_DEBUG_MEM_HEADER));
     if (!Allocation)
     {
         /* Report allocation error */
@@ -286,7 +305,8 @@ AcpiUtFreeAndTrack (
     }
 
     AcpiOsFree (DebugBlock);
-    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "%p freed\n", Allocation));
+    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "%p freed (block %p)\n",
+        Allocation, DebugBlock));
     return_VOID;
 }
 
@@ -425,7 +445,7 @@ AcpiUtTrackAllocation (
     Allocation->Component = Component;
     Allocation->Line      = Line;
 
-    ACPI_STRNCPY (Allocation->Module, Module, ACPI_MAX_MODULE_NAME);
+    strncpy (Allocation->Module, Module, ACPI_MAX_MODULE_NAME);
     Allocation->Module[ACPI_MAX_MODULE_NAME-1] = 0;
 
     if (!Element)
@@ -536,7 +556,7 @@ AcpiUtRemoveAllocation (
 
     /* Mark the segment as deleted */
 
-    ACPI_MEMSET (&Allocation->UserSpace, 0xEA, Allocation->Size);
+    memset (&Allocation->UserSpace, 0xEA, Allocation->Size);
 
     Status = AcpiUtReleaseMutex (ACPI_MTX_MEMORY);
     return (Status);
@@ -647,7 +667,7 @@ AcpiUtDumpAllocations (
     while (Element)
     {
         if ((Element->Component & Component) &&
-            ((Module == NULL) || (0 == ACPI_STRCMP (Module, Element->Module))))
+            ((Module == NULL) || (0 == strcmp (Module, Element->Module))))
         {
             Descriptor = ACPI_CAST_PTR (ACPI_DESCRIPTOR, &Element->UserSpace);
 

@@ -93,5 +93,6 @@ struct gpio_req {
 #define	GPIOGET			_IOWR('G', 3, struct gpio_req)
 #define	GPIOSET			_IOW('G', 4, struct gpio_req)
 #define	GPIOTOGGLE		_IOWR('G', 5, struct gpio_req)
+#define	GPIOSETNAME		_IOW('G', 6, struct gpio_pin)
 
 #endif /* __GPIO_H__ */

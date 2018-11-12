@@ -35,6 +35,6 @@
 typedef void zygote_func_t(int);
 
 int zygote_init(void);
-int zygote_clone(zygote_func_t *func, int flags, int *chanfdp, int *procfdp);
+int zygote_clone(zygote_func_t *func, int *chanfdp, int *procfdp);
 
 #endif	/* !_ZYGOTE_H_ */

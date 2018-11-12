@@ -42,7 +42,7 @@ typedef void *LLVMDisasmContextRef;
  * instruction are specified by the Offset parameter and its byte widith is the
  * size parameter.  For instructions sets with fixed widths and one symbolic
  * operand per instruction, the Offset parameter will be zero and Size parameter
- * will be the instruction width.  The information is returned in TagBuf and is 
+ * will be the instruction width.  The information is returned in TagBuf and is
  * Triple specific with its specific information defined by the value of
  * TagType for that Triple.  If symbolic information is returned the function
  * returns 1, otherwise it returns 0.
@@ -58,7 +58,7 @@ typedef int (*LLVMOpInfoCallback)(void *DisInfo, uint64_t PC,
  * SubtractSymbol can be link edited independent of each other.  Many other
  * platforms only allow a relocatable expression of the form AddSymbol + Offset
  * to be encoded.
- * 
+ *
  * The LLVMOpInfoCallback() for the TagType value of 1 uses the struct
  * LLVMOpInfo1.  The value of the relocatable expression for the operand,
  * including any PC adjustment, is passed in to the call back in the Value
@@ -96,6 +96,16 @@ struct LLVMOpInfo1 {
 #define LLVMDisassembler_VariantKind_ARM_LO16 2 /* :lower16: */
 
 /**
+ * The ARM64 target VariantKinds.
+ */
+#define LLVMDisassembler_VariantKind_ARM64_PAGE       1 /* @page */
+#define LLVMDisassembler_VariantKind_ARM64_PAGEOFF    2 /* @pageoff */
+#define LLVMDisassembler_VariantKind_ARM64_GOTPAGE    3 /* @gotpage */
+#define LLVMDisassembler_VariantKind_ARM64_GOTPAGEOFF 4 /* @gotpageoff */
+#define LLVMDisassembler_VariantKind_ARM64_TLVP       5 /* @tvlppage */
+#define LLVMDisassembler_VariantKind_ARM64_TLVOFF     6 /* @tvlppageoff */
+
+/**
  * The type for the symbol lookup function.  This may be called by the
  * disassembler for things like adding a comment for a PC plus a constant
  * offset load instruction to use a symbol name instead of a load address value.
@@ -123,12 +133,37 @@ typedef const char *(*LLVMSymbolLookupCallback)(void *DisInfo,
 /* The input reference is from a PC relative load instruction. */
 #define LLVMDisassembler_ReferenceType_In_PCrel_Load 2
 
+/* The input reference is from an ARM64::ADRP instruction. */
+#define LLVMDisassembler_ReferenceType_In_ARM64_ADRP 0x100000001
+/* The input reference is from an ARM64::ADDXri instruction. */
+#define LLVMDisassembler_ReferenceType_In_ARM64_ADDXri 0x100000002
+/* The input reference is from an ARM64::LDRXui instruction. */
+#define LLVMDisassembler_ReferenceType_In_ARM64_LDRXui 0x100000003
+/* The input reference is from an ARM64::LDRXl instruction. */
+#define LLVMDisassembler_ReferenceType_In_ARM64_LDRXl 0x100000004
+/* The input reference is from an ARM64::ADR instruction. */
+#define LLVMDisassembler_ReferenceType_In_ARM64_ADR 0x100000005
+
 /* The output reference is to as symbol stub. */
 #define LLVMDisassembler_ReferenceType_Out_SymbolStub 1
 /* The output reference is to a symbol address in a literal pool. */
 #define LLVMDisassembler_ReferenceType_Out_LitPool_SymAddr 2
 /* The output reference is to a cstring address in a literal pool. */
 #define LLVMDisassembler_ReferenceType_Out_LitPool_CstrAddr 3
+
+/* The output reference is to a Objective-C CoreFoundation string. */
+#define LLVMDisassembler_ReferenceType_Out_Objc_CFString_Ref 4
+/* The output reference is to a Objective-C message. */
+#define LLVMDisassembler_ReferenceType_Out_Objc_Message 5
+/* The output reference is to a Objective-C message ref. */
+#define LLVMDisassembler_ReferenceType_Out_Objc_Message_Ref 6
+/* The output reference is to a Objective-C selector ref. */
+#define LLVMDisassembler_ReferenceType_Out_Objc_Selector_Ref 7
+/* The output reference is to a Objective-C class ref. */
+#define LLVMDisassembler_ReferenceType_Out_Objc_Class_Ref 8
+
+/* The output reference is to a C++ symbol name. */
+#define LLVMDisassembler_ReferenceType_DeMangled_Name 9
 
 #ifdef __cplusplus
 extern "C" {
@@ -139,8 +174,8 @@ extern "C" {
  * by passing a block of information in the DisInfo parameter and specifying the
  * TagType and callback functions as described above.  These can all be passed
  * as NULL.  If successful, this returns a disassembler context.  If not, it
- * returns NULL. This function is equivalent to calling LLVMCreateDisasmCPU()
- * with an empty CPU name.
+ * returns NULL. This function is equivalent to calling
+ * LLVMCreateDisasmCPUFeatures() with an empty CPU name and feature set.
  */
 LLVMDisasmContextRef LLVMCreateDisasm(const char *TripleName, void *DisInfo,
                                       int TagType, LLVMOpInfoCallback GetOpInfo,
@@ -151,12 +186,26 @@ LLVMDisasmContextRef LLVMCreateDisasm(const char *TripleName, void *DisInfo,
  * disassembly is supported by passing a block of information in the DisInfo
  * parameter and specifying the TagType and callback functions as described
  * above.  These can all be passed * as NULL.  If successful, this returns a
- * disassembler context.  If not, it returns NULL.
+ * disassembler context.  If not, it returns NULL. This function is equivalent
+ * to calling LLVMCreateDisasmCPUFeatures() with an empty feature set.
  */
 LLVMDisasmContextRef LLVMCreateDisasmCPU(const char *Triple, const char *CPU,
                                          void *DisInfo, int TagType,
                                          LLVMOpInfoCallback GetOpInfo,
                                          LLVMSymbolLookupCallback SymbolLookUp);
+
+/**
+ * Create a disassembler for the TripleName, a specific CPU and specific feature
+ * string.  Symbolic disassembly is supported by passing a block of information
+ * in the DisInfo parameter and specifying the TagType and callback functions as
+ * described above.  These can all be passed * as NULL.  If successful, this
+ * returns a disassembler context.  If not, it returns NULL.
+ */
+LLVMDisasmContextRef
+LLVMCreateDisasmCPUFeatures(const char *Triple, const char *CPU,
+                            const char *Features, void *DisInfo, int TagType,
+                            LLVMOpInfoCallback GetOpInfo,
+                            LLVMSymbolLookupCallback SymbolLookUp);
 
 /**
  * Set the disassembler's options.  Returns 1 if it can set the Options and 0
@@ -170,6 +219,10 @@ int LLVMSetDisasmOptions(LLVMDisasmContextRef DC, uint64_t Options);
 #define LLVMDisassembler_Option_PrintImmHex 2
 /* The option use the other assembler printer variant */
 #define LLVMDisassembler_Option_AsmPrinterVariant 4
+/* The option to set comment on instructions */
+#define LLVMDisassembler_Option_SetInstrComments 8
+  /* The option to print latency information alongside instructions */
+#define LLVMDisassembler_Option_PrintLatency 16
 
 /**
  * Dispose of a disassembler context.

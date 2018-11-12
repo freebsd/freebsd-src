@@ -34,10 +34,22 @@ void	vmmdev_init(void);
 int	vmmdev_cleanup(void);
 #endif
 
-struct vm_memory_segment {
-	vm_paddr_t	gpa;	/* in */
+struct vm_memmap {
+	vm_paddr_t	gpa;
+	int		segid;		/* memory segment */
+	vm_ooffset_t	segoff;		/* offset into memory segment */
+	size_t		len;		/* mmap length */
+	int		prot;		/* RWX */
+	int		flags;
+};
+#define	VM_MEMMAP_F_WIRED	0x01
+#define	VM_MEMMAP_F_IOMMU	0x02
+
+#define	VM_MEMSEG_NAME(m)	((m)->name[0] != '\0' ? (m)->name : NULL)
+struct vm_memseg {
+	int		segid;
 	size_t		len;
-	int		wired;
+	char		name[SPECNAMELEN + 1];
 };
 
 struct vm_register {
@@ -54,16 +66,15 @@ struct vm_seg_desc {			/* data or code segment */
 
 struct vm_run {
 	int		cpuid;
-	uint64_t	rip;		/* start running here */
 	struct vm_exit	vm_exit;
 };
 
-struct vm_event {
+struct vm_exception {
 	int		cpuid;
-	enum vm_event_type type;
 	int		vector;
 	uint32_t	error_code;
 	int		error_code_valid;
+	int		restart_instruction;
 };
 
 struct vm_lapic_msi {
@@ -78,6 +89,16 @@ struct vm_lapic_irq {
 
 struct vm_ioapic_irq {
 	int		irq;
+};
+
+struct vm_isa_irq {
+	int		atpic_irq;
+	int		ioapic_irq;
+};
+
+struct vm_isa_irq_trigger {
+	int		atpic_irq;
+	enum vm_intr_trigger trigger;
 };
 
 struct vm_capability {
@@ -155,17 +176,64 @@ struct vm_hpet_cap {
 	uint32_t	capabilities;	/* lower 32 bits of HPET capabilities */
 };
 
+struct vm_suspend {
+	enum vm_suspend_how how;
+};
+
+struct vm_gla2gpa {
+	int		vcpuid;		/* inputs */
+	int 		prot;		/* PROT_READ or PROT_WRITE */
+	uint64_t	gla;
+	struct vm_guest_paging paging;
+	int		fault;		/* outputs */
+	uint64_t	gpa;
+};
+
+struct vm_activate_cpu {
+	int		vcpuid;
+};
+
+struct vm_cpuset {
+	int		which;
+	int		cpusetsize;
+	cpuset_t	*cpus;
+};
+#define	VM_ACTIVE_CPUS		0
+#define	VM_SUSPENDED_CPUS	1
+
+struct vm_intinfo {
+	int		vcpuid;
+	uint64_t	info1;
+	uint64_t	info2;
+};
+
+struct vm_rtc_time {
+	time_t		secs;
+};
+
+struct vm_rtc_data {
+	int		offset;
+	uint8_t		value;
+};
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
 	IOCNUM_RUN = 1,
 	IOCNUM_SET_CAPABILITY = 2,
 	IOCNUM_GET_CAPABILITY = 3,
+	IOCNUM_SUSPEND = 4,
+	IOCNUM_REINIT = 5,
 
 	/* memory apis */
-	IOCNUM_MAP_MEMORY = 10,
-	IOCNUM_GET_MEMORY_SEG = 11,
+	IOCNUM_MAP_MEMORY = 10,			/* deprecated */
+	IOCNUM_GET_MEMORY_SEG = 11,		/* deprecated */
 	IOCNUM_GET_GPA_PMAP = 12,
+	IOCNUM_GLA2GPA = 13,
+	IOCNUM_ALLOC_MEMSEG = 14,
+	IOCNUM_GET_MEMSEG = 15,
+	IOCNUM_MMAP_MEMSEG = 16,
+	IOCNUM_MMAP_GETNEXT = 17,
 
 	/* register/state accessors */
 	IOCNUM_SET_REGISTER = 20,
@@ -174,7 +242,9 @@ enum {
 	IOCNUM_GET_SEGMENT_DESCRIPTOR = 23,
 
 	/* interrupt injection */
-	IOCNUM_INJECT_EVENT = 30,
+	IOCNUM_GET_INTINFO = 28,
+	IOCNUM_SET_INTINFO = 29,
+	IOCNUM_INJECT_EXCEPTION = 30,
 	IOCNUM_LAPIC_IRQ = 31,
 	IOCNUM_INJECT_NMI = 32,
 	IOCNUM_IOAPIC_ASSERT_IRQ = 33,
@@ -183,6 +253,7 @@ enum {
 	IOCNUM_LAPIC_MSI = 36,
 	IOCNUM_LAPIC_LOCAL_IRQ = 37,
 	IOCNUM_IOAPIC_PINCOUNT = 38,
+	IOCNUM_RESTART_INSTRUCTION = 39,
 
 	/* PCI pass-thru */
 	IOCNUM_BIND_PPTDEV = 40,
@@ -199,14 +270,38 @@ enum {
 	IOCNUM_SET_X2APIC_STATE = 60,
 	IOCNUM_GET_X2APIC_STATE = 61,
 	IOCNUM_GET_HPET_CAPABILITIES = 62,
+
+	/* legacy interrupt injection */
+	IOCNUM_ISA_ASSERT_IRQ = 80,
+	IOCNUM_ISA_DEASSERT_IRQ = 81,
+	IOCNUM_ISA_PULSE_IRQ = 82,
+	IOCNUM_ISA_SET_IRQ_TRIGGER = 83,
+
+	/* vm_cpuset */
+	IOCNUM_ACTIVATE_CPU = 90,
+	IOCNUM_GET_CPUSET = 91,
+
+	/* RTC */
+	IOCNUM_RTC_READ = 100,
+	IOCNUM_RTC_WRITE = 101,
+	IOCNUM_RTC_SETTIME = 102,
+	IOCNUM_RTC_GETTIME = 103,
 };
 
 #define	VM_RUN		\
 	_IOWR('v', IOCNUM_RUN, struct vm_run)
-#define	VM_MAP_MEMORY	\
-	_IOWR('v', IOCNUM_MAP_MEMORY, struct vm_memory_segment)
-#define	VM_GET_MEMORY_SEG \
-	_IOWR('v', IOCNUM_GET_MEMORY_SEG, struct vm_memory_segment)
+#define	VM_SUSPEND	\
+	_IOW('v', IOCNUM_SUSPEND, struct vm_suspend)
+#define	VM_REINIT	\
+	_IO('v', IOCNUM_REINIT)
+#define	VM_ALLOC_MEMSEG	\
+	_IOW('v', IOCNUM_ALLOC_MEMSEG, struct vm_memseg)
+#define	VM_GET_MEMSEG	\
+	_IOWR('v', IOCNUM_GET_MEMSEG, struct vm_memseg)
+#define	VM_MMAP_MEMSEG	\
+	_IOW('v', IOCNUM_MMAP_MEMSEG, struct vm_memmap)
+#define	VM_MMAP_GETNEXT	\
+	_IOWR('v', IOCNUM_MMAP_GETNEXT, struct vm_memmap)
 #define	VM_SET_REGISTER \
 	_IOW('v', IOCNUM_SET_REGISTER, struct vm_register)
 #define	VM_GET_REGISTER \
@@ -215,8 +310,8 @@ enum {
 	_IOW('v', IOCNUM_SET_SEGMENT_DESCRIPTOR, struct vm_seg_desc)
 #define	VM_GET_SEGMENT_DESCRIPTOR \
 	_IOWR('v', IOCNUM_GET_SEGMENT_DESCRIPTOR, struct vm_seg_desc)
-#define	VM_INJECT_EVENT	\
-	_IOW('v', IOCNUM_INJECT_EVENT, struct vm_event)
+#define	VM_INJECT_EXCEPTION	\
+	_IOW('v', IOCNUM_INJECT_EXCEPTION, struct vm_exception)
 #define	VM_LAPIC_IRQ 		\
 	_IOW('v', IOCNUM_LAPIC_IRQ, struct vm_lapic_irq)
 #define	VM_LAPIC_LOCAL_IRQ 	\
@@ -231,6 +326,14 @@ enum {
 	_IOW('v', IOCNUM_IOAPIC_PULSE_IRQ, struct vm_ioapic_irq)
 #define	VM_IOAPIC_PINCOUNT	\
 	_IOR('v', IOCNUM_IOAPIC_PINCOUNT, int)
+#define	VM_ISA_ASSERT_IRQ	\
+	_IOW('v', IOCNUM_ISA_ASSERT_IRQ, struct vm_isa_irq)
+#define	VM_ISA_DEASSERT_IRQ	\
+	_IOW('v', IOCNUM_ISA_DEASSERT_IRQ, struct vm_isa_irq)
+#define	VM_ISA_PULSE_IRQ	\
+	_IOW('v', IOCNUM_ISA_PULSE_IRQ, struct vm_isa_irq)
+#define	VM_ISA_SET_IRQ_TRIGGER	\
+	_IOW('v', IOCNUM_ISA_SET_IRQ_TRIGGER, struct vm_isa_irq_trigger)
 #define	VM_SET_CAPABILITY \
 	_IOW('v', IOCNUM_SET_CAPABILITY, struct vm_capability)
 #define	VM_GET_CAPABILITY \
@@ -259,4 +362,24 @@ enum {
 	_IOR('v', IOCNUM_GET_HPET_CAPABILITIES, struct vm_hpet_cap)
 #define	VM_GET_GPA_PMAP \
 	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
+#define	VM_GLA2GPA	\
+	_IOWR('v', IOCNUM_GLA2GPA, struct vm_gla2gpa)
+#define	VM_ACTIVATE_CPU	\
+	_IOW('v', IOCNUM_ACTIVATE_CPU, struct vm_activate_cpu)
+#define	VM_GET_CPUS	\
+	_IOW('v', IOCNUM_GET_CPUSET, struct vm_cpuset)
+#define	VM_SET_INTINFO	\
+	_IOW('v', IOCNUM_SET_INTINFO, struct vm_intinfo)
+#define	VM_GET_INTINFO	\
+	_IOWR('v', IOCNUM_GET_INTINFO, struct vm_intinfo)
+#define VM_RTC_WRITE \
+	_IOW('v', IOCNUM_RTC_WRITE, struct vm_rtc_data)
+#define VM_RTC_READ \
+	_IOWR('v', IOCNUM_RTC_READ, struct vm_rtc_data)
+#define VM_RTC_SETTIME	\
+	_IOW('v', IOCNUM_RTC_SETTIME, struct vm_rtc_time)
+#define VM_RTC_GETTIME	\
+	_IOR('v', IOCNUM_RTC_GETTIME, struct vm_rtc_time)
+#define	VM_RESTART_INSTRUCTION \
+	_IOW('v', IOCNUM_RESTART_INSTRUCTION, int)
 #endif

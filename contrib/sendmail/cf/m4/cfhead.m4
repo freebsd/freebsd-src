@@ -17,10 +17,10 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-ifdef(`__win32__', `dnl', `dnl
+ifdef(`_NO_MAKEINFO_', `dnl', `dnl
 ifdef(`TEMPFILE', `dnl', `define(`TEMPFILE', maketemp(/tmp/cfXXXXXX))dnl
 syscmd(sh _CF_DIR_`'sh/makeinfo.sh _CF_DIR_ > TEMPFILE)dnl
-include(TEMPFILE)dnl
+ifdef(`_NO_MAKEINFO_',, `include(TEMPFILE)')dnl
 syscmd(rm -f TEMPFILE)dnl')')
 #####
 ######################################################################
@@ -309,4 +309,4 @@ define(`confMILTER_MACROS_EOM', `{msg_id}')
 
 
 divert(0)dnl
-VERSIONID(`$Id: cfhead.m4,v 8.122 2013/11/22 20:51:13 ca Exp $')
+VERSIONID(`$Id: cfhead.m4,v 8.122 2013-11-22 20:51:13 ca Exp $')

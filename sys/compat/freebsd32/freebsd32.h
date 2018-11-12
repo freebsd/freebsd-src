@@ -243,32 +243,6 @@ struct i386_ldt_args32 {
 	uint32_t num;
 };
 
-/*
- * Alternative layouts for <sys/procfs.h>
- */
-struct prstatus32 {
-        int     pr_version;
-        u_int   pr_statussz;
-        u_int   pr_gregsetsz;
-        u_int   pr_fpregsetsz;
-        int     pr_osreldate;
-        int     pr_cursig;
-        pid_t   pr_pid;
-        struct reg32 pr_reg;
-};
-
-struct prpsinfo32 {
-        int     pr_version;
-        u_int   pr_psinfosz;
-        char    pr_fname[PRFNAMESZ+1];
-        char    pr_psargs[PRARGSZ+1];
-};
-
-struct thrmisc32 {
-        char    pr_tname[MAXCOMLEN+1];
-        u_int   _pad;
-};
-
 struct mq_attr32 {
 	int	mq_flags;
 	int	mq_maxmsg;
@@ -332,8 +306,8 @@ struct kinfo_proc32 {
 	signed char ki_nice;
 	char	ki_lock;
 	char	ki_rqindex;
-	u_char	ki_oncpu;
-	u_char	ki_lastcpu;
+	u_char	ki_oncpu_old;
+	u_char	ki_lastcpu_old;
 	char	ki_tdname[TDNAMLEN+1];
 	char	ki_wmesg[WMESGLEN+1];
 	char	ki_login[LOGNAMELEN+1];
@@ -343,6 +317,9 @@ struct kinfo_proc32 {
 	char	ki_loginclass[LOGINCLASSLEN+1];
 	char	ki_sparestrings[50];
 	int	ki_spareints[KI_NSPARE_INT];
+	int	ki_oncpu;
+	int	ki_lastcpu;
+	int	ki_tracer;
 	int	ki_flag2;
 	int	ki_fibnum;
 	u_int	ki_cr_flags;
@@ -385,6 +362,12 @@ struct kld32_file_stat {
 	uint32_t address;	/* load address */
 	uint32_t size;		/* size in bytes */
 	char	pathname[MAXPATHLEN];
+};
+
+struct procctl_reaper_pids32 {
+	u_int	rp_count;
+	u_int	rp_pad0[15];
+	uint32_t rp_pids;
 };
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */

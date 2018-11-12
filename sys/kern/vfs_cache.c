@@ -264,7 +264,7 @@ SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0,
     "VFS namecache enabled");
 
 /* Export size information to userland */
-SYSCTL_INT(_debug_sizeof, OID_AUTO, namecache, CTLFLAG_RD, 0,
+SYSCTL_INT(_debug_sizeof, OID_AUTO, namecache, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
     sizeof(struct namecache), "sizeof(struct namecache)");
 
 /*
@@ -323,29 +323,25 @@ static SYSCTL_NODE(_debug, OID_AUTO, hashstat, CTLFLAG_RW, NULL,
 static int
 sysctl_debug_hashstat_rawnchash(SYSCTL_HANDLER_ARGS)
 {
-	int error;
 	struct nchashhead *ncpp;
 	struct namecache *ncp;
-	int n_nchash;
-	int count;
+	int i, error, n_nchash, *cntbuf;
 
 	n_nchash = nchash + 1;	/* nchash is max index, not count */
-	if (!req->oldptr)
+	if (req->oldptr == NULL)
 		return SYSCTL_OUT(req, 0, n_nchash * sizeof(int));
-
-	/* Scan hash tables for applicable entries */
-	for (ncpp = nchashtbl; n_nchash > 0; n_nchash--, ncpp++) {
-		CACHE_RLOCK();
-		count = 0;
-		LIST_FOREACH(ncp, ncpp, nc_hash) {
-			count++;
-		}
-		CACHE_RUNLOCK();
-		error = SYSCTL_OUT(req, &count, sizeof(count));
-		if (error)
-			return (error);
-	}
-	return (0);
+	cntbuf = malloc(n_nchash * sizeof(int), M_TEMP, M_ZERO | M_WAITOK);
+	CACHE_RLOCK();
+	/* Scan hash tables counting entries */
+	for (ncpp = nchashtbl, i = 0; i < n_nchash; ncpp++, i++)
+		LIST_FOREACH(ncp, ncpp, nc_hash)
+			cntbuf[i]++;
+	CACHE_RUNLOCK();
+	for (error = 0, i = 0; i < n_nchash; i++)
+		if ((error = SYSCTL_OUT(req, &cntbuf[i], sizeof(int))) != 0)
+			break;
+	free(cntbuf, M_TEMP);
+	return (error);
 }
 SYSCTL_PROC(_debug_hashstat, OID_AUTO, rawnchash, CTLTYPE_INT|CTLFLAG_RD|
     CTLFLAG_MPSAFE, 0, 0, sysctl_debug_hashstat_rawnchash, "S,int",
@@ -363,6 +359,7 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 	if (!req->oldptr)
 		return SYSCTL_OUT(req, 0, 4 * sizeof(int));
 
+	CACHE_RLOCK();
 	n_nchash = nchash + 1;	/* nchash is max index, not count */
 	used = 0;
 	maxlength = 0;
@@ -370,17 +367,16 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 	/* Scan hash tables for applicable entries */
 	for (ncpp = nchashtbl; n_nchash > 0; n_nchash--, ncpp++) {
 		count = 0;
-		CACHE_RLOCK();
 		LIST_FOREACH(ncp, ncpp, nc_hash) {
 			count++;
 		}
-		CACHE_RUNLOCK();
 		if (count)
 			used++;
 		if (maxlength < count)
 			maxlength = count;
 	}
 	n_nchash = nchash + 1;
+	CACHE_RUNLOCK();
 	pct = (used * 100) / (n_nchash / 100);
 	error = SYSCTL_OUT(req, &n_nchash, sizeof(n_nchash));
 	if (error)
@@ -665,12 +661,12 @@ success:
 		ltype = VOP_ISLOCKED(dvp);
 		VOP_UNLOCK(dvp, 0);
 	}
-	VI_LOCK(*vpp);
+	vhold(*vpp);
 	if (wlocked)
 		CACHE_WUNLOCK();
 	else
 		CACHE_RUNLOCK();
-	error = vget(*vpp, cnp->cn_lkflags | LK_INTERLOCK, cnp->cn_thread);
+	error = vget(*vpp, cnp->cn_lkflags | LK_VNHELD, cnp->cn_thread);
 	if (cnp->cn_flags & ISDOTDOT) {
 		vn_lock(dvp, ltype | LK_RETRY);
 		if (dvp->v_iflag & VI_DOOMED) {
@@ -1043,14 +1039,6 @@ vfs_cache_lookup(ap)
 	return (error);
 }
 
-
-#ifndef _SYS_SYSPROTO_H_
-struct  __getcwd_args {
-	u_char	*buf;
-	u_int	buflen;
-};
-#endif
-
 /*
  * XXX All of these sysctls would probably be more productive dead.
  */
@@ -1065,11 +1053,13 @@ sys___getcwd(td, uap)
 	struct __getcwd_args *uap;
 {
 
-	return (kern___getcwd(td, uap->buf, UIO_USERSPACE, uap->buflen));
+	return (kern___getcwd(td, uap->buf, UIO_USERSPACE, uap->buflen,
+	    MAXPATHLEN));
 }
 
 int
-kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
+kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, u_int buflen,
+    u_int path_max)
 {
 	char *bp, *tmpbuf;
 	struct filedesc *fdp;
@@ -1080,8 +1070,8 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 		return (ENODEV);
 	if (buflen < 2)
 		return (EINVAL);
-	if (buflen > MAXPATHLEN)
-		buflen = MAXPATHLEN;
+	if (buflen > path_max)
+		buflen = path_max;
 
 	tmpbuf = malloc(buflen, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;
@@ -1376,9 +1366,9 @@ vn_dir_dd_ino(struct vnode *vp)
 		if ((ncp->nc_flag & NCF_ISDOTDOT) != 0)
 			continue;
 		ddvp = ncp->nc_dvp;
-		VI_LOCK(ddvp);
+		vhold(ddvp);
 		CACHE_RUNLOCK();
-		if (vget(ddvp, LK_INTERLOCK | LK_SHARED | LK_NOWAIT, curthread))
+		if (vget(ddvp, LK_SHARED | LK_NOWAIT | LK_VNHELD, curthread))
 			return (NULL);
 		return (ddvp);
 	}
@@ -1424,7 +1414,7 @@ cache_enter(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
  * This function updates path string to vnode's full global path
  * and checks the size of the new path string against the pathlen argument.
  *
- * Requires a locked, referenced vnode and GIANT lock held.
+ * Requires a locked, referenced vnode.
  * Vnode is re-locked on success or ENODEV, otherwise unlocked.
  *
  * If sysctl debug.disablefullpath is set, ENODEV is returned,

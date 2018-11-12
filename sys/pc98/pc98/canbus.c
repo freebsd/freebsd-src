@@ -188,9 +188,8 @@ canbus_attach(device_t dev)
 
 	/* Dynamic sysctl tree setup */
 	sysctl_ctx_init(&sc->canbus_sysctl_ctx);
-	canbus_sysctl_tree = SYSCTL_ADD_NODE(&sc->canbus_sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(/* tree top */), OID_AUTO,
-	    "canbus", CTLFLAG_RD, 0, "CanBe I/O Bus");
+	canbus_sysctl_tree = SYSCTL_ADD_ROOT_NODE(&sc->canbus_sysctl_ctx,
+	    OID_AUTO, "canbus", CTLFLAG_RD, 0, "CanBe I/O Bus");
 	SYSCTL_ADD_INT(&sc->canbus_sysctl_ctx,
 	    SYSCTL_CHILDREN(canbus_sysctl_tree), OID_AUTO, "io_delay_time",
 	    CTLFLAG_RW, &sc->io_delay_time, 0, "CanBe Bus I/O delay time");

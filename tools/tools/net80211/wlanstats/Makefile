@@ -4,9 +4,12 @@
 
 PROG=	wlanstats
 BINDIR=	/usr/local/bin
-NO_MAN=
+MAN=
+LIBADD=	bsdstat
+CFLAGS+=-I${.CURDIR}/../../../../lib/libbsdstat/
 
-SRCS=	statfoo.c wlanstats.c main.c
+SRCS=	wlanstats.c main.c
+
 CFLAGS.clang+= -fbracket-depth=512
 
 .include <bsd.prog.mk>

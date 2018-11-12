@@ -30,23 +30,27 @@ static struct RegisterInterp {
 
 extern "C" void LLVMLinkInInterpreter() { }
 
-/// create - Create a new interpreter object.  This can never fail.
+/// Create a new interpreter object.
 ///
-ExecutionEngine *Interpreter::create(Module *M, std::string* ErrStr) {
+ExecutionEngine *Interpreter::create(std::unique_ptr<Module> M,
+                                     std::string *ErrStr) {
   // Tell this Module to materialize everything and release the GVMaterializer.
-  if (M->MaterializeAllPermanently(ErrStr))
+  if (std::error_code EC = M->materializeAllPermanently()) {
+    if (ErrStr)
+      *ErrStr = EC.message();
     // We got an error, just return 0
-    return 0;
+    return nullptr;
+  }
 
-  return new Interpreter(M);
+  return new Interpreter(std::move(M));
 }
 
 //===----------------------------------------------------------------------===//
 // Interpreter ctor - Initialize stuff
 //
-Interpreter::Interpreter(Module *M)
-  : ExecutionEngine(M), TD(M) {
-      
+Interpreter::Interpreter(std::unique_ptr<Module> M)
+  : ExecutionEngine(std::move(M)), TD(Modules.back().get()) {
+
   memset(&ExitValue.Untyped, 0, sizeof(ExitValue.Untyped));
   setDataLayout(&TD);
   // Initialize the "backend"

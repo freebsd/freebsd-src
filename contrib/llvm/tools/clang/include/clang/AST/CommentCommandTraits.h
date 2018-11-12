@@ -13,8 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef LLVM_CLANG_AST_COMMENT_COMMAND_TRAITS_H
-#define LLVM_CLANG_AST_COMMENT_COMMAND_TRAITS_H
+#ifndef LLVM_CLANG_AST_COMMENTCOMMANDTRAITS_H
+#define LLVM_CLANG_AST_COMMENTCOMMANDTRAITS_H
 
 #include "clang/Basic/CommentOptions.h"
 #include "clang/Basic/LLVM.h"
@@ -40,7 +40,11 @@ struct CommandInfo {
   /// Name of the command that ends the verbatim block.
   const char *EndCommandName;
 
-  unsigned ID : 8;
+  /// DRY definition of the number of bits used for a command ID.
+  enum { NumCommandIDBits = 20 };
+
+  /// The ID of the command.
+  unsigned ID : NumCommandIDBits;
 
   /// Number of word-like arguments for a given block command, except for
   /// \\param and \\tparam commands -- these have special argument parsers.
@@ -66,6 +70,9 @@ struct CommandInfo {
   /// True if this command is introducing documentation for
   /// a template parameter (\\tparam or an alias).
   unsigned IsTParamCommand : 1;
+
+  /// True if this command is \\throws or an alias.
+  unsigned IsThrowsCommand : 1;
 
   /// True if this command is \\deprecated or an alias.
   unsigned IsDeprecatedCommand : 1;
@@ -142,6 +149,8 @@ public:
     llvm_unreachable("the command should be known");
   }
 
+  const CommandInfo *getTypoCorrectCommandInfo(StringRef Typo) const;
+  
   const CommandInfo *getCommandInfo(unsigned CommandID) const;
 
   const CommandInfo *registerUnknownCommand(StringRef CommandName);

@@ -21,4 +21,4 @@ ATF_TESTS_SH+=		${_T}
 ATF_TESTS_SH_SRC_${_T}=	common.sh ${_T}.sh
 .endfor
 
-.include <atf.test.mk>
+.include <bsd.test.mk>

@@ -35,7 +35,9 @@
 #define	PCI_XHCI_FLADJ		0x61	/* RW frame length adjust */
 
 #define	PCI_XHCI_INTEL_XUSB2PR	0xD0	/* Intel USB2 Port Routing */
+#define	PCI_XHCI_INTEL_USB2PRM	0xD4	/* Intel USB2 Port Routing Mask */
 #define	PCI_XHCI_INTEL_USB3_PSSEN 0xD8	/* Intel USB3 Port SuperSpeed Enable */
+#define	PCI_XHCI_INTEL_USB3PRM	0xDC	/* Intel USB3 Port Routing Mask */
 
 /* XHCI capability registers */
 #define	XHCI_CAPLENGTH		0x00	/* RO capability */
@@ -166,7 +168,8 @@
 #define	XHCI_IMOD_IVAL_SET(x)	(((x) & 0xFFFF) << 0)	/* 250ns unit */
 #define	XHCI_IMOD_ICNT_GET(x)	(((x) >> 16) & 0xFFFF)	/* 250ns unit */
 #define	XHCI_IMOD_ICNT_SET(x)	(((x) & 0xFFFF) << 16)	/* 250ns unit */
-#define	XHCI_IMOD_DEFAULT	0x000003E8U	/* 8000 IRQ/second */
+#define	XHCI_IMOD_DEFAULT	0x000001F4U	/* 8000 IRQs/second */
+#define	XHCI_IMOD_DEFAULT_LP 	0x000003F8U	/* 4000 IRQs/second - LynxPoint */
 #define	XHCI_ERSTSZ(n)		(0x0028 + (0x20 * (n)))	/* XHCI event ring segment table size */
 #define	XHCI_ERSTS_GET(x)	((x) & 0xFFFF)
 #define	XHCI_ERSTS_SET(x)	((x) & 0xFFFF)

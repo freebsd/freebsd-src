@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: refill.c,v 1.54 2013/11/22 20:51:43 ca Exp $")
+SM_RCSID("@(#)$Id: refill.c,v 1.54 2013-11-22 20:51:43 ca Exp $")
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -25,6 +25,7 @@ SM_RCSID("@(#)$Id: refill.c,v 1.54 2013/11/22 20:51:43 ca Exp $")
 #include <sm/io.h>
 #include <sm/conf.h>
 #include <sm/assert.h>
+#include <sm/fdset.h>
 #include "local.h"
 
 static int sm_lflush __P((SM_FILE_T *, int *));
@@ -65,7 +66,7 @@ static int sm_lflush __P((SM_FILE_T *, int *));
 		errno = EAGAIN;						\
 		return SM_IO_EOF;					\
 	}								\
-	if (FD_SETSIZE > 0 && (fd) >= FD_SETSIZE)			\
+	if (!SM_FD_OK_SELECT(fd))					\
 	{								\
 		errno = EINVAL;						\
 		return SM_IO_EOF;					\

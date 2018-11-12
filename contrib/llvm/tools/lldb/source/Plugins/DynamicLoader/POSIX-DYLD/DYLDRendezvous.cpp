@@ -14,6 +14,7 @@
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
+#include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
@@ -28,21 +29,71 @@ using namespace lldb_private;
 static addr_t
 ResolveRendezvousAddress(Process *process)
 {
+    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
     addr_t info_location;
     addr_t info_addr;
     Error error;
 
+    if (!process)
+    {
+        if (log)
+            log->Printf ("%s null process provided", __FUNCTION__);
+        return LLDB_INVALID_ADDRESS;
+    }
+
+    // Try to get it from our process.  This might be a remote process and might
+    // grab it via some remote-specific mechanism.
     info_location = process->GetImageInfoAddress();
+    if (log)
+        log->Printf ("%s info_location = 0x%" PRIx64, __FUNCTION__, info_location);
+
+    // If the process fails to return an address, fall back to seeing if the local object file can help us find it.
+    if (info_location == LLDB_INVALID_ADDRESS)
+    {
+        Target *target = &process->GetTarget();
+        if (target)
+        {
+            ObjectFile *obj_file = target->GetExecutableModule()->GetObjectFile();
+            Address addr = obj_file->GetImageInfoAddress(target);
+
+            if (addr.IsValid())
+            {
+                info_location = addr.GetLoadAddress(target);
+                if (log)
+                    log->Printf ("%s resolved via direct object file approach to 0x%" PRIx64, __FUNCTION__, info_location);
+            }
+            else
+            {
+                if (log)
+                    log->Printf ("%s FAILED - direct object file approach did not yield a valid address", __FUNCTION__);
+            }
+        }
+    }
 
     if (info_location == LLDB_INVALID_ADDRESS)
+    {
+        if (log)
+            log->Printf ("%s FAILED - invalid info address", __FUNCTION__);
         return LLDB_INVALID_ADDRESS;
+    }
+
+    if (log)
+        log->Printf ("%s reading pointer (%" PRIu32 " bytes) from 0x%" PRIx64, __FUNCTION__, process->GetAddressByteSize(), info_location);
 
     info_addr = process->ReadPointerFromMemory(info_location, error);
     if (error.Fail())
+    {
+        if (log)
+            log->Printf ("%s FAILED - could not read from the info location: %s", __FUNCTION__, error.AsCString ());
         return LLDB_INVALID_ADDRESS;
+    }
 
     if (info_addr == 0)
+    {
+        if (log)
+            log->Printf ("%s FAILED - the rendezvous address contained at 0x%" PRIx64 " returned a null value", __FUNCTION__, info_location);
         return LLDB_INVALID_ADDRESS;
+    }
 
     return info_addr;
 }
@@ -56,6 +107,8 @@ DYLDRendezvous::DYLDRendezvous(Process *process)
       m_added_soentries(),
       m_removed_soentries()
 {
+    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+
     m_thread_info.valid = false;
 
     // Cache a copy of the executable path
@@ -63,13 +116,24 @@ DYLDRendezvous::DYLDRendezvous(Process *process)
     {
         Module *exe_mod = m_process->GetTarget().GetExecutableModulePointer();
         if (exe_mod)
+        {
             exe_mod->GetFileSpec().GetPath(m_exe_path, PATH_MAX);
+            if (log)
+                log->Printf ("DYLDRendezvous::%s exe module executable path set: '%s'", __FUNCTION__, m_exe_path);
+        }
+        else
+        {
+            if (log)
+                log->Printf ("DYLDRendezvous::%s cannot cache exe module path: null executable module pointer", __FUNCTION__);
+        }
     }
 }
 
 bool
 DYLDRendezvous::Resolve()
 {
+    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+
     const size_t word_size = 4;
     Rendezvous info;
     size_t address_size;
@@ -79,12 +143,16 @@ DYLDRendezvous::Resolve()
 
     address_size = m_process->GetAddressByteSize();
     padding = address_size - word_size;
+    if (log)
+        log->Printf ("DYLDRendezvous::%s address size: %zu, padding %zu", __FUNCTION__, address_size, padding);
 
     if (m_rendezvous_addr == LLDB_INVALID_ADDRESS)
         cursor = info_addr = ResolveRendezvousAddress(m_process);
     else
         cursor = info_addr = m_rendezvous_addr;
-    
+    if (log)
+        log->Printf ("DYLDRendezvous::%s cursor = 0x%" PRIx64, __FUNCTION__, cursor);
+
     if (cursor == LLDB_INVALID_ADDRESS)
         return false;
 
@@ -135,7 +203,7 @@ DYLDRendezvous::UpdateSOEntries()
     // state and take a snapshot of the currently loaded images.
     if (m_current.state == eAdd || m_current.state == eDelete)
     {
-        assert(m_previous.state == eConsistent);
+        assert(m_previous.state == eConsistent || (m_previous.state == eAdd && m_current.state == eDelete));
         m_soentries.clear();
         m_added_soentries.clear();
         m_removed_soentries.clear();
@@ -262,23 +330,11 @@ DYLDRendezvous::ReadStringFromMemory(addr_t addr)
 {
     std::string str;
     Error error;
-    size_t size;
-    char c;
 
     if (addr == LLDB_INVALID_ADDRESS)
         return std::string();
 
-    for (;;) {
-        size = m_process->DoReadMemory(addr, &c, 1, error);
-        if (size != 1 || error.Fail())
-            return std::string();
-        if (c == 0)
-            break;
-        else {
-            str.push_back(c);
-            addr++;
-        }
-    }
+    m_process->ReadCStringFromMemory(addr, str, error);
 
     return str;
 }

@@ -93,7 +93,11 @@ typedef struct _HIM_ADAPTER_CONFIG
 	HPT_U32 nvramSize;
 	HPT_U64 nvramAddress;
 	HPT_U8  slot_index;
-	HPT_U8  reserved2[11];
+	HPT_U8  maxWidth;
+	HPT_U8  currentWidth;
+	HPT_U8  maxSpeed;
+	HPT_U8  currentSpeed;	
+	HPT_U8  reserved2[7];
 }
 HIM_ADAPTER_CONFIG, *PHIM_ADAPTER_CONFIG;
 
@@ -117,6 +121,7 @@ typedef struct _HIM_DEVICE_FLAGS
 	HPT_UINT df_write_cache_enabled :1;
 	HPT_UINT df_cdrom_device        :1;
 	HPT_UINT df_tape_device         :1;
+	HPT_UINT df_changer_device      :1;
 	HPT_UINT df_support_tcq         :1;
 	HPT_UINT df_tcq_enabled         :1;
 	HPT_UINT df_support_ncq         :1;
@@ -194,7 +199,8 @@ IDENTIFY_DATA, *PIDENTIFY_DATA;
 typedef struct _HIM_DEVICE_CONFIG
 {
 	HPT_U64 capacity;
-
+	HPT_U32 logical_sector_size;
+	
 	DEVICE_FLAGS flags;
 
 	HPT_U8  path_id;
@@ -342,10 +348,22 @@ typedef struct _ScsiComm {
 	HPT_U8  scsiStatus; 
 	HPT_U8  reserve1;
 	HPT_U32 dataLength; 
-	HPT_U8 *cdb;
+	HPT_U8 cdb[16];
 	HPT_U8 *senseBuffer;
 }
 ScsiComm;
+
+typedef struct _ScsiExtComm {
+	HPT_U8  cdbLength;
+	HPT_U8  senseLength; 
+	HPT_U8  scsiStatus; 
+	HPT_U8  reserve1;
+	HPT_U32 dataLength; 
+	HPT_U8  cdb[16];
+	HPT_U8  *senseBuffer;
+	HPT_U8  lun[8];
+}
+ScsiExtComm;
 
 
 #define CTRL_CMD_REBUILD 1
@@ -357,7 +375,7 @@ typedef struct _R5ControlCmd {
 	HPT_U64  StripeLine;  
 	HPT_U16 Offset;       
 	HPT_U8  Command;      
-	HPT_U8  reserve1;
+	HPT_U8  CmdTarget;    
 }
 R5ControlCmd, *PR5ControlCmd;
 
@@ -379,8 +397,8 @@ typedef struct ctl_pages {
 typedef struct _R1ControlCmd {
 	HPT_U64  Lba;
 	HPT_U16 nSectors;
-	HPT_U8  Command;      /* CTRL_CMD_XXX */
-	HPT_U8  reserve1;
+	HPT_U8  Command;      
+	HPT_U8  CmdTarget;    
 	PCONTROL_PAGES ctl_pages;  
 }
 R1ControlCmd, *PR1ControlCmd;
@@ -427,6 +445,7 @@ typedef struct _COMMAND
 		AtaComm Ide;
 		PassthroughCmd Passthrough;
 		ScsiComm Scsi;
+		ScsiExtComm ScsiExt;
 		R5ControlCmd R5Control;
 		R1ControlCmd R1Control;
 	} uCmd;
@@ -464,6 +483,7 @@ COMMAND, *PCOMMAND;
 #define   CMD_TYPE_SCSI         CMD_TYPE_ATAPI
 #define   CMD_TYPE_PASSTHROUGH  3
 #define   CMD_TYPE_FLUSH        4
+#define   CMD_TYPE_SCSI_EXT     5
 #define   CMD_TYPE_IO_INDIRECT  0x80 
 
 /* flush command flags */

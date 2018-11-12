@@ -96,8 +96,9 @@ random_cnonce(apr_pool_t *pool)
     return hex_encode((unsigned char*)buf, pool);
 }
 
-static const char *
-build_digest_ha1(const char *username,
+static apr_status_t
+build_digest_ha1(const char **out_ha1,
+                 const char *username,
                  const char *password,
                  const char *realm_name,
                  apr_pool_t *pool)
@@ -113,12 +114,17 @@ build_digest_ha1(const char *username,
                        realm_name,
                        password);
     status = apr_md5(ha1, tmp, strlen(tmp));
+    if (status)
+        return status;
 
-    return hex_encode(ha1, pool);
+    *out_ha1 = hex_encode(ha1, pool);
+
+    return APR_SUCCESS;
 }
 
-static const char *
-build_digest_ha2(const char *uri,
+static apr_status_t
+build_digest_ha2(const char **out_ha2,
+                 const char *uri,
                  const char *method,
                  const char *qop,
                  apr_pool_t *pool)
@@ -134,17 +140,21 @@ build_digest_ha2(const char *uri,
                            method,
                            uri);
         status = apr_md5(ha2, tmp, strlen(tmp));
+        if (status)
+            return status;
 
-        return hex_encode(ha2, pool);
+        *out_ha2 = hex_encode(ha2, pool);
+
+        return APR_SUCCESS;
     } else {
         /* TODO: auth-int isn't supported! */
+        return APR_ENOTIMPL;
     }
-
-    return NULL;
 }
 
-static const char *
-build_auth_header(digest_authn_info_t *digest_info,
+static apr_status_t
+build_auth_header(const char **out_header,
+                  digest_authn_info_t *digest_info,
                   const char *path,
                   const char *method,
                   apr_pool_t *pool)
@@ -156,7 +166,9 @@ build_auth_header(digest_authn_info_t *digest_info,
     const char *response_hdr_hex;
     apr_status_t status;
 
-    ha2 = build_digest_ha2(path, method, digest_info->qop, pool);
+    status = build_digest_ha2(&ha2, path, method, digest_info->qop, pool);
+    if (status)
+        return status;
 
     hdr = apr_psprintf(pool,
                        "Digest realm=\"%s\","
@@ -194,6 +206,9 @@ build_auth_header(digest_authn_info_t *digest_info,
     }
 
     status = apr_md5(response_hdr, response, strlen(response));
+    if (status)
+        return status;
+
     response_hdr_hex = hex_encode(response_hdr, pool);
 
     hdr = apr_psprintf(pool, "%s, response=\"%s\"", hdr, response_hdr_hex);
@@ -207,7 +222,9 @@ build_auth_header(digest_authn_info_t *digest_info,
                            digest_info->algorithm);
     }
 
-    return hdr;
+    *out_header = hdr;
+
+    return APR_SUCCESS;
 }
 
 apr_status_t
@@ -330,8 +347,8 @@ serf__handle_digest_auth(int code,
     digest_info->username = apr_pstrdup(digest_info->pool, username);
     digest_info->digest_nc++;
 
-    digest_info->ha1 = build_digest_ha1(username, password, digest_info->realm,
-                                        digest_info->pool);
+    status = build_digest_ha1(&digest_info->ha1, username, password,
+                              digest_info->realm, digest_info->pool);
 
     apr_pool_destroy(cred_pool);
 
@@ -339,7 +356,7 @@ serf__handle_digest_auth(int code,
        likes. */
     serf_connection_set_max_outstanding_requests(conn, 0);
 
-    return APR_SUCCESS;
+    return status;
 }
 
 apr_status_t
@@ -387,7 +404,7 @@ serf__setup_request_digest_auth(peer_t peer,
     serf_context_t *ctx = conn->ctx;
     serf__authn_info_t *authn_info;
     digest_authn_info_t *digest_info;
-    apr_status_t status = APR_SUCCESS;
+    apr_status_t status;
 
     if (peer == HOST) {
         authn_info = serf__get_authn_info_for_server(conn);
@@ -421,8 +438,10 @@ serf__setup_request_digest_auth(peer_t peer,
         /* Build a new Authorization header. */
         digest_info->header = (peer == HOST) ? "Authorization" :
             "Proxy-Authorization";
-        value = build_auth_header(digest_info, path, method,
-                                  conn->pool);
+        status = build_auth_header(&value, digest_info, path, method,
+                                   conn->pool);
+        if (status)
+            return status;
 
         serf_bucket_headers_setn(hdrs_bkt, digest_info->header,
                                  value);
@@ -431,14 +450,15 @@ serf__setup_request_digest_auth(peer_t peer,
         /* Store the uri of this request on the serf_request_t object, to make
            it available when validating the Authentication-Info header of the
            matching response. */
-        request->auth_baton = path;
+        request->auth_baton = (void *)path;
     }
 
-    return status;
+    return APR_SUCCESS;
 }
 
 apr_status_t
-serf__validate_response_digest_auth(peer_t peer,
+serf__validate_response_digest_auth(const serf__authn_scheme_t *scheme,
+                                    peer_t peer,
                                     int code,
                                     serf_connection_t *conn,
                                     serf_request_t *request,
@@ -453,6 +473,7 @@ serf__validate_response_digest_auth(peer_t peer,
     const char *nc_str = NULL;
     serf_bucket_t *hdrs;
     serf_context_t *ctx = conn->ctx;
+    apr_status_t status;
 
     hdrs = serf_bucket_response_get_headers(response);
 
@@ -516,7 +537,10 @@ serf__validate_response_digest_auth(peer_t peer,
         }
         digest_info = authn_info->baton;
 
-        ha2 = build_digest_ha2(req_uri, "", qop, pool);
+        status = build_digest_ha2(&ha2, req_uri, "", qop, pool);
+        if (status)
+            return status;
+
         tmp = apr_psprintf(pool, "%s:%s:%s:%s:%s:%s",
                            digest_info->ha1, digest_info->nonce, nc_str,
                            digest_info->cnonce, digest_info->qop, ha2);

@@ -10,6 +10,9 @@
 
 MACHINE=`uname -m`
 
+# resolv.conf from DHCP ends up in here, so make sure the directory exists
+mkdir /tmp/bsdinstall_etc
+
 kbdcontrol -d >/dev/null 2>&1
 if [ $? -eq 0 ]; then
 	# Syscons: use xterm, start interesting things on other VTYs

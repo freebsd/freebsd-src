@@ -16,6 +16,7 @@ SRCS=		ctf_create.c \
 		ctf_subr.c \
 		ctf_types.c \
 		ctf_util.c
+MAN=		ctf.5
 
 WARNS?=		0
 CFLAGS+=	-DCTF_OLD_VERSIONS
@@ -26,6 +27,9 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_USR_DISTDIR}/common/ctf \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libctf/common \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common
+
+DPADD=         ${LIBZ}
+LDADD=         -lz
 
 .include <bsd.lib.mk>
 

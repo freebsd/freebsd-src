@@ -52,6 +52,7 @@
 #define MTX_RECURSE	0x00000004	/* Option: lock allowed to recurse */
 #define	MTX_NOWITNESS	0x00000008	/* Don't do any witness checking. */
 #define MTX_NOPROFILE   0x00000020	/* Don't profile this lock */
+#define	MTX_NEW		0x00000040	/* Don't check for double-init */
 
 /*
  * Option flags passed to certain lock/unlock routines, through the use
@@ -187,8 +188,8 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	if (!_mtx_obtain_lock((mp), _tid))				\
 		_mtx_lock_sleep((mp), _tid, (opts), (file), (line));	\
 	else								\
-              	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_LOCK_ACQUIRE, \
-		    mp, 0, 0, (file), (line));				\
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire,	\
+		    mp, 0, 0, file, line);				\
 } while (0)
 
 /*
@@ -208,8 +209,8 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 		else							\
 			_mtx_lock_spin((mp), _tid, (opts), (file), (line)); \
 	} else 								\
-              	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_MTX_SPIN_LOCK_ACQUIRE, \
-		    mp, 0, 0, (file), (line));				\
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire,	\
+		    mp, 0, 0, file, line);				\
 } while (0)
 #else /* SMP */
 #define __mtx_lock_spin(mp, tid, opts, file, line) do {			\
@@ -230,8 +231,7 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
 	if ((mp)->mtx_recurse == 0)					\
-		 LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_UNLOCK_RELEASE,	\
-		    (mp));						\
+		LOCKSTAT_PROFILE_RELEASE_LOCK(adaptive__release, mp);	\
 	if (!_mtx_release_lock((mp), _tid))				\
 		_mtx_unlock_sleep((mp), (opts), (file), (line));	\
 } while (0)
@@ -251,21 +251,19 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	if (mtx_recursed((mp)))						\
 		(mp)->mtx_recurse--;					\
 	else {								\
-		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_SPIN_UNLOCK_RELEASE, \
-			mp);						\
+		LOCKSTAT_PROFILE_RELEASE_LOCK(spin__release, mp);	\
 		_mtx_release_lock_quick((mp));				\
-	}                                                               \
-	spinlock_exit();				                \
+	}								\
+	spinlock_exit();						\
 } while (0)
 #else /* SMP */
 #define __mtx_unlock_spin(mp) do {					\
 	if (mtx_recursed((mp)))						\
 		(mp)->mtx_recurse--;					\
 	else {								\
-		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_SPIN_UNLOCK_RELEASE, \
-			mp);						\
+		LOCKSTAT_PROFILE_RELEASE_LOCK(spin__release, mp);	\
 		(mp)->mtx_lock = MTX_UNOWNED;				\
-	}                                                               \
+	}								\
 	spinlock_exit();						\
 } while (0)
 #endif /* SMP */
@@ -323,12 +321,8 @@ struct mtx *mtx_pool_alloc(struct mtx_pool *pool);
 	mtx_unlock_spin(mtx_pool_find((pool), (ptr)))
 
 /*
- * mtxpool_lockbuilder is a pool of sleep locks that is not witness
- * checked and should only be used for building higher level locks.
- *
  * mtxpool_sleep is a general purpose pool of sleep mutexes.
  */
-extern struct mtx_pool *mtxpool_lockbuilder;
 extern struct mtx_pool *mtxpool_sleep;
 
 #ifndef LOCK_DEBUG

@@ -47,14 +47,6 @@
  */
 
 /*
- * First define what the actual subs. return
- */
-
-#define	M_HASCL(m)	((m)->m_flags & M_EXT)
-#define	NFSMSIZ(m)	((M_HASCL(m))?MCLBYTES: \
-				(((m)->m_flags & M_PKTHDR)?MHLEN:MLEN))
-
-/*
  * Now for the macros that do the simple stuff and call the functions
  * for the hard stuff.
  * These macros use several vars. declared in nfsm_reqhead and these

@@ -2,11 +2,11 @@
  * /src/NTP/ntp4-dev/parseutil/testdcf.c,v 4.10 2005/08/06 14:18:43 kardel RELEASE_20050806_A
  *
  * testdcf.c,v 4.10 2005/08/06 14:18:43 kardel RELEASE_20050806_A
- *  
+ *
  * simple DCF77 100/200ms pulse test program (via 50Baud serial line)
  *
- * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
- * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
+ * Copyright (c) 1995-2015 by Frank Kardel <kardel <AT> ntp.org>
+ * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,6 +34,7 @@
  *
  */
 
+#include <config.h>
 #include "ntp_stdlib.h"
 
 #include <sys/ioctl.h>
@@ -45,10 +46,10 @@
 /*
  * state flags
  */
-#define DCFB_ANNOUNCE           0x0001 /* switch time zone warning (DST switch) */
-#define DCFB_DST                0x0002 /* DST in effect */
-#define DCFB_LEAP		0x0004 /* LEAP warning (1 hour prior to occurrence) */
-#define DCFB_ALTERNATE		0x0008 /* alternate antenna used */
+#define DCFB_ANNOUNCE   0x0001 /* switch time zone warning (DST switch) */
+#define DCFB_DST        0x0002 /* DST in effect */
+#define DCFB_LEAP       0x0004 /* LEAP warning (1 hour prior to occurrence) */
+#define DCFB_CALLBIT    0x0008 /* "call bit" used to signalize irregularities in the control facilities */
 
 struct clocktime		/* clock time broken up from time code */
 {
@@ -101,7 +102,8 @@ static char type(unsigned int);
  * Second	Contents
  * 0  - 10	AM: free, FM: 0
  * 11 - 14	free
- * 15		R     - alternate antenna
+ * 15		R     - "call bit" used to signalize irregularities in the control facilities
+ *		        (until 2003 indicated transmission via alternate antenna)
  * 16		A1    - expect zone change (1 hour before)
  * 17 - 18	Z1,Z2 - time zone
  *		 0  0 illegal
@@ -129,7 +131,7 @@ static char type(unsigned int);
 
 static char revision[] = "4.10";
 
-static struct rawdcfcode 
+static struct rawdcfcode
 {
 	char offset;			/* start bit */
 } rawdcfcode[] =
@@ -184,7 +186,7 @@ ext_bf(
 	register int i, first;
 
 	first = rawdcfcode[idx].offset;
-  
+
 	for (i = rawdcfcode[idx+1].offset - 1; i >= first; i--)
 	{
 		sum <<= 1;
@@ -222,7 +224,7 @@ convert_rawdcf(
 		printf("%-30s", "*** INCOMPLETE");
 		return CVT_NONE;
 	}
-  
+
 	/*
 	 * check Start and Parity bits
 	 */
@@ -273,7 +275,7 @@ convert_rawdcf(
 		    clock_time->flags |= DCFB_LEAP;
 
 		if (ext_bf(buffer, DCF_R))
-		    clock_time->flags |= DCFB_ALTERNATE;
+		    clock_time->flags |= DCFB_CALLBIT;
 
 		return CVT_OK;
 	}
@@ -489,7 +491,7 @@ main(
 					       wday[clock_time.wday],
 					       (int)clock_time.hour, (int)clock_time.minute, (int)i, (int)clock_time.day, (int)clock_time.month,
 					       (int)clock_time.year,
-					       (clock_time.flags & DCFB_ALTERNATE) ? "R" : "_",
+					       (clock_time.flags & DCFB_CALLBIT) ? "R" : "_",
 					       (clock_time.flags & DCFB_ANNOUNCE) ? "A" : "_",
 					       (clock_time.flags & DCFB_DST) ? "D" : "_",
 					       (clock_time.flags & DCFB_LEAP) ? "L" : "_"

@@ -32,8 +32,6 @@
 /*
  * Stack trace.
  */
-#define	INKERNEL(va) (((va) >= DMAP_MIN_ADDRESS && (va) < DMAP_MAX_ADDRESS) \
-	    || ((va) >= VM_MIN_KERNEL_ADDRESS && (va) < VM_MAX_KERNEL_ADDRESS))
 
 struct amd64_frame {
 	struct amd64_frame	*f_frame;

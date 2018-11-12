@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef REMOTEPROCESS_H
-#define REMOTEPROCESS_H
+#ifndef LLVM_TOOLS_LLI_REMOTETARGET_H
+#define LLVM_TOOLS_LLI_REMOTETARGET_H
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -25,10 +25,13 @@
 namespace llvm {
 
 class RemoteTarget {
-  std::string ErrorMsg;
   bool IsRunning;
 
-  SmallVector<sys::MemoryBlock, 16> Allocations;
+  typedef SmallVector<sys::MemoryBlock, 16> AllocMapType;
+  AllocMapType Allocations;
+
+protected:
+  std::string ErrorMsg;
 
 public:
   StringRef getErrorMsg() const { return ErrorMsg; }
@@ -39,9 +42,23 @@ public:
   /// @param      Alignment Required minimum alignment for allocated space.
   /// @param[out] Address   Remote address of the allocated memory.
   ///
-  /// @returns False on success. On failure, ErrorMsg is updated with
+  /// @returns True on success. On failure, ErrorMsg is updated with
   ///          descriptive text of the encountered error.
-  bool allocateSpace(size_t Size, unsigned Alignment, uint64_t &Address);
+  virtual bool allocateSpace(size_t Size,
+                             unsigned Alignment,
+                             uint64_t &Address);
+
+  bool isAllocatedMemory(uint64_t Address, uint32_t Size) {
+    uint64_t AddressEnd = Address + Size;
+    for (AllocMapType::const_iterator I = Allocations.begin(),
+                                      E = Allocations.end();
+         I != E; ++I) {
+      if (Address >= (uint64_t)I->base() &&
+          AddressEnd <= (uint64_t)I->base() + I->size())
+        return true;
+    }
+    return false;
+  }
 
   /// Load data into the target address space.
   ///
@@ -49,9 +66,11 @@ public:
   /// @param      Data      Source address in the host process.
   /// @param      Size      Number of bytes to copy.
   ///
-  /// @returns False on success. On failure, ErrorMsg is updated with
+  /// @returns True on success. On failure, ErrorMsg is updated with
   ///          descriptive text of the encountered error.
-  bool loadData(uint64_t Address, const void *Data, size_t Size);
+  virtual bool loadData(uint64_t Address,
+                        const void *Data,
+                        size_t Size);
 
   /// Load code into the target address space and prepare it for execution.
   ///
@@ -59,9 +78,11 @@ public:
   /// @param      Data      Source address in the host process.
   /// @param      Size      Number of bytes to copy.
   ///
-  /// @returns False on success. On failure, ErrorMsg is updated with
+  /// @returns True on success. On failure, ErrorMsg is updated with
   ///          descriptive text of the encountered error.
-  bool loadCode(uint64_t Address, const void *Data, size_t Size);
+  virtual bool loadCode(uint64_t Address,
+                        const void *Data,
+                        size_t Size);
 
   /// Execute code in the target process. The called function is required
   /// to be of signature int "(*)(void)".
@@ -70,26 +91,26 @@ public:
   ///                       process.
   /// @param[out] RetVal    The integer return value of the called function.
   ///
-  /// @returns False on success. On failure, ErrorMsg is updated with
+  /// @returns True on success. On failure, ErrorMsg is updated with
   ///          descriptive text of the encountered error.
-  bool executeCode(uint64_t Address, int &RetVal);
+  virtual bool executeCode(uint64_t Address,
+                           int &RetVal);
 
-  /// Minimum alignment for memory permissions. Used to seperate code and
+  /// Minimum alignment for memory permissions. Used to separate code and
   /// data regions to make sure data doesn't get marked as code or vice
   /// versa.
   ///
   /// @returns Page alignment return value. Default of 4k.
-  unsigned getPageAlignment() { return 4096; }
+  virtual unsigned getPageAlignment() { return 4096; }
 
   /// Start the remote process.
-  void create();
+  virtual bool create();
 
   /// Terminate the remote process.
-  void stop();
+  virtual void stop();
 
-  RemoteTarget() : ErrorMsg(""), IsRunning(false) {}
-  ~RemoteTarget() { if (IsRunning) stop(); }
-
+  RemoteTarget() : IsRunning(false), ErrorMsg("") {}
+  virtual ~RemoteTarget() { if (IsRunning) stop(); }
 private:
   // Main processing function for the remote target process. Command messages
   // are received on file descriptor CmdFD and responses come back on OutFD.

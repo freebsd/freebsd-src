@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #define	SP804_TIMER1_LOAD	0x00
 #define	SP804_TIMER1_VALUE	0x04
@@ -245,7 +244,7 @@ sp804_timer_attach(device_t dev)
 	 * Timer 1, timecounter
 	 */
 	sc->tc.tc_frequency = sc->sysclk_freq;
-	sc->tc.tc_name = "SP804 Time Counter";
+	sc->tc.tc_name = "SP804-1";
 	sc->tc.tc_get_timecount = sp804_timer_tc_get_timecount;
 	sc->tc.tc_poll_pps = NULL;
 	sc->tc.tc_counter_mask = ~0u;
@@ -264,9 +263,7 @@ sp804_timer_attach(device_t dev)
 	 * Timer 2, event timer
 	 */
 	sc->et_enabled = 0;
-	sc->et.et_name = malloc(64, M_DEVBUF, M_NOWAIT | M_ZERO);
-	sprintf(sc->et.et_name, "SP804 Event Timer %d",
-		device_get_unit(dev));
+	sc->et.et_name = "SP804-2";
 	sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT;
 	sc->et.et_quality = 1000;
 	sc->et.et_frequency = sc->sysclk_freq / DEFAULT_DIVISOR;

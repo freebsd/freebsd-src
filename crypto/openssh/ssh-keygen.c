@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.238 2013/12/06 13:39:49 markus Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.241 2014/02/05 20:13:25 naddy Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -267,7 +267,7 @@ load_identity(char *filename)
 			pass = read_passphrase("Enter passphrase: ",
 			    RP_ALLOW_STDIN);
 		prv = key_load_private(filename, pass, NULL);
-		memset(pass, 0, strlen(pass));
+		explicit_bzero(pass, strlen(pass));
 		free(pass);
 	}
 	return prv;
@@ -1258,7 +1258,7 @@ do_change_passphrase(struct passwd *pw)
 			    RP_ALLOW_STDIN);
 		private = key_load_private(identity_file, old_passphrase,
 		    &comment);
-		memset(old_passphrase, 0, strlen(old_passphrase));
+		explicit_bzero(old_passphrase, strlen(old_passphrase));
 		free(old_passphrase);
 		if (private == NULL) {
 			printf("Bad passphrase.\n");
@@ -1280,15 +1280,15 @@ do_change_passphrase(struct passwd *pw)
 
 		/* Verify that they are the same. */
 		if (strcmp(passphrase1, passphrase2) != 0) {
-			memset(passphrase1, 0, strlen(passphrase1));
-			memset(passphrase2, 0, strlen(passphrase2));
+			explicit_bzero(passphrase1, strlen(passphrase1));
+			explicit_bzero(passphrase2, strlen(passphrase2));
 			free(passphrase1);
 			free(passphrase2);
 			printf("Pass phrases do not match.  Try again.\n");
 			exit(1);
 		}
 		/* Destroy the other copy. */
-		memset(passphrase2, 0, strlen(passphrase2));
+		explicit_bzero(passphrase2, strlen(passphrase2));
 		free(passphrase2);
 	}
 
@@ -1296,14 +1296,14 @@ do_change_passphrase(struct passwd *pw)
 	if (!key_save_private(private, identity_file, passphrase1, comment,
 	    use_new_format, new_format_cipher, rounds)) {
 		printf("Saving the key failed: %s.\n", identity_file);
-		memset(passphrase1, 0, strlen(passphrase1));
+		explicit_bzero(passphrase1, strlen(passphrase1));
 		free(passphrase1);
 		key_free(private);
 		free(comment);
 		exit(1);
 	}
 	/* Destroy the passphrase and the copy of the key in memory. */
-	memset(passphrase1, 0, strlen(passphrase1));
+	explicit_bzero(passphrase1, strlen(passphrase1));
 	free(passphrase1);
 	key_free(private);		 /* Destroys contents */
 	free(comment);
@@ -1375,7 +1375,7 @@ do_change_comment(struct passwd *pw)
 		/* Try to load using the passphrase. */
 		private = key_load_private(identity_file, passphrase, &comment);
 		if (private == NULL) {
-			memset(passphrase, 0, strlen(passphrase));
+			explicit_bzero(passphrase, strlen(passphrase));
 			free(passphrase);
 			printf("Bad passphrase.\n");
 			exit(1);
@@ -1396,7 +1396,7 @@ do_change_comment(struct passwd *pw)
 		printf("Enter new comment: ");
 		fflush(stdout);
 		if (!fgets(new_comment, sizeof(new_comment), stdin)) {
-			memset(passphrase, 0, strlen(passphrase));
+			explicit_bzero(passphrase, strlen(passphrase));
 			key_free(private);
 			exit(1);
 		}
@@ -1407,13 +1407,13 @@ do_change_comment(struct passwd *pw)
 	if (!key_save_private(private, identity_file, passphrase, new_comment,
 	    use_new_format, new_format_cipher, rounds)) {
 		printf("Saving the key failed: %s.\n", identity_file);
-		memset(passphrase, 0, strlen(passphrase));
+		explicit_bzero(passphrase, strlen(passphrase));
 		free(passphrase);
 		key_free(private);
 		free(comment);
 		exit(1);
 	}
-	memset(passphrase, 0, strlen(passphrase));
+	explicit_bzero(passphrase, strlen(passphrase));
 	free(passphrase);
 	public = key_from_private(private);
 	key_free(private);
@@ -1716,7 +1716,7 @@ parse_absolute_time(const char *s)
 		fatal("Invalid certificate time format %s", s);
 	}
 
-	bzero(&tm, sizeof(tm));
+	memset(&tm, 0, sizeof(tm));
 	if (strptime(buf, fmt, &tm) == NULL)
 		fatal("Invalid certificate time %s", s);
 	if ((tt = mktime(&tm)) < 0)
@@ -2196,8 +2196,8 @@ usage(void)
 	fprintf(stderr, "  -v          Verbose.\n");
 	fprintf(stderr, "  -W gen      Generator to use for generating DH-GEX moduli.\n");
 	fprintf(stderr, "  -y          Read private key file and print public key.\n");
-	fprintf(stderr, "  -z serial   Specify a serial number.\n");
 	fprintf(stderr, "  -Z cipher   Specify a cipher for new private key format.\n");
+	fprintf(stderr, "  -z serial   Specify a serial number.\n");
 
 	exit(1);
 }
@@ -2632,15 +2632,15 @@ passphrase_again:
 			 * The passphrases do not match.  Clear them and
 			 * retry.
 			 */
-			memset(passphrase1, 0, strlen(passphrase1));
-			memset(passphrase2, 0, strlen(passphrase2));
+			explicit_bzero(passphrase1, strlen(passphrase1));
+			explicit_bzero(passphrase2, strlen(passphrase2));
 			free(passphrase1);
 			free(passphrase2);
 			printf("Passphrases do not match.  Try again.\n");
 			goto passphrase_again;
 		}
 		/* Clear the other copy of the passphrase. */
-		memset(passphrase2, 0, strlen(passphrase2));
+		explicit_bzero(passphrase2, strlen(passphrase2));
 		free(passphrase2);
 	}
 
@@ -2655,12 +2655,12 @@ passphrase_again:
 	if (!key_save_private(private, identity_file, passphrase1, comment,
 	    use_new_format, new_format_cipher, rounds)) {
 		printf("Saving the key failed: %s.\n", identity_file);
-		memset(passphrase1, 0, strlen(passphrase1));
+		explicit_bzero(passphrase1, strlen(passphrase1));
 		free(passphrase1);
 		exit(1);
 	}
 	/* Clear the passphrase. */
-	memset(passphrase1, 0, strlen(passphrase1));
+	explicit_bzero(passphrase1, strlen(passphrase1));
 	free(passphrase1);
 
 	/* Clear the private key and the random number generator. */

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2011
+.Dd June 11, 2015
 .Dt BWN 4
 .Os
 .Sh NAME
@@ -69,8 +69,12 @@ The
 port needs to be installed before
 .Xr ifconfig 8
 will work.
-Most cases you need to use bwn_v4_ucode module but if you are a
-LP (low power) PHY user please uses bwn_v4_lp_ucode module.
+In most cases the
+.Pa bwn_v4_ucode
+kernel module from the port should be used.
+However, if an LP (low power) PHY is being used, the
+.Pa bwn_v4_lp_ucode
+module should be used.
 .Sh HARDWARE
 The
 .Nm
@@ -146,8 +150,7 @@ driver first appeared in
 The
 .Nm
 driver was written by
-.An Weongyo Jeong
-.Aq weongyo@FreeBSD.org .
+.An Weongyo Jeong Aq Mt weongyo@FreeBSD.org .
 .\".Sh BUGS
 .\"Some card based on the BCM4306 and BCM4309 chips do not work properly
 .\"on channel 1, 2 and 3.

@@ -100,6 +100,7 @@ readcmd(int argc __unused, char **argv __unused)
 	int i;
 	int is_ifs;
 	int saveall = 0;
+	ptrdiff_t lastnonifs, lastnonifsws;
 	struct timeval tv;
 	char *tvptr;
 	fd_set ifds;
@@ -169,6 +170,7 @@ readcmd(int argc __unused, char **argv __unused)
 	startword = 2;
 	backslash = 0;
 	STARTSTACKSTR(p);
+	lastnonifs = lastnonifsws = -1;
 	for (;;) {
 		nread = read(STDIN_FILENO, &c, 1);
 		if (nread == -1) {
@@ -191,9 +193,11 @@ readcmd(int argc __unused, char **argv __unused)
 		CHECKSTRSPACE(1, p);
 		if (backslash) {
 			backslash = 0;
-			startword = 0;
-			if (c != '\n')
+			if (c != '\n') {
+				startword = 0;
+				lastnonifs = lastnonifsws = p - stackblock();
 				USTPUTC(c, p);
+			}
 			continue;
 		}
 		if (!rflag && c == '\\') {
@@ -217,8 +221,10 @@ readcmd(int argc __unused, char **argv __unused)
 			if (is_ifs == 2 && startword == 1) {
 				/* Only one non-whitespace IFS per word */
 				startword = 2;
-				if (saveall)
+				if (saveall) {
+					lastnonifsws = p - stackblock();
 					USTPUTC(c, p);
+				}
 				continue;
 			}
 		}
@@ -229,6 +235,7 @@ readcmd(int argc __unused, char **argv __unused)
 			if (saveall)
 				/* Not just a spare terminator */
 				saveall++;
+			lastnonifs = lastnonifsws = p - stackblock();
 			USTPUTC(c, p);
 			continue;
 		}
@@ -239,6 +246,8 @@ readcmd(int argc __unused, char **argv __unused)
 		if (ap[1] == NULL) {
 			/* Last variable needs all IFS chars */
 			saveall++;
+			if (is_ifs == 2)
+				lastnonifsws = p - stackblock();
 			USTPUTC(c, p);
 			continue;
 		}
@@ -247,25 +256,22 @@ readcmd(int argc __unused, char **argv __unused)
 		setvar(*ap, stackblock(), 0);
 		ap++;
 		STARTSTACKSTR(p);
+		lastnonifs = lastnonifsws = -1;
 	}
 	STACKSTRNUL(p);
 
-	/* Remove trailing IFS chars */
-	for (; stackblock() <= --p; *p = 0) {
-		if (!strchr(ifs, *p))
-			break;
-		if (strchr(" \t\n", *p))
-			/* Always remove whitespace */
-			continue;
-		if (saveall > 1)
-			/* Don't remove non-whitespace unless it was naked */
-			break;
-	}
+	/*
+	 * Remove trailing IFS chars: always remove whitespace, don't remove
+	 * non-whitespace unless it was naked
+	 */
+	if (saveall <= 1)
+		lastnonifsws = lastnonifs;
+	stackblock()[lastnonifsws + 1] = '\0';
 	setvar(*ap, stackblock(), 0);
 
 	/* Set any remaining args to "" */
 	while (*++ap != NULL)
-		setvar(*ap, nullstr, 0);
+		setvar(*ap, "", 0);
 	return status;
 }
 
@@ -411,13 +417,32 @@ static const struct limits limits[] = {
 	{ (char *) 0,		(char *)0,	0,		   0, '\0' }
 };
 
+enum limithow { SOFT = 0x1, HARD = 0x2 };
+
+static void
+printlimit(enum limithow how, const struct rlimit *limit,
+    const struct limits *l)
+{
+	rlim_t val = 0;
+
+	if (how & SOFT)
+		val = limit->rlim_cur;
+	else if (how & HARD)
+		val = limit->rlim_max;
+	if (val == RLIM_INFINITY)
+		out1str("unlimited\n");
+	else
+	{
+		val /= l->factor;
+		out1fmt("%jd\n", (intmax_t)val);
+	}
+}
+
 int
 ulimitcmd(int argc __unused, char **argv __unused)
 {
-	int	c;
 	rlim_t val = 0;
-	enum { SOFT = 0x1, HARD = 0x2 }
-			how = SOFT | HARD;
+	enum limithow how = SOFT | HARD;
 	const struct limits	*l;
 	int		set, all = 0;
 	int		optc, what;
@@ -453,17 +478,22 @@ ulimitcmd(int argc __unused, char **argv __unused)
 		if (strcmp(p, "unlimited") == 0)
 			val = RLIM_INFINITY;
 		else {
-			val = 0;
+			char *end;
+			uintmax_t uval;
 
-			while ((c = *p++) >= '0' && c <= '9')
-			{
-				val = (val * 10) + (long)(c - '0');
-				if (val < 0)
-					break;
-			}
-			if (c)
+			if (*p < '0' || *p > '9')
 				error("bad number");
-			val *= l->factor;
+			errno = 0;
+			uval = strtoumax(p, &end, 10);
+			if (errno != 0 || *end != '\0')
+				error("bad number");
+			if (uval > UINTMAX_MAX / l->factor)
+				error("bad number");
+			uval *= l->factor;
+			val = (rlim_t)uval;
+			if (val < 0 || (uintmax_t)val != uval ||
+			    val == RLIM_INFINITY)
+				error("bad number");
 		}
 	}
 	if (all) {
@@ -471,10 +501,6 @@ ulimitcmd(int argc __unused, char **argv __unused)
 			char optbuf[40];
 			if (getrlimit(l->cmd, &limit) < 0)
 				error("can't get limit: %s", strerror(errno));
-			if (how & SOFT)
-				val = limit.rlim_cur;
-			else if (how & HARD)
-				val = limit.rlim_max;
 
 			if (l->units)
 				snprintf(optbuf, sizeof(optbuf),
@@ -483,13 +509,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 				snprintf(optbuf, sizeof(optbuf),
 					"(-%c) ", l->option);
 			out1fmt("%-18s %18s ", l->name, optbuf);
-			if (val == RLIM_INFINITY)
-				out1str("unlimited\n");
-			else
-			{
-				val /= l->factor;
-				out1fmt("%jd\n", (intmax_t)val);
-			}
+			printlimit(how, &limit, l);
 		}
 		return 0;
 	}
@@ -503,19 +523,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 			limit.rlim_max = val;
 		if (setrlimit(l->cmd, &limit) < 0)
 			error("bad limit: %s", strerror(errno));
-	} else {
-		if (how & SOFT)
-			val = limit.rlim_cur;
-		else if (how & HARD)
-			val = limit.rlim_max;
-
-		if (val == RLIM_INFINITY)
-			out1str("unlimited\n");
-		else
-		{
-			val /= l->factor;
-			out1fmt("%jd\n", (intmax_t)val);
-		}
-	}
+	} else
+		printlimit(how, &limit, l);
 	return 0;
 }

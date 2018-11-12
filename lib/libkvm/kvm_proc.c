@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/conf.h>
+#define	_WANT_KW_EXITCODE
+#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -389,7 +391,7 @@ nopgrp:
 		kp->ki_siglist = proc.p_siglist;
 		SIGSETOR(kp->ki_siglist, mtd.td_siglist);
 		kp->ki_sigmask = mtd.td_sigmask;
-		kp->ki_xstat = proc.p_xstat;
+		kp->ki_xstat = KW_EXITCODE(proc.p_xexit, proc.p_xsig);
 		kp->ki_acflag = proc.p_acflag;
 		kp->ki_lock = proc.p_lock;
 		if (proc.p_state != PRS_ZOMBIE) {
@@ -431,6 +433,24 @@ nopgrp:
 				strlcpy(kp->ki_tdname, mtd.td_name, sizeof(kp->ki_tdname));
 			kp->ki_pctcpu = 0;
 			kp->ki_rqindex = 0;
+
+			/*
+			 * Note: legacy fields; wraps at NO_CPU_OLD or the
+			 * old max CPU value as appropriate
+			 */
+			if (mtd.td_lastcpu == NOCPU)
+				kp->ki_lastcpu_old = NOCPU_OLD;
+			else if (mtd.td_lastcpu > MAXCPU_OLD)
+				kp->ki_lastcpu_old = MAXCPU_OLD;
+			else
+				kp->ki_lastcpu_old = mtd.td_lastcpu;
+
+			if (mtd.td_oncpu == NOCPU)
+				kp->ki_oncpu_old = NOCPU_OLD;
+			else if (mtd.td_oncpu > MAXCPU_OLD)
+				kp->ki_oncpu_old = MAXCPU_OLD;
+			else
+				kp->ki_oncpu_old = mtd.td_oncpu;
 		} else {
 			kp->ki_stat = SZOMB;
 		}

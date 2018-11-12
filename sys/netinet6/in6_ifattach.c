@@ -39,7 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
+#include <sys/rmlock.h>
 #include <sys/syslog.h>
 #include <sys/md5.h>
 
@@ -266,7 +268,7 @@ found:
 	addrlen = sdl->sdl_alen;
 
 	/* get EUI64 */
-	switch (ifp->if_type) {
+	switch (if_type(ifp)) {
 	case IFT_BRIDGE:
 	case IFT_ETHER:
 	case IFT_L2VLAN:
@@ -274,9 +276,7 @@ found:
 	case IFT_ISO88025:
 	case IFT_ATM:
 	case IFT_IEEE1394:
-#ifdef IFT_IEEE80211
 	case IFT_IEEE80211:
-#endif
 		/* IEEE802/EUI64 cases - what others? */
 		/* IEEE1394 uses 16byte length address starting with EUI64 */
 		if (addrlen > 8)
@@ -338,9 +338,7 @@ found:
 		break;
 
 	case IFT_GIF:
-#ifdef IFT_STF
 	case IFT_STF:
-#endif
 		/*
 		 * RFC2893 says: "SHOULD use IPv4 address as ifid source".
 		 * however, IPv4 address is not very suitable as unique
@@ -407,7 +405,7 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 
 	/* next, try to get it from some other hardware interface */
 	IFNET_RLOCK_NOSLEEP();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp == ifp0)
 			continue;
 		if (in6_get_hw_ifid(ifp, in6) != 0)
@@ -568,9 +566,6 @@ in6_ifattach_loopback(struct ifnet *ifp)
 	ifra.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
 	ifra.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
 
-	/* we don't need to perform DAD on loopback interfaces. */
-	ifra.ifra_flags |= IN6_IFF_NODAD;
-
 	/* skip registration to the prefix list. XXX should be temporary. */
 	ifra.ifra_flags |= IN6_IFF_NOPFX;
 
@@ -702,7 +697,7 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	/*
 	 * quirks based on interface type
 	 */
-	switch (ifp->if_type) {
+	switch (if_type(ifp)) {
 	case IFT_STF:
 		/*
 		 * 6to4 interface is a very special kind of beast.
@@ -775,12 +770,7 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 void
 in6_ifdetach(struct ifnet *ifp)
 {
-	struct in6_ifaddr *ia;
 	struct ifaddr *ifa, *next;
-	struct radix_node_head *rnh;
-	struct rtentry *rt;
-	struct sockaddr_in6 sin6;
-	struct in6_multi_mship *imm;
 
 	if (ifp->if_afdata[AF_INET6] == NULL)
 		return;
@@ -788,47 +778,17 @@ in6_ifdetach(struct ifnet *ifp)
 	/* remove neighbor management table */
 	nd6_purge(ifp);
 
-	/* nuke any of IPv6 addresses we have */
+	/*
+	 * nuke any of IPv6 addresses we have
+	 * XXX: all addresses should be already removed
+	 */
 	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		in6_purgeaddr(ifa);
 	}
-
-	/* undo everything done by in6_ifattach(), just in case */
-	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
-		if (ifa->ifa_addr->sa_family != AF_INET6
-		 || !IN6_IS_ADDR_LINKLOCAL(&satosin6(&ifa->ifa_addr)->sin6_addr)) {
-			continue;
-		}
-
-		ia = (struct in6_ifaddr *)ifa;
-
-		/*
-		 * leave from multicast groups we have joined for the interface
-		 */
-		while ((imm = LIST_FIRST(&ia->ia6_memberships)) != NULL) {
-			LIST_REMOVE(imm, i6mm_chain);
-			in6_leavegroup(imm);
-		}
-
-		/* Remove link-local from the routing table. */
-		if (ia->ia_flags & IFA_ROUTE)
-			(void)rtinit(&ia->ia_ifa, RTM_DELETE, ia->ia_flags);
-
-		/* remove from the linked list */
-		IF_ADDR_WLOCK(ifp);
-		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-		IF_ADDR_WUNLOCK(ifp);
-		ifa_free(ifa);				/* if_addrhead */
-
-		IN6_IFADDR_WLOCK();
-		TAILQ_REMOVE(&V_in6_ifaddrhead, ia, ia_link);
-		IN6_IFADDR_WUNLOCK();
-		ifa_free(ifa);
-	}
-
 	in6_pcbpurgeif0(&V_udbinfo, ifp);
+	in6_pcbpurgeif0(&V_ulitecbinfo, ifp);
 	in6_pcbpurgeif0(&V_ripcbinfo, ifp);
 	/* leave from all multicast groups joined */
 	in6_purgemaddrs(ifp);
@@ -842,31 +802,6 @@ in6_ifdetach(struct ifnet *ifp)
 	 * (Or can we just delay calling nd6_purge until at this point?)
 	 */
 	nd6_purge(ifp);
-
-	/*
-	 * Remove route to link-local allnodes multicast (ff02::1).
-	 * These only get automatically installed for the default FIB.
-	 */
-	bzero(&sin6, sizeof(sin6));
-	sin6.sin6_len = sizeof(struct sockaddr_in6);
-	sin6.sin6_family = AF_INET6;
-	sin6.sin6_addr = in6addr_linklocal_allnodes;
-	if (in6_setscope(&sin6.sin6_addr, ifp, NULL))
-		/* XXX: should not fail */
-		return;
-	/* XXX grab lock first to avoid LOR */
-	rnh = rt_tables_get_rnh(RT_DEFAULT_FIB, AF_INET6);
-	if (rnh != NULL) {
-		RADIX_NODE_HEAD_LOCK(rnh);
-		rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, RTF_RNH_LOCKED,
-		    RT_DEFAULT_FIB);
-		if (rt) {
-			if (rt->rt_ifp == ifp)
-				rtexpunge(rt);
-			RTFREE_LOCKED(rt);
-		}
-		RADIX_NODE_HEAD_UNLOCK(rnh);
-	}
 }
 
 int
@@ -907,7 +842,7 @@ in6_tmpaddrtimer(void *arg)
 	    V_ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, curvnet);
 
 	bzero(nullbuf, sizeof(nullbuf));
-	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_afdata[AF_INET6] == NULL)
 			continue;
 		ndi = ND_IFINFO(ifp);

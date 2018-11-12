@@ -148,9 +148,9 @@ wakeup_32:
 	mov	$bootdata32 - bootgdt, %eax
 	mov	%ax, %ds
 
-	/* Turn on the PAE and PSE bits for when paging is enabled */
+	/* Turn on the PAE bit for when paging is enabled */
 	mov	%cr4, %eax
-	orl	$(CR4_PAE | CR4_PSE), %eax
+	orl	$CR4_PAE, %eax
 	mov	%eax, %cr4
 
 	/*

@@ -32,15 +32,15 @@
 #ifndef _NPESTATS_H_
 #define	_NPESTATS_H_
 
-#include "statfoo.h"
+#include "bsdstat.h"
 
 /*
  * npe statistics class.
  */
 struct npestatfoo {
-	struct statfoo base;
+	struct bsdstat base;
 
-	STATFOO_DECL_METHODS(struct npestatfoo *);
+	BSDSTAT_DECL_METHODS(struct npestatfoo *);
 
 	/* set the network interface name for collection */
 	void (*setifname)(struct npestatfoo *, const char *ifname);

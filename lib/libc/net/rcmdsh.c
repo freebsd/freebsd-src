@@ -1,4 +1,4 @@
-/*	$OpenBSD: rcmdsh.c,v 1.5 1998/04/25 16:23:58 millert Exp $	*/
+/*	$OpenBSD: rcmdsh.c,v 1.7 2002/03/12 00:05:44 millert Exp $	*/
 
 /*
  * Copyright (c) 2001, MagniComp
@@ -49,23 +49,18 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#ifndef _PATH_RSH
-#define	_PATH_RSH	"/usr/bin/rsh"
-#endif
-
 /*
  * This is a replacement rcmd() function that uses the rsh(1)
  * program in place of a direct rcmd(3) function call so as to
  * avoid having to be root.  Note that rport is ignored.
  */
 int
-rcmdsh(ahost, rport, locuser, remuser, cmd, rshprog)
-	char **ahost;
-	int rport;
-	const char *locuser, *remuser, *cmd, *rshprog;
+rcmdsh(char **ahost, int rport, const char *locuser, const char *remuser,
+    const char *cmd, const char *rshprog)
 {
 	struct addrinfo hints, *res;
-	int cpid, sp[2], error;
+	int sp[2], error;
+	pid_t cpid;
 	char *p;
 	struct passwd *pw;
 	char num[8];

@@ -18,6 +18,7 @@
 #include "lldb/Breakpoint/BreakpointID.h"
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Core/Stream.h"
+#include "lldb/Core/Error.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -71,7 +72,7 @@ void
 BreakpointID::GetDescription (Stream *s, lldb::DescriptionLevel level)
 {
     if (level == eDescriptionLevelVerbose)
-        s->Printf("%p BreakpointID:", this);
+        s->Printf("%p BreakpointID:", static_cast<void*>(this));
 
     if (m_break_id == LLDB_INVALID_BREAK_ID)
         s->PutCString ("<invalid>");
@@ -121,3 +122,19 @@ BreakpointID::ParseCanonicalReference (const char *input, break_id_t *break_id_p
     return false;
 }
 
+bool
+BreakpointID::StringIsBreakpointName(const char *name, Error &error)
+{
+    error.Clear();
+
+    if (name && (name[0] >= 'A' && name[0] <= 'z'))
+    {
+        if (strcspn(name, ".- ") != strlen(name))
+        {
+            error.SetErrorStringWithFormat("invalid breakpoint name: \"%s\"", name);
+        }
+        return true;
+    }
+    else
+        return false;
+}

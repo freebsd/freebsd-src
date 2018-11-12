@@ -74,7 +74,6 @@ struct vtnet_rxq {
 	struct virtqueue	*vtnrx_vq;
 	struct sglist		*vtnrx_sg;
 	int			 vtnrx_id;
-	int			 vtnrx_process_limit;
 	struct vtnet_rxq_stats	 vtnrx_stats;
 	struct taskqueue	*vtnrx_tq;
 	struct task		 vtnrx_intrtask;
@@ -126,10 +125,12 @@ struct vtnet_txq {
 
 struct vtnet_softc {
 	device_t		 vtnet_dev;
-	struct ifnet		*vtnet_ifp;
+	if_t			 vtnet_ifp;
 	struct vtnet_rxq	*vtnet_rxqs;
 	struct vtnet_txq	*vtnet_txqs;
 
+	uint64_t		 vtnet_hwassist;
+	uint32_t		 vtnet_capenable;
 	uint32_t		 vtnet_flags;
 #define VTNET_FLAG_SUSPENDED	 0x0001
 #define VTNET_FLAG_MAC		 0x0002
@@ -141,7 +142,9 @@ struct vtnet_softc {
 #define VTNET_FLAG_MRG_RXBUFS	 0x0080
 #define VTNET_FLAG_LRO_NOMRG	 0x0100
 #define VTNET_FLAG_MULTIQ	 0x0200
-#define VTNET_FLAG_EVENT_IDX	 0x0400
+#define VTNET_FLAG_INDIRECT	 0x0400
+#define VTNET_FLAG_EVENT_IDX	 0x0800
+#define	VTNET_FLAG_RUNNING	 0x1000
 
 	int			 vtnet_link_active;
 	int			 vtnet_hdr_size;
@@ -150,6 +153,7 @@ struct vtnet_softc {
 	int			 vtnet_rx_nmbufs;
 	int			 vtnet_rx_clsize;
 	int			 vtnet_rx_new_clsize;
+	int			 vtnet_tx_intr_thresh;
 	int			 vtnet_tx_nsegs;
 	int			 vtnet_if_flags;
 	int			 vtnet_act_vq_pairs;
@@ -162,7 +166,6 @@ struct vtnet_softc {
 	uint64_t		 vtnet_features;
 	struct vtnet_statistics	 vtnet_stats;
 	struct callout		 vtnet_tick_ch;
-	struct ifmedia		 vtnet_media;
 	eventhandler_tag	 vtnet_vlan_attach;
 	eventhandler_tag	 vtnet_vlan_detach;
 
@@ -182,6 +185,14 @@ struct vtnet_softc {
  * taskqueue to process the completed entries.
  */
 #define VTNET_INTR_DISABLE_RETRIES	4
+
+/*
+ * Similarly, additional completed entries can appear in a virtqueue
+ * between when lasted checked and before notifying the host. Number
+ * of times to retry before scheduling the taskqueue to process the
+ * queue.
+ */
+#define VTNET_NOTIFY_RETRIES		4
 
 /*
  * Fake the media type. The host does not provide us with any real media

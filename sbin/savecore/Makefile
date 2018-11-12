@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	savecore
-DPADD=	${LIBZ}
-LDADD=	-lz
+LIBADD=	z xo util
 MAN=	savecore.8
 
 .include <bsd.prog.mk>

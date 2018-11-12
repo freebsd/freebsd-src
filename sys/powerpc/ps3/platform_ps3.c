@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/spr.h>
 #include <machine/vmparam.h>
 
+#include <dev/ofw/openfirm.h>
+
 #include "platform_if.h"
 #include "ps3-hvcall.h"
 
@@ -103,21 +105,22 @@ PLATFORM_DEF(ps3_platform);
 static int
 ps3_probe(platform_t plat)
 {
+	phandle_t root;
+	char compatible[64];
 
-	return (BUS_PROBE_NOWILDCARD);
+	root = OF_finddevice("/");
+	if (OF_getprop(root, "compatible", compatible, sizeof(compatible)) <= 0)
+                return (BUS_PROBE_NOWILDCARD);
+	
+	if (strncmp(compatible, "sony,ps3", sizeof(compatible)) != 0)
+		return (BUS_PROBE_NOWILDCARD);
+
+	return (BUS_PROBE_SPECIFIC);
 }
 
 static int
 ps3_attach(platform_t plat)
 {
-	uint64_t junk;
-	int count;
-	struct mem_region avail_regions[2];
-
-	ps3_mem_regions(plat, NULL, NULL, avail_regions, &count);
-
-	lv1_allocate_memory(avail_regions[1].mr_size, 24 /* 16 MB pages */,
-	    0, 0x04 /* any address */, &avail_regions[1].mr_start, &junk);
 
 	pmap_mmu_install("mmu_ps3", BUS_PROBE_SPECIFIC);
 	cpu_idle_hook = ps3_cpu_idle;
@@ -152,6 +155,11 @@ ps3_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 	/* Convert to maximum amount we can allocate in 16 MB pages */
 	avail_regions[1].mr_size -= avail_regions[0].mr_size;
 	avail_regions[1].mr_size -= avail_regions[1].mr_size % (16*1024*1024);
+
+	/* Allocate extended memory region */
+	lv1_allocate_memory(avail_regions[1].mr_size, 24 /* 16 MB pages */,
+	    0, 0x04 /* any address */, &avail_regions[1].mr_start, &junk);
+
 	*availsz = 2;
 
 	if (phys != NULL) {

@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_lineno.c 2074 2011-10-27 03:34:33Z jkoshy $");
+ELFTC_VCSID("$Id: dwarf_lineno.c 2983 2014-02-09 00:24:31Z kaiwang27 $");
 
 int
 dwarf_srclines(Dwarf_Die die, Dwarf_Line **linebuf, Dwarf_Signed *linecount,
@@ -75,8 +75,8 @@ dwarf_srclines(Dwarf_Die die, Dwarf_Line **linebuf, Dwarf_Signed *linecount,
 		return (DW_DLV_OK);
 	}
 
-	if ((li->li_lnarray = malloc(*linecount *
-	    sizeof(struct _Dwarf_Line))) == NULL) {
+	if ((li->li_lnarray = malloc(*linecount * sizeof(Dwarf_Line))) ==
+	    NULL) {
 		DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
 		return (DW_DLV_ERROR);
 	}

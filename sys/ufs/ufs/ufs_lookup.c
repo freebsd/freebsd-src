@@ -550,7 +550,7 @@ notfound:
 	/*
 	 * Insert name into cache (as non-existent) if appropriate.
 	 */
-	if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
+	if ((cnp->cn_flags & MAKEENTRY) != 0)
 		cache_enter(vdp, NULL, cnp);
 	return (ENOENT);
 
@@ -1130,12 +1130,15 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 	    dp->i_endoff && dp->i_endoff < dp->i_size) {
 		if (tvp != NULL)
 			VOP_UNLOCK(tvp, 0);
+		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
+		    IO_NORMAL | IO_SYNC, cr);
+		if (error != 0)
+			vprint("ufs_direnter: failted to truncate", dvp);
 #ifdef UFS_DIRHASH
-		if (dp->i_dirhash != NULL)
+		if (error == 0 && dp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(dp, dp->i_endoff);
 #endif
-		(void) UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
-		    IO_NORMAL | IO_SYNC, cr);
+		error = 0;
 		if (tvp != NULL)
 			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
 	}
@@ -1472,7 +1475,8 @@ ufs_checkpath(ino_t source_ino, ino_t parent_ino, struct inode *target, struct u
 			}
 		}
 		KASSERT(dd_ino == VTOI(vp1)->i_number,
-		    ("directory %d reparented\n", VTOI(vp1)->i_number));
+		    ("directory %ju reparented\n",
+		    (uintmax_t)VTOI(vp1)->i_number));
 		if (vp != tvp)
 			vput(vp);
 		vp = vp1;

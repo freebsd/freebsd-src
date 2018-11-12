@@ -1,4 +1,4 @@
-//===-- PlatformFreeBSD.h -----------------------------------------*- C++ -*-===//
+//===-- PlatformFreeBSD.h ---------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -24,7 +24,7 @@ public:
     //------------------------------------------------------------
     // Class functions
     //------------------------------------------------------------
-    static lldb_private::Platform*
+    static lldb::PlatformSP
     CreateInstance (bool force, const lldb_private::ArchSpec *arch);
 
     static void
@@ -80,8 +80,7 @@ public:
                      uint32_t timeout_sec);
 
     virtual lldb_private::Error
-    ResolveExecutable (const lldb_private::FileSpec &exe_file,
-                       const lldb_private::ArchSpec &arch,
+    ResolveExecutable (const lldb_private::ModuleSpec &module_spec,
                        lldb::ModuleSP &module_sp,
                        const lldb_private::FileSpecList *module_search_paths_ptr);
 
@@ -135,7 +134,6 @@ public:
     Attach(lldb_private::ProcessAttachInfo &attach_info,
            lldb_private::Debugger &debugger,
            lldb_private::Target *target,
-           lldb_private::Listener &listener,
            lldb_private::Error &error);
 
     // FreeBSD processes can not be launched by spawning and attaching.
@@ -144,8 +142,8 @@ public:
 
     // Only on PlatformMacOSX:
     virtual lldb_private::Error
-    GetFile (const lldb_private::FileSpec &platform_file,
-             const lldb_private::UUID* uuid, lldb_private::FileSpec &local_file);
+    GetFileWithUUID (const lldb_private::FileSpec &platform_file,
+                     const lldb_private::UUID* uuid, lldb_private::FileSpec &local_file);
 
     lldb_private::Error
     GetSharedModule (const lldb_private::ModuleSpec &module_spec,
@@ -159,6 +157,9 @@ public:
 
     virtual void
     GetStatus (lldb_private::Stream &strm);
+
+    virtual void
+    CalculateTrapHandlerSymbolNames ();
 
 protected:
     lldb::PlatformSP m_remote_platform_sp; // Allow multiple ways to connect to a remote freebsd OS

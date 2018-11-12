@@ -4,6 +4,9 @@
 /* Directory to chroot to */
 #define CHROOT_DIR "/var/unbound"
 
+/* Do sha512 definitions in config.h */
+/* #undef COMPAT_SHA512 */
+
 /* Pathname to the Unbound configuration file */
 #define CONFIGFILE "/var/unbound/unbound.conf"
 
@@ -14,6 +17,9 @@
 /* Whether daemon is deprecated */
 /* #undef DEPRECATED_DAEMON */
 
+/* default dnstap socket path */
+/* #undef DNSTAP_SOCKET_PATH */
+
 /* Define if you want to use debug lock checking (slow). */
 /* #undef ENABLE_LOCK_CHECKS */
 
@@ -21,6 +27,12 @@
    it for smaller install size, but the libunbound export table is polluted by
    internal symbols */
 /* #undef EXPORT_ALL_SYMBOLS */
+
+/* Define to 1 if you have the `arc4random' function. */
+#define HAVE_ARC4RANDOM 1
+
+/* Define to 1 if you have the `arc4random_uniform' function. */
+#define HAVE_ARC4RANDOM_UNIFORM 1
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #define HAVE_ARPA_INET_H 1
@@ -31,7 +43,7 @@
 /* Whether the C compiler accepts the "unused" attribute */
 #define HAVE_ATTR_UNUSED 1
 
-/* Define to 1 if your system has a working `chown' function. */
+/* Define to 1 if you have the `chown' function. */
 #define HAVE_CHOWN 1
 
 /* Define to 1 if you have the `chroot' function. */
@@ -42,6 +54,14 @@
 
 /* Define to 1 if you have the `daemon' function. */
 #define HAVE_DAEMON 1
+
+/* Define to 1 if you have the declaration of `arc4random', and to 0 if you
+   don't. */
+/* #undef HAVE_DECL_ARC4RANDOM */
+
+/* Define to 1 if you have the declaration of `arc4random_uniform', and to 0
+   if you don't. */
+/* #undef HAVE_DECL_ARC4RANDOM_UNIFORM */
 
 /* Define to 1 if you have the declaration of `NID_secp384r1', and to 0 if you
    don't. */
@@ -59,8 +79,25 @@
    `SSL_COMP_get_compression_methods', and to 0 if you don't. */
 #define HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS 1
 
+/* Define to 1 if you have the declaration of `strlcat', and to 0 if you
+   don't. */
+/* #undef HAVE_DECL_STRLCAT */
+
+/* Define to 1 if you have the declaration of `strlcpy', and to 0 if you
+   don't. */
+/* #undef HAVE_DECL_STRLCPY */
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
+
+/* Define to 1 if you have the <endian.h> header file. */
+/* #undef HAVE_ENDIAN_H */
+
+/* Define to 1 if you have the `endprotoent' function. */
+#define HAVE_ENDPROTOENT 1
+
+/* Define to 1 if you have the `endservent' function. */
+#define HAVE_ENDSERVENT 1
 
 /* Define to 1 if you have the `event_base_free' function. */
 /* #undef HAVE_EVENT_BASE_FREE */
@@ -110,6 +147,12 @@
 /* Whether getaddrinfo is available */
 #define HAVE_GETADDRINFO 1
 
+/* Define to 1 if you have the `getauxval' function. */
+/* #undef HAVE_GETAUXVAL */
+
+/* Define to 1 if you have the `getentropy' function. */
+/* #undef HAVE_GETENTROPY */
+
 /* Define to 1 if you have the <getopt.h> header file. */
 #define HAVE_GETOPT_H 1
 
@@ -158,14 +201,8 @@
 /* Define to 1 if you have the `kill' function. */
 #define HAVE_KILL 1
 
-/* Define to 1 if you have the `ldns_key_EVP_unload_gost' function. */
-/* #undef HAVE_LDNS_KEY_EVP_UNLOAD_GOST */
-
-/* Define to 1 if you have the <ldns/ldns.h> header file. */
-#define HAVE_LDNS_LDNS_H 1
-
-/* Define to 1 if you have the `ldns' library (-lldns). */
-#define HAVE_LIBLDNS 1
+/* Define if we have LibreSSL */
+/* #undef HAVE_LIBRESSL */
 
 /* Define to 1 if you have the `localtime_r' function. */
 #define HAVE_LOCALTIME_R 1
@@ -212,6 +249,9 @@
 /* Define if you have POSIX threads libraries and header files. */
 #define HAVE_PTHREAD 1
 
+/* Have PTHREAD_PRIO_INHERIT. */
+#define HAVE_PTHREAD_PRIO_INHERIT 1
+
 /* Define to 1 if the system has the type `pthread_rwlock_t'. */
 #define HAVE_PTHREAD_RWLOCK_T 1
 
@@ -231,7 +271,7 @@
 #define HAVE_RECVMSG 1
 
 /* Define to 1 if you have the `sbrk' function. */
-#define HAVE_SBRK 1
+/* #undef HAVE_SBRK */
 
 /* Define to 1 if you have the `sendmsg' function. */
 #define HAVE_SENDMSG 1
@@ -256,6 +296,9 @@
 
 /* Define to 1 if you have the `setusercontext' function. */
 #define HAVE_SETUSERCONTEXT 1
+
+/* Define to 1 if you have the `SHA512_Update' function. */
+/* #undef HAVE_SHA512_UPDATE */
 
 /* Define to 1 if you have the `sigprocmask' function. */
 #define HAVE_SIGPROCMASK 1
@@ -299,6 +342,9 @@
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
+/* Define to 1 if you have the `strlcat' function. */
+#define HAVE_STRLCAT 1
+
 /* Define to 1 if you have the `strlcpy' function. */
 #define HAVE_STRLCPY 1
 
@@ -307,6 +353,9 @@
 
 /* Define to 1 if `ipi_spec_dst' is a member of `struct in_pktinfo'. */
 /* #undef HAVE_STRUCT_IN_PKTINFO_IPI_SPEC_DST */
+
+/* Define to 1 if `sun_len' is a member of `struct sockaddr_un'. */
+#define HAVE_STRUCT_SOCKADDR_UN_SUN_LEN 1
 
 /* Define if you have Swig libraries and header files. */
 /* #undef HAVE_SWIG */
@@ -320,17 +369,26 @@
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #define HAVE_SYS_RESOURCE_H 1
 
+/* Define to 1 if you have the <sys/sha2.h> header file. */
+/* #undef HAVE_SYS_SHA2_H */
+
 /* Define to 1 if you have the <sys/socket.h> header file. */
 #define HAVE_SYS_SOCKET_H 1
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
 
+/* Define to 1 if you have the <sys/sysctl.h> header file. */
+/* #undef HAVE_SYS_SYSCTL_H */
+
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
 /* Define to 1 if you have the <sys/uio.h> header file. */
 #define HAVE_SYS_UIO_H 1
+
+/* Define to 1 if you have the <sys/un.h> header file. */
+#define HAVE_SYS_UN_H 1
 
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #define HAVE_SYS_WAIT_H 1
@@ -428,7 +486,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.4.20"
+#define PACKAGE_STRING "unbound 1.5.3"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -437,7 +495,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.4.20"
+#define PACKAGE_VERSION "1.5.3"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -456,13 +514,16 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,4,2,0
+#define RSRC_PACKAGE_VERSION 1,5,3,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
 
 /* Shared data */
 #define SHARE_DIR "/var/unbound"
+
+/* The size of `time_t', as computed by sizeof. */
+#define SIZEOF_TIME_T 8
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -487,6 +548,9 @@
 
 /* define this to enable debug checks. */
 /* #undef UNBOUND_DEBUG */
+
+/* Define to 1 to enable dnstap support */
+/* #undef USE_DNSTAP */
 
 /* Define this to enable ECDSA support. */
 #define USE_ECDSA 1
@@ -557,6 +621,9 @@
 
 /* Define to 1 if on MINIX. */
 /* #undef _MINIX */
+
+/* Enable for compile on Minix */
+/* #undef _NETBSD_SOURCE */
 
 /* Define to 2 if the system does not provide POSIX.1 features except with
    this defined. */
@@ -676,6 +743,12 @@
 #  define NDEBUG
 #endif
 
+/** Use small-ldns codebase */
+#define USE_SLDNS 1
+#ifdef HAVE_SSL
+#  define LDNS_BUILD_CONFIG_HAVE_SSL 1
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -684,6 +757,10 @@
 #if STDC_HEADERS
 #include <stdlib.h>
 #include <stddef.h>
+#endif
+
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
 #endif
 
 #ifdef HAVE_STDINT_H
@@ -718,6 +795,16 @@
 
 #ifdef HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
+#endif
+
+#ifndef USE_WINSOCK
+#define ARG_LL "%ll"
+#else
+#define ARG_LL "%I64"
+#endif
+
+#ifndef AF_LOCAL
+#define AF_LOCAL AF_UNIX
 #endif
 
 
@@ -785,6 +872,12 @@ void *memmove(void *dest, const void *src, size_t n);
 #endif
 
 
+#ifndef HAVE_STRLCAT
+#define strlcat strlcat_unbound
+size_t strlcat(char *dst, const char *src, size_t siz);
+#endif
+
+
 #ifndef HAVE_STRLCPY
 #define strlcpy strlcpy_unbound
 size_t strlcpy(char *dst, const char *src, size_t siz);
@@ -797,7 +890,7 @@ struct tm *gmtime_r(const time_t *timep, struct tm *result);
 #endif
 
 
-#ifndef HAVE_SLEEP
+#if !defined(HAVE_SLEEP) || defined(HAVE_WINDOWS_H)
 #define sleep(x) Sleep((x)*1000) /* on win32 */
 #endif /* HAVE_SLEEP */
 
@@ -849,6 +942,50 @@ struct tm;
 char *strptime(const char *s, const char *format, struct tm *tm);
 #endif
 
+#ifdef HAVE_LIBRESSL
+#  if !HAVE_DECL_STRLCPY
+size_t strlcpy(char *dst, const char *src, size_t siz);
+#  endif
+#  if !HAVE_DECL_STRLCAT
+size_t strlcat(char *dst, const char *src, size_t siz);
+#  endif
+#  if !HAVE_DECL_ARC4RANDOM && defined(HAVE_ARC4RANDOM)
+uint32_t arc4random(void);
+#  endif
+#  if !HAVE_DECL_ARC4RANDOM_UNIFORM && defined(HAVE_ARC4RANDOM_UNIFORM)
+uint32_t arc4random_uniform(uint32_t upper_bound);
+#  endif
+#endif /* HAVE_LIBRESSL */
+#ifndef HAVE_ARC4RANDOM
+void explicit_bzero(void* buf, size_t len);
+int getentropy(void* buf, size_t len);
+uint32_t arc4random(void);
+void arc4random_buf(void* buf, size_t n);
+void _ARC4_LOCK(void);
+void _ARC4_UNLOCK(void);
+#endif
+#ifndef HAVE_ARC4RANDOM_UNIFORM
+uint32_t arc4random_uniform(uint32_t upper_bound);
+#endif
+#ifdef COMPAT_SHA512
+#ifndef SHA512_DIGEST_LENGTH
+#define SHA512_BLOCK_LENGTH		128
+#define SHA512_DIGEST_LENGTH		64
+#define SHA512_DIGEST_STRING_LENGTH	(SHA512_DIGEST_LENGTH * 2 + 1)
+typedef struct _SHA512_CTX {
+	uint64_t	state[8];
+	uint64_t	bitcount[2];
+	uint8_t	buffer[SHA512_BLOCK_LENGTH];
+} SHA512_CTX;
+#endif /* SHA512_DIGEST_LENGTH */
+void SHA512_Init(SHA512_CTX*);
+void SHA512_Update(SHA512_CTX*, void*, size_t);
+void SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
+unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
+#endif /* COMPAT_SHA512 */
+
+
+
 #if defined(HAVE_EVENT_H) && !defined(HAVE_EVENT_BASE_ONCE) && !(defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP)) && (defined(HAVE_PTHREAD) || defined(HAVE_SOLARIS_THREADS))
    /* using version of libevent that is not threadsafe. */
 #  define LIBEVENT_SIGNAL_PROBLEM 1
@@ -863,8 +1000,6 @@ char *strptime(const char *s, const char *format, struct tm *tm);
 #  endif
 #endif /* CHECKED_INET6 */
 
-/* maximum nesting of included files */
-#define MAXINCLUDES 10
 #ifndef HAVE_GETADDRINFO
 struct sockaddr_storage;
 #include "compat/fake-rfc2553.h"

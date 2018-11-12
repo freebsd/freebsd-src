@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 
@@ -63,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
 
-#define PCCARD_API_LEVEL 6
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccard_cis.h>
 

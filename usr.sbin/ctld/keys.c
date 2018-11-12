@@ -26,11 +26,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <assert.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,7 +65,7 @@ keys_load(struct keys *keys, const struct pdu *pdu)
 	size_t pair_len;
 
 	if (pdu->pdu_data_len == 0)
-		log_errx(1, "protocol error: empty data segment");
+		return;
 
 	if (pdu->pdu_data[pdu->pdu_data_len - 1] != '\0')
 		log_errx(1, "protocol error: key not NULL-terminated\n");
@@ -114,7 +115,7 @@ keys_save(struct keys *keys, struct pdu *pdu)
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (keys->keys_names[i] == NULL)
 			break;
- 		/*
+		/*
 		 * +1 for '=', +1 for '\0'.
 		 */
 		len += strlen(keys->keys_names[i]) +
@@ -157,26 +158,6 @@ keys_find(struct keys *keys, const char *name)
 			return (keys->keys_values[i]);
 	}
 	return (NULL);
-}
-
-int
-keys_find_int(struct keys *keys, const char *name)
-{
-	const char *str;
-	char *endptr;
-	int num;
-
-	str = keys_find(keys, name);
-	if (str == NULL)
-		return (-1);
-
-	num = strtoul(str, &endptr, 10);
-	if (*endptr != '\0') {
-		log_debugx("invalid numeric value \"%s\"", str);
-		return (-1);
-	}
-
-	return (num);
 }
 
 void

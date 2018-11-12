@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <arm/freescale/imx/imx_machdep.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
 
 /*
  * Table of supported FDT compat strings.

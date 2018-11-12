@@ -21,205 +21,60 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "simplifycfg"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/Attributes.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CFG.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "simplifycfg"
+
+static cl::opt<unsigned>
+UserBonusInstThreshold("bonus-inst-threshold", cl::Hidden, cl::init(1),
+   cl::desc("Control the number of bonus instructions (default = 1)"));
 
 STATISTIC(NumSimpl, "Number of blocks simplified");
 
 namespace {
-  struct CFGSimplifyPass : public FunctionPass {
-    static char ID; // Pass identification, replacement for typeid
-    CFGSimplifyPass() : FunctionPass(ID) {
-      initializeCFGSimplifyPassPass(*PassRegistry::getPassRegistry());
-    }
+struct CFGSimplifyPass : public FunctionPass {
+  static char ID; // Pass identification, replacement for typeid
+  unsigned BonusInstThreshold;
+  CFGSimplifyPass(int T = -1) : FunctionPass(ID) {
+    BonusInstThreshold = (T == -1) ? UserBonusInstThreshold : unsigned(T);
+    initializeCFGSimplifyPassPass(*PassRegistry::getPassRegistry());
+  }
+  bool runOnFunction(Function &F) override;
 
-    virtual bool runOnFunction(Function &F);
-
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.addRequired<TargetTransformInfo>();
-    }
-  };
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<AssumptionCacheTracker>();
+    AU.addRequired<TargetTransformInfo>();
+  }
+};
 }
 
 char CFGSimplifyPass::ID = 0;
-INITIALIZE_PASS_BEGIN(CFGSimplifyPass, "simplifycfg", "Simplify the CFG",
-                      false, false)
+INITIALIZE_PASS_BEGIN(CFGSimplifyPass, "simplifycfg", "Simplify the CFG", false,
+                      false)
 INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
-INITIALIZE_PASS_END(CFGSimplifyPass, "simplifycfg", "Simplify the CFG",
-                    false, false)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
+INITIALIZE_PASS_END(CFGSimplifyPass, "simplifycfg", "Simplify the CFG", false,
+                    false)
 
 // Public interface to the CFGSimplification pass
-FunctionPass *llvm::createCFGSimplificationPass() {
-  return new CFGSimplifyPass();
-}
-
-/// changeToUnreachable - Insert an unreachable instruction before the specified
-/// instruction, making it and the rest of the code in the block dead.
-static void changeToUnreachable(Instruction *I, bool UseLLVMTrap) {
-  BasicBlock *BB = I->getParent();
-  // Loop over all of the successors, removing BB's entry from any PHI
-  // nodes.
-  for (succ_iterator SI = succ_begin(BB), SE = succ_end(BB); SI != SE; ++SI)
-    (*SI)->removePredecessor(BB);
-
-  // Insert a call to llvm.trap right before this.  This turns the undefined
-  // behavior into a hard fail instead of falling through into random code.
-  if (UseLLVMTrap) {
-    Function *TrapFn =
-      Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::trap);
-    CallInst *CallTrap = CallInst::Create(TrapFn, "", I);
-    CallTrap->setDebugLoc(I->getDebugLoc());
-  }
-  new UnreachableInst(I->getContext(), I);
-
-  // All instructions after this are dead.
-  BasicBlock::iterator BBI = I, BBE = BB->end();
-  while (BBI != BBE) {
-    if (!BBI->use_empty())
-      BBI->replaceAllUsesWith(UndefValue::get(BBI->getType()));
-    BB->getInstList().erase(BBI++);
-  }
-}
-
-/// changeToCall - Convert the specified invoke into a normal call.
-static void changeToCall(InvokeInst *II) {
-  SmallVector<Value*, 8> Args(II->op_begin(), II->op_end() - 3);
-  CallInst *NewCall = CallInst::Create(II->getCalledValue(), Args, "", II);
-  NewCall->takeName(II);
-  NewCall->setCallingConv(II->getCallingConv());
-  NewCall->setAttributes(II->getAttributes());
-  NewCall->setDebugLoc(II->getDebugLoc());
-  II->replaceAllUsesWith(NewCall);
-
-  // Follow the call by a branch to the normal destination.
-  BranchInst::Create(II->getNormalDest(), II);
-
-  // Update PHI nodes in the unwind destination
-  II->getUnwindDest()->removePredecessor(II->getParent());
-  II->eraseFromParent();
-}
-
-static bool markAliveBlocks(BasicBlock *BB,
-                            SmallPtrSet<BasicBlock*, 128> &Reachable) {
-
-  SmallVector<BasicBlock*, 128> Worklist;
-  Worklist.push_back(BB);
-  Reachable.insert(BB);
-  bool Changed = false;
-  do {
-    BB = Worklist.pop_back_val();
-
-    // Do a quick scan of the basic block, turning any obviously unreachable
-    // instructions into LLVM unreachable insts.  The instruction combining pass
-    // canonicalizes unreachable insts into stores to null or undef.
-    for (BasicBlock::iterator BBI = BB->begin(), E = BB->end(); BBI != E;++BBI){
-      if (CallInst *CI = dyn_cast<CallInst>(BBI)) {
-        if (CI->doesNotReturn()) {
-          // If we found a call to a no-return function, insert an unreachable
-          // instruction after it.  Make sure there isn't *already* one there
-          // though.
-          ++BBI;
-          if (!isa<UnreachableInst>(BBI)) {
-            // Don't insert a call to llvm.trap right before the unreachable.
-            changeToUnreachable(BBI, false);
-            Changed = true;
-          }
-          break;
-        }
-      }
-
-      // Store to undef and store to null are undefined and used to signal that
-      // they should be changed to unreachable by passes that can't modify the
-      // CFG.
-      if (StoreInst *SI = dyn_cast<StoreInst>(BBI)) {
-        // Don't touch volatile stores.
-        if (SI->isVolatile()) continue;
-
-        Value *Ptr = SI->getOperand(1);
-
-        if (isa<UndefValue>(Ptr) ||
-            (isa<ConstantPointerNull>(Ptr) &&
-             SI->getPointerAddressSpace() == 0)) {
-          changeToUnreachable(SI, true);
-          Changed = true;
-          break;
-        }
-      }
-    }
-
-    // Turn invokes that call 'nounwind' functions into ordinary calls.
-    if (InvokeInst *II = dyn_cast<InvokeInst>(BB->getTerminator())) {
-      Value *Callee = II->getCalledValue();
-      if (isa<ConstantPointerNull>(Callee) || isa<UndefValue>(Callee)) {
-        changeToUnreachable(II, true);
-        Changed = true;
-      } else if (II->doesNotThrow()) {
-        if (II->use_empty() && II->onlyReadsMemory()) {
-          // jump to the normal destination branch.
-          BranchInst::Create(II->getNormalDest(), II);
-          II->getUnwindDest()->removePredecessor(II->getParent());
-          II->eraseFromParent();
-        } else
-          changeToCall(II);
-        Changed = true;
-      }
-    }
-
-    Changed |= ConstantFoldTerminator(BB, true);
-    for (succ_iterator SI = succ_begin(BB), SE = succ_end(BB); SI != SE; ++SI)
-      if (Reachable.insert(*SI))
-        Worklist.push_back(*SI);
-  } while (!Worklist.empty());
-  return Changed;
-}
-
-/// removeUnreachableBlocksFromFn - Remove blocks that are not reachable, even
-/// if they are in a dead cycle.  Return true if a change was made, false
-/// otherwise.
-static bool removeUnreachableBlocksFromFn(Function &F) {
-  SmallPtrSet<BasicBlock*, 128> Reachable;
-  bool Changed = markAliveBlocks(F.begin(), Reachable);
-
-  // If there are unreachable blocks in the CFG...
-  if (Reachable.size() == F.size())
-    return Changed;
-
-  assert(Reachable.size() < F.size());
-  NumSimpl += F.size()-Reachable.size();
-
-  // Loop over all of the basic blocks that are not reachable, dropping all of
-  // their internal references...
-  for (Function::iterator BB = ++F.begin(), E = F.end(); BB != E; ++BB) {
-    if (Reachable.count(BB))
-      continue;
-
-    for (succ_iterator SI = succ_begin(BB), SE = succ_end(BB); SI != SE; ++SI)
-      if (Reachable.count(*SI))
-        (*SI)->removePredecessor(BB);
-    BB->dropAllReferences();
-  }
-
-  for (Function::iterator I = ++F.begin(); I != F.end();)
-    if (!Reachable.count(I))
-      I = F.getBasicBlockList().erase(I);
-    else
-      ++I;
-
-  return true;
+FunctionPass *llvm::createCFGSimplificationPass(int Threshold) {
+  return new CFGSimplifyPass(Threshold);
 }
 
 /// mergeEmptyReturnBlocks - If we have more than one empty (other than phi
@@ -227,7 +82,7 @@ static bool removeUnreachableBlocksFromFn(Function &F) {
 static bool mergeEmptyReturnBlocks(Function &F) {
   bool Changed = false;
 
-  BasicBlock *RetBlock = 0;
+  BasicBlock *RetBlock = nullptr;
 
   // Scan all the blocks in the function, looking for empty return blocks.
   for (Function::iterator BBI = F.begin(), E = F.end(); BBI != E; ) {
@@ -235,7 +90,7 @@ static bool mergeEmptyReturnBlocks(Function &F) {
 
     // Only look at return blocks.
     ReturnInst *Ret = dyn_cast<ReturnInst>(BB.getTerminator());
-    if (Ret == 0) continue;
+    if (!Ret) continue;
 
     // Only look at the block if it is empty or the only other thing in it is a
     // single PHI node that is the operand to the return.
@@ -254,7 +109,7 @@ static bool mergeEmptyReturnBlocks(Function &F) {
     }
 
     // If this is the first returning block, remember it and keep going.
-    if (RetBlock == 0) {
+    if (!RetBlock) {
       RetBlock = &BB;
       continue;
     }
@@ -275,7 +130,7 @@ static bool mergeEmptyReturnBlocks(Function &F) {
 
     // If the canonical return block has no PHI node, create one now.
     PHINode *RetBlockPHI = dyn_cast<PHINode>(RetBlock->begin());
-    if (RetBlockPHI == 0) {
+    if (!RetBlockPHI) {
       Value *InVal = cast<ReturnInst>(RetBlock->getTerminator())->getOperand(0);
       pred_iterator PB = pred_begin(RetBlock), PE = pred_end(RetBlock);
       RetBlockPHI = PHINode::Create(Ret->getOperand(0)->getType(),
@@ -301,7 +156,8 @@ static bool mergeEmptyReturnBlocks(Function &F) {
 /// iterativelySimplifyCFG - Call SimplifyCFG on all the blocks in the function,
 /// iterating until no more changes are made.
 static bool iterativelySimplifyCFG(Function &F, const TargetTransformInfo &TTI,
-                                   const DataLayout *TD) {
+                                   const DataLayout *DL, AssumptionCache *AC,
+                                   unsigned BonusInstThreshold) {
   bool Changed = false;
   bool LocalChange = true;
   while (LocalChange) {
@@ -310,7 +166,7 @@ static bool iterativelySimplifyCFG(Function &F, const TargetTransformInfo &TTI,
     // Loop over all of the basic blocks and remove them if they are unneeded...
     //
     for (Function::iterator BBIt = F.begin(); BBIt != F.end(); ) {
-      if (SimplifyCFG(BBIt++, TTI, TD)) {
+      if (SimplifyCFG(BBIt++, TTI, BonusInstThreshold, DL, AC)) {
         LocalChange = true;
         ++NumSimpl;
       }
@@ -324,26 +180,32 @@ static bool iterativelySimplifyCFG(Function &F, const TargetTransformInfo &TTI,
 // simplify the CFG.
 //
 bool CFGSimplifyPass::runOnFunction(Function &F) {
+  if (skipOptnoneFunction(F))
+    return false;
+
+  AssumptionCache *AC =
+      &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
   const TargetTransformInfo &TTI = getAnalysis<TargetTransformInfo>();
-  const DataLayout *TD = getAnalysisIfAvailable<DataLayout>();
-  bool EverChanged = removeUnreachableBlocksFromFn(F);
+  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
+  const DataLayout *DL = DLP ? &DLP->getDataLayout() : nullptr;
+  bool EverChanged = removeUnreachableBlocks(F);
   EverChanged |= mergeEmptyReturnBlocks(F);
-  EverChanged |= iterativelySimplifyCFG(F, TTI, TD);
+  EverChanged |= iterativelySimplifyCFG(F, TTI, DL, AC, BonusInstThreshold);
 
   // If neither pass changed anything, we're done.
   if (!EverChanged) return false;
 
   // iterativelySimplifyCFG can (rarely) make some loops dead.  If this happens,
-  // removeUnreachableBlocksFromFn is needed to nuke them, which means we should
+  // removeUnreachableBlocks is needed to nuke them, which means we should
   // iterate between the two optimizations.  We structure the code like this to
   // avoid reruning iterativelySimplifyCFG if the second pass of
-  // removeUnreachableBlocksFromFn doesn't do anything.
-  if (!removeUnreachableBlocksFromFn(F))
+  // removeUnreachableBlocks doesn't do anything.
+  if (!removeUnreachableBlocks(F))
     return true;
 
   do {
-    EverChanged = iterativelySimplifyCFG(F, TTI, TD);
-    EverChanged |= removeUnreachableBlocksFromFn(F);
+    EverChanged = iterativelySimplifyCFG(F, TTI, DL, AC, BonusInstThreshold);
+    EverChanged |= removeUnreachableBlocks(F);
   } while (EverChanged);
 
   return true;

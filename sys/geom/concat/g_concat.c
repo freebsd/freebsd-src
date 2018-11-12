@@ -48,8 +48,7 @@ SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, concat, CTLFLAG_RW, 0,
     "GEOM_CONCAT stuff");
 static u_int g_concat_debug = 0;
-TUNABLE_INT("kern.geom.concat.debug", &g_concat_debug);
-SYSCTL_UINT(_kern_geom_concat, OID_AUTO, debug, CTLFLAG_RW, &g_concat_debug, 0,
+SYSCTL_UINT(_kern_geom_concat, OID_AUTO, debug, CTLFLAG_RWTUN, &g_concat_debug, 0,
     "Debug level");
 
 static int g_concat_destroy(struct g_concat_softc *sc, boolean_t force);

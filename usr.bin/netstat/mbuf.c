@@ -56,7 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
+#include <libxo/xo.h>
 #include "netstat.h"
 
 /*
@@ -88,7 +90,7 @@ mbpr(void *kvmd, u_long mbaddr)
 
 	mtlp = memstat_mtl_alloc();
 	if (mtlp == NULL) {
-		warn("memstat_mtl_alloc");
+		xo_warn("memstat_mtl_alloc");
 		return;
 	}
 
@@ -98,7 +100,7 @@ mbpr(void *kvmd, u_long mbaddr)
 	 */
 	if (live) {
 		if (memstat_sysctl_all(mtlp, 0) < 0) {
-			warnx("memstat_sysctl_all: %s",
+			xo_warnx("memstat_sysctl_all: %s",
 			    memstat_strerror(memstat_mtl_geterror(mtlp)));
 			goto out;
 		}
@@ -106,10 +108,10 @@ mbpr(void *kvmd, u_long mbaddr)
 		if (memstat_kvm_all(mtlp, kvmd) < 0) {
 			error = memstat_mtl_geterror(mtlp);
 			if (error == MEMSTAT_ERROR_KVM)
-				warnx("memstat_kvm_all: %s",
+				xo_warnx("memstat_kvm_all: %s",
 				    kvm_geterr(kvmd));
 			else
-				warnx("memstat_kvm_all: %s",
+				xo_warnx("memstat_kvm_all: %s",
 				    memstat_strerror(error));
 			goto out;
 		}
@@ -117,7 +119,7 @@ mbpr(void *kvmd, u_long mbaddr)
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_MEM_NAME);
 	if (mtp == NULL) {
-		warnx("memstat_mtl_find: zone %s not found", MBUF_MEM_NAME);
+		xo_warnx("memstat_mtl_find: zone %s not found", MBUF_MEM_NAME);
 		goto out;
 	}
 	mbuf_count = memstat_get_count(mtp);
@@ -129,7 +131,7 @@ mbpr(void *kvmd, u_long mbaddr)
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_PACKET_MEM_NAME);
 	if (mtp == NULL) {
-		warnx("memstat_mtl_find: zone %s not found",
+		xo_warnx("memstat_mtl_find: zone %s not found",
 		    MBUF_PACKET_MEM_NAME);
 		goto out;
 	}
@@ -141,7 +143,7 @@ mbpr(void *kvmd, u_long mbaddr)
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_CLUSTER_MEM_NAME);
 	if (mtp == NULL) {
-		warnx("memstat_mtl_find: zone %s not found",
+		xo_warnx("memstat_mtl_find: zone %s not found",
 		    MBUF_CLUSTER_MEM_NAME);
 		goto out;
 	}
@@ -154,7 +156,7 @@ mbpr(void *kvmd, u_long mbaddr)
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_MALLOC, MBUF_TAG_MEM_NAME);
 	if (mtp == NULL) {
-		warnx("memstat_mtl_find: malloc type %s not found",
+		xo_warnx("memstat_mtl_find: malloc type %s not found",
 		    MBUF_TAG_MEM_NAME);
 		goto out;
 	}
@@ -162,7 +164,7 @@ mbpr(void *kvmd, u_long mbaddr)
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_JUMBOP_MEM_NAME);
 	if (mtp == NULL) {
-		warnx("memstat_mtl_find: zone %s not found",
+		xo_warnx("memstat_mtl_find: zone %s not found",
 		    MBUF_JUMBOP_MEM_NAME);
 		goto out;
 	}
@@ -175,7 +177,7 @@ mbpr(void *kvmd, u_long mbaddr)
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_JUMBO9_MEM_NAME);
 	if (mtp == NULL) {
-		warnx("memstat_mtl_find: zone %s not found",
+		xo_warnx("memstat_mtl_find: zone %s not found",
 		    MBUF_JUMBO9_MEM_NAME);
 		goto out;
 	}
@@ -188,7 +190,7 @@ mbpr(void *kvmd, u_long mbaddr)
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_JUMBO16_MEM_NAME);
 	if (mtp == NULL) {
-		warnx("memstat_mtl_find: zone %s not found",
+		xo_warnx("memstat_mtl_find: zone %s not found",
 		    MBUF_JUMBO16_MEM_NAME);
 		goto out;
 	}
@@ -199,36 +201,44 @@ mbpr(void *kvmd, u_long mbaddr)
 	jumbo16_sleeps = memstat_get_sleeps(mtp);
 	jumbo16_size = memstat_get_size(mtp);
 
-	printf("%ju/%ju/%ju mbufs in use (current/cache/total)\n",
+	xo_open_container("mbuf-statistics");
+
+	xo_emit("{:mbuf-current/%ju}/{:mbuf-cache/%ju}/{:mbuf-total/%ju} "
+	    "{N:mbufs in use (current\\/cache\\/total)}\n",
 	    mbuf_count + packet_count, mbuf_free + packet_free,
 	    mbuf_count + packet_count + mbuf_free + packet_free);
 
-	printf("%ju/%ju/%ju/%ju mbuf clusters in use "
-	    "(current/cache/total/max)\n",
+	xo_emit("{:cluster-current/%ju}/{:cluster-cache/%ju}/"
+	    "{:cluster-total/%ju}/{:cluster-max/%ju} "
+	    "{N:mbuf clusters in use (current\\/cache\\/total\\/max)}\n",
 	    cluster_count - packet_free, cluster_free + packet_free,
 	    cluster_count + cluster_free, cluster_limit);
 
-	printf("%ju/%ju mbuf+clusters out of packet secondary zone in use "
-	    "(current/cache)\n",
+	xo_emit("{:packet-count/%ju}/{:packet-free/%ju} "
+	    "{N:mbuf+clusters out of packet secondary zone in use "
+	    "(current\\/cache)}\n",
 	    packet_count, packet_free);
 
-	printf("%ju/%ju/%ju/%ju %juk (page size) jumbo clusters in use "
-	    "(current/cache/total/max)\n",
+	xo_emit("{:jumbo-count/%ju}/{:jumbo-cache/%ju}/{:jumbo-total/%ju}/"
+	    "{:jumbo-max/%ju} {:jumbo-page-size/%ju}{U:k} {N:(page size)} "
+	    "{N:jumbo clusters in use (current\\/cache\\/total\\/max)}\n",
 	    jumbop_count, jumbop_free, jumbop_count + jumbop_free,
 	    jumbop_limit, jumbop_size / 1024);
 
-	printf("%ju/%ju/%ju/%ju 9k jumbo clusters in use "
-	    "(current/cache/total/max)\n",
+	xo_emit("{:jumbo9-count/%ju}/{:jumbo9-cache/%ju}/"
+	    "{:jumbo9-total/%ju}/{:jumbo9-max/%ju} "
+	    "{N:9k jumbo clusters in use (current\\/cache\\/total\\/max)}\n",
 	    jumbo9_count, jumbo9_free, jumbo9_count + jumbo9_free,
 	    jumbo9_limit);
 
-	printf("%ju/%ju/%ju/%ju 16k jumbo clusters in use "
-	    "(current/cache/total/max)\n",
+	xo_emit("{:jumbo16-count/%ju}/{:jumbo16-cache/%ju}/"
+	    "{:jumbo16-total/%ju}/{:jumbo16-limit/%ju} "
+	    "{N:16k jumbo clusters in use (current\\/cache\\/total\\/max)}\n",
 	    jumbo16_count, jumbo16_free, jumbo16_count + jumbo16_free,
 	    jumbo16_limit);
 
 #if 0
-	printf("%ju mbuf tags in use\n", tag_count);
+	xo_emit("{:tag-count/%ju} {N:mbuf tags in use}\n", tag_count);
 #endif
 
 	/*-
@@ -276,23 +286,29 @@ mbpr(void *kvmd, u_long mbaddr)
 	 */
 	bytes_total = bytes_inuse + bytes_incache;
 
-	printf("%juK/%juK/%juK bytes allocated to network "
-	    "(current/cache/total)\n", bytes_inuse / 1024,
-	    bytes_incache / 1024, bytes_total / 1024);
+	xo_emit("{:bytes-in-use/%ju}{U:K}/{:bytes-in-cache/%ju}{U:K}/"
+	    "{:bytes-total/%ju}{U:K} "
+	    "{N:bytes allocated to network (current\\/cache\\/total)}\n",
+	    bytes_inuse / 1024, bytes_incache / 1024, bytes_total / 1024);
 
-	printf("%ju/%ju/%ju requests for mbufs denied (mbufs/clusters/"
-	    "mbuf+clusters)\n", mbuf_failures, cluster_failures,
-	    packet_failures);
-	printf("%ju/%ju/%ju requests for mbufs delayed (mbufs/clusters/"
-	    "mbuf+clusters)\n", mbuf_sleeps, cluster_sleeps,
-	    packet_sleeps);
+	xo_emit("{:mbuf-failures/%ju}/{:cluster-failures/%ju}/"
+	    "{:packet-failures/%ju} {N:requests for mbufs denied "
+	    "(mbufs\\/clusters\\/mbuf+clusters)}\n",
+	    mbuf_failures, cluster_failures, packet_failures);
+	xo_emit("{:mbuf-sleeps/%ju}/{:cluster-sleeps/%ju}/{:packet-sleeps/%ju} "
+	    "{N:requests for mbufs delayed "
+	    "(mbufs\\/clusters\\/mbuf+clusters)}\n",
+	    mbuf_sleeps, cluster_sleeps, packet_sleeps);
 
-	printf("%ju/%ju/%ju requests for jumbo clusters delayed "
-	    "(%juk/9k/16k)\n", jumbop_sleeps, jumbo9_sleeps,
-	    jumbo16_sleeps, jumbop_size / 1024);
-	printf("%ju/%ju/%ju requests for jumbo clusters denied "
-	    "(%juk/9k/16k)\n", jumbop_failures, jumbo9_failures,
-	    jumbo16_failures, jumbop_size / 1024);
+	xo_emit("{:jumbop-sleeps/%ju}/{:jumbo9-sleeps/%ju}/"
+	    "{:jumbo16-sleeps/%ju} {N:/requests for jumbo clusters delayed "
+	    "(%juk\\/9k\\/16k)}\n",
+	    jumbop_sleeps, jumbo9_sleeps, jumbo16_sleeps, jumbop_size / 1024);
+	xo_emit("{:jumbop-failures/%ju}/{:jumbo9-failures/%ju}/"
+	    "{:jumbo16-failures/%ju} {N:/requests for jumbo clusters denied "
+	    "(%juk\\/9k\\/16k)}\n",
+	    jumbop_failures, jumbo9_failures, jumbo16_failures,
+	    jumbop_size / 1024);
 
 	if (live) {
 		mlen = sizeof(nsfbufs);
@@ -302,23 +318,27 @@ mbpr(void *kvmd, u_long mbaddr)
 		    &mlen, NULL, 0) &&
 		    !sysctlbyname("kern.ipc.nsfbufspeak", &nsfbufspeak,
 		    &mlen, NULL, 0))
-			printf("%d/%d/%d sfbufs in use (current/peak/max)\n",
+			xo_emit("{:nsfbufs-current/%d}/{:nsfbufs-peak/%d}/"
+			    "{:nsfbufs/%d} "
+			    "{N:sfbufs in use (current\\/peak\\/max)}\n",
 			    nsfbufsused, nsfbufspeak, nsfbufs);
 		mlen = sizeof(sfstat);
 		if (sysctlbyname("kern.ipc.sfstat", &sfstat, &mlen, NULL, 0)) {
-			warn("kern.ipc.sfstat");
+			xo_warn("kern.ipc.sfstat");
 			goto out;
 		}
 	} else {
 		if (kread_counters(mbaddr, (char *)&sfstat, sizeof sfstat) != 0)
 			goto out;
 	}
-	printf("%ju requests for sfbufs denied\n",
+	xo_emit("{:sfbufs-alloc-failed/%ju} {N:requests for sfbufs denied}\n",
 	    (uintmax_t)sfstat.sf_allocfail);
-	printf("%ju requests for sfbufs delayed\n",
+	xo_emit("{:sfbufs-alloc-wait/%ju} {N:requests for sfbufs delayed}\n",
 	    (uintmax_t)sfstat.sf_allocwait);
-	printf("%ju requests for I/O initiated by sendfile\n",
+	xo_emit("{:sfbufs-io-count/%ju} "
+	    "{N:requests for I\\/O initiated by sendfile}\n",
 	    (uintmax_t)sfstat.sf_iocnt);
 out:
+	xo_close_container("mbuf-statistics");
 	memstat_mtl_free(mtlp);
 }

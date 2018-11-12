@@ -123,7 +123,7 @@ if test "$do_libs" = "yes"; then
     lib_flags="-L${libdir}"
     case $library in
     gssapi)
-	lib_flags="$lib_flags -lgssapi -lheimntlm"
+	lib_flags="$lib_flags -lgssapi -lgssapi_krb5 -lheimntlm"
 	;;
     kadm-client)
 	lib_flags="$lib_flags -lkadm5clnt"

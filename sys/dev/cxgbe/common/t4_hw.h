@@ -87,6 +87,7 @@ enum {
 	SGE_NTIMERS = 6,          /* # of interrupt holdoff timer values */
 	SGE_NCOUNTERS = 4,        /* # of interrupt packet counter values */
 	SGE_MAX_IQ_SIZE = 65520,
+	SGE_FLBUF_SIZES = 16,
 };
 
 struct sge_qstat {                /* data written to SGE queue status entries */

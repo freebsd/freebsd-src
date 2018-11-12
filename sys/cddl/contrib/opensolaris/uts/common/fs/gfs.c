@@ -90,7 +90,7 @@
  *	gfs_dir_lookup()
  *	gfs_dir_readdir()
  *
- * 	gfs_vop_inactive()
+ * 	gfs_vop_reclaim()
  * 	gfs_vop_lookup()
  * 	gfs_vop_readdir()
  * 	gfs_vop_map()
@@ -107,7 +107,7 @@
  * 	gfs_root_create_file()
  */
 
-#ifdef sun
+#ifdef illumos
 /*
  * gfs_make_opsvec: take an array of vnode type definitions and create
  * their vnodeops_t structures
@@ -141,7 +141,7 @@ gfs_make_opsvec(gfs_opsvec_t *vec)
 	}
 	return (error);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * Low level directory routines
@@ -347,7 +347,7 @@ gfs_readdir_emit(gfs_readdir_state_t *st, uio_t *uiop, offset_t voff,
 	    cookies));
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * gfs_readdir_emitn: like gfs_readdir_emit(), but takes an integer
  * instead of a string for the entry's name.
@@ -435,6 +435,8 @@ gfs_readdir_fini(gfs_readdir_state_t *st, int error, int *eofp, int eof)
 int
 gfs_lookup_dot(vnode_t **vpp, vnode_t *dvp, vnode_t *pvp, const char *nm)
 {
+	int ltype;
+
 	if (*nm == '\0' || strcmp(nm, ".") == 0) {
 		VN_HOLD(dvp);
 		*vpp = dvp;
@@ -444,11 +446,15 @@ gfs_lookup_dot(vnode_t **vpp, vnode_t *dvp, vnode_t *pvp, const char *nm)
 			ASSERT(dvp->v_flag & VROOT);
 			VN_HOLD(dvp);
 			*vpp = dvp;
+			ASSERT_VOP_ELOCKED(dvp, "gfs_lookup_dot: non-locked dvp");
 		} else {
+			ltype = VOP_ISLOCKED(dvp);
+			VOP_UNLOCK(dvp, 0);
 			VN_HOLD(pvp);
 			*vpp = pvp;
+			vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+			vn_lock(dvp, ltype | LK_RETRY);
 		}
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 		return (0);
 	}
 
@@ -483,7 +489,7 @@ gfs_file_create(size_t size, vnode_t *pvp, vfs_t *vfsp, vnodeops_t *ops)
 	 * Allocate vnode and internal data structure
 	 */
 	fp = kmem_zalloc(size, KM_SLEEP);
-	error = getnewvnode("zfs", vfsp, ops, &vp);
+	error = getnewvnode("zfs_gfs", vfsp, ops, &vp);
 	ASSERT(error == 0);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_data = (caddr_t)fp;
@@ -593,7 +599,7 @@ gfs_root_create(size_t size, vfs_t *vfsp, vnodeops_t *ops, ino64_t ino,
 	return (vp);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * gfs_root_create_file(): create a root vnode for a GFS file as a filesystem
  *
@@ -613,12 +619,12 @@ gfs_root_create_file(size_t size, vfs_t *vfsp, vnodeops_t *ops, ino64_t ino)
 
 	return (vp);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * gfs_file_inactive()
  *
- * Called from the VOP_INACTIVE() routine.  If necessary, this routine will
+ * Called from the VOP_RECLAIM() routine.  If necessary, this routine will
  * remove the given vnode from the parent directory and clean up any references
  * in the VFS layer.
  *
@@ -1140,7 +1146,7 @@ gfs_vop_readdir(ap)
 }
 
 
-#ifdef sun
+#ifdef illumos
 /*
  * gfs_vop_map: VOP_MAP() entry point
  *
@@ -1212,18 +1218,18 @@ gfs_vop_map(vnode_t *vp, offset_t off, struct as *as, caddr_t *addrp,
 
 	return (rv);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
- * gfs_vop_inactive: VOP_INACTIVE() entry point
+ * gfs_vop_reclaim: VOP_RECLAIM() entry point (solaris' VOP_INACTIVE())
  *
  * Given a vnode that is a GFS file or directory, call gfs_file_inactive() or
  * gfs_dir_inactive() as necessary, and kmem_free()s associated private data.
  */
 /* ARGSUSED */
 int
-gfs_vop_inactive(ap)
-	struct vop_inactive_args /* {
+gfs_vop_reclaim(ap)
+	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
 		struct thread *a_td;
 	} */ *ap;
@@ -1236,6 +1242,7 @@ gfs_vop_inactive(ap)
 	else
 		gfs_file_inactive(vp);
 
+	vnode_destroy_vobject(vp);
 	VI_LOCK(vp);
 	vp->v_data = NULL;
 	VI_UNLOCK(vp);

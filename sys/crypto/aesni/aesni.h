@@ -56,7 +56,6 @@ struct aesni_session {
 	uint8_t enc_schedule[AES_SCHED_LEN] __aligned(16);
 	uint8_t dec_schedule[AES_SCHED_LEN] __aligned(16);
 	uint8_t xts_schedule[AES_SCHED_LEN] __aligned(16);
-	uint8_t iv[AES_BLOCK_LEN];
 	int algo;
 	int rounds;
 	/* uint8_t *ses_ictx; */
@@ -65,7 +64,6 @@ struct aesni_session {
 	int used;
 	uint32_t id;
 	TAILQ_ENTRY(aesni_session) next;
-	struct fpu_kern_ctx *fpu_ctx;
 };
 
 /*
@@ -88,6 +86,9 @@ void aesni_encrypt_ecb(int rounds, const void *key_schedule /*__aligned(16)*/,
     size_t len, const uint8_t *from, uint8_t *to);
 void aesni_decrypt_ecb(int rounds, const void *key_schedule /*__aligned(16)*/,
     size_t len, const uint8_t *from, uint8_t *to);
+void aesni_encrypt_icm(int rounds, const void *key_schedule /*__aligned(16)*/,
+    size_t len, const uint8_t *from, uint8_t *to,
+    const uint8_t iv[AES_BLOCK_LEN]);
 
 void aesni_encrypt_xts(int rounds, const void *data_schedule /*__aligned(16)*/,
     const void *tweak_schedule /*__aligned(16)*/, size_t len,
@@ -96,11 +97,18 @@ void aesni_decrypt_xts(int rounds, const void *data_schedule /*__aligned(16)*/,
     const void *tweak_schedule /*__aligned(16)*/, size_t len,
     const uint8_t *from, uint8_t *to, const uint8_t iv[AES_BLOCK_LEN]);
 
-int aesni_cipher_setup(struct aesni_session *ses,
-    struct cryptoini *encini);
-int aesni_cipher_process(struct aesni_session *ses,
-    struct cryptodesc *enccrd, struct cryptop *crp);
+/* GCM & GHASH functions */
+void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
+    const unsigned char *addt, const unsigned char *ivec,
+    unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
+    const unsigned char *key, int nr);
+int AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
+    const unsigned char *addt, const unsigned char *ivec,
+    const unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
+    const unsigned char *key, int nr);
 
+int aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
+    int keylen);
 uint8_t *aesni_cipher_alloc(struct cryptodesc *enccrd, struct cryptop *crp,
     int *allocated);
 

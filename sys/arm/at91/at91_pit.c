@@ -214,9 +214,9 @@ static driver_t at91_pit_driver = {
 static devclass_t at91_pit_devclass;
 
 #ifdef FDT
-DRIVER_MODULE(at91_pit, simplebus, at91_pit_driver, at91_pit_devclass, NULL,
-    NULL);
+EARLY_DRIVER_MODULE(at91_pit, simplebus, at91_pit_driver, at91_pit_devclass,
+    NULL, NULL, BUS_PASS_TIMER);
 #else
-DRIVER_MODULE(at91_pit, atmelarm, at91_pit_driver, at91_pit_devclass, NULL,
-    NULL);
+EARLY_DRIVER_MODULE(at91_pit, atmelarm, at91_pit_driver, at91_pit_devclass,
+    NULL, NULL, BUS_PASS_TIMER);
 #endif

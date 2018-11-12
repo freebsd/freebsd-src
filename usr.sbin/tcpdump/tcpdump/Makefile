@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 .PATH: ${TCPDUMP_DISTDIR}
@@ -23,7 +23,9 @@ SRCS=	addrtoname.c \
 	print-802_11.c \
 	print-802_15_4.c \
 	print-ah.c \
+	print-ahcp.c \
 	print-aodv.c \
+	print-aoe.c \
 	print-ap1394.c \
 	print-arcnet.c \
 	print-arp.c \
@@ -35,6 +37,7 @@ SRCS=	addrtoname.c \
 	print-bgp.c \
 	print-bootp.c \
 	print-bt.c \
+	print-calm-fast.c \
 	print-carp.c \
 	print-cdp.c \
 	print-cfm.c \
@@ -55,12 +58,17 @@ SRCS=	addrtoname.c \
 	print-fddi.c \
 	print-forces.c \
 	print-fr.c \
+	print-ftp.c \
+	print-geneve.c \
+	print-geonet.c \
 	print-gre.c \
 	print-hsrp.c \
+	print-http.c \
 	print-icmp.c \
 	print-igmp.c \
 	print-igrp.c \
 	print-ip.c \
+	print-ip6.c \
 	print-ipcomp.c \
 	print-ipfc.c \
 	print-ipnet.c \
@@ -75,22 +83,28 @@ SRCS=	addrtoname.c \
 	print-llc.c \
 	print-lldp.c \
 	print-lmp.c \
+	print-loopback.c \
 	print-lspping.c \
 	print-lwapp.c \
 	print-lwres.c \
+	print-m3ua.c \
 	print-mobile.c \
 	print-mpcp.c \
 	print-mpls.c \
+	print-mptcp.c \
 	print-msdp.c \
 	print-msnlb.c \
 	print-nfs.c \
 	print-ntp.c \
 	print-null.c \
 	print-olsr.c \
+	print-openflow.c \
+	print-openflow-1.0.c \
 	print-ospf.c \
 	print-otv.c \
 	print-pgm.c \
 	print-pim.c \
+	print-pktap.c \
 	print-ppi.c \
 	print-ppp.c \
 	print-pppoe.c \
@@ -101,6 +115,7 @@ SRCS=	addrtoname.c \
 	print-rpki-rtr.c \
 	print-rrcp.c \
 	print-rsvp.c \
+	print-rtsp.c \
 	print-rx.c \
 	print-sctp.c \
 	print-sflow.c \
@@ -109,6 +124,7 @@ SRCS=	addrtoname.c \
 	print-sll.c \
 	print-slow.c \
 	print-smb.c \
+	print-smtp.c \
 	print-snmp.c \
 	print-stp.c \
 	print-sunatm.c \
@@ -148,7 +164,6 @@ SRCS+=	print-babel.c \
 	print-dhcp6.c \
 	print-frag6.c \
 	print-icmp6.c \
-	print-ip6.c \
 	print-ip6opts.c \
 	print-mobility.c \
 	print-ospf6.c \
@@ -160,16 +175,13 @@ CFLAGS+=	-DINET6
 CFLAGS+=	-DLBL_ALIGN
 .endif
 
-DPADD=	${LIBL} ${LIBPCAP}
-LDADD=	-ll -lpcap
+LIBADD=	l pcap
 .if ${MK_CASPER} != "no"
-DPADD+=	${LIBCAPSICUM} ${LIBNV}
-LDADD+=	-lcapsicum -lnv
-CFLAGS+=-DHAVE_LIBCAPSICUM
+LIBADD+=	capsicum
+CFLAGS+=-DHAVE_CAPSICUM
 .endif
-.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
-DPADD+= ${LIBCRYPTO}
-LDADD+= -lcrypto
+.if ${MK_OPENSSL} != "no"
+LIBADD+=	crypto
 CFLAGS+= -I${DESTDIR}/usr/include/openssl
 CFLAGS+= -DHAVE_LIBCRYPTO -DHAVE_OPENSSL_EVP_H
 .endif

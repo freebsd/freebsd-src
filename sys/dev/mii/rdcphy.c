@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -78,8 +77,9 @@ static driver_t rdcphy_driver = {
 
 DRIVER_MODULE(rdcphy, miibus, rdcphy_driver, rdcphy_devclass, 0, 0);
 
-static int	rdcphy_service(struct mii_softc *, struct mii_data *, int);
-static void	rdcphy_status(struct mii_softc *);
+static int	rdcphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	rdcphy_status(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc rdcphys[] = {
 	MII_PHY_DESC(RDC, R6040),
@@ -108,21 +108,20 @@ rdcphy_attach(device_t dev)
 }
 
 static int
-rdcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+rdcphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 	struct rdcphy_softc *rsc;
-	struct ifmedia_entry *ife;
 
 	rsc = (struct rdcphy_softc *)sc;
-	ife = mii->mii_media.ifm_cur;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		mii_phy_setmedia(sc, media);
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_100_TX:
 		case IFM_10_T:
 			/*
@@ -150,7 +149,7 @@ rdcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	case MII_TICK:
 		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+		if (IFM_SUBTYPE(media) != IFM_AUTO) {
 			/*
 			 * It seems the PHY hardware does not correctly
 			 * report link status changes when manual link
@@ -172,7 +171,7 @@ rdcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -180,14 +179,12 @@ rdcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-rdcphy_status(struct mii_softc *sc)
+rdcphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii;
-	struct ifmedia_entry *ife;
 	int bmsr, bmcr, physts;
 
 	mii = sc->mii_pdata;
-	ife = mii->mii_media.ifm_cur;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;

@@ -113,7 +113,7 @@ struct tcpcb {
 
 	struct	vnet *t_vnet;		/* back pointer to parent vnet */
 
-	tcp_seq	snd_una;		/* send unacknowledged */
+	tcp_seq	snd_una;		/* sent but unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
 					 * used to recognize retransmits
 					 */
@@ -208,7 +208,11 @@ struct tcpcb {
 	u_int	t_keepintvl;		/* interval between keepalives */
 	u_int	t_keepcnt;		/* number of keepalives before close */
 
-	u_int	t_tsomax;		/* tso burst length limit */
+	u_int	t_tsomax;		/* TSO total burst length limit in bytes */
+	u_int	t_tsomaxsegcount;	/* TSO maximum segment count */
+	u_int	t_tsomaxsegsize;	/* TSO maximum segment size in bytes */
+	u_int	t_pmtud_saved_maxopd;	/* pre-blackhole MSS */
+	u_int	t_flags2;		/* More tcpcb flags storage */
 
 	uint32_t t_ispare[8];		/* 5 UTO, 3 TBD */
 	void	*t_pspare2[4];		/* 1 TCP_SIGNATURE, 3 TBD */
@@ -284,6 +288,13 @@ struct tcpcb {
 #endif /* TCP_SIGNATURE */
 
 /*
+ * Flags for PLPMTU handling, t_flags2
+ */
+#define	TF2_PLPMTU_BLACKHOLE	0x00000001 /* Possible PLPMTUD Black Hole. */
+#define	TF2_PLPMTU_PMTUD	0x00000002 /* Allowed to attempt PLPMTUD. */
+#define	TF2_PLPMTU_MAXSEGSNT	0x00000004 /* Last seg sent was full seg. */
+
+/*
  * Structure to hold TCP options that are only used during segment
  * processing (in tcp_input), but not held in the tcpcb.
  * It's basically used to reduce the number of parameters
@@ -330,9 +341,12 @@ struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
  * Used by tcp_maxmtu() to communicate interface specific features
  * and limits at the time of connection setup.
  */
+#ifndef _NET_IF_H_
+struct iftsomax;
+#endif
 struct tcp_ifcap {
-	int	ifcap;
-	u_int	tsomax;
+	uint64_t	hwassist;
+	struct iftsomax	*tsomax;
 };
 
 #ifndef _NETINET_IN_PCB_H_
@@ -436,7 +450,7 @@ struct	tcpstat {
 	uint64_t tcps_rcvbyte;		/* bytes received in sequence */
 	uint64_t tcps_rcvbadsum;	/* packets received with ccksum errs */
 	uint64_t tcps_rcvbadoff;	/* packets received with bad offset */
-	uint64_t tcps_rcvmemdrop;	/* packets dropped for lack of memory */
+	uint64_t tcps_rcvreassfull;	/* packets dropped for no reass space */
 	uint64_t tcps_rcvshort;		/* packets received too short */
 	uint64_t tcps_rcvduppack;	/* duplicate-only packets received */
 	uint64_t tcps_rcvdupbyte;	/* duplicate-only bytes received */
@@ -515,6 +529,8 @@ struct	tcpstat {
 	uint64_t _pad[12];		/* 6 UTO, 6 TBD */
 };
 
+#define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */
+
 #ifdef _KERNEL
 #include <sys/counter.h>
 
@@ -576,7 +592,7 @@ struct	xtcpcb {
 #endif
 
 /*
- * Names for TCP sysctl objects
+ * Identifiers for TCP sysctl nodes
  */
 #define	TCPCTL_DO_RFC1323	1	/* use RFC-1323 extensions */
 #define	TCPCTL_MSSDFLT		3	/* MSS default */
@@ -592,8 +608,6 @@ struct	xtcpcb {
 #define	TCPCTL_V6MSSDFLT	13	/* MSS default for IPv6 */
 #define	TCPCTL_SACK		14	/* Selective Acknowledgement,rfc 2018 */
 #define	TCPCTL_DROP		15	/* drop tcp connection */
-#define	TCPCTL_MAXID		16
-#define TCPCTL_FINWAIT2_TIMEOUT        17
 
 #ifdef _KERNEL
 #ifdef SYSCTL_DECL
@@ -647,10 +661,7 @@ struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_discardcb(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
-#if 0
-int	 tcp_twrecycleable(struct tcptw *tw);
-#endif
-void	 tcp_twclose(struct tcptw *_tw, int _reuse);
+void	 tcp_twclose(struct tcptw *, int);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
 struct tcpcb *
@@ -666,12 +677,9 @@ char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
-void	 tcp_reass_init(void);
+void	 tcp_reass_global_init(void);
 void	 tcp_reass_flush(struct tcpcb *);
-#ifdef VIMAGE
-void	 tcp_reass_destroy(void);
-#endif
-void	 tcp_input(struct mbuf *, int);
+int	 tcp_input(struct mbuf **, int *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
 u_long	 tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
 void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,
@@ -695,19 +703,25 @@ void	 tcp_tw_destroy(void);
 void	 tcp_tw_zone_change(void);
 int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
-int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
+struct secasvar;
+struct secasvar *tcp_get_sav(struct mbuf *, u_int);
+int	 tcp_signature_do_compute(struct mbuf *, int, int, u_char *,
+	    struct secasvar *);
 int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
 int	 tcp_signature_verify(struct mbuf *, int, int, int, struct tcpopt *,
 	    struct tcphdr *, u_int);
+int	tcp_signature_check(struct mbuf *m, int off0, int tlen, int optlen,
+	    struct tcpopt *to, struct tcphdr *th, u_int tcpbflag);
 #endif
 void	 tcp_slowtimo(void);
 struct tcptemp *
 	 tcpip_maketemplate(struct inpcb *);
 void	 tcpip_fillheaders(struct inpcb *, void *, void *);
-void	 tcp_timer_activate(struct tcpcb *, int, u_int);
-int	 tcp_timer_active(struct tcpcb *, int);
+void	 tcp_timer_activate(struct tcpcb *, uint32_t, u_int);
+int	 tcp_timer_active(struct tcpcb *, uint32_t);
+void	 tcp_timer_stop(struct tcpcb *, uint32_t);
 void	 tcp_trace(short, short, struct tcpcb *, void *, struct tcphdr *, int);
 /*
  * All tcp_hc_* functions are IPv4 and IPv6 (via in_conninfo)
@@ -736,6 +750,27 @@ u_long	 tcp_seq_subtract(u_long, u_long );
 
 void	cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type);
 
+static inline void
+tcp_fields_to_host(struct tcphdr *th)
+{
+
+	th->th_seq = ntohl(th->th_seq);
+	th->th_ack = ntohl(th->th_ack);
+	th->th_win = ntohs(th->th_win);
+	th->th_urp = ntohs(th->th_urp);
+}
+
+#ifdef TCP_SIGNATURE
+static inline void
+tcp_fields_to_net(struct tcphdr *th)
+{
+
+	th->th_seq = htonl(th->th_seq);
+	th->th_ack = htonl(th->th_ack);
+	th->th_win = htons(th->th_win);
+	th->th_urp = htons(th->th_urp);
+}
+#endif
 #endif /* _KERNEL */
 
 #endif /* _NETINET_TCP_VAR_H_ */

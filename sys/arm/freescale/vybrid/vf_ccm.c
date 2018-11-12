@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -162,6 +161,18 @@ struct clk {
 	uint32_t	sel_mask;
 	uint32_t	sel_shift;
 	uint32_t	sel_val;
+};
+
+static struct clk ipg_clk = {
+	.reg = CCM_CACRR,
+	.enable_reg = 0,
+	.div_mask = IPG_CLK_DIV_MASK,
+	.div_shift = IPG_CLK_DIV_SHIFT,
+	.div_val = 1, /* Divide by 2 */
+	.sel_reg = 0,
+	.sel_mask = 0,
+	.sel_shift = 0,
+	.sel_val = 0,
 };
 
 /*
@@ -310,6 +321,7 @@ struct clock_entry {
 };
 
 static struct clock_entry clock_map[] = {
+	{"ipg",		&ipg_clk},
 	{"pll4",	&pll4_clk},
 	{"sai3",	&sai3_clk},
 	{"cko1",	&cko1_clk},

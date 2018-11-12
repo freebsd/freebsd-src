@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	unix_socket
-NO_MAN=
-WARNS?=	3
+MAN=
+WARNS?=	6
 
 .include <bsd.prog.mk>

@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -68,7 +66,7 @@ static bus_read_ivar_t miibus_read_ivar;
 static miibus_readreg_t miibus_readreg;
 static miibus_statchg_t miibus_statchg;
 static miibus_writereg_t miibus_writereg;
-static miibus_linkchg_t miibus_linkchg;
+static miibus_readvar_t miibus_readvar;
 static miibus_mediainit_t miibus_mediainit;
 
 static unsigned char mii_bitreverse(unsigned char x);
@@ -91,7 +89,7 @@ static device_method_t miibus_methods[] = {
 	DEVMETHOD(miibus_readreg,	miibus_readreg),
 	DEVMETHOD(miibus_writereg,	miibus_writereg),
 	DEVMETHOD(miibus_statchg,	miibus_statchg),
-	DEVMETHOD(miibus_linkchg,	miibus_linkchg),
+	DEVMETHOD(miibus_readvar,	miibus_readvar),
 	DEVMETHOD(miibus_mediainit,	miibus_mediainit),
 
 	DEVMETHOD_END
@@ -106,9 +104,6 @@ driver_t miibus_driver = {
 };
 
 struct miibus_ivars {
-	struct ifnet	*ifp;
-	ifm_change_cb_t	ifmedia_upd;
-	ifm_stat_cb_t	ifmedia_sts;
 	u_int		mii_flags;
 	u_int		mii_offset;
 };
@@ -125,7 +120,6 @@ miibus_probe(device_t dev)
 static int
 miibus_attach(device_t dev)
 {
-	struct miibus_ivars	*ivars;
 	struct mii_attach_args	*ma;
 	struct mii_data		*mii;
 	device_t		*children;
@@ -143,12 +137,6 @@ miibus_attach(device_t dev)
 		device_printf(dev, "cannot get children\n");
 		return (ENXIO);
 	}
-	ivars = device_get_ivars(dev);
-	ifmedia_init(&mii->mii_media, IFM_IMASK, ivars->ifmedia_upd,
-	    ivars->ifmedia_sts);
-	mii->mii_ifp = ivars->ifp;
-	mii->mii_ifp->if_capabilities |= IFCAP_LINKSTATE;
-	mii->mii_ifp->if_capenable |= IFCAP_LINKSTATE;
 	LIST_INIT(&mii->mii_phys);
 
 	return (bus_generic_attach(dev));
@@ -161,8 +149,6 @@ miibus_detach(device_t dev)
 
 	bus_generic_detach(dev);
 	mii = device_get_softc(dev);
-	ifmedia_removeall(&mii->mii_media);
-	mii->mii_ifp = NULL;
 
 	return (0);
 }
@@ -280,77 +266,56 @@ miibus_hinted_child(device_t dev, const char *name, int unit)
 		ma->mii_capmask = val;
 }
 
+/*
+ * The miibus just relays most devmethods to the parent.
+ */
 static int
 miibus_readreg(device_t dev, int phy, int reg)
 {
-	device_t		parent;
 
-	parent = device_get_parent(dev);
-	return (MIIBUS_READREG(parent, phy, reg));
+	return (MIIBUS_READREG(device_get_parent(dev), phy, reg));
 }
 
 static int
 miibus_writereg(device_t dev, int phy, int reg, int data)
 {
-	device_t		parent;
 
-	parent = device_get_parent(dev);
-	return (MIIBUS_WRITEREG(parent, phy, reg, data));
+	return (MIIBUS_WRITEREG(device_get_parent(dev), phy, reg, data));
 }
 
 static void
 miibus_statchg(device_t dev)
 {
-	device_t		parent;
-	struct mii_data		*mii;
 
-	parent = device_get_parent(dev);
-	MIIBUS_STATCHG(parent);
-
-	mii = device_get_softc(dev);
-	mii->mii_ifp->if_baudrate = ifmedia_baudrate(mii->mii_media_active);
+	MIIBUS_STATCHG(device_get_parent(dev));
 }
 
-static void
-miibus_linkchg(device_t dev)
+static uint64_t
+miibus_readvar(device_t dev, int var)
 {
-	struct mii_data		*mii;
-	device_t		parent;
-	int			link_state;
 
-	parent = device_get_parent(dev);
-	MIIBUS_LINKCHG(parent);
-
-	mii = device_get_softc(dev);
-
-	if (mii->mii_media_status & IFM_AVALID) {
-		if (mii->mii_media_status & IFM_ACTIVE)
-			link_state = LINK_STATE_UP;
-		else
-			link_state = LINK_STATE_DOWN;
-	} else
-		link_state = LINK_STATE_UNKNOWN;
-	if_link_state_change(mii->mii_ifp, link_state);
+	return (MIIBUS_READVAR(device_get_parent(dev), var));
 }
 
 static void
 miibus_mediainit(device_t dev)
 {
-	struct mii_data		*mii;
-	struct ifmedia_entry	*m;
-	int			media = 0;
+	struct mii_data *mii;
+	int i;
 
 	/* Poke the parent in case it has any media of its own to add. */
 	MIIBUS_MEDIAINIT(device_get_parent(dev));
 
+	/*
+	 * Prefer (IFM_ETHER | IFM_AUTO), but if not found set the last
+	 * media word set by phys.
+	 */
 	mii = device_get_softc(dev);
-	LIST_FOREACH(m, &mii->mii_media.ifm_list, ifm_list) {
-		media = m->ifm_media;
-		if (media == (IFM_ETHER | IFM_AUTO))
+	for (i = 0; mii->mii_mediae[i + 1] != 0; i++)
+		if (mii->mii_mediae[i] == (IFM_ETHER | IFM_AUTO))
 			break;
-	}
 
-	ifmedia_set(&mii->mii_media, media);
+	mii->mii_media = mii->mii_mediae[i];
 }
 
 /*
@@ -358,9 +323,8 @@ miibus_mediainit(device_t dev)
  * the PHYs to the network interface driver parent.
  */
 int
-mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
-    ifm_change_cb_t ifmedia_upd, ifm_stat_cb_t ifmedia_sts, int capmask,
-    int phyloc, int offloc, int flags)
+mii_attach(device_t dev, device_t *miibus, int capmask, int phyloc, int offloc,
+    int flags)
 {
 	struct miibus_ivars *ivars;
 	struct mii_attach_args *args, ma;
@@ -374,7 +338,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 	}
 
 	if (offloc != MII_OFFSET_ANY && (offloc < 0 || offloc >= MII_NPHY)) {
-		printf("%s: ivalid offloc %d\n", __func__, offloc);
+		printf("%s: invalid offloc %d\n", __func__, offloc);
 		return (EINVAL);
 	}
 
@@ -383,7 +347,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		phymax = MII_NPHY - 1;
 	} else {
 		if (phyloc < 0 || phyloc >= MII_NPHY) {
-			printf("%s: ivalid phyloc %d\n", __func__, phyloc);
+			printf("%s: invalid phyloc %d\n", __func__, phyloc);
 			return (EINVAL);
 		}
 		phymin = phymax = phyloc;
@@ -395,9 +359,6 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		ivars = malloc(sizeof(*ivars), M_DEVBUF, M_NOWAIT);
 		if (ivars == NULL)
 			return (ENOMEM);
-		ivars->ifp = ifp;
-		ivars->ifmedia_upd = ifmedia_upd;
-		ivars->ifmedia_sts = ifmedia_sts;
 		ivars->mii_flags = flags;
 		*miibus = device_add_child(dev, "miibus", -1);
 		if (*miibus == NULL) {
@@ -407,9 +368,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		device_set_ivars(*miibus, ivars);
 	} else {
 		ivars = device_get_ivars(*miibus);
-		if (ivars->ifp != ifp || ivars->ifmedia_upd != ifmedia_upd ||
-		    ivars->ifmedia_sts != ifmedia_sts ||
-		    ivars->mii_flags != flags) {
+		if (ivars->mii_flags != flags) {
 			printf("%s: non-matching invariant\n", __func__);
 			return (EINVAL);
 		}
@@ -535,13 +494,14 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 }
 
 /*
- * Media changed; notify all PHYs.
+ * Media changed; notify all PHYs.  This function is called from drivers
+ * ifop_media_change method, which propagates media parameter to this
+ * layer.
  */
 int
-mii_mediachg(struct mii_data *mii)
+mii_mediachg(struct mii_data *mii, if_media_t media)
 {
 	struct mii_softc *child;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int rv;
 
 	mii->mii_media_status = 0;
@@ -552,7 +512,7 @@ mii_mediachg(struct mii_data *mii)
 		 * If the media indicates a different PHY instance,
 		 * isolate this one.
 		 */
-		if (IFM_INST(ife->ifm_media) != child->mii_inst) {
+		if (IFM_INST(media) != child->mii_inst) {
 			if ((child->mii_flags & MIIF_NOISOLATE) != 0) {
 				device_printf(child->mii_dev, "%s: "
 				    "can't handle non-zero PHY instance %d\n",
@@ -563,10 +523,11 @@ mii_mediachg(struct mii_data *mii)
 			    BMCR_ISO);
 			continue;
 		}
-		rv = PHY_SERVICE(child, mii, MII_MEDIACHG);
+		rv = PHY_SERVICE(child, mii, MII_MEDIACHG, media);
 		if (rv)
 			return (rv);
 	}
+	mii->mii_media = media;
 	return (0);
 }
 
@@ -577,16 +538,15 @@ void
 mii_tick(struct mii_data *mii)
 {
 	struct mii_softc *child;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 
 	LIST_FOREACH(child, &mii->mii_phys, mii_list) {
 		/*
 		 * If this PHY instance isn't currently selected, just skip
 		 * it.
 		 */
-		if (IFM_INST(ife->ifm_media) != child->mii_inst)
+		if (IFM_INST(mii->mii_media) != child->mii_inst)
 			continue;
-		(void)PHY_SERVICE(child, mii, MII_TICK);
+		(void)PHY_SERVICE(child, mii, MII_TICK, mii->mii_media);
 	}
 }
 
@@ -597,7 +557,6 @@ void
 mii_pollstat(struct mii_data *mii)
 {
 	struct mii_softc *child;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 
 	mii->mii_media_status = 0;
 	mii->mii_media_active = IFM_NONE;
@@ -606,22 +565,10 @@ mii_pollstat(struct mii_data *mii)
 		/*
 		 * If we're not polling this PHY instance, just skip it.
 		 */
-		if (IFM_INST(ife->ifm_media) != child->mii_inst)
+		if (IFM_INST(mii->mii_media) != child->mii_inst)
 			continue;
-		(void)PHY_SERVICE(child, mii, MII_POLLSTAT);
+		(void)PHY_SERVICE(child, mii, MII_POLLSTAT, mii->mii_media);
 	}
-}
-
-/*
- * Inform the PHYs that the interface is down.
- */
-void
-mii_down(struct mii_data *mii)
-{
-	struct mii_softc *child;
-
-	LIST_FOREACH(child, &mii->mii_phys, mii_list)
-		mii_phy_down(child);
 }
 
 static unsigned char
@@ -644,4 +591,34 @@ mii_oui(u_int id1, u_int id2)
 	return ((mii_bitreverse(h >> 16) << 16) |
 	    (mii_bitreverse((h >> 8) & 0xff) << 8) |
 	    mii_bitreverse(h & 0xff));
+}
+
+int
+mii_phy_mac_match(struct mii_softc *mii, const char *name)
+{
+
+	return (strcmp(device_get_name(device_get_parent(mii->mii_dev)),
+	    name) == 0);
+}
+
+int
+mii_dev_mac_match(device_t parent, const char *name)
+{
+
+	return (strcmp(device_get_name(device_get_parent(
+	    device_get_parent(parent))), name) == 0);
+}
+
+void *
+mii_phy_mac_softc(struct mii_softc *mii)
+{
+
+	return (device_get_softc(device_get_parent(mii->mii_dev)));
+}
+
+void *
+mii_dev_mac_softc(device_t parent)
+{
+
+	return (device_get_softc(device_get_parent(device_get_parent(parent))));
 }

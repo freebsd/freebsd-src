@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/malloc.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -98,9 +97,10 @@ static driver_t mlphy_driver = {
 DRIVER_MODULE(mlphy, miibus, mlphy_driver, mlphy_devclass, 0, 0);
 
 static struct mii_softc *mlphy_find_other(struct mlphy_softc *);
-static int	mlphy_service(struct mii_softc *, struct mii_data *, int);
-static void	mlphy_reset(struct mii_softc *);
-static void	mlphy_status(struct mii_softc *);
+static int	mlphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	mlphy_reset(struct mii_softc *, if_media_t);
+static void	mlphy_status(struct mii_softc *, if_media_t);
 
 static const struct mii_phy_funcs mlphy_funcs = {
 	mlphy_service,
@@ -128,8 +128,7 @@ mlphy_probe(dev)
 	 * encountered the 6692 on an Olicom card with a ThunderLAN
 	 * controller chip.
 	 */
-	if (strcmp(device_get_name(device_get_parent(device_get_parent(dev))),
-	    "tl") != 0)
+	if (!mii_dev_mac_match(dev, "tl"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Micro Linear 6692 media interface");
@@ -138,8 +137,7 @@ mlphy_probe(dev)
 }
 
 static int
-mlphy_attach(dev)
-	device_t		dev;
+mlphy_attach(device_t dev)
 {
 	struct mlphy_softc *msc;
 	struct mii_softc *sc;
@@ -149,13 +147,13 @@ mlphy_attach(dev)
 	msc->ml_dev = dev;
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &mlphy_funcs, 0);
 
-	PHY_RESET(sc);
+	PHY_RESET(sc, 0);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
 	/* Let the companion PHY (if any) only handle the media we don't. */
 	sc->mii_capmask = ~sc->mii_capabilities;
 	device_printf(dev, " ");
-	mii_phy_add_media(sc);
+	mii_phy_generic_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
@@ -183,12 +181,9 @@ mlphy_find_other(struct mlphy_softc *msc)
 }
 
 static int
-mlphy_service(xsc, mii, cmd)
-	struct mii_softc *xsc;
-	struct mii_data *mii;
-	int cmd;
+mlphy_service(struct mii_softc *xsc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-	struct ifmedia_entry	*ife = mii->mii_media.ifm_cur;
 	struct mii_softc	*other = NULL;
 	struct mlphy_softc	*msc = (struct mlphy_softc *)xsc;
 	struct mii_softc	*sc = (struct mii_softc *)&msc->ml_mii;
@@ -205,7 +200,7 @@ mlphy_service(xsc, mii, cmd)
 		break;
 
 	case MII_MEDIACHG:
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_AUTO:
 			/*
 			 * For autonegotiation, reset and isolate the
@@ -214,42 +209,24 @@ mlphy_service(xsc, mii, cmd)
 			 */
 			msc->ml_state = ML_STATE_AUTO_SELF;
 			if (other != NULL) {
-				PHY_RESET(other);
+				PHY_RESET(other, media);
 				PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 			}
-			(void)mii_phy_auto(sc);
+			(void)mii_phy_auto(sc, media);
 			msc->ml_linked = 0;
 			return (0);
 		case IFM_10_T:
-			/*
-			 * For 10baseT modes, reset and program the
-			 * companion PHY (of any), then program ourselves
-			 * to match. This will put us in pass-through
-			 * mode and let the companion PHY do all the
-			 * work.
-			 *
-			 * BMCR data is stored in the ifmedia entry.
-			 */
-			if (other != NULL) {
-				PHY_RESET(other);
-				PHY_WRITE(other, MII_BMCR, ife->ifm_data);
-			}
-			mii_phy_setmedia(sc);
-			msc->ml_state = 0;
-			break;
 		case IFM_100_TX:
 			/*
-			 * For 100baseTX modes, reset and isolate the
-			 * companion PHY (if any), then program ourselves
+			 * For 10baseT and 100baseTX modes, reset and isolate
+			 * the companion PHY (if any), then program ourselves
 			 * accordingly.
-			 *
-			 * BMCR data is stored in the ifmedia entry.
 			 */
 			if (other != NULL) {
-				PHY_RESET(other);
+				PHY_RESET(other, media);
 				PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 			}
-			mii_phy_setmedia(sc);
+			mii_phy_setmedia(sc, media);
 			msc->ml_state = 0;
 			break;
 		default:
@@ -262,7 +239,7 @@ mlphy_service(xsc, mii, cmd)
 		/*
 		 * Only used for autonegotiation.
 		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+		if (IFM_SUBTYPE(media) != IFM_AUTO)
 			break;
 
 		/*
@@ -285,7 +262,7 @@ mlphy_service(xsc, mii, cmd)
 		if (reg & BMSR_LINK) {
 			if (!msc->ml_linked) {
 				msc->ml_linked = 1;
-				PHY_STATUS(sc);
+				PHY_STATUS(sc, media);
 			}
 			break;
 		}
@@ -299,13 +276,13 @@ mlphy_service(xsc, mii, cmd)
 		sc->mii_ticks = 0;
 		msc->ml_linked = 0;
 		mii->mii_media_active = IFM_NONE;
-		PHY_RESET(sc);
+		PHY_RESET(sc, media);
 		msc->ml_state = ML_STATE_AUTO_SELF;
 		if (other != NULL) {
-			PHY_RESET(other);
+			PHY_RESET(other, media);
 			PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 		}
-		mii_phy_auto(sc);
+		mii_phy_auto(sc, media);
 		return (0);
 	}
 
@@ -314,13 +291,13 @@ mlphy_service(xsc, mii, cmd)
 	if (msc->ml_state == ML_STATE_AUTO_OTHER) {
 		other_inst = other->mii_inst;
 		other->mii_inst = sc->mii_inst;
-		if (IFM_INST(ife->ifm_media) == other->mii_inst)
-			(void)PHY_SERVICE(other, mii, MII_POLLSTAT);
+		if (IFM_INST(media) == other->mii_inst)
+			(void)PHY_SERVICE(other, mii, MII_POLLSTAT, media);
 		other->mii_inst = other_inst;
 		sc->mii_media_active = other->mii_media_active;
 		sc->mii_media_status = other->mii_media_status;
 	} else
-		ukphy_status(sc);
+		ukphy_status(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -332,12 +309,11 @@ mlphy_service(xsc, mii, cmd)
  * enable' bit set, which we don't want.
  */
 static void
-mlphy_reset(sc)
-	struct mii_softc	*sc;
+mlphy_reset(struct mii_softc *sc, if_media_t media)
 {
 	int			reg;
 
-	mii_phy_reset(sc);
+	mii_phy_reset(sc, media);
 	reg = PHY_READ(sc, MII_BMCR);
 	reg &= ~BMCR_AUTOEN;
 	PHY_WRITE(sc, MII_BMCR, reg);
@@ -348,8 +324,7 @@ mlphy_reset(sc)
  * PHY and make sure it's enabled and set correctly.
  */
 static void
-mlphy_status(sc)
-	struct mii_softc	*sc;
+mlphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mlphy_softc	*msc = (struct mlphy_softc *)sc;
 	struct mii_data		*mii = msc->ml_mii.mii_pdata;
@@ -360,19 +335,19 @@ mlphy_status(sc)
 	if (other == NULL)
 		return;
 
-	ukphy_status(sc);
+	ukphy_status(sc, media);
 
 	if (IFM_SUBTYPE(mii->mii_media_active) != IFM_10_T) {
 		msc->ml_state = ML_STATE_AUTO_SELF;
-		PHY_RESET(other);
+		PHY_RESET(other, media);
 		PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 	}
 
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T) {
 		msc->ml_state = ML_STATE_AUTO_OTHER;
-		PHY_RESET(&msc->ml_mii);
+		PHY_RESET(&msc->ml_mii, media);
 		PHY_WRITE(&msc->ml_mii, MII_BMCR, BMCR_ISO);
-		PHY_RESET(other);
-		mii_phy_auto(other);
+		PHY_RESET(other, media);
+		mii_phy_auto(other, media);
 	}
 }

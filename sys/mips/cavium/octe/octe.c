@@ -189,7 +189,7 @@ octe_attach(device_t dev)
 
 	ifp->if_transmit = octe_transmit;
 
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities = IFCAP_VLAN_MTU | IFCAP_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP;

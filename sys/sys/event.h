@@ -38,7 +38,7 @@
 #define EVFILT_PROC		(-5)	/* attached to struct proc */
 #define EVFILT_SIGNAL		(-6)	/* attached to struct proc */
 #define EVFILT_TIMER		(-7)	/* timers */
-/*	EVFILT_NETDEV		(-8)	   no longer supported */
+#define EVFILT_PROCDESC		(-8)	/* attached to process descriptors */
 #define EVFILT_FS		(-9)	/* filesystem events */
 #define EVFILT_LIO		(-10)	/* attached to lio requests */
 #define EVFILT_USER		(-11)	/* User events */
@@ -69,6 +69,7 @@ struct kevent {
 #define EV_DELETE	0x0002		/* delete event from kq */
 #define EV_ENABLE	0x0004		/* enable event */
 #define EV_DISABLE	0x0008		/* disable event (not reported) */
+#define EV_FORCEONESHOT	0x0100		/* enable _ONESHOT and force trigger */
 
 /* flags */
 #define EV_ONESHOT	0x0010		/* only report one occurrence */
@@ -107,6 +108,7 @@ struct kevent {
  * data/hint flags for EVFILT_{READ|WRITE}, shared with userspace
  */
 #define NOTE_LOWAT	0x0001			/* low water mark */
+#define NOTE_FILE_POLL	0x0002			/* behave like poll() */
 
 /*
  * data/hint flags for EVFILT_VNODE, shared with userspace
@@ -120,7 +122,7 @@ struct kevent {
 #define	NOTE_REVOKE	0x0040			/* vnode access was revoked */
 
 /*
- * data/hint flags for EVFILT_PROC, shared with userspace
+ * data/hint flags for EVFILT_PROC and EVFILT_PROCDESC, shared with userspace
  */
 #define	NOTE_EXIT	0x80000000		/* process exited */
 #define	NOTE_FORK	0x40000000		/* process forked */
@@ -132,6 +134,12 @@ struct kevent {
 #define	NOTE_TRACK	0x00000001		/* follow across forks */
 #define	NOTE_TRACKERR	0x00000002		/* could not track child */
 #define	NOTE_CHILD	0x00000004		/* am a child process */
+
+/* additional flags for EVFILT_TIMER */
+#define NOTE_SECONDS		0x00000001	/* data is seconds */
+#define NOTE_MSECONDS		0x00000002	/* data is milliseconds */
+#define NOTE_USECONDS		0x00000004	/* data is microseconds */
+#define NOTE_NSECONDS		0x00000008	/* data is nanoseconds */
 
 struct knote;
 SLIST_HEAD(klist, knote);
@@ -207,6 +215,7 @@ struct knote {
 #define KN_MARKER	0x20			/* ignore this knote */
 #define KN_KQUEUE	0x40			/* this knote belongs to a kq */
 #define KN_HASKQLOCK	0x80			/* for _inevent */
+#define	KN_SCAN		0x100			/* flux set in kqueue_scan() */
 	int			kn_sfflags;	/* saved filter flags */
 	intptr_t		kn_sdata;	/* saved data field */
 	union {
@@ -214,6 +223,7 @@ struct knote {
 		struct		proc *p_proc;	/* proc pointer */
 		struct		aiocblist *p_aio;	/* AIO job pointer */
 		struct		aioliojob *p_lio;	/* LIO job pointer */
+		sbintime_t	*p_nexttime;	/* next timer event fires at */
 		void		*p_v;		/* generic other pointer */
 	} kn_ptr;
 	struct			filterops *kn_fop;

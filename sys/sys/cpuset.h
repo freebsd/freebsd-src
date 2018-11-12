@@ -55,10 +55,12 @@
 #define	CPU_NAND(d, s)			BIT_NAND(CPU_SETSIZE, d, s)
 #define	CPU_CLR_ATOMIC(n, p)		BIT_CLR_ATOMIC(CPU_SETSIZE, n, p)
 #define	CPU_SET_ATOMIC(n, p)		BIT_SET_ATOMIC(CPU_SETSIZE, n, p)
+#define	CPU_SET_ATOMIC_ACQ(n, p)	BIT_SET_ATOMIC_ACQ(CPU_SETSIZE, n, p)
 #define	CPU_AND_ATOMIC(n, p)		BIT_AND_ATOMIC(CPU_SETSIZE, n, p)
 #define	CPU_OR_ATOMIC(d, s)		BIT_OR_ATOMIC(CPU_SETSIZE, d, s)
 #define	CPU_COPY_STORE_REL(f, t)	BIT_COPY_STORE_REL(CPU_SETSIZE, f, t)
 #define	CPU_FFS(p)			BIT_FFS(CPU_SETSIZE, p)
+#define	CPU_COUNT(p)			BIT_COUNT(CPU_SETSIZE, p)
 
 /*
  * Valid cpulevel_t values.
@@ -75,6 +77,7 @@
 #define	CPU_WHICH_CPUSET	3	/* Specifies a set id. */
 #define	CPU_WHICH_IRQ		4	/* Specifies an irq #. */
 #define	CPU_WHICH_JAIL		5	/* Specifies a jail id. */
+#define	CPU_WHICH_DOMAIN	6	/* Specifies a NUMA domain id. */
 
 /*
  * Reserved cpuset identifiers.
@@ -113,13 +116,18 @@ struct cpuset {
 extern cpuset_t *cpuset_root;
 struct prison;
 struct proc;
+struct thread;
 
 struct cpuset *cpuset_thread0(void);
 struct cpuset *cpuset_ref(struct cpuset *);
 void	cpuset_rel(struct cpuset *);
 int	cpuset_setthread(lwpid_t id, cpuset_t *);
+int	cpuset_setithread(lwpid_t id, int cpu);
 int	cpuset_create_root(struct prison *, struct cpuset **);
 int	cpuset_setproc_update_set(struct proc *, struct cpuset *);
+int	cpuset_which(cpuwhich_t, id_t, struct proc **,
+	    struct thread **, struct cpuset **);
+
 char	*cpusetobj_strprint(char *, const cpuset_t *);
 int	cpusetobj_strscan(cpuset_t *, const char *);
 #ifdef DDB

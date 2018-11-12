@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,10 +22,9 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
-#if !defined(_ATF_CXX_CHECK_HPP_)
-#define _ATF_CXX_CHECK_HPP_
+#if !defined(ATF_CXX_CHECK_HPP)
+#define ATF_CXX_CHECK_HPP
 
 extern "C" {
 #include <atf-c/check.h>
@@ -38,8 +34,6 @@ extern "C" {
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <atf-c++/noncopyable.hpp>
 
 namespace atf {
 
@@ -60,7 +54,11 @@ namespace check {
 //! of executing arbitrary command and manages files containing
 //! its output.
 //!
-class check_result : noncopyable {
+class check_result {
+    // Non-copyable.
+    check_result(const check_result&);
+    check_result& operator=(const check_result&);
+
     //!
     //! \brief Internal representation of a result.
     //!
@@ -130,4 +128,4 @@ check_result test_constructor(void);
 } // namespace check
 } // namespace atf
 
-#endif // !defined(_ATF_CXX_CHECK_HPP_)
+#endif // !defined(ATF_CXX_CHECK_HPP)

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 19, 2013
+.Dd May 24, 2015
 .Dt SLEEP 9
 .Os
 .Sh NAME
@@ -130,19 +130,6 @@ possible, and
 is returned if the system call should be interrupted by the signal
 (return
 .Er EINTR ) .
-If the
-.Dv PBDRY
-flag is specified in addition to
-.Dv PCATCH ,
-then the sleeping thread is not stopped when
-.Dv SIGSTOP
-becomes pending
-or some other stop action occurs while it is sleeping.
-Instead, it is woken up, with the assumption
-that the stop will occur on reaching a stop
-point when returning to usermode.
-The flag should be used when the sleeping thread owns resources, for instance
-vnode locks, that should be released in a timely fashion.
 .Pp
 The parameter
 .Fa wmesg
@@ -383,4 +370,4 @@ function appeared in
 .Sh AUTHORS
 .An -nosplit
 This manual page was written by
-.An J\(:org Wunsch Aq joerg@FreeBSD.org .
+.An J\(:org Wunsch Aq Mt joerg@FreeBSD.org .

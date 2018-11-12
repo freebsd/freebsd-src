@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.225 2013/11/22 20:51:56 ca Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.225 2013-11-22 20:51:56 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -352,6 +352,7 @@ mci_get(host, m)
 #if PIPELINING
 	mci->mci_okrcpts = 0;
 #endif /* PIPELINING */
+	mci->mci_flags &= ~MCIF_NOTSTICKY;
 
 	if (mci->mci_rpool == NULL)
 		mci->mci_rpool = sm_rpool_new_x(NULL);

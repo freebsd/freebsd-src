@@ -160,6 +160,12 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 
 	trace_rip("Recv", "from", from, sifp, rip, cc);
 
+	if (sifp == 0) {
+		trace_pkt("    discard a request from an indirect router"
+		    " (possibly an attack)");
+		return;
+	}
+
 	if (rip->rip_vers == 0) {
 		msglim(&bad_router, FROM_NADDR,
 		       "RIP version 0, cmd %d, packet received from %s",
@@ -288,9 +294,24 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 				/* Answer a query from a utility program
 				 * with all we know.
 				 */
+				if (aifp == NULL) {
+					trace_pkt("ignore remote query");
+					return;
+				}
 				if (from->sin_port != htons(RIP_PORT)) {
-					supply(from, aifp, OUT_QUERY, 0,
-					       rip->rip_vers, ap != 0);
+					/*
+					 * insecure: query from non-router node
+					 *   > 1: allow from distant node
+					 *   > 0: allow from neighbor node
+					 *  == 0: deny
+					 */
+					if ((aifp != NULL && insecure > 0) ||
+					    (aifp == NULL && insecure > 1))
+						supply(from, aifp, OUT_QUERY, 0,
+						       rip->rip_vers, ap != 0);
+					else
+						trace_pkt("Warning: "
+						    "possible attack detected");
 					return;
 				}
 

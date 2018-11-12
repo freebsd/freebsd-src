@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -56,12 +56,16 @@
 #include <openssl/engine.h>
 #endif
 
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
+#include <sys/time.h>
+
 #ifdef HAVE_NSS
 /* nss3 */
 #include "nss.h"
 #endif
 
-#include <ldns/ldns.h>
 #include "daemon/daemon.h"
 #include "daemon/worker.h"
 #include "daemon/remote.h"
@@ -80,6 +84,7 @@
 #include "util/random.h"
 #include "util/tube.h"
 #include "util/net_help.h"
+#include "ldns/keyraw.h"
 #include <signal.h>
 
 /** How many quit requests happened. */
@@ -104,8 +109,9 @@ int ub_c_lex_destroy(void);
 static RETSIGTYPE record_sigh(int sig)
 {
 #ifdef LIBEVENT_SIGNAL_PROBLEM
-	verbose(VERB_OPS, "quit on signal, no cleanup and statistics, "
-		"because installed libevent version is not threadsafe");
+	/* cannot log, verbose here because locks may be held */
+	/* quit on signal, no cleanup and statistics, 
+	   because installed libevent version is not threadsafe */
 	exit(0);
 #endif 
 	switch(sig)
@@ -130,7 +136,8 @@ static RETSIGTYPE record_sigh(int sig)
 			break;
 #endif
 		default:
-			log_err("ignoring signal %d", sig);
+			/* ignoring signal */
+			break;
 	}
 }
 
@@ -203,7 +210,7 @@ daemon_init(void)
 	OPENSSL_config("unbound");
 #  endif
 #  ifdef USE_GOST
-	(void)ldns_key_EVP_load_gost_id();
+	(void)sldns_key_EVP_load_gost_id();
 #  endif
 	OpenSSL_add_all_algorithms();
 #  if HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS
@@ -250,9 +257,56 @@ daemon_open_shared_ports(struct daemon* daemon)
 {
 	log_assert(daemon);
 	if(daemon->cfg->port != daemon->listening_port) {
-		listening_ports_free(daemon->ports);
-		if(!(daemon->ports=listening_ports_open(daemon->cfg)))
+		size_t i;
+		struct listen_port* p0;
+		daemon->reuseport = 0;
+		/* free and close old ports */
+		if(daemon->ports != NULL) {
+			for(i=0; i<daemon->num_ports; i++)
+				listening_ports_free(daemon->ports[i]);
+			free(daemon->ports);
+			daemon->ports = NULL;
+		}
+		/* see if we want to reuseport */
+#ifdef SO_REUSEPORT
+		if(daemon->cfg->so_reuseport && daemon->cfg->num_threads > 0)
+			daemon->reuseport = 1;
+#endif
+		/* try to use reuseport */
+		p0 = listening_ports_open(daemon->cfg, &daemon->reuseport);
+		if(!p0) {
+			listening_ports_free(p0);
 			return 0;
+		}
+		if(daemon->reuseport) {
+			/* reuseport was successful, allocate for it */
+			daemon->num_ports = (size_t)daemon->cfg->num_threads;
+		} else {
+			/* do the normal, singleportslist thing,
+			 * reuseport not enabled or did not work */
+			daemon->num_ports = 1;
+		}
+		if(!(daemon->ports = (struct listen_port**)calloc(
+			daemon->num_ports, sizeof(*daemon->ports)))) {
+			listening_ports_free(p0);
+			return 0;
+		}
+		daemon->ports[0] = p0;
+		if(daemon->reuseport) {
+			/* continue to use reuseport */
+			for(i=1; i<daemon->num_ports; i++) {
+				if(!(daemon->ports[i]=
+					listening_ports_open(daemon->cfg,
+						&daemon->reuseport))
+					|| !daemon->reuseport ) {
+					for(i=0; i<daemon->num_ports; i++)
+						listening_ports_free(daemon->ports[i]);
+					free(daemon->ports);
+					daemon->ports = NULL;
+					return 0;
+				}
+			}
+		}
 		daemon->listening_port = daemon->cfg->port;
 	}
 	if(!daemon->cfg->remote_control_enable && daemon->rc_port) {
@@ -347,6 +401,17 @@ daemon_create_workers(struct daemon* daemon)
 	daemon->num = (daemon->cfg->num_threads?daemon->cfg->num_threads:1);
 	daemon->workers = (struct worker**)calloc((size_t)daemon->num, 
 		sizeof(struct worker*));
+	if(daemon->cfg->dnstap) {
+#ifdef USE_DNSTAP
+		daemon->dtenv = dt_create(daemon->cfg->dnstap_socket_path,
+			(unsigned int)daemon->num);
+		if (!daemon->dtenv)
+			fatal_exit("dt_create failed");
+		dt_apply_cfg(daemon->dtenv, daemon->cfg);
+#else
+		fatal_exit("dnstap enabled in config but not built with dnstap support");
+#endif
+	}
 	for(i=0; i<daemon->num; i++) {
 		if(!(daemon->workers[i] = worker_create(daemon, i,
 			shufport+numport*i/daemon->num, 
@@ -389,6 +454,7 @@ static void*
 thread_start(void* arg)
 {
 	struct worker* worker = (struct worker*)arg;
+	int port_num = 0;
 	log_thread_set(&worker->thread_num);
 	ub_thread_blocksigs();
 #ifdef THREADS_DISABLED
@@ -396,7 +462,14 @@ thread_start(void* arg)
 	tube_close_write(worker->cmd);
 	close_other_pipes(worker->daemon, worker->thread_num);
 #endif
-	if(!worker_init(worker, worker->daemon->cfg, worker->daemon->ports, 0))
+#ifdef SO_REUSEPORT
+	if(worker->daemon->cfg->so_reuseport)
+		port_num = worker->thread_num;
+	else
+		port_num = 0;
+#endif
+	if(!worker_init(worker, worker->daemon->cfg,
+			worker->daemon->ports[port_num], 0))
 		fatal_exit("Could not initialize thread");
 
 	worker_work(worker);
@@ -469,7 +542,7 @@ daemon_fork(struct daemon* daemon)
 
 #if defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP)
 	/* in libev the first inited base gets signals */
-	if(!worker_init(daemon->workers[0], daemon->cfg, daemon->ports, 1))
+	if(!worker_init(daemon->workers[0], daemon->cfg, daemon->ports[0], 1))
 		fatal_exit("Could not initialize main thread");
 #endif
 	
@@ -483,7 +556,7 @@ daemon_fork(struct daemon* daemon)
 	 */
 #if !(defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP))
 	/* libevent has the last inited base get signals (or any base) */
-	if(!worker_init(daemon->workers[0], daemon->cfg, daemon->ports, 1))
+	if(!worker_init(daemon->workers[0], daemon->cfg, daemon->ports[0], 1))
 		fatal_exit("Could not initialize main thread");
 #endif
 	signal_handling_playback(daemon->workers[0]);
@@ -523,17 +596,23 @@ daemon_cleanup(struct daemon* daemon)
 	free(daemon->workers);
 	daemon->workers = NULL;
 	daemon->num = 0;
+#ifdef USE_DNSTAP
+	dt_delete(daemon->dtenv);
+#endif
 	daemon->cfg = NULL;
 }
 
 void 
 daemon_delete(struct daemon* daemon)
 {
+	size_t i;
 	if(!daemon)
 		return;
 	modstack_desetup(&daemon->mods, daemon->env);
 	daemon_remote_delete(daemon->rc);
-	listening_ports_free(daemon->ports);
+	for(i = 0; i < daemon->num_ports; i++)
+		listening_ports_free(daemon->ports[i]);
+	free(daemon->ports);
 	listening_ports_free(daemon->rc_ports);
 	if(daemon->env) {
 		slabhash_delete(daemon->env->msg_cache);
@@ -558,7 +637,7 @@ daemon_delete(struct daemon* daemon)
 	/* libcrypto cleanup */
 #ifdef HAVE_SSL
 #  if defined(USE_GOST) && defined(HAVE_LDNS_KEY_EVP_UNLOAD_GOST)
-	ldns_key_EVP_unload_gost();
+	sldns_key_EVP_unload_gost();
 #  endif
 #  if HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS && HAVE_DECL_SK_SSL_COMP_POP_FREE
 #    ifndef S_SPLINT_S

@@ -39,6 +39,6 @@ ctx.resolvconf("/etc/resolv.conf")
 
 status, result = ctx.resolve("www.nic.cz", unbound.RR_TYPE_A, unbound.RR_CLASS_IN)
 if status == 0 and result.havedata:
-    print "Result:", result.data.address_list
+    print("Result:", result.data.address_list)
 elif status != 0:
-    print "Error:", unbound.ub_strerror(status)
+    print("Error:", unbound.ub_strerror(status))

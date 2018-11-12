@@ -897,7 +897,7 @@ check_parameters(void)
 		    NANDFS_SEG_MIN_BLOCKS);
 
 	/* check reserved segment percentage */
-	if ((rsv_segment_percent < 1) && (rsv_segment_percent > 99))
+	if ((rsv_segment_percent < 1) || (rsv_segment_percent > 99))
 		errx(1, "Bad reserved segment percentage. "
 		    "Must in range 1..99.");
 
@@ -988,10 +988,10 @@ calculate_geometry(int fd)
 	/* Get storage erase unit size */
 	if (!is_nand)
 		erasesize = NANDFS_DEF_ERASESIZE;
-	else if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) == -1)
-		errx(1, "Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
-	else
+	else if (ioctl(fd, NAND_IO_GET_CHIP_PARAM, &chip_params) != -1)
 		erasesize = chip_params.page_size * chip_params.pages_per_block;
+	else
+		errx(1, "Cannot ioctl(NAND_IO_GET_CHIP_PARAM)");
 
 	debug("erasesize: %#jx", (uintmax_t)erasesize);
 

@@ -180,6 +180,7 @@ printaliases(void)
 	int i, j;
 	struct alias **sorted, *ap;
 
+	INTOFF;
 	sorted = ckmalloc(aliases * sizeof(*sorted));
 	j = 0;
 	for (i = 0; i < ATABSIZE; i++)
@@ -187,9 +188,13 @@ printaliases(void)
 			if (*ap->name != '\0')
 				sorted[j++] = ap;
 	qsort(sorted, aliases, sizeof(*sorted), comparealiases);
-	for (i = 0; i < aliases; i++)
+	for (i = 0; i < aliases; i++) {
 		printalias(sorted[i]);
+		if (int_pending())
+			break;
+	}
 	ckfree(sorted);
+	INTON;
 }
 
 int
@@ -243,7 +248,7 @@ hashalias(const char *p)
 {
 	unsigned int hashval;
 
-	hashval = *p << 4;
+	hashval = (unsigned char)*p << 4;
 	while (*p)
 		hashval+= *p++;
 	return &atab[hashval % ATABSIZE];

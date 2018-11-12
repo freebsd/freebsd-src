@@ -62,16 +62,13 @@ static int ffs_rawread_readahead(struct vnode *vp,
 				 off_t offset,
 				 size_t len,
 				 struct thread *td,
-				 struct buf *bp,
-				 caddr_t sa);
+				 struct buf *bp);
 static int ffs_rawread_main(struct vnode *vp,
 			    struct uio *uio);
 
 static int ffs_rawread_sync(struct vnode *vp);
 
 int ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
-
-void ffs_rawread_setup(void);
 
 SYSCTL_DECL(_vfs_ffs);
 
@@ -87,13 +84,13 @@ static int rawreadahead = 1;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, rawreadahead, CTLFLAG_RW, &rawreadahead, 0,
 	   "Flag to enable readahead for long raw reads");
 
-
-void
-ffs_rawread_setup(void)
+static void
+ffs_rawread_setup(void *arg __unused)
 {
+
 	ffsrawbufcnt = (nswbuf > 100 ) ? (nswbuf - (nswbuf >> 4)) : nswbuf - 8;
 }
-
+SYSINIT(ffs_raw, SI_SUB_VM_CONF, SI_ORDER_ANY, ffs_rawread_setup, NULL);
 
 static int
 ffs_rawread_sync(struct vnode *vp)
@@ -192,8 +189,7 @@ ffs_rawread_readahead(struct vnode *vp,
 		      off_t offset,
 		      size_t len,
 		      struct thread *td,
-		      struct buf *bp,
-		      caddr_t sa)
+		      struct buf *bp)
 {
 	int error;
 	u_int iolen;
@@ -221,7 +217,6 @@ ffs_rawread_readahead(struct vnode *vp,
 	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = bdone;
 	bp->b_data = udata;
-	bp->b_saveaddr = sa;
 	blockno = offset / bsize;
 	blockoff = (offset % bsize) / DEV_BSIZE;
 	if ((daddr_t) blockno != blockno) {
@@ -274,7 +269,6 @@ ffs_rawread_main(struct vnode *vp,
 {
 	int error, nerror;
 	struct buf *bp, *nbp, *tbp;
-	caddr_t sa, nsa, tsa;
 	u_int iolen;
 	int spl;
 	caddr_t udata;
@@ -297,18 +291,15 @@ ffs_rawread_main(struct vnode *vp,
 	
 	bp = NULL;
 	nbp = NULL;
-	sa = NULL;
-	nsa = NULL;
 	
 	while (resid > 0) {
 		
 		if (bp == NULL) { /* Setup first read */
 			/* XXX: Leave some bufs for swap */
 			bp = getpbuf(&ffsrawbufcnt);
-			sa = bp->b_data;
 			pbgetvp(vp, bp);
 			error = ffs_rawread_readahead(vp, udata, offset,
-						     resid, td, bp, sa);
+						     resid, td, bp);
 			if (error != 0)
 				break;
 			
@@ -319,7 +310,6 @@ ffs_rawread_main(struct vnode *vp,
 				else
 					nbp = NULL;
 				if (nbp != NULL) {
-					nsa = nbp->b_data;
 					pbgetvp(vp, nbp);
 					
 					nerror = ffs_rawread_readahead(vp, 
@@ -330,8 +320,7 @@ ffs_rawread_main(struct vnode *vp,
 								       resid -
 								       bp->b_bufsize,
 								       td,
-								       nbp,
-								       nsa);
+								       nbp);
 					if (nerror) {
 						pbrelvp(nbp);
 						relpbuf(nbp, &ffsrawbufcnt);
@@ -367,8 +356,7 @@ ffs_rawread_main(struct vnode *vp,
 						      offset,
 						      bp->b_bufsize - iolen,
 						      td,
-						      bp,
-						      sa);
+						      bp);
 			if (error != 0)
 				break;
 		} else if (nbp != NULL) { /* Complete read with readahead */
@@ -376,10 +364,6 @@ ffs_rawread_main(struct vnode *vp,
 			tbp = bp;
 			bp = nbp;
 			nbp = tbp;
-			
-			tsa = sa;
-			sa = nsa;
-			nsa = tsa;
 			
 			if (resid <= bp->b_bufsize) { /* No more readaheads */
 				pbrelvp(nbp);
@@ -394,8 +378,7 @@ ffs_rawread_main(struct vnode *vp,
 							       resid -
 							       bp->b_bufsize,
 							       td,
-							       nbp,
-							       nsa);
+							       nbp);
 				if (nerror != 0) {
 					pbrelvp(nbp);
 					relpbuf(nbp, &ffsrawbufcnt);
@@ -406,7 +389,7 @@ ffs_rawread_main(struct vnode *vp,
 			break;		
 		}  else if (resid > 0) { /* More to read, no readahead */
 			error = ffs_rawread_readahead(vp, udata, offset,
-						      resid, td, bp, sa);
+						      resid, td, bp);
 			if (error != 0)
 				break;
 		}

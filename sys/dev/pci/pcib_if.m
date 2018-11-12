@@ -27,7 +27,9 @@
 #
 
 #include <sys/bus.h>
+#include <sys/rman.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
 
 INTERFACE pcib;
 
@@ -37,6 +39,13 @@ CODE {
 	{
 		return (PCI_INVALID_IRQ);
 	}
+
+	static int
+	pcib_null_ari_enabled(device_t pcib)
+	{
+
+		return (0);
+	}
 };
 
 #
@@ -45,6 +54,14 @@ CODE {
 METHOD int maxslots {
 	device_t	dev;
 };
+
+#
+#
+# Return the number of functions on the attached PCI bus.
+#
+METHOD int maxfuncs {
+	device_t	dev;
+} DEFAULT pcib_maxfuncs;
 
 #
 # Read configuration space on the PCI bus. The bus, slot and func
@@ -154,3 +171,39 @@ METHOD int power_for_sleep {
 	device_t	dev;
 	int		*pstate;
 };
+
+#
+# Return the PCI Routing Identifier (RID) for the device.
+#
+METHOD uint16_t get_rid {
+	device_t	pcib;
+	device_t	dev;
+} DEFAULT pcib_get_rid;
+
+#
+# Enable Alternative RID Interpretation if both the downstream port (pcib)
+# and the endpoint device (dev) both support it.
+#
+METHOD int try_enable_ari {
+	device_t	pcib;
+	device_t	dev;
+};
+
+#
+# Return non-zero if PCI ARI is enabled, or zero otherwise
+#
+METHOD int ari_enabled {
+	device_t	pcib;
+} DEFAULT pcib_null_ari_enabled;
+
+#
+# Decode a PCI Routing Identifier (RID) into PCI bus/slot/function
+#
+METHOD void decode_rid {
+	device_t	pcib;
+	uint16_t	rid;
+	int 		*bus;
+	int 		*slot;
+	int 		*func;
+} DEFAULT pcib_decode_rid;
+

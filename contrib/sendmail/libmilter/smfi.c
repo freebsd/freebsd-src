@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smfi.c,v 8.84 2013/11/22 20:51:36 ca Exp $")
+SM_RCSID("@(#)$Id: smfi.c,v 8.84 2013-11-22 20:51:36 ca Exp $")
 #include <sm/varargs.h>
 #include "libmilter.h"
 
@@ -325,7 +325,7 @@ smfi_setsymlist(ctx, where, macros)
 {
 	SM_ASSERT(ctx != NULL);
 
-	if (macros == NULL || *macros == '\0')
+	if (macros == NULL)
 		return MI_FAILURE;
 	if (where < SMFIM_FIRST || where > SMFIM_LAST)
 		return MI_FAILURE;

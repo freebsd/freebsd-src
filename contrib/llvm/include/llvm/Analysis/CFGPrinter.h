@@ -15,11 +15,10 @@
 #ifndef LLVM_ANALYSIS_CFGPRINTER_H
 #define LLVM_ANALYSIS_CFGPRINTER_H
 
-#include "llvm/Assembly/Writer.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/Support/CFG.h"
 #include "llvm/Support/GraphWriter.h"
 
 namespace llvm {
@@ -40,17 +39,18 @@ struct DOTGraphTraits<const Function*> : public DefaultDOTGraphTraits {
     std::string Str;
     raw_string_ostream OS(Str);
 
-    WriteAsOperand(OS, Node, false);
+    Node->printAsOperand(OS, false);
     return OS.str();
   }
 
-  static std::string getCompleteNodeLabel(const BasicBlock *Node, 
+  static std::string getCompleteNodeLabel(const BasicBlock *Node,
                                           const Function *) {
+    enum { MaxColumns = 80 };
     std::string Str;
     raw_string_ostream OS(Str);
 
     if (Node->getName().empty()) {
-      WriteAsOperand(OS, Node, false);
+      Node->printAsOperand(OS, false);
       OS << ":";
     }
 
@@ -59,16 +59,32 @@ struct DOTGraphTraits<const Function*> : public DefaultDOTGraphTraits {
     if (OutStr[0] == '\n') OutStr.erase(OutStr.begin());
 
     // Process string output to make it nicer...
-    for (unsigned i = 0; i != OutStr.length(); ++i)
+    unsigned ColNum = 0;
+    unsigned LastSpace = 0;
+    for (unsigned i = 0; i != OutStr.length(); ++i) {
       if (OutStr[i] == '\n') {                            // Left justify
         OutStr[i] = '\\';
         OutStr.insert(OutStr.begin()+i+1, 'l');
+        ColNum = 0;
+        LastSpace = 0;
       } else if (OutStr[i] == ';') {                      // Delete comments!
         unsigned Idx = OutStr.find('\n', i+1);            // Find end of line
         OutStr.erase(OutStr.begin()+i, OutStr.begin()+Idx);
         --i;
+      } else if (ColNum == MaxColumns) {                  // Wrap lines.
+        // Wrap very long names even though we can't find a space.
+        if (!LastSpace)
+          LastSpace = i;
+        OutStr.insert(LastSpace, "\\l...");
+        ColNum = i - LastSpace;
+        LastSpace = 0;
+        i += 3; // The loop will advance 'i' again.
       }
-
+      else
+        ++ColNum;
+      if (OutStr[i] == ' ')
+        LastSpace = i;
+    }
     return OutStr;
   }
 
@@ -86,20 +102,20 @@ struct DOTGraphTraits<const Function*> : public DefaultDOTGraphTraits {
     if (const BranchInst *BI = dyn_cast<BranchInst>(Node->getTerminator()))
       if (BI->isConditional())
         return (I == succ_begin(Node)) ? "T" : "F";
-    
+
     // Label source of switch edges with the associated value.
     if (const SwitchInst *SI = dyn_cast<SwitchInst>(Node->getTerminator())) {
       unsigned SuccNo = I.getSuccessorIndex();
 
       if (SuccNo == 0) return "def";
-      
+
       std::string Str;
       raw_string_ostream OS(Str);
       SwitchInst::ConstCaseIt Case =
-          SwitchInst::ConstCaseIt::fromSuccessorIndex(SI, SuccNo); 
+          SwitchInst::ConstCaseIt::fromSuccessorIndex(SI, SuccNo);
       OS << Case.getCaseValue()->getValue();
       return OS.str();
-    }    
+    }
     return "";
   }
 };

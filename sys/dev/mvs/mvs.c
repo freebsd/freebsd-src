@@ -107,7 +107,7 @@ mvs_ch_probe(device_t dev)
 {
 
 	device_set_desc_copy(dev, "Marvell SATA channel");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -122,6 +122,7 @@ mvs_ch_attach(device_t dev)
 	ch->unit = (intptr_t)device_get_ivars(dev);
 	ch->quirks = ctlr->quirks;
 	mtx_init(&ch->mtx, "MVS channel lock", NULL, MTX_DEF);
+	ch->pm_level = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
 	if (ch->pm_level > 3)
@@ -402,7 +403,6 @@ mvs_dmafini(device_t dev)
 		bus_dmamem_free(ch->dma.workrp_tag,
 		    ch->dma.workrp, ch->dma.workrp_map);
 		ch->dma.workrp_bus = 0;
-		ch->dma.workrp_map = NULL;
 		ch->dma.workrp = NULL;
 	}
 	if (ch->dma.workrp_tag) {
@@ -414,7 +414,6 @@ mvs_dmafini(device_t dev)
 		bus_dmamem_free(ch->dma.workrq_tag,
 		    ch->dma.workrq, ch->dma.workrq_map);
 		ch->dma.workrq_bus = 0;
-		ch->dma.workrq_map = NULL;
 		ch->dma.workrq = NULL;
 	}
 	if (ch->dma.workrq_tag) {
@@ -1416,8 +1415,8 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 		}
 	}
 	/* Start command execution timeout */
-	callout_reset(&slot->timeout, (int)ccb->ccb_h.timeout * hz / 1000,
-	    (timeout_t*)mvs_timeout, slot);
+	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    (timeout_t*)mvs_timeout, slot, 0);
 }
 
 /* Must be called with channel locked. */
@@ -1530,8 +1529,8 @@ mvs_execute_transaction(struct mvs_slot *slot)
 	ATA_OUTL(ch->r_mem, EDMA_REQQIP,
 	    ch->dma.workrq_bus + MVS_CRQB_OFFSET + (MVS_CRQB_SIZE * ch->out_idx));
 	/* Start command execution timeout */
-	callout_reset(&slot->timeout, (int)ccb->ccb_h.timeout * hz / 1000,
-	    (timeout_t*)mvs_timeout, slot);
+	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    (timeout_t*)mvs_timeout, slot, 0);
 	return;
 }
 
@@ -1568,9 +1567,9 @@ mvs_rearm_timeout(device_t dev)
 			continue;
 		if ((ch->toslots & (1 << i)) == 0)
 			continue;
-		callout_reset(&slot->timeout,
-		    (int)slot->ccb->ccb_h.timeout * hz / 2000,
-		    (timeout_t*)mvs_timeout, slot);
+		callout_reset_sbt(&slot->timeout,
+		    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0,
+		    (timeout_t*)mvs_timeout, slot, 0);
 	}
 }
 

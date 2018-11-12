@@ -23,11 +23,12 @@
  * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ */
 
 #ifndef	_DT_MODULE_H
 #define	_DT_MODULE_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <dt_impl.h>
 
@@ -43,11 +44,20 @@ extern void dt_module_destroy(dtrace_hdl_t *, dt_module_t *);
 extern dt_module_t *dt_module_lookup_by_name(dtrace_hdl_t *, const char *);
 extern dt_module_t *dt_module_lookup_by_ctf(dtrace_hdl_t *, ctf_file_t *);
 
+#ifdef __FreeBSD__
+extern dt_kmodule_t *dt_kmodule_lookup(dtrace_hdl_t *, const char *);
+#endif
+
+extern int dt_module_hasctf(dtrace_hdl_t *, dt_module_t *);
 extern ctf_file_t *dt_module_getctf(dtrace_hdl_t *, dt_module_t *);
 extern dt_ident_t *dt_module_extern(dtrace_hdl_t *, dt_module_t *,
     const char *, const dtrace_typeinfo_t *);
 
 extern const char *dt_module_modelname(dt_module_t *);
+extern int dt_module_getlibid(dtrace_hdl_t *, dt_module_t *,
+    const ctf_file_t *);
+extern ctf_file_t *dt_module_getctflib(dtrace_hdl_t *, dt_module_t *,
+    const char *);
 
 #ifdef	__cplusplus
 }

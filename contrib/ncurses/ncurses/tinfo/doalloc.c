@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: doalloc.c,v 1.8 2002/08/31 21:48:11 Philippe.Blain Exp $")
+MODULE_ID("$Id: doalloc.c,v 1.11 2012/11/03 19:27:41 tom Exp $")
 
 NCURSES_EXPORT(void *)
 _nc_doalloc(void *oldp, size_t amount)
@@ -56,20 +56,3 @@ _nc_doalloc(void *oldp, size_t amount)
     }
     return newp;
 }
-
-#if !HAVE_STRDUP
-NCURSES_EXPORT(char *)
-_nc_strdup(const char *src)
-{
-    char *dst;
-    if (src != 0) {
-	dst = typeMalloc(char, strlen(src) + 1);
-	if (dst != 0) {
-	    (void) strcpy(dst, src);
-	}
-    } else {
-	dst = 0;
-    }
-    return dst;
-}
-#endif

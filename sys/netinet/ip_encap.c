@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/ip6protosw.h>
 #endif
 
 #include <machine/stdarg.h>
@@ -96,14 +95,14 @@ static MALLOC_DEFINE(M_NETADDR, "encap_export_host", "Export host address struct
 static void encap_add(struct encaptab *);
 static int mask_match(const struct encaptab *, const struct sockaddr *,
 		const struct sockaddr *);
-static void encap_fillarg(struct mbuf *, const struct encaptab *);
+static void encap_fillarg(struct mbuf *, void *);
 
 /*
  * All global variables in ip_encap.c are locked using encapmtx.
  */
 static struct mtx encapmtx;
 MTX_SYSINIT(encapmtx, &encapmtx, "encapmtx", MTX_DEF);
-LIST_HEAD(, encaptab) encaptab = LIST_HEAD_INITIALIZER(encaptab);
+static LIST_HEAD(, encaptab) encaptab = LIST_HEAD_INITIALIZER(encaptab);
 
 /*
  * We currently keey encap_init() for source code compatibility reasons --
@@ -115,18 +114,20 @@ encap_init(void)
 }
 
 #ifdef INET
-void
-encap4_input(struct mbuf *m, int off)
+int
+encap4_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct ip *ip;
-	int proto;
+	struct mbuf *m;
 	struct sockaddr_in s, d;
 	const struct protosw *psw;
 	struct encaptab *ep, *match;
-	int prio, matchprio;
+	void *arg;
+	int matchprio, off, prio;
 
+	m = *mp;
+	off = *offp;
 	ip = mtod(m, struct ip *);
-	proto = ip->ip_p;
 
 	bzero(&s, sizeof(s));
 	s.sin_family = AF_INET;
@@ -137,6 +138,8 @@ encap4_input(struct mbuf *m, int off)
 	d.sin_len = sizeof(struct sockaddr_in);
 	d.sin_addr = ip->ip_dst;
 
+	arg = NULL;
+	psw = NULL;
 	match = NULL;
 	matchprio = 0;
 	mtx_lock(&encapmtx);
@@ -181,21 +184,24 @@ encap4_input(struct mbuf *m, int off)
 			match = ep;
 		}
 	}
+	if (match != NULL) {
+		psw = match->psw;
+		arg = match->arg;
+	}
 	mtx_unlock(&encapmtx);
 
-	if (match) {
+	if (match != NULL) {
 		/* found a match, "match" has the best one */
-		psw = match->psw;
-		if (psw && psw->pr_input) {
-			encap_fillarg(m, match);
-			(*psw->pr_input)(m, off);
+		if (psw != NULL && psw->pr_input != NULL) {
+			encap_fillarg(m, arg);
+			(*psw->pr_input)(mp, offp, proto);
 		} else
 			m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	/* last resort: inject to raw socket */
-	rip_input(m, off);
+	return (rip_input(mp, offp, proto));
 }
 #endif
 
@@ -206,8 +212,9 @@ encap6_input(struct mbuf **mp, int *offp, int proto)
 	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6;
 	struct sockaddr_in6 s, d;
-	const struct ip6protosw *psw;
+	const struct protosw *psw;
 	struct encaptab *ep, *match;
+	void *arg;
 	int prio, matchprio;
 
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -221,6 +228,8 @@ encap6_input(struct mbuf **mp, int *offp, int proto)
 	d.sin6_len = sizeof(struct sockaddr_in6);
 	d.sin6_addr = ip6->ip6_dst;
 
+	arg = NULL;
+	psw = NULL;
 	match = NULL;
 	matchprio = 0;
 	mtx_lock(&encapmtx);
@@ -248,17 +257,20 @@ encap6_input(struct mbuf **mp, int *offp, int proto)
 			match = ep;
 		}
 	}
+	if (match != NULL) {
+		psw = match->psw;
+		arg = match->arg;
+	}
 	mtx_unlock(&encapmtx);
 
-	if (match) {
+	if (match != NULL) {
 		/* found a match */
-		psw = (const struct ip6protosw *)match->psw;
-		if (psw && psw->pr_input) {
-			encap_fillarg(m, match);
+		if (psw != NULL && psw->pr_input != NULL) {
+			encap_fillarg(m, arg);
 			return (*psw->pr_input)(mp, offp, proto);
 		} else {
 			m_freem(m);
-			return IPPROTO_DONE;
+			return (IPPROTO_DONE);
 		}
 	}
 
@@ -437,14 +449,16 @@ mask_match(const struct encaptab *ep, const struct sockaddr *sp,
 }
 
 static void
-encap_fillarg(struct mbuf *m, const struct encaptab *ep)
+encap_fillarg(struct mbuf *m, void *arg)
 {
 	struct m_tag *tag;
 
-	tag = m_tag_get(PACKET_TAG_ENCAP, sizeof (void*), M_NOWAIT);
-	if (tag) {
-		*(void**)(tag+1) = ep->arg;
-		m_tag_prepend(m, tag);
+	if (arg != NULL) {
+		tag = m_tag_get(PACKET_TAG_ENCAP, sizeof(void *), M_NOWAIT);
+		if (tag != NULL) {
+			*(void**)(tag+1) = arg;
+			m_tag_prepend(m, tag);
+		}
 	}
 }
 

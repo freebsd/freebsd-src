@@ -25,10 +25,15 @@
  *
  * $FreeBSD$
  */
-#include <sys/types.h>
+
+#include <sys/param.h>
+#include <sys/sysctl.h>
+
 #include <netipsec/ipsec.h>
 #include <netipsec/ah_var.h>
 #include <netipsec/esp_var.h>
+
+#include <err.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -62,7 +67,6 @@ static const struct alg ipcompalgs[] = {
 	{ SADB_X_CALG_DEFLATE,	"deflate", },
 	{ SADB_X_CALG_LZS,	"lzs", },
 };
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 
 static const char*
 algname(int a, const struct alg algs[], int nalgs)
@@ -91,13 +95,13 @@ main(int argc, char *argv[])
 	int i;
 
 	slen = sizeof (ips);
-	if (sysctlbyname("net.inet.ipsec.ipsecstats", &ips, &slen, NULL, NULL) < 0)
+	if (sysctlbyname("net.inet.ipsec.ipsecstats", &ips, &slen, NULL, 0) < 0)
 		err(1, "net.inet.ipsec.ipsecstats");
 	slen = sizeof (ahs);
-	if (sysctlbyname("net.inet.ah.stats", &ahs, &slen, NULL, NULL) < 0)
+	if (sysctlbyname("net.inet.ah.stats", &ahs, &slen, NULL, 0) < 0)
 		err(1, "net.inet.ah.stats");
 	slen = sizeof (esps);
-	if (sysctlbyname("net.inet.esp.stats", &esps, &slen, NULL, NULL) < 0)
+	if (sysctlbyname("net.inet.esp.stats", &esps, &slen, NULL, 0) < 0)
 		err(1, "net.inet.esp.stats");
 
 #define	AHSTAT(x,fmt)	if (x) printf("ah " fmt ": %ju\n", (uintmax_t)x)
@@ -121,7 +125,7 @@ main(int argc, char *argv[])
 	for (i = 0; i < AH_ALG_MAX; i++)
 		if (ahs.ahs_hist[i])
 			printf("ah packets with %s: %ju\n"
-				, algname(i, aalgs, N(aalgs))
+				, algname(i, aalgs, nitems(aalgs))
 				, (uintmax_t)ahs.ahs_hist[i]
 			);
 	AHSTAT(ahs.ahs_ibytes, "bytes received");
@@ -150,7 +154,7 @@ main(int argc, char *argv[])
 	for (i = 0; i < ESP_ALG_MAX; i++)
 		if (esps.esps_hist[i])
 			printf("esp packets with %s: %ju\n"
-				, algname(i, espalgs, N(espalgs))
+				, algname(i, espalgs, nitems(espalgs))
 				, (uintmax_t)esps.esps_hist[i]
 			);
 	ESPSTAT(esps.esps_ibytes, "bytes received");

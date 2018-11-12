@@ -81,6 +81,7 @@ will fail if:
 .It Bq Er EINTR
 A signal interrupted this function.
 .El
+.Pp
 Additionally,
 .Fn sem_trywait
 will fail if:
@@ -91,8 +92,7 @@ The semaphore value was zero, and thus could not be decremented.
 .Sh SEE ALSO
 .Xr sem_getvalue 3 ,
 .Xr sem_post 3 ,
-.Xr sem_timedwait 3 ,
-.Xr sem 4
+.Xr sem_timedwait 3
 .Sh STANDARDS
 The
 .Fn sem_wait

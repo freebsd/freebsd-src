@@ -134,6 +134,15 @@ at91_twi_attach(device_t dev)
 
 	AT91_TWI_LOCK_INIT(sc);
 
+#ifdef FDT
+	/*
+	 * Disable devices need to hold their resources, so return now and not attach
+	 * the iicbus, setup interrupt handlers, etc.
+	 */
+	if (!ofw_bus_status_okay(dev))
+		return 0;
+#endif
+
 	/*
 	 * Activate the interrupt
 	 */

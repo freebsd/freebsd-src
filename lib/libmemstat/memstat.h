@@ -124,6 +124,7 @@ uint64_t	 memstat_get_countlimit(const struct memory_type *mtp);
 uint64_t	 memstat_get_byteslimit(const struct memory_type *mtp);
 uint64_t	 memstat_get_sizemask(const struct memory_type *mtp);
 uint64_t	 memstat_get_size(const struct memory_type *mtp);
+uint64_t	 memstat_get_rsize(const struct memory_type *mtp);
 uint64_t	 memstat_get_memalloced(const struct memory_type *mtp);
 uint64_t	 memstat_get_memfreed(const struct memory_type *mtp);
 uint64_t	 memstat_get_numallocs(const struct memory_type *mtp);

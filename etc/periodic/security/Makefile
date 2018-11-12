@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
+
+FILESGROUPS=	FILES DATA
 
 FILES=	100.chksetuid \
 	110.neggrpperm \
@@ -10,8 +12,8 @@ FILES=	100.chksetuid \
 	410.logincheck \
 	700.kernelmsg \
 	800.loginfail \
-	900.tcpwrap \
-	security.functions
+	900.tcpwrap
+DATA=	security.functions
 
 # NB: keep these sorted by MK_* knobs
 

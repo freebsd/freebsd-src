@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "Thumb2InstrInfo.h"
-#include "ARM.h"
 #include "ARMConstantPoolValue.h"
 #include "ARMMachineFunctionInfo.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
@@ -31,12 +30,13 @@ OldT2IfCvt("old-thumb2-ifcvt", cl::Hidden,
            cl::init(false));
 
 Thumb2InstrInfo::Thumb2InstrInfo(const ARMSubtarget &STI)
-  : ARMBaseInstrInfo(STI), RI(*this, STI) {
+  : ARMBaseInstrInfo(STI), RI(STI) {
 }
 
 /// getNoopForMachoTarget - Return the noop instruction to use for a noop.
 void Thumb2InstrInfo::getNoopForMachoTarget(MCInst &NopInst) const {
-  NopInst.setOpcode(ARM::tNOP);
+  NopInst.setOpcode(ARM::tHINT);
+  NopInst.addOperand(MCOperand::CreateImm(0));
   NopInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
   NopInst.addOperand(MCOperand::CreateReg(0));
 }
@@ -209,11 +209,27 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   ARMBaseInstrInfo::loadRegFromStackSlot(MBB, I, DestReg, FI, RC, TRI);
 }
 
+void
+Thumb2InstrInfo::expandLoadStackGuard(MachineBasicBlock::iterator MI,
+                                      Reloc::Model RM) const {
+  if (RM == Reloc::PIC_)
+    expandLoadStackGuardBase(MI, ARM::t2MOV_ga_pcrel, ARM::t2LDRi12, RM);
+  else
+    expandLoadStackGuardBase(MI, ARM::t2MOVi32imm, ARM::t2LDRi12, RM);
+}
+
 void llvm::emitT2RegPlusImmediate(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator &MBBI, DebugLoc dl,
                                unsigned DestReg, unsigned BaseReg, int NumBytes,
                                ARMCC::CondCodes Pred, unsigned PredReg,
                                const ARMBaseInstrInfo &TII, unsigned MIFlags) {
+  if (NumBytes == 0 && DestReg != BaseReg) {
+    BuildMI(MBB, MBBI, dl, TII.get(ARM::tMOVr), DestReg)
+      .addReg(BaseReg, RegState::Kill)
+      .addImm((unsigned)Pred).addReg(PredReg).setMIFlags(MIFlags);
+    return;
+  }
+
   bool isSub = NumBytes < 0;
   if (isSub) NumBytes = -NumBytes;
 
@@ -285,7 +301,7 @@ void llvm::emitT2RegPlusImmediate(MachineBasicBlock &MBB,
         NumBytes = 0;
       } else {
         // FIXME: Move this to ARMAddressingModes.h?
-        unsigned RotAmt = CountLeadingZeros_32(ThisVal);
+        unsigned RotAmt = countLeadingZeros(ThisVal);
         ThisVal = ThisVal & ARM_AM::rotr32(0xff000000U, RotAmt);
         NumBytes &= ~ThisVal;
         assert(ARM_AM::getT2SOImmVal(ThisVal) != -1 &&
@@ -302,7 +318,7 @@ void llvm::emitT2RegPlusImmediate(MachineBasicBlock &MBB,
         NumBytes = 0;
       } else {
         // FIXME: Move this to ARMAddressingModes.h?
-        unsigned RotAmt = CountLeadingZeros_32(ThisVal);
+        unsigned RotAmt = countLeadingZeros(ThisVal);
         ThisVal = ThisVal & ARM_AM::rotr32(0xff000000U, RotAmt);
         NumBytes &= ~ThisVal;
         assert(ARM_AM::getT2SOImmVal(ThisVal) != -1 &&
@@ -334,6 +350,7 @@ negativeOffsetOpcode(unsigned opcode)
   case ARM::t2STRi12:   return ARM::t2STRi8;
   case ARM::t2STRBi12:  return ARM::t2STRBi8;
   case ARM::t2STRHi12:  return ARM::t2STRHi8;
+  case ARM::t2PLDi12:   return ARM::t2PLDi8;
 
   case ARM::t2LDRi8:
   case ARM::t2LDRHi8:
@@ -343,6 +360,7 @@ negativeOffsetOpcode(unsigned opcode)
   case ARM::t2STRi8:
   case ARM::t2STRBi8:
   case ARM::t2STRHi8:
+  case ARM::t2PLDi8:
     return opcode;
 
   default:
@@ -364,6 +382,7 @@ positiveOffsetOpcode(unsigned opcode)
   case ARM::t2STRi8:   return ARM::t2STRi12;
   case ARM::t2STRBi8:  return ARM::t2STRBi12;
   case ARM::t2STRHi8:  return ARM::t2STRHi12;
+  case ARM::t2PLDi8:   return ARM::t2PLDi12;
 
   case ARM::t2LDRi12:
   case ARM::t2LDRHi12:
@@ -373,6 +392,7 @@ positiveOffsetOpcode(unsigned opcode)
   case ARM::t2STRi12:
   case ARM::t2STRBi12:
   case ARM::t2STRHi12:
+  case ARM::t2PLDi12:
     return opcode;
 
   default:
@@ -394,6 +414,7 @@ immediateOffsetOpcode(unsigned opcode)
   case ARM::t2STRs:   return ARM::t2STRi12;
   case ARM::t2STRBs:  return ARM::t2STRBi12;
   case ARM::t2STRHs:  return ARM::t2STRHi12;
+  case ARM::t2PLDs:   return ARM::t2PLDi12;
 
   case ARM::t2LDRi12:
   case ARM::t2LDRHi12:
@@ -403,6 +424,7 @@ immediateOffsetOpcode(unsigned opcode)
   case ARM::t2STRi12:
   case ARM::t2STRBi12:
   case ARM::t2STRHi12:
+  case ARM::t2PLDi12:
   case ARM::t2LDRi8:
   case ARM::t2LDRHi8:
   case ARM::t2LDRBi8:
@@ -411,6 +433,7 @@ immediateOffsetOpcode(unsigned opcode)
   case ARM::t2STRi8:
   case ARM::t2STRBi8:
   case ARM::t2STRHi8:
+  case ARM::t2PLDi8:
     return opcode;
 
   default:
@@ -484,7 +507,7 @@ bool llvm::rewriteT2FrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
 
     // Otherwise, extract 8 adjacent bits from the immediate into this
     // t2ADDri/t2SUBri.
-    unsigned RotAmt = CountLeadingZeros_32(Offset);
+    unsigned RotAmt = countLeadingZeros<unsigned>(Offset);
     unsigned ThisImmVal = Offset & ARM_AM::rotr32(0xff000000U, RotAmt);
 
     // We will handle these bits from offset, clear them.

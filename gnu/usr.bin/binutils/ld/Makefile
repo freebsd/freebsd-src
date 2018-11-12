@@ -1,13 +1,9 @@
 # $FreeBSD$
 
 .include "../Makefile.inc0"
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${SRCDIR}/ld
-
-.if ${TARGET_ARCH} == "ia64"
-CFLAGS+= -O1
-.endif
 
 PROG=	ld
 SCRIPTDIR= /usr/libdata/ldscripts
@@ -73,5 +69,7 @@ stringify.sed:
 afterinstall:
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${LDSCRIPTS:S|^|ldscripts/|} ${DESTDIR}${SCRIPTDIR}
+
+GENDIRDEPS_FILTER.host+= Nusr.bin/yacc
 
 .include <bsd.prog.mk>

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH:	${.CURDIR}/../../../../sbin/hastd
 
@@ -29,8 +29,7 @@ CFLAGS+=-DYY_NO_UNPUT
 CFLAGS+=-DYY_NO_INPUT
 CFLAGS+= -DSNMPTREE_TYPES
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 XSYM=	begemotHast
 DEFS=	${MOD}_tree.def

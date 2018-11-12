@@ -3,9 +3,8 @@
 PROG=	ulog-helper
 BINOWN=	root
 BINMODE=4555
-NO_MAN=
+MAN=
 
-DPADD=	${LIBULOG}
-LDADD=	-lulog
+LIBADD=	ulog
 
 .include <bsd.prog.mk>

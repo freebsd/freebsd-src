@@ -18,41 +18,51 @@
 #include "llvm/Support/Memory.h"
 #include <stdlib.h>
 #include <string>
+
 using namespace llvm;
+
+////////////////////////////////////////////////////////////////////////////////
+// Simulated remote execution
+//
+// This implementation will simply move generated code and data to a new memory
+// location in the current executable and let it run from there.
+////////////////////////////////////////////////////////////////////////////////
 
 bool RemoteTarget::allocateSpace(size_t Size, unsigned Alignment,
                                  uint64_t &Address) {
-  sys::MemoryBlock *Prev = Allocations.size() ? &Allocations.back() : NULL;
+  sys::MemoryBlock *Prev = Allocations.size() ? &Allocations.back() : nullptr;
   sys::MemoryBlock Mem = sys::Memory::AllocateRWX(Size, Prev, &ErrorMsg);
-  if (Mem.base() == NULL)
-    return true;
+  if (Mem.base() == nullptr)
+    return false;
   if ((uintptr_t)Mem.base() % Alignment) {
     ErrorMsg = "unable to allocate sufficiently aligned memory";
-    return true;
+    return false;
   }
   Address = reinterpret_cast<uint64_t>(Mem.base());
-  return false;
+  Allocations.push_back(Mem);
+  return true;
 }
 
 bool RemoteTarget::loadData(uint64_t Address, const void *Data, size_t Size) {
   memcpy ((void*)Address, Data, Size);
-  return false;
+  return true;
 }
 
 bool RemoteTarget::loadCode(uint64_t Address, const void *Data, size_t Size) {
   memcpy ((void*)Address, Data, Size);
   sys::MemoryBlock Mem((void*)Address, Size);
   sys::Memory::setExecutable(Mem, &ErrorMsg);
-  return false;
+  return true;
 }
 
 bool RemoteTarget::executeCode(uint64_t Address, int &RetVal) {
   int (*fn)(void) = (int(*)(void))Address;
   RetVal = fn();
-  return false;
+  return true;
 }
 
-void RemoteTarget::create() {
+bool RemoteTarget::create() {
+  return true;
 }
 
 void RemoteTarget::stop() {

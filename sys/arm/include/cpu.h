@@ -4,6 +4,7 @@
 #ifndef MACHINE_CPU_H
 #define MACHINE_CPU_H
 
+#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/frame.h>
 
@@ -11,14 +12,20 @@ void	cpu_halt(void);
 void	swi_vm(void *);
 
 #ifdef _KERNEL
+#if __ARM_ARCH >= 6
+#include <machine/cpu-v6.h>
+#endif
 static __inline uint64_t
 get_cyclecount(void)
 {
+#if __ARM_ARCH >= 6
+	return cp15_pmccntr_get();
+#else /* No performance counters, so use binuptime(9). This is slooooow */
 	struct bintime bt;
 
 	binuptime(&bt);
 	return ((uint64_t)bt.sec << 56 | bt.frac >> 8);
-			
+#endif
 }
 #endif
 

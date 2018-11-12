@@ -42,6 +42,7 @@
 #ifndef LIBUNBOUND_WORKER_H
 #define LIBUNBOUND_WORKER_H
 
+#include "ldns/sbuffer.h"
 #include "util/data/packed_rrset.h" /* for enum sec_status */
 struct comm_reply;
 struct comm_point;
@@ -57,6 +58,7 @@ struct tube;
  * @param flags: host order flags word, with opcode and CD bit.
  * @param dnssec: if set, EDNS record will have DO bit set.
  * @param want_dnssec: signatures needed.
+ * @param nocaps: ignore capsforid(if in config), do not perturb qname.
  * @param addr: where to.
  * @param addrlen: length of addr.
  * @param zone: delegation point name.
@@ -67,8 +69,9 @@ struct tube;
  */
 struct outbound_entry* libworker_send_query(uint8_t* qname, size_t qnamelen,
         uint16_t qtype, uint16_t qclass, uint16_t flags, int dnssec,
-	int want_dnssec, struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* zone, size_t zonelen, struct module_qstate* q);
+	int want_dnssec, int nocaps, struct sockaddr_storage* addr,
+	socklen_t addrlen, uint8_t* zone, size_t zonelen,
+	struct module_qstate* q);
 
 /** process incoming replies from the network */
 int libworker_handle_reply(struct comm_point* c, void* arg, int error,
@@ -83,11 +86,15 @@ void libworker_handle_control_cmd(struct tube* tube, uint8_t* msg, size_t len,
 	int err, void* arg);
 
 /** mesh callback with fg results */
-void libworker_fg_done_cb(void* arg, int rcode, ldns_buffer* buf, 
+void libworker_fg_done_cb(void* arg, int rcode, sldns_buffer* buf, 
 	enum sec_status s, char* why_bogus);
 
 /** mesh callback with bg results */
-void libworker_bg_done_cb(void* arg, int rcode, ldns_buffer* buf, 
+void libworker_bg_done_cb(void* arg, int rcode, sldns_buffer* buf, 
+	enum sec_status s, char* why_bogus);
+
+/** mesh callback with event results */
+void libworker_event_done_cb(void* arg, int rcode, struct sldns_buffer* buf, 
 	enum sec_status s, char* why_bogus);
 
 /**
@@ -106,6 +113,7 @@ void worker_sighandler(int sig, void* arg);
  * @param flags: host order flags word, with opcode and CD bit.
  * @param dnssec: if set, EDNS record will have DO bit set.
  * @param want_dnssec: signatures needed.
+ * @param nocaps: ignore capsforid(if in config), do not perturb qname.
  * @param addr: where to.
  * @param addrlen: length of addr.
  * @param zone: wireformat dname of the zone.
@@ -116,8 +124,9 @@ void worker_sighandler(int sig, void* arg);
  */
 struct outbound_entry* worker_send_query(uint8_t* qname, size_t qnamelen, 
 	uint16_t qtype, uint16_t qclass, uint16_t flags, int dnssec, 
-	int want_dnssec, struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* zone, size_t zonelen, struct module_qstate* q);
+	int want_dnssec, int nocaps, struct sockaddr_storage* addr,
+	socklen_t addrlen, uint8_t* zone, size_t zonelen,
+	struct module_qstate* q);
 
 /** 
  * process control messages from the main thread. Frees the control 

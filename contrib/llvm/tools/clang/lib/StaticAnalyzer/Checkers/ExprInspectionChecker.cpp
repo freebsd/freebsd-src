@@ -18,10 +18,12 @@ using namespace ento;
 
 namespace {
 class ExprInspectionChecker : public Checker< eval::Call > {
-  mutable OwningPtr<BugType> BT;
+  mutable std::unique_ptr<BugType> BT;
 
   void analyzerEval(const CallExpr *CE, CheckerContext &C) const;
   void analyzerCheckInlined(const CallExpr *CE, CheckerContext &C) const;
+  void analyzerWarnIfReached(const CallExpr *CE, CheckerContext &C) const;
+  void analyzerCrash(const CallExpr *CE, CheckerContext &C) const;
 
   typedef void (ExprInspectionChecker::*FnCheck)(const CallExpr *,
                                                  CheckerContext &C) const;
@@ -39,7 +41,9 @@ bool ExprInspectionChecker::evalCall(const CallExpr *CE,
     .Case("clang_analyzer_eval", &ExprInspectionChecker::analyzerEval)
     .Case("clang_analyzer_checkInlined",
           &ExprInspectionChecker::analyzerCheckInlined)
-    .Default(0);
+    .Case("clang_analyzer_crash", &ExprInspectionChecker::analyzerCrash)
+    .Case("clang_analyzer_warnIfReached", &ExprInspectionChecker::analyzerWarnIfReached)
+    .Default(nullptr);
 
   if (!Handler)
     return false;
@@ -64,7 +68,7 @@ static const char *getArgumentValueString(const CallExpr *CE,
     return "UNDEFINED";
 
   ProgramStateRef StTrue, StFalse;
-  llvm::tie(StTrue, StFalse) =
+  std::tie(StTrue, StFalse) =
     State->assume(AssertionVal.castAs<DefinedOrUnknownSVal>());
 
   if (StTrue) {
@@ -87,13 +91,24 @@ void ExprInspectionChecker::analyzerEval(const CallExpr *CE,
 
   // A specific instantiation of an inlined function may have more constrained
   // values than can generally be assumed. Skip the check.
-  if (LC->getCurrentStackFrame()->getParent() != 0)
+  if (LC->getCurrentStackFrame()->getParent() != nullptr)
     return;
 
   if (!BT)
-    BT.reset(new BugType("Checking analyzer assumptions", "debug"));
+    BT.reset(new BugType(this, "Checking analyzer assumptions", "debug"));
 
   BugReport *R = new BugReport(*BT, getArgumentValueString(CE, C), N);
+  C.emitReport(R);
+}
+
+void ExprInspectionChecker::analyzerWarnIfReached(const CallExpr *CE,
+                                                  CheckerContext &C) const {
+  ExplodedNode *N = C.getPredecessor();
+
+  if (!BT)
+    BT.reset(new BugType(this, "Checking analyzer assumptions", "debug"));
+
+  BugReport *R = new BugReport(*BT, "REACHABLE", N);
   C.emitReport(R);
 }
 
@@ -107,14 +122,19 @@ void ExprInspectionChecker::analyzerCheckInlined(const CallExpr *CE,
   // when we are analyzing it as an inlined function. This means that
   // clang_analyzer_checkInlined(true) should always print TRUE, but
   // clang_analyzer_checkInlined(false) should never actually print anything.
-  if (LC->getCurrentStackFrame()->getParent() == 0)
+  if (LC->getCurrentStackFrame()->getParent() == nullptr)
     return;
 
   if (!BT)
-    BT.reset(new BugType("Checking analyzer assumptions", "debug"));
+    BT.reset(new BugType(this, "Checking analyzer assumptions", "debug"));
 
   BugReport *R = new BugReport(*BT, getArgumentValueString(CE, C), N);
   C.emitReport(R);
+}
+
+void ExprInspectionChecker::analyzerCrash(const CallExpr *CE,
+                                          CheckerContext &C) const {
+  LLVM_BUILTIN_TRAP;
 }
 
 void ento::registerExprInspectionChecker(CheckerManager &Mgr) {

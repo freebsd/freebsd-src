@@ -169,6 +169,9 @@ static void	vtpci_config_intr(void *);
 
 #define vtpci_setup_msi_interrupt vtpci_setup_legacy_interrupt
 
+#define VIRTIO_PCI_CONFIG(_sc) \
+    VIRTIO_PCI_CONFIG_OFF((((_sc)->vtpci_flags & VTPCI_FLAG_MSIX)) != 0)
+
 /*
  * I/O port read/write wrappers.
  */
@@ -727,7 +730,7 @@ vtpci_describe_features(struct vtpci_softc *sc, const char *msg,
 	dev = sc->vtpci_dev;
 	child = sc->vtpci_child_dev;
 
-	if (device_is_attached(child) && bootverbose == 0)
+	if (device_is_attached(child) || bootverbose == 0)
 		return;
 
 	virtio_describe(dev, msg, features, sc->vtpci_child_feat_desc);

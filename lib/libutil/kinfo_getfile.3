@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2008
+.Dd May 27, 2015
 .Dt KINFO_GETFILE 3
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Lb libutil
 .Sh SYNOPSIS
 .In sys/types.h
+.In sys/user.h
 .In libutil.h
 .Ft struct kinfo_file *
 .Fn kinfo_getfile "pid_t pid" "int *cntp"
@@ -48,7 +49,7 @@ field contains the process identifier.
 This should be the a process that you have privilege to access.
 The
 .Ar cntp
-field is allows the caller to know how many records are returned.
+field allows the caller to know how many records are returned.
 .Pp
 This function is a wrapper around
 .Xr sysctl 3

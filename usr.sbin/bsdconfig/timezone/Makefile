@@ -10,7 +10,4 @@ FILES=		INDEX USAGE
 SCRIPTSDIR=	${FILESDIR}
 SCRIPTS=	timezone
 
-beforeinstall:
-	mkdir -p ${DESTDIR}${FILESDIR}
-
 .include <bsd.prog.mk>

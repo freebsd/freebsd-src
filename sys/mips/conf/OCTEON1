@@ -129,6 +129,7 @@ device		isp		# Qlogic family
 #device		ispfw		# Firmware for QLogic HBAs- normally a module
 device		mpt		# LSI-Logic MPT-Fusion
 device		mps		# LSI-Logic MPT-Fusion 2
+device		mpr		# LSI-Logic MPT-Fusion 3
 #device		ncr		# NCR/Symbios Logic
 device		trm		# Tekram DC395U/UW/F DC315U adapters
 
@@ -195,7 +196,8 @@ device		octm
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
-device		ixgbe		# Intel PRO/10GbE PCIE Ethernet Family
+device		ix		# Intel PRO/10GbE PF PCIE Ethernet Family
+device		ixv		# Intel PRO/10GbE VF PCIE Ethernet Family
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		txp		# 3Com 3cR990 (``Typhoon'')
@@ -218,7 +220,6 @@ device		jme		# JMicron JMC250 Gigabit/JMC260 Fast Ethernet
 device		lge		# Level 1 LXT1001 gigabit Ethernet
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
 device		nge		# NatSemi DP83820 gigabit Ethernet
-#device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'le')
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
@@ -261,7 +262,6 @@ device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
-device		faith		# IPv6-to-IPv4 relaying (translation)
 device		firmware	# firmware assist module
 
 # The `bpf' device enables the Berkeley Packet Filter.

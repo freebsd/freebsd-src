@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -80,9 +78,10 @@ static driver_t ciphy_driver = {
 
 DRIVER_MODULE(ciphy, miibus, ciphy_driver, ciphy_devclass, 0, 0);
 
-static int	ciphy_service(struct mii_softc *, struct mii_data *, int);
-static void	ciphy_status(struct mii_softc *);
-static void	ciphy_reset(struct mii_softc *);
+static int	ciphy_service(struct mii_softc *, struct mii_data *, mii_cmd_t,
+		    if_media_t);
+static void	ciphy_status(struct mii_softc *, if_media_t);
+static void	ciphy_reset(struct mii_softc *, if_media_t);
 static void	ciphy_fixup(struct mii_softc *);
 
 static const struct mii_phydesc ciphys[] = {
@@ -121,9 +120,9 @@ ciphy_attach(device_t dev)
 }
 
 static int
-ciphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+ciphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg, speed, gig;
 
 	switch (cmd) {
@@ -133,7 +132,7 @@ ciphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	case MII_MEDIACHG:
 		ciphy_fixup(sc);	/* XXX hardware bug work-around */
 
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_AUTO:
 #ifdef foo
 			/*
@@ -142,7 +141,7 @@ ciphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			if (PHY_READ(sc, CIPHY_MII_BMCR) & CIPHY_BMCR_AUTOEN)
 				return (0);
 #endif
-			(void)mii_phy_auto(sc);
+			(void)mii_phy_auto(sc, media);
 			break;
 		case IFM_1000_T:
 			speed = CIPHY_S1000;
@@ -153,15 +152,15 @@ ciphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		case IFM_10_T:
 			speed = CIPHY_S10;
 setit:
-			if ((ife->ifm_media & IFM_FDX) != 0) {
+			if ((media & IFM_FDX) != 0) {
 				speed |= CIPHY_BMCR_FDX;
 				gig = CIPHY_1000CTL_AFD;
 			} else
 				gig = CIPHY_1000CTL_AHD;
 
-			if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+			if (IFM_SUBTYPE(media) == IFM_1000_T) {
 				gig |= CIPHY_1000CTL_MSE;
-				if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
+				if ((media & IFM_ETH_MASTER) != 0)
 					gig |= CIPHY_1000CTL_MSC;
 				speed |=
 				    CIPHY_BMCR_AUTOEN | CIPHY_BMCR_STARTNEG;
@@ -183,7 +182,7 @@ setit:
 		/*
 		 * Only used for autonegotiation.
 		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+		if (IFM_SUBTYPE(media) != IFM_AUTO)
 			break;
 
 		/*
@@ -205,12 +204,12 @@ setit:
 			break;
 
 		sc->mii_ticks = 0;
-		mii_phy_auto(sc);
+		mii_phy_auto(sc, media);
 		break;
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/*
 	 * Callback if something changed. Note that we need to poke
@@ -226,7 +225,7 @@ setit:
 }
 
 static void
-ciphy_status(struct mii_softc *sc)
+ciphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr;
@@ -280,10 +279,10 @@ ciphy_status(struct mii_softc *sc)
 }
 
 static void
-ciphy_reset(struct mii_softc *sc)
+ciphy_reset(struct mii_softc *sc, if_media_t media)
 {
 
-	mii_phy_reset(sc);
+	mii_phy_reset(sc, media);
 	DELAY(1000);
 }
 
@@ -303,8 +302,7 @@ ciphy_fixup(struct mii_softc *sc)
 	status = PHY_READ(sc, CIPHY_MII_AUXCSR);
 	speed = status & CIPHY_AUXCSR_SPEED;
 
-	if (strcmp(device_get_name(device_get_parent(sc->mii_dev)),
-	    "nfe") == 0) {
+	if (mii_phy_mac_match(sc, "nfe")) {
 		/* need to set for 2.5V RGMII for NVIDIA adapters */
 		val = PHY_READ(sc, CIPHY_MII_ECTL1);
 		val &= ~(CIPHY_ECTL1_IOVOL | CIPHY_ECTL1_INTSEL);

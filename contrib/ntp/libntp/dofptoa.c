@@ -1,6 +1,7 @@
 /*
  * dofptoa - do the grunge work to convert an fp number to ascii
  */
+#include <config.h>
 #include <stdio.h>
 
 #include "ntp_fp.h"
@@ -32,7 +33,7 @@ dofptoa(
 	/*
 	 * Zero out the buffer
 	 */
-	memset((char *)cbuf, 0, sizeof cbuf);
+	ZERO(cbuf);
 
 	/*
 	 * Set the pointers to point at the first
@@ -115,4 +116,44 @@ dofptoa(
 	}
 	*bp = '\0';
 	return buf;
+}
+
+
+char *
+fptoa(
+	s_fp	fpv,
+	short	ndec
+	)
+{
+	u_fp	plusfp;
+	int	neg;
+
+	neg = (fpv < 0);
+	if (neg) {
+		plusfp = (u_fp)(-fpv);
+	} else {
+		plusfp = (u_fp)fpv;
+	}
+
+	return dofptoa(plusfp, neg, ndec, FALSE);
+}
+
+
+char *
+fptoms(
+	s_fp	fpv,
+	short	ndec
+	)
+{
+	u_fp	plusfp;
+	int	neg;
+
+	neg = (fpv < 0);
+	if (neg) {
+		plusfp = (u_fp)(-fpv);
+	} else {
+		plusfp = (u_fp)fpv;
+	}
+
+	return dofptoa(plusfp, neg, ndec, TRUE);
 }

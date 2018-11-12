@@ -481,6 +481,12 @@ enum libusb20_standard_request {
 
 	/** Set then report an endpoint's synchronization frame */
 	LIBUSB20_REQUEST_SYNCH_FRAME = 0x0C,
+
+	/** Set U1 and U2 system exit latency */
+	LIBUSB20_REQUEST_SET_SEL = 0x30,
+
+	/** Set isochronous delay */
+	LIBUSB20_REQUEST_SET_ISOCH_DELAY = 0x31,
 };
 
 /** \ingroup misc

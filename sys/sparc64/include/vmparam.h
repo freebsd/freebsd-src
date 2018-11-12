@@ -75,13 +75,12 @@
 #define	VM_PHYSSEG_MAX		64
 
 /*
- * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
+ * Create two free page pools: VM_FREEPOOL_DEFAULT is the default pool
  * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
  * the pool from which physical pages for small UMA objects are
  * allocated.
  */
-#define	VM_NFREEPOOL		3
-#define	VM_FREEPOOL_CACHE	2
+#define	VM_NFREEPOOL		2
 #define	VM_FREEPOOL_DEFAULT	0
 #define	VM_FREEPOOL_DIRECT	1
 
@@ -238,5 +237,11 @@ extern vm_offset_t vm_max_kernel_address;
  * caching disabled.
  */
 #define	ZERO_REGION_SIZE	PAGE_SIZE
+
+#define	SFBUF
+#define	SFBUF_MAP
+#define	SFBUF_OPTIONAL_DIRECT_MAP	dcache_color_ignore
+#include <machine/tlb.h>
+#define	SFBUF_PHYS_DMAP(x)		TLB_PHYS_TO_DIRECT(x)
 
 #endif /* !_MACHINE_VMPARAM_H_ */

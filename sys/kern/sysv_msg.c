@@ -196,13 +196,7 @@ msginit()
 {
 	int i, error;
 
-	TUNABLE_INT_FETCH("kern.ipc.msgseg", &msginfo.msgseg);
-	TUNABLE_INT_FETCH("kern.ipc.msgssz", &msginfo.msgssz);
 	msginfo.msgmax = msginfo.msgseg * msginfo.msgssz;
-	TUNABLE_INT_FETCH("kern.ipc.msgmni", &msginfo.msgmni);
-	TUNABLE_INT_FETCH("kern.ipc.msgmnb", &msginfo.msgmnb);
-	TUNABLE_INT_FETCH("kern.ipc.msgtql", &msginfo.msgtql);
-
 	msgpool = malloc(msginfo.msgmax, M_MSG, M_WAITOK);
 	msgmaps = malloc(sizeof(struct msgmap) * msginfo.msgseg, M_MSG, M_WAITOK);
 	msghdrs = malloc(sizeof(struct msg) * msginfo.msgtql, M_MSG, M_WAITOK);
@@ -258,11 +252,11 @@ msginit()
 	}
 	mtx_init(&msq_mtx, "msq", NULL, MTX_DEF);
 
-	error = syscall_helper_register(msg_syscalls);
+	error = syscall_helper_register(msg_syscalls, SY_THR_STATIC_KLD);
 	if (error != 0)
 		return (error);
 #ifdef COMPAT_FREEBSD32
-	error = syscall32_helper_register(msg32_syscalls);
+	error = syscall32_helper_register(msg32_syscalls, SY_THR_STATIC_KLD);
 	if (error != 0)
 		return (error);
 #endif
@@ -623,12 +617,14 @@ sys_msgget(td, uap)
 			goto done2;
 		}
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		error = racct_add(td->td_proc, RACCT_NMSGQ, 1);
-		PROC_UNLOCK(td->td_proc);
-		if (error != 0) {
-			error = ENOSPC;
-			goto done2;
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			error = racct_add(td->td_proc, RACCT_NMSGQ, 1);
+			PROC_UNLOCK(td->td_proc);
+			if (error != 0) {
+				error = ENOSPC;
+				goto done2;
+			}
 		}
 #endif
 		DPRINTF(("msqid %d is available\n", msqid));
@@ -730,20 +726,22 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 #endif
 
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	if (racct_add(td->td_proc, RACCT_MSGQQUEUED, 1)) {
+	if (racct_enable) {
+		PROC_LOCK(td->td_proc);
+		if (racct_add(td->td_proc, RACCT_MSGQQUEUED, 1)) {
+			PROC_UNLOCK(td->td_proc);
+			error = EAGAIN;
+			goto done2;
+		}
+		saved_msgsz = msgsz;
+		if (racct_add(td->td_proc, RACCT_MSGQSIZE, msgsz)) {
+			racct_sub(td->td_proc, RACCT_MSGQQUEUED, 1);
+			PROC_UNLOCK(td->td_proc);
+			error = EAGAIN;
+			goto done2;
+		}
 		PROC_UNLOCK(td->td_proc);
-		error = EAGAIN;
-		goto done2;
 	}
-	saved_msgsz = msgsz;
-	if (racct_add(td->td_proc, RACCT_MSGQSIZE, msgsz)) {
-		racct_sub(td->td_proc, RACCT_MSGQQUEUED, 1);
-		PROC_UNLOCK(td->td_proc);
-		error = EAGAIN;
-		goto done2;
-	}
-	PROC_UNLOCK(td->td_proc);
 #endif
 
 	segs_needed = (msgsz + msginfo.msgssz - 1) / msginfo.msgssz;
@@ -1000,7 +998,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	td->td_retval[0] = 0;
 done3:
 #ifdef RACCT
-	if (error != 0) {
+	if (racct_enable && error != 0) {
 		PROC_LOCK(td->td_proc);
 		racct_sub(td->td_proc, RACCT_MSGQQUEUED, 1);
 		racct_sub(td->td_proc, RACCT_MSGQSIZE, saved_msgsz);

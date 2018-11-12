@@ -48,7 +48,7 @@
 .Fc
 .Ft rd_err_e
 .Fo rd_event_addr
-.Fa "rd_agent_t *rdap, rd_notify_t *notify"
+.Fa "rd_agent_t *rdap, rd_event_e event, rd_notify_t *notify"
 .Fc
 .Ft rd_err_e
 .Fo rd_event_enable
@@ -142,10 +142,10 @@ enables reporting of events.
 This function always returns RD_OK.
 .Pp
 .Fn rd_event_addr
-returns the event address in the
+returns the event address corresponding to the
 .Ft event
 parameter.
-At the moment we only report RD_NOTIFY_BPT events.
+At the moment we only report events of type RD_NOTIFY_BPT.
 .Pp
 .Fn rd_event_getmsg
 returns the message associated with the latest event.
@@ -167,8 +167,8 @@ You can get the error string using
 .Xr ld 1 ,
 .Xr ld-elf.so.1 1 ,
 .Xr ld.so 1 ,
-.Xr libproc 3 ,
-.Xr rtld 1
+.Xr rtld 1 ,
+.Xr libproc 3
 .Sh HISTORY
 The
 .Nm librtld_db
@@ -179,7 +179,7 @@ and was modeled after the same library present in the Solaris operating system.
 The
 .Nm librtld_db
 library and this manual page were written by
-.An Rui Paulo Aq rpaulo@FreeBSD.org
+.An Rui Paulo Aq Mt rpaulo@FreeBSD.org
 under sponsorship from the FreeBSD Foundation.
 .Sh CAVEATS
 The functions

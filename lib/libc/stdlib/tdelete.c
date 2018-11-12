@@ -14,7 +14,7 @@
 #include <sys/cdefs.h>
 #if 0
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: tdelete.c,v 1.2 1999/09/16 11:45:37 lukem Exp $");
+__RCSID("$NetBSD: tdelete.c,v 1.6 2012/06/25 22:32:45 abs Exp $");
 #endif /* LIBC_SCCS and not lint */
 #endif
 __FBSDID("$FreeBSD$");
@@ -25,9 +25,9 @@ __FBSDID("$FreeBSD$");
 
 
 /*
- * delete node with given key
+ * find a node with given key
  *
- * vkey:   key to be deleted
+ * vkey:   key to be found
  * vrootp: address of the root of the tree
  * compar: function to carry out node comparisons
  */
@@ -65,7 +65,8 @@ tdelete(const void * __restrict vkey, void ** __restrict vrootp,
 			q->rlink = (*rootp)->rlink;
 		}
 	}
-	free(*rootp);				/* D4: Free node */
+	if (p != *rootp)
+		free(*rootp);			/* D4: Free node */
 	*rootp = q;				/* link parent to new node */
 	return p;
 }

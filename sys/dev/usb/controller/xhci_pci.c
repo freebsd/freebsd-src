@@ -86,9 +86,8 @@ static driver_t xhci_driver = {
 
 static devclass_t xhci_devclass;
 
-DRIVER_MODULE(xhci, pci, xhci_driver, xhci_devclass, 0, 0);
+DRIVER_MODULE(xhci, pci, xhci_driver, xhci_devclass, NULL, NULL);
 MODULE_DEPEND(xhci, usb, 1, 1, 1);
-
 
 static const char *
 xhci_pci_match(device_t self)
@@ -101,11 +100,18 @@ xhci_pci_match(device_t self)
 
 	case 0x10421b21:
 		return ("ASMedia ASM1042 USB 3.0 controller");
+	case 0x11421b21:
+		return ("ASMedia ASM1042A USB 3.0 controller");
 
+	case 0x0f358086:
+		return ("Intel Intel BayTrail USB 3.0 controller");
+	case 0x9c318086:
 	case 0x1e318086:
 		return ("Intel Panther Point USB 3.0 controller");
 	case 0x8c318086:
 		return ("Intel Lynx Point USB 3.0 controller");
+	case 0x8cb18086:
+		return ("Intel Wildcat Point USB 3.0 controller");
 
 	default:
 		break;
@@ -126,7 +132,7 @@ xhci_pci_probe(device_t self)
 
 	if (desc) {
 		device_set_desc(self, desc);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	} else {
 		return (ENXIO);
 	}
@@ -149,6 +155,8 @@ static int
 xhci_pci_port_route(device_t self, uint32_t set, uint32_t clear)
 {
 	uint32_t temp;
+	uint32_t usb3_mask;
+	uint32_t usb2_mask;
 
 	temp = pci_read_config(self, PCI_XHCI_INTEL_USB3_PSSEN, 4) |
 	    pci_read_config(self, PCI_XHCI_INTEL_XUSB2PR, 4);
@@ -156,8 +164,12 @@ xhci_pci_port_route(device_t self, uint32_t set, uint32_t clear)
 	temp |= set;
 	temp &= ~clear;
 
-	pci_write_config(self, PCI_XHCI_INTEL_USB3_PSSEN, temp, 4);
-	pci_write_config(self, PCI_XHCI_INTEL_XUSB2PR, temp, 4);
+	/* Don't set bits which the hardware doesn't support */
+	usb3_mask = pci_read_config(self, PCI_XHCI_INTEL_USB3PRM, 4);
+	usb2_mask = pci_read_config(self, PCI_XHCI_INTEL_USB2PRM, 4);
+
+	pci_write_config(self, PCI_XHCI_INTEL_USB3_PSSEN, temp & usb3_mask, 4);
+	pci_write_config(self, PCI_XHCI_INTEL_XUSB2PR, temp & usb2_mask, 4);
 
 	device_printf(self, "Port routing mask set to 0x%08x\n", temp);
 
@@ -169,44 +181,65 @@ xhci_pci_attach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
 	int count, err, rid;
-
-	/* XXX check for 64-bit capability */
-
-	if (xhci_init(sc, self)) {
-		device_printf(self, "Could not initialize softc\n");
-		goto error;
-	}
-
-	pci_enable_busmaster(self);
+	uint8_t usedma32;
 
 	rid = PCI_XHCI_CBMEM;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (!sc->sc_io_res) {
 		device_printf(self, "Could not map memory\n");
-		goto error;
+		return (ENOMEM);
 	}
 	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
+	switch (pci_get_devid(self)) {
+	case 0x01941033:	/* NEC uPD720200 USB 3.0 controller */
+		/* Don't use 64-bit DMA on these controllers. */
+		usedma32 = 1;
+		break;
+	case 0x0f358086:	/* BayTrail */
+	case 0x9c318086:	/* Panther Point */
+	case 0x1e318086:	/* Panther Point */
+	case 0x8c318086:	/* Lynx Point */
+	case 0x8cb18086:	/* Wildcat Point */
+		/*
+		 * On Intel chipsets, reroute ports from EHCI to XHCI
+		 * controller and use a different IMOD value.
+		 */
+		sc->sc_port_route = &xhci_pci_port_route;
+		sc->sc_imod_default = XHCI_IMOD_DEFAULT_LP;
+		/* FALLTHROUGH */
+	default:
+		usedma32 = 0;
+		break;
+	}
+
+	if (xhci_init(sc, self, usedma32)) {
+		device_printf(self, "Could not initialize softc\n");
+		bus_release_resource(self, SYS_RES_MEMORY, PCI_XHCI_CBMEM,
+		    sc->sc_io_res);
+		return (ENXIO);
+	}
+
+	pci_enable_busmaster(self);
+
 	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
 
-	sc->sc_irq_rid = 0;
+	rid = 0;
 	if (xhci_use_msi) {
-		count = pci_msi_count(self);
-		if (count >= 1) {
-			count = 1;
-			if (pci_alloc_msi(self, &count) == 0) {
-				if (bootverbose)
-					device_printf(self, "MSI enabled\n");
-				sc->sc_irq_rid = 1;
-			}
+		count = 1;
+		if (pci_alloc_msi(self, &count) == 0) {
+			if (bootverbose)
+				device_printf(self, "MSI enabled\n");
+			rid = 1;
 		}
 	}
-	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ,
-	    &sc->sc_irq_rid, RF_SHAREABLE | RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE | (rid != 0 ? 0 : RF_SHAREABLE));
 	if (sc->sc_irq_res == NULL) {
+		pci_release_msi(self);
 		device_printf(self, "Could not allocate IRQ\n");
 		/* goto error; FALLTHROUGH - use polling */
 	}
@@ -223,26 +256,22 @@ xhci_pci_attach(device_t self)
 		err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 		    NULL, (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
 		if (err != 0) {
+			bus_release_resource(self, SYS_RES_IRQ,
+			    rman_get_rid(sc->sc_irq_res), sc->sc_irq_res);
+			sc->sc_irq_res = NULL;
+			pci_release_msi(self);
 			device_printf(self, "Could not setup IRQ, err=%d\n", err);
 			sc->sc_intr_hdl = NULL;
 		}
 	}
-	if (sc->sc_irq_res == NULL || sc->sc_intr_hdl == NULL ||
-	    xhci_use_polling() != 0) {
-		device_printf(self, "Interrupt polling at %dHz\n", hz);
-		USB_BUS_LOCK(&sc->sc_bus);
-		xhci_interrupt_poll(sc);
-		USB_BUS_UNLOCK(&sc->sc_bus);
-	}
-
-	/* On Intel chipsets reroute ports from EHCI to XHCI controller. */
-	switch (pci_get_devid(self)) {
-	case 0x1e318086:	/* Panther Point */
-	case 0x8c318086:	/* Lynx Point */
-		sc->sc_port_route = &xhci_pci_port_route;
-		break;
-	default:
-		break;
+	if (sc->sc_irq_res == NULL || sc->sc_intr_hdl == NULL) {
+		if (xhci_use_polling() != 0) {
+			device_printf(self, "Interrupt polling at %dHz\n", hz);
+			USB_BUS_LOCK(&sc->sc_bus);
+			xhci_interrupt_poll(sc);
+			USB_BUS_UNLOCK(&sc->sc_bus);
+		} else
+			goto error;
 	}
 
 	xhci_pci_take_controller(self);
@@ -280,10 +309,8 @@ xhci_pci_detach(device_t self)
 	/* during module unload there are lots of children leftover */
 	device_delete_children(self);
 
-	if (sc->sc_io_res) {
-		usb_callout_drain(&sc->sc_callout);
-		xhci_halt_controller(sc);
-	}
+	usb_callout_drain(&sc->sc_callout);
+	xhci_halt_controller(sc);
 
 	pci_disable_busmaster(self);
 
@@ -292,11 +319,10 @@ xhci_pci_detach(device_t self)
 		sc->sc_intr_hdl = NULL;
 	}
 	if (sc->sc_irq_res) {
-		if (sc->sc_irq_rid == 1)
-			pci_release_msi(self);
-		bus_release_resource(self, SYS_RES_IRQ, sc->sc_irq_rid,
-		    sc->sc_irq_res);
+		bus_release_resource(self, SYS_RES_IRQ,
+		    rman_get_rid(sc->sc_irq_res), sc->sc_irq_res);
 		sc->sc_irq_res = NULL;
+		pci_release_msi(self);
 	}
 	if (sc->sc_io_res) {
 		bus_release_resource(self, SYS_RES_MEMORY, PCI_XHCI_CBMEM,

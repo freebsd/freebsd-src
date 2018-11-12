@@ -28,6 +28,7 @@ SRCS=	ARCMT.cpp \
 
 TGHDRS=	AttrList \
 	AttrParsedAttrList \
+	AttrVisitor \
 	Attrs \
 	CommentCommandList \
 	CommentNodes \

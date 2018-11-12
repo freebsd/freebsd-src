@@ -100,8 +100,9 @@ with these control flags:
 .Bl -tag -width ".Dv LK_CANRECURSE" -offset indent -compact
 .It Dv LK_INTERLOCK
 Specify when the caller already has a simple lock
-.Fn ( VOP_LOCK
-will unlock the simple lock after getting the lock).
+.Po Fn VOP_LOCK
+will unlock the simple lock after getting the lock
+.Pc .
 .It Dv LK_RETRY
 Retry until locked.
 .El

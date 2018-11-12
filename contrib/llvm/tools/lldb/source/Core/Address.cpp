@@ -16,6 +16,7 @@
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Symbol/SymbolVendor.h"
 
@@ -327,15 +328,27 @@ Address::GetLoadAddress (Target *target) const
 addr_t
 Address::GetCallableLoadAddress (Target *target, bool is_indirect) const
 {
-    if (is_indirect && target) {
+    addr_t code_addr = LLDB_INVALID_ADDRESS;
+    
+    if (is_indirect && target)
+    {
         ProcessSP processSP = target->GetProcessSP();
         Error error;
         if (processSP.get())
-            return processSP->ResolveIndirectFunction(this, error);
+        {
+            code_addr = processSP->ResolveIndirectFunction(this, error);
+            if (!error.Success())
+                code_addr = LLDB_INVALID_ADDRESS;
+        }
     }
-
-    addr_t code_addr = GetLoadAddress (target);
-
+    else
+    {
+        code_addr = GetLoadAddress (target);
+    }
+    
+    if (code_addr == LLDB_INVALID_ADDRESS)
+        return code_addr;
+    
     if (target)
         return target->GetCallableLoadAddress (code_addr, GetAddressClass());
     return code_addr;
@@ -414,13 +427,15 @@ Address::Dump (Stream *s, ExecutionContextScope *exe_scope, DumpStyle style, Dum
         break;
 
     case DumpStyleSectionPointerOffset:
-        s->Printf("(Section *)%p + ", section_sp.get());
+        s->Printf("(Section *)%p + ", static_cast<void*>(section_sp.get()));
         s->Address(m_offset, addr_size);
         break;
 
     case DumpStyleModuleWithFileAddress:
         if (section_sp)
-            s->Printf("%s[", section_sp->GetModule()->GetFileSpec().GetFilename().AsCString());
+        {
+            s->Printf("%s[", section_sp->GetModule()->GetFileSpec().GetFilename().AsCString("<Unknown>"));
+        }
         // Fall through
     case DumpStyleFileAddress:
         {
@@ -452,6 +467,7 @@ Address::Dump (Stream *s, ExecutionContextScope *exe_scope, DumpStyle style, Dum
 
     case DumpStyleResolvedDescription:
     case DumpStyleResolvedDescriptionNoModule:
+    case DumpStyleResolvedDescriptionNoFunctionArguments:
         if (IsSectionOffset())
         {
             uint32_t pointer_size = 4;
@@ -537,7 +553,7 @@ Address::Dump (Stream *s, ExecutionContextScope *exe_scope, DumpStyle style, Dum
 #endif
                                     Address cstr_addr(*this);
                                     cstr_addr.SetOffset(cstr_addr.GetOffset() + pointer_size);
-                                    func_sc.DumpStopContext(s, exe_scope, so_addr, true, true, false);
+                                    func_sc.DumpStopContext(s, exe_scope, so_addr, true, true, false, true);
                                     if (ReadAddress (exe_scope, cstr_addr, pointer_size, so_addr))
                                     {
 #if VERBOSE_OUTPUT
@@ -620,7 +636,7 @@ Address::Dump (Stream *s, ExecutionContextScope *exe_scope, DumpStyle style, Dum
                                     if (pointer_sc.function || pointer_sc.symbol)
                                     {
                                         s->PutCString(": ");
-                                        pointer_sc.DumpStopContext(s, exe_scope, so_addr, true, false, false);
+                                        pointer_sc.DumpStopContext(s, exe_scope, so_addr, true, false, false, true);
                                     }
                                 }
                             }
@@ -645,6 +661,7 @@ Address::Dump (Stream *s, ExecutionContextScope *exe_scope, DumpStyle style, Dum
                         const bool show_module = (style == DumpStyleResolvedDescription);
                         const bool show_fullpaths = false; 
                         const bool show_inlined_frames = true;
+                        const bool show_function_arguments = (style != DumpStyleResolvedDescriptionNoFunctionArguments);
                         if (sc.function == NULL && sc.symbol != NULL)
                         {
                             // If we have just a symbol make sure it is in the right section
@@ -666,7 +683,8 @@ Address::Dump (Stream *s, ExecutionContextScope *exe_scope, DumpStyle style, Dum
                                                 *this, 
                                                 show_fullpaths, 
                                                 show_module, 
-                                                show_inlined_frames);
+                                                show_inlined_frames,
+                                                show_function_arguments);
                         }
                         else
                         {

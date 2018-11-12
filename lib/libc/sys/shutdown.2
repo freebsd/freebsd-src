@@ -29,7 +29,7 @@
 .\"     @(#)shutdown.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2007
+.Dd July 27, 2015
 .Dt SHUTDOWN 2
 .Os
 .Sh NAME
@@ -79,40 +79,26 @@ The following protocol specific actions apply to the use of
 based on the properties of the socket associated with the file descriptor
 .Fa s .
 .Bl -column ".Dv PF_INET6" ".Dv SOCK_STREAM" ".Dv IPPROTO_SCTP"
-.It Sy Domain Ta Sy Type Ta Sy Protocol Ta Sy Return value and action
+.It Sy Domain Ta Sy Type Ta Sy Protocol Ta Sy Action
 .It Dv PF_INET Ta Dv SOCK_DGRAM Ta Dv IPPROTO_SCTP Ta
-Return \-1.
-The global variable
-.Va errno
-will be set to
-.Er EOPNOTSUPP .
+Failure,
+as socket is not connected.
 .It Dv PF_INET Ta Dv SOCK_DGRAM Ta Dv IPPROTO_UDP Ta
-Return 0.
-ICMP messages will
-.Em not
-be generated.
+Failure,
+as socket is not connected.
 .It Dv PF_INET Ta Dv SOCK_STREAM Ta Dv IPPROTO_SCTP Ta
-Return 0.
 Send queued data and tear down association.
 .It Dv PF_INET Ta Dv SOCK_STREAM Ta Dv IPPROTO_TCP Ta
-Return 0.
 Send queued data, wait for ACK, then send FIN.
 .It Dv PF_INET6 Ta Dv SOCK_DGRAM Ta Dv IPPROTO_SCTP Ta
-Return \-1.
-The global variable
-.Va errno
-will be set to
-.Er EOPNOTSUPP .
+Failure,
+as socket is not connected.
 .It Dv PF_INET6 Ta Dv SOCK_DGRAM Ta Dv IPPROTO_UDP Ta
-Return 0.
-ICMP messages will
-.Em not
-be generated.
+Failure,
+as socket is not connected.
 .It Dv PF_INET6 Ta Dv SOCK_STREAM Ta Dv IPPROTO_SCTP Ta
-Return 0.
 Send queued data and tear down association.
 .It Dv PF_INET6 Ta Dv SOCK_STREAM Ta Dv IPPROTO_TCP Ta
-Return 0.
 Send queued data, wait for ACK, then send FIN.
 .El
 .\"
@@ -131,16 +117,10 @@ argument is not a valid file descriptor.
 The
 .Fa how
 argument is invalid.
-.It Bq Er EOPNOTSUPP
-The socket associated with the file descriptor
-.Fa s
-does not support this operation.
 .It Bq Er ENOTCONN
 The
 .Fa s
-argument specifies a
-.Dv SOCK_STREAM
-socket which is not connected.
+argument specifies a socket which is not connected.
 .It Bq Er ENOTSOCK
 The
 .Fa s
@@ -171,7 +151,7 @@ constants appeared in
 .Sh AUTHORS
 .An -nosplit
 This manual page was updated by
-.An Bruce M. Simpson Aq bms@FreeBSD.org
+.An Bruce M. Simpson Aq Mt bms@FreeBSD.org
 to reflect how
 .Fn shutdown
 behaves with

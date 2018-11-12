@@ -26,6 +26,6 @@
 
 # The modules must be built first, because they are built into the
 # static version of libpam.
-SUBDIR+=	modules libpam
+SUBDIR+=	modules libpam static_modules
 
 .include <bsd.subdir.mk>

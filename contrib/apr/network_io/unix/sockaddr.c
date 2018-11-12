@@ -325,6 +325,16 @@ static apr_status_t call_resolver(apr_sockaddr_t **sa,
         hints.ai_flags = AI_ADDRCONFIG;
     }
 #endif
+
+#ifdef __MVS__
+    /* z/OS will not return IPv4 address under AF_UNSPEC if any IPv6 results 
+     * are returned, w/o AI_ALL. 
+     */
+    if (family == APR_UNSPEC) { 
+       hints.ai_flags |= AI_ALL;
+    }
+#endif
+
     if(hostname == NULL) {
 #ifdef AI_PASSIVE 
         /* If hostname is NULL, assume we are trying to bind to all
@@ -837,6 +847,35 @@ APR_DECLARE(int) apr_sockaddr_equal(const apr_sockaddr_t *addr1,
     }
 #endif
     return 0; /* not equal */
+}
+
+APR_DECLARE(int) apr_sockaddr_is_wildcard(const apr_sockaddr_t *addr)
+{
+    static const char inaddr_any[
+#if APR_HAVE_IPV6
+        sizeof(struct in6_addr)
+#else
+        sizeof(struct in_addr)
+#endif
+    ] = {0};
+
+    if (addr->ipaddr_ptr /* IP address initialized */
+        && addr->ipaddr_len <= sizeof inaddr_any) { /* else bug elsewhere? */
+        if (!memcmp(inaddr_any, addr->ipaddr_ptr, addr->ipaddr_len)) {
+            return 1;
+        }
+#if APR_HAVE_IPV6
+    if (addr->family == AF_INET6
+        && IN6_IS_ADDR_V4MAPPED((struct in6_addr *)addr->ipaddr_ptr)) {
+        struct in_addr *v4 = (struct in_addr *)&((apr_uint32_t *)addr->ipaddr_ptr)[3];
+
+        if (!memcmp(inaddr_any, v4, sizeof *v4)) {
+            return 1;
+        }
+    }
+#endif
+    }
+    return 0;
 }
 
 static apr_status_t parse_network(apr_ipsubnet_t *ipsub, const char *network)

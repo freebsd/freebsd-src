@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: errstring.c,v 1.20 2013/11/22 20:51:42 ca Exp $")
+SM_RCSID("@(#)$Id: errstring.c,v 1.20 2013-11-22 20:51:42 ca Exp $")
 
 #include <errno.h>
 #include <stdio.h>	/* sys_errlist, on some platforms */
@@ -264,10 +264,12 @@ sm_errstring(errnum)
 #if LDAPMAP
 
 	/*
-	**  LDAP error messages.
+	**  LDAP error messages.  Handle small negative errors from
+	**  libldap (in the range -E_LDAP_SHIM to zero, offset by E_LDAPBASE)
+	**  as well.
 	*/
 
-	if (errnum >= E_LDAPBASE)
+	if (errnum >= E_LDAPBASE - E_LDAP_SHIM)
 		return ldap_err2string(errnum - E_LDAPBASE);
 #endif /* LDAPMAP */
 

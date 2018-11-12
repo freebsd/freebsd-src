@@ -31,7 +31,7 @@
 .\"     @(#)wc.1	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2008
+.Dd August 24, 2015
 .Dt WC 1
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nd word, line, character, and byte count
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl Lclmw
 .Op Ar
 .Sh DESCRIPTION
@@ -70,7 +71,7 @@ The following options are available:
 .It Fl L
 The number of characters in the longest input line
 is written to the standard output.
-When more then one
+When more than one
 .Ar file
 argument is specified, the longest input line of
 .Em all
@@ -174,7 +175,9 @@ option of the GNU
 .Nm
 utility.
 .Sh SEE ALSO
-.Xr iswspace 3
+.Xr iswspace 3 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3
 .Sh STANDARDS
 The
 .Nm

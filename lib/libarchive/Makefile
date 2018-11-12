@@ -1,22 +1,12 @@
 # $FreeBSD$
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 
 LIB=	archive
-DPADD=	${LIBZ}
-LDADD=	-lz
 
-DPADD+= ${LIBBZ2}
-LDADD+= -lbz2
-CFLAGS+= -DHAVE_BZLIB_H=1
-
-DPADD+= ${LIBLZMA}
-LDADD+= -llzma
-CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
-
-DPADD+= ${LIBBSDXML}
-LDADD+= -lbsdxml
+LIBADD=	z bz2 lzma bsdxml
+CFLAGS+= -DHAVE_BZLIB_H=1 -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the libarchive version number.
@@ -27,21 +17,19 @@ CFLAGS+=	-I${.OBJDIR}
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_OPENSSL
-DPADD+=	${LIBCRYPTO}
-LDADD+=	-lcrypto
+LIBADD+=	crypto
 .else
-DPADD+=	${LIBMD}
-LDADD+=	-lmd
+LIBADD+=	md
 .endif
 
 .if ${MK_ICONV} != "no"
 # TODO: This can be changed back to CFLAGS once iconv works correctly
 # with statically linked binaries.
-SHARED_CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=const
+SHARED_CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=
 .endif
 
 .if ${MACHINE_ARCH:Marm*} != "" || ${MACHINE_ARCH:Mmips*} != "" || \
-	${MACHINE_ARCH:Msparc64*} != "" || ${MACHINE_ARCH:Mia64*} != ""
+	${MACHINE_ARCH:Msparc64*} != ""
 NO_WCAST_ALIGN=	yes
 .if ${MACHINE_ARCH:M*64*} == ""
 CFLAGS+=	-DPPMD_32BIT

@@ -165,7 +165,7 @@ dumpfs(const char *name)
 		fstime = afs.fs_time;
 		printf("magic\t%x (UFS2)\ttime\t%s",
 		    afs.fs_magic, ctime(&fstime));
-		printf("superblock location\t%jd\tid\t[ %x %x ]\n",
+		printf("superblock location\t%jd\tid\t[ %08x %08x ]\n",
 		    (intmax_t)afs.fs_sblockloc, afs.fs_id[0], afs.fs_id[1]);
 		printf("ncg\t%d\tsize\t%jd\tblocks\t%jd\n",
 		    afs.fs_ncg, (intmax_t)fssize, (intmax_t)afs.fs_dsize);

@@ -143,7 +143,8 @@ struct fxp_desc_list {
 };
 
 struct fxp_ident {
-	uint16_t	devid;
+	uint16_t	vendor;
+	uint16_t	device;
 	int16_t		revid;		/* -1 matches anything */
 	uint8_t		ich;
 	const char	*name;
@@ -178,7 +179,7 @@ struct fxp_hwstats {
  *	 for functional grouping.
  */
 struct fxp_softc {
-	struct ifnet *ifp;		/* per-interface network data */
+	void *ifp;			/* per-interface network data */
 	struct resource	*fxp_res[2];	/* I/O and IRQ resources */
 	struct resource_spec *fxp_spec;	/* the resource spec we used */
 	void *ih;			/* interrupt handler cookie */
@@ -205,7 +206,6 @@ struct fxp_softc {
 	int watchdog_timer;		/* seconds until chip reset */
 	struct fxp_cb_mcs *mcsp;	/* Pointer to mcast setup descriptor */
 	uint32_t mcs_addr;		/* DMA address of the multicast cmd */
-	struct ifmedia sc_media;	/* media information */
 	device_t miibus;
 	device_t dev;
 	int tunable_int_delay;		/* interrupt delay value for ucode */
@@ -216,7 +216,8 @@ struct fxp_softc {
 	int cu_resume_bug;
 	int revision;
 	int flags;
-	int if_flags;
+	uint32_t if_flags;
+	uint32_t if_capenable;
 	uint8_t rfa_size;
 	uint32_t tx_cmd;
 	uint16_t eeprom[256];
@@ -238,6 +239,7 @@ struct fxp_softc {
 #define FXP_FLAG_WOL		0x4000	/* WOL active */
 #define FXP_FLAG_RXBUG		0x8000	/* Rx lock-up bug */
 #define FXP_FLAG_NO_UCODE	0x10000	/* ucode is not applicable */
+#define	FXP_FLAG_RUNNING	0x20000
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)		bus_read_1(sc->fxp_res[0], reg)

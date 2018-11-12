@@ -62,13 +62,13 @@ help(void)
 {
 	printf(
 "Usage: %s [OPTION]... [FILE]...\n"
-"Uncompress files in the ." TOOL_FORMAT " format to the standard output.\n"
+"Decompress files in the ." TOOL_FORMAT " format to standard output.\n"
 "\n"
-"  -c, --stdout       (ignored)\n"
-"  -d, --decompress   (ignored)\n"
-"  -k, --keep         (ignored)\n"
+"  -d, --decompress   (ignored, only decompression is supported)\n"
+"  -k, --keep         (ignored, files are never deleted)\n"
+"  -c, --stdout       (ignored, output is always written to standard output)\n"
 "  -q, --quiet        specify *twice* to suppress errors\n"
-"  -Q, --no-warn      (ignored)\n"
+"  -Q, --no-warn      (ignored, the exit status 2 is never used)\n"
 "  -h, --help         display this help and exit\n"
 "  -V, --version      display the version number and exit\n"
 "\n"

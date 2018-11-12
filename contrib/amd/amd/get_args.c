@@ -93,12 +93,6 @@ get_version_string(void)
   strlcat(vers, tmpbuf, len);
   xsnprintf(tmpbuf, sizeof(tmpbuf), "Report bugs to %s.\n", PACKAGE_BUGREPORT);
   strlcat(vers, tmpbuf, len);
-  xsnprintf(tmpbuf, sizeof(tmpbuf), "Configured by %s@%s on date %s.\n",
-	    USER_NAME, HOST_NAME, CONFIG_DATE);
-  strlcat(vers, tmpbuf, len);
-  xsnprintf(tmpbuf, sizeof(tmpbuf), "Built by %s@%s.\n",
-	    BUILD_USER, BUILD_HOST);
-  strlcat(vers, tmpbuf, len);
   xsnprintf(tmpbuf, sizeof(tmpbuf), "cpu=%s (%s-endian), arch=%s, karch=%s.\n",
 	    cpu, endian, gopt.arch, gopt.karch);
   strlcat(vers, tmpbuf, len);

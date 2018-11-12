@@ -10,7 +10,11 @@
 #include "lldb/Core/ModuleList.h"
 
 // C Includes
+#include <stdint.h>
+
 // C++ Includes
+#include <mutex> // std::once
+
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/Log.h"
@@ -40,7 +44,8 @@ ModuleList::ModuleList() :
 //----------------------------------------------------------------------
 ModuleList::ModuleList(const ModuleList& rhs) :
     m_modules(),
-    m_modules_mutex (Mutex::eMutexTypeRecursive)
+    m_modules_mutex (Mutex::eMutexTypeRecursive),
+    m_notifier(NULL)
 {
     Mutex::Locker lhs_locker(m_modules_mutex);
     Mutex::Locker rhs_locker(rhs.m_modules_mutex);
@@ -62,9 +67,28 @@ ModuleList::operator= (const ModuleList& rhs)
 {
     if (this != &rhs)
     {
-        Mutex::Locker lhs_locker(m_modules_mutex);
-        Mutex::Locker rhs_locker(rhs.m_modules_mutex);
-        m_modules = rhs.m_modules;
+        // That's probably me nit-picking, but in theoretical situation:
+        //
+        // * that two threads A B and
+        // * two ModuleList's x y do opposite assignemnts ie.:
+        //
+        //  in thread A: | in thread B:
+        //    x = y;     |   y = x;
+        //
+        // This establishes correct(same) lock taking order and thus
+        // avoids priority inversion.
+        if (uintptr_t(this) > uintptr_t(&rhs))
+        {
+            Mutex::Locker lhs_locker(m_modules_mutex);
+            Mutex::Locker rhs_locker(rhs.m_modules_mutex);
+            m_modules = rhs.m_modules;
+        }
+        else
+        {
+            Mutex::Locker rhs_locker(rhs.m_modules_mutex);
+            Mutex::Locker lhs_locker(m_modules_mutex);
+            m_modules = rhs.m_modules;
+        }
     }
     return *this;
 }
@@ -460,6 +484,26 @@ ModuleList::FindFunctionSymbols (const ConstString &name,
     return sc_list.GetSize() - old_size;
 }
 
+
+size_t
+ModuleList::FindFunctions(const RegularExpression &name,
+                          bool include_symbols,
+                          bool include_inlines,
+                          bool append,
+                          SymbolContextList& sc_list)
+{
+    const size_t old_size = sc_list.GetSize();
+
+    Mutex::Locker locker(m_modules_mutex);
+    collection::const_iterator pos, end = m_modules.end();
+    for (pos = m_modules.begin(); pos != end; ++pos)
+    {
+        (*pos)->FindFunctions (name, include_symbols, include_inlines, append, sc_list);
+    }
+
+    return sc_list.GetSize() - old_size;
+}
+
 size_t
 ModuleList::FindCompileUnits (const FileSpec &path, 
                               bool append, 
@@ -832,13 +876,15 @@ ModuleList::GetIndexForModule (const Module *module) const
 static ModuleList &
 GetSharedModuleList ()
 {
-    // NOTE: Intentionally leak the module list so a program doesn't have to
-    // cleanup all modules and object files as it exits. This just wastes time
-    // doing a bunch of cleanup that isn't required.
     static ModuleList *g_shared_module_list = NULL;
-    if (g_shared_module_list == NULL)
-        g_shared_module_list = new ModuleList(); // <--- Intentional leak!!!
-    
+    static std::once_flag g_once_flag;
+    std::call_once(g_once_flag, [](){
+        // NOTE: Intentionally leak the module list so a program doesn't have to
+        // cleanup all modules and object files as it exits. This just wastes time
+        // doing a bunch of cleanup that isn't required.
+        if (g_shared_module_list == NULL)
+            g_shared_module_list = new ModuleList(); // <--- Intentional leak!!!
+    });
     return *g_shared_module_list;
 }
 
@@ -905,7 +951,7 @@ ModuleList::GetSharedModule
             for (size_t module_idx = 0; module_idx < num_matching_modules; ++module_idx)
             {
                 module_sp = matching_module_list.GetModuleAtIndex(module_idx);
-                
+
                 // Make sure the file for the module hasn't been modified
                 if (module_sp->FileHasChanged())
                 {
@@ -914,7 +960,8 @@ ModuleList::GetSharedModule
 
                     Log *log(lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_MODULES));
                     if (log)
-                        log->Printf("module changed: %p, removing from global module list", module_sp.get());
+                        log->Printf("module changed: %p, removing from global module list",
+                                    static_cast<void*>(module_sp.get()));
 
                     shared_module_list.Remove (module_sp);
                     module_sp.reset();
@@ -949,7 +996,7 @@ ModuleList::GetSharedModule
                 {
                     if (did_create_ptr)
                         *did_create_ptr = true;
-                    
+
                     shared_module_list.ReplaceEquivalent(module_sp);
                     return error;
                 }
@@ -976,6 +1023,7 @@ ModuleList::GetSharedModule
             file_spec.GetPath(path, sizeof(path));
             if (path[0] == '\0')
                 module_file_spec.GetPath(path, sizeof(path));
+            // How can this check ever be true? This branch it is false, and we haven't modified file_spec.
             if (file_spec.Exists())
             {
                 std::string uuid_str;
@@ -1105,9 +1153,10 @@ ModuleList::LoadScriptingResourcesInTarget (Target *target,
                                                    module->GetFileSpec().GetFileNameStrippingExtension().GetCString(),
                                                    error.AsCString());
                     errors.push_back(error);
+
+                    if (!continue_on_error)
+                        return false;
                 }
-                if (!continue_on_error)
-                    return false;
             }
         }
     }

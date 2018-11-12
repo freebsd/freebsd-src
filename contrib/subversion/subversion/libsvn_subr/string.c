@@ -619,7 +619,7 @@ svn_stringbuf_insert(svn_stringbuf_t *str,
   if (bytes + count > str->data && bytes < str->data + str->blocksize)
     {
       /* special case: BYTES overlaps with this string -> copy the source */
-      const char *temp = apr_pstrndup(str->pool, bytes, count);
+      const char *temp = apr_pmemdup(str->pool, bytes, count);
       svn_stringbuf_insert(str, pos, temp, count);
     }
   else
@@ -659,7 +659,7 @@ svn_stringbuf_replace(svn_stringbuf_t *str,
   if (bytes + new_count > str->data && bytes < str->data + str->blocksize)
     {
       /* special case: BYTES overlaps with this string -> copy the source */
-      const char *temp = apr_pstrndup(str->pool, bytes, new_count);
+      const char *temp = apr_pmemdup(str->pool, bytes, new_count);
       svn_stringbuf_replace(str, pos, old_count, temp, new_count);
     }
   else

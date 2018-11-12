@@ -38,9 +38,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
@@ -166,20 +168,17 @@ static SYSCTL_NODE(_net_inet_ip, OID_AUTO, mcast, CTLFLAG_RW, 0,
 
 static u_long in_mcast_maxgrpsrc = IP_MAX_GROUP_SRC_FILTER;
 SYSCTL_ULONG(_net_inet_ip_mcast, OID_AUTO, maxgrpsrc,
-    CTLFLAG_RW | CTLFLAG_TUN, &in_mcast_maxgrpsrc, 0,
+    CTLFLAG_RWTUN, &in_mcast_maxgrpsrc, 0,
     "Max source filters per group");
-TUNABLE_ULONG("net.inet.ip.mcast.maxgrpsrc", &in_mcast_maxgrpsrc);
 
 static u_long in_mcast_maxsocksrc = IP_MAX_SOCK_SRC_FILTER;
 SYSCTL_ULONG(_net_inet_ip_mcast, OID_AUTO, maxsocksrc,
-    CTLFLAG_RW | CTLFLAG_TUN, &in_mcast_maxsocksrc, 0,
+    CTLFLAG_RWTUN, &in_mcast_maxsocksrc, 0,
     "Max source filters per socket");
-TUNABLE_ULONG("net.inet.ip.mcast.maxsocksrc", &in_mcast_maxsocksrc);
 
 int in_mcast_loop = IP_DEFAULT_MULTICAST_LOOP;
-SYSCTL_INT(_net_inet_ip_mcast, OID_AUTO, loop, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_net_inet_ip_mcast, OID_AUTO, loop, CTLFLAG_RWTUN,
     &in_mcast_loop, 0, "Loopback multicast datagrams by default");
-TUNABLE_INT("net.inet.ip.mcast.loop", &in_mcast_loop);
 
 static SYSCTL_NODE(_net_inet_ip_mcast, OID_AUTO, filters,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip_mcast_filters,
@@ -526,12 +525,7 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	inm->inm_ifma = ifma;
 	inm->inm_refcount = 1;
 	inm->inm_state = IGMP_NOT_MEMBER;
-
-	/*
-	 * Pending state-changes per group are subject to a bounds check.
-	 */
-	IFQ_SET_MAXLEN(&inm->inm_scq, IGMP_MAX_STATE_CHANGES);
-
+	mbufq_init(&inm->inm_scq, IGMP_MAX_STATE_CHANGES);
 	inm->inm_st[0].iss_fmode = MCAST_UNDEFINED;
 	inm->inm_st[1].iss_fmode = MCAST_UNDEFINED;
 	RB_INIT(&inm->inm_srcs);
@@ -1756,6 +1750,7 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 int
 inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
+	struct rm_priotracker	 in_ifa_tracker;
 	struct ip_mreqn		 mreqn;
 	struct ip_moptions	*imo;
 	struct ifnet		*ifp;
@@ -1795,7 +1790,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 				mreqn.imr_address = imo->imo_multicast_addr;
 			} else if (ifp != NULL) {
 				mreqn.imr_ifindex = ifp->if_index;
-				IFP_TO_IA(ifp, ia);
+				IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 				if (ia != NULL) {
 					mreqn.imr_address =
 					    IA_SIN(ia)->sin_addr;
@@ -1886,6 +1881,7 @@ static struct ifnet *
 inp_lookup_mcast_ifp(const struct inpcb *inp,
     const struct sockaddr_in *gsin, const struct in_addr ina)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct ifnet *ifp;
 
 	KASSERT(gsin->sin_family == AF_INET, ("%s: not AF_INET", __func__));
@@ -1910,7 +1906,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 			struct ifnet *mifp;
 
 			mifp = NULL;
-			IN_IFADDR_RLOCK();
+			IN_IFADDR_RLOCK(&in_ifa_tracker);
 			TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 				mifp = ia->ia_ifp;
 				if (!(mifp->if_flags & IFF_LOOPBACK) &&
@@ -1919,7 +1915,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 					break;
 				}
 			}
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		}
 	}
 
@@ -2931,7 +2927,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 	return (retval);
 }
 
-#ifdef KTR
+#if defined(KTR) && (KTR_COMPILE & KTR_IGMPV3)
 
 static const char *inm_modestrs[] = { "un", "in", "ex" };
 
@@ -2986,7 +2982,7 @@ inm_print(const struct in_multi *inm)
 	    inm->inm_timer,
 	    inm_state_str(inm->inm_state),
 	    inm->inm_refcount,
-	    inm->inm_scq.ifq_len);
+	    inm->inm_scq.mq_len);
 	printf("igi %p nsrc %lu sctimer %u scrv %u\n",
 	    inm->inm_igi,
 	    inm->inm_nsrc,
@@ -3003,7 +2999,7 @@ inm_print(const struct in_multi *inm)
 	printf("%s: --- end inm %p ---\n", __func__, inm);
 }
 
-#else /* !KTR */
+#else /* !KTR || !(KTR_COMPILE & KTR_IGMPV3) */
 
 void
 inm_print(const struct in_multi *inm)
@@ -3011,6 +3007,6 @@ inm_print(const struct in_multi *inm)
 
 }
 
-#endif /* KTR */
+#endif /* KTR && (KTR_COMPILE & KTR_IGMPV3) */
 
 RB_GENERATE(ip_msource_tree, ip_msource, ims_link, ip_msource_cmp);

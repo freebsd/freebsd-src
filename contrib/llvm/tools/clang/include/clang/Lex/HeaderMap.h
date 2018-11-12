@@ -16,6 +16,7 @@
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/Support/Compiler.h"
+#include <memory>
 
 namespace llvm {
   class MemoryBuffer;
@@ -34,15 +35,12 @@ class HeaderMap {
   HeaderMap(const HeaderMap &) LLVM_DELETED_FUNCTION;
   void operator=(const HeaderMap &) LLVM_DELETED_FUNCTION;
 
-  const llvm::MemoryBuffer *FileBuffer;
+  std::unique_ptr<const llvm::MemoryBuffer> FileBuffer;
   bool NeedsBSwap;
 
-  HeaderMap(const llvm::MemoryBuffer *File, bool BSwap)
-    : FileBuffer(File), NeedsBSwap(BSwap) {
-  }
+  HeaderMap(std::unique_ptr<const llvm::MemoryBuffer> File, bool BSwap)
+      : FileBuffer(std::move(File)), NeedsBSwap(BSwap) {}
 public:
-  ~HeaderMap();
-
   /// HeaderMap::Create - This attempts to load the specified file as a header
   /// map.  If it doesn't look like a HeaderMap, it gives up and returns null.
   static const HeaderMap *Create(const FileEntry *FE, FileManager &FM);
@@ -54,6 +52,11 @@ public:
   /// for a search path ".." and a filename "../file.h" this would be
   /// "../../file.h".
   const FileEntry *LookupFile(StringRef Filename, FileManager &FM) const;
+
+  /// If the specified relative filename is located in this HeaderMap return
+  /// the filename it is mapped to, otherwise return an empty StringRef.
+  StringRef lookupFilename(StringRef Filename,
+                           SmallVectorImpl<char> &DestPath) const;
 
   /// getFileName - Return the filename of the headermap.
   const char *getFileName() const;

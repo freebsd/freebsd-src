@@ -13,8 +13,7 @@ MAN+=	ndisgen.8
 WARNS?=	4
 NO_WCAST_ALIGN=
 
-DPADD=  ${LIBL}
-LDADD=  -ll
+LIBADD=	l
 
 YFLAGS+=-v
 

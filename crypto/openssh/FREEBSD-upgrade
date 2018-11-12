@@ -3,80 +3,96 @@
 	    FreeBSD maintainer's guide to OpenSSH-portable
 	    ==============================================
 
-XXX
-XXX this needs a complete rewrite
-XXX svn merge from vendor branch, resolve conflicts manually
-XXX   (see FREEBSD-tricks for tips on how to reduce conflicts)
-XXX run freebsd-configure.sh to generate config.h and krb5_config.h
-XXX svn diff Makefile.in to see if the Makefiles need adjusting
-XXX
+00) Make sure your mail spool has plenty of free space.  It'll fill up
+    pretty fast once you're done with this checklist.
 
-0) Make sure your mail spool has plenty of free space.  It'll fill up
-   pretty fast once you're done with this checklist.
+01) Download the latest OpenSSH-portable tarball and signature from
+    OpenBSD (ftp://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/).
 
-1) Grab the latest OpenSSH-portable tarball from the OpenBSD FTP
-   site (ftp://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/)
+02) Verify the signature:
 
-2) Unpack the tarball in a suitable directory.
+    $ gpg --verify openssh-X.YpZ.tar.gz.asc
 
-	$ tar xf openssh-X.YpZ.tar.gz \
-		-X /usr/src/crypto/openssh/FREEBSD-Xlist
+03) Unpack the tarball in a suitable directory:
 
-3) Remove trash:
+    $ tar xf openssh-X.YpZ.tar.gz
 
-   Make sure -X took care of everything, and if it didn't, make sure
-   to update FREEBSD-Xlist so you won't miss it the next time.  A good
-   way to do this is to run a test import and see if any new files
-   show up:
+04) Copy to the vendor directory:
 
-	$ cvs -n import src/crypto/openssh OPENSSH x | grep \^N
+    $ svn co svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/dist
+    $ rsync --archive --delete openssh-X.YpZ/ dist/
 
-4) Import the sources:
+05) Take care of added / deleted files:
 
-	$ cvs import src/crypto/openssh OPENSSH OpenSSH_X_YpZ
+    $ svn rm $(svn stat dist | awk '$1 == "!" { print $2 }')
+    $ svn add --no-auto-props $(svn stat dist | awk '$1 == "?" { print $2 }')
 
-5) Resolve conflicts.  Remember to bump the version number and
-   addendum in version.h, and update the default value in
-   ssh{,d}_config and ssh{,d}_config.5.
+06) Commit:
 
-6) Generate configure and config.h.in:
+    $ svn commit -m "Vendor import of OpenSSH X.YpZ." dist
 
-	$ autoconf
-	$ autoheader
+07) Tag:
 
-   Note: this requires a recent version of autoconf, not autoconf213.
+    $ svn copy -m "Tag OpenSSH X.YpZ." \
+        svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/dist \
+        svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/X.YpZ
 
-7) Run configure with the appropriate arguments:
+08) Check out head and run the pre-merge script:
 
-	$ ./configure --prefix=/usr --sysconfdir=/etc/ssh \
-		--with-pam --with-tcp-wrappers --with-libedit \
-		--with-ssl-engine
+    $ svn co svn+ssh://svn.freebsd.org/base/head
+    $ cd head/crypto/openssh
+    $ sh freebsd-pre-merge.sh
 
-   This will regenerate config.h, which must be committed along with
-   the rest.
+09) Merge from the vendor branch:
 
-   Note that we don't want to configure OpenSSH for Kerberos using
-   configure since we have to be able to turn it on or off depending
-   on the value of MK_KERBEROS.  Our Makefiles take care of this.
+    $ svn merge -cNNNNNN \^/vendor-crypto/openssh/dist .
 
-8) If source files have been added or removed, update the appropriate
-   makefiles to reflect changes in the vendor's Makefile.in.
+0A) Resolve conflicts.  Remember to bump the version addendum in
+    version.h, and update the default value in ssh{,d}_config and
+    ssh{,d}_config.5.
 
-9) Build libssh.  Follow the instructions in ssh_namespace.h to get a
-   list of new symbols.  Update ssh_namespace.h, build everything,
-   install and test.
+0B) Diff against the vendor branch:
 
-A) Build and test the pam_ssh PAM module.  It gropes around libssh's
-   internals and will break if something significant changes or if
-   ssh_namespace.h is out of whack.
+    $ svn diff \^/vendor-crypto/openssh/dist .
 
-B) Re-commit everything on repoman (you *did* use a test repo for
-   this, didn't you?)
+    Files that have modifications relative to the vendor code, and
+    only those files, must have the svn:keywords property set to
+    FreeBSD=%H and be listed in the 'keywords' file created by the
+    pre-merge script.
+
+0C) Run the post-merge script:
+
+    $ sh freebsd-post-merge.sh
+
+0D) Run the configure script:
+
+    $ sh freebsd-configure.sh
+
+0E) Check config.h very carefully.
+
+0F) If source files have been added or removed, update the appropriate
+    makefiles to reflect changes in the vendor's Makefile.in.
+
+10) Build libssh:
+
+    $ cd ../../secure/lib/libssh && make obj && make depend && make
+
+11) Follow the instructions in ssh_namespace.h to get a list of new
+    symbols, and them to ssh_namespace.h.  Keep it sorted!
+
+12) Build and install world, reboot, test.  Pay particular attention
+    to pam_ssh(8), which gropes inside libssh and will break if
+    something significant changes or if ssh_namespace.h is out of
+    whack.
+
+13) Commit, and hunker down for the inevitable storm of complaints.
 
 
 
 	  An overview of FreeBSD changes to OpenSSH-portable
 	  ==================================================
+
+XXX This section is out of date
 
 0) VersionAddendum
 

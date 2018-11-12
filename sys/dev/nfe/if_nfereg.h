@@ -40,7 +40,7 @@
 	(NFE_JUMBO_FRAMELEN - NFE_RX_HEADERS)
 #define	NFE_MIN_FRAMELEN	(ETHER_MIN_LEN - ETHER_CRC_LEN)
 
-#define	NFE_MAX_SCATTER		32
+#define	NFE_MAX_SCATTER		35
 #define	NFE_TSO_MAXSGSIZE	4096
 #define	NFE_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
 

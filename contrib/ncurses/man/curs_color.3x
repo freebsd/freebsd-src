@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,11 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_color.3x,v 1.28 2005/12/18 00:00:37 tom Exp $
+.\" $Id: curs_color.3x,v 1.35 2010/12/20 00:50:58 tom Exp $
 .TH curs_color 3X ""
+.de bP
+.IP \(bu 4
+..
 .na
 .hy 0
 .SH NAME
@@ -38,12 +41,12 @@
 \fBcan_change_color\fR,
 \fBcolor_content\fR,
 \fBpair_content\fR,
-\fBCOLOR_PAIR\fR - \fBcurses\fR color manipulation routines
+\fBCOLOR_PAIR\fR \- \fBcurses\fR color manipulation routines
 .ad
 .hy
 .SH SYNOPSIS
 \fB# include <curses.h>\fR
-.br
+.sp
 \fBint start_color(void);\fR
 .br
 \fBint init_pair(short pair, short f, short b);\fR
@@ -93,12 +96,13 @@ The \fBinit_pair\fR routine changes the definition of a color-pair.  It takes
 three arguments: the number of the color-pair to be changed, the foreground
 color number, and the background color number.
 For portable applications:
-.TP 5
--
+.bP
 The value of the first argument
-must be between \fB1\fR and \fBCOLOR_PAIRS-1\fR.
-.TP 5
--
+must be between \fB1\fR and \fBCOLOR_PAIRS\-1\fR,
+except that if default colors are used (see \fBuse_default_colors\fP)
+the upper limit is adjusted to allow for extra pairs which use
+a default color in foreground and/or background.
+.bP
 The value of the second and
 third arguments must be between 0 and \fBCOLORS\fR.
 Color pair 0 is assumed to be white on black,
@@ -111,7 +115,7 @@ are changed to the new definition.
 .PP
 As an extension, ncurses allows you to set color pair 0 via
 the \fBassume_default_colors\fR routine, or to specify the use of
-default colors (color number \fB-1\fR) if you first invoke the
+default colors (color number \fB\-1\fR) if you first invoke the
 \fBuse_default_colors\fR routine.
 .PP
 The \fBinit_color\fR routine changes the definition of a color.  It takes four
@@ -147,7 +151,7 @@ The \fBpair_content\fR routine allows programmers to find out what colors a
 given color-pair consists of.  It requires three arguments: the color-pair
 number, and two addresses of \fBshort\fRs for storing the foreground and the
 background color numbers.  The value of the first argument must be between 1
-and \fBCOLOR_PAIRS-1\fR.  The values that are stored at the addresses pointed
+and \fBCOLOR_PAIRS\-1\fR.  The values that are stored at the addresses pointed
 to by the second and third arguments are between 0 and \fBCOLORS\fR.
 .SS Colors
 In \fB<curses.h>\fR the following macros are defined.  These are the default
@@ -174,15 +178,15 @@ completion.
 .PP
 X/Open defines no error conditions.
 This implementation will return \fBERR\fR on attempts to
-use color values outside the range 0 to COLORS-1
+use color values outside the range 0 to COLORS\-1
 (except for the default colors extension),
-or use color pairs outside the range 0 to COLOR_PAIR-1.
+or use color pairs outside the range 0 to COLOR_PAIRS\-1.
 Color values used in \fBinit_color\fP must be in the range 0 to 1000.
 An error is returned from all functions
 if the terminal has not been initialized.
 An error is returned from secondary functions such as \fBinit_pair\fP
 if \fBstart_color\fP was not called.
-.RS
+.RS 3
 .TP 5
 \fBinit_color\fP
 returns an error if the terminal does not support
@@ -190,8 +194,7 @@ this feature, e.g., if the \fIinitialize_color\fP capability is absent
 from the terminal description.
 .TP 5
 \fBstart_color\fP
-returns an error
-If the color table cannot be allocated.
+returns an error if the color table cannot be allocated.
 .RE
 .SH NOTES
 In the \fIncurses\fR implementation, there is a separate color activation flag,
@@ -206,18 +209,15 @@ the background color used when parts of a window are blanked by erasing or
 scrolling operations, see \fBcurs_bkgd\fR(3X).
 .PP
 Several caveats apply on 386 and 486 machines with VGA-compatible graphics:
-.TP 5
--
+.bP
 COLOR_YELLOW is actually brown.  To get yellow, use COLOR_YELLOW combined with
 the \fBA_BOLD\fR attribute.
-.TP 5
--
+.bP
 The A_BLINK attribute should in theory cause the background to go bright.  This
 often fails to work, and even some cards for which it mostly works (such as the
 Paradise and compatibles) do the wrong thing when you try to set a bright
 "yellow" background (you get a blinking yellow foreground instead).
-.TP 5
--
+.bP
 Color RGB values are not settable.
 .SH PORTABILITY
 This implementation satisfies XSI Curses's minimum maximums
@@ -239,10 +239,5 @@ and will treat those as optional parameters when null.
 \fBcurses\fR(3X),
 \fBcurs_initscr\fR(3X),
 \fBcurs_attr\fR(3X),
+\fBcurs_variables\fR(3X),
 \fBdefault_colors\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

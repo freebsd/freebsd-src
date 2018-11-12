@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -52,9 +51,10 @@ __FBSDID("$FreeBSD$");
 static int	smscphy_probe(device_t);
 static int	smscphy_attach(device_t);
 
-static int	smscphy_service(struct mii_softc *, struct mii_data *, int);
-static void	smscphy_auto(struct mii_softc *, int);
-static void	smscphy_status(struct mii_softc *);
+static int	smscphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	smscphy_auto(struct mii_softc *, if_media_t);
+static void	smscphy_status(struct mii_softc *, if_media_t);
 
 static device_method_t smscphy_methods[] = {
 	/* device interface */
@@ -102,38 +102,36 @@ smscphy_attach(device_t dev)
 	sc = device_get_softc(dev);
 	mpf = &smscphy_funcs;
 	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE, mpf, 1);
-	mii_phy_setmedia(sc);
+	mii_phy_setmedia(sc, (IFM_AUTO | IFM_ETHER));
 
 	return (0);
 }
 
 static int
-smscphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+smscphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-        struct	ifmedia_entry *ife;
         int	reg;
-
-	ife = mii->mii_media.ifm_cur;
 
         switch (cmd) {
         case MII_POLLSTAT:
                 break;
 
         case MII_MEDIACHG:
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_AUTO:
-			smscphy_auto(sc, ife->ifm_media);
+			smscphy_auto(sc, media);
 			break;
 
 		default:
-                	mii_phy_setmedia(sc);
+                	mii_phy_setmedia(sc, media);
 			break;
 		}
 
                 break;
 
         case MII_TICK:
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+		if (IFM_SUBTYPE(media) != IFM_AUTO) {
 			break;
 		}
 
@@ -154,13 +152,13 @@ smscphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		}
 
 		sc->mii_ticks = 0;
-		PHY_RESET(sc);
-		smscphy_auto(sc, ife->ifm_media);
+		PHY_RESET(sc, media);
+		smscphy_auto(sc, media);
                 break;
         }
 
         /* Update the media status. */
-        PHY_STATUS(sc);
+        PHY_STATUS(sc, media);
 
         /* Callback if something changed. */
         mii_phy_update(sc, cmd);
@@ -168,7 +166,7 @@ smscphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-smscphy_auto(struct mii_softc *sc, int media)
+smscphy_auto(struct mii_softc *sc, if_media_t media)
 {
 	uint16_t	anar;
 
@@ -182,7 +180,7 @@ smscphy_auto(struct mii_softc *sc, int media)
 }
 
 static void
-smscphy_status(struct mii_softc *sc)
+smscphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii;
 	uint32_t bmcr, bmsr, status;

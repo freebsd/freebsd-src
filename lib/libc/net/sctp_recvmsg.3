@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2007
+.Dd April 23, 2015
 .Dt SCTP_RECVMSG 3
 .Os
 .Sh NAME
@@ -98,13 +98,13 @@ receive buffer, then the
 argument will
 .Em not
 have the
-.Dv MSG_EOF
+.Dv MSG_EOR
 flag applied.
 If the message is a complete message then
 the
 .Fa flags
 argument will have
-.Dv MSG_EOF
+.Dv MSG_EOR
 set.
 Locally detected errors are
 indicated by a return value of -1 with
@@ -282,12 +282,12 @@ This typically means that the socket
 is not connected and is a one-to-one style socket.
 .El
 .Sh SEE ALSO
+.Xr getsockopt 2 ,
 .Xr recv 2 ,
 .Xr select 2 ,
+.Xr setsockopt 2 ,
 .Xr socket 2 ,
 .Xr write 2 ,
-.Xr getsockopt 2 ,
-.Xr setsockopt 2 ,
 .Xr sctp_send 3 ,
 .Xr sctp_sendmsg 3 ,
 .Xr sendmsg 3 ,

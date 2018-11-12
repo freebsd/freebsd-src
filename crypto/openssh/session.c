@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.269 2014/01/18 09:36:26 dtucker Exp $ */
+/* $OpenBSD: session.c,v 1.270 2014/01/31 16:39:19 tedu Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -983,6 +983,11 @@ child_set_env(char ***envp, u_int *envsizep, const char *name,
 	u_int envsize;
 	u_int i, namelen;
 
+	if (strchr(name, '=') != NULL) {
+		error("Invalid environment variable \"%.100s\"", name);
+		return;
+	}
+
 	/*
 	 * If we're passed an uninitialized list, allocate a single null
 	 * entry before continuing.
@@ -1905,7 +1910,7 @@ session_unused(int id)
 		fatal("%s: insane session id %d (max %d nalloc %d)",
 		    __func__, id, options.max_sessions, sessions_nalloc);
 	}
-	bzero(&sessions[id], sizeof(*sessions));
+	memset(&sessions[id], 0, sizeof(*sessions));
 	sessions[id].self = id;
 	sessions[id].used = 0;
 	sessions[id].chanid = -1;
@@ -2241,8 +2246,8 @@ session_env_req(Session *s)
 	char *name, *val;
 	u_int name_len, val_len, i;
 
-	name = packet_get_string(&name_len);
-	val = packet_get_string(&val_len);
+	name = packet_get_cstring(&name_len);
+	val = packet_get_cstring(&val_len);
 	packet_check_eom();
 
 	/* Don't set too many environment variables */

@@ -2,11 +2,11 @@
 # $FreeBSD$
 
 # gmon sources
-.PATH: ${.CURDIR}/gmon
+.PATH: ${LIBC_SRCTOP}/gmon
 
 SRCS+=	gmon.c mcount.c
 
-SYM_MAPS+=${.CURDIR}/gmon/Symbol.map
+SYM_MAPS+=${LIBC_SRCTOP}/gmon/Symbol.map
 
 MAN+=	moncontrol.3
 

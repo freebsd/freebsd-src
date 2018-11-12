@@ -37,7 +37,7 @@ struct semid_ds_old {
 	long		sem_pad1;	/* SVABI/386 says I need this here */
 	time_t		sem_ctime;	/* last change time */
     					/* Times measured in secs since */
-    					/* 00:00:00 GMT, Jan. 1, 1970 */
+    					/* 00:00:00 UTC, Jan. 1, 1970, without leap seconds */
 	long		sem_pad2;	/* SVABI/386 says I need this here */
 	long		sem_pad3[4];	/* SVABI/386 says I need this here */
 };
@@ -50,7 +50,7 @@ struct semid_ds {
 	time_t		sem_otime;	/* last operation time */
 	time_t		sem_ctime;	/* last change time */
     					/* Times measured in secs since */
-    					/* 00:00:00 GMT, Jan. 1, 1970 */
+    					/* 00:00:00 UTC, Jan. 1, 1970, without leap seconds */
 };
 
 /*
@@ -137,8 +137,9 @@ struct semid_kernel {
  */
 void	semexit(struct proc *p);
 
-#else /* ! _KERNEL */
+#endif /* _KERNEL */
 
+#if !defined(_KERNEL) || defined(_WANT_SEM_PROTOTYPES)
 __BEGIN_DECLS
 #if __BSD_VISIBLE
 int semsys(int, ...);
@@ -148,6 +149,6 @@ int semget(key_t, int, int);
 int semop(int, struct sembuf *, size_t);
 __END_DECLS
 
-#endif /* !_KERNEL */
+#endif /* !_KERNEL || _WANT_SEM_PROTOTYPES */
 
 #endif /* !_SYS_SEM_H_ */

@@ -27,10 +27,10 @@ namespace llvm {
   /// option, it will set the string to an error message if an error occurs, or
   /// if the files are different.
   ///
-  int DiffFilesWithTolerance(const sys::PathWithStatus &FileA,
-                             const sys::PathWithStatus &FileB,
+  int DiffFilesWithTolerance(StringRef FileA,
+                             StringRef FileB,
                              double AbsTol, double RelTol,
-                             std::string *Error = 0);
+                             std::string *Error = nullptr);
 
 
   /// FileRemover - This class is a simple object meant to be stack allocated.
@@ -51,8 +51,7 @@ namespace llvm {
     ~FileRemover() {
       if (DeleteIt) {
         // Ignore problems deleting the file.
-        bool existed;
-        sys::fs::remove(Filename.str(), existed);
+        sys::fs::remove(Filename.str());
       }
     }
 
@@ -62,8 +61,7 @@ namespace llvm {
     void setFile(const Twine& filename, bool deleteIt = true) {
       if (DeleteIt) {
         // Ignore problems deleting the file.
-        bool existed;
-        sys::fs::remove(Filename.str(), existed);
+        sys::fs::remove(Filename.str());
       }
 
       Filename.clear();

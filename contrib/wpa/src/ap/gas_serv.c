@@ -1,6 +1,6 @@
 /*
  * Generic advertisement service (GAS) server
- * Copyright (c) 2011-2012, Qualcomm Atheros, Inc.
+ * Copyright (c) 2011-2014, Qualcomm Atheros, Inc.
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -17,6 +17,13 @@
 #include "ap_drv_ops.h"
 #include "sta_info.h"
 #include "gas_serv.h"
+
+
+static void convert_to_protected_dual(struct wpabuf *msg)
+{
+	u8 *categ = wpabuf_mhead_u8(msg);
+	*categ = WLAN_ACTION_PROTECTED_DUAL;
+}
 
 
 static struct gas_dialog_info *
@@ -46,10 +53,12 @@ gas_dialog_create(struct hostapd_data *hapd, const u8 *addr, u8 dialog_token)
 		 * it to be that long.
 		 */
 		ap_sta_session_timeout(hapd, sta, 5);
+	} else {
+		ap_sta_replenish_timeout(hapd, sta, 5);
 	}
 
 	if (sta->gas_dialog == NULL) {
-		sta->gas_dialog = os_zalloc(GAS_DIALOG_MAX *
+		sta->gas_dialog = os_calloc(GAS_DIALOG_MAX,
 					    sizeof(struct gas_dialog_info));
 		if (sta->gas_dialog == NULL)
 			return NULL;
@@ -62,7 +71,6 @@ gas_dialog_create(struct hostapd_data *hapd, const u8 *addr, u8 dialog_token)
 			continue;
 		dia = &sta->gas_dialog[i];
 		dia->valid = 1;
-		dia->index = i;
 		dia->dialog_token = dialog_token;
 		sta->gas_dialog_next = (++i == GAS_DIALOG_MAX) ? 0 : i;
 		return dia;
@@ -150,6 +158,10 @@ static void anqp_add_hs_capab_list(struct hostapd_data *hapd,
 		wpabuf_put_u8(buf, HS20_STYPE_NAI_HOME_REALM_QUERY);
 	if (hapd->conf->hs20_operating_class)
 		wpabuf_put_u8(buf, HS20_STYPE_OPERATING_CLASS);
+	if (hapd->conf->hs20_osu_providers_count)
+		wpabuf_put_u8(buf, HS20_STYPE_OSU_PROVIDERS_LIST);
+	if (hapd->conf->hs20_icons_count)
+		wpabuf_put_u8(buf, HS20_STYPE_ICON_REQUEST);
 	gas_anqp_set_element_len(buf, len);
 }
 #endif /* CONFIG_HS20 */
@@ -402,7 +414,7 @@ static void anqp_add_nai_realm(struct hostapd_data *hapd, struct wpabuf *buf,
 			gas_anqp_set_element_len(buf, realm_data_len);
 		}
 		gas_anqp_set_element_len(buf, len);
-	} else if (nai_home_realm && hapd->conf->nai_realm_data) {
+	} else if (nai_home_realm && hapd->conf->nai_realm_data && home_realm) {
 		hs20_add_nai_home_realm_matches(hapd, buf, home_realm,
 						home_realm_len);
 	}
@@ -505,18 +517,188 @@ static void anqp_add_operating_class(struct hostapd_data *hapd,
 	}
 }
 
+
+static void anqp_add_osu_provider(struct wpabuf *buf,
+				  struct hostapd_bss_config *bss,
+				  struct hs20_osu_provider *p)
+{
+	u8 *len, *len2, *count;
+	unsigned int i;
+
+	len = wpabuf_put(buf, 2); /* OSU Provider Length to be filled */
+
+	/* OSU Friendly Name Duples */
+	len2 = wpabuf_put(buf, 2);
+	for (i = 0; i < p->friendly_name_count; i++) {
+		struct hostapd_lang_string *s = &p->friendly_name[i];
+		wpabuf_put_u8(buf, 3 + s->name_len);
+		wpabuf_put_data(buf, s->lang, 3);
+		wpabuf_put_data(buf, s->name, s->name_len);
+	}
+	WPA_PUT_LE16(len2, (u8 *) wpabuf_put(buf, 0) - len2 - 2);
+
+	/* OSU Server URI */
+	if (p->server_uri) {
+		wpabuf_put_u8(buf, os_strlen(p->server_uri));
+		wpabuf_put_str(buf, p->server_uri);
+	} else
+		wpabuf_put_u8(buf, 0);
+
+	/* OSU Method List */
+	count = wpabuf_put(buf, 1);
+	for (i = 0; p->method_list[i] >= 0; i++)
+		wpabuf_put_u8(buf, p->method_list[i]);
+	*count = i;
+
+	/* Icons Available */
+	len2 = wpabuf_put(buf, 2);
+	for (i = 0; i < p->icons_count; i++) {
+		size_t j;
+		struct hs20_icon *icon = NULL;
+
+		for (j = 0; j < bss->hs20_icons_count && !icon; j++) {
+			if (os_strcmp(p->icons[i], bss->hs20_icons[j].name) ==
+			    0)
+				icon = &bss->hs20_icons[j];
+		}
+		if (!icon)
+			continue; /* icon info not found */
+
+		wpabuf_put_le16(buf, icon->width);
+		wpabuf_put_le16(buf, icon->height);
+		wpabuf_put_data(buf, icon->language, 3);
+		wpabuf_put_u8(buf, os_strlen(icon->type));
+		wpabuf_put_str(buf, icon->type);
+		wpabuf_put_u8(buf, os_strlen(icon->name));
+		wpabuf_put_str(buf, icon->name);
+	}
+	WPA_PUT_LE16(len2, (u8 *) wpabuf_put(buf, 0) - len2 - 2);
+
+	/* OSU_NAI */
+	if (p->osu_nai) {
+		wpabuf_put_u8(buf, os_strlen(p->osu_nai));
+		wpabuf_put_str(buf, p->osu_nai);
+	} else
+		wpabuf_put_u8(buf, 0);
+
+	/* OSU Service Description Duples */
+	len2 = wpabuf_put(buf, 2);
+	for (i = 0; i < p->service_desc_count; i++) {
+		struct hostapd_lang_string *s = &p->service_desc[i];
+		wpabuf_put_u8(buf, 3 + s->name_len);
+		wpabuf_put_data(buf, s->lang, 3);
+		wpabuf_put_data(buf, s->name, s->name_len);
+	}
+	WPA_PUT_LE16(len2, (u8 *) wpabuf_put(buf, 0) - len2 - 2);
+
+	WPA_PUT_LE16(len, (u8 *) wpabuf_put(buf, 0) - len - 2);
+}
+
+
+static void anqp_add_osu_providers_list(struct hostapd_data *hapd,
+					struct wpabuf *buf)
+{
+	if (hapd->conf->hs20_osu_providers_count) {
+		size_t i;
+		u8 *len = gas_anqp_add_element(buf, ANQP_VENDOR_SPECIFIC);
+		wpabuf_put_be24(buf, OUI_WFA);
+		wpabuf_put_u8(buf, HS20_ANQP_OUI_TYPE);
+		wpabuf_put_u8(buf, HS20_STYPE_OSU_PROVIDERS_LIST);
+		wpabuf_put_u8(buf, 0); /* Reserved */
+
+		/* OSU SSID */
+		wpabuf_put_u8(buf, hapd->conf->osu_ssid_len);
+		wpabuf_put_data(buf, hapd->conf->osu_ssid,
+				hapd->conf->osu_ssid_len);
+
+		/* Number of OSU Providers */
+		wpabuf_put_u8(buf, hapd->conf->hs20_osu_providers_count);
+
+		for (i = 0; i < hapd->conf->hs20_osu_providers_count; i++) {
+			anqp_add_osu_provider(
+				buf, hapd->conf,
+				&hapd->conf->hs20_osu_providers[i]);
+		}
+
+		gas_anqp_set_element_len(buf, len);
+	}
+}
+
+
+static void anqp_add_icon_binary_file(struct hostapd_data *hapd,
+				      struct wpabuf *buf,
+				      const u8 *name, size_t name_len)
+{
+	struct hs20_icon *icon;
+	size_t i;
+	u8 *len;
+
+	wpa_hexdump_ascii(MSG_DEBUG, "HS 2.0: Requested Icon Filename",
+			  name, name_len);
+	for (i = 0; i < hapd->conf->hs20_icons_count; i++) {
+		icon = &hapd->conf->hs20_icons[i];
+		if (name_len == os_strlen(icon->name) &&
+		    os_memcmp(name, icon->name, name_len) == 0)
+			break;
+	}
+
+	if (i < hapd->conf->hs20_icons_count)
+		icon = &hapd->conf->hs20_icons[i];
+	else
+		icon = NULL;
+
+	len = gas_anqp_add_element(buf, ANQP_VENDOR_SPECIFIC);
+	wpabuf_put_be24(buf, OUI_WFA);
+	wpabuf_put_u8(buf, HS20_ANQP_OUI_TYPE);
+	wpabuf_put_u8(buf, HS20_STYPE_ICON_BINARY_FILE);
+	wpabuf_put_u8(buf, 0); /* Reserved */
+
+	if (icon) {
+		char *data;
+		size_t data_len;
+
+		data = os_readfile(icon->file, &data_len);
+		if (data == NULL || data_len > 65535) {
+			wpabuf_put_u8(buf, 2); /* Download Status:
+						* Unspecified file error */
+			wpabuf_put_u8(buf, 0);
+			wpabuf_put_le16(buf, 0);
+		} else {
+			wpabuf_put_u8(buf, 0); /* Download Status: Success */
+			wpabuf_put_u8(buf, os_strlen(icon->type));
+			wpabuf_put_str(buf, icon->type);
+			wpabuf_put_le16(buf, data_len);
+			wpabuf_put_data(buf, data, data_len);
+		}
+		os_free(data);
+	} else {
+		wpabuf_put_u8(buf, 1); /* Download Status: File not found */
+		wpabuf_put_u8(buf, 0);
+		wpabuf_put_le16(buf, 0);
+	}
+
+	gas_anqp_set_element_len(buf, len);
+}
+
 #endif /* CONFIG_HS20 */
 
 
 static struct wpabuf *
 gas_serv_build_gas_resp_payload(struct hostapd_data *hapd,
 				unsigned int request,
-				struct gas_dialog_info *di,
-				const u8 *home_realm, size_t home_realm_len)
+				const u8 *home_realm, size_t home_realm_len,
+				const u8 *icon_name, size_t icon_name_len)
 {
 	struct wpabuf *buf;
+	size_t len;
 
-	buf = wpabuf_alloc(1400);
+	len = 1400;
+	if (request & (ANQP_REQ_NAI_REALM | ANQP_REQ_NAI_HOME_REALM))
+		len += 1000;
+	if (request & ANQP_REQ_ICON_REQUEST)
+		len += 65536;
+
+	buf = wpabuf_alloc(len);
 	if (buf == NULL)
 		return NULL;
 
@@ -550,44 +732,32 @@ gas_serv_build_gas_resp_payload(struct hostapd_data *hapd,
 		anqp_add_connection_capability(hapd, buf);
 	if (request & ANQP_REQ_OPERATING_CLASS)
 		anqp_add_operating_class(hapd, buf);
+	if (request & ANQP_REQ_OSU_PROVIDERS_LIST)
+		anqp_add_osu_providers_list(hapd, buf);
+	if (request & ANQP_REQ_ICON_REQUEST)
+		anqp_add_icon_binary_file(hapd, buf, icon_name, icon_name_len);
 #endif /* CONFIG_HS20 */
 
 	return buf;
 }
 
 
-static void gas_serv_clear_cached_ies(void *eloop_data, void *user_ctx)
-{
-	struct gas_dialog_info *dia = eloop_data;
-
-	wpa_printf(MSG_DEBUG, "GAS: Timeout triggered, clearing dialog for "
-		   "dialog token %d", dia->dialog_token);
-
-	gas_serv_dialog_clear(dia);
-}
-
-
 struct anqp_query_info {
 	unsigned int request;
-	unsigned int remote_request;
 	const u8 *home_realm_query;
 	size_t home_realm_query_len;
-	u16 remote_delay;
+	const u8 *icon_name;
+	size_t icon_name_len;
+	int p2p_sd;
 };
 
 
 static void set_anqp_req(unsigned int bit, const char *name, int local,
-			 unsigned int remote, u16 remote_delay,
 			 struct anqp_query_info *qi)
 {
 	qi->request |= bit;
 	if (local) {
 		wpa_printf(MSG_DEBUG, "ANQP: %s (local)", name);
-	} else if (bit & remote) {
-		wpa_printf(MSG_DEBUG, "ANQP: %s (remote)", name);
-		qi->remote_request |= bit;
-		if (remote_delay > qi->remote_delay)
-			qi->remote_delay = remote_delay;
 	} else {
 		wpa_printf(MSG_DEBUG, "ANQP: %s not available", name);
 	}
@@ -599,43 +769,38 @@ static void rx_anqp_query_list_id(struct hostapd_data *hapd, u16 info_id,
 {
 	switch (info_id) {
 	case ANQP_CAPABILITY_LIST:
-		set_anqp_req(ANQP_REQ_CAPABILITY_LIST, "Capability List", 1, 0,
-			     0, qi);
+		set_anqp_req(ANQP_REQ_CAPABILITY_LIST, "Capability List", 1,
+			     qi);
 		break;
 	case ANQP_VENUE_NAME:
 		set_anqp_req(ANQP_REQ_VENUE_NAME, "Venue Name",
-			     hapd->conf->venue_name != NULL, 0, 0, qi);
+			     hapd->conf->venue_name != NULL, qi);
 		break;
 	case ANQP_NETWORK_AUTH_TYPE:
 		set_anqp_req(ANQP_REQ_NETWORK_AUTH_TYPE, "Network Auth Type",
-			     hapd->conf->network_auth_type != NULL,
-			     0, 0, qi);
+			     hapd->conf->network_auth_type != NULL, qi);
 		break;
 	case ANQP_ROAMING_CONSORTIUM:
 		set_anqp_req(ANQP_REQ_ROAMING_CONSORTIUM, "Roaming Consortium",
-			     hapd->conf->roaming_consortium != NULL, 0, 0, qi);
+			     hapd->conf->roaming_consortium != NULL, qi);
 		break;
 	case ANQP_IP_ADDR_TYPE_AVAILABILITY:
 		set_anqp_req(ANQP_REQ_IP_ADDR_TYPE_AVAILABILITY,
 			     "IP Addr Type Availability",
-			     hapd->conf->ipaddr_type_configured,
-			     0, 0, qi);
+			     hapd->conf->ipaddr_type_configured, qi);
 		break;
 	case ANQP_NAI_REALM:
 		set_anqp_req(ANQP_REQ_NAI_REALM, "NAI Realm",
-			     hapd->conf->nai_realm_data != NULL,
-			     0, 0, qi);
+			     hapd->conf->nai_realm_data != NULL, qi);
 		break;
 	case ANQP_3GPP_CELLULAR_NETWORK:
 		set_anqp_req(ANQP_REQ_3GPP_CELLULAR_NETWORK,
 			     "3GPP Cellular Network",
-			     hapd->conf->anqp_3gpp_cell_net != NULL,
-			     0, 0, qi);
+			     hapd->conf->anqp_3gpp_cell_net != NULL, qi);
 		break;
 	case ANQP_DOMAIN_NAME:
 		set_anqp_req(ANQP_REQ_DOMAIN_NAME, "Domain Name",
-			     hapd->conf->domain_name != NULL,
-			     0, 0, qi);
+			     hapd->conf->domain_name != NULL, qi);
 		break;
 	default:
 		wpa_printf(MSG_DEBUG, "ANQP: Unsupported Info Id %u",
@@ -667,29 +832,30 @@ static void rx_anqp_hs_query_list(struct hostapd_data *hapd, u8 subtype,
 	switch (subtype) {
 	case HS20_STYPE_CAPABILITY_LIST:
 		set_anqp_req(ANQP_REQ_HS_CAPABILITY_LIST, "HS Capability List",
-			     1, 0, 0, qi);
+			     1, qi);
 		break;
 	case HS20_STYPE_OPERATOR_FRIENDLY_NAME:
 		set_anqp_req(ANQP_REQ_OPERATOR_FRIENDLY_NAME,
 			     "Operator Friendly Name",
-			     hapd->conf->hs20_oper_friendly_name != NULL,
-			     0, 0, qi);
+			     hapd->conf->hs20_oper_friendly_name != NULL, qi);
 		break;
 	case HS20_STYPE_WAN_METRICS:
 		set_anqp_req(ANQP_REQ_WAN_METRICS, "WAN Metrics",
-			     hapd->conf->hs20_wan_metrics != NULL,
-			     0, 0, qi);
+			     hapd->conf->hs20_wan_metrics != NULL, qi);
 		break;
 	case HS20_STYPE_CONNECTION_CAPABILITY:
 		set_anqp_req(ANQP_REQ_CONNECTION_CAPABILITY,
 			     "Connection Capability",
 			     hapd->conf->hs20_connection_capability != NULL,
-			     0, 0, qi);
+			     qi);
 		break;
 	case HS20_STYPE_OPERATING_CLASS:
 		set_anqp_req(ANQP_REQ_OPERATING_CLASS, "Operating Class",
-			     hapd->conf->hs20_operating_class != NULL,
-			     0, 0, qi);
+			     hapd->conf->hs20_operating_class != NULL, qi);
+		break;
+	case HS20_STYPE_OSU_PROVIDERS_LIST:
+		set_anqp_req(ANQP_REQ_OSU_PROVIDERS_LIST, "OSU Providers list",
+			     hapd->conf->hs20_osu_providers_count, qi);
 		break;
 	default:
 		wpa_printf(MSG_DEBUG, "ANQP: Unsupported HS 2.0 subtype %u",
@@ -716,6 +882,23 @@ static void rx_anqp_hs_nai_home_realm(struct hostapd_data *hapd,
 }
 
 
+static void rx_anqp_hs_icon_request(struct hostapd_data *hapd,
+				    const u8 *pos, const u8 *end,
+				    struct anqp_query_info *qi)
+{
+	qi->request |= ANQP_REQ_ICON_REQUEST;
+	qi->icon_name = pos;
+	qi->icon_name_len = end - pos;
+	if (hapd->conf->hs20_icons_count) {
+		wpa_printf(MSG_DEBUG, "ANQP: HS 2.0 Icon Request Query "
+			   "(local)");
+	} else {
+		wpa_printf(MSG_DEBUG, "ANQP: HS 2.0 Icon Request Query not "
+			   "available");
+	}
+}
+
+
 static void rx_anqp_vendor_specific(struct hostapd_data *hapd,
 				    const u8 *pos, const u8 *end,
 				    struct anqp_query_info *qi)
@@ -736,6 +919,21 @@ static void rx_anqp_vendor_specific(struct hostapd_data *hapd,
 			   oui);
 		return;
 	}
+
+#ifdef CONFIG_P2P
+	if (*pos == P2P_OUI_TYPE) {
+		/*
+		 * This is for P2P SD and will be taken care of by the P2P
+		 * implementation. This query needs to be ignored in the generic
+		 * GAS server to avoid duplicated response.
+		 */
+		wpa_printf(MSG_DEBUG,
+			   "ANQP: Ignore WFA vendor type %u (P2P SD) in generic GAS server",
+			   *pos);
+		qi->p2p_sd = 1;
+		return;
+	}
+#endif /* CONFIG_P2P */
 
 	if (*pos != HS20_ANQP_OUI_TYPE) {
 		wpa_printf(MSG_DEBUG, "ANQP: Unsupported WFA vendor type %u",
@@ -760,6 +958,9 @@ static void rx_anqp_vendor_specific(struct hostapd_data *hapd,
 	case HS20_STYPE_NAI_HOME_REALM_QUERY:
 		rx_anqp_hs_nai_home_realm(hapd, pos, end, qi);
 		break;
+	case HS20_STYPE_ICON_REQUEST:
+		rx_anqp_hs_icon_request(hapd, pos, end, qi);
+		break;
 	default:
 		wpa_printf(MSG_DEBUG, "ANQP: Unsupported HS 2.0 query subtype "
 			   "%u", subtype);
@@ -772,17 +973,26 @@ static void rx_anqp_vendor_specific(struct hostapd_data *hapd,
 
 static void gas_serv_req_local_processing(struct hostapd_data *hapd,
 					  const u8 *sa, u8 dialog_token,
-					  struct anqp_query_info *qi)
+					  struct anqp_query_info *qi, int prot)
 {
 	struct wpabuf *buf, *tx_buf;
 
-	buf = gas_serv_build_gas_resp_payload(hapd, qi->request, NULL,
+	buf = gas_serv_build_gas_resp_payload(hapd, qi->request,
 					      qi->home_realm_query,
-					      qi->home_realm_query_len);
+					      qi->home_realm_query_len,
+					      qi->icon_name, qi->icon_name_len);
 	wpa_hexdump_buf(MSG_MSGDUMP, "ANQP: Locally generated ANQP responses",
 			buf);
 	if (!buf)
 		return;
+#ifdef CONFIG_P2P
+	if (wpabuf_len(buf) == 0 && qi->p2p_sd) {
+		wpa_printf(MSG_DEBUG,
+			   "ANQP: Do not send response to P2P SD from generic GAS service (P2P SD implementation will process this)");
+		wpabuf_free(buf);
+		return;
+	}
+#endif /* CONFIG_P2P */
 
 	if (wpabuf_len(buf) > hapd->gas_frag_limit ||
 	    hapd->conf->gas_comeback_delay) {
@@ -802,13 +1012,17 @@ static void gas_serv_req_local_processing(struct hostapd_data *hapd,
 				   "for " MACSTR " (dialog token %u)",
 				   MAC2STR(sa), dialog_token);
 			wpabuf_free(buf);
-			return;
+			tx_buf = gas_anqp_build_initial_resp_buf(
+				dialog_token, WLAN_STATUS_UNSPECIFIED_FAILURE,
+				0, NULL);
+		} else {
+			di->prot = prot;
+			di->sd_resp = buf;
+			di->sd_resp_pos = 0;
+			tx_buf = gas_anqp_build_initial_resp_buf(
+				dialog_token, WLAN_STATUS_SUCCESS,
+				comeback_delay, NULL);
 		}
-		di->sd_resp = buf;
-		di->sd_resp_pos = 0;
-		tx_buf = gas_anqp_build_initial_resp_buf(
-			dialog_token, WLAN_STATUS_SUCCESS, comeback_delay,
-			NULL);
 	} else {
 		wpa_printf(MSG_DEBUG, "ANQP: Initial response (no comeback)");
 		tx_buf = gas_anqp_build_initial_resp_buf(
@@ -817,7 +1031,8 @@ static void gas_serv_req_local_processing(struct hostapd_data *hapd,
 	}
 	if (!tx_buf)
 		return;
-
+	if (prot)
+		convert_to_protected_dual(tx_buf);
 	hostapd_drv_send_action(hapd, hapd->iface->freq, 0, sa,
 				wpabuf_head(tx_buf), wpabuf_len(tx_buf));
 	wpabuf_free(tx_buf);
@@ -826,7 +1041,7 @@ static void gas_serv_req_local_processing(struct hostapd_data *hapd,
 
 static void gas_serv_rx_gas_initial_req(struct hostapd_data *hapd,
 					const u8 *sa,
-					const u8 *data, size_t len)
+					const u8 *data, size_t len, int prot)
 {
 	const u8 *pos = data;
 	const u8 *end = data + len;
@@ -876,6 +1091,8 @@ static void gas_serv_rx_gas_initial_req(struct hostapd_data *hapd,
 			return;
 		wpabuf_put_data(buf, adv_proto, 2 + slen);
 		wpabuf_put_le16(buf, 0); /* Query Response Length */
+		if (prot)
+			convert_to_protected_dual(buf);
 		hostapd_drv_send_action(hapd, hapd->iface->freq, 0, sa,
 					wpabuf_head(buf), wpabuf_len(buf));
 		wpabuf_free(buf);
@@ -927,100 +1144,13 @@ static void gas_serv_rx_gas_initial_req(struct hostapd_data *hapd,
 		pos += elen;
 	}
 
-	gas_serv_req_local_processing(hapd, sa, dialog_token, &qi);
-}
-
-
-void gas_serv_tx_gas_response(struct hostapd_data *hapd, const u8 *dst,
-			      struct gas_dialog_info *dialog)
-{
-	struct wpabuf *buf, *tx_buf;
-	u8 dialog_token = dialog->dialog_token;
-	size_t frag_len;
-
-	if (dialog->sd_resp == NULL) {
-		buf = gas_serv_build_gas_resp_payload(hapd,
-						      dialog->all_requested,
-						      dialog, NULL, 0);
-		wpa_hexdump_buf(MSG_MSGDUMP, "ANQP: Generated ANQP responses",
-			buf);
-		if (!buf)
-			goto tx_gas_response_done;
-		dialog->sd_resp = buf;
-		dialog->sd_resp_pos = 0;
-	}
-	frag_len = wpabuf_len(dialog->sd_resp) - dialog->sd_resp_pos;
-	if (frag_len > hapd->gas_frag_limit || dialog->comeback_delay ||
-	    hapd->conf->gas_comeback_delay) {
-		u16 comeback_delay_tus = dialog->comeback_delay +
-			GAS_SERV_COMEBACK_DELAY_FUDGE;
-		u32 comeback_delay_secs, comeback_delay_usecs;
-
-		if (hapd->conf->gas_comeback_delay) {
-			/* Testing - allow overriding of the delay value */
-			comeback_delay_tus = hapd->conf->gas_comeback_delay;
-		}
-
-		wpa_printf(MSG_DEBUG, "GAS: Response frag_len %u (frag limit "
-			   "%u) and comeback delay %u, "
-			   "requesting comebacks", (unsigned int) frag_len,
-			   (unsigned int) hapd->gas_frag_limit,
-			   dialog->comeback_delay);
-		tx_buf = gas_anqp_build_initial_resp_buf(dialog_token,
-							 WLAN_STATUS_SUCCESS,
-							 comeback_delay_tus,
-							 NULL);
-		if (tx_buf) {
-			wpa_msg(hapd->msg_ctx, MSG_DEBUG,
-				"GAS: Tx GAS Initial Resp (comeback = 10TU)");
-			hostapd_drv_send_action(hapd, hapd->iface->freq, 0,
-						dst,
-						wpabuf_head(tx_buf),
-						wpabuf_len(tx_buf));
-		}
-		wpabuf_free(tx_buf);
-
-		/* start a timer of 1.5 * comeback-delay */
-		comeback_delay_tus = comeback_delay_tus +
-			(comeback_delay_tus / 2);
-		comeback_delay_secs = (comeback_delay_tus * 1024) / 1000000;
-		comeback_delay_usecs = (comeback_delay_tus * 1024) -
-			(comeback_delay_secs * 1000000);
-		eloop_register_timeout(comeback_delay_secs,
-				       comeback_delay_usecs,
-				       gas_serv_clear_cached_ies, dialog,
-				       NULL);
-		goto tx_gas_response_done;
-	}
-
-	buf = wpabuf_alloc_copy(wpabuf_head_u8(dialog->sd_resp) +
-				dialog->sd_resp_pos, frag_len);
-	if (buf == NULL) {
-		wpa_msg(hapd->msg_ctx, MSG_DEBUG, "GAS: Buffer allocation "
-			"failed");
-		goto tx_gas_response_done;
-	}
-	tx_buf = gas_anqp_build_initial_resp_buf(dialog_token,
-						 WLAN_STATUS_SUCCESS, 0, buf);
-	wpabuf_free(buf);
-	if (tx_buf == NULL)
-		goto tx_gas_response_done;
-	wpa_msg(hapd->msg_ctx, MSG_DEBUG, "GAS: Tx GAS Initial "
-		"Response (frag_id %d frag_len %d)",
-		dialog->sd_frag_id, (int) frag_len);
-	dialog->sd_frag_id++;
-
-	hostapd_drv_send_action(hapd, hapd->iface->freq, 0, dst,
-				wpabuf_head(tx_buf), wpabuf_len(tx_buf));
-	wpabuf_free(tx_buf);
-tx_gas_response_done:
-	gas_serv_clear_cached_ies(dialog, NULL);
+	gas_serv_req_local_processing(hapd, sa, dialog_token, &qi, prot);
 }
 
 
 static void gas_serv_rx_gas_comeback_req(struct hostapd_data *hapd,
 					 const u8 *sa,
-					 const u8 *data, size_t len)
+					 const u8 *data, size_t len, int prot)
 {
 	struct gas_dialog_info *dialog;
 	struct wpabuf *buf, *tx_buf;
@@ -1051,33 +1181,6 @@ static void gas_serv_rx_gas_comeback_req(struct hostapd_data *hapd,
 		goto send_resp;
 	}
 
-	if (dialog->sd_resp == NULL) {
-		wpa_printf(MSG_DEBUG, "GAS: Remote request 0x%x received 0x%x",
-			   dialog->requested, dialog->received);
-		if ((dialog->requested & dialog->received) !=
-		    dialog->requested) {
-			wpa_printf(MSG_DEBUG, "GAS: Did not receive response "
-				   "from remote processing");
-			gas_serv_dialog_clear(dialog);
-			tx_buf = gas_anqp_build_comeback_resp_buf(
-				dialog_token,
-				WLAN_STATUS_GAS_RESP_NOT_RECEIVED, 0, 0, 0,
-				NULL);
-			if (tx_buf == NULL)
-				return;
-			goto send_resp;
-		}
-
-		buf = gas_serv_build_gas_resp_payload(hapd,
-						      dialog->all_requested,
-						      dialog, NULL, 0);
-		wpa_hexdump_buf(MSG_MSGDUMP, "ANQP: Generated ANQP responses",
-			buf);
-		if (!buf)
-			goto rx_gas_comeback_req_done;
-		dialog->sd_resp = buf;
-		dialog->sd_resp_pos = 0;
-	}
 	frag_len = wpabuf_len(dialog->sd_resp) - dialog->sd_resp_pos;
 	if (frag_len > hapd->gas_frag_limit) {
 		frag_len = hapd->gas_frag_limit;
@@ -1090,15 +1193,18 @@ static void gas_serv_rx_gas_comeback_req(struct hostapd_data *hapd,
 	if (buf == NULL) {
 		wpa_msg(hapd->msg_ctx, MSG_DEBUG, "GAS: Failed to allocate "
 			"buffer");
-		goto rx_gas_comeback_req_done;
+		gas_serv_dialog_clear(dialog);
+		return;
 	}
 	tx_buf = gas_anqp_build_comeback_resp_buf(dialog_token,
 						  WLAN_STATUS_SUCCESS,
 						  dialog->sd_frag_id,
 						  more, 0, buf);
 	wpabuf_free(buf);
-	if (tx_buf == NULL)
-		goto rx_gas_comeback_req_done;
+	if (tx_buf == NULL) {
+		gas_serv_dialog_clear(dialog);
+		return;
+	}
 	wpa_msg(hapd->msg_ctx, MSG_DEBUG, "GAS: Tx GAS Comeback Response "
 		"(frag_id %d more=%d frag_len=%d)",
 		dialog->sd_frag_id, more, (int) frag_len);
@@ -1118,13 +1224,11 @@ static void gas_serv_rx_gas_comeback_req(struct hostapd_data *hapd,
 	}
 
 send_resp:
+	if (prot)
+		convert_to_protected_dual(tx_buf);
 	hostapd_drv_send_action(hapd, hapd->iface->freq, 0, sa,
 				wpabuf_head(tx_buf), wpabuf_len(tx_buf));
 	wpabuf_free(tx_buf);
-	return;
-
-rx_gas_comeback_req_done:
-	gas_serv_clear_cached_ies(dialog, NULL);
 }
 
 
@@ -1133,24 +1237,30 @@ static void gas_serv_rx_public_action(void *ctx, const u8 *buf, size_t len,
 {
 	struct hostapd_data *hapd = ctx;
 	const struct ieee80211_mgmt *mgmt;
-	size_t hdr_len;
 	const u8 *sa, *data;
+	int prot;
 
 	mgmt = (const struct ieee80211_mgmt *) buf;
-	hdr_len = (const u8 *) &mgmt->u.action.u.vs_public_action.action - buf;
-	if (hdr_len > len)
+	if (len < IEEE80211_HDRLEN + 2)
 		return;
-	if (mgmt->u.action.category != WLAN_ACTION_PUBLIC)
+	if (mgmt->u.action.category != WLAN_ACTION_PUBLIC &&
+	    mgmt->u.action.category != WLAN_ACTION_PROTECTED_DUAL)
 		return;
+	/*
+	 * Note: Public Action and Protected Dual of Public Action frames share
+	 * the same payload structure, so it is fine to use definitions of
+	 * Public Action frames to process both.
+	 */
+	prot = mgmt->u.action.category == WLAN_ACTION_PROTECTED_DUAL;
 	sa = mgmt->sa;
-	len -= hdr_len;
-	data = &mgmt->u.action.u.public_action.action;
+	len -= IEEE80211_HDRLEN + 1;
+	data = buf + IEEE80211_HDRLEN + 1;
 	switch (data[0]) {
 	case WLAN_PA_GAS_INITIAL_REQ:
-		gas_serv_rx_gas_initial_req(hapd, sa, data + 1, len - 1);
+		gas_serv_rx_gas_initial_req(hapd, sa, data + 1, len - 1, prot);
 		break;
 	case WLAN_PA_GAS_COMEBACK_REQ:
-		gas_serv_rx_gas_comeback_req(hapd, sa, data + 1, len - 1);
+		gas_serv_rx_gas_comeback_req(hapd, sa, data + 1, len - 1, prot);
 		break;
 	}
 }
@@ -1158,8 +1268,8 @@ static void gas_serv_rx_public_action(void *ctx, const u8 *buf, size_t len,
 
 int gas_serv_init(struct hostapd_data *hapd)
 {
-	hapd->public_action_cb = gas_serv_rx_public_action;
-	hapd->public_action_cb_ctx = hapd;
+	hapd->public_action_cb2 = gas_serv_rx_public_action;
+	hapd->public_action_cb2_ctx = hapd;
 	hapd->gas_frag_limit = 1400;
 	if (hapd->conf->gas_frag_limit > 0)
 		hapd->gas_frag_limit = hapd->conf->gas_frag_limit;

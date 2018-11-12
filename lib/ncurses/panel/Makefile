@@ -29,8 +29,7 @@ CLEANFILES=	ncurses_def.h
 
 CFLAGS+=	-I${SRCDIR}
 
-DPADD=	${LIBNCURSES${LIB_SUFFIX:tu}}
-LDADD=	-lncurses${LIB_SUFFIX}
+LIBADD+=	ncurses${LIB_SUFFIX}
 
 .if defined(ENABLE_WIDEC)
 INCS=	panel.h
@@ -58,7 +57,7 @@ MLINKS=	panel.3 bottom_panel.3 \
 	panel.3 top_panel.3 \
 	panel.3 update_panels.3
 .else
-NO_MAN=
+MAN=
 .endif
 	
 .include <bsd.lib.mk>

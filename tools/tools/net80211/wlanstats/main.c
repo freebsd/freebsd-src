@@ -34,17 +34,18 @@
  * (default interface is wlan0).
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
+
 #include <net/ethernet.h>
 #include <net80211/_ieee80211.h>
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <signal.h>
-#include <unistd.h>
 #include <err.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <strings.h>
+#include <unistd.h>
 
 #include "wlanstats.h"
 
@@ -65,13 +66,11 @@ static struct {
 static const char *
 getfmt(const char *tag)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	int i;
-	for (i = 0; i < N(tags); i++)
+	for (i = 0; i < nitems(tags); i++)
 		if (strcasecmp(tags[i].tag, tag) == 0)
 			return tags[i].fmt;
 	return tag;
-#undef N
 }
 
 static int signalled;
@@ -153,6 +152,11 @@ print_sta_stats(FILE *fd, const u_int8_t macaddr[IEEE80211_ADDR_LEN])
 }
 #endif
 
+void
+usage(void) {
+	printf("wlanstats: [-ah] [-i ifname] [-l] [-o fmt] [interval]\n");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -167,11 +171,14 @@ main(int argc, char *argv[])
 	if (ifname == NULL)
 		ifname = "wlan0";
 	wf = wlanstats_new(ifname, getfmt("default"));
-	while ((c = getopt(argc, argv, "ai:lm:o:")) != -1) {
+	while ((c = getopt(argc, argv, "ahi:lm:o:")) != -1) {
 		switch (c) {
 		case 'a':
 			allnodes++;
 			break;
+		case 'h':
+			usage();
+			exit(0);
 		case 'i':
 			wf->setifname(wf, optarg);
 			break;
@@ -188,7 +195,8 @@ main(int argc, char *argv[])
 			wf->setfmt(wf, getfmt(optarg));
 			break;
 		default:
-			errx(-1, "usage: %s [-a] [-i ifname] [-l] [-o fmt] [interval]\n", argv[0]);
+			usage();
+			exit(1);
 			/*NOTREACHED*/
 		}
 	}

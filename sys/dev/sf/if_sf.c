@@ -902,7 +902,7 @@ sf_attach(device_t dev)
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sf_irq, INTR_TYPE_NET | INTR_MPSAFE,
@@ -1292,61 +1292,57 @@ sf_dma_free(struct sf_softc *sc)
 
 	/* Tx ring. */
 	if (sc->sf_cdata.sf_tx_ring_tag) {
-		if (sc->sf_cdata.sf_tx_ring_map)
+		if (sc->sf_rdata.sf_tx_ring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_tx_ring_tag,
 			    sc->sf_cdata.sf_tx_ring_map);
-		if (sc->sf_cdata.sf_tx_ring_map &&
-		    sc->sf_rdata.sf_tx_ring)
+		if (sc->sf_rdata.sf_tx_ring)
 			bus_dmamem_free(sc->sf_cdata.sf_tx_ring_tag,
 			    sc->sf_rdata.sf_tx_ring,
 			    sc->sf_cdata.sf_tx_ring_map);
 		sc->sf_rdata.sf_tx_ring = NULL;
-		sc->sf_cdata.sf_tx_ring_map = NULL;
+		sc->sf_rdata.sf_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_tx_ring_tag);
 		sc->sf_cdata.sf_tx_ring_tag = NULL;
 	}
 	/* Tx completion ring. */
 	if (sc->sf_cdata.sf_tx_cring_tag) {
-		if (sc->sf_cdata.sf_tx_cring_map)
+		if (sc->sf_rdata.sf_tx_cring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_tx_cring_tag,
 			    sc->sf_cdata.sf_tx_cring_map);
-		if (sc->sf_cdata.sf_tx_cring_map &&
-		    sc->sf_rdata.sf_tx_cring)
+		if (sc->sf_rdata.sf_tx_cring)
 			bus_dmamem_free(sc->sf_cdata.sf_tx_cring_tag,
 			    sc->sf_rdata.sf_tx_cring,
 			    sc->sf_cdata.sf_tx_cring_map);
 		sc->sf_rdata.sf_tx_cring = NULL;
-		sc->sf_cdata.sf_tx_cring_map = NULL;
+		sc->sf_rdata.sf_tx_cring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_tx_cring_tag);
 		sc->sf_cdata.sf_tx_cring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc->sf_cdata.sf_rx_ring_tag) {
-		if (sc->sf_cdata.sf_rx_ring_map)
+		if (sc->sf_rdata.sf_rx_ring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_rx_ring_tag,
 			    sc->sf_cdata.sf_rx_ring_map);
-		if (sc->sf_cdata.sf_rx_ring_map &&
-		    sc->sf_rdata.sf_rx_ring)
+		if (sc->sf_rdata.sf_rx_ring)
 			bus_dmamem_free(sc->sf_cdata.sf_rx_ring_tag,
 			    sc->sf_rdata.sf_rx_ring,
 			    sc->sf_cdata.sf_rx_ring_map);
 		sc->sf_rdata.sf_rx_ring = NULL;
-		sc->sf_cdata.sf_rx_ring_map = NULL;
+		sc->sf_rdata.sf_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_rx_ring_tag);
 		sc->sf_cdata.sf_rx_ring_tag = NULL;
 	}
 	/* Rx completion ring. */
 	if (sc->sf_cdata.sf_rx_cring_tag) {
-		if (sc->sf_cdata.sf_rx_cring_map)
+		if (sc->sf_rdata.sf_rx_cring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_rx_cring_tag,
 			    sc->sf_cdata.sf_rx_cring_map);
-		if (sc->sf_cdata.sf_rx_cring_map &&
-		    sc->sf_rdata.sf_rx_cring)
+		if (sc->sf_rdata.sf_rx_cring)
 			bus_dmamem_free(sc->sf_cdata.sf_rx_cring_tag,
 			    sc->sf_rdata.sf_rx_cring,
 			    sc->sf_cdata.sf_rx_cring_map);
 		sc->sf_rdata.sf_rx_cring = NULL;
-		sc->sf_cdata.sf_rx_cring_map = NULL;
+		sc->sf_rdata.sf_rx_cring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_rx_cring_tag);
 		sc->sf_cdata.sf_rx_cring_tag = NULL;
 	}
@@ -1570,7 +1566,7 @@ sf_rxeof(struct sf_softc *sc)
 		m = rxd->rx_m;
 
 		/*
-		 * Note, if_ipackets and if_ierrors counters
+		 * Note, IFCOUNTER_IPACKETS and IFCOUNTER_IERRORS
 		 * are handled in sf_stats_update().
 		 */
 		if ((status & SF_RXSTAT1_OK) == 0) {
@@ -1579,7 +1575,7 @@ sf_rxeof(struct sf_softc *sc)
 		}
 
 		if (sf_newbuf(sc, eidx) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			cur_cmp->sf_rx_status1 = 0;
 			continue;
 		}
@@ -1724,8 +1720,9 @@ sf_txeof(struct sf_softc *sc)
 			/*
 			 * We don't need to check Tx status here.
 			 * SF_ISR_TX_LOFIFO intr would handle this.
-			 * Note, if_opackets, if_collisions and if_oerrors
-			 * counters are handled in sf_stats_update().
+			 * Note, IFCOUNTER_OPACKETS, IFCOUNTER_COLLISIONS
+			 * and IFCOUNTER_OERROR are handled in
+			 * sf_stats_update().
 			 */
 			txd = &sc->sf_cdata.sf_txdesc[idx];
 			if (txd->tx_m != NULL) {
@@ -2483,23 +2480,26 @@ sf_stats_update(struct sf_softc *sc)
 	for (i = SF_STATS_BASE; i < (SF_STATS_END + 1); i += sizeof(uint32_t))
 		csr_write_4(sc, i, 0);
 
-	ifp->if_opackets += (u_long)stats->sf_tx_frames;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, (u_long)stats->sf_tx_frames);
 
-	ifp->if_collisions += (u_long)stats->sf_tx_single_colls +
-	    (u_long)stats->sf_tx_multi_colls;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+	    (u_long)stats->sf_tx_single_colls +
+	    (u_long)stats->sf_tx_multi_colls);
 
-	ifp->if_oerrors += (u_long)stats->sf_tx_excess_colls +
+	if_inc_counter(ifp, IFCOUNTER_OERRORS,
+	    (u_long)stats->sf_tx_excess_colls +
 	    (u_long)stats->sf_tx_excess_defer +
-	    (u_long)stats->sf_tx_frames_lost;
+	    (u_long)stats->sf_tx_frames_lost);
 
-	ifp->if_ipackets += (u_long)stats->sf_rx_frames;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, (u_long)stats->sf_rx_frames);
 
-	ifp->if_ierrors += (u_long)stats->sf_rx_crcerrs +
+	if_inc_counter(ifp, IFCOUNTER_IERRORS,
+	    (u_long)stats->sf_rx_crcerrs +
 	    (u_long)stats->sf_rx_alignerrs +
 	    (u_long)stats->sf_rx_giants +
 	    (u_long)stats->sf_rx_runts +
 	    (u_long)stats->sf_rx_jabbererrs +
-	    (u_long)stats->sf_rx_frames_lost;
+	    (u_long)stats->sf_rx_frames_lost);
 
 	nstats = &sc->sf_statistics;
 
@@ -2550,7 +2550,7 @@ sf_watchdog(struct sf_softc *sc)
 
 	ifp = sc->sf_ifp;
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if (sc->sf_link == 0) {
 		if (bootverbose)
 			if_printf(sc->sf_ifp, "watchdog timeout "

@@ -21,11 +21,12 @@ class X86Reg<string n, bits<16> Enc, list<Register> subregs = []> : Register<n> 
 
 // Subregister indices.
 let Namespace = "X86" in {
-  def sub_8bit    : SubRegIndex;
-  def sub_8bit_hi : SubRegIndex;
-  def sub_16bit   : SubRegIndex;
-  def sub_32bit   : SubRegIndex;
-  def sub_xmm     : SubRegIndex;
+  def sub_8bit    : SubRegIndex<8>;
+  def sub_8bit_hi : SubRegIndex<8, 8>;
+  def sub_16bit   : SubRegIndex<16>;
+  def sub_32bit   : SubRegIndex<32>;
+  def sub_xmm     : SubRegIndex<128>;
+  def sub_ymm     : SubRegIndex<256>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -165,6 +166,7 @@ def FP3 : X86Reg<"fp3", 0>;
 def FP4 : X86Reg<"fp4", 0>;
 def FP5 : X86Reg<"fp5", 0>;
 def FP6 : X86Reg<"fp6", 0>;
+def FP7 : X86Reg<"fp7", 0>;
 
 // XMM Registers, used by the various SSE instruction set extensions.
 def XMM0: X86Reg<"xmm0", 0>, DwarfRegNum<[17, 21, 21]>;
@@ -186,44 +188,65 @@ def XMM12: X86Reg<"xmm12", 12>, DwarfRegNum<[29, -2, -2]>;
 def XMM13: X86Reg<"xmm13", 13>, DwarfRegNum<[30, -2, -2]>;
 def XMM14: X86Reg<"xmm14", 14>, DwarfRegNum<[31, -2, -2]>;
 def XMM15: X86Reg<"xmm15", 15>, DwarfRegNum<[32, -2, -2]>;
+
+def XMM16:  X86Reg<"xmm16", 16>, DwarfRegNum<[60, -2, -2]>;
+def XMM17:  X86Reg<"xmm17", 17>, DwarfRegNum<[61, -2, -2]>;
+def XMM18:  X86Reg<"xmm18", 18>, DwarfRegNum<[62, -2, -2]>;
+def XMM19:  X86Reg<"xmm19", 19>, DwarfRegNum<[63, -2, -2]>;
+def XMM20:  X86Reg<"xmm20", 20>, DwarfRegNum<[64, -2, -2]>;
+def XMM21:  X86Reg<"xmm21", 21>, DwarfRegNum<[65, -2, -2]>;
+def XMM22:  X86Reg<"xmm22", 22>, DwarfRegNum<[66, -2, -2]>;
+def XMM23:  X86Reg<"xmm23", 23>, DwarfRegNum<[67, -2, -2]>;
+def XMM24:  X86Reg<"xmm24", 24>, DwarfRegNum<[68, -2, -2]>;
+def XMM25:  X86Reg<"xmm25", 25>, DwarfRegNum<[69, -2, -2]>;
+def XMM26:  X86Reg<"xmm26", 26>, DwarfRegNum<[70, -2, -2]>;
+def XMM27:  X86Reg<"xmm27", 27>, DwarfRegNum<[71, -2, -2]>;
+def XMM28:  X86Reg<"xmm28", 28>, DwarfRegNum<[72, -2, -2]>;
+def XMM29:  X86Reg<"xmm29", 29>, DwarfRegNum<[73, -2, -2]>;
+def XMM30:  X86Reg<"xmm30", 30>, DwarfRegNum<[74, -2, -2]>;
+def XMM31:  X86Reg<"xmm31", 31>, DwarfRegNum<[75, -2, -2]>;
+
 } // CostPerUse
 
-// YMM Registers, used by AVX instructions
+// YMM0-15 registers, used by AVX instructions and
+// YMM16-31 registers, used by AVX-512 instructions.
 let SubRegIndices = [sub_xmm] in {
-def YMM0:  X86Reg<"ymm0",   0, [XMM0]>,  DwarfRegAlias<XMM0>;
-def YMM1:  X86Reg<"ymm1",   1, [XMM1]>,  DwarfRegAlias<XMM1>;
-def YMM2:  X86Reg<"ymm2",   2, [XMM2]>,  DwarfRegAlias<XMM2>;
-def YMM3:  X86Reg<"ymm3",   3, [XMM3]>,  DwarfRegAlias<XMM3>;
-def YMM4:  X86Reg<"ymm4",   4, [XMM4]>,  DwarfRegAlias<XMM4>;
-def YMM5:  X86Reg<"ymm5",   5, [XMM5]>,  DwarfRegAlias<XMM5>;
-def YMM6:  X86Reg<"ymm6",   6, [XMM6]>,  DwarfRegAlias<XMM6>;
-def YMM7:  X86Reg<"ymm7",   7, [XMM7]>,  DwarfRegAlias<XMM7>;
-def YMM8:  X86Reg<"ymm8",   8, [XMM8]>,  DwarfRegAlias<XMM8>;
-def YMM9:  X86Reg<"ymm9",   9, [XMM9]>,  DwarfRegAlias<XMM9>;
-def YMM10: X86Reg<"ymm10", 10, [XMM10]>, DwarfRegAlias<XMM10>;
-def YMM11: X86Reg<"ymm11", 11, [XMM11]>, DwarfRegAlias<XMM11>;
-def YMM12: X86Reg<"ymm12", 12, [XMM12]>, DwarfRegAlias<XMM12>;
-def YMM13: X86Reg<"ymm13", 13, [XMM13]>, DwarfRegAlias<XMM13>;
-def YMM14: X86Reg<"ymm14", 14, [XMM14]>, DwarfRegAlias<XMM14>;
-def YMM15: X86Reg<"ymm15", 15, [XMM15]>, DwarfRegAlias<XMM15>;
+  foreach  Index = 0-31 in {
+    def YMM#Index : X86Reg<"ymm"#Index, Index, [!cast<X86Reg>("XMM"#Index)]>,
+                    DwarfRegAlias<!cast<X86Reg>("XMM"#Index)>;
+  }
 }
 
-class STRegister<string n, bits<16> Enc, list<Register> A> : X86Reg<n, Enc> {
-  let Aliases = A;
+// ZMM Registers, used by AVX-512 instructions.
+let SubRegIndices = [sub_ymm] in {
+  foreach  Index = 0-31 in {
+    def ZMM#Index : X86Reg<"zmm"#Index, Index, [!cast<X86Reg>("YMM"#Index)]>,
+                    DwarfRegAlias<!cast<X86Reg>("XMM"#Index)>;
+  }
 }
+
+  // Mask Registers, used by AVX-512 instructions.
+  def K0 : X86Reg<"k0", 0>, DwarfRegNum<[118, -2, -2]>;
+  def K1 : X86Reg<"k1", 1>, DwarfRegNum<[119, -2, -2]>;
+  def K2 : X86Reg<"k2", 2>, DwarfRegNum<[120, -2, -2]>;
+  def K3 : X86Reg<"k3", 3>, DwarfRegNum<[121, -2, -2]>;
+  def K4 : X86Reg<"k4", 4>, DwarfRegNum<[122, -2, -2]>;
+  def K5 : X86Reg<"k5", 5>, DwarfRegNum<[123, -2, -2]>;
+  def K6 : X86Reg<"k6", 6>, DwarfRegNum<[124, -2, -2]>;
+  def K7 : X86Reg<"k7", 7>, DwarfRegNum<[125, -2, -2]>;
 
 // Floating point stack registers. These don't map one-to-one to the FP
 // pseudo registers, but we still mark them as aliasing FP registers. That
 // way both kinds can be live without exceeding the stack depth. ST registers
 // are only live around inline assembly.
-def ST0 : STRegister<"st(0)", 0, []>,    DwarfRegNum<[33, 12, 11]>;
-def ST1 : STRegister<"st(1)", 1, [FP6]>, DwarfRegNum<[34, 13, 12]>;
-def ST2 : STRegister<"st(2)", 2, [FP5]>, DwarfRegNum<[35, 14, 13]>;
-def ST3 : STRegister<"st(3)", 3, [FP4]>, DwarfRegNum<[36, 15, 14]>;
-def ST4 : STRegister<"st(4)", 4, [FP3]>, DwarfRegNum<[37, 16, 15]>;
-def ST5 : STRegister<"st(5)", 5, [FP2]>, DwarfRegNum<[38, 17, 16]>;
-def ST6 : STRegister<"st(6)", 6, [FP1]>, DwarfRegNum<[39, 18, 17]>;
-def ST7 : STRegister<"st(7)", 7, [FP0]>, DwarfRegNum<[40, 19, 18]>;
+def ST0 : X86Reg<"st(0)", 0>, DwarfRegNum<[33, 12, 11]>;
+def ST1 : X86Reg<"st(1)", 1>, DwarfRegNum<[34, 13, 12]>;
+def ST2 : X86Reg<"st(2)", 2>, DwarfRegNum<[35, 14, 13]>;
+def ST3 : X86Reg<"st(3)", 3>, DwarfRegNum<[36, 15, 14]>;
+def ST4 : X86Reg<"st(4)", 4>, DwarfRegNum<[37, 16, 15]>;
+def ST5 : X86Reg<"st(5)", 5>, DwarfRegNum<[38, 17, 16]>;
+def ST6 : X86Reg<"st(6)", 6>, DwarfRegNum<[39, 18, 17]>;
+def ST7 : X86Reg<"st(7)", 7>, DwarfRegNum<[40, 19, 18]>;
 
 // Floating-point status word
 def FPSW : X86Reg<"fpsw", 0>;
@@ -240,14 +263,22 @@ def FS : X86Reg<"fs", 4>;
 def GS : X86Reg<"gs", 5>;
 
 // Debug registers
-def DR0 : X86Reg<"dr0", 0>;
-def DR1 : X86Reg<"dr1", 1>;
-def DR2 : X86Reg<"dr2", 2>;
-def DR3 : X86Reg<"dr3", 3>;
-def DR4 : X86Reg<"dr4", 4>;
-def DR5 : X86Reg<"dr5", 5>;
-def DR6 : X86Reg<"dr6", 6>;
-def DR7 : X86Reg<"dr7", 7>;
+def DR0  : X86Reg<"dr0",   0>;
+def DR1  : X86Reg<"dr1",   1>;
+def DR2  : X86Reg<"dr2",   2>;
+def DR3  : X86Reg<"dr3",   3>;
+def DR4  : X86Reg<"dr4",   4>;
+def DR5  : X86Reg<"dr5",   5>;
+def DR6  : X86Reg<"dr6",   6>;
+def DR7  : X86Reg<"dr7",   7>;
+def DR8  : X86Reg<"dr8",   8>;
+def DR9  : X86Reg<"dr9",   9>;
+def DR10 : X86Reg<"dr10", 10>;
+def DR11 : X86Reg<"dr11", 11>;
+def DR12 : X86Reg<"dr12", 12>;
+def DR13 : X86Reg<"dr13", 13>;
+def DR14 : X86Reg<"dr14", 14>;
+def DR15 : X86Reg<"dr15", 15>;
 
 // Control registers
 def CR0  : X86Reg<"cr0",   0>;
@@ -421,3 +452,35 @@ def FPCCR : RegisterClass<"X86", [i16], 16, (add FPSW)> {
   let CopyCost = -1;  // Don't allow copying of status registers.
   let isAllocatable = 0;
 }
+
+// AVX-512 vector/mask registers.
+def VR512 : RegisterClass<"X86", [v16f32, v8f64, v64i8, v32i16, v16i32, v8i64], 512,
+    (sequence "ZMM%u", 0, 31)>;
+
+// Scalar AVX-512 floating point registers.
+def FR32X : RegisterClass<"X86", [f32], 32, (sequence "XMM%u", 0, 31)>;
+
+def FR64X : RegisterClass<"X86", [f64], 64, (add FR32X)>;
+
+// Extended VR128 and VR256 for AVX-512 instructions
+def VR128X : RegisterClass<"X86", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+                          128, (add FR32X)>;
+def VR256X : RegisterClass<"X86", [v32i8, v16i16, v8i32, v4i64, v8f32, v4f64],
+                          256, (sequence "YMM%u", 0, 31)>;
+
+// Mask registers
+def VK1     : RegisterClass<"X86", [i1],    16, (sequence "K%u", 0, 7)> {let Size = 16;}
+def VK2     : RegisterClass<"X86", [v2i1],  16, (add VK1)> {let Size = 16;}
+def VK4     : RegisterClass<"X86", [v4i1],  16, (add VK2)> {let Size = 16;}
+def VK8     : RegisterClass<"X86", [v8i1],  16, (add VK4)> {let Size = 16;}
+def VK16    : RegisterClass<"X86", [v16i1], 16, (add VK8)> {let Size = 16;}
+def VK32    : RegisterClass<"X86", [v32i1], 32, (add VK16)> {let Size = 32;}
+def VK64    : RegisterClass<"X86", [v64i1], 64, (add VK32)> {let Size = 64;}
+
+def VK1WM   : RegisterClass<"X86", [i1],    16, (sub VK1, K0)> {let Size = 16;}
+def VK2WM   : RegisterClass<"X86", [v2i1],  16, (sub VK2, K0)> {let Size = 16;}
+def VK4WM   : RegisterClass<"X86", [v4i1],  16, (sub VK4, K0)> {let Size = 16;}
+def VK8WM   : RegisterClass<"X86", [v8i1],  16, (sub VK8, K0)> {let Size = 16;}
+def VK16WM  : RegisterClass<"X86", [v16i1], 16, (add VK8WM)>   {let Size = 16;}
+def VK32WM  : RegisterClass<"X86", [v32i1], 32, (add VK16WM)> {let Size = 32;}
+def VK64WM  : RegisterClass<"X86", [v64i1], 64, (add VK32WM)> {let Size = 64;}

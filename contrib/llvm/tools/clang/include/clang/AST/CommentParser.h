@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_COMMENT_PARSER_H
-#define LLVM_CLANG_AST_COMMENT_PARSER_H
+#ifndef LLVM_CLANG_AST_COMMENTPARSER_H
+#define LLVM_CLANG_AST_COMMENTPARSER_H
 
 #include "clang/AST/Comment.h"
 #include "clang/AST/CommentLexer.h"
@@ -61,10 +61,8 @@ class Parser {
   void consumeToken() {
     if (MoreLATokens.empty())
       L.lex(Tok);
-    else {
-      Tok = MoreLATokens.back();
-      MoreLATokens.pop_back();
-    }
+    else
+      Tok = MoreLATokens.pop_back_val();
   }
 
   void putBack(const Token &OldTok) {

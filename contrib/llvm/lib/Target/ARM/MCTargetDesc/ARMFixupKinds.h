@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ARM_ARMFIXUPKINDS_H
-#define LLVM_ARM_ARMFIXUPKINDS_H
+#ifndef LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMFIXUPKINDS_H
+#define LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMFIXUPKINDS_H
 
 #include "llvm/MC/MCFixup.h"
 
@@ -99,15 +99,6 @@ enum Fixups {
   fixup_arm_movw_lo16, // :lower16:
   fixup_t2_movt_hi16, // :upper16:
   fixup_t2_movw_lo16, // :lower16:
-
-  // It is possible to create an "immediate" that happens to be pcrel.
-  // movw r0, :lower16:Foo-(Bar+8) and movt  r0, :upper16:Foo-(Bar+8)
-  // result in different reloc tags than the above two.
-  // Needed to support ELF::R_ARM_MOVT_PREL and ELF::R_ARM_MOVW_PREL_NC
-  fixup_arm_movt_hi16_pcrel, // :upper16:
-  fixup_arm_movw_lo16_pcrel, // :lower16:
-  fixup_t2_movt_hi16_pcrel, // :upper16:
-  fixup_t2_movw_lo16_pcrel, // :lower16:
 
   // Marker
   LastTargetFixupKind,

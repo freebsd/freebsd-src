@@ -13,8 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/InitializePasses.h"
-#include "llvm/PassRegistry.h"
 #include "llvm-c/Initialization.h"
+#include "llvm/PassRegistry.h"
 
 using namespace llvm;
 
@@ -24,12 +24,12 @@ void llvm::initializeInstrumentation(PassRegistry &Registry) {
   initializeAddressSanitizerPass(Registry);
   initializeAddressSanitizerModulePass(Registry);
   initializeBoundsCheckingPass(Registry);
-  initializeEdgeProfilerPass(Registry);
   initializeGCOVProfilerPass(Registry);
-  initializeOptimalEdgeProfilerPass(Registry);
-  initializePathProfilerPass(Registry);
+  initializeInstrProfilingPass(Registry);
   initializeMemorySanitizerPass(Registry);
   initializeThreadSanitizerPass(Registry);
+  initializeSanitizerCoverageModulePass(Registry);
+  initializeDataFlowSanitizerPass(Registry);
 }
 
 /// LLVMInitializeInstrumentation - C binding for

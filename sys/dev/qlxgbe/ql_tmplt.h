@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Qlogic Corporation
+ * Copyright (c) 2013-2016 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -139,9 +139,5 @@ typedef struct _q8_rdmwr_e {
 	uint32_t	rd_addr;
 	uint32_t	wr_addr;
 } q8_rdmwr_e_t;
-
-extern unsigned char ql83xx_resetseq[];
-extern unsigned int ql83xx_resetseq_len;
-
 
 #endif /* #ifndef _QL_TMPLT_H_ */

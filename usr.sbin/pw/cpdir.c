@@ -29,103 +29,96 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <dirent.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/param.h>
-#include <dirent.h>
 
 #include "pw.h"
 #include "pwupd.h"
 
 void
-copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid)
+copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
+    gid_t gid, int flags)
 {
-	char            src[MAXPATHLEN];
-	char            dst[MAXPATHLEN];
-	char            lnk[MAXPATHLEN];
-	int             len;
+	char		*p, lnk[MAXPATHLEN], copybuf[4096];
+	int		len, homefd, srcfd, destfd;
+	ssize_t		sz;
+	struct stat     st;
+	struct dirent  *e;
+	DIR		*d;
 
-	if (mkdir(dir, mode) != 0 && errno != EEXIST) {
+	if (*dir == '/')
+		dir++;
+
+	if (mkdirat(rootfd, dir, mode) != 0 && errno != EEXIST) {
 		warn("mkdir(%s)", dir);
-	} else {
-		int             infd, outfd;
-		struct stat     st;
-
-		static char     counter = 0;
-		static char    *copybuf = NULL;
-
-		++counter;
-		chown(dir, uid, gid);
-		if (skel != NULL && *skel != '\0') {
-			DIR            *d = opendir(skel);
-
-			if (d != NULL) {
-				struct dirent  *e;
-
-				while ((e = readdir(d)) != NULL) {
-					char           *p = e->d_name;
-
-					if (snprintf(src, sizeof(src), "%s/%s", skel, p) >= (int)sizeof(src))
-						warn("warning: pathname too long '%s/%s' (skel not copied)", skel, p);
-					else if (lstat(src, &st) == 0) {
-						if (strncmp(p, "dot.", 4) == 0)	/* Conversion */
-							p += 3;
-						if (snprintf(dst, sizeof(dst), "%s/%s", dir, p) >= (int)sizeof(dst))
-							warn("warning: path too long '%s/%s' (skel file skipped)", dir, p);
-						else {
-						    if (S_ISDIR(st.st_mode)) {	/* Recurse for this */
-							if (strcmp(e->d_name, ".") != 0 && strcmp(e->d_name, "..") != 0)
-								copymkdir(dst, src, st.st_mode & _DEF_DIRMODE, uid, gid);
-								chflags(dst, st.st_flags);	/* propagate flags */
-						    } else if (S_ISLNK(st.st_mode) && (len = readlink(src, lnk, sizeof(lnk) - 1)) != -1) {
-							lnk[len] = '\0';
-							symlink(lnk, dst);
-							lchown(dst, uid, gid);
-							/*
-							 * Note: don't propagate special attributes
-							 * but do propagate file flags
-							 */
-						    } else if (S_ISREG(st.st_mode) && (outfd = open(dst, O_RDWR | O_CREAT | O_EXCL, st.st_mode)) != -1) {
-							if ((infd = open(src, O_RDONLY)) == -1) {
-								close(outfd);
-								remove(dst);
-							} else {
-								int             b;
-
-								/*
-								 * Allocate our copy buffer if we need to
-								 */
-								if (copybuf == NULL)
-									copybuf = malloc(4096);
-								while ((b = read(infd, copybuf, 4096)) > 0)
-									write(outfd, copybuf, b);
-								close(infd);
-								/*
-								 * Propagate special filesystem flags
-								 */
-								fchown(outfd, uid, gid);
-								fchflags(outfd, st.st_flags);
-								close(outfd);
-								chown(dst, uid, gid);
-							}
-						    }
-						}
-					}
-				}
-				closedir(d);
-			}
-		}
-		if (--counter == 0 && copybuf != NULL) {
-			free(copybuf);
-			copybuf = NULL;
-		}
+		return;
 	}
-}
+	fchownat(rootfd, dir, uid, gid, AT_SYMLINK_NOFOLLOW);
+	if (flags > 0)
+		chflagsat(rootfd, dir, flags, AT_SYMLINK_NOFOLLOW);
 
+	if (skelfd == -1)
+		return;
+
+	homefd = openat(rootfd, dir, O_DIRECTORY);
+	if ((d = fdopendir(skelfd)) == NULL) {
+		close(skelfd);
+		close(homefd);
+		return;
+	}
+
+	while ((e = readdir(d)) != NULL) {
+		if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
+			continue;
+
+		p = e->d_name;
+		if (fstatat(skelfd, p, &st, AT_SYMLINK_NOFOLLOW) == -1)
+			continue;
+
+		if (strncmp(p, "dot.", 4) == 0)	/* Conversion */
+			p += 3;
+
+		if (S_ISDIR(st.st_mode)) {
+			copymkdir(homefd, p, openat(skelfd, e->d_name, O_DIRECTORY),
+			    st.st_mode & _DEF_DIRMODE, uid, gid, st.st_flags);
+			continue;
+		}
+
+		if (S_ISLNK(st.st_mode) &&
+		    (len = readlinkat(skelfd, e->d_name, lnk, sizeof(lnk) -1))
+		    != -1) {
+			lnk[len] = '\0';
+			symlinkat(lnk, homefd, p);
+			fchownat(homefd, p, uid, gid, AT_SYMLINK_NOFOLLOW);
+			continue;
+		}
+
+		if (!S_ISREG(st.st_mode))
+			continue;
+
+		if ((srcfd = openat(skelfd, e->d_name, O_RDONLY)) == -1)
+			continue;
+		destfd = openat(homefd, p, O_RDWR | O_CREAT | O_EXCL,
+		    st.st_mode);
+		if (destfd == -1) {
+			close(srcfd);
+			continue;
+		}
+
+		while ((sz = read(srcfd, copybuf, sizeof(copybuf))) > 0)
+			write(destfd, copybuf, sz);
+
+		close(srcfd);
+		/*
+		 * Propagate special filesystem flags
+		 */
+		fchown(destfd, uid, gid);
+		fchflags(destfd, st.st_flags);
+		close(destfd);
+	}
+	closedir(d);
+}

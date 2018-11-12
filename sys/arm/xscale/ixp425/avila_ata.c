@@ -147,9 +147,9 @@ struct ata_avila_softc {
 
 static void ata_avila_intr(void *);
 bs_protos(ata);
-static	void ata_bs_rm_2_s(void *, bus_space_handle_t, bus_size_t,
+static	void ata_bs_rm_2_s(bus_space_tag_t tag, bus_space_handle_t, bus_size_t,
 		u_int16_t *, bus_size_t);
-static	void ata_bs_wm_2_s(void *, bus_space_handle_t, bus_size_t,
+static	void ata_bs_wm_2_s(bus_space_tag_t tag, bus_space_handle_t, bus_size_t,
 		const u_int16_t *, bus_size_t);
 
 static int
@@ -200,7 +200,7 @@ ata_avila_attach(device_t dev)
 		 * XXX probably should just make this generic for
 		 * accessing the expansion bus.
 		 */
-		sc->sc_expbus_tag.bs_cookie = sc;	/* NB: backpointer */
+		sc->sc_expbus_tag.bs_privdata = sc;	/* NB: backpointer */
 		/* read single */
 		sc->sc_expbus_tag.bs_r_1	= ata_bs_r_1,
 		sc->sc_expbus_tag.bs_r_2	= ata_bs_r_2,
@@ -355,25 +355,25 @@ disable_16(struct ata_avila_softc *sc)
 }
 
 uint8_t
-ata_bs_r_1(void *t, bus_space_handle_t h, bus_size_t o)
+ata_bs_r_1(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o)
 {
-	struct ata_avila_softc *sc = t;
+	struct ata_avila_softc *sc = tag->bs_privdata;
 
 	return bus_space_read_1(sc->sc_iot, h, o);
 }
 
 void
-ata_bs_w_1(void *t, bus_space_handle_t h, bus_size_t o, u_int8_t v)
+ata_bs_w_1(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o, u_int8_t v)
 {
-	struct ata_avila_softc *sc = t;
+	struct ata_avila_softc *sc = tag->bs_privdata;
 
 	bus_space_write_1(sc->sc_iot, h, o, v);
 }
 
 uint16_t
-ata_bs_r_2(void *t, bus_space_handle_t h, bus_size_t o)
+ata_bs_r_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o)
 {
-	struct ata_avila_softc *sc = t;
+	struct ata_avila_softc *sc = tag->bs_privdata;
 	uint16_t v;
 
 	enable_16(sc);
@@ -383,9 +383,9 @@ ata_bs_r_2(void *t, bus_space_handle_t h, bus_size_t o)
 }
 
 void
-ata_bs_w_2(void *t, bus_space_handle_t h, bus_size_t o, uint16_t v)
+ata_bs_w_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o, uint16_t v)
 {
-	struct ata_avila_softc *sc = t;
+	struct ata_avila_softc *sc = tag->bs_privdata;
 
 	enable_16(sc);
 	bus_space_write_2(sc->sc_iot, h, o, v);
@@ -393,10 +393,10 @@ ata_bs_w_2(void *t, bus_space_handle_t h, bus_size_t o, uint16_t v)
 }
 
 void
-ata_bs_rm_2(void *t, bus_space_handle_t h, bus_size_t o,
+ata_bs_rm_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o,
 	u_int16_t *d, bus_size_t c)
 {
-	struct ata_avila_softc *sc = t;
+	struct ata_avila_softc *sc = tag->bs_privdata;
 
 	enable_16(sc);
 	bus_space_read_multi_2(sc->sc_iot, h, o, d, c);
@@ -404,10 +404,10 @@ ata_bs_rm_2(void *t, bus_space_handle_t h, bus_size_t o,
 }
 
 void
-ata_bs_wm_2(void *t, bus_space_handle_t h, bus_size_t o,
+ata_bs_wm_2(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o,
 	const u_int16_t *d, bus_size_t c)
 {
-	struct ata_avila_softc *sc = t;
+	struct ata_avila_softc *sc = tag->bs_privdata;
 
 	enable_16(sc);
 	bus_space_write_multi_2(sc->sc_iot, h, o, d, c);
@@ -417,10 +417,10 @@ ata_bs_wm_2(void *t, bus_space_handle_t h, bus_size_t o,
 /* XXX workaround ata driver by (incorrectly) byte swapping stream cases */
 
 void
-ata_bs_rm_2_s(void *t, bus_space_handle_t h, bus_size_t o,
+ata_bs_rm_2_s(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o,
 	u_int16_t *d, bus_size_t c)
 {
-	struct ata_avila_softc *sc = t;
+	struct ata_avila_softc *sc = tag->bs_privdata;
 	uint16_t v;
 	bus_size_t i;
 
@@ -437,10 +437,10 @@ ata_bs_rm_2_s(void *t, bus_space_handle_t h, bus_size_t o,
 }
 
 void
-ata_bs_wm_2_s(void *t, bus_space_handle_t h, bus_size_t o,
+ata_bs_wm_2_s(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t o,
 	const u_int16_t *d, bus_size_t c)
 {
-	struct ata_avila_softc *sc = t;
+	struct ata_avila_softc *sc = tag->bs_privdata;
 	bus_size_t i;
 
 	enable_16(sc);

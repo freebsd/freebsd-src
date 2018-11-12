@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "DWARFDebugArangeSet.h"
+#include "llvm/DebugInfo/DWARFDebugArangeSet.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -18,32 +18,6 @@ void DWARFDebugArangeSet::clear() {
   Offset = -1U;
   std::memset(&HeaderData, 0, sizeof(Header));
   ArangeDescriptors.clear();
-}
-
-void DWARFDebugArangeSet::compact() {
-  if (ArangeDescriptors.empty())
-    return;
-
-  // Iterate through all arange descriptors and combine any ranges that
-  // overlap or have matching boundaries. The ArangeDescriptors are assumed
-  // to be in ascending order.
-  uint32_t i = 0;
-  while (i + 1 < ArangeDescriptors.size()) {
-    if (ArangeDescriptors[i].getEndAddress() >= ArangeDescriptors[i+1].Address){
-      // The current range ends at or exceeds the start of the next address
-      // range. Compute the max end address between the two and use that to
-      // make the new length.
-      const uint64_t max_end_addr =
-        std::max(ArangeDescriptors[i].getEndAddress(),
-                 ArangeDescriptors[i+1].getEndAddress());
-      ArangeDescriptors[i].Length = max_end_addr - ArangeDescriptors[i].Address;
-      // Now remove the next entry as it was just combined with the previous one
-      ArangeDescriptors.erase(ArangeDescriptors.begin()+i+1);
-    } else {
-      // Discontiguous address range, just proceed to the next one.
-      ++i;
-    }
-  }
 }
 
 bool
@@ -93,7 +67,9 @@ DWARFDebugArangeSet::extract(DataExtractor data, uint32_t *offset_ptr) {
 
     Descriptor arangeDescriptor;
 
-    assert(sizeof(arangeDescriptor.Address) == sizeof(arangeDescriptor.Length));
+    static_assert(sizeof(arangeDescriptor.Address) ==
+                      sizeof(arangeDescriptor.Length),
+                  "Different datatypes for addresses and sizes!");
     assert(sizeof(arangeDescriptor.Address) >= HeaderData.AddrSize);
 
     while (data.isValidOffset(*offset_ptr)) {
@@ -120,32 +96,9 @@ void DWARFDebugArangeSet::dump(raw_ostream &OS) const {
                HeaderData.CuOffset, HeaderData.AddrSize, HeaderData.SegSize);
 
   const uint32_t hex_width = HeaderData.AddrSize * 2;
-  for (DescriptorConstIter pos = ArangeDescriptors.begin(),
-       end = ArangeDescriptors.end(); pos != end; ++pos)
-    OS << format("[0x%*.*" PRIx64 " -", hex_width, hex_width, pos->Address)
+  for (const auto &Desc : ArangeDescriptors) {
+    OS << format("[0x%*.*" PRIx64 " -", hex_width, hex_width, Desc.Address)
        << format(" 0x%*.*" PRIx64 ")\n",
-                 hex_width, hex_width, pos->getEndAddress());
-}
-
-
-namespace {
-  class DescriptorContainsAddress {
-    const uint64_t Address;
-  public:
-    DescriptorContainsAddress(uint64_t address) : Address(address) {}
-    bool operator()(const DWARFDebugArangeSet::Descriptor &desc) const {
-      return Address >= desc.Address && Address < (desc.Address + desc.Length);
-    }
-  };
-}
-
-uint32_t DWARFDebugArangeSet::findAddress(uint64_t address) const {
-  DescriptorConstIter end = ArangeDescriptors.end();
-  DescriptorConstIter pos =
-    std::find_if(ArangeDescriptors.begin(), end, // Range
-                 DescriptorContainsAddress(address)); // Predicate
-  if (pos != end)
-    return HeaderData.CuOffset;
-
-  return -1U;
+                 hex_width, hex_width, Desc.getEndAddress());
+  }
 }

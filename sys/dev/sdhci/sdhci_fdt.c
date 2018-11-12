@@ -66,6 +66,7 @@ struct sdhci_fdt_softc {
 	device_t	dev;		/* Controller device */
 	u_int		quirks;		/* Chip specific quirks */
 	u_int		caps;		/* If we override SDHCI_CAPABILITIES */
+	uint32_t	max_clk;	/* Max possible freq */
 	struct resource *irq_res;	/* IRQ resource */
 	void 		*intrhand;	/* Interrupt handle */
 
@@ -156,6 +157,7 @@ sdhci_fdt_probe(device_t dev)
 
 	sc->quirks = 0;
 	sc->num_slots = 1;
+	sc->max_clk = 0;
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
@@ -170,12 +172,14 @@ sdhci_fdt_probe(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 
-	/* Allow dts to patch quirks and slots. */
-	if ((OF_getprop(node, "quirks", &cid, sizeof(cid))) > 0)
-		sc->quirks = fdt32_to_cpu(cid);
-	if ((OF_getprop(node, "num-slots", &cid, sizeof(cid))) > 0)
-		sc->num_slots = fdt32_to_cpu(cid);
-		
+	/* Allow dts to patch quirks, slots, and max-frequency. */
+	if ((OF_getencprop(node, "quirks", &cid, sizeof(cid))) > 0)
+		sc->quirks = cid;
+	if ((OF_getencprop(node, "num-slots", &cid, sizeof(cid))) > 0)
+		sc->num_slots = cid;
+	if ((OF_getencprop(node, "max-frequency", &cid, sizeof(cid))) > 0)
+		sc->max_clk = cid;
+
 	return (0);
 }
 
@@ -184,7 +188,7 @@ sdhci_fdt_attach(device_t dev)
 {
 	struct sdhci_fdt_softc *sc = device_get_softc(dev);
 	int err, slots, rid, i;
-	
+
 	sc->dev = dev;
 
 	/* Allocate IRQ. */
@@ -214,6 +218,7 @@ sdhci_fdt_attach(device_t dev)
 
 		slot->quirks = sc->quirks;
 		slot->caps = sc->caps;
+		slot->max_clk = sc->max_clk;
 
 		if (sdhci_init_slot(dev, slot, i) != 0)
 			continue;
@@ -235,7 +240,7 @@ sdhci_fdt_attach(device_t dev)
 		struct sdhci_slot *slot = &sc->slots[i];
 		sdhci_start_slot(slot);
 	}
-		
+
 	return (0);
 }
 
@@ -299,5 +304,6 @@ static driver_t sdhci_fdt_driver = {
 };
 static devclass_t sdhci_fdt_devclass;
 
-DRIVER_MODULE(sdhci_fdt, simplebus, sdhci_fdt_driver, sdhci_fdt_devclass, 0,0);
+DRIVER_MODULE(sdhci_fdt, simplebus, sdhci_fdt_driver, sdhci_fdt_devclass,
+    NULL, NULL);
 MODULE_DEPEND(sdhci_fdt, sdhci, 1, 1, 1);

@@ -44,6 +44,8 @@
 .In stdlib.h
 .Ft int
 .Fn atexit "void (*function)(void)"
+.Ft int
+.Fn atexit_b "void (^function)(void)"
 .Sh DESCRIPTION
 The
 .Fn atexit
@@ -69,6 +71,12 @@ process termination, for example by calling
 .Pp
 At least 32 functions can always be registered,
 and more are allowed as long as sufficient memory can be allocated.
+.Pp
+The
+.Fn atexit_b
+function behaves identically to
+.Fn atexit ,
+except that it takes a block, rather than a function pointer.
 .\" XXX {ATEXIT_MAX} is not implemented yet
 .Sh RETURN VALUES
 .Rv -std atexit
@@ -77,9 +85,15 @@ and more are allowed as long as sufficient memory can be allocated.
 .It Bq Er ENOMEM
 No memory was available to add the function to the list.
 The existing list of functions is unmodified.
+.It Bq Er ENOSYS
+The
+.Fn atexit_b
+function was called by a program that did not supply a
+.Fn _Block_copy
+implementation.
 .El
 .Sh SEE ALSO
-.Xr at_quick_exit 3
+.Xr at_quick_exit 3 ,
 .Xr exit 3
 .Sh STANDARDS
 The

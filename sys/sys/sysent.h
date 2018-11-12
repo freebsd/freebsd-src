@@ -76,6 +76,12 @@ struct sysent {			/* system call table */
 #define	SY_THR_ABSENT	0x4
 #define	SY_THR_INCR	0x8
 
+#ifdef KLD_MODULE
+#define	SY_THR_STATIC_KLD	0
+#else
+#define	SY_THR_STATIC_KLD	SY_THR_STATIC
+#endif
+
 struct image_params;
 struct __sigset;
 struct syscall_args;
@@ -130,13 +136,15 @@ struct sysentvec {
 	uint32_t	sv_timekeep_gen;
 	void		*sv_shared_page_obj;
 	void		(*sv_schedtail)(struct thread *);
+	void		(*sv_thread_detach)(struct thread *);
 };
 
-#define	SV_ILP32	0x000100
-#define	SV_LP64		0x000200
-#define	SV_IA32		0x004000
-#define	SV_AOUT		0x008000
-#define	SV_SHP		0x010000
+#define	SV_ILP32	0x000100	/* 32-bit executable. */
+#define	SV_LP64		0x000200	/* 64-bit executable. */
+#define	SV_IA32		0x004000	/* Intel 32-bit executable. */
+#define	SV_AOUT		0x008000	/* a.out executable. */
+#define	SV_SHP		0x010000	/* Shared page. */
+#define	SV_CAPSICUM	0x020000	/* Force cap_enter() on startup. */
 
 #define	SV_ABI_MASK	0xff
 #define	SV_PROC_FLAG(p, x)	((p)->p_sysent->sv_flags & (x))
@@ -146,6 +154,7 @@ struct sysentvec {
 /* same as ELFOSABI_XXX, to prevent header pollution */
 #define	SV_ABI_LINUX	3
 #define	SV_ABI_FREEBSD 	9
+#define	SV_ABI_CLOUDABI	17
 #define	SV_ABI_UNDEF	255
 
 #ifdef _KERNEL
@@ -155,7 +164,7 @@ extern struct sysentvec null_sysvec;
 extern struct sysent sysent[];
 extern const char *syscallnames[];
 
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 extern int i386_read_exec;
 #endif
 
@@ -169,6 +178,7 @@ struct syscall_module_data {
 	int	*offset;		/* offset into sysent */
 	struct sysent *new_sysent;	/* new sysent */
 	struct sysent old_sysent;	/* old sysent */
+	int	flags;			/* flags for syscall_register */
 };
 
 #define	MAKE_SYSENT(syscallname)				\
@@ -242,10 +252,10 @@ struct syscall_helper_data {
 }
 
 int	syscall_register(int *offset, struct sysent *new_sysent,
-	    struct sysent *old_sysent);
+	    struct sysent *old_sysent, int flags);
 int	syscall_deregister(int *offset, struct sysent *old_sysent);
 int	syscall_module_handler(struct module *mod, int what, void *arg);
-int	syscall_helper_register(struct syscall_helper_data *sd);
+int	syscall_helper_register(struct syscall_helper_data *sd, int flags);
 int	syscall_helper_unregister(struct syscall_helper_data *sd);
 
 struct proc;

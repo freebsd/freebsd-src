@@ -18,9 +18,9 @@
 #ifndef LLVM_MC_SUBTARGETFEATURE_H
 #define LLVM_MC_SUBTARGETFEATURE_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/DataTypes.h"
-#include <vector>
 
 namespace llvm {
   class raw_ostream;
@@ -37,9 +37,9 @@ struct SubtargetFeatureKV {
   uint64_t Value;                       // K-V integer value
   uint64_t Implies;                     // K-V bit mask
 
-  // Compare routine for std binary search
-  bool operator<(const SubtargetFeatureKV &S) const {
-    return strcmp(Key, S.Key) < 0;
+  // Compare routine for std::lower_bound
+  bool operator<(StringRef S) const {
+    return StringRef(Key) < S;
   }
 };
 
@@ -52,9 +52,9 @@ struct SubtargetInfoKV {
   const char *Key;                      // K-V key string
   const void *Value;                    // K-V pointer value
 
-  // Compare routine for std binary search
-  bool operator<(const SubtargetInfoKV &S) const {
-    return strcmp(Key, S.Key) < 0;
+  // Compare routine for std::lower_bound
+  bool operator<(StringRef S) const {
+    return StringRef(Key) < S;
   }
 };
 
@@ -72,26 +72,23 @@ struct SubtargetInfoKV {
 class SubtargetFeatures {
   std::vector<std::string> Features;    // Subtarget features as a vector
 public:
-  explicit SubtargetFeatures(const StringRef Initial = "");
+  explicit SubtargetFeatures(StringRef Initial = "");
 
   /// Features string accessors.
   std::string getString() const;
 
   /// Adding Features.
-  void AddFeature(const StringRef String, bool IsEnabled = true);
+  void AddFeature(StringRef String);
 
   /// ToggleFeature - Toggle a feature and returns the newly updated feature
   /// bits.
-  uint64_t ToggleFeature(uint64_t Bits, const StringRef String,
-                         const SubtargetFeatureKV *FeatureTable,
-                         size_t FeatureTableSize);
+  uint64_t ToggleFeature(uint64_t Bits, StringRef String,
+                         ArrayRef<SubtargetFeatureKV> FeatureTable);
 
   /// Get feature bits of a CPU.
-  uint64_t getFeatureBits(const StringRef CPU,
-                          const SubtargetFeatureKV *CPUTable,
-                          size_t CPUTableSize,
-                          const SubtargetFeatureKV *FeatureTable,
-                          size_t FeatureTableSize);
+  uint64_t getFeatureBits(StringRef CPU,
+                          ArrayRef<SubtargetFeatureKV> CPUTable,
+                          ArrayRef<SubtargetFeatureKV> FeatureTable);
 
   /// Print feature string.
   void print(raw_ostream &OS) const;
@@ -99,8 +96,7 @@ public:
   // Dump feature info.
   void dump() const;
 
-  /// Retrieve a formatted string of the default features for the specified
-  /// target triple.
+  /// Adds the default features for the specified target triple.
   void getDefaultSubtargetFeatures(const Triple& Triple);
 };
 

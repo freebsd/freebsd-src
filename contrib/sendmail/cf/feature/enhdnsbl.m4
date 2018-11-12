@@ -13,7 +13,7 @@ ifelse(defn(`_ARG_'), `',
 	`errprint(`*** ERROR: missing argument for FEATURE(`enhdnsbl')')')
 divert(0)
 ifdef(`_EDNSBL_R_',`dnl',`dnl
-VERSIONID(`$Id: enhdnsbl.m4,v 1.13 2013/11/22 20:51:11 ca Exp $')
+VERSIONID(`$Id: enhdnsbl.m4,v 1.13 2013-11-22 20:51:11 ca Exp $')
 LOCAL_CONFIG
 define(`_EDNSBL_R_',`')dnl
 # map for enhanced DNS based blacklist lookups

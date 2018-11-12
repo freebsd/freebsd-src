@@ -156,12 +156,14 @@ options 	GEOM_GATE		# Userland services.
 options 	GEOM_JOURNAL		# Journaling.
 options 	GEOM_LABEL		# Providers labelization.
 options 	GEOM_LINUX_LVM		# Linux LVM2 volumes
+options 	GEOM_MAP		# Map based partitioning
 options 	GEOM_MBR		# DOS/MBR partitioning
 options 	GEOM_MIRROR		# Disk mirroring.
 options 	GEOM_MULTIPATH		# Disk multipath
 options 	GEOM_NOP		# Test class.
 options 	GEOM_PART_APM		# Apple partitioning
 options 	GEOM_PART_BSD		# BSD disklabel
+options 	GEOM_PART_BSD64		# BSD disklabel64
 options 	GEOM_PART_EBR		# Extended Boot Records
 options 	GEOM_PART_EBR_COMPAT	# Backward compatible partition names
 options 	GEOM_PART_GPT		# GPT partitioning
@@ -175,7 +177,9 @@ options 	GEOM_RAID3		# RAID3 functionality.
 options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
+options 	GEOM_UNCOMPRESS		# Read-only compressed disks (lzma, zip)
 options 	GEOM_UZIP		# Read-only compressed disks
+options 	GEOM_VINUM		# Vinum logical volume manager
 options 	GEOM_VIRSTOR		# Virtual storage.
 options 	GEOM_VOL		# Volume names from UFS superblock
 options 	GEOM_ZERO		# Performance testing helper.
@@ -349,6 +353,12 @@ options 	COMPAT_FREEBSD6
 # Enable FreeBSD7 compatibility syscalls
 options 	COMPAT_FREEBSD7
 
+# Enable FreeBSD9 compatibility syscalls
+options 	COMPAT_FREEBSD9
+
+# Enable FreeBSD10 compatibility syscalls
+options 	COMPAT_FREEBSD10
+
 #
 # These three options provide support for System V Interface
 # Definition-style interprocess communication, in the form of shared
@@ -487,7 +497,7 @@ options 	KTRACE_REQUEST_POOL=101
 options 	KTR
 options 	KTR_BOOT_ENTRIES=1024
 options 	KTR_ENTRIES=(128*1024)
-options 	KTR_COMPILE=(KTR_INTR|KTR_PROC)
+options 	KTR_COMPILE=(KTR_ALL)
 options 	KTR_MASK=KTR_INTR
 options 	KTR_CPUMASK=0x3
 options 	KTR_VERBOSE
@@ -568,6 +578,7 @@ options 	STACK
 # please see hwpmc(4).
 
 device		hwpmc			# Driver (also a loadable module)
+options 	HWPMC_DEBUG
 options 	HWPMC_HOOKS		# Other necessary kernel hooks
 
 
@@ -605,11 +616,6 @@ options 	IPSEC			#IP security (requires device crypto)
 # optional UDP encapsulation of ESP packets.
 #
 options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
-
-options 	IPX			#IPX/SPX communications protocols
-
-options 	NETATALK		#Appletalk communications protocols
-options 	NETATALKDEBUG		#Appletalk debugging
 
 #
 # SMB/CIFS requester
@@ -703,6 +709,7 @@ options 	ALTQ_CBQ	# Class Based Queueing
 options 	ALTQ_RED	# Random Early Detection
 options 	ALTQ_RIO	# RED In/Out
 options 	ALTQ_HFSC	# Hierarchical Packet Scheduler
+options		ALTQ_FAIRQ	# Fair Packet Scheduler
 options 	ALTQ_CDNR	# Traffic conditioner
 options 	ALTQ_PRIQ	# Priority Queueing
 options 	ALTQ_NOPCC	# Required if the TSC is unusable
@@ -798,6 +805,10 @@ device		ether
 #  according to IEEE 802.1Q.
 device		vlan
 
+# The `vxlan' device implements the VXLAN encapsulation of Ethernet
+# frames in UDP packets according to RFC7348.
+device		vxlan
+
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
 #  and ath drivers and will eventually be required by all 802.11 drivers.
@@ -872,27 +883,19 @@ device		tun
 #  The `gif' device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
 #  IPv6 over IPv6 tunneling.
-#  The `gre' device implements two types of IP4 over IP4 tunneling:
-#  GRE and MOBILE, as specified in the RFC1701 and RFC2004.
+#  The `gre' device implements GRE (Generic Routing Encapsulation) tunneling,
+#  as specified in the RFC 2784 and RFC 2890.
+#  The `me' device implements Minimal Encapsulation within IPv4 as
+#  specified in the RFC 2004.
 #  The XBONEHACK option allows the same pair of addresses to be configured on
 #  multiple gif interfaces.
 device		gif
 device		gre
+device		me
 options 	XBONEHACK
 
-#  The `faith' device captures packets sent to it and diverts them
-#  to the IPv4/IPv6 translation daemon.
 #  The `stf' device implements 6to4 encapsulation.
-device		faith
 device		stf
-
-#  The `ef' device provides support for multiple ethernet frame types
-#  specified via ETHER_* options. See ef(4) for details.
-device		ef
-options 	ETHER_II		# enable Ethernet_II frame
-options 	ETHER_8023		# enable Ethernet_802.3 (Novell) frame
-options 	ETHER_8022		# enable Ethernet_802.2 frame
-options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
 
 # The pf packet filter consists of three devices:
 #  The `pf' device provides /dev/pf and the firewall code itself.
@@ -994,8 +997,7 @@ options 	ACCEPT_FILTER_HTTP
 # carried in TCP option 19. This option is commonly used to protect
 # TCP sessions (e.g. BGP) where IPSEC is not available nor desirable.
 # This is enabled on a per-socket basis using the TCP_MD5SIG socket option.
-# This requires the use of 'device crypto', 'options IPSEC'
-# or 'device cryptodev'.
+# This requires the use of 'device crypto' and 'options IPSEC'.
 options 	TCP_SIGNATURE		#include support for RFC 2385
 
 # DUMMYNET enables the "dummynet" bandwidth limiter.  You need IPFIREWALL
@@ -1020,17 +1022,16 @@ options 	DUMMYNET
 
 # One of these is mandatory:
 options 	FFS			#Fast filesystem
-options 	NFSCLIENT		#Network File System client
+options 	NFSCL			#Network File System client
 
 # The rest are optional:
+options 	AUTOFS			#Automounter filesystem
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESCFS			#File descriptor filesystem
 options 	FUSE			#FUSE support module
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
-options 	NFSSERVER		#Network File System server
 options 	NFSLOCKD		#Network Lock Manager
-options 	NFSCL			#New Network Filesystem Client
-options 	NFSD			#New Network Filesystem Server
+options 	NFSD			#Network Filesystem Server
 options 	KGSSAPI			#Kernel GSSAPI implementation
 
 options 	NULLFS			#NULL filesystem
@@ -1080,7 +1081,7 @@ options 	MD_ROOT
 options 	QUOTA			#enable disk quotas
 
 # If you are running a machine just as a fileserver for PC and MAC
-# users, using SAMBA or Netatalk, you may consider setting this option
+# users, using SAMBA, you may consider setting this option
 # and keeping all those users' directories on a filesystem that is
 # mounted with the suiddir option. This gives new files the same
 # ownership as the directory (similar to group). It's a security hole
@@ -1099,8 +1100,6 @@ options 	NFS_MINATTRTIMO=3	# VREG attrib cache timeout in sec
 options 	NFS_MAXATTRTIMO=60
 options 	NFS_MINDIRATTRTIMO=30	# VDIR attrib cache timeout in sec
 options 	NFS_MAXDIRATTRTIMO=60
-options 	NFS_GATHERDELAY=10	# Default write gather delay (msec)
-options 	NFS_WDELAYHASHSIZ=16	# and with this
 options 	NFS_DEBUG		# Enable NFS Debugging
 
 #
@@ -1463,6 +1462,20 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 options 	TEKEN_CONS25		# cons25-style terminal emulation
 options 	TEKEN_UTF8		# UTF-8 output handling
 
+# The vt video console driver.
+device		vt
+options		VT_ALT_TO_ESC_HACK=1	# Prepend ESC sequence to ALT keys
+options		VT_MAXWINDOWS=16	# Number of virtual consoles
+options		VT_TWOBUTTON_MOUSE	# Use right mouse button to paste
+
+# The following options set the default framebuffer size.
+options		VT_FB_DEFAULT_HEIGHT=480
+options		VT_FB_DEFAULT_WIDTH=640
+
+# The following options will let you change the default vt terminal colors.
+options		TERMINAL_NORM_ATTR=(FG_GREEN|BG_BLACK)
+options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
+
 #
 # Optional devices:
 #
@@ -1673,6 +1686,7 @@ device		amrp		# SCSI Passthrough interface (optional, CAM req.)
 device		mfi		# LSI MegaRAID SAS
 device		mfip		# LSI MegaRAID SAS passthrough, requires CAM
 options 	MFI_DEBUG
+device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 
 #
 # 3ware ATA RAID
@@ -1711,10 +1725,8 @@ device		ata
 #device		atapci		# PCI bus support; only generic chipset support
 
 # PCI ATA chipsets
-#device		ataahci		# AHCI SATA
 #device		ataacard	# ACARD
 #device		ataacerlabs	# Acer Labs Inc. (ALI)
-#device		ataadaptec	# Adaptec
 #device		ataamd		# American Micro Devices (AMD)
 #device		ataati		# ATI
 #device		atacenatek	# Cenatek
@@ -1820,7 +1832,7 @@ hint.uart.0.baud="115200"
 #
 
 # Options for serial drivers that support consoles:
-options 	BREAK_TO_DEBUGGER	# A BREAK on a serial console goes to
+options 	BREAK_TO_DEBUGGER	# A BREAK/DBG on the console goes to
 					# ddb, if available.
 
 # Solaris implements a new BREAK which is initiated by a character
@@ -1906,8 +1918,8 @@ device		xmphy		# XaQti XMAC II
 # cas:	Sun Cassini/Cassini+ and National Semiconductor DP83065 Saturn
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
-# cxgbe: Support for PCI express 10Gb/1Gb adapters based on the Chelsio T4
-#       (Terminator 4) ASIC.
+# cxgb: Chelsio T3 based 1GbE/10GbE PCIe Ethernet adapters.
+# cxgbe:Chelsio T4 and T5 based 1GbE/10GbE/40GbE PCIe Ethernet adapters.
 # dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
 #       and various workalikes including:
 #       the ADMtek AL981 Comet and AN985 Centaur, the ASIX Electronics
@@ -2056,6 +2068,7 @@ device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		cas		# Sun Cassini/Cassini+ and NS DP83065 Saturn
 device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
+device		cxgbe		# Chelsio T4 and T5 1GbE/10GbE/40GbE
 device		dc		# DEC/Intel 21143 and various workalikes
 device		et		# Agere ET1310 10/100/Gigabit Ethernet
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
@@ -2084,12 +2097,12 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
-device		cxgbe		# Chelsio T4 10GbE PCIe adapter
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
 device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
 device		ixgb		# Intel Pro/10Gbe PCI-X Ethernet
-device		ixgbe		# Intel Pro/10Gbe PCIE Ethernet
+device		ix		# Intel Pro/10Gbe PCIE Ethernet
+device		ixv		# Intel Pro/10Gbe PCIE Ethernet VF
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		nxge		# Neterion Xframe 10GbE Server/Storage Adapter
@@ -2342,19 +2355,6 @@ options		SND_PCM_64
 options		SND_OLDSTEREO
 
 #
-# IEEE-488 hardware:
-# pcii:		PCIIA cards (uPD7210 based isa cards)
-# tnt4882:	National Instruments PCI-GPIB card.
-
-device	pcii
-hint.pcii.0.at="isa"
-hint.pcii.0.port="0x2e1"
-hint.pcii.0.irq="5"
-hint.pcii.0.drq="1"
-
-device	tnt4882
-
-#
 # Miscellaneous hardware:
 #
 # scd: Sony CD-ROM using proprietary (non-ATAPI) interface
@@ -2479,6 +2479,7 @@ device		sdhci
 # amdsmb	AMD 8111 SMBus 2.0 Controller
 # nfpm		NVIDIA nForce Power Management Unit
 # nfsmb		NVIDIA nForce2/3/4 MCP SMBus 2.0 Controller
+# ismt		Intel SMBus 2.0 controller chips (on Atom S1200, C2000)
 #
 device		smbus		# Bus support, required for smb below.
 
@@ -2490,6 +2491,7 @@ device		amdpm
 device		amdsmb
 device		nfpm
 device		nfsmb
+device		ismt
 
 device		smb
 
@@ -2579,7 +2581,7 @@ device		pcfclock
 # Kernel BOOTP support
 
 options 	BOOTP		# Use BOOTP to obtain IP address/hostname
-				# Requires NFSCLIENT and NFS_ROOT
+				# Requires NFSCL and NFS_ROOT
 options 	BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
 options 	BOOTP_NFSV3	# Use NFS v3 to NFS mount root
 options 	BOOTP_COMPAT	# Workaround for broken bootp daemons.
@@ -2618,9 +2620,8 @@ options 	NSFBUFS=1024
 # Enable extra debugging code for locks.  This stores the filename and
 # line of whatever acquired the lock in the lock itself, and changes a
 # number of function calls to pass around the relevant data.  This is
-# not at all useful unless you are debugging lock code.  Also note
-# that it is likely to break e.g. fstat(1) unless you recompile your
-# userland with -DDEBUG_LOCKS as well.
+# not at all useful unless you are debugging lock code.  Note that
+# modules should be recompiled as this option modifies KBI.
 #
 options 	DEBUG_LOCKS
 
@@ -2644,6 +2645,10 @@ device		usb
 device		udbp
 # USB Fm Radio
 device		ufm
+# USB temperature meter
+device		ugold
+# USB LED
+device		uled
 # Human Interface Device (anything with buttons and dials)
 device		uhid
 # USB keyboard
@@ -2698,6 +2703,8 @@ device		aue
 # ASIX Electronics AX88172 USB 2.0 ethernet driver. Used in the
 # LinkSys USB200M and various other adapters.
 device		axe
+# ASIX Electronics AX88178A/AX88179 USB 2.0/3.0 gigabit ethernet driver.
+device		axge
 
 #
 # Devices which communicate using Ethernet over USB, particularly
@@ -2768,7 +2775,7 @@ options 	U3G_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	UKBD_DFLT_KEYMAP=it.iso
+makeoptions	UKBD_DFLT_KEYMAP=jp.pc98
 
 # options for uplcom:
 options 	UPLCOM_INTR_INTERVAL=100	# interrupt pipe interval
@@ -2809,6 +2816,10 @@ options 	DCONS_FORCE_GDB=1	# force to be the gdb device
 # been fed back to OpenBSD.
 
 device		crypto		# core crypto support
+
+# Only install the cryptodev device if you are running tests, or know
+# specifically why you need it.  In most cases, it is not needed and
+# will make things slower.
 device		cryptodev	# /dev/crypto for access to h/w
 
 device		rndtest		# FIPS 140-2 entropy tester
@@ -2834,6 +2845,7 @@ options 	INIT_PATH=/sbin/init:/rescue/init
 options 	BUS_DEBUG	# enable newbus debugging
 options 	DEBUG_VFS_LOCKS	# enable VFS lock debugging
 options 	SOCKBUF_DEBUG	# enable sockbuf last record/mb tail checking
+options 	IFMEDIA_DEBUG	# enable debugging in net/if_media.c
 
 #
 # Verbose SYSINIT
@@ -2885,11 +2897,6 @@ options 	SHMMNI=33
 # Maximum number of System V shared memory regions that can be attached to
 # a single process at one time.
 options 	SHMSEG=9
-
-# Compress user core dumps.
-options		COMPRESS_USER_CORES
-# required to compress file output from kernel for COMPRESS_USER_CORES.
-device		gzio	    
 
 # Set the amount of time (in seconds) the system will wait before
 # rebooting automatically when a kernel panic occurs.  If set to (-1),
@@ -2948,6 +2955,7 @@ options 	SC_RENDER_DEBUG	# syscons rendering debugging
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
+options 	KSTACK_USAGE_PROF
 
 # Adaptec Array Controller driver options
 options 	AAC_DEBUG	# Debugging levels:
@@ -2972,7 +2980,22 @@ options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
 # Random number generator
-options 	RANDOM_YARROW	# Yarrow RNG
-##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
-options 	RANDOM_DEBUG	# Debugging messages
-options 	RANDOM_RWFILE	# Read and write entropy cache
+# Only ONE of the below two may be used; they are mutually exclusive.
+# If neither is present, then the Fortuna algorithm is selected.
+#options 	RANDOM_YARROW	# Yarrow CSPRNG (old default)
+#options 	RANDOM_LOADABLE	# Allow the algorithm to be loaded as
+				# a module.
+# Select this to allow high-rate but potentially expensive
+# harvesting of Slab-Allocator entropy. In very high-rate
+# situations the value of doing this is dubious at best.
+options 	RANDOM_ENABLE_UMA	# slab allocator
+
+# Module to enable execution of application via emulators like QEMU
+options         IMAGACT_BINMISC
+
+# Intel em(4) driver
+options		EM_MULTIQUEUE # Activate multiqueue features/disable MSI-X
+
+# zlib I/O stream support
+# This enables support for compressed core dumps.
+options 	GZIO

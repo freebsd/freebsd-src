@@ -13,7 +13,6 @@ nodevice	mwlfw
 nodevice	ralfw
 nodevice	runfw
 nodevice	sf
-nodevice	sn
 nodevice	ti
 nodevice	txp
 nodevice	ce
@@ -21,6 +20,7 @@ nodevice	cp
 nodevice	ctau
 nodevice	ipwfw
 nodevice	iwifw
+nodevice	iwmfw
 nodevice	iwnfw
 nodevice	wpifw
 

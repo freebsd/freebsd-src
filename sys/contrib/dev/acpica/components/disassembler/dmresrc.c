@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,13 +41,11 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
 
-#ifdef ACPI_DISASSEMBLER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbresrc")
@@ -260,6 +258,11 @@ AcpiDmResourceTemplate (
     ACPI_NAMESPACE_NODE     *Node;
 
 
+    if (Op->Asl.AmlOpcode != AML_FIELD_OP)
+    {
+        Info->MappingOp = Op;
+    }
+
     Level = Info->Level;
     ResourceName = ACPI_DEFAULT_RESNAME;
     Node = Op->Common.Node;
@@ -328,7 +331,7 @@ AcpiDmResourceTemplate (
 
                 /* Go ahead and insert EndDependentFn() */
 
-                AcpiDmEndDependentDescriptor (Aml, ResourceLength, Level);
+                AcpiDmEndDependentDescriptor (Info, Aml, ResourceLength, Level);
 
                 AcpiDmIndent (Level);
                 AcpiOsPrintf (
@@ -350,7 +353,7 @@ AcpiDmResourceTemplate (
         }
 
         AcpiGbl_DmResourceDispatch [ResourceIndex] (
-            Aml, ResourceLength, Level);
+            Info, Aml, ResourceLength, Level);
 
         /* Descriptor post-processing */
 
@@ -440,5 +443,3 @@ AcpiDmIsResourceTemplate (
      */
     return (AE_OK);
 }
-
-#endif

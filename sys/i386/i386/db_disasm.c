@@ -195,6 +195,26 @@ static const struct inst db_inst_0f0x[] = {
 /*0f*/	{ "",      FALSE, NONE,  0,	      0 },
 };
 
+static const struct inst db_inst_0f1x[] = {
+/*10*/	{ "",      FALSE, NONE,  0,	      0 },
+/*11*/	{ "",      FALSE, NONE,  0,	      0 },
+/*12*/	{ "",      FALSE, NONE,  0,	      0 },
+/*13*/	{ "",      FALSE, NONE,  0,	      0 },
+/*14*/	{ "",      FALSE, NONE,  0,	      0 },
+/*15*/	{ "",      FALSE, NONE,  0,	      0 },
+/*16*/	{ "",      FALSE, NONE,  0,	      0 },
+/*17*/	{ "",      FALSE, NONE,  0,	      0 },
+
+/*18*/	{ "",      FALSE, NONE,  0,	      0 },
+/*19*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1a*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1b*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1c*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1d*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1e*/	{ "",      FALSE, NONE,  0,	      0 },
+/*1f*/	{ "nopl",  TRUE,  SDEP,  0,	      "nopw" },
+};
+
 static const struct inst db_inst_0f2x[] = {
 /*20*/	{ "mov",   TRUE,  LONG,  op2(CR,El),  0 },
 /*21*/	{ "mov",   TRUE,  LONG,  op2(DR,El),  0 },
@@ -356,7 +376,7 @@ static const struct inst db_inst_0fcx[] = {
 
 static const struct inst * const db_inst_0f[] = {
 	db_inst_0f0x,
-	0,
+	db_inst_0f1x,
 	db_inst_0f2x,
 	db_inst_0f3x,
 	db_inst_0f4x,
@@ -782,7 +802,7 @@ static const struct inst db_inst_table[256] = {
 /*c7*/	{ "mov",   TRUE,  LONG,  op2(I, E),   0 },
 
 /*c8*/	{ "enter", FALSE, NONE,  op2(Iw, Ib), 0 },
-/*c9*/	{ "leave", FALSE, NONE,  0,           0 },
+/*c9*/	{ "leave", FALSE, NONE,  0,	      0 },
 /*ca*/	{ "lret",  FALSE, NONE,  op1(Iw),     0 },
 /*cb*/	{ "lret",  FALSE, NONE,  0,	      0 },
 /*cc*/	{ "int",   FALSE, NONE,  op1(o3),     0 },
@@ -1128,9 +1148,7 @@ db_disasm_esc(loc, inst, short_addr, size, seg)
  * next instruction.
  */
 db_addr_t
-db_disasm(loc, altfmt)
-	db_addr_t	loc;
-	boolean_t	altfmt;
+db_disasm(db_addr_t loc, bool altfmt)
 {
 	int	inst;
 	int	size;
@@ -1266,7 +1284,7 @@ db_disasm(loc, altfmt)
 		case 0xc8:
 			i_name = "monitor";
 			i_size = NONE;
-			i_mode = 0;			
+			i_mode = 0;
 			break;
 		case 0xc9:
 			i_name = "mwait";

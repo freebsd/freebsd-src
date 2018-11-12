@@ -71,3 +71,9 @@ ENTRY(armv4_drain_writebuf)
 	RET
 END(armv4_drain_writebuf)
 
+ENTRY(armv4_idcache_inv_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c7, 0	/* invalidate all I+D cache */
+	RET
+END(armv4_drain_writebuf)
+

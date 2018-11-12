@@ -112,14 +112,14 @@ time_t
 ldns_rdf2native_time_t(const ldns_rdf *rd)
 {
 	uint32_t data;
-	
-	switch(ldns_rdf_get_type(rd)) {
-		case LDNS_RDF_TYPE_TIME:
-			memcpy(&data, ldns_rdf_data(rd), sizeof(data));
-			return (time_t)ntohl(data);
-		default:
-			return 0;
+
+	/* only allow 32 bit rdfs */
+	if (ldns_rdf_size(rd) != LDNS_RDF_SIZE_DOUBLEWORD ||
+			ldns_rdf_get_type(rd) != LDNS_RDF_TYPE_TIME) {
+		return 0;
 	}
+	memcpy(&data, ldns_rdf_data(rd), sizeof(data));
+	return (time_t)ntohl(data);
 }
 
 ldns_rdf *
@@ -309,8 +309,8 @@ ldns_rdf_new_frm_str(ldns_rdf_type type, const char *str)
 	case LDNS_RDF_TYPE_PERIOD:
 		status = ldns_str2rdf_period(&rdf, str);
 		break;
-	case LDNS_RDF_TYPE_TSIG:
-		status = ldns_str2rdf_tsig(&rdf, str);
+	case LDNS_RDF_TYPE_HIP:
+		status = ldns_str2rdf_hip(&rdf, str);
 		break;
 	case LDNS_RDF_TYPE_SERVICE:
 		status = ldns_str2rdf_service(&rdf, str);
@@ -335,6 +335,21 @@ ldns_rdf_new_frm_str(ldns_rdf_type type, const char *str)
 		break;
 	case LDNS_RDF_TYPE_NSEC3_NEXT_OWNER:
 		status = ldns_str2rdf_b32_ext(&rdf, str);
+		break;
+	case LDNS_RDF_TYPE_ILNP64:
+		status = ldns_str2rdf_ilnp64(&rdf, str);
+		break;
+	case LDNS_RDF_TYPE_EUI48:
+		status = ldns_str2rdf_eui48(&rdf, str);
+		break;
+	case LDNS_RDF_TYPE_EUI64:
+		status = ldns_str2rdf_eui64(&rdf, str);
+		break;
+	case LDNS_RDF_TYPE_TAG:
+		status = ldns_str2rdf_tag(&rdf, str);
+		break;
+	case LDNS_RDF_TYPE_LONG_STR:
+		status = ldns_str2rdf_long_str(&rdf, str);
 		break;
 	case LDNS_RDF_TYPE_NONE:
 	default:
@@ -501,6 +516,64 @@ ldns_rdf_address_reverse(ldns_rdf *rd)
 	ldns_rdf_deep_free(ret_dname);
 	ldns_rdf_deep_free(in_addr);
 	return rev;
+}
+
+ldns_status
+ldns_rdf_hip_get_alg_hit_pk(ldns_rdf *rdf, uint8_t* alg,
+                            uint8_t *hit_size, uint8_t** hit,
+                            uint16_t *pk_size, uint8_t** pk)
+{
+	uint8_t *data;
+	size_t rdf_size;
+
+	if (! rdf || ! alg || ! hit || ! hit_size || ! pk || ! pk_size) {
+		return LDNS_STATUS_INVALID_POINTER;
+	} else if (ldns_rdf_get_type(rdf) != LDNS_RDF_TYPE_HIP) {
+		return LDNS_STATUS_INVALID_RDF_TYPE;
+	} else if ((rdf_size = ldns_rdf_size(rdf)) < 6) {
+		return LDNS_STATUS_WIRE_RDATA_ERR;
+	}
+	data = ldns_rdf_data(rdf);
+	*hit_size = data[0];
+	*alg      = data[1];
+	*pk_size  = ldns_read_uint16(data + 2);
+	*hit      = data + 4;
+	*pk       = data + 4 + *hit_size;
+	if (*hit_size == 0 || *pk_size == 0 ||
+			rdf_size < (size_t) *hit_size + *pk_size + 4) {
+		return LDNS_STATUS_WIRE_RDATA_ERR;
+	}
+	return LDNS_STATUS_OK;
+}
+
+ldns_status
+ldns_rdf_hip_new_frm_alg_hit_pk(ldns_rdf** rdf, uint8_t alg,
+                                uint8_t hit_size, uint8_t *hit,
+				uint16_t pk_size, uint8_t *pk)
+{
+	uint8_t *data;
+
+	if (! rdf) {
+		return LDNS_STATUS_INVALID_POINTER;
+	}
+	if (4 + hit_size + pk_size > LDNS_MAX_RDFLEN) {
+		return LDNS_STATUS_RDATA_OVERFLOW;
+	}
+	data = LDNS_XMALLOC(uint8_t, 4 + hit_size + pk_size);
+	if (data == NULL) {
+		return LDNS_STATUS_MEM_ERR;
+	}
+	data[0] = hit_size;
+	data[1] = alg;
+	ldns_write_uint16(data + 2, pk_size);
+	memcpy(data + 4, hit, hit_size);
+	memcpy(data + 4 + hit_size, pk, pk_size);
+	*rdf = ldns_rdf_new(LDNS_RDF_TYPE_HIP, 4 + hit_size + pk_size, data);
+	if (! *rdf) {
+		LDNS_FREE(data);
+		return LDNS_STATUS_MEM_ERR;
+	}
+	return LDNS_STATUS_OK;
 }
 
 ldns_status

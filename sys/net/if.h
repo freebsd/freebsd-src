@@ -35,6 +35,24 @@
 
 #include <sys/cdefs.h>
 
+/*
+ * Length of interface external name, including terminating '\0'.
+ * Note: this is the same size as a generic device's external name.
+ */
+#define		IF_NAMESIZE	16
+
+struct if_nameindex {
+	unsigned int	if_index;	/* 1, 2, ... */
+	char		*if_name;	/* null terminated name: "le0", ... */
+};
+
+__BEGIN_DECLS
+void			 if_freenameindex(struct if_nameindex *);
+char			*if_indextoname(unsigned int, char *);
+struct if_nameindex	*if_nameindex(void);
+unsigned int		 if_nametoindex(const char *);
+__END_DECLS
+
 #if __BSD_VISIBLE
 /*
  * <net/if.h> does not depend on <sys/time.h> on most other systems.  This
@@ -45,23 +63,13 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #endif
-#endif
 
-/*
- * Length of interface external name, including terminating '\0'.
- * Note: this is the same size as a generic device's external name.
- */
-#define		IF_NAMESIZE	16
-#if __BSD_VISIBLE
 #define		IFNAMSIZ	IF_NAMESIZE
 #define		IF_MAXUNIT	0x7fff	/* historical value */
-#endif
-#if __BSD_VISIBLE
 
 /*
  * Structure used to query names of interface cloners.
  */
-
 struct if_clonereq {
 	int	ifcr_total;		/* total cloners (out) */
 	int	ifcr_count;		/* room for this many in user buffer */
@@ -74,35 +82,46 @@ struct if_clonereq {
  */
 struct if_data {
 	/* generic interface information */
-	u_char	ifi_type;		/* ethernet, tokenring, etc */
-	u_char	ifi_physical;		/* e.g., AUI, Thinnet, 10base-T, etc */
-	u_char	ifi_addrlen;		/* media address length */
-	u_char	ifi_hdrlen;		/* media header length */
-	u_char	ifi_link_state;		/* current link state */
-	u_char	ifi_vhid;		/* carp vhid */
-	u_char	ifi_baudrate_pf;	/* baudrate power factor */
-	u_char	ifi_datalen;		/* length of this data struct */
-	u_long	ifi_mtu;		/* maximum transmission unit */
-	u_long	ifi_metric;		/* routing metric (external only) */
-	u_long	ifi_baudrate;		/* linespeed */
+	uint8_t	ifi_type;		/* ethernet, tokenring, etc */
+	uint8_t	ifi_physical;		/* e.g., AUI, Thinnet, 10base-T, etc */
+	uint8_t	ifi_addrlen;		/* media address length */
+	uint8_t	ifi_hdrlen;		/* media header length */
+	uint8_t	ifi_link_state;		/* current link state */
+	uint8_t	ifi_vhid;		/* carp vhid */
+	uint16_t	ifi_datalen;	/* length of this data struct */
+	uint32_t	ifi_mtu;	/* maximum transmission unit */
+	uint32_t	ifi_metric;	/* routing metric (external only) */
+	uint64_t	ifi_baudrate;	/* linespeed */
 	/* volatile statistics */
-	u_long	ifi_ipackets;		/* packets received on interface */
-	u_long	ifi_ierrors;		/* input errors on interface */
-	u_long	ifi_opackets;		/* packets sent on interface */
-	u_long	ifi_oerrors;		/* output errors on interface */
-	u_long	ifi_collisions;		/* collisions on csma interfaces */
-	u_long	ifi_ibytes;		/* total number of octets received */
-	u_long	ifi_obytes;		/* total number of octets sent */
-	u_long	ifi_imcasts;		/* packets received via multicast */
-	u_long	ifi_omcasts;		/* packets sent via multicast */
-	u_long	ifi_iqdrops;		/* dropped on input, this interface */
-	u_long	ifi_noproto;		/* destined for unsupported protocol */
-	uint64_t ifi_hwassist;		/* HW offload capabilities, see IFCAP */
-	time_t	ifi_epoch;		/* uptime at attach or stat reset */
-	struct	timeval ifi_lastchange;	/* time of last administrative change */
+	uint64_t	ifi_ipackets;	/* packets received on interface */
+	uint64_t	ifi_ierrors;	/* input errors on interface */
+	uint64_t	ifi_opackets;	/* packets sent on interface */
+	uint64_t	ifi_oerrors;	/* output errors on interface */
+	uint64_t	ifi_collisions;	/* collisions on csma interfaces */
+	uint64_t	ifi_ibytes;	/* total number of octets received */
+	uint64_t	ifi_obytes;	/* total number of octets sent */
+	uint64_t	ifi_imcasts;	/* packets received via multicast */
+	uint64_t	ifi_omcasts;	/* packets sent via multicast */
+	uint64_t	ifi_iqdrops;	/* dropped on input */
+	uint64_t	ifi_oqdrops;	/* dropped on output */
+	uint64_t	ifi_noproto;	/* destined for unsupported protocol */
+	uint64_t	ifi_hwassist;	/* HW offload capabilities, see IFCAP */
+
+	/* Unions are here to make sizes MI. */
+	union {				/* uptime at attach or stat reset */
+		time_t		ifi_epoch;
+		uint64_t	ph;
+	};
+	union {				/* time of last administrative change */
+		struct timeval	ifi_lastchange;
+		struct {
+			uint64_t ph1;
+			uint64_t ph2;
+		};
+	};
 };
 
-/*-
+/*
  * Interface flags are of two types: network stack owned flags, and driver
  * owned flags.  Historically, these values were stored in the same ifnet
  * flags field, but with the advent of fine-grained locking, they have been
@@ -121,8 +140,8 @@ struct if_data {
  *     after.
  * (n) if_flags field written only by the network stack, read by either the
  *     stack or driver.
- * (d) if_drv_flags field written only by the device driver, read by either
- *     the stack or driver.
+ * (o) obsoleted in FreeBSD, but third party applications may still
+ *     require definitions.
  */
 #define	IFF_UP		0x1		/* (n) interface is up */
 #define	IFF_BROADCAST	0x2		/* (i) broadcast address valid */
@@ -130,11 +149,11 @@ struct if_data {
 #define	IFF_LOOPBACK	0x8		/* (i) is a loopback net */
 #define	IFF_POINTOPOINT	0x10		/* (i) is a point-to-point link */
 /*			0x20		   was IFF_SMART */
-#define	IFF_DRV_RUNNING	0x40		/* (d) resources allocated */
+#define	IFF_RUNNING	0x40		/* (o) resources allocated */
 #define	IFF_NOARP	0x80		/* (n) no address resolution protocol */
 #define	IFF_PROMISC	0x100		/* (n) receive all packets */
 #define	IFF_ALLMULTI	0x200		/* (n) receive all multicast packets */
-#define	IFF_DRV_OACTIVE	0x400		/* (d) tx hardware queue is full */
+#define	IFF_OACTIVE	0x400		/* (o) tx hardware queue is full */
 #define	IFF_SIMPLEX	0x800		/* (i) can't hear own transmissions */
 #define	IFF_LINK0	0x1000		/* per link layer defined bit */
 #define	IFF_LINK1	0x2000		/* per link layer defined bit */
@@ -147,27 +166,21 @@ struct if_data {
 #define	IFF_STATICARP	0x80000		/* (n) static ARP */
 #define	IFF_DYING	0x200000	/* (n) interface is winding down */
 #define	IFF_RENAMING	0x400000	/* (n) interface is being renamed */
-/*
- * Old names for driver flags so that user space tools can continue to use
- * the old (portable) names.
- */
-#ifndef _KERNEL
-#define	IFF_RUNNING	IFF_DRV_RUNNING
-#define	IFF_OACTIVE	IFF_DRV_OACTIVE
-#endif
 
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
-	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_DRV_RUNNING|IFF_DRV_OACTIVE|\
+	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|\
 	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_PROMISC|\
 	    IFF_DYING|IFF_CANTCONFIG)
 
 /*
  * Values for if_link_state.
  */
-#define	LINK_STATE_UNKNOWN	0	/* link invalid/unknown */
-#define	LINK_STATE_DOWN		1	/* link is down */
-#define	LINK_STATE_UP		2	/* link is up */
+enum {
+	LINK_STATE_UNKNOWN = 0,		/* link invalid/unknown */
+	LINK_STATE_DOWN,		/* link is down */
+	LINK_STATE_UP,			/* link is up */
+};
 
 /*
  * Some convenience macros used for setting ifi_baudrate.
@@ -225,7 +238,6 @@ struct if_data {
 #define	IFCAP_NETMAP		0x100000 /* netmap mode supported/enabled */
 #define	IFCAP_RXCSUM_IPV6	0x200000  /* can offload checksum on IPv6 RX */
 #define	IFCAP_TXCSUM_IPV6	0x400000  /* can offload checksum on IPv6 TX */
-#define	IFCAP_HWSTATS		0x800000 /* manages counters internally */
 
 #define IFCAP_HWCSUM_IPV6	(IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6)
 
@@ -291,7 +303,7 @@ struct ifa_msghdr {
 	int	ifam_addrs;	/* like rtm_addrs */
 	int	ifam_flags;	/* value of ifa_flags */
 	u_short	ifam_index;	/* index for associated ifp */
-	int	ifam_metric;	/* value of ifa_metric */
+	int	ifam_metric;	/* value of ifa_ifp->if_metric */
 };
 
 /*
@@ -316,7 +328,7 @@ struct ifa_msghdrl {
 	u_short _ifam_spare1;	/* spare space to grow if_index, see if_var.h */
 	u_short	ifam_len;	/* length of ifa_msghdrl incl. if_data */
 	u_short	ifam_data_off;	/* offset of if_data from beginning */
-	int	ifam_metric;	/* value of ifa_metric */
+	int	ifam_metric;	/* value of ifa_ifp->if_metric */
 	struct	if_data ifam_data;/* statistics and other data about if or
 				 * address */
 };
@@ -370,6 +382,11 @@ struct	ifreq {
 		struct	sockaddr ifru_dstaddr;
 		struct	sockaddr ifru_broadaddr;
 		struct	ifreq_buffer ifru_buffer;
+		struct {
+			uint32_t ifrucap_reqcap;	/* requested/returned */
+			uint32_t ifrucap_curcap;	/* current values */
+			uint64_t ifrucap_hwassist;	/* returned hwassist */
+		}	ifru_cap;
 		short	ifru_flags[2];
 		short	ifru_index;
 		int	ifru_jid;
@@ -378,7 +395,6 @@ struct	ifreq {
 		int	ifru_phys;
 		int	ifru_media;
 		caddr_t	ifru_data;
-		int	ifru_cap[2];
 		u_int	ifru_fib;
 	} ifr_ifru;
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
@@ -393,8 +409,9 @@ struct	ifreq {
 #define ifr_phys	ifr_ifru.ifru_phys	/* physical wire */
 #define ifr_media	ifr_ifru.ifru_media	/* physical media */
 #define	ifr_data	ifr_ifru.ifru_data	/* for use by interface */
-#define	ifr_reqcap	ifr_ifru.ifru_cap[0]	/* requested capabilities */
-#define	ifr_curcap	ifr_ifru.ifru_cap[1]	/* current capabilities */
+#define	ifr_reqcap	ifr_ifru.ifru_cap.ifrucap_reqcap
+#define	ifr_curcap	ifr_ifru.ifru_cap.ifrucap_curcap
+#define	ifr_hwassist	ifr_ifru.ifru_cap.ifrucap_hwassist
 #define	ifr_index	ifr_ifru.ifru_index	/* interface index */
 #define	ifr_fib		ifr_ifru.ifru_fib	/* interface fib */
 };
@@ -497,26 +514,280 @@ struct ifgroupreq {
 #define ifgr_groups	ifgr_ifgru.ifgru_groups
 };
 
-#endif /* __BSD_VISIBLE */
+/*
+ * Structure used to request i2c data
+ * from interface transceivers.
+ */
+struct ifi2creq {
+	uint8_t dev_addr;	/* i2c address (0xA0, 0xA2) */
+	uint8_t offset;		/* read offset */
+	uint8_t len;		/* read length */
+	uint8_t spare0;
+	uint32_t spare1;
+	uint8_t data[8];	/* read buffer */
+}; 
+
+typedef enum {
+	IFCOUNTER_IPACKETS = 0,
+	IFCOUNTER_IERRORS,
+	IFCOUNTER_OPACKETS,
+	IFCOUNTER_OERRORS,
+	IFCOUNTER_COLLISIONS,
+	IFCOUNTER_IBYTES,
+	IFCOUNTER_OBYTES,
+	IFCOUNTER_IMCASTS,
+	IFCOUNTER_OMCASTS,
+	IFCOUNTER_IQDROPS,
+	IFCOUNTER_OQDROPS,
+	IFCOUNTER_NOPROTO,
+	IFCOUNTERS /* Array size (used internally). */
+} ift_counter;
 
 #ifdef _KERNEL
+#include <net/if_types.h>
+#include <net/if_media.h>
+/*
+ * Under _KERNEL there live declarations from net/if.c, that are public
+ * and available to network device drivers.  Declarations that are protected
+ * from drivers, but available to the stack live in if_var.h.
+ */
+
+/* Some forward declarations are required. */
+struct mbuf;	/* if_input, if_output, if_transmit */
+struct route;	/* if_output */
+struct vnet;	/* if_reassign */
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IFADDR);
 MALLOC_DECLARE(M_IFMADDR);
 #endif
-#endif
 
-#ifndef _KERNEL
-struct if_nameindex {
-	unsigned int	if_index;	/* 1, 2, ... */
-	char		*if_name;	/* null terminated name: "le0", ... */
+typedef enum {
+	IF_NO_SOFTC = 0,
+	IF_DRIVER_SOFTC,
+	IF_LLADDR,
+	IF_BPF,
+	IF_NAME,
+	/*
+	 * Values do matter, since we want to avoid aliasing of frequently
+	 * used features in if_sccache cache.
+	 */
+	IF_AF_INET = 100,
+	IF_AF_INET6,
+	IF_CARP,
+	IF_VLAN,
+	IF_TOEDEV,
+	IF_MEDIA,
+	/*
+	 * Space above 99999 is split among different vendors.
+	 *
+	 * Chelsio	10000 - 10999
+	 */
+	IF_CXGBE_PORT	= 10000,
+} ift_feature;
+
+typedef struct ifnet * if_t;
+
+typedef void	(*if_input_t)(if_t, struct mbuf *);
+typedef int	(*if_transmit_t)(if_t, struct mbuf *);
+typedef int	(*if_output_t)(if_t, struct mbuf *, const struct sockaddr *,
+    struct route *);
+typedef int	(*if_ioctl_t)(if_t, u_long, void *, struct thread *);
+typedef uint64_t (*if_get_counter_t)(if_t, ift_counter);
+typedef void	(*if_qflush_t)(if_t);
+typedef int	(*if_media_change_t)(if_t, if_media_t);
+typedef void	(*if_media_status_t)(if_t, struct ifmediareq *);
+typedef int	(*if_resolvemulti_t)(if_t, struct sockaddr **,
+    struct sockaddr *);
+typedef void	(*if_reassign_t)(if_t, struct vnet *);
+typedef void	(*if_vlan_event_t)(if_t, uint16_t, if_t);
+enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS };
+typedef int	(*if_poll_t)(if_t, enum poll_cmd, int);
+
+/*
+ * Interface methods.  Usually stored in ifdriver definition, however
+ * some subsystems like lagg(4) or altq(4) may put a shim ifops before
+ * native ones.
+ */
+struct ifops {
+	if_input_t	ifop_input;	/* input routine (from h/w driver) */
+	if_transmit_t	ifop_transmit;	/* initiate output routine */
+	if_output_t	ifop_output;
+	if_poll_t	ifop_poll;
+	if_ioctl_t	ifop_ioctl;	/* ioctl routine */
+	if_get_counter_t ifop_get_counter; /* get counter values */
+	if_qflush_t	ifop_qflush;	/* flush any queue */	
+	if_media_change_t ifop_media_change; /* change media */
+	if_media_status_t ifop_media_status; /* query media */
+	if_resolvemulti_t ifop_resolvemulti; /* validate/resolve multicast */
+	if_reassign_t	ifop_reassign;	/* reassign to vnet routine */
+	if_vlan_event_t	ifop_vlan_event;/* VLAN config/unconfig */
+	struct ifops	*ifop_next;
+	uint8_t		ifop_origin;
+};
+enum {
+	IFOP_ORIGIN_DRIVER = 1,
+	IFOP_ORIGIN_IFTYPE = 2,
 };
 
-__BEGIN_DECLS
-void			 if_freenameindex(struct if_nameindex *);
-char			*if_indextoname(unsigned int, char *);
-struct if_nameindex	*if_nameindex(void);
-unsigned int		 if_nametoindex(const char *);
-__END_DECLS
-#endif
+/*
+ * Structure describing TSO properties of an interface.  Known both to ifnet
+ * layer and TCP.  Most interfaces point to a static tsomax in ifdriver
+ * definition.  However, vlan(4) and lagg(4) require a dynamic tsomax.
+ */
+struct iftsomax {
+	uint32_t tsomax_bytes;	  /* TSO total burst length limit in bytes */
+	uint32_t tsomax_segcount; /* TSO maximum segment count */
+	uint32_t tsomax_segsize;  /* TSO maximum segment size in bytes */
+};
+
+/*
+ * Driver description.  All instances of a driver share common properties
+ * that are stable during runtime.  The stack can bless them, which
+ * means modify, when attaching the first instance of given
+ * driver.
+ */
+struct ifdriver {
+	struct ifops		ifdrv_ops;
+	struct iftsomax		*ifdrv_tsomax;
+	/*
+	 * The ifdrv_name must be a pointer to storage which will last as
+	 * long as any interface does.  For physical devices, the result of
+	 * device_get_name(dev) is a good choice and for pseudo-devices a
+	 * static string works well.
+	 */
+	const char *	ifdrv_name;
+	struct if_clone *ifdrv_clone;
+	ifType		ifdrv_type;	/* from if_types.h */
+	uint8_t		ifdrv_hdrlen;	/* media header length */
+	uint8_t		ifdrv_addrlen;	/* media address length */
+	uint32_t	ifdrv_dlt;	/* from net/bpf.h */
+	uint32_t	ifdrv_dlt_hdrlen;
+	uint32_t	ifdrv_maxqlen;	/* max queue length for if_snd */
+	/*
+	 * Owned by stack.  Drivers shouldn't initialize these!
+	 */
+	uint32_t		__ifdrv_stack_owned;
+};
+
+/*
+ * Arguments for if_attach().  Usually stored on stack of device_attach
+ * function in driver.  In future this structure will probably have
+ * different versions, so that we can support older ABIs for drivers.
+ */
+struct if_attach_args {
+	uint8_t		ifat_version;	/* must be IF_ATTACH_VERSION */
+#define	IF_ATTACH_VERSION	1
+	uint8_t		ifat_spare8;
+	uint16_t	ifat_spare16;
+	uint32_t	ifat_spare32;
+	int		ifat_error;	/* Filled on return. */
+
+	struct ifdriver	*ifat_drv;
+	void 		*ifat_softc;	/* Driver private softc. */
+	const uint8_t	*ifat_lla;	/* Link-level address. */
+	int32_t		ifat_dunit;	/* Specific unit or a hint. */
+#define	IFAT_DUNIT_NONE	(-1)
+	char *		ifat_name;	/* If driver wants a specific name. */
+	/*
+	 * Capabilities can be different for two interfaces of the same
+	 * driver, e.g. different chip revisions.
+	 */
+	uint64_t	ifat_capabilities;
+	/*
+	 * Pointer to static array of supported mediae, current media
+	 * word, and ignore mask for ifmedia_match().
+	 */
+	if_media_t	*ifat_mediae;
+	if_media_t	ifat_media;
+	if_media_t	ifat_mediamask;
+	/*
+	 * MTU, flags, capabilities at attach time.  Driver
+	 * can change them later.
+	 */
+	uint32_t	ifat_mtu;
+	uint64_t	ifat_flags;
+	uint64_t	ifat_capenable;
+	uint64_t	ifat_hwassist;
+	uint64_t	ifat_baudrate;
+	/*
+	 * If ifat_tsomax pointer is non-zero, then an interface will
+	 * have dynamically allocated ifdrv_tsomax, that can be changed
+	 * later.  Otherwise it inherits static iftsomax from ifdriver.
+	 */
+	struct iftsomax *ifat_tsomax;
+};
+
+/*
+ * Interface manipulating functions that are available for drivers.
+ */
+if_t	if_attach(struct if_attach_args *);
+void	if_detach(if_t);
+void	if_mtap(if_t, struct mbuf *, void *, u_int);
+void	if_inc_counter(if_t, ift_counter, int64_t);
+void	if_inc_txcounters(if_t, struct mbuf *);
+void	if_setbaudrate(if_t, uint64_t);
+void	if_link_state_change(if_t, int);
+void *	if_getsoftc(if_t, ift_feature);
+int	if_setsoftc(if_t, ift_feature, void *);
+int	if_printf(if_t, const char *, ...) __printflike(2, 3);
+int	if_drvioctl(if_t, u_long, void *, struct thread *);
+uint64_t if_get_counter_default(if_t, ift_counter);
+
+/*
+ * Interface media manipulation by drivers.
+ */
+void	if_media_status(if_t, if_media_t, if_media_t);
+void	if_media_change(if_t, if_media_t *, if_media_t);
+
+/*
+ * Interface if_ops that are available for drivers.
+ */
+void	if_input_noinline(if_t, struct mbuf *);
+#define	if_input(ifp, m)	if_input_noinline(ifp, m)
+int	if_transmit_noinline(if_t, struct mbuf *);
+#define	if_transmit(ifp, m)	if_transmit_noinline(ifp, m)
+
+/*
+ * Traversing through interface address lists.
+ */
+typedef	void	ifaddr_cb_t(void *, struct sockaddr *, struct sockaddr *,
+		    struct sockaddr *);
+typedef	void	ifmaddr_cb_t(void *, struct sockaddr *);
+void	if_foreach_addr(if_t, ifaddr_cb_t, void *);
+void	if_foreach_maddr(if_t, ifmaddr_cb_t, void *);
+
+/*
+ * Generic software send queue manipulation.
+ */
+int	if_snd_len(if_t);
+int	if_snd_enqueue(if_t, struct mbuf *);
+struct mbuf * if_snd_dequeue(if_t);
+void	if_snd_prepend(if_t, struct mbuf *);
+
+/*
+ * vlan(4) interfaces extra API.
+ */
+int	if_vlanid(if_t, uint16_t *);
+if_t	if_vlandev(if_t, uint16_t);
+if_t	if_vlantrunk(if_t);
+
+/*
+ * Type-enforcing inliners over if_getsoftc().
+ */
+static inline char *
+if_lladdr(if_t ifp)
+{
+
+	return ((char *)(if_getsoftc(ifp, IF_LLADDR)));
+}
+
+static inline const char *
+if_name(if_t ifp)
+{
+
+	return ((char *)(if_getsoftc(ifp, IF_NAME)));
+}
+#endif /* _KERNEL */
+#endif /* __BSD_VISIBLE_ */
 #endif /* !_NET_IF_H_ */

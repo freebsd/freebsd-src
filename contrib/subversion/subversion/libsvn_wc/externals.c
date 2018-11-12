@@ -405,9 +405,10 @@ struct edit_baton
   const apr_array_header_t *ext_patterns;
   const char *diff3cmd;
 
-  const char *url;
   const char *repos_root_url;
   const char *repos_uuid;
+  const char *old_repos_relpath;
+  const char *new_repos_relpath;
 
   const char *record_ancestor_abspath;
   const char *recorded_repos_relpath;
@@ -517,7 +518,8 @@ open_file(const char *path,
 
   *file_baton = eb;
   SVN_ERR(svn_wc__db_base_get_info(NULL, &kind, &eb->original_revision,
-                                   NULL, NULL, NULL, &eb->changed_rev,
+                                   &eb->old_repos_relpath, NULL, NULL,
+                                   &eb->changed_rev,
                                    &eb->changed_date, &eb->changed_author,
                                    NULL, &eb->original_checksum, NULL, NULL,
                                    &eb->had_props, NULL, NULL,
@@ -677,8 +679,6 @@ close_file(void *file_baton,
     const svn_checksum_t *original_checksum = NULL;
 
     svn_boolean_t added = !SVN_IS_VALID_REVNUM(eb->original_revision);
-    const char *repos_relpath = svn_uri_skip_ancestor(eb->repos_root_url,
-                                                      eb->url, pool);
 
     if (! added)
       {
@@ -853,14 +853,14 @@ close_file(void *file_baton,
                             svn_wc_conflict_version_create2(
                                     eb->repos_root_url,
                                     eb->repos_uuid,
-                                    repos_relpath,
+                                    eb->old_repos_relpath,
                                     eb->original_revision,
                                     svn_node_file,
                                     pool),
                             svn_wc_conflict_version_create2(
                                     eb->repos_root_url,
                                     eb->repos_uuid,
-                                    repos_relpath,
+                                    eb->new_repos_relpath,
                                     *eb->target_revision,
                                     svn_node_file,
                                     pool),
@@ -878,7 +878,7 @@ close_file(void *file_baton,
                         eb->db,
                         eb->local_abspath,
                         eb->wri_abspath,
-                        repos_relpath,
+                        eb->new_repos_relpath,
                         eb->repos_root_url,
                         eb->repos_uuid,
                         *eb->target_revision,
@@ -945,10 +945,15 @@ close_edit(void *edit_baton,
 {
   struct edit_baton *eb = edit_baton;
 
-  if (!eb->file_closed
-      || eb->iprops)
+  if (!eb->file_closed)
     {
       apr_hash_t *wcroot_iprops = NULL;
+      /* The file wasn't updated, but its url or revision might have...
+         e.g. switch between branches for relative externals.
+
+         Just bump the information as that is just as expensive as
+         investigating when we should and shouldn't update it...
+         and avoid hard to debug edge cases */
 
       if (eb->iprops)
         {
@@ -956,13 +961,15 @@ close_edit(void *edit_baton,
           svn_hash_sets(wcroot_iprops, eb->local_abspath, eb->iprops);
         }
 
-      /* The node wasn't updated, so we just have to bump its revision */
       SVN_ERR(svn_wc__db_op_bump_revisions_post_update(eb->db,
                                                        eb->local_abspath,
                                                        svn_depth_infinity,
-                                                       NULL, NULL, NULL,
+                                                       eb->new_repos_relpath,
+                                                       eb->repos_root_url,
+                                                       eb->repos_uuid,
                                                        *eb->target_revision,
-                                                       apr_hash_make(pool),
+                                                       apr_hash_make(pool)
+                                                       /* exclude_relpaths */,
                                                        wcroot_iprops,
                                                        eb->notify_func,
                                                        eb->notify_baton,
@@ -1014,9 +1021,12 @@ svn_wc__get_file_external_editor(const svn_delta_editor_t **editor,
   eb->name = svn_dirent_basename(eb->local_abspath, NULL);
   eb->target_revision = target_revision;
 
-  eb->url = apr_pstrdup(edit_pool, url);
   eb->repos_root_url = apr_pstrdup(edit_pool, repos_root_url);
   eb->repos_uuid = apr_pstrdup(edit_pool, repos_uuid);
+  eb->new_repos_relpath = svn_uri_skip_ancestor(eb->repos_root_url, url, edit_pool);
+  eb->old_repos_relpath = eb->new_repos_relpath;
+
+  eb->original_revision = SVN_INVALID_REVNUM;
 
   eb->iprops = iprops;
 

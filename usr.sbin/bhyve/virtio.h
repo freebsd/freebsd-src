@@ -33,7 +33,7 @@
  * These are derived from several virtio specifications.
  *
  * Some useful links:
- *    https://github.com/rustyrussel/virtio-spec
+ *    https://github.com/rustyrussell/virtio-spec
  *    http://people.redhat.com/pbonzini/virtio-spec.pdf
  */
 
@@ -209,6 +209,7 @@ struct vring_used {
 #define	VIRTIO_VENDOR		0x1AF4
 #define	VIRTIO_DEV_NET		0x1000
 #define	VIRTIO_DEV_BLOCK	0x1001
+#define	VIRTIO_DEV_RANDOM	0x1002
 
 /*
  * PCI config space constants.
@@ -351,7 +352,9 @@ struct virtio_consts {
 					/* called to read config regs */
 	int	(*vc_cfgwrite)(void *, int, int, uint32_t);
 					/* called to write config regs */
-	uint32_t vc_hv_caps;		/* hypervisor-provided capabilities */
+	void    (*vc_apply_features)(void *, uint64_t);
+				/* called to apply negotiated features */
+	uint64_t vc_hv_caps;		/* hypervisor-provided capabilities */
 };
 
 /*
@@ -422,20 +425,6 @@ vq_has_descs(struct vqueue_info *vq)
 }
 
 /*
- * Called by virtio driver as it starts processing chains.  Each
- * completed chain (obtained from vq_getchain()) is released by
- * calling vq_relchain(), then when all are done, vq_endchains()
- * can tell if / how-many chains were processed and know whether
- * and how to generate an interrupt.
- */
-static inline void
-vq_startchains(struct vqueue_info *vq)
-{
-
-	vq->vq_save_used = vq->vq_used->vu_idx;
-}
-
-/*
  * Deliver an interrupt to guest on the given virtual queue
  * (if possible, or a generic MSI interrupt if not using MSI-X).
  */
@@ -462,9 +451,10 @@ int	vi_intr_init(struct virtio_softc *vs, int barnum, int use_msix);
 void	vi_reset_dev(struct virtio_softc *);
 void	vi_set_io_bar(struct virtio_softc *, int);
 
-int	vq_getchain(struct vqueue_info *vq,
+int	vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
 		    struct iovec *iov, int n_iov, uint16_t *flags);
-void	vq_relchain(struct vqueue_info *vq, uint32_t iolen);
+void	vq_retchain(struct vqueue_info *vq);
+void	vq_relchain(struct vqueue_info *vq, uint16_t idx, uint32_t iolen);
 void	vq_endchains(struct vqueue_info *vq, int used_all_avail);
 
 uint64_t vi_pci_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,

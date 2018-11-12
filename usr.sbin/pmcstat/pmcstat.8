@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 19, 2008
+.Dd May 27, 2015
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -46,11 +46,13 @@
 .Op Fl S Ar event-spec
 .Op Fl T
 .Op Fl W
+.Op Fl a Ar pathname
 .Op Fl c Ar cpu-spec
 .Op Fl d
 .Op Fl f Ar pluginopt
 .Op Fl g
 .Op Fl k Ar kerneldir
+.Op Fl l Ar secs
 .Op Fl m Ar pathname
 .Op Fl n Ar rate
 .Op Fl o Ar outputfile
@@ -221,6 +223,21 @@ This is an experimental feature intended to help analyse the
 dynamic behaviour of processes in the system.
 It may incur substantial overhead if enabled.
 The default is for this feature to be disabled.
+.It Fl a Ar pathname
+Perform a symbol and file:line lookup for each address in each
+callgraph and save the output to
+.Ar pathname .
+Unlike
+.Fl m
+that only resolves the first symbol in the graph, this resolves
+every node in the callgraph, or prints out addresses if no
+lookup information is available.
+This option requires the
+.Fl R
+option to read in samples that were previously collected and
+saved with the
+.Fl O
+option.
 .It Fl c Ar cpu-spec
 Set the cpus for subsequent system mode PMCs specified on the
 command line to
@@ -229,14 +246,20 @@ Argument
 .Ar cpu-spec
 is a comma separated list of CPU numbers, or the literal
 .Sq *
-denoting all unhalted CPUs.
-The default is to allocate system mode PMCs on all unhalted
+denoting all available CPUs.
+The default is to allocate system mode PMCs on all available
 CPUs.
 .It Fl d
 Toggle between process mode PMCs measuring events for the target
 process' current and future children or only measuring events for
 the target process.
 The default is to measure events for the target process alone.
+(it has to be passed in the command line prior to
+.Fl p ,
+.Fl s ,
+.Fl P ,
+or
+.Fl S ) .
 .It Fl f Ar pluginopt
 Pass option string to the active plugin.
 .br
@@ -256,8 +279,16 @@ Set the pathname of the kernel directory to argument
 This directory specifies where
 .Nm
 should look for the kernel and its modules.
-The default is
-.Pa /boot/kernel .
+The default is to use the path of the running kernel obtained from the
+.Va kern.bootfile
+sysctl.
+.It Fl l Ar secs
+Set system-wide performance measurement duration for
+.Ar secs
+seconds.
+The argument
+.Ar secs
+may be a fractional value.
 .It Fl m Ar pathname
 Print the sampled PCs with the name, the start and ending addresses
 of the function within they live.
@@ -270,6 +301,12 @@ is a
 .Dq Li -
 this information is sent to the output file specified by the
 .Fl o
+option.
+This option requires the
+.Fl R
+option to read in samples that were previously collected and
+saved with the
+.Fl O
 option.
 .It Fl n Ar rate
 Set the default sampling rate for subsequent sampling mode
@@ -447,7 +484,7 @@ utility first appeared in
 It is
 .Ud
 .Sh AUTHORS
-.An Joseph Koshy Aq jkoshy@FreeBSD.org
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org
 .Sh BUGS
 The
 .Nm

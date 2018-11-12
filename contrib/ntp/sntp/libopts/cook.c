@@ -1,65 +1,45 @@
-
-/*
- *  $Id: cook.c,v 4.10 2007/02/04 17:44:12 bkorb Exp $
- *  Time-stamp:      "2006-09-24 15:21:02 bkorb"
+/**
+ * \file cook.c
  *
  *  This file contains the routines that deal with processing quoted strings
  *  into an internal format.
+ *
+ * @addtogroup autoopts
+ * @{
  */
-
 /*
- *  Automated Options copyright 1992-2007 Bruce Korb
+ *  This file is part of AutoOpts, a companion to AutoGen.
+ *  AutoOpts is free software.
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
- *  Automated Options is free software.
- *  You may redistribute it and/or modify it under the terms of the
- *  GNU General Public License, as published by the Free Software
- *  Foundation; either version 2, or (at your option) any later version.
+ *  AutoOpts is available under any one of two licenses.  The license
+ *  in use must be one of these two and the choice is under the control
+ *  of the user of the license.
  *
- *  Automated Options is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *   The GNU Lesser General Public License, version 3 or later
+ *      See the files "COPYING.lgplv3" and "COPYING.gplv3"
  *
- *  You should have received a copy of the GNU General Public License
- *  along with Automated Options.  See the file "COPYING".  If not,
- *  write to:  The Free Software Foundation, Inc.,
- *             51 Franklin Street, Fifth Floor,
- *             Boston, MA  02110-1301, USA.
+ *   The Modified Berkeley Software Distribution License
+ *      See the file "COPYING.mbsd"
  *
- * As a special exception, Bruce Korb gives permission for additional
- * uses of the text contained in his release of AutoOpts.
+ *  These files have the following sha256 sums:
  *
- * The exception is that, if you link the AutoOpts library with other
- * files to produce an executable, this does not by itself cause the
- * resulting executable to be covered by the GNU General Public License.
- * Your use of that executable is in no way restricted on account of
- * linking the AutoOpts library code into it.
- *
- * This exception does not however invalidate any other reasons why
- * the executable file might be covered by the GNU General Public License.
- *
- * This exception applies only to the code released by Bruce Korb under
- * the name AutoOpts.  If you copy code from other sources under the
- * General Public License into a copy of AutoOpts, as the General Public
- * License permits, the exception does not apply to the code that you add
- * in this way.  To avoid misleading anyone as to the status of such
- * modified files, you must delete this exception notice from them.
- *
- * If you write modifications of your own for AutoOpts, it is your choice
- * whether to permit this exception to apply to your modifications.
- * If you do not wish that, delete this exception notice.
+ *  8584710e9b04216a394078dc156b781d0b47e1729104d666658aecef8ee32e95  COPYING.gplv3
+ *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
+ *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  */
 
 /* = = = START-STATIC-FORWARD = = = */
-/* static forward declarations maintained by :mkfwd */
+static bool
+contiguous_quote(char ** pps, char * pq, int * lnct_p);
 /* = = = END-STATIC-FORWARD = = = */
 
 /*=export_func  ao_string_cook_escape_char
  * private:
  *
  * what:  escape-process a string fragment
- * arg:   + char const*  + pzScan  + points to character after the escape +
- * arg:   + char*        + pRes    + Where to put the result byte +
+ * arg:   + char const * + pzScan  + points to character after the escape +
+ * arg:   + char *       + pRes    + Where to put the result byte +
  * arg:   + unsigned int + nl_ch   + replacement char if scanned char is \n +
  *
  * ret-type: unsigned int
@@ -81,103 +61,75 @@
  * err:  @code{NULL} is returned if the string is mal-formed.
 =*/
 unsigned int
-ao_string_cook_escape_char( char const* pzIn, char* pRes, u_int nl )
+ao_string_cook_escape_char(char const * pzIn, char * pRes, uint_t nl)
 {
-    unsigned int  res = 1;
+    unsigned int res = 1;
 
     switch (*pRes = *pzIn++) {
     case NUL:         /* NUL - end of input string */
         return 0;
     case '\r':
-        if (*pzIn != '\n')
+        if (*pzIn != NL)
             return 1;
         res++;
         /* FALLTHROUGH */
-    case '\n':        /* NL  - emit newline        */
+    case NL:        /* NL  - emit newline        */
         *pRes = (char)nl;
         return res;
 
     case 'a': *pRes = '\a'; break;
     case 'b': *pRes = '\b'; break;
     case 'f': *pRes = '\f'; break;
-    case 'n': *pRes = '\n'; break;
+    case 'n': *pRes = NL;   break;
     case 'r': *pRes = '\r'; break;
     case 't': *pRes = '\t'; break;
     case 'v': *pRes = '\v'; break;
 
-    case 'x':         /* HEX Escape       */
-        if (isxdigit( (int)*pzIn ))  {
-            unsigned int  val;
-            unsigned char ch = *pzIn++;
+    case 'x':
+    case 'X':         /* HEX Escape       */
+        if (IS_HEX_DIGIT_CHAR(*pzIn))  {
+            char z[4];
+            unsigned int ct = 0;
 
-            if ((ch >= 'A') && (ch <= 'F'))
-                val = 10 + (ch - 'A');
-            else if ((ch >= 'a') && (ch <= 'f'))
-                val = 10 + (ch - 'a');
-            else val = ch - '0';
-
-            ch = *pzIn;
-
-            if (! isxdigit( ch )) {
-                *pRes = val;
-                res   = 2;
-                break;
-            }
-            val <<= 4;
-            if ((ch >= 'A') && (ch <= 'F'))
-                val += 10 + (ch - 'A');
-            else if ((ch >= 'a') && (ch <= 'f'))
-                val += 10 + (ch - 'a');
-            else val += ch - '0';
-
-            res = 3;
-            *pRes = val;
+            do  {
+                z[ct] = pzIn[ct];
+                if (++ct >= 2)
+                    break;
+            } while (IS_HEX_DIGIT_CHAR(pzIn[ct]));
+            z[ct] = NUL;
+            *pRes = (char)strtoul(z, NULL, 16);
+            return ct + 1;
         }
         break;
 
-    default:
+    case '0': case '1': case '2': case '3':
+    case '4': case '5': case '6': case '7':
+    {
         /*
          *  IF the character copied was an octal digit,
-         *  THEN set the output character to an octal value
+         *  THEN set the output character to an octal value.
+         *  The 3 octal digit result might exceed 0xFF, so check it.
          */
-        if (isdigit( (int)*pRes ) && (*pRes < '8'))  {
-            unsigned int  val = *pRes - '0';
-            unsigned char ch  = *pzIn++;
+        char z[4];
+        unsigned long val;
+        unsigned int  ct = 0;
 
-            /*
-             *  IF the second character is *not* an octal digit,
-             *  THEN save the value and bail
-             */
-            if ((ch < '0') || (ch > '7')) {
-                *pRes = val;
+        z[ct++] = *--pzIn;
+        while (IS_OCT_DIGIT_CHAR(pzIn[ct])) {
+            z[ct] = pzIn[ct];
+            if (++ct >= 3)
                 break;
-            }
-
-            val = (val<<3) + (ch - '0');
-            ch  = *pzIn;
-            res = 2;
-
-            /*
-             *  IF the THIRD character is *not* an octal digit,
-             *  THEN save the value and bail
-             */
-            if ((ch < '0') || (ch > '7')) {
-                *pRes = val;
-                break;
-            }
-
-            /*
-             *  IF the new value would not be too large,
-             *  THEN add on the third and last character value
-             */
-            if ((val<<3) < 0xFF) {
-                val = (val<<3) + (ch - '0');
-                res = 3;
-            }
-
-            *pRes = val;
-            break;
         }
+
+        z[ct] = NUL;
+        val = strtoul(z, NULL, 8);
+        if (val > 0xFF)
+            val = 0xFF;
+        *pRes = (char)val;
+        return ct;
+    }
+
+    default: /* quoted character is result character */;
     }
 
     return res;
@@ -189,14 +141,87 @@ ao_string_cook_escape_char( char const* pzIn, char* pRes, u_int nl )
  *  A quoted string has been found.
  *  Find the end of it and compress any escape sequences.
  */
+static bool
+contiguous_quote(char ** pps, char * pq, int * lnct_p)
+{
+    char * ps = *pps + 1;
+
+    for (;;) {
+        while (IS_WHITESPACE_CHAR(*ps))
+            if (*(ps++) == NL)
+                (*lnct_p)++;
+
+        /*
+         *  IF the next character is a quote character,
+         *  THEN we will concatenate the strings.
+         */
+        switch (*ps) {
+        case '"':
+        case '\'':
+            *pq  = *(ps++);  /* assign new quote character and return */
+            *pps = ps;
+            return true;
+
+        case '/':
+            /*
+             *  Allow for a comment embedded in the concatenated string.
+             */
+            switch (ps[1]) {
+            default:
+                *pps = NULL;
+                return false;
+
+            case '/':
+                /*
+                 *  Skip to end of line
+                 */
+                ps = strchr(ps, NL);
+                if (ps == NULL) {
+                    *pps = NULL;
+                    return false;
+                }
+                break;
+
+            case '*':
+            {
+                char * p = strstr( ps+2, "*/" );
+                /*
+                 *  Skip to terminating star slash
+                 */
+                if (p == NULL) {
+                    *pps = NULL;
+                    return false;
+                }
+
+                while (ps < p) {
+                    if (*(ps++) == NL)
+                        (*lnct_p)++;
+                }
+
+                ps = p + 2;
+            }
+            }
+            continue;
+
+        default:
+            /*
+             *  The next non-whitespace character is not a quote.
+             *  The series of quoted strings has come to an end.
+             */
+            *pps = ps;
+            return false;
+        }
+    }
+}
+
 /*=export_func  ao_string_cook
  * private:
  *
  * what:  concatenate and escape-process strings
- * arg:   + char* + pzScan     + The *MODIFIABLE* input buffer +
- * arg:   + int*  + pLineCt    + The (possibly NULL) pointer to a line count +
+ * arg:   + char * + pzScan  + The *MODIFIABLE* input buffer +
+ * arg:   + int *  + lnct_p  + The (possibly NULL) pointer to a line count +
  *
- * ret-type: char*
+ * ret-type: char *
  * ret-desc: The address of the text following the processed strings.
  *           The return value is NULL if the strings are ill-formed.
  *
@@ -210,8 +235,8 @@ ao_string_cook_escape_char( char const* pzIn, char* pRes, u_int nl )
  *
  * err:  @code{NULL} is returned if the string(s) is/are mal-formed.
 =*/
-char*
-ao_string_cook( char* pzScan, int* pLineCt )
+char *
+ao_string_cook(char * pzScan, int * lnct_p)
 {
     int   l = 0;
     char  q = *pzScan;
@@ -220,11 +245,11 @@ ao_string_cook( char* pzScan, int* pLineCt )
      *  It is a quoted string.  Process the escape sequence characters
      *  (in the set "abfnrtv") and make sure we find a closing quote.
      */
-    char* pzD = pzScan++;
-    char* pzS = pzScan;
+    char * pzD = pzScan++;
+    char * pzS = pzScan;
 
-    if (pLineCt == NULL)
-        pLineCt = &l;
+    if (lnct_p == NULL)
+        lnct_p = &l;
 
     for (;;) {
         /*
@@ -236,65 +261,8 @@ ao_string_cook( char* pzScan, int* pLineCt )
          */
         while (*pzS == q) {
             *pzD = NUL; /* This is probably the end of the line */
-            pzS++;
-
-        scan_for_quote:
-            while (isspace((int)*pzS))
-                if (*(pzS++) == '\n')
-                    (*pLineCt)++;
-
-            /*
-             *  IF the next character is a quote character,
-             *  THEN we will concatenate the strings.
-             */
-            switch (*pzS) {
-            case '"':
-            case '\'':
-                break;
-
-            case '/':
-                /*
-                 *  Allow for a comment embedded in the concatenated string.
-                 */
-                switch (pzS[1]) {
-                default:  return NULL;
-                case '/':
-                    /*
-                     *  Skip to end of line
-                     */
-                    pzS = strchr( pzS, '\n' );
-                    if (pzS == NULL)
-                        return NULL;
-                    (*pLineCt)++;
-                    break;
-
-                case '*':
-                {
-                    char* p = strstr( pzS+2, "*/" );
-                    /*
-                     *  Skip to terminating star slash
-                     */
-                    if (p == NULL)
-                        return NULL;
-                    while (pzS < p) {
-                        if (*(pzS++) == '\n')
-                            (*pLineCt)++;
-                    }
-
-                    pzS = p + 2;
-                }
-                }
-                goto scan_for_quote;
-
-            default:
-                /*
-                 *  The next non-whitespace character is not a quote.
-                 *  The series of quoted strings has come to an end.
-                 */
+            if (! contiguous_quote(&pzS, &q, lnct_p))
                 return pzS;
-            }
-
-            q = *(pzS++);  /* assign new quote character and advance scan */
         }
 
         /*
@@ -304,8 +272,8 @@ ao_string_cook( char* pzScan, int* pLineCt )
         case NUL:
             return NULL;
 
-        case '\n':
-            (*pLineCt)++;
+        case NL:
+            (*lnct_p)++;
             break;
 
         case '\\':
@@ -314,10 +282,10 @@ ao_string_cook( char* pzScan, int* pLineCt )
              *  THEN drop both the escape and the newline from
              *       the result string.
              */
-            if (*pzS == '\n') {
+            if (*pzS == NL) {
                 pzS++;
                 pzD--;
-                (*pLineCt)++;
+                (*lnct_p)++;
             }
 
             /*
@@ -325,7 +293,8 @@ ao_string_cook( char* pzScan, int* pLineCt )
              *  THEN we do the full escape character processing
              */
             else if (q != '\'') {
-                int ct = ao_string_cook_escape_char( pzS, pzD-1, (u_int)'\n' );
+                unsigned int ct;
+                ct = ao_string_cook_escape_char(pzS, pzD-1, (uint_t)NL);
                 if (ct == 0)
                     return NULL;
 
@@ -345,7 +314,9 @@ ao_string_cook( char* pzScan, int* pLineCt )
         }     /* switch (*(pzD++) = *(pzS++))    */
     }         /* for (;;)                        */
 }
-/*
+
+/** @}
+ *
  * Local Variables:
  * mode: C
  * c-file-style: "stroustrup"

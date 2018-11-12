@@ -181,49 +181,30 @@ enum {
 
 #define HV_HYPERCALL_PARAM_ALIGN sizeof(uint64_t)
 
-/*
- *  Connection identifier type
- */
-typedef union {
-	uint32_t		as_uint32_t;
-	struct {
-		uint32_t	id:24;
-		uint32_t	reserved:8;
-	} u;
-
-} __packed hv_vmbus_connection_id;
-
-/*
- * Definition of the hv_vmbus_signal_event hypercall input structure
- */
-typedef struct {
-	hv_vmbus_connection_id	connection_id;
-	uint16_t		flag_number;
-	uint16_t		rsvd_z;
-} __packed hv_vmbus_input_signal_event;
-
-typedef struct {
-	uint64_t			align8;
-	hv_vmbus_input_signal_event	event;
-} __packed hv_vmbus_input_signal_event_buffer;
-
 typedef struct {
 	uint64_t	guest_id;
 	void*		hypercall_page;
 	hv_bool_uint8_t	syn_ic_initialized;
-	/*
-	 * This is used as an input param to HV_CALL_SIGNAL_EVENT hypercall.
-	 * The input param is immutable  in our usage and
-	 * must be dynamic mem (vs stack or global).
-	 */
-	hv_vmbus_input_signal_event_buffer	*signal_event_buffer;
-	/*
-	 * 8-bytes aligned of the buffer above
-	 */
-	hv_vmbus_input_signal_event		*signal_event_param;
 
 	hv_vmbus_handle	syn_ic_msg_page[MAXCPU];
 	hv_vmbus_handle	syn_ic_event_page[MAXCPU];
+	/*
+	 * For FreeBSD cpuid to Hyper-V vcpuid mapping.
+	 */
+	uint32_t	hv_vcpu_index[MAXCPU];
+	/*
+	 * Each cpu has its own software interrupt handler for channel
+	 * event and msg handling.
+	 */
+	struct intr_event		*hv_event_intr_event[MAXCPU];
+	struct intr_event		*hv_msg_intr_event[MAXCPU];
+	void				*event_swintr[MAXCPU];
+	void				*msg_swintr[MAXCPU];
+	/*
+	 * Host use this vector to intrrupt guest for vmbus channel
+	 * event and msg.
+	 */
+	unsigned int			hv_cb_vector;
 } hv_vmbus_context;
 
 /*
@@ -368,7 +349,8 @@ typedef struct {
 	TAILQ_HEAD(, hv_vmbus_channel_msg_info)	channel_msg_anchor;
 	struct mtx				channel_msg_lock;
 	/**
-	 * List of channels
+	 * List of primary channels. Sub channels will be linked
+	 * under their primary channel.
 	 */
 	TAILQ_HEAD(, hv_vmbus_channel)		channel_anchor;
 	struct mtx				channel_lock;
@@ -560,6 +542,8 @@ typedef union {
 	uint32_t	flags32[HV_EVENT_FLAGS_DWORD_COUNT];
 } hv_vmbus_synic_event_flags;
 
+/* MSR used to provide vcpu index */
+#define	HV_X64_MSR_VP_INDEX   (0x40000002)
 
 /*
  * Define synthetic interrupt controller model specific registers
@@ -618,7 +602,8 @@ void			hv_ring_buffer_cleanup(
 int			hv_ring_buffer_write(
 				hv_vmbus_ring_buffer_info	*ring_info,
 				hv_vmbus_sg_buffer_list		sg_buffers[],
-				uint32_t			sg_buff_count);
+				uint32_t			sg_buff_count,
+				boolean_t			*need_sig);
 
 int			hv_ring_buffer_peek(
 				hv_vmbus_ring_buffer_info	*ring_info,
@@ -638,6 +623,12 @@ void			hv_vmbus_dump_ring_info(
 				hv_vmbus_ring_buffer_info	*ring_info,
 				char				*prefix);
 
+void			hv_ring_buffer_read_begin(
+				hv_vmbus_ring_buffer_info	*ring_info);
+
+uint32_t		hv_ring_buffer_read_end(
+				hv_vmbus_ring_buffer_info	*ring_info);
+
 hv_vmbus_channel*	hv_vmbus_allocate_channel(void);
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
 void			hv_vmbus_on_channel_message(void *context);
@@ -652,7 +643,7 @@ uint16_t		hv_vmbus_post_msg_via_msg_ipc(
 				void			*payload,
 				size_t			payload_size);
 
-uint16_t		hv_vmbus_signal_event(void);
+uint16_t		hv_vmbus_signal_event(void *con_id);
 void			hv_vmbus_synic_init(void *irq_arg);
 void			hv_vmbus_synic_cleanup(void *arg);
 int			hv_vmbus_query_hypervisor_presence(void);
@@ -674,7 +665,7 @@ hv_vmbus_channel*	hv_vmbus_get_channel_from_rel_id(uint32_t rel_id);
 int			hv_vmbus_connect(void);
 int			hv_vmbus_disconnect(void);
 int			hv_vmbus_post_message(void *buffer, size_t buf_size);
-int			hv_vmbus_set_event(uint32_t child_rel_id);
+int			hv_vmbus_set_event(hv_vmbus_channel *channel);
 void			hv_vmbus_on_events(void *);
 
 
@@ -718,7 +709,7 @@ static inline  uint64_t hv_generate_guest_id(
 
 typedef struct {
 	unsigned int	vector;
-	void		*page_buffers[2];
+	void		*page_buffers[2 * MAXCPU];
 } hv_setup_args;
 
 #endif  /* __HYPERV_PRIV_H__ */

@@ -86,6 +86,9 @@
 /* Define if accept4 function is supported */
 #define HAVE_ACCEPT4 1
 
+/* Define if async i/o supports message q's */
+/* #undef HAVE_AIO_MSGQ */
+
 /* Define to 1 if you have `alloca', as a function or macro. */
 #define HAVE_ALLOCA 1
 
@@ -142,7 +145,7 @@
 /* #undef HAVE_DL_H */
 
 /* Define if dup3 function is supported */
-/* #undef HAVE_DUP3 */
+#define HAVE_DUP3 1
 
 /* Define if EGD is supported */
 /* #undef HAVE_EGD */
@@ -829,7 +832,7 @@
 #define USE_SHMEM_MMAP_ANON 1
 
 /* Define if mmap() via POSIX.1 shm_open() on temporary file will be used */
-/* #undef USE_SHMEM_MMAP_SHM */
+#define USE_SHMEM_MMAP_SHM 1
 
 /* Define if Classical mmap() on temporary file will be used */
 /* #undef USE_SHMEM_MMAP_TMP */
@@ -844,7 +847,7 @@
 /* #undef USE_SHMEM_OS2_ANON */
 
 /* Define if SysV IPC shmget() will be used */
-#define USE_SHMEM_SHMGET 1
+/* #undef USE_SHMEM_SHMGET */
 
 /* Define if SysV IPC shmget() will be used */
 /* #undef USE_SHMEM_SHMGET_ANON */
@@ -934,7 +937,7 @@
 
 
 /* switch this on if we have a BeOS version below BONE */
-#if BEOS && !HAVE_BONE_VERSION
+#if defined(BEOS) && !defined(HAVE_BONE_VERSION)
 #define BEOS_R5 1
 #else
 #define BEOS_BONE 1

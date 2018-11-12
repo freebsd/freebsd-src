@@ -72,6 +72,7 @@ struct target {
 	int			t_auth_method;
 	int			t_session_type;
 	int			t_protocol;
+	char			*t_offload;
 	char			*t_user;
 	char			*t_secret;
 	char			*t_mutual_user;

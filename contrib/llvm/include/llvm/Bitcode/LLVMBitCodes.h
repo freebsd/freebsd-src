@@ -71,7 +71,8 @@ namespace bitc {
     // MODULE_CODE_PURGEVALS: [numvals]
     MODULE_CODE_PURGEVALS   = 10,
 
-    MODULE_CODE_GCNAME      = 11   // GCNAME: [strchr x N]
+    MODULE_CODE_GCNAME      = 11,  // GCNAME: [strchr x N]
+    MODULE_CODE_COMDAT      = 12,  // COMDAT: [selection_kind, name]
   };
 
   /// PARAMATTR blocks have code for defining a parameter attribute set.
@@ -136,14 +137,14 @@ namespace bitc {
 
   enum MetadataCodes {
     METADATA_STRING        = 1,   // MDSTRING:      [values]
-    // 2 is unused.
-    // 3 is unused.
+    METADATA_VALUE         = 2,   // VALUE:         [type num, value num]
+    METADATA_NODE          = 3,   // NODE:          [n x md num]
     METADATA_NAME          = 4,   // STRING:        [values]
-    // 5 is unused.
+    METADATA_DISTINCT_NODE = 5,   // DISTINCT_NODE: [n x md num]
     METADATA_KIND          = 6,   // [n x [id, name]]
-    // 7 is unused.
-    METADATA_NODE          = 8,   // NODE:          [n x (type num, value num)]
-    METADATA_FN_NODE       = 9,   // FN_NODE:       [n x (type num, value num)]
+    METADATA_LOCATION      = 7,   // [distinct, line, col, scope, inlined-at?]
+    METADATA_OLD_NODE      = 8,   // OLD_NODE:      [n x (type num, value num)]
+    METADATA_OLD_FN_NODE   = 9,   // OLD_FN_NODE:   [n x (type num, value num)]
     METADATA_NAMED_NODE    = 10,  // NAMED_NODE:    [n x mdnodes]
     METADATA_ATTACHMENT    = 11   // [m x [value, [n x [id, mdnode]]]
   };
@@ -194,7 +195,8 @@ namespace bitc {
     CAST_FPEXT    =  8,
     CAST_PTRTOINT =  9,
     CAST_INTTOPTR = 10,
-    CAST_BITCAST  = 11
+    CAST_BITCAST  = 11,
+    CAST_ADDRSPACECAST = 12
   };
 
   /// BinaryOpcodes - These are values used in the bitcode files to encode which
@@ -288,7 +290,7 @@ namespace bitc {
     FUNC_CODE_INST_PHI         = 16, // PHI:        [ty, val0,bb0, ...]
     // 17 is unused.
     // 18 is unused.
-    FUNC_CODE_INST_ALLOCA      = 19, // ALLOCA:     [instty, op, align]
+    FUNC_CODE_INST_ALLOCA      = 19, // ALLOCA:     [instty, opty, op, align]
     FUNC_CODE_INST_LOAD        = 20, // LOAD:       [opty, op, align, vol]
     // 21 is unused.
     // 22 is unused.
@@ -310,7 +312,7 @@ namespace bitc {
     // 32 is unused.
     FUNC_CODE_DEBUG_LOC_AGAIN  = 33, // DEBUG_LOC_AGAIN
 
-    FUNC_CODE_INST_CALL        = 34, // CALL:       [attr, fnty, fnid, args...]
+    FUNC_CODE_INST_CALL        = 34, // CALL:    [attr, cc, fnty, fnid, args...]
 
     FUNC_CODE_DEBUG_LOC        = 35, // DEBUG_LOC:  [Line,Col,ScopeVal, IAVal]
     FUNC_CODE_INST_FENCE       = 36, // FENCE: [ordering, synchscope]
@@ -328,8 +330,63 @@ namespace bitc {
   };
 
   enum UseListCodes {
-    USELIST_CODE_ENTRY = 1   // USELIST_CODE_ENTRY: TBD.
+    USELIST_CODE_DEFAULT = 1, // DEFAULT: [index..., value-id]
+    USELIST_CODE_BB      = 2  // BB: [index..., bb-id]
   };
+
+  enum AttributeKindCodes {
+    // = 0 is unused
+    ATTR_KIND_ALIGNMENT = 1,
+    ATTR_KIND_ALWAYS_INLINE = 2,
+    ATTR_KIND_BY_VAL = 3,
+    ATTR_KIND_INLINE_HINT = 4,
+    ATTR_KIND_IN_REG = 5,
+    ATTR_KIND_MIN_SIZE = 6,
+    ATTR_KIND_NAKED = 7,
+    ATTR_KIND_NEST = 8,
+    ATTR_KIND_NO_ALIAS = 9,
+    ATTR_KIND_NO_BUILTIN = 10,
+    ATTR_KIND_NO_CAPTURE = 11,
+    ATTR_KIND_NO_DUPLICATE = 12,
+    ATTR_KIND_NO_IMPLICIT_FLOAT = 13,
+    ATTR_KIND_NO_INLINE = 14,
+    ATTR_KIND_NON_LAZY_BIND = 15,
+    ATTR_KIND_NO_RED_ZONE = 16,
+    ATTR_KIND_NO_RETURN = 17,
+    ATTR_KIND_NO_UNWIND = 18,
+    ATTR_KIND_OPTIMIZE_FOR_SIZE = 19,
+    ATTR_KIND_READ_NONE = 20,
+    ATTR_KIND_READ_ONLY = 21,
+    ATTR_KIND_RETURNED = 22,
+    ATTR_KIND_RETURNS_TWICE = 23,
+    ATTR_KIND_S_EXT = 24,
+    ATTR_KIND_STACK_ALIGNMENT = 25,
+    ATTR_KIND_STACK_PROTECT = 26,
+    ATTR_KIND_STACK_PROTECT_REQ = 27,
+    ATTR_KIND_STACK_PROTECT_STRONG = 28,
+    ATTR_KIND_STRUCT_RET = 29,
+    ATTR_KIND_SANITIZE_ADDRESS = 30,
+    ATTR_KIND_SANITIZE_THREAD = 31,
+    ATTR_KIND_SANITIZE_MEMORY = 32,
+    ATTR_KIND_UW_TABLE = 33,
+    ATTR_KIND_Z_EXT = 34,
+    ATTR_KIND_BUILTIN = 35,
+    ATTR_KIND_COLD = 36,
+    ATTR_KIND_OPTIMIZE_NONE = 37,
+    ATTR_KIND_IN_ALLOCA = 38,
+    ATTR_KIND_NON_NULL = 39,
+    ATTR_KIND_JUMP_TABLE = 40,
+    ATTR_KIND_DEREFERENCEABLE = 41
+  };
+
+  enum ComdatSelectionKindCodes {
+    COMDAT_SELECTION_KIND_ANY = 1,
+    COMDAT_SELECTION_KIND_EXACT_MATCH = 2,
+    COMDAT_SELECTION_KIND_LARGEST = 3,
+    COMDAT_SELECTION_KIND_NO_DUPLICATES = 4,
+    COMDAT_SELECTION_KIND_SAME_SIZE = 5,
+  };
+
 } // End bitc namespace
 } // End llvm namespace
 

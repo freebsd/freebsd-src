@@ -11,8 +11,8 @@
 // that issues warnings based on dataflow-analysis.
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SEMA_ANALYSIS_WARNINGS_H
-#define LLVM_CLANG_SEMA_ANALYSIS_WARNINGS_H
+#ifndef LLVM_CLANG_SEMA_ANALYSISBASEDWARNINGS_H
+#define LLVM_CLANG_SEMA_ANALYSISBASEDWARNINGS_H
 
 #include "llvm/ADT/DenseMap.h"
 
@@ -38,6 +38,7 @@ public:
     unsigned enableCheckFallThrough : 1;
     unsigned enableCheckUnreachable : 1;
     unsigned enableThreadSafetyAnalysis : 1;
+    unsigned enableConsumedAnalysis : 1;
   public:
     Policy();
     void disableCheckFallThrough() { enableCheckFallThrough = 0; }

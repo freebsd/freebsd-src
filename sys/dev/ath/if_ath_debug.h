@@ -68,6 +68,7 @@ enum {
 	ATH_DEBUG_SW_TX_FILT	= 0x400000000ULL,	/* SW TX FF */
 	ATH_DEBUG_NODE_PWRSAVE	= 0x800000000ULL,	/* node powersave */
 	ATH_DEBUG_DIVERSITY	= 0x1000000000ULL,	/* Diversity logic */
+	ATH_DEBUG_PWRSAVE	= 0x2000000000ULL,
 
 	ATH_DEBUG_ANY		= 0xffffffffffffffffULL
 };
@@ -90,9 +91,7 @@ enum {
 
 extern uint64_t ath_debug;
 
-#define	IFF_DUMPPKTS(sc, m) \
-	((sc->sc_debug & (m)) || \
-	    (sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
+#define	IFF_DUMPPKTS(sc, m)	(sc->sc_debug & (m))
 #define	DPRINTF(sc, m, fmt, ...) do {				\
 	if (sc->sc_debug & (m))					\
 		device_printf(sc->sc_dev, fmt, __VA_ARGS__);		\
@@ -111,8 +110,7 @@ extern	void ath_printtxstatbuf(struct ath_softc *sc, const struct ath_buf *bf,
 #else	/* ATH_DEBUG */
 #define	ATH_KTR(_sc, _km, _kf, ...)	do { } while (0)
 
-#define	IFF_DUMPPKTS(sc, m) \
-	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
+#define	IFF_DUMPPKTS(sc, m)	(0)
 #define	DPRINTF(sc, m, fmt, ...) do {				\
 	(void) sc;						\
 } while (0)

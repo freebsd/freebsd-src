@@ -138,8 +138,8 @@ sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
-    CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(tcp_mssdflt), 0,
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, &VNET_NAME(tcp_mssdflt), 0,
     &sysctl_net_inet_tcp_mss_check, "I",
     "Default TCP Maximum Segment Size");
 
@@ -160,8 +160,8 @@ sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
-    CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(tcp_v6mssdflt), 0,
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, &VNET_NAME(tcp_v6mssdflt), 0,
     &sysctl_net_inet_tcp_mss_v6_check, "I",
    "Default TCP Maximum Segment Size for IPv6");
 #endif /* INET6 */
@@ -175,12 +175,12 @@ SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
  * checking. This setting prevents us from sending too small packets.
  */
 VNET_DEFINE(int, tcp_minmss) = TCP_MINMSS;
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, minmss, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, minmss, CTLFLAG_VNET | CTLFLAG_RW,
      &VNET_NAME(tcp_minmss), 0,
     "Minimum TCP Maximum Segment Size");
 
 VNET_DEFINE(int, tcp_do_rfc1323) = 1;
-SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc1323), 0,
     "Enable rfc1323 (high performance TCP) extensions");
 
@@ -188,30 +188,30 @@ static int	tcp_log_debug = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_debug, CTLFLAG_RW,
     &tcp_log_debug, 0, "Log errors caused by incoming TCP segments");
 
-static int	tcp_tcbhashsize = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcbhashsize, CTLFLAG_RDTUN,
+static int	tcp_tcbhashsize;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcbhashsize, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &tcp_tcbhashsize, 0, "Size of TCP control-block hashtable");
 
 static int	do_tcpdrain = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
     "Enable tcp_drain routine for extra help when low on mbufs");
 
-SYSCTL_VNET_UINT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD,
+SYSCTL_UINT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_VNET | CTLFLAG_RD,
     &VNET_NAME(tcbinfo.ipi_count), 0, "Number of active PCBs");
 
 static VNET_DEFINE(int, icmp_may_rst) = 1;
 #define	V_icmp_may_rst			VNET(icmp_may_rst)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(icmp_may_rst), 0,
     "Certain ICMP unreachable messages may abort connections in SYN_SENT");
 
 static VNET_DEFINE(int, tcp_isn_reseed_interval) = 0;
 #define	V_tcp_isn_reseed_interval	VNET(tcp_isn_reseed_interval)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_isn_reseed_interval), 0,
     "Seconds between reseeding of ISN secret");
 
-static int	tcp_soreceive_stream = 0;
+static int	tcp_soreceive_stream;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, soreceive_stream, CTLFLAG_RDTUN,
     &tcp_soreceive_stream, 0, "Using soreceive_stream for TCP sockets");
 
@@ -230,6 +230,7 @@ static struct inpcb *tcp_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    void *ip4hdr, const void *ip6hdr);
+static void	tcp_timer_discard(struct tcpcb *, uint32_t);
 
 /*
  * Target size of TCP PCB hash tables. Must be a power of two.
@@ -375,7 +376,6 @@ tcp_init(void)
 	tcp_tw_init();
 	syncache_init();
 	tcp_hc_init();
-	tcp_reass_init();
 
 	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
 	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
@@ -384,6 +384,8 @@ tcp_init(void)
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
+
+	tcp_reass_global_init();
 
 	/* XXX virtualize those bellow? */
 	tcp_delacktime = TCPTV_DELACK;
@@ -399,7 +401,6 @@ tcp_init(void)
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
 	tcp_tcbhashsize = hashsize;
 
-	TUNABLE_INT_FETCH("net.inet.tcp.soreceive_stream", &tcp_soreceive_stream);
 	if (tcp_soreceive_stream) {
 #ifdef INET
 		tcp_usrreqs.pru_soreceive = soreceive_stream;
@@ -433,7 +434,6 @@ tcp_destroy(void)
 {
 	int error;
 
-	tcp_reass_destroy();
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
@@ -542,16 +542,16 @@ tcpip_maketemplate(struct inpcb *inp)
 /*
  * Send a single message to the TCP at address specified by
  * the given TCP/IP header.  If m == NULL, then we make a copy
- * of the tcpiphdr at ti and send directly to the addressed host.
+ * of the tcpiphdr at th and send directly to the addressed host.
  * This is used to force keep alive messages out using the TCP
  * template for a connection.  If flags are given then we send
- * a message back to the TCP which originated the * segment ti,
+ * a message back to the TCP which originated the segment th,
  * and discard the mbuf containing it and any other attached mbufs.
  *
  * In any case the ack and sequence number of the transmitted
  * segment are as specified by the parameters.
  *
- * NOTE: If m != NULL, then ti must point to *inside* the mbuf.
+ * NOTE: If m != NULL, then th must point to *inside* the mbuf.
  */
 void
 tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
@@ -793,18 +793,24 @@ tcp_newtcpcb(struct inpcb *inp)
 		V_tcp_mssdflt;
 
 	/* Set up our timeouts. */
-	callout_init(&tp->t_timers->tt_rexmt, CALLOUT_MPSAFE);
-	callout_init(&tp->t_timers->tt_persist, CALLOUT_MPSAFE);
-	callout_init(&tp->t_timers->tt_keep, CALLOUT_MPSAFE);
-	callout_init(&tp->t_timers->tt_2msl, CALLOUT_MPSAFE);
-	callout_init(&tp->t_timers->tt_delack, CALLOUT_MPSAFE);
+	callout_init(&tp->t_timers->tt_rexmt, 1);
+	callout_init(&tp->t_timers->tt_persist, 1);
+	callout_init(&tp->t_timers->tt_keep, 1);
+	callout_init(&tp->t_timers->tt_2msl, 1);
+	callout_init(&tp->t_timers->tt_delack, 1);
 
 	if (V_tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
 	if (V_tcp_do_sack)
 		tp->t_flags |= TF_SACK_PERMIT;
 	TAILQ_INIT(&tp->snd_holes);
-	tp->t_inpcb = inp;	/* XXX */
+	/*
+	 * The tcpcb will hold a reference on its inpcb until tcp_discardcb()
+	 * is called.
+	 */
+	in_pcbref(inp);	/* Reference for tcpcb */
+	tp->t_inpcb = inp;
+
 	/*
 	 * Init srtt to TCPTV_SRTTBASE (0), so we can tell that we have no
 	 * rtt estimate.  Set rttvar so that srtt + 4 * rttvar gives
@@ -852,7 +858,7 @@ tcp_ccalgounload(struct cc_algo *unload_algo)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INP_INFO_RLOCK(&V_tcbinfo);
+		INP_INFO_WLOCK(&V_tcbinfo);
 		/*
 		 * New connections already part way through being initialised
 		 * with the CC algo we're removing will not race with this code
@@ -882,7 +888,7 @@ tcp_ccalgounload(struct cc_algo *unload_algo)
 			}
 			INP_WUNLOCK(inp);
 		}
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK();
@@ -900,7 +906,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
@@ -923,6 +929,7 @@ tcp_discardcb(struct tcpcb *tp)
 #ifdef INET6
 	int isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif /* INET6 */
+	int released;
 
 	INP_WLOCK_ASSERT(inp);
 
@@ -930,22 +937,15 @@ tcp_discardcb(struct tcpcb *tp)
 	 * Make sure that all of our timers are stopped before we delete the
 	 * PCB.
 	 *
-	 * XXXRW: Really, we would like to use callout_drain() here in order
-	 * to avoid races experienced in tcp_timer.c where a timer is already
-	 * executing at this point.  However, we can't, both because we're
-	 * running in a context where we can't sleep, and also because we
-	 * hold locks required by the timers.  What we instead need to do is
-	 * test to see if callout_drain() is required, and if so, defer some
-	 * portion of the remainder of tcp_discardcb() to an asynchronous
-	 * context that can callout_drain() and then continue.  Some care
-	 * will be required to ensure that no further processing takes place
-	 * on the tcpcb, even though it hasn't been freed (a flag?).
+	 * If stopping a timer fails, we schedule a discard function in same
+	 * callout, and the last discard function called will take care of
+	 * deleting the tcpcb.
 	 */
-	callout_stop(&tp->t_timers->tt_rexmt);
-	callout_stop(&tp->t_timers->tt_persist);
-	callout_stop(&tp->t_timers->tt_keep);
-	callout_stop(&tp->t_timers->tt_2msl);
-	callout_stop(&tp->t_timers->tt_delack);
+	tcp_timer_stop(tp, TT_REXMT);
+	tcp_timer_stop(tp, TT_PERSIST);
+	tcp_timer_stop(tp, TT_KEEP);
+	tcp_timer_stop(tp, TT_2MSL);
+	tcp_timer_stop(tp, TT_DELACK);
 
 	/*
 	 * If we got enough samples through the srtt filter,
@@ -1022,8 +1022,80 @@ tcp_discardcb(struct tcpcb *tp)
 
 	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;
-	tp->t_inpcb = NULL;
-	uma_zfree(V_tcpcb_zone, tp);
+	if ((tp->t_timers->tt_flags & TT_MASK) == 0) {
+		/* We own the last reference on tcpcb, let's free it. */
+		tp->t_inpcb = NULL;
+		uma_zfree(V_tcpcb_zone, tp);
+		released = in_pcbrele_wlocked(inp);
+		KASSERT(!released, ("%s: inp %p should not have been released "
+			"here", __func__, inp));
+	}
+}
+
+void
+tcp_timer_2msl_discard(void *xtp)
+{
+
+	tcp_timer_discard((struct tcpcb *)xtp, TT_2MSL);
+}
+
+void
+tcp_timer_keep_discard(void *xtp)
+{
+
+	tcp_timer_discard((struct tcpcb *)xtp, TT_KEEP);
+}
+
+void
+tcp_timer_persist_discard(void *xtp)
+{
+
+	tcp_timer_discard((struct tcpcb *)xtp, TT_PERSIST);
+}
+
+void
+tcp_timer_rexmt_discard(void *xtp)
+{
+
+	tcp_timer_discard((struct tcpcb *)xtp, TT_REXMT);
+}
+
+void
+tcp_timer_delack_discard(void *xtp)
+{
+
+	tcp_timer_discard((struct tcpcb *)xtp, TT_DELACK);
+}
+
+void
+tcp_timer_discard(struct tcpcb *tp, uint32_t timer_type)
+{
+	struct inpcb *inp;
+
+	CURVNET_SET(tp->t_vnet);
+	INP_INFO_RLOCK(&V_tcbinfo);
+	inp = tp->t_inpcb;
+	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL",
+		__func__, tp));
+	INP_WLOCK(inp);
+	KASSERT((tp->t_timers->tt_flags & TT_STOPPED) != 0,
+		("%s: tcpcb has to be stopped here", __func__));
+	KASSERT((tp->t_timers->tt_flags & timer_type) != 0,
+		("%s: discard callout should be running", __func__));
+	tp->t_timers->tt_flags &= ~timer_type;
+	if ((tp->t_timers->tt_flags & TT_MASK) == 0) {
+		/* We own the last reference on this tcpcb, let's free it. */
+		tp->t_inpcb = NULL;
+		uma_zfree(V_tcpcb_zone, tp);
+		if (in_pcbrele_wlocked(inp)) {
+			INP_INFO_RUNLOCK(&V_tcbinfo);
+			CURVNET_RESTORE();
+			return;
+		}
+	}
+	INP_WUNLOCK(inp);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 }
 
 /*
@@ -1036,7 +1108,7 @@ tcp_close(struct tcpcb *tp)
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 #ifdef TCP_OFFLOAD
@@ -1084,7 +1156,7 @@ tcp_drain(void)
 	 *	where we're really low on mbufs, this is potentially
 	 *	useful.
 	 */
-		INP_INFO_RLOCK(&V_tcbinfo);
+		INP_INFO_WLOCK(&V_tcbinfo);
 		LIST_FOREACH(inpb, V_tcbinfo.ipi_listhead, inp_list) {
 			if (inpb->inp_flags & INP_TIMEWAIT)
 				continue;
@@ -1095,7 +1167,7 @@ tcp_drain(void)
 			}
 			INP_WUNLOCK(inpb);
 		}
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
@@ -1114,7 +1186,7 @@ tcp_notify(struct inpcb *inp, int error)
 {
 	struct tcpcb *tp;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_LOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 	if ((inp->inp_flags & INP_TIMEWAIT) ||
@@ -1178,10 +1250,10 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	/*
 	 * OK, now we're committed to doing something.
 	 */
-	INP_INFO_RLOCK(&V_tcbinfo);
+	INP_LIST_RLOCK(&V_tcbinfo);
 	gencnt = V_tcbinfo.ipi_gencnt;
 	n = V_tcbinfo.ipi_count;
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_LIST_RUNLOCK(&V_tcbinfo);
 
 	m = syncache_pcbcount();
 
@@ -1206,7 +1278,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	if (inp_list == NULL)
 		return (ENOMEM);
 
-	INP_INFO_RLOCK(&V_tcbinfo);
+	INP_INFO_WLOCK(&V_tcbinfo);
 	for (inp = LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
 	    inp != NULL && i < n; inp = LIST_NEXT(inp, inp_list)) {
 		INP_WLOCK(inp);
@@ -1231,7 +1303,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		}
 		INP_WUNLOCK(inp);
 	}
-	INP_INFO_RUNLOCK(&V_tcbinfo);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
 	n = i;
 
 	error = 0;
@@ -1269,14 +1341,14 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
-	INP_INFO_WLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK(&V_tcbinfo);
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
 		INP_RLOCK(inp);
 		if (!in_pcbrele_rlocked(inp))
 			INP_RUNLOCK(inp);
 	}
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	if (!error) {
 		/*
@@ -1286,11 +1358,11 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		 * while we were processing this request, and it
 		 * might be necessary to retry.
 		 */
-		INP_INFO_RLOCK(&V_tcbinfo);
+		INP_LIST_RLOCK(&V_tcbinfo);
 		xig.xig_gen = V_tcbinfo.ipi_gencnt;
 		xig.xig_sogen = so_gencnt;
 		xig.xig_count = V_tcbinfo.ipi_count + pcb_count;
-		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_LIST_RUNLOCK(&V_tcbinfo);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
 	free(inp_list, M_TEMP);
@@ -1433,11 +1505,6 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	else if (PRC_IS_REDIRECT(cmd))
 		return;
 	/*
-	 * Source quench is depreciated.
-	 */
-	else if (cmd == PRC_QUENCH)
-		return;
-	/*
 	 * Hostdead is ugly because it goes linearly through all PCBs.
 	 * XXX: We never get this from ICMP, otherwise it makes an
 	 * excellent DoS attack on machines with many connections.
@@ -1451,7 +1518,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 				      - offsetof(struct icmp, icmp_ip));
 		th = (struct tcphdr *)((caddr_t)ip
 				       + (ip->ip_hl << 2));
-		INP_INFO_WLOCK(&V_tcbinfo);
+		INP_INFO_RLOCK(&V_tcbinfo);
 		inp = in_pcblookup(&V_tcbinfo, faddr, th->th_dport,
 		    ip->ip_src, th->th_sport, INPLOOKUP_WLOCKPCB, NULL);
 		if (inp != NULL)  {
@@ -1511,7 +1578,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 			inc.inc_laddr = ip->ip_src;
 			syncache_unreach(&inc, th);
 		}
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 	} else
 		in_pcbnotifyall(&V_tcbinfo, faddr, inetctlerrmap[cmd], notify);
 }
@@ -1541,9 +1608,6 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		notify = tcp_mtudisc_notify;
 	else if (!PRC_IS_REDIRECT(cmd) &&
 		 ((unsigned)cmd >= PRC_NCMDS || inet6ctlerrmap[cmd] == 0))
-		return;
-	/* Source quench is depreciated. */
-	else if (cmd == PRC_QUENCH)
 		return;
 
 	/* if the parameter is from icmp6, decode it. */
@@ -1584,9 +1648,9 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		inc.inc6_faddr = ((struct sockaddr_in6 *)sa)->sin6_addr;
 		inc.inc6_laddr = ip6cp->ip6c_src->sin6_addr;
 		inc.inc_flags |= INC_ISIPV6;
-		INP_INFO_WLOCK(&V_tcbinfo);
+		INP_INFO_RLOCK(&V_tcbinfo);
 		syncache_unreach(&inc, &th);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 	} else
 		in6_pcbnotify(&V_tcbinfo, sa, 0, (const struct sockaddr *)sa6_src,
 			      0, cmd, NULL, notify);
@@ -1719,7 +1783,7 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 {
 	struct tcpcb *tp;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 	if ((inp->inp_flags & INP_TIMEWAIT) ||
@@ -1811,17 +1875,18 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 	}
 	if (sro.ro_rt != NULL) {
 		ifp = sro.ro_rt->rt_ifp;
-		if (sro.ro_rt->rt_rmx.rmx_mtu == 0)
+		if (sro.ro_rt->rt_mtu == 0)
 			maxmtu = ifp->if_mtu;
 		else
-			maxmtu = min(sro.ro_rt->rt_rmx.rmx_mtu, ifp->if_mtu);
+			maxmtu = min(sro.ro_rt->rt_mtu, ifp->if_mtu);
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
-			if (ifp->if_capenable & IFCAP_TSO4 &&
-			    ifp->if_hwassist & CSUM_TSO)
-				cap->ifcap |= CSUM_TSO;
-				cap->tsomax = ifp->if_hw_tsomax;
+			if (ifp->if_capenable & IFCAP_TSO4) {
+				cap->hwassist = ifp->if_hwassist;
+				cap->tsomax = ifp->if_tsomax;
+			} else
+				bzero(cap, sizeof(struct tcp_ifcap));
 		}
 		RTFREE(sro.ro_rt);
 	}
@@ -1848,18 +1913,19 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 	}
 	if (sro6.ro_rt != NULL) {
 		ifp = sro6.ro_rt->rt_ifp;
-		if (sro6.ro_rt->rt_rmx.rmx_mtu == 0)
+		if (sro6.ro_rt->rt_mtu == 0)
 			maxmtu = IN6_LINKMTU(sro6.ro_rt->rt_ifp);
 		else
-			maxmtu = min(sro6.ro_rt->rt_rmx.rmx_mtu,
+			maxmtu = min(sro6.ro_rt->rt_mtu,
 				     IN6_LINKMTU(sro6.ro_rt->rt_ifp));
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
-			if (ifp->if_capenable & IFCAP_TSO6 &&
-			    ifp->if_hwassist & CSUM_TSO)
-				cap->ifcap |= CSUM_TSO;
-				cap->tsomax = ifp->if_hw_tsomax;
+			if (ifp->if_capenable & IFCAP_TSO6) {
+				cap->hwassist = ifp->if_hwassist;
+				cap->tsomax = ifp->if_tsomax;
+			} else
+				bzero(cap, sizeof(struct tcp_ifcap));
 		}
 		RTFREE(sro6.ro_rt);
 	}
@@ -1925,55 +1991,20 @@ tcp_signature_apply(void *fstate, void *data, u_int len)
 }
 
 /*
- * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
- *
- * Parameters:
- * m		pointer to head of mbuf chain
- * _unused	
- * len		length of TCP segment data, excluding options
- * optlen	length of TCP segment options
- * buf		pointer to storage for computed MD5 digest
- * direction	direction of flow (IPSEC_DIR_INBOUND or OUTBOUND)
- *
- * We do this over ip, tcphdr, segment data, and the key in the SADB.
- * When called from tcp_input(), we can be sure that th_sum has been
- * zeroed out and verified already.
- *
- * Return 0 if successful, otherwise return -1.
- *
  * XXX The key is retrieved from the system's PF_KEY SADB, by keying a
  * search with the destination IP address, and a 'magic SPI' to be
  * determined by the application. This is hardcoded elsewhere to 1179
- * right now. Another branch of this code exists which uses the SPD to
- * specify per-application flows but it is unstable.
- */
-int
-tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
-    u_char *buf, u_int direction)
+*/
+struct secasvar *
+tcp_get_sav(struct mbuf *m, u_int direction)
 {
 	union sockaddr_union dst;
-#ifdef INET
-	struct ippseudo ippseudo;
-#endif
-	MD5_CTX ctx;
-	int doff;
-	struct ip *ip;
-#ifdef INET
-	struct ipovly *ipovly;
-#endif
 	struct secasvar *sav;
-	struct tcphdr *th;
+	struct ip *ip;
 #ifdef INET6
 	struct ip6_hdr *ip6;
-	struct in6_addr in6;
 	char ip6buf[INET6_ADDRSTRLEN];
-	uint32_t plen;
-	uint16_t nhdr;
 #endif
-	u_short savecsum;
-
-	KASSERT(m != NULL, ("NULL mbuf chain"));
-	KASSERT(buf != NULL, ("NULL signature pointer"));
 
 	/* Extract the destination from the IP header in the mbuf. */
 	bzero(&dst, sizeof(union sockaddr_union));
@@ -2000,7 +2031,7 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 		break;
 #endif
 	default:
-		return (EINVAL);
+		return (NULL);
 		/* NOTREACHED */
 		break;
 	}
@@ -2015,8 +2046,60 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 			    ip6_sprintf(ip6buf, &dst.sin6.sin6_addr) :
 #endif
 			"(unsupported)"));
-		return (EINVAL);
 	}
+
+	return (sav);
+}
+
+/*
+ * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
+ *
+ * Parameters:
+ * m		pointer to head of mbuf chain
+ * len		length of TCP segment data, excluding options
+ * optlen	length of TCP segment options
+ * buf		pointer to storage for computed MD5 digest
+ * sav		pointer to security assosiation
+ *
+ * We do this over ip, tcphdr, segment data, and the key in the SADB.
+ * When called from tcp_input(), we can be sure that th_sum has been
+ * zeroed out and verified already.
+ *
+ * Releases reference to SADB key before return. 
+ *
+ * Return 0 if successful, otherwise return -1.
+ *
+ */
+int
+tcp_signature_do_compute(struct mbuf *m, int len, int optlen,
+    u_char *buf, struct secasvar *sav)
+{
+#ifdef INET
+	struct ippseudo ippseudo;
+#endif
+	MD5_CTX ctx;
+	int doff;
+	struct ip *ip;
+#ifdef INET
+	struct ipovly *ipovly;
+#endif
+	struct tcphdr *th;
+#ifdef INET6
+	struct ip6_hdr *ip6;
+	struct in6_addr in6;
+	uint32_t plen;
+	uint16_t nhdr;
+#endif
+	u_short savecsum;
+
+	KASSERT(m != NULL, ("NULL mbuf chain"));
+	KASSERT(buf != NULL, ("NULL signature pointer"));
+
+	/* Extract the destination from the IP header in the mbuf. */
+	ip = mtod(m, struct ip *);
+#ifdef INET6
+	ip6 = NULL;	/* Make the compiler happy. */
+#endif
 
 	MD5Init(&ctx);
 	/*
@@ -2074,7 +2157,8 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 		break;
 #endif
 	default:
-		return (EINVAL);
+		KEY_FREESAV(&sav);
+		return (-1);
 		/* NOTREACHED */
 		break;
 	}
@@ -2105,6 +2189,23 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 	key_sa_recordxfer(sav, m);
 	KEY_FREESAV(&sav);
 	return (0);
+}
+
+/*
+ * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
+ *
+ * Return 0 if successful, otherwise return -1.
+ */
+int
+tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
+    u_char *buf, u_int direction)
+{
+	struct secasvar *sav;
+
+	if ((sav = tcp_get_sav(m, direction)) == NULL)
+		return (-1);
+
+	return (tcp_signature_do_compute(m, len, optlen, buf, sav));
 }
 
 /*
@@ -2236,7 +2337,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	default:
 		return (EINVAL);
 	}
-	INP_INFO_WLOCK(&V_tcbinfo);
+	INP_INFO_RLOCK(&V_tcbinfo);
 	switch (addrs[0].ss_family) {
 #ifdef INET6
 	case AF_INET6:
@@ -2275,12 +2376,12 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 			INP_WUNLOCK(inp);
 	} else
 		error = ESRCH;
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 	return (error);
 }
 
-SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
-    CTLTYPE_STRUCT|CTLFLAG_WR|CTLFLAG_SKIP, NULL,
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
+    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP, NULL,
     0, sysctl_drop, "", "Drop TCP connection");
 
 /*

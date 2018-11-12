@@ -1,4 +1,4 @@
-/*	$OpenBSD: extern.h,v 1.52 2012/04/12 17:00:11 espie Exp $	*/
+/*	$OpenBSD: extern.h,v 1.54 2014/05/12 19:11:19 espie Exp $ */
 /*	$NetBSD: extern.h,v 1.3 1996/01/13 23:25:24 pk Exp $	*/
 
 /*-
@@ -43,7 +43,6 @@ extern unsigned long expansion_id;
 
 /* expr.c */
 extern int	expr(const char *);
-extern int32_t end_result;
 
 /* gnum4.c */
 extern void	addtoincludepath(const char *);
@@ -104,8 +103,10 @@ extern void	pbnumbase(int, int, int);
 extern void	pbunsigned(unsigned long);
 extern void	pbstr(const char *);
 extern void	pushback(int);
-extern void	*xalloc(size_t, const char *fmt, ...);
-extern void	*xrealloc(void *, size_t, const char *fmt, ...);
+extern void	*xalloc(size_t, const char *, ...);
+extern void	*xcalloc(size_t, size_t, const char *, ...);
+extern void	*xrealloc(void *, size_t, const char *, ...);
+extern void	*xreallocarray(void *, size_t, size_t, const char *, ...);
 extern char	*xstrdup(const char *);
 extern void	usage(void);
 extern void	resizedivs(int);

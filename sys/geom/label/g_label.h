@@ -65,9 +65,7 @@ SYSCTL_DECL(_kern_geom_label);
 	SYSCTL_NODE(_kern_geom_label, OID_AUTO, kind, CTLFLAG_RD,	\
 	    NULL, "");							\
 	SYSCTL_INT(_kern_geom_label_##kind, OID_AUTO, enable, 		\
-	    CTLFLAG_RW, &label.ld_enabled, 1, descr);			\
-	TUNABLE_INT("kern.geom.label." __XSTRING(kind) ".enable",	\
-	    &label.ld_enabled)
+	    CTLFLAG_RWTUN, &label.ld_enabled, 1, descr)
 
 typedef void g_label_taste_t (struct g_consumer *cp, char *label, size_t size);
 
@@ -88,6 +86,8 @@ extern struct g_label_desc g_label_ntfs;
 extern struct g_label_desc g_label_gpt;
 extern struct g_label_desc g_label_gpt_uuid;
 extern struct g_label_desc g_label_disk_ident;
+
+extern void g_label_rtrim(char *label, size_t size);
 #endif	/* _KERNEL */
 
 struct g_label_metadata {

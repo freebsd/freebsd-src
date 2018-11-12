@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #ifndef __ASLTYPES_H
 #define __ASLTYPES_H
@@ -149,30 +148,65 @@ typedef struct asl_file_status
 /*
  * File types. Note: Any changes to this table must also be reflected
  * in the Gbl_Files array.
+ *
+ * Corresponding filename suffixes are in comments
+ *
+ * NOTE: Don't move the first 4 file types
  */
 typedef enum
 {
     ASL_FILE_STDOUT             = 0,
     ASL_FILE_STDERR,
-    ASL_FILE_INPUT,
-    ASL_FILE_AML_OUTPUT,        /* Don't move these first 4 file types */
-    ASL_FILE_SOURCE_OUTPUT,
-    ASL_FILE_PREPROCESSOR,
-    ASL_FILE_LISTING_OUTPUT,
-    ASL_FILE_HEX_OUTPUT,
-    ASL_FILE_NAMESPACE_OUTPUT,
-    ASL_FILE_DEBUG_OUTPUT,
-    ASL_FILE_ASM_SOURCE_OUTPUT,
-    ASL_FILE_C_SOURCE_OUTPUT,
-    ASL_FILE_ASM_INCLUDE_OUTPUT,
-    ASL_FILE_C_INCLUDE_OUTPUT,
-    ASL_FILE_C_OFFSET_OUTPUT
+    ASL_FILE_INPUT,             /* .asl */
+    ASL_FILE_AML_OUTPUT,        /* .aml */
+    ASL_FILE_SOURCE_OUTPUT,     /* .src */
+    ASL_FILE_PREPROCESSOR,      /* .pre */
+    ASL_FILE_PREPROCESSOR_USER, /* .i   */
+    ASL_FILE_LISTING_OUTPUT,    /* .lst */
+    ASL_FILE_HEX_OUTPUT,        /* .hex */
+    ASL_FILE_NAMESPACE_OUTPUT,  /* .nsp */
+    ASL_FILE_DEBUG_OUTPUT,      /* .txt */
+    ASL_FILE_ASM_SOURCE_OUTPUT, /* .asm */
+    ASL_FILE_C_SOURCE_OUTPUT,   /* .c   */
+    ASL_FILE_ASM_INCLUDE_OUTPUT,/* .inc */
+    ASL_FILE_C_INCLUDE_OUTPUT,  /* .h   */
+    ASL_FILE_C_OFFSET_OUTPUT,   /* offset.h */
+    ASL_FILE_MAP_OUTPUT         /* .map */
 
 } ASL_FILE_TYPES;
 
 
-#define ASL_MAX_FILE_TYPE       14
+#define ASL_MAX_FILE_TYPE       16
 #define ASL_NUM_FILES           (ASL_MAX_FILE_TYPE + 1)
+
+/* filename suffixes for output files */
+
+#define FILE_SUFFIX_PREPROC_USER    "i  "
+#define FILE_SUFFIX_PREPROCESSOR    "pre"
+#define FILE_SUFFIX_AML_CODE        "aml"
+#define FILE_SUFFIX_MAP             "map"
+#define FILE_SUFFIX_LISTING         "lst"
+#define FILE_SUFFIX_HEX_DUMP        "hex"
+#define FILE_SUFFIX_DEBUG           "txt"
+#define FILE_SUFFIX_SOURCE          "src"
+#define FILE_SUFFIX_NAMESPACE       "nsp"
+#define FILE_SUFFIX_ASM_SOURCE      "asm"
+#define FILE_SUFFIX_C_SOURCE        "c"
+#define FILE_SUFFIX_DISASSEMBLY     "dsl"
+#define FILE_SUFFIX_ASM_INCLUDE     "inc"
+#define FILE_SUFFIX_C_INCLUDE       "h"
+#define FILE_SUFFIX_ASL_CODE        "asl"
+#define FILE_SUFFIX_C_OFFSET        "offset.h"
+
+
+/* Cache block structure for ParseOps and Strings */
+
+typedef struct asl_cache_info
+{
+    void                            *Next;
+    char                            Buffer[1];
+
+} ASL_CACHE_INFO;
 
 
 typedef struct asl_include_dir
@@ -196,7 +230,7 @@ typedef struct asl_error_msg
     char                        *Filename;
     char                        *SourceLine;
     UINT32                      FilenameLength;
-    UINT8                       MessageId;
+    UINT16                      MessageId;
     UINT8                       Level;
 
 } ASL_ERROR_MSG;
@@ -237,5 +271,50 @@ typedef struct asl_event_info
 
 } ASL_EVENT_INFO;
 
+
+/* Hardware mapping file structures */
+
+typedef struct acpi_gpio_info
+{
+    struct acpi_gpio_info   *Next;
+    ACPI_PARSE_OBJECT       *Op;
+    char                    *DeviceName;
+    ACPI_NAMESPACE_NODE     *TargetNode;
+    UINT32                  References;
+    UINT32                  PinCount;
+    UINT32                  PinIndex;
+    UINT16                  PinNumber;
+    UINT8                   Type;
+    UINT8                   Direction;
+    UINT8                   Polarity;
+
+} ACPI_GPIO_INFO;
+
+typedef struct acpi_serial_info
+{
+    struct acpi_serial_info *Next;
+    ACPI_PARSE_OBJECT       *Op;
+    char                    *DeviceName;
+    ACPI_NAMESPACE_NODE     *TargetNode;
+    AML_RESOURCE            *Resource;
+    UINT32                  Speed;
+    UINT16                  Address;
+
+} ACPI_SERIAL_INFO;
+
+typedef struct asl_method_local
+{
+    ACPI_PARSE_OBJECT       *Op;
+    UINT8                   Flags;
+
+} ASL_METHOD_LOCAL;
+
+/* Values for Flags field above */
+
+#define ASL_LOCAL_INITIALIZED   (1)
+#define ASL_LOCAL_REFERENCED    (1<<1)
+#define ASL_ARG_IS_LOCAL        (1<<2)
+#define ASL_ARG_INITIALIZED     (1<<3)
+#define ASL_ARG_REFERENCED      (1<<4)
 
 #endif  /* __ASLTYPES_H */

@@ -39,14 +39,15 @@
  *
  *  Layout
  *  ------
- *   RSDP  ->   0xf0400    (36 bytes fixed)
- *     RSDT  ->   0xf0440    (36 bytes + 4*N table addrs, 2 used)
- *     XSDT  ->   0xf0480    (36 bytes + 8*N table addrs, 2 used)
- *       MADT  ->   0xf0500  (depends on #CPUs)
- *       FADT  ->   0xf0600  (268 bytes)
- *       HPET  ->   0xf0740  (56 bytes)
- *         FACS  ->   0xf0780 (64 bytes)
- *         DSDT  ->   0xf0800 (variable - can go up to 0x100000)
+ *   RSDP  ->   0xf2400    (36 bytes fixed)
+ *     RSDT  ->   0xf2440    (36 bytes + 4*7 table addrs, 4 used)
+ *     XSDT  ->   0xf2480    (36 bytes + 8*7 table addrs, 4 used)
+ *       MADT  ->   0xf2500  (depends on #CPUs)
+ *       FADT  ->   0xf2600  (268 bytes)
+ *       HPET  ->   0xf2740  (56 bytes)
+ *       MCFG  ->   0xf2780  (60 bytes)
+ *         FACS  ->   0xf27C0 (64 bytes)
+ *         DSDT  ->   0xf2800 (variable - can go up to 0x100000)
  */
 
 #include <sys/cdefs.h>
@@ -74,13 +75,14 @@ __FBSDID("$FreeBSD$");
  * Define the base address of the ACPI tables, and the offsets to
  * the individual tables
  */
-#define BHYVE_ACPI_BASE		0xf0400
+#define BHYVE_ACPI_BASE		0xf2400
 #define RSDT_OFFSET		0x040
 #define XSDT_OFFSET		0x080
 #define MADT_OFFSET		0x100
 #define FADT_OFFSET		0x200
 #define	HPET_OFFSET		0x340
-#define FACS_OFFSET		0x380
+#define	MCFG_OFFSET		0x380
+#define FACS_OFFSET		0x3C0
 #define DSDT_OFFSET		0x400
 
 #define	BHYVE_ASL_TEMPLATE	"bhyve.XXXXXXX"
@@ -178,6 +180,8 @@ basl_fwrite_rsdt(FILE *fp)
 	    basl_acpi_base + FADT_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 2 : %08X\n",
 	    basl_acpi_base + HPET_OFFSET);
+	EFPRINTF(fp, "[0004]\t\tACPI Table Address 3 : %08X\n",
+	    basl_acpi_base + MCFG_OFFSET);
 
 	EFFLUSH(fp);
 
@@ -216,6 +220,8 @@ basl_fwrite_xsdt(FILE *fp)
 	    basl_acpi_base + FADT_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 2 : 00000000%08X\n",
 	    basl_acpi_base + HPET_OFFSET);
+	EFPRINTF(fp, "[0004]\t\tACPI Table Address 3 : 00000000%08X\n",
+	    basl_acpi_base + MCFG_OFFSET);
 
 	EFFLUSH(fp);
 
@@ -380,7 +386,7 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tDuty Cycle Width : 00\n");
 	EFPRINTF(fp, "[0001]\t\tRTC Day Alarm Index : 00\n");
 	EFPRINTF(fp, "[0001]\t\tRTC Month Alarm Index : 00\n");
-	EFPRINTF(fp, "[0001]\t\tRTC Century Index : 00\n");
+	EFPRINTF(fp, "[0001]\t\tRTC Century Index : 32\n");
 	EFPRINTF(fp, "[0002]\t\tBoot Flags (decoded below) : 0000\n");
 	EFPRINTF(fp, "\t\t\tLegacy Devices Supported (V2) : 0\n");
 	EFPRINTF(fp, "\t\t\t8042 Present on ports 60/64 (V2) : 0\n");
@@ -424,7 +430,10 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "\n");
 
 	EFPRINTF(fp, "[0001]\t\tValue to cause reset : 06\n");
-	EFPRINTF(fp, "[0003]\t\tReserved : 000000\n");
+	EFPRINTF(fp, "[0002]\t\tARM Flags (decoded below): 0000\n");
+	EFPRINTF(fp, "\t\t\tPSCI Compliant : 0\n");
+	EFPRINTF(fp, "\t\t\tMust use HVC for PSCI : 0\n");
+	EFPRINTF(fp, "[0001]\t\tFADT Minor Revision : 01\n");
 	EFPRINTF(fp, "[0008]\t\tFACS Address : 00000000%08X\n",
 	    basl_acpi_base + FACS_OFFSET);
 	EFPRINTF(fp, "[0008]\t\tDSDT Address : 00000000%08X\n",
@@ -483,7 +492,7 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp,
 	    "[0012]\t\tPM Timer Block : [Generic Address Structure]\n");
 	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 32\n");
+	EFPRINTF(fp, "[0001]\t\tBit Width : 20\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp,
 	    "[0001]\t\tEncoded Access Width : 03 [DWord Access:32]\n");
@@ -493,7 +502,7 @@ basl_fwrite_fadt(FILE *fp)
 
 	EFPRINTF(fp, "[0012]\t\tGPE0 Block : [Generic Address Structure]\n");
 	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 80\n");
+	EFPRINTF(fp, "[0001]\t\tBit Width : 00\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 01 [Byte Access:8]\n");
 	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000000\n");
@@ -578,6 +587,39 @@ basl_fwrite_hpet(FILE *fp)
 
 	return (0);
 
+err_exit:
+	return (errno);
+}
+
+static int
+basl_fwrite_mcfg(FILE *fp)
+{
+	int err = 0;
+
+	EFPRINTF(fp, "/*\n");
+	EFPRINTF(fp, " * bhyve MCFG template\n");
+	EFPRINTF(fp, " */\n");
+	EFPRINTF(fp, "[0004]\t\tSignature : \"MCFG\"\n");
+	EFPRINTF(fp, "[0004]\t\tTable Length : 00000000\n");
+	EFPRINTF(fp, "[0001]\t\tRevision : 01\n");
+	EFPRINTF(fp, "[0001]\t\tChecksum : 00\n");
+	EFPRINTF(fp, "[0006]\t\tOem ID : \"BHYVE \"\n");
+	EFPRINTF(fp, "[0008]\t\tOem Table ID : \"BVMCFG  \"\n");
+	EFPRINTF(fp, "[0004]\t\tOem Revision : 00000001\n");
+
+	/* iasl will fill in the compiler ID/revision fields */
+	EFPRINTF(fp, "[0004]\t\tAsl Compiler ID : \"xxxx\"\n");
+	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
+	EFPRINTF(fp, "[0008]\t\tReserved : 0\n");
+	EFPRINTF(fp, "\n");
+
+	EFPRINTF(fp, "[0008]\t\tBase Address : %016lX\n", pci_ecfg_base());
+	EFPRINTF(fp, "[0002]\t\tSegment Group: 0000\n");
+	EFPRINTF(fp, "[0001]\t\tStart Bus: 00\n");
+	EFPRINTF(fp, "[0001]\t\tEnd Bus: FF\n");
+	EFPRINTF(fp, "[0004]\t\tReserved : 0\n");
+	EFFLUSH(fp);
+	return (0);
 err_exit:
 	return (errno);
 }
@@ -704,7 +746,7 @@ basl_fwrite_dsdt(FILE *fp)
 	dsdt_line("DefinitionBlock (\"bhyve_dsdt.aml\", \"DSDT\", 2,"
 		 "\"BHYVE \", \"BVDSDT  \", 0x00000001)");
 	dsdt_line("{");
-	dsdt_line("  Name (_S5, Package (0x02)");
+	dsdt_line("  Name (_S5, Package ()");
 	dsdt_line("  {");
 	dsdt_line("      0x05,");
 	dsdt_line("      Zero,");
@@ -713,7 +755,7 @@ basl_fwrite_dsdt(FILE *fp)
 	pci_write_dsdt();
 
 	dsdt_line("");
-	dsdt_line("  Scope (_SB.PCI0)");
+	dsdt_line("  Scope (_SB.PC00)");
 	dsdt_line("  {");
 	dsdt_line("    Device (HPET)");
 	dsdt_line("    {");
@@ -921,6 +963,7 @@ static struct {
 	{ basl_fwrite_madt, MADT_OFFSET },
 	{ basl_fwrite_fadt, FADT_OFFSET },
 	{ basl_fwrite_hpet, HPET_OFFSET },
+	{ basl_fwrite_mcfg, MCFG_OFFSET },
 	{ basl_fwrite_facs, FACS_OFFSET },
 	{ basl_fwrite_dsdt, DSDT_OFFSET },
 	{ NULL }

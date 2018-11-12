@@ -27,3 +27,7 @@ FBSD_1.3 {
 	sbuf_start_section;
 	sbuf_end_section;
 };
+
+FBSD_1.4 {
+	sbuf_hexdump;
+};

@@ -33,6 +33,7 @@ __RCSID("$NetBSD: btpand.c,v 1.1 2008/08/17 13:20:57 plunky Exp $");
 
 #include <sys/wait.h>
 
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <err.h>
 #include <fcntl.h>

@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/taskqueue.h>	/* XXXGL: if_rlreg.h contamination */
 
-#include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -55,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "miidevs.h"
 
 #include <machine/bus.h>
-#include <pci/if_rlreg.h>
+#include <dev/rl/if_rlreg.h>
 
 #include "miibus_if.h"
 
@@ -129,7 +127,7 @@ rlswitch_attach(device_t dev)
 
 	sc->mii_capabilities = BMSR_100TXFDX & sc->mii_capmask;
 	device_printf(dev, " ");
-	mii_phy_add_media(sc);
+	mii_phy_generic_media(sc);
 	printf("\n");
 #ifdef RL_DEBUG
 	rlswitch_phydump(dev);
@@ -358,7 +356,7 @@ rlswitch_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	// mii_phy_update(sc, cmd);

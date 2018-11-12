@@ -250,8 +250,7 @@ void
 ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	const struct ieee80211_txparam *tp;
 	const struct ieee80211_tdma_state *tdma = NULL;
 	int rix;
@@ -259,7 +258,7 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	if (vap == NULL) {
 		vap = TAILQ_FIRST(&ic->ic_vaps);   /* XXX */
 		if (vap == NULL) {
-			if_printf(ifp, "%s: no vaps?\n", __func__);
+			device_printf(sc->sc_dev, "%s: no vaps?\n", __func__);
 			return;
 		}
 	}
@@ -289,7 +288,7 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		/* XXX short preamble assumed */
 		/* XXX non-11n rate assumed */
 		sc->sc_tdmaguard = ath_hal_computetxtime(ah, sc->sc_currates,
-			ifp->if_mtu + IEEE80211_MAXOVERHEAD, rix, AH_TRUE);
+		    vap->iv_ifp->if_mtu + IEEE80211_MAXOVERHEAD, rix, AH_TRUE);
 	}
 
 	ath_hal_intrset(ah, 0);
@@ -359,7 +358,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 #define	TU_TO_TSF(_tu)	(((u_int64_t)(_tu)) << 10)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_softc *sc = ic->ic_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	u_int64_t tsf, rstamp, nextslot, nexttbtt, nexttbtt_full;
@@ -477,16 +476,19 @@ ath_tdma_update(struct ieee80211_node *ni,
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
 	    "rs->rstamp %llu rstamp %llu tsf %llu txtime %d, nextslot %llu, "
 	    "nextslottu %d, nextslottume %d\n",
-	    (unsigned long long) rs->rs_tstamp, rstamp, tsf, txtime,
-	    nextslot, nextslottu, TSF_TO_TU(nextslot >> 32, nextslot));
+	    (unsigned long long) rs->rs_tstamp,
+	    (unsigned long long) rstamp,
+	    (unsigned long long) tsf, txtime,
+	    (unsigned long long) nextslot,
+	    nextslottu, TSF_TO_TU(nextslot >> 32, nextslot));
 	DPRINTF(sc, ATH_DEBUG_TDMA,
 	    "  beacon tstamp: %llu (0x%016llx)\n",
-	    le64toh(ni->ni_tstamp.tsf),
-	    le64toh(ni->ni_tstamp.tsf));
+	    (unsigned long long) le64toh(ni->ni_tstamp.tsf),
+	    (unsigned long long) le64toh(ni->ni_tstamp.tsf));
 
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
 	    "nexttbtt %llu (0x%08llx) tsfdelta %d avg +%d/-%d\n",
-	    nexttbtt,
+	    (unsigned long long) nexttbtt,
 	    (long long) nexttbtt,
 	    tsfdelta,
 	    TDMA_AVG(sc->sc_avgtsfdeltap), TDMA_AVG(sc->sc_avgtsfdeltam));
@@ -580,7 +582,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 		DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
 		    "%s: calling ath_hal_adjusttsf: TSF=%llu, tsfdelta=%d\n",
 		    __func__,
-		    tsf,
+		    (unsigned long long) tsf,
 		    tsfdelta);
 
 #ifdef	ATH_DEBUG_ALQ

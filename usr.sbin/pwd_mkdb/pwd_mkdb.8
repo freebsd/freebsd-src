@@ -36,7 +36,7 @@
 .Nd "generate the password databases"
 .Sh SYNOPSIS
 .Nm
-.Op Fl BCiLNp
+.Op Fl BCilLNp
 .Op Fl d Ar directory
 .Op Fl s Ar cachesize
 .Op Fl u Ar username
@@ -61,14 +61,10 @@ different from the historic Version 7 style format.
 .Pp
 The options are as follows:
 .Bl -tag -width flag
-.It Fl B
-Store data in big-endian format.
 .It Fl C
 Check if the password file is in the correct format.
 Do not
 change, add, or remove any files.
-.It Fl L
-Store data in little-endian format.
 .It Fl N
 Tell
 .Nm
@@ -115,6 +111,33 @@ encrypted password and the insecure version has an asterisk (``*'')
 .Pp
 The databases are used by the C library password routines (see
 .Xr getpwent 3 ) .
+.Pp
+By default,
+the
+.Nm
+utility generates new,
+machine independent format
+.Pq v4
+entries only.
+For compatibility with
+.Fx 5.0
+and earlier releases,
+the
+.Fl l
+option may be specified,
+which enables generation of legacy format
+.Pq v3
+entries.
+The legacy format entries are endianness dependent.
+.Pp
+The following options may be specified and will affect the
+generation of legacy entries.
+.Bl -tag -width flag
+.It Fl B
+Store data in big-endian format.
+.It Fl L
+Store data in little-endian format.
+.El
 .Pp
 The
 .Nm

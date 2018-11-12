@@ -34,14 +34,11 @@ namespace {
 
     virtual ~ARMELFObjectWriter();
 
-    virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
-                                  bool IsPCRel, bool IsRelocWithSymbol,
-                                  int64_t Addend) const;
-    virtual const MCSymbol *ExplicitRelSym(const MCAssembler &Asm,
-                                   const MCValue &Target,
-                                   const MCFragment &F,
-                                   const MCFixup &Fixup,
-                                   bool IsPCRel) const;
+    unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
+                          bool IsPCRel) const override;
+
+    bool needsRelocateWithSymbol(const MCSymbolData &SD,
+                                 unsigned Type) const override;
   };
 }
 
@@ -52,91 +49,19 @@ ARMELFObjectWriter::ARMELFObjectWriter(uint8_t OSABI)
 
 ARMELFObjectWriter::~ARMELFObjectWriter() {}
 
-// In ARM, _MergedGlobals and other most symbols get emitted directly.
-// I.e. not as an offset to a section symbol.
-// This code is an approximation of what ARM/gcc does.
+bool ARMELFObjectWriter::needsRelocateWithSymbol(const MCSymbolData &SD,
+                                                 unsigned Type) const {
+  // FIXME: This is extremely conservative. This really needs to use a
+  // whitelist with a clear explanation for why each realocation needs to
+  // point to the symbol, not to the section.
+  switch (Type) {
+  default:
+    return true;
 
-STATISTIC(PCRelCount, "Total number of PIC Relocations");
-STATISTIC(NonPCRelCount, "Total number of non-PIC relocations");
-
-const MCSymbol *ARMELFObjectWriter::ExplicitRelSym(const MCAssembler &Asm,
-                                                   const MCValue &Target,
-                                                   const MCFragment &F,
-                                                   const MCFixup &Fixup,
-                                                   bool IsPCRel) const {
-  const MCSymbol &Symbol = Target.getSymA()->getSymbol().AliasedSymbol();
-  bool EmitThisSym = false;
-
-  const MCSectionELF &Section =
-    static_cast<const MCSectionELF&>(Symbol.getSection());
-  bool InNormalSection = true;
-  unsigned RelocType = 0;
-  RelocType = GetRelocTypeInner(Target, Fixup, IsPCRel);
-
-  DEBUG(
-      const MCSymbolRefExpr::VariantKind Kind = Target.getSymA()->getKind();
-      MCSymbolRefExpr::VariantKind Kind2;
-      Kind2 = Target.getSymB() ?  Target.getSymB()->getKind() :
-        MCSymbolRefExpr::VK_None;
-      dbgs() << "considering symbol "
-        << Section.getSectionName() << "/"
-        << Symbol.getName() << "/"
-        << " Rel:" << (unsigned)RelocType
-        << " Kind: " << (int)Kind << "/" << (int)Kind2
-        << " Tmp:"
-        << Symbol.isAbsolute() << "/" << Symbol.isDefined() << "/"
-        << Symbol.isVariable() << "/" << Symbol.isTemporary()
-        << " Counts:" << PCRelCount << "/" << NonPCRelCount << "\n");
-
-  if (IsPCRel) { ++PCRelCount;
-    switch (RelocType) {
-    default:
-      // Most relocation types are emitted as explicit symbols
-      InNormalSection =
-        StringSwitch<bool>(Section.getSectionName())
-        .Case(".data.rel.ro.local", false)
-        .Case(".data.rel", false)
-        .Case(".bss", false)
-        .Default(true);
-      EmitThisSym = true;
-      break;
-    case ELF::R_ARM_ABS32:
-      // But things get strange with R_ARM_ABS32
-      // In this case, most things that go in .rodata show up
-      // as section relative relocations
-      InNormalSection =
-        StringSwitch<bool>(Section.getSectionName())
-        .Case(".data.rel.ro.local", false)
-        .Case(".data.rel", false)
-        .Case(".rodata", false)
-        .Case(".bss", false)
-        .Default(true);
-      EmitThisSym = false;
-      break;
-    }
-  } else {
-    NonPCRelCount++;
-    InNormalSection =
-      StringSwitch<bool>(Section.getSectionName())
-      .Case(".data.rel.ro.local", false)
-      .Case(".rodata", false)
-      .Case(".data.rel", false)
-      .Case(".bss", false)
-      .Default(true);
-
-    switch (RelocType) {
-    default: EmitThisSym = true; break;
-    case ELF::R_ARM_ABS32: EmitThisSym = false; break;
-    case ELF::R_ARM_PREL31: EmitThisSym = false; break;
-    }
+  case ELF::R_ARM_PREL31:
+  case ELF::R_ARM_ABS32:
+    return false;
   }
-
-  if (EmitThisSym)
-    return &Symbol;
-  if (! Symbol.isTemporary() && InNormalSection) {
-    return &Symbol;
-  }
-  return NULL;
 }
 
 // Need to examine the Fixup when determining whether to 
@@ -144,17 +69,14 @@ const MCSymbol *ARMELFObjectWriter::ExplicitRelSym(const MCAssembler &Asm,
 // offset
 unsigned ARMELFObjectWriter::GetRelocType(const MCValue &Target,
                                           const MCFixup &Fixup,
-                                          bool IsPCRel,
-                                          bool IsRelocWithSymbol,
-                                          int64_t Addend) const {
+                                          bool IsPCRel) const {
   return GetRelocTypeInner(Target, Fixup, IsPCRel);
 }
 
 unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
                                                const MCFixup &Fixup,
                                                bool IsPCRel) const  {
-  MCSymbolRefExpr::VariantKind Modifier = Target.isAbsolute() ?
-    MCSymbolRefExpr::VK_None : Target.getSymA()->getKind();
+  MCSymbolRefExpr::VariantKind Modifier = Target.getAccessVariant();
 
   unsigned Type = 0;
   if (IsPCRel) {
@@ -166,18 +88,24 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
       case MCSymbolRefExpr::VK_None:
         Type = ELF::R_ARM_REL32;
         break;
-      case MCSymbolRefExpr::VK_ARM_TLSGD:
+      case MCSymbolRefExpr::VK_TLSGD:
         llvm_unreachable("unimplemented");
-      case MCSymbolRefExpr::VK_ARM_GOTTPOFF:
+      case MCSymbolRefExpr::VK_GOTTPOFF:
         Type = ELF::R_ARM_TLS_IE32;
+        break;
+      case MCSymbolRefExpr::VK_GOTPCREL:
+        Type = ELF::R_ARM_GOT_PREL;
         break;
       }
       break;
     case ARM::fixup_arm_blx:
     case ARM::fixup_arm_uncondbl:
       switch (Modifier) {
-      case MCSymbolRefExpr::VK_ARM_PLT:
-        Type = ELF::R_ARM_PLT32;
+      case MCSymbolRefExpr::VK_PLT:
+        Type = ELF::R_ARM_CALL;
+        break;
+      case MCSymbolRefExpr::VK_ARM_TLSCALL:
+        Type = ELF::R_ARM_TLS_CALL;
         break;
       default:
         Type = ELF::R_ARM_CALL;
@@ -194,52 +122,74 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
       Type = ELF::R_ARM_THM_JUMP24;
       break;
     case ARM::fixup_arm_movt_hi16:
-    case ARM::fixup_arm_movt_hi16_pcrel:
       Type = ELF::R_ARM_MOVT_PREL;
       break;
     case ARM::fixup_arm_movw_lo16:
-    case ARM::fixup_arm_movw_lo16_pcrel:
       Type = ELF::R_ARM_MOVW_PREL_NC;
       break;
     case ARM::fixup_t2_movt_hi16:
-    case ARM::fixup_t2_movt_hi16_pcrel:
       Type = ELF::R_ARM_THM_MOVT_PREL;
       break;
     case ARM::fixup_t2_movw_lo16:
-    case ARM::fixup_t2_movw_lo16_pcrel:
       Type = ELF::R_ARM_THM_MOVW_PREL_NC;
       break;
     case ARM::fixup_arm_thumb_bl:
     case ARM::fixup_arm_thumb_blx:
-      Type = ELF::R_ARM_THM_CALL;
+      switch (Modifier) {
+      case MCSymbolRefExpr::VK_ARM_TLSCALL:
+        Type = ELF::R_ARM_THM_TLS_CALL;
+        break;
+      default:
+        Type = ELF::R_ARM_THM_CALL;
+        break;
+      }
       break;
     }
   } else {
     switch ((unsigned)Fixup.getKind()) {
     default: llvm_unreachable("invalid fixup kind!");
+    case FK_Data_1:
+      switch (Modifier) {
+      default: llvm_unreachable("unsupported Modifier");
+      case MCSymbolRefExpr::VK_None:
+        Type = ELF::R_ARM_ABS8;
+        break;
+      }
+      break;
+    case FK_Data_2:
+      switch (Modifier) {
+      default: llvm_unreachable("unsupported modifier");
+      case MCSymbolRefExpr::VK_None:
+        Type = ELF::R_ARM_ABS16;
+        break;
+      }
+      break;
     case FK_Data_4:
       switch (Modifier) {
       default: llvm_unreachable("Unsupported Modifier");
       case MCSymbolRefExpr::VK_ARM_NONE:
         Type = ELF::R_ARM_NONE;
         break;
-      case MCSymbolRefExpr::VK_ARM_GOT:
+      case MCSymbolRefExpr::VK_GOT:
         Type = ELF::R_ARM_GOT_BREL;
         break;
-      case MCSymbolRefExpr::VK_ARM_TLSGD:
+      case MCSymbolRefExpr::VK_TLSGD:
         Type = ELF::R_ARM_TLS_GD32;
         break;
-      case MCSymbolRefExpr::VK_ARM_TPOFF:
+      case MCSymbolRefExpr::VK_TPOFF:
         Type = ELF::R_ARM_TLS_LE32;
         break;
-      case MCSymbolRefExpr::VK_ARM_GOTTPOFF:
+      case MCSymbolRefExpr::VK_GOTTPOFF:
         Type = ELF::R_ARM_TLS_IE32;
         break;
       case MCSymbolRefExpr::VK_None:
         Type = ELF::R_ARM_ABS32;
         break;
-      case MCSymbolRefExpr::VK_ARM_GOTOFF:
+      case MCSymbolRefExpr::VK_GOTOFF:
         Type = ELF::R_ARM_GOTOFF32;
+        break;
+      case MCSymbolRefExpr::VK_GOTPCREL:
+        Type = ELF::R_ARM_GOT_PREL;
         break;
       case MCSymbolRefExpr::VK_ARM_TARGET1:
         Type = ELF::R_ARM_TARGET1;
@@ -249,6 +199,21 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
         break;
       case MCSymbolRefExpr::VK_ARM_PREL31:
         Type = ELF::R_ARM_PREL31;
+        break;
+      case MCSymbolRefExpr::VK_ARM_SBREL:
+        Type = ELF::R_ARM_SBREL32;
+        break;
+      case MCSymbolRefExpr::VK_ARM_TLSLDO:
+        Type = ELF::R_ARM_TLS_LDO32;
+        break;
+      case MCSymbolRefExpr::VK_ARM_TLSCALL:
+        Type = ELF::R_ARM_TLS_CALL;
+        break;
+      case MCSymbolRefExpr::VK_ARM_TLSDESC:
+        Type = ELF::R_ARM_TLS_GOTDESC;
+        break;
+      case MCSymbolRefExpr::VK_ARM_TLSDESCSEQ:
+        Type = ELF::R_ARM_TLS_DESCSEQ;
         break;
       }
       break;
@@ -283,7 +248,8 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
 }
 
 MCObjectWriter *llvm::createARMELFObjectWriter(raw_ostream &OS,
-                                               uint8_t OSABI) {
+                                               uint8_t OSABI,
+                                               bool IsLittleEndian) {
   MCELFObjectTargetWriter *MOTW = new ARMELFObjectWriter(OSABI);
-  return createELFObjectWriter(MOTW, OS,  /*IsLittleEndian=*/true);
+  return createELFObjectWriter(MOTW, OS, IsLittleEndian);
 }

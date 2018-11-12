@@ -49,7 +49,7 @@
 #define	JME_RX_RING_ALIGN	16
 #define	JME_TSO_MAXSEGSIZE	4096
 #define	JME_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
-#define	JME_MAXTXSEGS		32
+#define	JME_MAXTXSEGS		35
 #define	JME_RX_BUF_ALIGN	sizeof(uint64_t)
 #define	JME_SSB_ALIGN		16
 

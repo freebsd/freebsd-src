@@ -1,4 +1,4 @@
-//===-- MCInstPrinter.h - Convert an MCInst to target assembly syntax -----===//
+//===- MCInstPrinter.h - MCInst to target assembly syntax -------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -41,7 +41,7 @@ protected:
   const MCRegisterInfo &MRI;
 
   /// The current set of available features.
-  unsigned AvailableFeatures;
+  uint64_t AvailableFeatures;
 
   /// True if we are printing marked up assembly.
   bool UseMarkup;
@@ -57,8 +57,9 @@ protected:
 public:
   MCInstPrinter(const MCAsmInfo &mai, const MCInstrInfo &mii,
                 const MCRegisterInfo &mri)
-    : CommentStream(0), MAI(mai), MII(mii), MRI(mri), AvailableFeatures(0),
-      UseMarkup(0), PrintImmHex(0), PrintHexStyle(HexStyle::C) {}
+    : CommentStream(nullptr), MAI(mai), MII(mii), MRI(mri),
+      AvailableFeatures(0), UseMarkup(0), PrintImmHex(0),
+      PrintHexStyle(HexStyle::C) {}
 
   virtual ~MCInstPrinter();
 
@@ -77,8 +78,8 @@ public:
   /// printRegName - Print the assembler register name.
   virtual void printRegName(raw_ostream &OS, unsigned RegNo) const;
 
-  unsigned getAvailableFeatures() const { return AvailableFeatures; }
-  void setAvailableFeatures(unsigned Value) { AvailableFeatures = Value; }
+  uint64_t getAvailableFeatures() const { return AvailableFeatures; }
+  void setAvailableFeatures(uint64_t Value) { AvailableFeatures = Value; }
 
   bool getUseMarkup() const { return UseMarkup; }
   void setUseMarkup(bool Value) { UseMarkup = Value; }

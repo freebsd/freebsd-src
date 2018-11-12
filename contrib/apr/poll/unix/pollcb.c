@@ -66,6 +66,7 @@ static apr_pollcb_provider_t *pollcb_provider(apr_pollset_method_e method)
 #endif
         break;
         case APR_POLLSET_SELECT:
+        case APR_POLLSET_AIO_MSGQ:
         case APR_POLLSET_DEFAULT:
         break;
     }
@@ -134,6 +135,9 @@ APR_DECLARE(apr_status_t) apr_pollcb_create_ex(apr_pollcb_t **ret_pollcb,
             return rv;
         }
         pollcb->provider = provider;
+    }
+    else if (rv != APR_SUCCESS) {
+        return rv;
     }
 
     *ret_pollcb = pollcb;

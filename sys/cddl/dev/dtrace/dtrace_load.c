@@ -137,17 +137,6 @@ dtrace_load(void *dummy)
 
 	mutex_exit(&cpu_lock);
 
-	/*
-	 * If DTrace helper tracing is enabled, we need to allocate the
-	 * trace buffer and initialize the values.
-	 */
-	if (dtrace_helptrace_enabled) {
-		ASSERT(dtrace_helptrace_buffer == NULL);
-		dtrace_helptrace_buffer =
-		    kmem_zalloc(dtrace_helptrace_bufsize, KM_SLEEP);
-		dtrace_helptrace_next = 0;
-	}
-
 	mutex_exit(&dtrace_lock);
 	mutex_exit(&dtrace_provider_lock);
 
@@ -158,18 +147,10 @@ dtrace_load(void *dummy)
 
 	mutex_exit(&cpu_lock);
 
-#if __FreeBSD_version < 800039
-	/* Enable device cloning. */
-	clone_setup(&dtrace_clones);
-
-	/* Setup device cloning events. */
-	eh_tag = EVENTHANDLER_REGISTER(dev_clone, dtrace_clone, 0, 1000);
-#else
 	dtrace_dev = make_dev(&dtrace_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "dtrace/dtrace");
 	helper_dev = make_dev(&helper_cdevsw, 0, UID_ROOT, GID_WHEEL, 0660,
 	    "dtrace/helper");
-#endif
 
 	return;
 }

@@ -85,16 +85,16 @@ SYSCTL_DECL(_vfs_nfsd);
 SVCPOOL		*nfsrvd_pool;
 
 static int	nfs_privport = 0;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, nfs_privport, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, nfs_privport, CTLFLAG_RWTUN,
     &nfs_privport, 0,
     "Only allow clients using a privileged port for NFSv2 and 3");
 
 static int	nfs_minvers = NFS_VER2;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_min_nfsvers, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_min_nfsvers, CTLFLAG_RWTUN,
     &nfs_minvers, 0, "The lowest version of NFS handled by the server");
 
 static int	nfs_maxvers = NFS_VER4;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_max_nfsvers, CTLFLAG_RW,
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_max_nfsvers, CTLFLAG_RWTUN,
     &nfs_maxvers, 0, "The highest version of NFS handled by the server");
 
 static int nfs_proc(struct nfsrv_descript *, u_int32_t, SVCXPRT *xprt,
@@ -117,7 +117,8 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 
 	memset(&nd, 0, sizeof(nd));
 	if (rqst->rq_vers == NFS_VER2) {
-		if (rqst->rq_proc > NFSV2PROC_STATFS) {
+		if (rqst->rq_proc > NFSV2PROC_STATFS ||
+		    newnfs_nfsv3_procid[rqst->rq_proc] == NFSPROC_NOOP) {
 			svcerr_noproc(rqst);
 			svc_freereq(rqst);
 			goto out;
@@ -293,6 +294,8 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	svc_freereq(rqst);
 
 out:
+	if (softdep_ast_cleanup != NULL)
+		softdep_ast_cleanup();
 	NFSEXITCODE(0);
 }
 
@@ -305,7 +308,10 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
     struct nfsrvcache **rpp)
 {
 	struct thread *td = curthread;
-	int cacherep = RC_DOIT, isdgram;
+	int cacherep = RC_DOIT, isdgram, taglen = -1;
+	struct mbuf *m;
+	u_char tag[NFSV4_SMALLSTR + 1], *tagstr = NULL;
+	u_int32_t minorvers = 0;
 	uint32_t ack;
 
 	*rpp = NULL;
@@ -339,10 +345,18 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 		nd->nd_retxid = xid;
 		nd->nd_tcpconntime = NFSD_MONOSEC;
 		nd->nd_sockref = xprt->xp_sockref;
-		cacherep = nfsrvd_getcache(nd);
-		ack = 0;
-		SVC_ACK(xprt, &ack);
-		nfsrc_trimcache(xprt->xp_sockref, ack, 0);
+		if ((nd->nd_flag & ND_NFSV4) != 0)
+			nfsd_getminorvers(nd, tag, &tagstr, &taglen,
+			    &minorvers);
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			/* NFSv4.1 caches replies in the session slots. */
+			cacherep = RC_DOIT;
+		else {
+			cacherep = nfsrvd_getcache(nd);
+			ack = 0;
+			SVC_ACK(xprt, &ack);
+			nfsrc_trimcache(xprt->xp_sockref, ack, 0);
+		}
 	}
 
 	/*
@@ -352,13 +366,33 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 	 * RC_DROPIT - just throw the request away
 	 */
 	if (cacherep == RC_DOIT) {
-		nfsrvd_dorpc(nd, isdgram, td);
-		if (nd->nd_repstat == NFSERR_DONTREPLY)
-			cacherep = RC_DROPIT;
-		else
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			nd->nd_xprt = xprt;
+		nfsrvd_dorpc(nd, isdgram, tagstr, taglen, minorvers, td);
+		if ((nd->nd_flag & ND_NFSV41) != 0) {
+			if (nd->nd_repstat != NFSERR_REPLYFROMCACHE &&
+			    (nd->nd_flag & ND_SAVEREPLY) != 0) {
+				/* Cache a copy of the reply. */
+				m = m_copym(nd->nd_mreq, 0, M_COPYALL,
+				    M_WAITOK);
+			} else
+				m = NULL;
+			if ((nd->nd_flag & ND_HASSEQUENCE) != 0)
+				nfsrv_cache_session(nd->nd_sessionid,
+				    nd->nd_slotid, nd->nd_repstat, &m);
+			if (nd->nd_repstat == NFSERR_REPLYFROMCACHE)
+				nd->nd_repstat = 0;
 			cacherep = RC_REPLY;
-		*rpp = nfsrvd_updatecache(nd);
+		} else {
+			if (nd->nd_repstat == NFSERR_DONTREPLY)
+				cacherep = RC_DROPIT;
+			else
+				cacherep = RC_REPLY;
+			*rpp = nfsrvd_updatecache(nd);
+		}
 	}
+	if (tagstr != NULL && taglen > NFSV4_SMALLSTR)
+		free(tagstr, M_TEMP);
 
 	NFSEXITCODE2(0, nd);
 	return (cacherep);
@@ -432,6 +466,7 @@ int
 nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 {
 	char principal[MAXHOSTNAMELEN + 5];
+	struct proc *p;
 	int error = 0;
 	bool_t ret2, ret3, ret4;
 
@@ -449,6 +484,10 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 	 */
 	NFSD_LOCK();
 	if (newnfs_numnfsd == 0) {
+		p = td->td_proc;
+		PROC_LOCK(p);
+		p->p_flag2 |= P2_AST_SU;
+		PROC_UNLOCK(p);
 		newnfs_numnfsd++;
 
 		NFSD_UNLOCK();
@@ -480,6 +519,9 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		NFSD_LOCK();
 		newnfs_numnfsd--;
 		nfsrvd_init(1);
+		PROC_LOCK(p);
+		p->p_flag2 &= ~P2_AST_SU;
+		PROC_UNLOCK(p);
 	}
 	NFSD_UNLOCK();
 

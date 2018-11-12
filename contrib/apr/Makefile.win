@@ -7,7 +7,7 @@
 #     install  - compile everything
 #     clean    - mop up everything
 #
-# You can override the build mechansim, choose only one;
+# You can override the build mechanism, choose only one;
 #
 #     USEMAK=1 - compile from exported make files
 #     USEDSW=1 - compile from .dsw / .dsp VC6 projects

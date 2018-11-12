@@ -439,7 +439,7 @@ ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 vm_memattr_t
 ttm_io_prot(uint32_t caching_flags)
 {
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 	if (caching_flags & TTM_PL_FLAG_WC)
 		return (VM_MEMATTR_WRITE_COMBINING);
 	else
@@ -508,8 +508,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 		 * or to make the buffer object look contiguous.
 		 */
 		prot = (mem->placement & TTM_PL_FLAG_CACHED) ?
-			VM_MEMATTR_WRITE_COMBINING :
-			ttm_io_prot(mem->placement);
+			VM_MEMATTR_DEFAULT : ttm_io_prot(mem->placement);
 		map->bo_kmap_type = ttm_bo_map_vmap;
 		map->num_pages = num_pages;
 		map->virtual = (void *)kva_alloc(num_pages * PAGE_SIZE);

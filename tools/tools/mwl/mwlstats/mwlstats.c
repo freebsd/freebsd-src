@@ -32,20 +32,22 @@
 /*
  * mwl statistics class.
  */
-#include <sys/types.h>
+
+#include <sys/param.h>
 #include <sys/file.h>
+#include <sys/ioctl.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
+
 #include <net/if.h>
 #include <net/if_media.h>
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <err.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <err.h>
 
 #include "../../../../sys/net80211/ieee80211_ioctl.h"
 #include "../../../../sys/net80211/ieee80211_radiotap.h"
@@ -261,11 +263,11 @@ mwl_collect(struct mwlstatfoo_p *wf, struct mwl_stats *stats)
 {
 	wf->ifr.ifr_data = (caddr_t) stats;
 	if (ioctl(wf->s, SIOCGMVSTATS, &wf->ifr) < 0)
-		err(1, wf->ifr.ifr_name);
+		err(1, "%s: ioctl: %s", __func__, wf->ifr.ifr_name);
 }
 
 static void
-mwl_collect_cur(struct statfoo *sf)
+mwl_collect_cur(struct bsdstat *sf)
 {
 	struct mwlstatfoo_p *wf = (struct mwlstatfoo_p *) sf;
 
@@ -273,7 +275,7 @@ mwl_collect_cur(struct statfoo *sf)
 }
 
 static void
-mwl_collect_tot(struct statfoo *sf)
+mwl_collect_tot(struct bsdstat *sf)
 {
 	struct mwlstatfoo_p *wf = (struct mwlstatfoo_p *) sf;
 
@@ -281,7 +283,7 @@ mwl_collect_tot(struct statfoo *sf)
 }
 
 static void
-mwl_update_tot(struct statfoo *sf)
+mwl_update_tot(struct bsdstat *sf)
 {
 	struct mwlstatfoo_p *wf = (struct mwlstatfoo_p *) sf;
 
@@ -300,7 +302,7 @@ setrate(char b[], size_t bs, uint8_t rate)
 }
 
 static int
-mwl_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
+mwl_get_curstat(struct bsdstat *sf, int s, char b[], size_t bs)
 {
 	struct mwlstatfoo_p *wf = (struct mwlstatfoo_p *) sf;
 #define	STAT(x) \
@@ -406,7 +408,7 @@ mwl_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 }
 
 static int
-mwl_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
+mwl_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 {
 	struct mwlstatfoo_p *wf = (struct mwlstatfoo_p *) sf;
 #define	STAT(x) \
@@ -510,7 +512,7 @@ mwl_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 }
 
 static void
-mwl_print_verbose(struct statfoo *sf, FILE *fd)
+mwl_print_verbose(struct bsdstat *sf, FILE *fd)
 {
 	struct mwlstatfoo_p *wf = (struct mwlstatfoo_p *) sf;
 	const struct fmt *f;
@@ -539,17 +541,17 @@ mwl_print_verbose(struct statfoo *sf, FILE *fd)
 				wf->total.mst_ant_rx[i]);
 }
 
-STATFOO_DEFINE_BOUNCE(mwlstatfoo)
+BSDSTAT_DEFINE_BOUNCE(mwlstatfoo)
 
 struct mwlstatfoo *
 mwlstats_new(const char *ifname, const char *fmtstring)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	struct mwlstatfoo_p *wf;
 
 	wf = calloc(1, sizeof(struct mwlstatfoo_p));
 	if (wf != NULL) {
-		statfoo_init(&wf->base.base, "mwlstats", mwlstats, N(mwlstats));
+		bsdstat_init(&wf->base.base, "mwlstats", mwlstats,
+		    nitems(mwlstats));
 		/* override base methods */
 		wf->base.base.collect_cur = mwl_collect_cur;
 		wf->base.base.collect_tot = mwl_collect_tot;
@@ -559,7 +561,7 @@ mwlstats_new(const char *ifname, const char *fmtstring)
 		wf->base.base.print_verbose = mwl_print_verbose;
 
 		/* setup bounce functions for public methods */
-		STATFOO_BOUNCE(wf, mwlstatfoo);
+		BSDSTAT_BOUNCE(wf, mwlstatfoo);
 
 		/* setup our public methods */
 		wf->base.setifname = mwl_setifname;
@@ -574,5 +576,4 @@ mwlstats_new(const char *ifname, const char *fmtstring)
 		wf->base.setfmt(&wf->base, fmtstring);
 	}
 	return &wf->base;
-#undef N
 }

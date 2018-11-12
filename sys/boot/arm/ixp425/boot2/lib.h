@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 
+int main(void);
+
 void DELAY(int);
 
 int getc(int);

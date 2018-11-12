@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -43,6 +43,7 @@
 #include "services/modstack.h"
 #include "util/module.h"
 #include "util/fptr_wlist.h"
+#include "dns64/dns64.h"
 #include "iterator/iterator.h"
 #include "validator/validator.h"
 
@@ -59,12 +60,12 @@ count_modules(const char* s)
                 return 0;
         while(*s) {
                 /* skip whitespace */
-                while(*s && isspace((int)*s))
+                while(*s && isspace((unsigned char)*s))
                         s++;
-                if(*s && !isspace((int)*s)) {
+                if(*s && !isspace((unsigned char)*s)) {
                         /* skip identifier */
                         num++;
-                        while(*s && !isspace((int)*s))
+                        while(*s && !isspace((unsigned char)*s))
                                 s++;
                 }
         }
@@ -116,6 +117,7 @@ module_list_avail(void)
 {
         /* these are the modules available */
         static const char* names[] = {
+		"dns64",
 #ifdef WITH_PYTHONMODULE
 		"python", 
 #endif
@@ -133,6 +135,7 @@ static fbgetfunctype*
 module_funcs_avail(void)
 {
         static struct module_func_block* (*fb[])(void) = {
+		&dns64_get_funcblock,
 #ifdef WITH_PYTHONMODULE
 		&pythonmod_get_funcblock, 
 #endif
@@ -149,7 +152,7 @@ module_func_block* module_factory(const char** str)
         const char* s = *str;
 	const char** names = module_list_avail();
 	fbgetfunctype* fb = module_funcs_avail();
-        while(*s && isspace((int)*s))
+        while(*s && isspace((unsigned char)*s))
                 s++;
 	while(names[i]) {
                 if(strncmp(names[i], s, strlen(names[i])) == 0) {

@@ -225,7 +225,7 @@ cgget(int cg)
 	struct cg *cgp;
 
 	if (cgbufs == NULL) {
-		cgbufs = Calloc(sblock.fs_ncg, sizeof(struct bufarea));
+		cgbufs = calloc(sblock.fs_ncg, sizeof(struct bufarea));
 		if (cgbufs == NULL)
 			errx(EEXIT, "cannot allocate cylinder group buffers");
 	}
@@ -254,6 +254,8 @@ flushentry(void)
 {
 	struct bufarea *cgbp;
 
+	if (flushtries == sblock.fs_ncg || cgbufs == NULL)
+		return (0);
 	cgbp = &cgbufs[flushtries++];
 	if (cgbp->b_un.b_cg == NULL)
 		return (0);
@@ -434,13 +436,15 @@ ckfini(int markclean)
 	}
 	if (numbufs != cnt)
 		errx(EEXIT, "panic: lost %d buffers", numbufs - cnt);
-	for (cnt = 0; cnt < sblock.fs_ncg; cnt++) {
-		if (cgbufs[cnt].b_un.b_cg == NULL)
-			continue;
-		flush(fswritefd, &cgbufs[cnt]);
-		free(cgbufs[cnt].b_un.b_cg);
+	if (cgbufs != NULL) {
+		for (cnt = 0; cnt < sblock.fs_ncg; cnt++) {
+			if (cgbufs[cnt].b_un.b_cg == NULL)
+				continue;
+			flush(fswritefd, &cgbufs[cnt]);
+			free(cgbufs[cnt].b_un.b_cg);
+		}
+		free(cgbufs);
 	}
-	free(cgbufs);
 	pbp = pdirbp = (struct bufarea *)0;
 	if (cursnapshot == 0 && sblock.fs_clean != markclean) {
 		if ((sblock.fs_clean = markclean) != 0) {

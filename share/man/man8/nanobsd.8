@@ -104,7 +104,7 @@ Making use of just one shell script and one configuration file it is
 possible to build reduced and customized images satisfying any arbitrary
 set of requirements.
 .El
-.Ss Nm NanoBSD Ss Media Layout
+.Ss NanoBSD Media Layout
 The mass storage medium is divided into three parts by default (which
 are normally mounted read-only):
 .Pp
@@ -277,6 +277,8 @@ Disables
 .Xr getty 8
 on the virtual
 .Xr syscons 4
+or
+.Xr vt 4
 terminals
 .Pq Pa /dev/ttyv*
 and enables the use of the first serial port as the system
@@ -332,6 +334,6 @@ utility first appeared in
 .An -nosplit
 .Nm NanoBSD
 was developed by
-.An Poul-Henning Kamp Aq phk@FreeBSD.org .
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
 This manual page was written by
-.An Daniel Gerzo Aq danger@FreeBSD.org .
+.An Daniel Gerzo Aq Mt danger@FreeBSD.org .

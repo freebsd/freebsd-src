@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2011
+.Dd January 5, 2015
 .Dt MIIBUS 4
 .Os
 .Sh NAME
@@ -57,6 +57,8 @@ Atheros AR8121/AR8113/AR8114 PCIe Ethernet
 ADMtek USB Ethernet
 .It Xr axe 4
 ASIX Electronics AX88172 USB Ethernet
+.It Xr axge 4
+ASIX Electronics AX88178A/AX88179 USB Ethernet
 .It Xr bce 4
 Broadcom NetXtreme II Gigabit Ethernet
 .It Xr bfe 4
@@ -87,8 +89,6 @@ Marvell/SysKonnect Yukon II Gigabit Ethernet
 NVIDIA nForce MCP Networking Adapter
 .It Xr nge 4
 National Semiconductor DP83820/DP83821 Gigabit Ethernet
-.It Xr nve 4
-NVIDIA nForce MCP Networking Adapter
 .It Xr pcn 4
 AMD Am79C97x PCI 10/100
 .It Xr re 4
@@ -105,6 +105,8 @@ Silicon Integrated Systems SiS190/191 Ethernet
 Silicon Integrated Systems SiS 900/SiS 7016
 .It Xr sk 4
 SysKonnect SK-984x and SK-982x Gigabit Ethernet
+.It Xr smsc 4
+SMSC LAN9xxx USB Fast Ethernet
 .It Xr ste 4
 Sundance ST201 (D-Link DFE-550TX)
 .It Xr stge 4
@@ -143,6 +145,7 @@ but as a result are not well behaved newbus device drivers.
 .Xr arp 4 ,
 .Xr aue 4 ,
 .Xr axe 4 ,
+.Xr axge 4 ,
 .Xr bce 4 ,
 .Xr bfe 4 ,
 .Xr bge 4 ,
@@ -159,7 +162,6 @@ but as a result are not well behaved newbus device drivers.
 .Xr netintro 4 ,
 .Xr nfe 4 ,
 .Xr nge 4 ,
-.Xr nve 4 ,
 .Xr pcn 4 ,
 .Xr re 4 ,
 .Xr rgephy 4 ,
@@ -169,6 +171,7 @@ but as a result are not well behaved newbus device drivers.
 .Xr sge 4 ,
 .Xr sis 4 ,
 .Xr sk 4 ,
+.Xr smsc 4 ,
 .Xr ste 4 ,
 .Xr stge 4 ,
 .Xr tl 4 ,
@@ -188,4 +191,4 @@ driver first appeared in
 .Fx 3.3 .
 .Sh AUTHORS
 This manual page was written by
-.An Tom Rhodes Aq trhodes@FreeBSD.org .
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .

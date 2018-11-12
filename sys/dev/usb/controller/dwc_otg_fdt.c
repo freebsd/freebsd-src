@@ -26,27 +26,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
 #include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/types.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
-#include <sys/callout.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/priv.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -63,14 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 
 #include <dev/usb/controller/dwc_otg.h>
+#include <dev/usb/controller/dwc_otg_fdt.h>
 
 static device_probe_t dwc_otg_probe;
-static device_attach_t dwc_otg_attach;
 static device_detach_t dwc_otg_detach;
-
-struct dwc_otg_super_softc {
-	struct dwc_otg_softc sc_otg;	/* must be first */
-};
 
 static int
 dwc_otg_probe(device_t dev)
@@ -84,13 +70,14 @@ dwc_otg_probe(device_t dev)
 
 	device_set_desc(dev, "DWC OTG 2.0 integrated USB controller");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
-static int
+int
 dwc_otg_attach(device_t dev)
 {
-	struct dwc_otg_super_softc *sc = device_get_softc(dev);
+	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);
+	char usb_mode[24];
 	int err;
 	int rid;
 
@@ -98,6 +85,24 @@ dwc_otg_attach(device_t dev)
 	sc->sc_otg.sc_bus.parent = dev;
 	sc->sc_otg.sc_bus.devices = sc->sc_otg.sc_devices;
 	sc->sc_otg.sc_bus.devices_max = DWC_OTG_MAX_DEVICES;
+	sc->sc_otg.sc_bus.dma_bits = 32;
+
+	/* get USB mode, if any */
+	if (OF_getprop(ofw_bus_get_node(dev), "dr_mode",
+	    &usb_mode, sizeof(usb_mode)) > 0) {
+
+		/* ensure proper zero termination */
+		usb_mode[sizeof(usb_mode) - 1] = 0;
+
+		if (strcasecmp(usb_mode, "host") == 0)
+			sc->sc_otg.sc_mode = DWC_MODE_HOST;
+		else if (strcasecmp(usb_mode, "peripheral") == 0)
+			sc->sc_otg.sc_mode = DWC_MODE_DEVICE;
+		else if (strcasecmp(usb_mode, "otg") != 0) {
+			device_printf(dev, "Invalid FDT dr_mode: %s\n",
+			    usb_mode);
+		}
+	}
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_otg.sc_bus,
@@ -128,8 +133,8 @@ dwc_otg_attach(device_t dev)
 
 	device_set_ivars(sc->sc_otg.sc_bus.bdev, &sc->sc_otg.sc_bus);
 
-	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)dwc_otg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
+	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_TTY | INTR_MPSAFE,
+	    &dwc_otg_filter_interrupt, &dwc_otg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
 	if (err) {
 		sc->sc_otg.sc_intr_hdl = NULL;
 		goto error;
@@ -152,7 +157,7 @@ error:
 static int
 dwc_otg_detach(device_t dev)
 {
-	struct dwc_otg_super_softc *sc = device_get_softc(dev);
+	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);
 	device_t bdev;
 	int err;
 
@@ -203,10 +208,10 @@ static device_method_t dwc_otg_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t dwc_otg_driver = {
+driver_t dwc_otg_driver = {
 	.name = "dwcotg",
 	.methods = dwc_otg_methods,
-	.size = sizeof(struct dwc_otg_super_softc),
+	.size = sizeof(struct dwc_otg_fdt_softc),
 };
 
 static devclass_t dwc_otg_devclass;

@@ -36,7 +36,7 @@
 	movq	%rsp,%rsi		# save address of exit proc
 	movq	%rsp,%rdx		# construct address of obj_main
 	addq	$8,%rdx
-	call	_rtld@PLT		# Call rtld(sp); returns entry point
+	call	_rtld			# Call rtld(sp); returns entry point
 	popq	%rsi			# Get exit procedure address
 	movq	%r12,%rdi		# *ap
 /*
@@ -79,38 +79,81 @@
 	.globl	_rtld_bind_start
 	.type	_rtld_bind_start,@function
 _rtld_bind_start:
+	.cfi_startproc
+	.cfi_adjust_cfa_offset	16
 	subq	$8,%rsp
+	.cfi_adjust_cfa_offset	8
 	pushfq				# Save rflags
+	.cfi_adjust_cfa_offset	8
 	pushq	%rax			# Save %rax
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset	%rax,-32
 	pushq	%rdx			# Save %rdx
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset	%rdx,-40
 	pushq	%rcx			# Save %rcx
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset	%rcx,-48
 	pushq	%rsi			# Save %rsi
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset	%rsi,-56
 	pushq	%rdi			# Save %rdi
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset	%rdi,-64
 	pushq	%r8			# Save %r8
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset	%r8,-72
 	pushq	%r9			# Save %r9
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset	%r9,-80
 	pushq	%r10			# Save %r10
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset	%r10,-88
 	pushq	%r11			# Save %r11
+	.cfi_adjust_cfa_offset 8
+	.cfi_offset	%r11,-96
 
 	movq	0x58(%rsp),%rdi		# Fetch obj argument
 	movq	0x60(%rsp),%rsi		# Fetch reloff argument
 	leaq	(%rsi,%rsi,2),%rsi	# multiply by 3
 	leaq	(,%rsi,8),%rsi		# now 8, for 24 (sizeof Elf_Rela)
 
-	call	_rtld_bind@PLT		# Transfer control to the binder
+	call	_rtld_bind		# Transfer control to the binder
 	/* Now %rax contains the entry point of the function being called. */
 
 	movq	%rax,0x60(%rsp)		# Store target over reloff argument
 	popq	%r11			# Restore %r11
+	.cfi_adjust_cfa_offset -8
+	.cfi_restore %r11
 	popq	%r10			# Restore %r10
+	.cfi_adjust_cfa_offset -8
+	.cfi_restore %r10
 	popq	%r9			# Restore %r9
+	.cfi_adjust_cfa_offset -8
+	.cfi_restore %r9
 	popq	%r8			# Restore %r8
+	.cfi_adjust_cfa_offset -8
+	.cfi_restore %r8
 	popq	%rdi			# Restore %rdi
+	.cfi_adjust_cfa_offset -8
+	.cfi_restore %rdi
 	popq	%rsi			# Restore %rsi
+	.cfi_adjust_cfa_offset -8
+	.cfi_restore %rsi
 	popq	%rcx			# Restore %rcx
+	.cfi_adjust_cfa_offset -8
+	.cfi_restore %rcx
 	popq	%rdx			# Restore %rdx
+	.cfi_adjust_cfa_offset -8
+	.cfi_restore %rdx
 	popq	%rax			# Restore %rax
+	.cfi_adjust_cfa_offset -8
+	.cfi_restore %rax
 	popfq				# Restore rflags
+	.cfi_adjust_cfa_offset -8
 	leaq	16(%rsp),%rsp		# Discard spare, obj, do not change rflags
 	ret				# "Return" to target address
+	.cfi_endproc
+	.size	_rtld_bind_start, . - _rtld_bind_start
 
 	.section .note.GNU-stack,"",%progbits

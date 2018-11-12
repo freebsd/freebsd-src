@@ -35,16 +35,6 @@ static uint64_t extractBitsForFixup(MCFixupKind Kind, uint64_t Value) {
   llvm_unreachable("Unknown fixup kind!");
 }
 
-// If Opcode can be relaxed, return the relaxed form, otherwise return 0.
-static unsigned getRelaxedOpcode(unsigned Opcode) {
-  switch (Opcode) {
-  case SystemZ::BRC:  return SystemZ::BRCL;
-  case SystemZ::J:    return SystemZ::JG;
-  case SystemZ::BRAS: return SystemZ::BRASL;
-  }
-  return 0;
-}
-
 namespace {
 class SystemZMCAsmBackend : public MCAsmBackend {
   uint8_t OSABI;
@@ -53,30 +43,26 @@ public:
     : OSABI(osABI) {}
 
   // Override MCAsmBackend
-  virtual unsigned getNumFixupKinds() const LLVM_OVERRIDE {
+  unsigned getNumFixupKinds() const override {
     return SystemZ::NumTargetFixupKinds;
   }
-  virtual const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const
-    LLVM_OVERRIDE;
-  virtual void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
-                          uint64_t Value) const LLVM_OVERRIDE;
-  virtual bool mayNeedRelaxation(const MCInst &Inst) const LLVM_OVERRIDE;
-  virtual bool fixupNeedsRelaxation(const MCFixup &Fixup,
-                                    uint64_t Value,
-                                    const MCRelaxableFragment *Fragment,
-                                    const MCAsmLayout &Layout) const
-    LLVM_OVERRIDE;
-  virtual void relaxInstruction(const MCInst &Inst,
-                                MCInst &Res) const LLVM_OVERRIDE;
-  virtual bool writeNopData(uint64_t Count,
-                            MCObjectWriter *OW) const LLVM_OVERRIDE;
-  virtual MCObjectWriter *createObjectWriter(raw_ostream &OS) const
-    LLVM_OVERRIDE {
-    return createSystemZObjectWriter(OS, OSABI);
-  }
-  virtual bool doesSectionRequireSymbols(const MCSection &Section) const
-    LLVM_OVERRIDE {
+  const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override;
+  void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
+                  uint64_t Value, bool IsPCRel) const override;
+  bool mayNeedRelaxation(const MCInst &Inst) const override {
     return false;
+  }
+  bool fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value,
+                            const MCRelaxableFragment *Fragment,
+                            const MCAsmLayout &Layout) const override {
+    return false;
+  }
+  void relaxInstruction(const MCInst &Inst, MCInst &Res) const override {
+    llvm_unreachable("SystemZ does do not have assembler relaxation");
+  }
+  bool writeNopData(uint64_t Count, MCObjectWriter *OW) const override;
+  MCObjectWriter *createObjectWriter(raw_ostream &OS) const override {
+    return createSystemZObjectWriter(OS, OSABI);
   }
 };
 } // end anonymous namespace
@@ -99,7 +85,8 @@ SystemZMCAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
 }
 
 void SystemZMCAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
-                                     unsigned DataSize, uint64_t Value) const {
+                                     unsigned DataSize, uint64_t Value,
+                                     bool IsPCRel) const {
   MCFixupKind Kind = Fixup.getKind();
   unsigned Offset = Fixup.getOffset();
   unsigned Size = (getFixupKindInfo(Kind).TargetSize + 7) / 8;
@@ -115,28 +102,6 @@ void SystemZMCAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
   }
 }
 
-bool SystemZMCAsmBackend::mayNeedRelaxation(const MCInst &Inst) const {
-  return getRelaxedOpcode(Inst.getOpcode()) != 0;
-}
-
-bool
-SystemZMCAsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup,
-                                          uint64_t Value,
-                                          const MCRelaxableFragment *Fragment,
-                                          const MCAsmLayout &Layout) const {
-  // At the moment we just need to relax 16-bit fields to wider fields.
-  Value = extractBitsForFixup(Fixup.getKind(), Value);
-  return (int16_t)Value != (int64_t)Value;
-}
-
-void SystemZMCAsmBackend::relaxInstruction(const MCInst &Inst,
-                                           MCInst &Res) const {
-  unsigned Opcode = getRelaxedOpcode(Inst.getOpcode());
-  assert(Opcode && "Unexpected insn to relax");
-  Res = Inst;
-  Res.setOpcode(Opcode);
-}
-
 bool SystemZMCAsmBackend::writeNopData(uint64_t Count,
                                        MCObjectWriter *OW) const {
   for (uint64_t I = 0; I != Count; ++I)
@@ -144,8 +109,9 @@ bool SystemZMCAsmBackend::writeNopData(uint64_t Count,
   return true;
 }
 
-MCAsmBackend *llvm::createSystemZMCAsmBackend(const Target &T, StringRef TT,
-                                              StringRef CPU) {
+MCAsmBackend *llvm::createSystemZMCAsmBackend(const Target &T,
+                                              const MCRegisterInfo &MRI,
+                                              StringRef TT, StringRef CPU) {
   uint8_t OSABI = MCELFObjectTargetWriter::getOSABI(Triple(TT).getOS());
   return new SystemZMCAsmBackend(OSABI);
 }

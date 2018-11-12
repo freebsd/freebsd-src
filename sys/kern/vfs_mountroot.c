@@ -95,7 +95,15 @@ static struct mntarg *parse_mountroot_options(struct mntarg *, const char *);
  */
 struct vnode *rootvnode;
 
+/*
+ * Mount of the system's /dev.
+ */
+struct mount *rootdevmp;
+
 char *rootdevnames[2] = {NULL, NULL};
+
+struct mtx root_holds_mtx;
+MTX_SYSINIT(root_holds, &root_holds_mtx, "root_holds", MTX_DEF);
 
 struct root_hold_token {
 	const char			*who;
@@ -131,9 +139,9 @@ root_mount_hold(const char *identifier)
 
 	h = malloc(sizeof *h, M_DEVBUF, M_ZERO | M_WAITOK);
 	h->who = identifier;
-	mtx_lock(&mountlist_mtx);
+	mtx_lock(&root_holds_mtx);
 	LIST_INSERT_HEAD(&root_holds, h, list);
-	mtx_unlock(&mountlist_mtx);
+	mtx_unlock(&root_holds_mtx);
 	return (h);
 }
 
@@ -143,10 +151,10 @@ root_mount_rel(struct root_hold_token *h)
 
 	if (h == NULL)
 		return;
-	mtx_lock(&mountlist_mtx);
+	mtx_lock(&root_holds_mtx);
 	LIST_REMOVE(h, list);
 	wakeup(&root_holds);
-	mtx_unlock(&mountlist_mtx);
+	mtx_unlock(&root_holds_mtx);
 	free(h, M_DEVBUF);
 }
 
@@ -168,12 +176,12 @@ root_mount_wait(void)
 	 */
 	KASSERT(curthread->td_proc->p_pid != 0,
 	    ("root_mount_wait: cannot be called from the swapper thread"));
-	mtx_lock(&mountlist_mtx);
+	mtx_lock(&root_holds_mtx);
 	while (!root_mount_complete) {
-		msleep(&root_mount_complete, &mountlist_mtx, PZERO, "rootwait",
+		msleep(&root_mount_complete, &root_holds_mtx, PZERO, "rootwait",
 		    hz);
 	}
-	mtx_unlock(&mountlist_mtx);
+	mtx_unlock(&root_holds_mtx);
 }
 
 static void
@@ -233,9 +241,10 @@ vfs_mountroot_devfs(struct thread *td, struct mount **mpp)
 	mtx_unlock(&mountlist_mtx);
 
 	*mpp = mp;
+	rootdevmp = mp;
 	set_rootvnode();
 
-	error = kern_symlink(td, "/", "dev", UIO_SYSSPACE);
+	error = kern_symlinkat(td, "/", AT_FDCWD, "dev", UIO_SYSSPACE);
 	if (error)
 		printf("kern_symlink /dev -> / returns %d\n", error);
 
@@ -347,7 +356,8 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 	if (mporoot == mpdevfs) {
 		vfs_unbusy(mpdevfs);
 		/* Unlink the no longer needed /dev/dev -> / symlink */
-		error = kern_unlink(td, "/dev/dev", UIO_SYSSPACE);
+		error = kern_unlinkat(td, AT_FDCWD, "/dev/dev",
+		    UIO_SYSSPACE, 0);
 		if (error && bootverbose)
 			printf("mountroot: unable to unlink /dev/dev "
 			    "(error %d)\n", error);
@@ -442,7 +452,7 @@ parse_dir_ask_printenv(const char *var)
 {
 	char *val;
 
-	val = getenv(var);
+	val = kern_getenv(var);
 	if (val != NULL) {
 		printf("  %s=%s\n", var, val);
 		freeenv(val);
@@ -521,12 +531,13 @@ parse_dir_md(char **conf)
 	free(tok, M_TEMP);
 
 	/* Get file status. */
-	error = kern_stat(td, path, UIO_SYSSPACE, &sb);
+	error = kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE, &sb, NULL);
 	if (error)
 		goto out;
 
 	/* Open /dev/mdctl so that we can attach/detach. */
-	error = kern_open(td, "/dev/" MDCTL_NAME, UIO_SYSSPACE, O_RDWR, 0);
+	error = kern_openat(td, AT_FDCWD, "/dev/" MDCTL_NAME, UIO_SYSSPACE,
+	    O_RDWR, 0);
 	if (error)
 		goto out;
 
@@ -780,6 +791,11 @@ retry:
 			break;
 		default:
 			error = parse_mount(&conf);
+			if (error == -1) {
+				printf("mountroot: invalid file system "
+				    "specification.\n");
+				error = 0;
+			}
 			break;
 		}
 		if (error < 0)
@@ -833,9 +849,9 @@ vfs_mountroot_conf0(struct sbuf *sb)
 		sbuf_printf(sb, "cd9660:/dev/acd0 ro\n");
 		sbuf_printf(sb, ".timeout %d\n", root_mount_timeout);
 	}
-	s = getenv("vfs.root.mountfrom");
+	s = kern_getenv("vfs.root.mountfrom");
 	if (s != NULL) {
-		opt = getenv("vfs.root.mountfrom.options");
+		opt = kern_getenv("vfs.root.mountfrom.options");
 		tok = s;
 		error = parse_token(&tok, &mnt);
 		while (!error) {
@@ -908,9 +924,9 @@ vfs_mountroot_wait(void)
 		DROP_GIANT();
 		g_waitidle();
 		PICKUP_GIANT();
-		mtx_lock(&mountlist_mtx);
+		mtx_lock(&root_holds_mtx);
 		if (LIST_EMPTY(&root_holds)) {
-			mtx_unlock(&mountlist_mtx);
+			mtx_unlock(&root_holds_mtx);
 			break;
 		}
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
@@ -919,7 +935,7 @@ vfs_mountroot_wait(void)
 				printf(" %s", h->who);
 			printf("\n");
 		}
-		msleep(&root_holds, &mountlist_mtx, PZERO | PDROP, "roothold",
+		msleep(&root_holds, &root_holds_mtx, PZERO | PDROP, "roothold",
 		    hz);
 	}
 }
@@ -979,10 +995,10 @@ vfs_mountroot(void)
 	vref(prison0.pr_root);
 	mtx_unlock(&prison0.pr_mtx);
 
-	mtx_lock(&mountlist_mtx);
+	mtx_lock(&root_holds_mtx);
 	atomic_store_rel_int(&root_mount_complete, 1);
 	wakeup(&root_mount_complete);
-	mtx_unlock(&mountlist_mtx);
+	mtx_unlock(&root_holds_mtx);
 
 	EVENTHANDLER_INVOKE(mountroot);
 }

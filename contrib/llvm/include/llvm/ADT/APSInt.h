@@ -30,18 +30,12 @@ public:
   explicit APSInt(uint32_t BitWidth, bool isUnsigned = true)
    : APInt(BitWidth, 0), IsUnsigned(isUnsigned) {}
 
-  explicit APSInt(const APInt &I, bool isUnsigned = true)
-   : APInt(I), IsUnsigned(isUnsigned) {}
+  explicit APSInt(APInt I, bool isUnsigned = true)
+   : APInt(std::move(I)), IsUnsigned(isUnsigned) {}
 
-  APSInt &operator=(const APSInt &RHS) {
-    APInt::operator=(RHS);
-    IsUnsigned = RHS.IsUnsigned;
-    return *this;
-  }
-
-  APSInt &operator=(const APInt &RHS) {
+  APSInt &operator=(APInt RHS) {
     // Retain our current sign.
-    APInt::operator=(RHS);
+    APInt::operator=(std::move(RHS));
     return *this;
   }
 
@@ -62,24 +56,24 @@ public:
     APInt::toString(Str, Radix, isSigned());
   }
   /// toString - Converts an APInt to a std::string.  This is an inefficient
-  /// method, your should prefer passing in a SmallString instead.
+  /// method; you should prefer passing in a SmallString instead.
   std::string toString(unsigned Radix) const {
     return APInt::toString(Radix, isSigned());
   }
   using APInt::toString;
 
-  APSInt trunc(uint32_t width) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT trunc(uint32_t width) const {
     return APSInt(APInt::trunc(width), IsUnsigned);
   }
 
-  APSInt extend(uint32_t width) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT extend(uint32_t width) const {
     if (IsUnsigned)
       return APSInt(zext(width), IsUnsigned);
     else
       return APSInt(sext(width), IsUnsigned);
   }
 
-  APSInt extOrTrunc(uint32_t width) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT extOrTrunc(uint32_t width) const {
       if (IsUnsigned)
         return APSInt(zextOrTrunc(width), IsUnsigned);
       else
@@ -212,7 +206,7 @@ public:
     assert(IsUnsigned == RHS.IsUnsigned && "Signedness mismatch!");
     return APSInt(static_cast<const APInt&>(*this) & RHS, IsUnsigned);
   }
-  APSInt And(const APSInt& RHS) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT And(const APSInt& RHS) const {
     return this->operator&(RHS);
   }
 
@@ -220,7 +214,7 @@ public:
     assert(IsUnsigned == RHS.IsUnsigned && "Signedness mismatch!");
     return APSInt(static_cast<const APInt&>(*this) | RHS, IsUnsigned);
   }
-  APSInt Or(const APSInt& RHS) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT Or(const APSInt& RHS) const {
     return this->operator|(RHS);
   }
 
@@ -229,7 +223,7 @@ public:
     assert(IsUnsigned == RHS.IsUnsigned && "Signedness mismatch!");
     return APSInt(static_cast<const APInt&>(*this) ^ RHS, IsUnsigned);
   }
-  APSInt Xor(const APSInt& RHS) const {
+  APSInt LLVM_ATTRIBUTE_UNUSED_RESULT Xor(const APSInt& RHS) const {
     return this->operator^(RHS);
   }
 
@@ -275,19 +269,15 @@ public:
     else if (I2.getBitWidth() > I1.getBitWidth())
       return isSameValue(I1.extend(I2.getBitWidth()), I2);
 
-    // We have a signedness mismatch. Turn the signed value into an unsigned
-    // value.
-    if (I1.isSigned()) {
-      if (I1.isNegative())
-        return false;
+    assert(I1.isSigned() != I2.isSigned());
 
-      return APSInt(I1, true) == I2;
-    }
-
-    if (I2.isNegative())
+    // We have a signedness mismatch. Check for negative values and do an
+    // unsigned compare if signs match.
+    if ((I1.isSigned() && I1.isNegative()) ||
+        (!I1.isSigned() && I2.isNegative()))
       return false;
 
-    return I1 == APSInt(I2, true);
+    return I1.eq(I2);
   }
 
   /// Profile - Used to insert APSInt objects, or objects that contain APSInt

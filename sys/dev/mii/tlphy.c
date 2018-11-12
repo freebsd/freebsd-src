@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -110,10 +109,11 @@ static driver_t tlphy_driver = {
 
 DRIVER_MODULE(tlphy, miibus, tlphy_driver, tlphy_devclass, 0, 0);
 
-static int	tlphy_service(struct mii_softc *, struct mii_data *, int);
-static int	tlphy_auto(struct tlphy_softc *);
+static int	tlphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static int	tlphy_auto(struct tlphy_softc *, if_media_t);
 static void	tlphy_acomp(struct tlphy_softc *);
-static void	tlphy_status(struct mii_softc *);
+static void	tlphy_status(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc tlphys[] = {
 	MII_PHY_DESC(TI, TLAN10T),
@@ -130,8 +130,7 @@ static int
 tlphy_probe(device_t dev)
 {
 
-	if (strcmp(device_get_name(device_get_parent(device_get_parent(dev))),
-	    "tl") != 0)
+	if (!mii_dev_mac_match(dev, "tl"))
 		return (ENXIO);
 	return (mii_phy_dev_probe(dev, tlphys, BUS_PROBE_DEFAULT));
 }
@@ -167,35 +166,32 @@ tlphy_attach(device_t dev)
 		free(devlist, M_TEMP);
 	}
 
-	PHY_RESET(sc_mii);
+	PHY_RESET(sc_mii, IFM_NONE);
 
 	sc_mii->mii_capabilities = PHY_READ(sc_mii, MII_BMSR) & capmask;
 
-#define	ADD(m, c)							\
-    ifmedia_add(&sc_mii->mii_pdata->mii_media, (m), (c), NULL)
 #define	PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
 	if ((sc_mii->mii_flags & (MIIF_MACPRIV0 | MIIF_MACPRIV1)) != 0 &&
 	    (sc_mii->mii_capabilities & BMSR_MEDIAMASK) != 0)
 		device_printf(dev, " ");
 	if ((sc_mii->mii_flags & MIIF_MACPRIV0) != 0) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_2, 0, sc_mii->mii_inst),
-		    0);
+		mii_phy_add_media(sc_mii->mii_pdata,
+		    IFM_MAKEWORD(IFM_ETHER, IFM_10_2, 0, sc_mii->mii_inst));
 		PRINT("10base2/BNC");
 	}
 	if ((sc_mii->mii_flags & MIIF_MACPRIV1) != 0) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_5, 0, sc_mii->mii_inst),
-		    0);
+		mii_phy_add_media(sc_mii->mii_pdata,
+		    IFM_MAKEWORD(IFM_ETHER, IFM_10_5, 0, sc_mii->mii_inst));
 		PRINT("10base5/AUI");
 	}
 	if ((sc_mii->mii_capabilities & BMSR_MEDIAMASK) != 0) {
 		printf("%s", sep);
-		mii_phy_add_media(sc_mii);
+		mii_phy_generic_media(sc_mii);
 	}
 	if ((sc_mii->mii_flags & (MIIF_MACPRIV0 | MIIF_MACPRIV1)) != 0 &&
 	    (sc_mii->mii_capabilities & BMSR_MEDIAMASK) != 0)
 		printf("\n");
-#undef ADD
 #undef PRINT
 
 	MIIBUS_MEDIAINIT(sc_mii->mii_dev);
@@ -203,10 +199,10 @@ tlphy_attach(device_t dev)
 }
 
 static int
-tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
+tlphy_service(struct mii_softc *self, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 	struct tlphy_softc *sc = (struct tlphy_softc *)self;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
 
 	if (sc->sc_need_acomp)
@@ -217,14 +213,14 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_AUTO:
 			/*
 			 * The ThunderLAN PHY doesn't self-configure after
 			 * an autonegotiation cycle, so there's no such
 			 * thing as "already in auto mode".
 			 */
-			(void)tlphy_auto(sc);
+			(void)tlphy_auto(sc, media);
 			break;
 		case IFM_10_2:
 		case IFM_10_5:
@@ -235,7 +231,7 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 		default:
 			PHY_WRITE(&sc->sc_mii, MII_TLPHY_CTRL, 0);
 			DELAY(100000);
-			mii_phy_setmedia(&sc->sc_mii);
+			mii_phy_setmedia(&sc->sc_mii, media);
 		}
 		break;
 
@@ -243,7 +239,7 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 		/*
 		 * Only used for autonegotiation.
 		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+		if (IFM_SUBTYPE(media) != IFM_AUTO)
 			break;
 
 		/*
@@ -265,13 +261,13 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 			break;
 
 		sc->sc_mii.mii_ticks = 0;
-		PHY_RESET(&sc->sc_mii);
-		(void)tlphy_auto(sc);
+		PHY_RESET(&sc->sc_mii, media);
+		(void)tlphy_auto(sc, media);
 		return (0);
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(self);
+	PHY_STATUS(self, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(&sc->sc_mii, cmd);
@@ -279,7 +275,7 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 }
 
 static void
-tlphy_status(struct mii_softc *self)
+tlphy_status(struct mii_softc *self, if_media_t media)
 {
 	struct tlphy_softc *sc = (struct tlphy_softc *)self;
 	struct mii_data *mii = sc->sc_mii.mii_pdata;
@@ -298,7 +294,7 @@ tlphy_status(struct mii_softc *self)
 	tlctrl = PHY_READ(&sc->sc_mii, MII_TLPHY_CTRL);
 	if (tlctrl & CTRL_AUISEL) {
 		mii->mii_media_status = 0;
-		mii->mii_media_active = mii->mii_media.ifm_cur->ifm_media;
+		mii->mii_media_active = media;
 		return;
 	}
 
@@ -324,11 +320,11 @@ tlphy_status(struct mii_softc *self)
 }
 
 static int
-tlphy_auto(struct tlphy_softc *sc)
+tlphy_auto(struct tlphy_softc *sc, if_media_t media)
 {
 	int error;
 
-	switch ((error = mii_phy_auto(&sc->sc_mii))) {
+	switch ((error = mii_phy_auto(&sc->sc_mii, media))) {
 	case EIO:
 		/*
 		 * Just assume we're not in full-duplex mode.

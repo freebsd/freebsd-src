@@ -88,7 +88,7 @@ static void in6_init_address_ltimes(struct nd_prefix *,
 static int nd6_prefix_onlink(struct nd_prefix *);
 static int nd6_prefix_offlink(struct nd_prefix *);
 
-static int rt6_deleteroute(struct radix_node *, void *);
+static int rt6_deleteroute(struct rtentry *, void *);
 
 VNET_DECLARE(int, nd6_recalc_reachtm_interval);
 #define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
@@ -179,12 +179,12 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 		lladdrlen = ndopts.nd_opts_src_lladdr->nd_opt_len << 3;
 	}
 
-	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
+	if (lladdr && ((if_addrlen(ifp) + 2 + 7) & ~7) != lladdrlen) {
 		nd6log((LOG_INFO,
 		    "nd6_rs_input: lladdrlen mismatch for %s "
 		    "(if %d, RS packet %d)\n",
 		    ip6_sprintf(ip6bufs, &saddr6),
-		    ifp->if_addrlen, lladdrlen - 2));
+		    if_addrlen(ifp), lladdrlen - 2));
 		goto bad;
 	}
 
@@ -297,8 +297,16 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	}
 	if (nd_ra->nd_ra_retransmit)
 		ndi->retrans = ntohl(nd_ra->nd_ra_retransmit);
-	if (nd_ra->nd_ra_curhoplimit)
-		ndi->chlim = nd_ra->nd_ra_curhoplimit;
+	if (nd_ra->nd_ra_curhoplimit) {
+		if (ndi->chlim < nd_ra->nd_ra_curhoplimit)
+			ndi->chlim = nd_ra->nd_ra_curhoplimit;
+		else if (ndi->chlim != nd_ra->nd_ra_curhoplimit) {
+			log(LOG_ERR, "RA with a lower CurHopLimit sent from "
+			    "%s on %s (current = %d, received = %d). "
+			    "Ignored.\n", ip6_sprintf(ip6bufs, &ip6->ip6_src),
+			    if_name(ifp), ndi->chlim, nd_ra->nd_ra_curhoplimit);
+		}
+	}
 	dr = defrtrlist_update(&dr0);
     }
 
@@ -409,11 +417,11 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		lladdrlen = ndopts.nd_opts_src_lladdr->nd_opt_len << 3;
 	}
 
-	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
+	if (lladdr && ((if_addrlen(ifp) + 2 + 7) & ~7) != lladdrlen) {
 		nd6log((LOG_INFO,
 		    "nd6_ra_input: lladdrlen mismatch for %s "
 		    "(if %d, RA packet %d)\n", ip6_sprintf(ip6bufs, &saddr6),
-		    ifp->if_addrlen, lladdrlen - 2));
+		    if_addrlen(ifp), lladdrlen - 2));
 		goto bad;
 	}
 
@@ -1553,7 +1561,7 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 				struct sockaddr_dl *dl;
 
 				dl = (struct sockaddr_dl *)rt->rt_gateway;
-				dl->sdl_type = rt->rt_ifp->if_type;
+				dl->sdl_type = if_type(rt->rt_ifp);
 				dl->sdl_index = rt->rt_ifp->if_index;
 			}
 			RADIX_NODE_HEAD_UNLOCK(rnh);
@@ -2059,30 +2067,19 @@ in6_init_address_ltimes(struct nd_prefix *new, struct in6_addrlifetime *lt6)
 void
 rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 {
-	struct radix_node_head *rnh;
-	u_int fibnum;
 
 	/* We'll care only link-local addresses */
 	if (!IN6_IS_ADDR_LINKLOCAL(gateway))
 		return;
 
 	/* XXX Do we really need to walk any but the default FIB? */
-	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		rnh = rt_tables_get_rnh(fibnum, AF_INET6);
-		if (rnh == NULL)
-			continue;
-
-		RADIX_NODE_HEAD_LOCK(rnh);
-		rnh->rnh_walktree(rnh, rt6_deleteroute, (void *)gateway);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
-	}
+	rt_foreach_fib_walk(AF_INET6, NULL, rt6_deleteroute, (void *)gateway);
 }
 
 static int
-rt6_deleteroute(struct radix_node *rn, void *arg)
+rt6_deleteroute(struct rtentry *rt, void *arg)
 {
 #define SIN6(s)	((struct sockaddr_in6 *)s)
-	struct rtentry *rt = (struct rtentry *)rn;
 	struct in6_addr *gate = (struct in6_addr *)arg;
 
 	if (rt->rt_gateway == NULL || rt->rt_gateway->sa_family != AF_INET6)

@@ -375,37 +375,106 @@ enum {
  */
 #define SFF_8472_STATUS_DATA_READY (1 << 0)
 
-/* Table 3.2 Identifier values */
+/*
+ * Table 3.2 Identifier values.
+ * Identifier constants has taken from SFF-8024 rev 2.9 table 4.1
+ * (as referenced by table 3.2 footer)
+ * */
 enum {
-	SFF_8472_ID_UNKNOWN	= 0x0, /* Unknown or unspecified */
-	SFF_8472_ID_GBIC	= 0x1, /* GBIC */
-	SFF_8472_ID_SFF		= 0x2, /* Module soldered to motherboard (ex: SFF)*/
-	SFF_8472_ID_SFP		= 0x3, /* SFP or SFP “Plus” */
-	SFF_8472_ID_XBI		= 0x4, /* Reserved for “300 pin XBI” devices */
-	SFF_8472_ID_XENPAK	= 0x5, /* Reserved for “Xenpak” devices */
-	SFF_8472_ID_XFP		= 0x6, /* Reserved for “XFP” devices */
-	SFF_8472_ID_XFF		= 0x7, /* Reserved for “XFF” devices */
-	SFF_8472_ID_XFPE	= 0x8, /* Reserved for “XFP-E” devices */
-	SFF_8472_ID_XPAK	= 0x9, /* Reserved for “XPak” devices */
-	SFF_8472_ID_X2		= 0xA, /* Reserved for “X2” devices */
-	SFF_8472_ID_DWDM_SFP	= 0xB, /* Reserved for “DWDM-SFP” devices */
-	SFF_8472_ID_QSFP	= 0xC, /* Reserved for “QSFP” devices */
-	SFF_8472_ID_LAST	= SFF_8472_ID_QSFP
+	SFF_8024_ID_UNKNOWN	= 0x0, /* Unknown or unspecified */
+	SFF_8024_ID_GBIC	= 0x1, /* GBIC */
+	SFF_8024_ID_SFF		= 0x2, /* Module soldered to motherboard (ex: SFF)*/
+	SFF_8024_ID_SFP		= 0x3, /* SFP or SFP “Plus” */
+	SFF_8024_ID_XBI		= 0x4, /* 300 pin XBI */
+	SFF_8024_ID_XENPAK	= 0x5, /* Xenpak */
+	SFF_8024_ID_XFP		= 0x6, /* XFP */
+	SFF_8024_ID_XFF		= 0x7, /* XFF */
+	SFF_8024_ID_XFPE	= 0x8, /* XFP-E */
+	SFF_8024_ID_XPAK	= 0x9, /* XPAk */
+	SFF_8024_ID_X2		= 0xA, /* X2 */
+	SFF_8024_ID_DWDM_SFP	= 0xB, /* DWDM-SFP */
+	SFF_8024_ID_QSFP	= 0xC, /* QSFP */
+	SFF_8024_ID_QSFPPLUS	= 0xD, /* QSFP+ */
+	SFF_8024_ID_CXP		= 0xE, /* CXP */
+	SFF_8024_ID_HD4X	= 0xF, /* Shielded Mini Multilane HD 4X */ 
+	SFF_8024_ID_HD8X	= 0x10, /* Shielded Mini Multilane HD 8X */ 
+	SFF_8024_ID_QSFP28	= 0x11, /* QSFP28 */
+	SFF_8024_ID_CXP2	= 0x12, /* CXP2 (aka CXP28) */
+	SFF_8024_ID_CDFP	= 0x13, /* CDFP (Style 1/Style 2) */
+	SFF_8024_ID_SMM4	= 0x14, /* Shielded Mini Multilate HD 4X Fanout */
+	SFF_8024_ID_SMM8	= 0x15, /* Shielded Mini Multilate HD 8X Fanout */
+	SFF_8024_ID_CDFP3	= 0x16, /* CDFP (Style3) */
+	SFF_8024_ID_LAST	= SFF_8024_ID_CDFP3
 	};
 
-static char *sff_8472_id[SFF_8472_ID_LAST + 1] = {"Unknown",
+static const char *sff_8024_id[SFF_8024_ID_LAST + 1] = {"Unknown",
 					     "GBIC",
 					     "SFF",
-					     "SFP",
+					     "SFP/SFP+/SFP28",
 					     "XBI",
 					     "Xenpak",
 					     "XFP",
 					     "XFF",
 					     "XFP-E",
-					     "XPak",
+					     "XPAK",
 					     "X2",
-					     "DWDM-SFP",
-					     "QSFP"};
+					     "DWDM-SFP/SFP+",
+					     "QSFP",
+					     "QSFP+",
+					     "CXP",
+					     "HD4X",
+					     "HD8X",
+					     "QSFP28",
+					     "CXP2",
+					     "CDFP",
+					     "SMM4",
+					     "SMM8",
+					     "CDFP3"};
+
+/* Keep compability with old definitions */
+#define	SFF_8472_ID_UNKNOWN	SFF_8024_ID_UNKNOWN
+#define	SFF_8472_ID_GBIC	SFF_8024_ID_GBIC
+#define	SFF_8472_ID_SFF		SFF_8024_ID_SFF
+#define	SFF_8472_ID_SFP		SFF_8024_ID_SFP
+#define	SFF_8472_ID_XBI		SFF_8024_ID_XBI
+#define	SFF_8472_ID_XENPAK	SFF_8024_ID_XENPAK
+#define	SFF_8472_ID_XFP		SFF_8024_ID_XFP
+#define	SFF_8472_ID_XFF		SFF_8024_ID_XFF
+#define	SFF_8472_ID_XFPE	SFF_8024_ID_XFPE
+#define	SFF_8472_ID_XPAK	SFF_8024_ID_XPAK
+#define	SFF_8472_ID_X2		SFF_8024_ID_X2
+#define	SFF_8472_ID_DWDM_SFP	SFF_8024_ID_DWDM_SFP
+#define	SFF_8472_ID_QSFP	SFF_8024_ID_QSFP
+#define	SFF_8472_ID_LAST	SFF_8024_ID_LAST
+
+#define	sff_8472_id		sff_8024_id
+
+/*
+ * Table 3.9 Diagnostic Monitoring Type (byte 92)
+ * bits described.
+ */
+
+/*
+ * Digital diagnostic monitoring implemented.
+ * Set to 1 for transceivers implementing DDM.
+ */
+#define	SFF_8472_DDM_DONE	(1 << 6)
+
+/*
+ * Measurements are internally calibrated.
+ */
+#define	SFF_8472_DDM_INTERNAL	(1 << 5)
+
+/*
+ * Measurements are externally calibrated.
+ */
+#define	SFF_8472_DDM_EXTERNAL	(1 << 4)
+
+/*
+ * Received power measurement type
+ * 0 = OMA, 1 = average power
+ */
+#define	SFF_8472_DDM_PMTYPE	(1 << 3)
 
 /* Table 3.13 and 3.14 Temperature Conversion Values */
 #define SFF_8472_TEMP_SIGN (1 << 15)

@@ -142,7 +142,7 @@ typedef	__uint32_t	__vm_size_t;
 #endif
 typedef	__int64_t	__vm_ooffset_t;
 typedef	__uint64_t	__vm_pindex_t;
-typedef	int		__wchar_t;
+typedef	int		___wchar_t;
 
 #define	__WCHAR_MIN	__INT_MIN	/* min value for a wchar_t */
 #define	__WCHAR_MAX	__INT_MAX	/* max value for a wchar_t */
@@ -152,8 +152,16 @@ typedef	int		__wchar_t;
  */
 #ifdef __GNUCLIKE_BUILTIN_VARARGS
 typedef	__builtin_va_list	__va_list;	/* internally known to gcc */
-#elif defined(lint)
-typedef	char *			__va_list;	/* pretend */
+#else
+#ifdef __LP64__
+struct __s_va_list {
+	__uint32_t	_pad1[2];	/* gp_offset, fp_offset */
+	__uint64_t	_pad2[2];	/* overflow_arg_area, reg_save_area */
+};
+typedef	struct __s_va_list	__va_list;
+#else
+typedef	char *			__va_list;
+#endif
 #endif
 #if defined(__GNUC_VA_LIST_COMPATIBILITY) && !defined(__GNUC_VA_LIST) \
     && !defined(__NO_GNUC_VA_LIST)

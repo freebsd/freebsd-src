@@ -10,6 +10,8 @@
     boot
         defaults
         ..
+        dtb
+        ..
         firmware
         ..
         kernel
@@ -24,6 +26,8 @@
     etc
         X11
         ..
+        autofs
+        ..
         bluetooth
         ..
         casper
@@ -32,13 +36,15 @@
         ..
         devd
         ..
-        gnats
+        dma
         ..
         gss
         ..
         mail
         ..
         mtree
+        ..
+        newsyslog.conf.d
         ..
         ntp             mode=0700
         ..
@@ -57,6 +63,8 @@
         pkg
         ..
         ppp
+        ..
+        rc.conf.d
         ..
         rc.d
         ..

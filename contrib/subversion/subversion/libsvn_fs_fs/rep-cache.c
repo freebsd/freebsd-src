@@ -81,8 +81,33 @@ open_rep_cache(void *baton,
   int version;
 
   /* Open (or create) the sqlite database.  It will be automatically
-     closed when fs->pool is destoyed. */
+     closed when fs->pool is destoyed.  */
   db_path = path_rep_cache_db(fs->path, pool);
+#ifndef WIN32
+  {
+    /* We want to extend the permissions that apply to the repository
+       as a whole when creating a new rep cache and not simply default
+       to umask. */
+    svn_boolean_t exists;
+
+    SVN_ERR(svn_fs_fs__exists_rep_cache(&exists, fs, pool));
+    if (!exists)
+      {
+        const char *current = svn_fs_fs__path_current(fs, pool);
+        svn_error_t *err = svn_io_file_create(db_path, "", pool);
+
+        if (err && !APR_STATUS_IS_EEXIST(err->apr_err))
+          /* A real error. */
+          return svn_error_trace(err);
+        else if (err)
+          /* Some other thread/process created the file. */
+          svn_error_clear(err);
+        else
+          /* We created the file. */
+          SVN_ERR(svn_io_copy_perms(current, db_path, pool));
+      }
+  }
+#endif
   SVN_ERR(svn_sqlite__open(&sdb, db_path,
                            svn_sqlite__mode_rwcreate, statements,
                            0, NULL,

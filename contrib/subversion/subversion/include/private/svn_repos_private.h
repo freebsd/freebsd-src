@@ -113,6 +113,10 @@ svn_repos__replay_ev2(svn_fs_root_t *root,
                       void *authz_read_baton,
                       apr_pool_t *scratch_pool);
 
+/* A private addition to svn_repos_notify_warning_t. */
+#define svn_repos__notify_warning_invalid_mergeinfo \
+    ((svn_repos_notify_warning_t)(-1))
+
 
 #ifdef __cplusplus
 }

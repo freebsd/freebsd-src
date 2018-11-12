@@ -66,5 +66,8 @@ struct lpc_sysres {
 #define	SYSRES_MEM(base, length)	LPC_SYSRES(LPC_SYSRES_MEM, base, length)
 
 int	lpc_device_parse(const char *opt);
+char	*lpc_pirq_name(int pin);
+void	lpc_pirq_routed(void);
+const char *lpc_bootrom(void);
 
 #endif

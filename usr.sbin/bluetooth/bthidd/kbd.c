@@ -37,6 +37,7 @@
 #include <sys/queue.h>
 #include <sys/wait.h>
 #include <assert.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
@@ -225,8 +226,8 @@ static int32_t const	x[] =
 /* Keyboard Int'l 7             8D */ -1,   /* Unassigned */
 /* Keyboard Int'l 8             8E */ -1,   /* Unassigned */
 /* Keyboard Int'l 9             8F */ -1,   /* Unassigned */
-/* Keyboard Lang 1              90 */ NOBREAK|0xF2, /* None */
-/* Keyboard Lang 2              91 */ NOBREAK|0xF1, /* None */
+/* Keyboard Lang 1              90 */ 0x71, /* eisu */
+/* Keyboard Lang 2              91 */ 0x72, /* kana */
 /* Keyboard Lang 3              92 */ 0x78, /* F8 */
 /* Keyboard Lang 4              93 */ 0x77, /* F7 */
 /* Keyboard Lang 5              94 */ 0x76, /* F6 */

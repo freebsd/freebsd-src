@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-/* $Id: panel.priv.h,v 1.22 2008/09/27 22:36:11 tom Exp $ */
+/* $Id: panel.priv.h,v 1.25 2012/12/15 23:57:43 tom Exp $ */
 
 #ifndef NCURSES_PANEL_PRIV_H
 #define NCURSES_PANEL_PRIV_H 1
@@ -39,9 +39,11 @@
 #include <string.h>
 #include <assert.h>
 
-#include "curses.priv.h"
+struct screen;              /* forward declaration */
+
+#include "curses.priv.h"    /* includes nc_panel.h */
 #include "panel.h"
-#include <nc_panel.h>
+
 
 #if USE_RCS_IDS
 #  define MODULE_ID(id) static const char Ident[] = id;
@@ -83,14 +85,38 @@
 #  define Touchline(pan,start,count) touchline((pan)->win,start,count)
 #endif
 
-#define _nc_stdscr_pseudo_panel _nc_panelhook()->stdscr_pseudo_panel
-#define _nc_top_panel _nc_panelhook()->top_panel
-#define _nc_bottom_panel _nc_panelhook()->bottom_panel
+#if NCURSES_SP_FUNCS
+#define GetScreenHook(sp) \
+			struct panelhook* ph = NCURSES_SP_NAME(_nc_panelhook)(sp)
+#define GetPanelHook(pan) \
+			GetScreenHook(pan ? _nc_screen_of((pan)->win) : 0)
+#define GetWindowHook(win) \
+			SCREEN* sp = _nc_screen_of(win); \
+			GetScreenHook(sp)
+#define GetHook(pan)	SCREEN* sp = _nc_screen_of(pan->win); \
+			GetScreenHook(sp)
 
-#define EMPTY_STACK() (_nc_top_panel==_nc_bottom_panel)
-#define Is_Bottom(p)  (((p)!=(PANEL*)0) && !EMPTY_STACK() && (_nc_bottom_panel->above==(p)))
-#define Is_Top(p) (((p)!=(PANEL*)0) && !EMPTY_STACK() && (_nc_top_panel==(p)))
-#define Is_Pseudo(p) ((p) && ((p)==_nc_bottom_panel))
+#define _nc_stdscr_pseudo_panel ((ph)->stdscr_pseudo_panel)
+#define _nc_top_panel           ((ph)->top_panel)
+#define _nc_bottom_panel        ((ph)->bottom_panel)
+
+#else	/* !NCURSES_SP_FUNCS */
+
+#define GetScreenHook(sp) /* nothing */
+#define GetPanelHook(pan) /* nothing */
+#define GetWindowHook(win) /* nothing */
+#define GetHook(pan) /* nothing */
+
+#define _nc_stdscr_pseudo_panel _nc_panelhook()->stdscr_pseudo_panel
+#define _nc_top_panel           _nc_panelhook()->top_panel
+#define _nc_bottom_panel        _nc_panelhook()->bottom_panel
+
+#endif	/* NCURSES_SP_FUNCS */
+
+#define EMPTY_STACK() (_nc_top_panel == _nc_bottom_panel)
+#define Is_Bottom(p)  (((p) != (PANEL*)0) && !EMPTY_STACK() && (_nc_bottom_panel->above == (p)))
+#define Is_Top(p)     (((p) != (PANEL*)0) && !EMPTY_STACK() && (_nc_top_panel == (p)))
+#define Is_Pseudo(p)  (((p) != (PANEL*)0) && ((p) == _nc_bottom_panel))
 
 /*+-------------------------------------------------------------------------
 	IS_LINKED(pan) - check to see if panel is in the stack
@@ -122,7 +148,7 @@
    ix2 = (PENDX(pan1)   < PENDX(pan2))   ? PENDX(pan1)   : PENDX(pan2);\
    iy1 = (PSTARTY(pan1) < PSTARTY(pan2)) ? PSTARTY(pan2) : PSTARTY(pan1);\
    iy2 = (PENDY(pan1)   < PENDY(pan2))   ? PENDY(pan1)   : PENDY(pan2);\
-   assert((ix1<=ix2) && (iy1<=iy2));\
+   assert((ix1<=ix2) && (iy1<=iy2))
 
 
 /*+-------------------------------------------------------------------------
@@ -134,14 +160,14 @@
 ---------------------------------------------------------------------------*/
 #define PANEL_UPDATE(pan,panstart)\
 {  PANEL* pan2 = ((panstart) ? (panstart) : _nc_bottom_panel);\
-   while(pan2) {\
+   while(pan2 && pan2->win) {\
       if ((pan2 != pan) && PANELS_OVERLAPPED(pan,pan2)) {\
-        int y,ix1,ix2,iy1,iy2;\
-        COMPUTE_INTERSECTION(pan,pan2,ix1,ix2,iy1,iy2);\
+        int y, ix1, ix2, iy1, iy2;\
+        COMPUTE_INTERSECTION(pan, pan2, ix1, ix2, iy1, iy2);\
 	for(y = iy1; y <= iy2; y++) {\
 	  if (is_linetouched(pan->win,y - PSTARTY(pan))) {\
             struct ldat* line = &(pan2->win->_line[y - PSTARTY(pan2)]);\
-            CHANGED_RANGE(line,ix1-PSTARTX(pan2),ix2-PSTARTX(pan2));\
+            CHANGED_RANGE(line, ix1 - PSTARTX(pan2), ix2 - PSTARTX(pan2));\
           }\
 	}\
       }\
@@ -179,5 +205,10 @@
   else {\
       err = err_if_unlinked;\
   }
+
+#if NCURSES_SP_FUNCS
+/* These may become later renamed and part of panel.h and the public API */
+extern NCURSES_EXPORT(void) NCURSES_SP_NAME(_nc_update_panels)(SCREEN*);
+#endif
 
 #endif /* NCURSES_PANEL_PRIV_H */

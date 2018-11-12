@@ -27,9 +27,6 @@
 #include "drivers/driver.h"
 
 
-extern int wpa_debug_level;
-extern int wpa_debug_show_keys;
-
 struct wpa_driver_ops *wpa_drivers[] = { NULL };
 
 
@@ -309,7 +306,7 @@ int main(int argc, char *argv[])
 	}
 
 	os_memset(&wpa_s, 0, sizeof(wpa_s));
-	wpa_s.conf = wpa_config_read(argv[1]);
+	wpa_s.conf = wpa_config_read(argv[1], NULL);
 	if (wpa_s.conf == NULL) {
 		printf("Failed to parse configuration file '%s'.\n", argv[1]);
 		return -1;

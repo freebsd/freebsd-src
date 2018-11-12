@@ -116,6 +116,8 @@ SYSRES_IO(BVM_DBG_PORT, 4);
 void
 init_dbgport(int sport)
 {
+	int reuse;
+
 	conn_fd = -1;
 
 	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -127,6 +129,13 @@ init_dbgport(int sport)
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_ANY);
 	sin.sin_port = htons(sport);
+
+	reuse = 1;
+	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &reuse,
+	    sizeof(reuse)) < 0) {
+		perror("setsockopt");
+		exit(1);
+	}
 
 	if (bind(listen_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 		perror("bind");

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}/../../contrib/tcp_wrappers
 
@@ -16,7 +16,6 @@ CFLAGS+=-DINET6
 
 WARNS?=	0
 
-DPADD=	${LIBWRAP}
-LDADD=	-lwrap
+LIBADD=	wrap
 
 .include <bsd.prog.mk>

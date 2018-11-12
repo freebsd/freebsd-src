@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1995                    *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Juergen Pfeifer                         1997-1999,2008          *
  ****************************************************************************/
 
 /* p_update.c
@@ -36,28 +37,42 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_update.c,v 1.9 2005/02/19 16:49:47 tom Exp $")
+MODULE_ID("$Id: p_update.c,v 1.11 2010/01/23 21:22:16 tom Exp $")
 
 NCURSES_EXPORT(void)
-update_panels(void)
+NCURSES_SP_NAME(update_panels) (NCURSES_SP_DCL0)
 {
   PANEL *pan;
 
-  T((T_CALLED("update_panels()")));
+  T((T_CALLED("update_panels(%p)"), (void *)SP_PARM));
   dBug(("--> update_panels"));
-  pan = _nc_bottom_panel;
-  while (pan && pan->above)
-    {
-      PANEL_UPDATE(pan, pan->above);
-      pan = pan->above;
-    }
 
-  pan = _nc_bottom_panel;
-  while (pan)
+  if (SP_PARM)
     {
-      Wnoutrefresh(pan);
-      pan = pan->above;
+      GetScreenHook(SP_PARM);
+
+      pan = _nc_bottom_panel;
+      while (pan && pan->above)
+	{
+	  PANEL_UPDATE(pan, pan->above);
+	  pan = pan->above;
+	}
+
+      pan = _nc_bottom_panel;
+      while (pan)
+	{
+	  Wnoutrefresh(pan);
+	  pan = pan->above;
+	}
     }
 
   returnVoid;
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(void)
+update_panels(void)
+{
+  NCURSES_SP_NAME(update_panels) (CURRENT_SCREEN);
+}
+#endif

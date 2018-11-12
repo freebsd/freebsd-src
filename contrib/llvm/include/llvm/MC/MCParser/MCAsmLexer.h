@@ -10,6 +10,7 @@
 #ifndef LLVM_MC_MCPARSER_MCASMLEXER_H
 #define LLVM_MC_MCPARSER_MCASMLEXER_H
 
+#include "llvm/ADT/APInt.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
@@ -17,7 +18,7 @@
 
 namespace llvm {
 
-/// AsmToken - Target independent representation for an assembler token.
+/// Target independent representation for an assembler token.
 class AsmToken {
 public:
   enum TokenKind {
@@ -30,6 +31,7 @@ public:
 
     // Integer values.
     Integer,
+    BigNum, // larger than 64 bits
 
     // Real values.
     Real,
@@ -57,12 +59,14 @@ private:
   /// a memory buffer owned by the source manager.
   StringRef Str;
 
-  int64_t IntVal;
+  APInt IntVal;
 
 public:
   AsmToken() {}
-  AsmToken(TokenKind _Kind, StringRef _Str, int64_t _IntVal = 0)
+  AsmToken(TokenKind _Kind, StringRef _Str, APInt _IntVal)
     : Kind(_Kind), Str(_Str), IntVal(_IntVal) {}
+  AsmToken(TokenKind _Kind, StringRef _Str, int64_t _IntVal = 0)
+    : Kind(_Kind), Str(_Str), IntVal(64, _IntVal, true) {}
 
   TokenKind getKind() const { return Kind; }
   bool is(TokenKind K) const { return Kind == K; }
@@ -70,25 +74,26 @@ public:
 
   SMLoc getLoc() const;
   SMLoc getEndLoc() const;
+  SMRange getLocRange() const;
 
-  /// getStringContents - Get the contents of a string token (without quotes).
+  /// Get the contents of a string token (without quotes).
   StringRef getStringContents() const {
     assert(Kind == String && "This token isn't a string!");
     return Str.slice(1, Str.size() - 1);
   }
 
-  /// getIdentifier - Get the identifier string for the current token, which
-  /// should be an identifier or a string. This gets the portion of the string
-  /// which should be used as the identifier, e.g., it does not include the
-  /// quotes on strings.
+  /// Get the identifier string for the current token, which should be an
+  /// identifier or a string. This gets the portion of the string which should
+  /// be used as the identifier, e.g., it does not include the quotes on
+  /// strings.
   StringRef getIdentifier() const {
     if (Kind == Identifier)
       return getString();
     return getStringContents();
   }
 
-  /// getString - Get the string for the current token, this includes all
-  /// characters (for example, the quotes on strings) in the token.
+  /// Get the string for the current token, this includes all characters (for
+  /// example, the quotes on strings) in the token.
   ///
   /// The returned StringRef points into the source manager's memory buffer, and
   /// is safe to store across calls to Lex().
@@ -99,12 +104,18 @@ public:
   // as a single token, then diagnose as an invalid number).
   int64_t getIntVal() const {
     assert(Kind == Integer && "This token isn't an integer!");
+    return IntVal.getZExtValue();
+  }
+
+  APInt getAPIntVal() const {
+    assert((Kind == Integer || Kind == BigNum) &&
+           "This token isn't an integer!");
     return IntVal;
   }
 };
 
-/// MCAsmLexer - Generic assembler lexer interface, for use by target specific
-/// assembly lexers.
+/// Generic assembler lexer interface, for use by target specific assembly
+/// lexers.
 class MCAsmLexer {
   /// The current token, stored in the base class for faster access.
   AsmToken CurTok;
@@ -118,6 +129,7 @@ class MCAsmLexer {
 protected: // Can only create subclasses.
   const char *TokStart;
   bool SkipSpace;
+  bool AllowAtInIdentifier;
 
   MCAsmLexer();
 
@@ -131,7 +143,7 @@ protected: // Can only create subclasses.
 public:
   virtual ~MCAsmLexer();
 
-  /// Lex - Consume the next token from the input stream and return it.
+  /// Consume the next token from the input stream and return it.
   ///
   /// The lexer will continuosly return the end-of-file token once the end of
   /// the main input file has been reached.
@@ -141,35 +153,41 @@ public:
 
   virtual StringRef LexUntilEndOfStatement() = 0;
 
-  /// getLoc - Get the current source location.
+  /// Get the current source location.
   SMLoc getLoc() const;
 
-  /// getTok - Get the current (last) lexed token.
-  const AsmToken &getTok() {
+  /// Get the current (last) lexed token.
+  const AsmToken &getTok() const {
     return CurTok;
   }
 
-  /// getErrLoc - Get the current error location
+  /// Look ahead at the next token to be lexed.
+  virtual const AsmToken peekTok(bool ShouldSkipSpace = true) = 0;
+
+  /// Get the current error location
   const SMLoc &getErrLoc() {
     return ErrLoc;
   }
 
-  /// getErr - Get the current error string
+  /// Get the current error string
   const std::string &getErr() {
     return Err;
   }
 
-  /// getKind - Get the kind of current token.
+  /// Get the kind of current token.
   AsmToken::TokenKind getKind() const { return CurTok.getKind(); }
 
-  /// is - Check if the current token has kind \p K.
+  /// Check if the current token has kind \p K.
   bool is(AsmToken::TokenKind K) const { return CurTok.is(K); }
 
-  /// isNot - Check if the current token has kind \p K.
+  /// Check if the current token has kind \p K.
   bool isNot(AsmToken::TokenKind K) const { return CurTok.isNot(K); }
 
-  /// setSkipSpace - Set whether spaces should be ignored by the lexer
+  /// Set whether spaces should be ignored by the lexer
   void setSkipSpace(bool val) { SkipSpace = val; }
+
+  bool getAllowAtInIdentifier() { return AllowAtInIdentifier; }
+  void setAllowAtInIdentifier(bool v) { AllowAtInIdentifier = v; }
 };
 
 } // End llvm namespace

@@ -49,7 +49,7 @@ struct timecounter {
 		/* This mask should mask off any unimplemented bits. */
 	uint64_t		tc_frequency;
 		/* Frequency of the counter in Hz. */
-	char			*tc_name;
+	const char		*tc_name;
 		/* Name of the timecounter. */
 	int			tc_quality;
 		/*
@@ -58,7 +58,7 @@ struct timecounter {
 		 * means "only use at explicit request".
 		 */
 	u_int			tc_flags;
-#define	TC_FLAGS_C3STOP		1	/* Timer dies in C3. */
+#define	TC_FLAGS_C2STOP		1	/* Timer dies in C2+. */
 #define	TC_FLAGS_SUSPEND_SAFE	2	/*
 					 * Timer functional across
 					 * suspend/resume.

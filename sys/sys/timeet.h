@@ -53,7 +53,7 @@ typedef int et_deregister_cb_t(struct eventtimer *et, void *arg);
 struct eventtimer {
 	SLIST_ENTRY(eventtimer)	et_all;
 		/* Pointer to the next event timer. */
-	char			*et_name;
+	const char		*et_name;
 		/* Name of the event timer. */
 	int			et_flags;
 		/* Set of capabilities flags: */
@@ -89,6 +89,7 @@ extern struct mtx	et_eventtimers_mtx;
 /* Driver API */
 int	et_register(struct eventtimer *et);
 int	et_deregister(struct eventtimer *et);
+void	et_change_frequency(struct eventtimer *et, uint64_t newfreq);
 /* Consumer API  */
 struct eventtimer *et_find(const char *name, int check, int want);
 int	et_init(struct eventtimer *et, et_event_cb_t *event,

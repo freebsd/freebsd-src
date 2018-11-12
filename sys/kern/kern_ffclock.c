@@ -203,26 +203,29 @@ static int
 sysctl_kern_sysclock_active(SYSCTL_HANDLER_ARGS)
 {
 	char newclock[MAX_SYSCLOCK_NAME_LEN];
-	int clk, error;
+	int error;
+	int clk;
 
-	if (req->newptr == NULL) {
-		/* Return the name of the current active sysclock. */
-		strlcpy(newclock, sysclocks[sysclock_active], sizeof(newclock));
-		error = sysctl_handle_string(oidp, newclock,
-		    sizeof(newclock), req);
-	} else {
-		/* Change the active sysclock to the user specified one. */
-		error = EINVAL;
-		for (clk = 0; clk < NUM_SYSCLOCKS; clk++) {
-			if (strncmp((char *)req->newptr, sysclocks[clk],
-			    strlen(sysclocks[clk])) == 0) {
-				sysclock_active = clk;
-				error = 0;
-				break;
-			}
+	/* Return the name of the current active sysclock. */
+	strlcpy(newclock, sysclocks[sysclock_active], sizeof(newclock));
+	error = sysctl_handle_string(oidp, newclock, sizeof(newclock), req);
+
+	/* Check for error or no change */
+	if (error != 0 || req->newptr == NULL)
+		goto done;
+
+	/* Change the active sysclock to the user specified one: */
+	error = EINVAL;
+	for (clk = 0; clk < NUM_SYSCLOCKS; clk++) {
+		if (strncmp(newclock, sysclocks[clk],
+		    MAX_SYSCLOCK_NAME_LEN - 1)) {
+			continue;
 		}
+		sysclock_active = clk;
+		error = 0;
+		break;
 	}
-
+done:
 	return (error);
 }
 

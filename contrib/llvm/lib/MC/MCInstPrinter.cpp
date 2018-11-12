@@ -31,9 +31,13 @@ void MCInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
 
 void MCInstPrinter::printAnnotation(raw_ostream &OS, StringRef Annot) {
   if (!Annot.empty()) {
-    if (CommentStream)
+    if (CommentStream) {
       (*CommentStream) << Annot;
-    else
+      // By definition (see MCInstPrinter.h), CommentStream must end with
+      // a newline after each comment.
+      if (Annot.back() != '\n')
+        (*CommentStream) << '\n';
+    } else
       OS << " " << MAI.getCommentString() << " " << Annot;
   }
 }
@@ -89,6 +93,7 @@ format_object1<int64_t> MCInstPrinter::formatHex(const int64_t Value) const {
         return format("%" PRIx64 "h", Value);
     }
   }
+  llvm_unreachable("unsupported print style");
 }
 
 format_object1<uint64_t> MCInstPrinter::formatHex(const uint64_t Value) const {
@@ -101,4 +106,5 @@ format_object1<uint64_t> MCInstPrinter::formatHex(const uint64_t Value) const {
     else
       return format("%" PRIx64 "h", Value);
   }
+  llvm_unreachable("unsupported print style");
 }

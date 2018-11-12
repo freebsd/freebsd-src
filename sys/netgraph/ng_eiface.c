@@ -236,6 +236,9 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		if (m == NULL)
 			break;
 
+		/* Peel the mbuf off any stale tags */
+		m_tag_delete_chain(m, NULL);
+
 		/*
 		 * Berkeley packet filter.
 		 * Pass packet to bpf if there is a listener.
@@ -244,7 +247,7 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		BPF_MTAP(ifp, m);
 
 		if (ifp->if_flags & IFF_MONITOR) {
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			m_freem(m);
 			continue;
 		}
@@ -259,9 +262,9 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 
 		/* Update stats */
 		if (error == 0)
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		else
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	}
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -594,7 +597,7 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 	m->m_pkthdr.rcvif = ifp;
 
 	/* Update interface stats */
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	(*ifp->if_input)(ifp, m);
 

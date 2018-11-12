@@ -103,6 +103,7 @@ YPMAPDIR = $(YPDIR)/$(DOMAIN)
 # passwd file will be generated from the master.passwd file automagically.
 #
 ETHERS    = $(YPSRCDIR)/ethers	   # ethernet addresses (for rarpd)
+EUI64     = $(YPSRCDIR)/eui64	   # eui64 addresses (for firewire)
 BOOTPARAMS= $(YPSRCDIR)/bootparams # for booting Sun boxes (bootparamd)
 HOSTS     = $(YPSRCDIR)/hosts
 IPNODES   = $(YPDIR)/ipnodes
@@ -143,13 +144,19 @@ TARGETS= servers hosts networks protocols rpc services shells group
 #TARGETS+= aliases
 
 # Sanity checks: filter out targets we can't build
-# Note that we don't build the ethers or boorparams maps by default
-# since /etc/ethers and /etc/bootparams are not likely to be present
+# Note that we don't build the ethers, eui64, or boorparams maps by default
+# since /etc/ethers, /etc/eui64 and /etc/bootparams are not likely to be present
 # on all systems.
 .if exists($(ETHERS))
 TARGETS+= ethers
 .else
 ETHERS= /dev/null
+.endif
+
+.if exists($(EUI64))
+TARGETS+= eui64
+.else
+EUI64= /dev/null
 .endif
 
 .if exists($(BOOTPARAMS))
@@ -195,6 +202,7 @@ IPNODES= /dev/null
 all: $(TARGETS)
 
 ethers:	   ethers.byname ethers.byaddr
+eui64:	   eui64.byname eui64.byid
 bootparam: bootparams
 hosts:	   hosts.byname hosts.byaddr
 ipnodes:   ipnodes.byname ipnodes.byaddr
@@ -288,6 +296,32 @@ ethers.byaddr: $(ETHERS)
 .else
 	@$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
 		print $$1"\t"$$0 }' $(ETHERS) | $(DBLOAD) -i $(ETHERS) \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+eui64.byname: $(EUI64)
+	@echo "Updating $@..."
+.if ${EUI64} == "/dev/null"
+	@echo "EUI64 source file not found -- skipping"
+.else
+	@$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$2"\t"$$0 }' $(EUI64) | $(DBLOAD) -i $(EUI64) \
+		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
+	@$(DBLOAD) -c
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
+	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
+eui64.byid: $(EUI64)
+	@echo "Updating $@..."
+.if ${EUI64} == "/dev/null"
+	@echo "EUI64 source file not found -- skipping"
+.else
+	@$(AWK) '{ if ($$1 != "" && $$1 !~ "^#.*" && $$1 != "+") \
+		print $$1"\t"$$0 }' $(EUI64) | $(DBLOAD) -i $(EUI64) \
 		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi

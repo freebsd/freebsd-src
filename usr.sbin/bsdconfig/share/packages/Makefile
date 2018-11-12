@@ -3,9 +3,6 @@
 NO_OBJ=
 
 FILESDIR=	${SHAREDIR}/bsdconfig/packages
-FILES=		categories.subr index.subr packages.subr
-
-beforeinstall:
-	mkdir -p ${DESTDIR}${FILESDIR}
+FILES=		categories.subr index.subr musthavepkg.subr packages.subr
 
 .include <bsd.prog.mk>

@@ -65,7 +65,7 @@ void arm_physmem_print_tables(void);
 
 #include <machine/ofw_machdep.h>
 
-inline void 
+static inline void 
 arm_physmem_hardware_regions(struct mem_region * mrptr, int mrcount)
 {
 	while (mrcount--) {
@@ -74,7 +74,7 @@ arm_physmem_hardware_regions(struct mem_region * mrptr, int mrcount)
 	}
 }
 
-inline void
+static inline void
 arm_physmem_exclude_regions(struct mem_region * mrptr, int mrcount, 
     uint32_t exflags)
 {

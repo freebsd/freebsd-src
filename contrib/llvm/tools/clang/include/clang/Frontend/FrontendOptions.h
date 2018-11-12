@@ -26,7 +26,6 @@ namespace frontend {
   enum ActionKind {
     ASTDeclList,            ///< Parse ASTs and list Decl nodes.
     ASTDump,                ///< Parse ASTs and dump them.
-    ASTDumpXML,             ///< Parse ASTs and dump them in XML.
     ASTPrint,               ///< Parse ASTs and print them.
     ASTView,                ///< Parse ASTs and view them in Graphviz.
     DumpRawTokens,          ///< Dump out raw tokens.
@@ -44,6 +43,7 @@ namespace frontend {
     GeneratePTH,            ///< Generate pre-tokenized header.
     InitOnly,               ///< Only execute frontend initialization.
     ModuleFileInfo,         ///< Dump information about a module file.
+    VerifyPCH,              ///< Load and verify that a PCH file is usable.
     ParseSyntaxOnly,        ///< Parse and perform semantic analysis.
     PluginAction,           ///< Run a plugin action, \see ActionName.
     PrintDeclContext,       ///< Print DeclContext and their Decls.
@@ -90,9 +90,9 @@ class FrontendInputFile {
   bool IsSystem;
 
 public:
-  FrontendInputFile() : Buffer(0), Kind(IK_None) { }
+  FrontendInputFile() : Buffer(nullptr), Kind(IK_None) { }
   FrontendInputFile(StringRef File, InputKind Kind, bool IsSystem = false)
-    : File(File.str()), Buffer(0), Kind(Kind), IsSystem(IsSystem) { }
+    : File(File.str()), Buffer(nullptr), Kind(Kind), IsSystem(IsSystem) { }
   FrontendInputFile(llvm::MemoryBuffer *buffer, InputKind Kind,
                     bool IsSystem = false)
     : Buffer(buffer), Kind(Kind), IsSystem(IsSystem) { }
@@ -100,9 +100,9 @@ public:
   InputKind getKind() const { return Kind; }
   bool isSystem() const { return IsSystem; }
 
-  bool isEmpty() const { return File.empty() && Buffer == 0; }
+  bool isEmpty() const { return File.empty() && Buffer == nullptr; }
   bool isFile() const { return !isBuffer(); }
-  bool isBuffer() const { return Buffer != 0; }
+  bool isBuffer() const { return Buffer != nullptr; }
 
   StringRef getFile() const {
     assert(isFile());
@@ -142,6 +142,10 @@ public:
                                            ///< global module index if available.
   unsigned GenerateGlobalModuleIndex : 1;  ///< Whether we can generate the
                                            ///< global module index if needed.
+  unsigned ASTDumpDecls : 1;               ///< Whether we include declaration
+                                           ///< dumps in AST dumps.
+  unsigned ASTDumpLookups : 1;             ///< Whether we include lookup table
+                                           ///< dumps in AST dumps.
 
   CodeCompleteOptions CodeCompleteOpts;
 
@@ -157,9 +161,41 @@ public:
     /// \brief Enable migration to modern ObjC literals.
     ObjCMT_Literals = 0x1,
     /// \brief Enable migration to modern ObjC subscripting.
-    ObjCMT_Subscripting = 0x2
+    ObjCMT_Subscripting = 0x2,
+    /// \brief Enable migration to modern ObjC readonly property.
+    ObjCMT_ReadonlyProperty = 0x4,
+    /// \brief Enable migration to modern ObjC readwrite property.
+    ObjCMT_ReadwriteProperty = 0x8,
+    /// \brief Enable migration to modern ObjC property.
+    ObjCMT_Property = (ObjCMT_ReadonlyProperty | ObjCMT_ReadwriteProperty),
+    /// \brief Enable annotation of ObjCMethods of all kinds.
+    ObjCMT_Annotation = 0x10,
+    /// \brief Enable migration of ObjC methods to 'instancetype'.
+    ObjCMT_Instancetype = 0x20,
+    /// \brief Enable migration to NS_ENUM/NS_OPTIONS macros.
+    ObjCMT_NsMacros = 0x40,
+    /// \brief Enable migration to add conforming protocols.
+    ObjCMT_ProtocolConformance = 0x80,
+    /// \brief prefer 'atomic' property over 'nonatomic'.
+    ObjCMT_AtomicProperty = 0x100,
+    /// \brief annotate property with NS_RETURNS_INNER_POINTER
+    ObjCMT_ReturnsInnerPointerProperty = 0x200,
+    /// \brief use NS_NONATOMIC_IOSONLY for property 'atomic' attribute
+    ObjCMT_NsAtomicIOSOnlyProperty = 0x400,
+    /// \brief Enable inferring NS_DESIGNATED_INITIALIZER for ObjC methods.
+    ObjCMT_DesignatedInitializer = 0x800,
+    /// \brief Enable converting setter/getter expressions to property-dot syntx.
+    ObjCMT_PropertyDotSyntax = 0x1000,
+    ObjCMT_MigrateDecls = (ObjCMT_ReadonlyProperty | ObjCMT_ReadwriteProperty |
+                           ObjCMT_Annotation | ObjCMT_Instancetype |
+                           ObjCMT_NsMacros | ObjCMT_ProtocolConformance |
+                           ObjCMT_NsAtomicIOSOnlyProperty |
+                           ObjCMT_DesignatedInitializer),
+    ObjCMT_MigrateAll = (ObjCMT_Literals | ObjCMT_Subscripting |
+                         ObjCMT_MigrateDecls | ObjCMT_PropertyDotSyntax)
   };
   unsigned ObjCMTAction;
+  std::string ObjCMTWhiteListPath;
 
   std::string MTMigrateDir;
   std::string ARCMTMigrateReportOut;
@@ -197,6 +233,13 @@ public:
   /// The list of plugins to load.
   std::vector<std::string> Plugins;
 
+  /// \brief The list of module map files to load before processing the input.
+  std::vector<std::string> ModuleMapFiles;
+
+  /// \brief The list of additional prebuilt module files to load before
+  /// processing the input.
+  std::vector<std::string> ModuleFiles;
+
   /// \brief The list of AST files to merge.
   std::vector<std::string> ASTMergeFiles;
 
@@ -215,7 +258,7 @@ public:
     FixWhatYouCan(false), FixOnlyWarnings(false), FixAndRecompile(false),
     FixToTemporaries(false), ARCMTMigrateEmitARCErrors(false),
     SkipFunctionBodies(false), UseGlobalModuleIndex(true),
-    GenerateGlobalModuleIndex(true),
+    GenerateGlobalModuleIndex(true), ASTDumpDecls(false), ASTDumpLookups(false),
     ARCMTAction(ARCMT_None), ObjCMTAction(ObjCMT_None),
     ProgramAction(frontend::ParseSyntaxOnly)
   {}

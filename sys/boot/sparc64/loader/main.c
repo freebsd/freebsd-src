@@ -101,7 +101,7 @@ static inline u_long itlb_get_data_sun4u(u_int, u_int);
 static int itlb_enter_sun4u(u_int, u_long data, vm_offset_t);
 static vm_offset_t itlb_va_to_pa_sun4u(vm_offset_t);
 static void itlb_relocate_locked0_sun4u(void);
-extern vm_offset_t md_load(char *, vm_offset_t *);
+extern vm_offset_t md_load(char *, vm_offset_t *, vm_offset_t *);
 static int sparc64_autoload(void);
 static ssize_t sparc64_readin(const int, vm_offset_t, const size_t);
 static ssize_t sparc64_copyin(const void *, vm_offset_t, size_t);
@@ -340,7 +340,7 @@ static int
 __elfN(exec)(struct preloaded_file *fp)
 {
 	struct file_metadata *fmp;
-	vm_offset_t mdp;
+	vm_offset_t mdp, dtbp;
 	Elf_Addr entry;
 	Elf_Ehdr *e;
 	int error;
@@ -349,7 +349,7 @@ __elfN(exec)(struct preloaded_file *fp)
 		return (EFTYPE);
 	e = (Elf_Ehdr *)&fmp->md_data;
 
-	if ((error = md_load(fp->f_args, &mdp)) != 0)
+	if ((error = md_load(fp->f_args, &mdp, &dtbp)) != 0)
 		return (error);
 
 	printf("jumping to kernel entry at %#lx.\n", e->e_entry);
@@ -897,7 +897,7 @@ main(int (*openfirm)(void *))
 	printf("bootpath=\"%s\"\n", bootpath);
 
 	/* Give control to the machine independent loader code. */
-	interact();
+	interact(NULL);
 	return (1);
 }
 

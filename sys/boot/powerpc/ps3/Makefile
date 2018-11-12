@@ -1,7 +1,8 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
+MAN=
 
 PROG=		loader.ps3
 NEWVERSWHAT=	"Playstation 3 loader" ${MACHINE_ARCH}
@@ -87,9 +88,6 @@ CFLAGS+=	-DRELOC=${RELOC}
 
 LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 
-# 64-bit bridge extensions
-CFLAGS+= -Wa,-mppc64bridge
-
 # Pull in common loader code
 #.PATH:		${.CURDIR}/../../ofw/common
 #.include	"${.CURDIR}/../../ofw/common/Makefile.inc"
@@ -114,18 +112,8 @@ loader.help: help.common help.ps3 ${.CURDIR}/../../fdt/help.fdt
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth
-FILES=	loader.help loader.4th support.4th loader.conf
-FILES+=	screen.4th frames.4th
-FILES+=	beastie.4th brand.4th check-password.4th color.4th delay.4th
-FILES+=	menu.4th menu-commands.4th menusets.4th shortcuts.4th version.4th
-FILESDIR_loader.conf=	/boot/defaults
+.include	"${.CURDIR}/../../forth/Makefile.inc"
 
-.if !exists(${DESTDIR}/boot/loader.rc)
-FILES+= loader.rc
-.endif
-
-.if !exists(${DESTDIR}/boot/menu.rc)
-FILES+= menu.rc
-.endif
+FILES+= loader.rc menu.rc
 
 .include <bsd.prog.mk>

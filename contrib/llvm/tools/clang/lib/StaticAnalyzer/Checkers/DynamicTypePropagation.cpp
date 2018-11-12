@@ -1,4 +1,4 @@
-//== DynamicTypePropagation.cpp ----------------------------------- -*- C++ -*--=//
+//== DynamicTypePropagation.cpp -------------------------------- -*- C++ -*--=//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -62,7 +62,7 @@ void DynamicTypePropagation::checkPreCall(const CallEvent &Call,
   if (const CXXConstructorCall *Ctor = dyn_cast<CXXConstructorCall>(&Call)) {
     // C++11 [class.cdtor]p4: When a virtual function is called directly or
     //   indirectly from a constructor or from a destructor, including during
-    //   the construction or destruction of the class’s non-static data members,
+    //   the construction or destruction of the class's non-static data members,
     //   and the object to which the call applies is the object under
     //   construction or destruction, the function called is the final overrider
     //   in the constructor's or destructor's class and not one overriding it in
@@ -223,7 +223,7 @@ DynamicTypePropagation::getObjectTypeForAllocAndNew(const ObjCMessageExpr *MsgE,
 
   const Expr *RecE = MsgE->getInstanceReceiver();
   if (!RecE)
-    return 0;
+    return nullptr;
 
   RecE= RecE->IgnoreParenImpCasts();
   if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(RecE)) {
@@ -237,7 +237,7 @@ DynamicTypePropagation::getObjectTypeForAllocAndNew(const ObjCMessageExpr *MsgE,
           return ObjTy;
     }
   }
-  return 0;
+  return nullptr;
 }
 
 // Return a better dynamic type if one can be derived from the cast.
@@ -253,7 +253,7 @@ DynamicTypePropagation::getBetterObjCType(const Expr *CastE,
   const ObjCObjectPointerType *NewTy =
       CastE->getType()->getAs<ObjCObjectPointerType>();
   if (!NewTy)
-    return 0;
+    return nullptr;
   QualType OldDTy = C.getState()->getDynamicTypeInfo(ToR).getType();
   if (OldDTy.isNull()) {
     return NewTy;
@@ -261,7 +261,7 @@ DynamicTypePropagation::getBetterObjCType(const Expr *CastE,
   const ObjCObjectPointerType *OldTy =
     OldDTy->getAs<ObjCObjectPointerType>();
   if (!OldTy)
-    return 0;
+    return nullptr;
 
   // Id the old type is 'id', the new one is more precise.
   if (OldTy->isObjCIdType() && !NewTy->isObjCIdType())
@@ -273,7 +273,7 @@ DynamicTypePropagation::getBetterObjCType(const Expr *CastE,
   if (ToI && FromI && FromI->isSuperClassOf(ToI))
     return NewTy;
 
-  return 0;
+  return nullptr;
 }
 
 void ento::registerDynamicTypePropagation(CheckerManager &mgr) {

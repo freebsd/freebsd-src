@@ -25,7 +25,7 @@
  */
 
 /*
- * Hyperbolic sine of a complex argument z.  See s_csinh.c for details.
+ * Float version of csinh().  See s_csinh.c for details.
  */
 
 #include <sys/cdefs.h>
@@ -55,51 +55,48 @@ csinhf(float complex z)
 
 	if (ix < 0x7f800000 && iy < 0x7f800000) {
 		if (iy == 0)
-			return (cpackf(sinhf(x), y));
-		if (ix < 0x41100000)	/* small x: normal case */
-			return (cpackf(sinhf(x) * cosf(y), coshf(x) * sinf(y)));
+			return (CMPLXF(sinhf(x), y));
+		if (ix < 0x41100000)	/* |x| < 9: normal case */
+			return (CMPLXF(sinhf(x) * cosf(y), coshf(x) * sinf(y)));
 
 		/* |x| >= 9, so cosh(x) ~= exp(|x|) */
 		if (ix < 0x42b17218) {
 			/* x < 88.7: expf(|x|) won't overflow */
-			h = expf(fabsf(x)) * 0.5f;
-			return (cpackf(copysignf(h, x) * cosf(y), h * sinf(y)));
+			h = expf(fabsf(x)) * 0.5F;
+			return (CMPLXF(copysignf(h, x) * cosf(y), h * sinf(y)));
 		} else if (ix < 0x4340b1e7) {
 			/* x < 192.7: scale to avoid overflow */
-			z = __ldexp_cexpf(cpackf(fabsf(x), y), -1);
-			return (cpackf(crealf(z) * copysignf(1, x), cimagf(z)));
+			z = __ldexp_cexpf(CMPLXF(fabsf(x), y), -1);
+			return (CMPLXF(crealf(z) * copysignf(1, x), cimagf(z)));
 		} else {
 			/* x >= 192.7: the result always overflows */
 			h = huge * x;
-			return (cpackf(h * cosf(y), h * h * sinf(y)));
+			return (CMPLXF(h * cosf(y), h * h * sinf(y)));
 		}
 	}
 
-	if (ix == 0 && iy >= 0x7f800000)
-		return (cpackf(copysignf(0, x * (y - y)), y - y));
+	if (ix == 0)			/* && iy >= 0x7f800000 */
+		return (CMPLXF(x, y - y));
 
-	if (iy == 0 && ix >= 0x7f800000) {
-		if ((hx & 0x7fffff) == 0)
-			return (cpackf(x, y));
-		return (cpackf(x, copysignf(0, y)));
-	}
+	if (iy == 0)			/* && ix >= 0x7f800000 */
+		return (CMPLXF(x + x, y));
 
-	if (ix < 0x7f800000 && iy >= 0x7f800000)
-		return (cpackf(y - y, x * (y - y)));
+	if (ix < 0x7f800000)		/* && iy >= 0x7f800000 */
+		return (CMPLXF(y - y, y - y));
 
-	if (ix >= 0x7f800000 && (hx & 0x7fffff) == 0) {
+	if (ix == 0x7f800000) {
 		if (iy >= 0x7f800000)
-			return (cpackf(x * x, x * (y - y)));
-		return (cpackf(x * cosf(y), INFINITY * sinf(y)));
+			return (CMPLXF(x, y - y));
+		return (CMPLXF(x * cosf(y), INFINITY * sinf(y)));
 	}
 
-	return (cpackf((x * x) * (y - y), (x + x) * (y - y)));
+	return (CMPLXF((x + x) * (y - y), (x * x) * (y - y)));
 }
 
 float complex
 csinf(float complex z)
 {
 
-	z = csinhf(cpackf(-cimagf(z), crealf(z)));
-	return (cpackf(cimagf(z), -crealf(z)));
+	z = csinhf(CMPLXF(cimagf(z), crealf(z)));
+	return (CMPLXF(cimagf(z), crealf(z)));
 }

@@ -98,9 +98,19 @@ XZ_5.0 {
 	lzma_vli_size;
 };
 
+XZ_5.2 {
+	lzma_block_uncomp_encode;
+	lzma_cputhreads;	
+	lzma_get_progress;
+	lzma_stream_encoder_mt;
+	lzma_stream_encoder_mt_memusage;
+};
+
 XZprivate_1.0 {
 	lzma_alloc;
+	lzma_alloc_zero;
 	lzma_alone_decoder_init;
+	lzma_block_buffer_bound64;
 	lzma_block_decoder_init;
 	lzma_block_encoder_init;
 	lzma_bufcpy;
@@ -123,6 +133,7 @@ XZprivate_1.0 {
 	lzma_lz_decoder_uncompressed;
 	lzma_lz_encoder_init;
 	lzma_lz_encoder_memusage;
+	lzma_lzma2_block_size;
 	lzma_lzma2_decoder_init;
 	lzma_lzma2_decoder_memusage;
 	lzma_lzma2_encoder_init;
@@ -155,9 +166,16 @@ XZprivate_1.0 {
 	lzma_mf_hc3_skip;
 	lzma_mf_hc4_find;
 	lzma_mf_hc4_skip;
+	lzma_mt_block_size;
 	lzma_next_end;
 	lzma_next_filter_init;
 	lzma_next_filter_update;
+	lzma_outq_end;
+	lzma_outq_get_buf;
+	lzma_outq_init;
+	lzma_outq_is_readable;
+	lzma_outq_memusage;
+	lzma_outq_read;
 	lzma_raw_coder_init;
 	lzma_raw_coder_memusage;
 	lzma_raw_decoder_init;
@@ -182,7 +200,7 @@ XZprivate_1.0 {
 	lzma_simple_x86_decoder_init;
 	lzma_simple_x86_encoder_init;
 	lzma_stream_decoder_init;
-	lzma_stream_encoder_init;
 	lzma_strm_init;
+	lzma_tuklib_cpucores;
 	lzma_tuklib_physmem;
 };

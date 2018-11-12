@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_user.c,v 1.14 2004/12/25 22:37:56 tom Exp $")
+MODULE_ID("$Id: frm_user.c,v 1.15 2010/01/23 21:14:36 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -46,7 +46,7 @@ MODULE_ID("$Id: frm_user.c,v 1.14 2004/12/25 22:37:56 tom Exp $")
 NCURSES_EXPORT(int)
 set_form_userptr(FORM *form, void *usrptr)
 {
-  T((T_CALLED("set_form_userptr(%p,%p)"), form, usrptr));
+  T((T_CALLED("set_form_userptr(%p,%p)"), (void *)form, (void *)usrptr));
 
   Normalize_Form(form)->usrptr = usrptr;
   RETURN(E_OK);
@@ -65,7 +65,7 @@ set_form_userptr(FORM *form, void *usrptr)
 NCURSES_EXPORT(void *)
 form_userptr(const FORM *form)
 {
-  T((T_CALLED("form_userptr(%p)"), form));
+  T((T_CALLED("form_userptr(%p)"), (const void *)form));
   returnVoidPtr(Normalize_Form(form)->usrptr);
 }
 

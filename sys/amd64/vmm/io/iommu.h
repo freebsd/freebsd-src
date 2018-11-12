@@ -39,8 +39,8 @@ typedef uint64_t (*iommu_create_mapping_t)(void *domain, vm_paddr_t gpa,
 					   vm_paddr_t hpa, uint64_t len);
 typedef uint64_t (*iommu_remove_mapping_t)(void *domain, vm_paddr_t gpa,
 					   uint64_t len);
-typedef void (*iommu_add_device_t)(void *domain, int bus, int slot, int func);
-typedef void (*iommu_remove_device_t)(void *dom, int bus, int slot, int func);
+typedef void (*iommu_add_device_t)(void *domain, uint16_t rid);
+typedef void (*iommu_remove_device_t)(void *dom, uint16_t rid);
 typedef void (*iommu_invalidate_tlb_t)(void *dom);
 
 struct iommu_ops {
@@ -69,7 +69,7 @@ void	iommu_destroy_domain(void *dom);
 void	iommu_create_mapping(void *dom, vm_paddr_t gpa, vm_paddr_t hpa,
 			     size_t len);
 void	iommu_remove_mapping(void *dom, vm_paddr_t gpa, size_t len);
-void	iommu_add_device(void *dom, int bus, int slot, int func);
-void	iommu_remove_device(void *dom, int bus, int slot, int func);
+void	iommu_add_device(void *dom, uint16_t rid);
+void	iommu_remove_device(void *dom, uint16_t rid);
 void	iommu_invalidate_tlb(void *domain);
 #endif

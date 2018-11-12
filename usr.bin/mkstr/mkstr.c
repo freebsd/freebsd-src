@@ -76,8 +76,8 @@ __FBSDID("$FreeBSD$");
  * existing error message file for recompilation of single routines.
  */
 
-FILE	*mesgread, *mesgwrite;
-char	name[100], *np;
+static FILE	*mesgread, *mesgwrite;
+static char	name[100], *np;
 
 void copystr(void);
 int fgetNUL(char *, int, FILE *);
@@ -267,7 +267,7 @@ inithash(void)
 
 #define	NBUCKETS	511
 
-struct	hash {
+static struct	hash {
 	long	hval;
 	unsigned hpt;
 	struct	hash *hnext;

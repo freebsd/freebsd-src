@@ -56,13 +56,18 @@ static dbbe_trace_thread_f db_trace_thread_wrapper;
 KDB_BACKEND(ddb, db_init, db_trace_self_wrapper, db_trace_thread_wrapper,
     db_trap);
 
-vm_offset_t ksym_start, ksym_end;
+/*
+ * Symbols can be loaded by specifying the exact addresses of
+ * the symtab and strtab in memory. This is used when loaded from
+ * boot loaders different than the native one (like Xen).
+ */
+vm_offset_t ksymtab, kstrtab, ksymtab_size;
 
-boolean_t
+bool
 X_db_line_at_pc(db_symtab_t *symtab, c_db_sym_t sym, char **file, int *line,
     db_expr_t off)
 {
-	return (FALSE);
+	return (false);
 }
 
 c_db_sym_t
@@ -105,7 +110,7 @@ X_db_search_symbol(db_symtab_t *symtab, db_addr_t off, db_strategy_t strat,
 	diff = ~0UL;
 	match = NULL;
 	for (sym = (Elf_Sym*)symtab->start; (char*)sym < symtab->end; sym++) {
-		if (sym->st_name == 0)
+		if (sym->st_name == 0 || sym->st_shndx == SHN_UNDEF)
 			continue;
 		if (off < sym->st_value)
 			continue;
@@ -140,11 +145,11 @@ X_db_search_symbol(db_symtab_t *symtab, db_addr_t off, db_strategy_t strat,
 	return ((c_db_sym_t)match);
 }
 
-boolean_t
+bool
 X_db_sym_numargs(db_symtab_t *symtab, c_db_sym_t sym, int *nargp,
     char **argp)
 {
-	return (FALSE);
+	return (false);
 }
 
 void
@@ -168,24 +173,39 @@ X_db_symbol_values(db_symtab_t *symtab, c_db_sym_t sym, const char **namep,
 	}
 }
 
+int
+db_fetch_ksymtab(vm_offset_t ksym_start, vm_offset_t ksym_end)
+{
+	Elf_Size strsz;
+
+	if (ksym_end > ksym_start && ksym_start != 0) {
+		ksymtab = ksym_start;
+		ksymtab_size = *(Elf_Size*)ksymtab;
+		ksymtab += sizeof(Elf_Size);
+		kstrtab = ksymtab + ksymtab_size;
+		strsz = *(Elf_Size*)kstrtab;
+		kstrtab += sizeof(Elf_Size);
+		if (kstrtab + strsz > ksym_end) {
+			/* Sizes doesn't match, unset everything. */
+			ksymtab = ksymtab_size = kstrtab = 0;
+		}
+	}
+
+	if (ksymtab == 0 || ksymtab_size == 0 || kstrtab == 0)
+		return (-1);
+
+	return (0);
+}
+
 static int
 db_init(void)
 {
-	uintptr_t symtab, strtab;
-	Elf_Size tabsz, strsz;
 
 	db_command_init();
-	if (ksym_end > ksym_start && ksym_start != 0) {
-		symtab = ksym_start;
-		tabsz = *((Elf_Size*)symtab);
-		symtab += sizeof(Elf_Size);
-		strtab = symtab + tabsz;
-		strsz = *((Elf_Size*)strtab);
-		strtab += sizeof(Elf_Size);
-		if (strtab + strsz <= ksym_end) {
-			db_add_symbol_table((char *)symtab,
-			    (char *)(symtab + tabsz), "elf", (char *)strtab);
-		}
+
+	if (ksymtab != 0 && kstrtab != 0 && ksymtab_size != 0) {
+		db_add_symbol_table((char *)ksymtab,
+		    (char *)(ksymtab + ksymtab_size), "elf", (char *)kstrtab);
 	}
 	db_add_symbol_table(NULL, NULL, "kld", NULL);
 	return (1);	/* We're the default debugger. */
@@ -196,7 +216,7 @@ db_trap(int type, int code)
 {
 	jmp_buf jb;
 	void *prev_jb;
-	boolean_t bkpt, watchpt;
+	bool bkpt, watchpt;
 	const char *why;
 
 	/*

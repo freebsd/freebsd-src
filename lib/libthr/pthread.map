@@ -6,22 +6,6 @@
  * Use the same naming scheme as libc.
  */
 FBSD_1.0 {
-	__error;
-	accept;
-	aio_suspend;
-	close;
-	connect;
-	creat;
-	execve;
-	fcntl;
-	fork;
-	fsync;
-	msync;
-	nanosleep;
-	open;
-	pause;
-	poll;
-	pselect;
 	pthread_atfork;
 	pthread_barrier_destroy;
 	pthread_barrier_init;
@@ -139,30 +123,6 @@ FBSD_1.0 {
 	pthread_testcancel;
 	pthread_timedjoin_np;
 	pthread_yield;
-	raise;
-	read;
-	readv;
-	recvfrom;
-	recvmsg;
-	select;
-	sendmsg;
-	sendto;
-	sigaction;
-	sigprocmask;
-	sigsuspend;
-	sigwait;
-	sigwaitinfo;
-	sigtimedwait;
-	sleep;
-	system;
-	tcdrain;
-	usleep;
-	wait;
-	wait3;
-	wait4;
-	waitpid;
-	write;
-	writev;
 };
 
 /*
@@ -170,28 +130,6 @@ FBSD_1.0 {
  * These are not part of our application ABI.
  */
 FBSDprivate_1.0 {
-	___creat;
-	___pause;
-	___pselect;
-	___sigwait;
-	___sleep;
-	___system;
-	___tcdrain;
-	___usleep;
-	___wait;
-	___waitpid;
-	__accept;
-	__accept4;
-	__aio_suspend;
-	__close;
-	__connect;
-	__fcntl;
-	__fsync;
-	__msync;
-	__nanosleep;
-	__open;
-	__openat;
-	__poll;
 	__pthread_cond_timedwait;
 	__pthread_cond_wait;
 	__pthread_cxa_finalize;
@@ -199,21 +137,6 @@ FBSDprivate_1.0 {
 	__pthread_mutex_lock;
 	__pthread_mutex_timedlock;
 	__pthread_mutex_trylock;
-	__read;
-	__readv;
-	__recvfrom;
-	__recvmsg;
-	__select;
-	__sendmsg;
-	__sendto;
-	__sigsuspend;
-	__sigtimedwait;
-	__sigwaitinfo;
-	__wait3;
-	__wait4;
-	__write;
-	__writev;
-	_fork;
 	_pthread_atfork;
 	_pthread_barrier_destroy;
 	_pthread_barrier_init;
@@ -345,18 +268,6 @@ FBSDprivate_1.0 {
 	_pthread_testcancel;
 	_pthread_timedjoin_np;
 	_pthread_yield;
-	_raise;
-	_setcontext;
-	_sigaction;
-	_sigprocmask;
-	_sigsuspend;
-	_sigtimedwait;
-	_sigwait;
-	_sigwaitinfo;
-	_spinlock;
-	_spinlock_debug;
-	_spinunlock;
-	_swapcontext;
 
 	/* Debugger needs these. */
 	_libthr_debug;
@@ -404,12 +315,5 @@ FBSD_1.1 {
 };
 
 FBSD_1.2 {
-	openat;
 	pthread_getthreadid_np;
-	setcontext;
-	swapcontext;
-};
-
-FBSD_1.3 {
-	accept4;
 };

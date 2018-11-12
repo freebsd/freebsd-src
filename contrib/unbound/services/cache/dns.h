@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -79,11 +79,12 @@ struct dns_msg {
  * 	can be updated to full TTL even in prefetch situations.
  * @param region: region to allocate better entries from cache into.
  *   (used when is_referral is false).
+ * @param flags: flags with BIT_CD for AAAA queries in dns64 translation.
  * @return 0 on alloc error (out of memory).
  */
 int dns_cache_store(struct module_env* env, struct query_info* qinf,
-        struct reply_info* rep, int is_referral, uint32_t leeway, int pside,
-	struct regional* region); 
+        struct reply_info* rep, int is_referral, time_t leeway, int pside,
+	struct regional* region, uint16_t flags); 
 
 /**
  * Store message in the cache. Stores in message cache and rrset cache.
@@ -105,7 +106,7 @@ int dns_cache_store(struct module_env* env, struct query_info* qinf,
  * @param region: to allocate into for qmsg.
  */
 void dns_cache_store_msg(struct module_env* env, struct query_info* qinfo,
-	hashvalue_t hash, struct reply_info* rep, uint32_t leeway, int pside,
+	hashvalue_t hash, struct reply_info* rep, time_t leeway, int pside,
 	struct reply_info* qrep, struct regional* region);
 
 /**
@@ -123,7 +124,7 @@ void dns_cache_store_msg(struct module_env* env, struct query_info* qinfo,
  */
 struct delegpt* dns_cache_find_delegation(struct module_env* env, 
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass, 
-	struct regional* region, struct dns_msg** msg, uint32_t timenow);
+	struct regional* region, struct dns_msg** msg, time_t timenow);
 
 /** 
  * Find cached message 
@@ -132,6 +133,7 @@ struct delegpt* dns_cache_find_delegation(struct module_env* env,
  * @param qnamelen: length of qname.
  * @param qtype: query type.
  * @param qclass: query class.
+ * @param flags: flags with BIT_CD for AAAA queries in dns64 translation.
  * @param region: where to allocate result.
  * @param scratch: where to allocate temporary data.
  * @return new response message (alloced in region, rrsets do not have IDs).
@@ -140,7 +142,7 @@ struct delegpt* dns_cache_find_delegation(struct module_env* env,
  */
 struct dns_msg* dns_cache_lookup(struct module_env* env,
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
-	struct regional* region, struct regional* scratch);
+	uint16_t flags, struct regional* region, struct regional* scratch);
 
 /** 
  * find and add A and AAAA records for missing nameservers in delegpt 
@@ -177,6 +179,19 @@ struct dns_msg* dns_msg_create(uint8_t* qname, size_t qnamelen, uint16_t qtype,
  * @return true if worked, false on fail
  */
 int dns_msg_authadd(struct dns_msg* msg, struct regional* region, 
-	struct ub_packed_rrset_key* rrset, uint32_t now);
+	struct ub_packed_rrset_key* rrset, time_t now);
+
+/**
+ * Adjust the prefetch_ttl for a cached message.  This adds a value to the
+ * prefetch ttl - postponing the time when it will be prefetched for future
+ * incoming queries.
+ * @param env: module environment with caches and time.
+ * @param qinfo: query info for the query that needs adjustment.
+ * @param adjust: time in seconds to add to the prefetch_leeway.
+ * @param flags: flags with BIT_CD for AAAA queries in dns64 translation.
+ * @return false if not in cache. true if added.
+ */
+int dns_cache_prefetch_adjust(struct module_env* env, struct query_info* qinfo,
+        time_t adjust, uint16_t flags);
 
 #endif /* SERVICES_CACHE_DNS_H */

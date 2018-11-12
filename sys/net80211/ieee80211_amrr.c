@@ -113,8 +113,8 @@ amrr_init(struct ieee80211vap *vap)
 
 	KASSERT(vap->iv_rs == NULL, ("%s called multiple times", __func__));
 
-	amrr = vap->iv_rs = malloc(sizeof(struct ieee80211_amrr),
-	    M_80211_RATECTL, M_NOWAIT|M_ZERO);
+	amrr = vap->iv_rs = IEEE80211_MALLOC(sizeof(struct ieee80211_amrr),
+	    M_80211_RATECTL, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (amrr == NULL) {
 		if_printf(vap->iv_ifp, "couldn't alloc ratectl structure\n");
 		return;
@@ -128,7 +128,7 @@ amrr_init(struct ieee80211vap *vap)
 static void
 amrr_deinit(struct ieee80211vap *vap)
 {
-	free(vap->iv_rs, M_80211_RATECTL);
+	IEEE80211_FREE(vap->iv_rs, M_80211_RATECTL);
 }
 
 /*
@@ -160,8 +160,8 @@ amrr_node_init(struct ieee80211_node *ni)
 	uint8_t rate;
 
 	if (ni->ni_rctls == NULL) {
-		ni->ni_rctls = amn = malloc(sizeof(struct ieee80211_amrr_node),
-		    M_80211_RATECTL, M_NOWAIT|M_ZERO);
+		ni->ni_rctls = amn = IEEE80211_MALLOC(sizeof(struct ieee80211_amrr_node),
+		    M_80211_RATECTL, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (amn == NULL) {
 			if_printf(vap->iv_ifp, "couldn't alloc per-node ratectl "
 			    "structure\n");
@@ -195,12 +195,13 @@ amrr_node_init(struct ieee80211_node *ni)
 		rate &= IEEE80211_RATE_VAL;
 
 	/* pick initial rate from the rateset - HT or otherwise */
+	/* Pick something low that's likely to succeed */
 	for (amn->amn_rix = rs->rs_nrates - 1; amn->amn_rix > 0;
 	    amn->amn_rix--) {
 		/* legacy - anything < 36mbit, stop searching */
-		/* 11n - stop at MCS4 / MCS12 / MCS28 */
+		/* 11n - stop at MCS4 */
 		if (amrr_node_is_11n(ni)) {
-			if ((rs->rs_rates[amn->amn_rix] & 0x7) < 4)
+			if ((rs->rs_rates[amn->amn_rix] & 0x1f) < 4)
 				break;
 		} else if ((rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL) <= 72)
 			break;
@@ -224,7 +225,7 @@ amrr_node_init(struct ieee80211_node *ni)
 static void
 amrr_node_deinit(struct ieee80211_node *ni)
 {
-	free(ni->ni_rctls, M_80211_RATECTL);
+	IEEE80211_FREE(ni->ni_rctls, M_80211_RATECTL);
 }
 
 static int

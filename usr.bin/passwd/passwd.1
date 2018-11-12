@@ -28,7 +28,7 @@
 .\"	@(#)passwd.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd February 14, 2014
 .Dt PASSWD 1
 .Os
 .Sh NAME
@@ -59,26 +59,9 @@ The
 .Nm
 utility prompts for the new password twice in order to detect typing errors.
 .Pp
-The new password should be at least six characters long (which
-may be overridden using the
-.Xr login.conf 5
-.Dq minpasswordlen
-setting for a user's login class) and not purely alphabetic.
-Its total length must be less than
+The total length of the password must be less than
 .Dv _PASSWORD_LEN
 (currently 128 characters).
-.Pp
-The new password should contain a mixture of upper and lower case
-characters (which may be overridden using the
-.Xr login.conf 5
-.Dq mixpasswordcase
-setting for a user's login class).
-Allowing lower case passwords may
-be useful where the password file will be used in situations where only
-lower case passwords are permissible, such as when using Samba to
-authenticate Windows clients.
-In all other situations, numbers, upper
-case letters and meta characters are encouraged.
 .Pp
 Once the password has been verified,
 .Nm
@@ -230,6 +213,7 @@ login class capabilities database
 .Xr passwd 5 ,
 .Xr kerberos 8 ,
 .Xr kpasswdd 8 ,
+.Xr pam_passwdqc 8 ,
 .Xr pw 8 ,
 .Xr pwd_mkdb 8 ,
 .Xr vipw 8

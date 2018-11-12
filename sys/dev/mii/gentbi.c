@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -108,8 +107,9 @@ static driver_t gentbi_driver = {
 
 DRIVER_MODULE(gentbi, miibus, gentbi_driver, gentbi_devclass, 0, 0);
 
-static int	gentbi_service(struct mii_softc *, struct mii_data *, int);
-static void	gentbi_status(struct mii_softc *);
+static int	gentbi_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	gentbi_status(struct mii_softc *, if_media_t);
 
 static const struct mii_phy_funcs gentbi_funcs = {
 	gentbi_service,
@@ -163,7 +163,7 @@ gentbi_attach(device_t dev)
 
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &gentbi_funcs, 0);
 
-	PHY_RESET(sc);
+	PHY_RESET(sc, 0);
 
 	/*
 	 * Mask out all media in the BMSR.  We only are really interested
@@ -175,7 +175,7 @@ gentbi_attach(device_t dev)
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 
 	device_printf(dev, " ");
-	mii_phy_add_media(sc);
+	mii_phy_generic_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
@@ -183,7 +183,8 @@ gentbi_attach(device_t dev)
 }
 
 static int
-gentbi_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+gentbi_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 
 	switch (cmd) {
@@ -191,7 +192,7 @@ gentbi_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -201,7 +202,7 @@ gentbi_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -209,10 +210,9 @@ gentbi_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-gentbi_status(struct mii_softc *sc)
+gentbi_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, anlpar;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -257,5 +257,5 @@ gentbi_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active = media;
 }

@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CGVALUE_H
-#define CLANG_CODEGEN_CGVALUE_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CGVALUE_H
+#define LLVM_CLANG_LIB_CODEGEN_CGVALUE_H
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CharUnits.h"
@@ -110,7 +110,8 @@ class LValue {
     Simple,       // This is a normal l-value, use getAddress().
     VectorElt,    // This is a vector element l-value (V[i]), use getVector*
     BitField,     // This is a bitfield l-value, use getBitfield*.
-    ExtVectorElt  // This is an extended vector subset, use getExtVectorComp
+    ExtVectorElt, // This is an extended vector subset, use getExtVectorComp
+    GlobalReg     // This is a register l-value, use getGlobalReg()
   } LVType;
 
   llvm::Value *V;
@@ -168,7 +169,7 @@ class LValue {
 private:
   void Initialize(QualType Type, Qualifiers Quals,
                   CharUnits Alignment,
-                  llvm::MDNode *TBAAInfo = 0) {
+                  llvm::MDNode *TBAAInfo = nullptr) {
     this->Type = Type;
     this->Quals = Quals;
     this->Alignment = Alignment.getQuantity();
@@ -179,7 +180,7 @@ private:
     this->Ivar = this->ObjIsArray = this->NonGC = this->GlobalObjCRef = false;
     this->ImpreciseLifetime = false;
     this->ThreadLocalRef = false;
-    this->BaseIvarExp = 0;
+    this->BaseIvarExp = nullptr;
 
     // Initialize fields for TBAA.
     this->TBAABaseType = Type;
@@ -192,6 +193,7 @@ public:
   bool isVectorElt() const { return LVType == VectorElt; }
   bool isBitField() const { return LVType == BitField; }
   bool isExtVectorElt() const { return LVType == ExtVectorElt; }
+  bool isGlobalReg() const { return LVType == GlobalReg; }
 
   bool isVolatileQualified() const { return Quals.hasVolatile(); }
   bool isRestrictQualified() const { return Quals.hasRestrict(); }
@@ -286,9 +288,12 @@ public:
     return *BitFieldInfo;
   }
 
+  // global register lvalue
+  llvm::Value *getGlobalReg() const { assert(isGlobalReg()); return V; }
+
   static LValue MakeAddr(llvm::Value *address, QualType type,
                          CharUnits alignment, ASTContext &Context,
-                         llvm::MDNode *TBAAInfo = 0) {
+                         llvm::MDNode *TBAAInfo = nullptr) {
     Qualifiers qs = type.getQualifiers();
     qs.setObjCGCAttr(Context.getObjCGCAttrKind(type));
 
@@ -332,6 +337,16 @@ public:
     R.LVType = BitField;
     R.V = Addr;
     R.BitFieldInfo = &Info;
+    R.Initialize(type, type.getQualifiers(), Alignment);
+    return R;
+  }
+
+  static LValue MakeGlobalReg(llvm::Value *Reg,
+                              QualType type,
+                              CharUnits Alignment) {
+    LValue R;
+    R.LVType = GlobalReg;
+    R.V = Reg;
     R.Initialize(type, type.getQualifiers(), Alignment);
     return R;
   }
@@ -381,28 +396,16 @@ class AggValueSlot {
   /// evaluating an expression which constructs such an object.
   bool AliasedFlag : 1;
 
-  /// ValueOfAtomicFlag - This is set to true if the slot is the value
-  /// subobject of an object the size of an _Atomic(T).  The specific
-  /// guarantees this makes are:
-  ///   - the address is guaranteed to be a getelementptr into the
-  ///     padding struct and
-  ///   - it is okay to store something the width of an _Atomic(T)
-  ///     into the address.
-  /// Tracking this allows us to avoid some obviously unnecessary
-  /// memcpys.
-  bool ValueOfAtomicFlag : 1;
-
 public:
   enum IsAliased_t { IsNotAliased, IsAliased };
   enum IsDestructed_t { IsNotDestructed, IsDestructed };
   enum IsZeroed_t { IsNotZeroed, IsZeroed };
   enum NeedsGCBarriers_t { DoesNotNeedGCBarriers, NeedsGCBarriers };
-  enum IsValueOfAtomic_t { IsNotValueOfAtomic, IsValueOfAtomic };
 
   /// ignored - Returns an aggregate value slot indicating that the
   /// aggregate value is being ignored.
   static AggValueSlot ignored() {
-    return forAddr(0, CharUnits(), Qualifiers(), IsNotDestructed,
+    return forAddr(nullptr, CharUnits(), Qualifiers(), IsNotDestructed,
                    DoesNotNeedGCBarriers, IsNotAliased);
   }
 
@@ -421,9 +424,7 @@ public:
                               IsDestructed_t isDestructed,
                               NeedsGCBarriers_t needsGC,
                               IsAliased_t isAliased,
-                              IsZeroed_t isZeroed = IsNotZeroed,
-                              IsValueOfAtomic_t isValueOfAtomic
-                                = IsNotValueOfAtomic) {
+                              IsZeroed_t isZeroed = IsNotZeroed) {
     AggValueSlot AV;
     AV.Addr = addr;
     AV.Alignment = align.getQuantity();
@@ -432,7 +433,6 @@ public:
     AV.ObjCGCFlag = needsGC;
     AV.ZeroedFlag = isZeroed;
     AV.AliasedFlag = isAliased;
-    AV.ValueOfAtomicFlag = isValueOfAtomic;
     return AV;
   }
 
@@ -440,12 +440,9 @@ public:
                                 IsDestructed_t isDestructed,
                                 NeedsGCBarriers_t needsGC,
                                 IsAliased_t isAliased,
-                                IsZeroed_t isZeroed = IsNotZeroed,
-                                IsValueOfAtomic_t isValueOfAtomic
-                                  = IsNotValueOfAtomic) {
+                                IsZeroed_t isZeroed = IsNotZeroed) {
     return forAddr(LV.getAddress(), LV.getAlignment(),
-                   LV.getQuals(), isDestructed, needsGC, isAliased, isZeroed,
-                   isValueOfAtomic);
+                   LV.getQuals(), isDestructed, needsGC, isAliased, isZeroed);
   }
 
   IsDestructed_t isExternallyDestructed() const {
@@ -477,14 +474,8 @@ public:
     return Addr;
   }
 
-  IsValueOfAtomic_t isValueOfAtomic() const {
-    return IsValueOfAtomic_t(ValueOfAtomicFlag);
-  }
-
-  llvm::Value *getPaddedAtomicAddr() const;
-
   bool isIgnored() const {
-    return Addr == 0;
+    return Addr == nullptr;
   }
 
   CharUnits getAlignment() const {

@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_types.h>
-#include <net/if_vlan_var.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -115,8 +113,8 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 {
 	struct adapter *sc = iq->adapter;
 	const struct cpl_act_establish *cpl = (const void *)(rss + 1);
-	unsigned int tid = GET_TID(cpl);
-	unsigned int atid = G_TID_TID(ntohl(cpl->tos_atid));
+	u_int tid = GET_TID(cpl);
+	u_int atid = G_TID_TID(ntohl(cpl->tos_atid));
 	struct toepcb *toep = lookup_atid(sc, atid);
 	struct inpcb *inp = toep->inp;
 
@@ -178,17 +176,34 @@ act_open_rpl_status_to_errno(int status)
 	}
 }
 
+void
+act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
+{
+	struct toepcb *toep = lookup_atid(sc, atid);
+	struct inpcb *inp = toep->inp;
+	struct toedev *tod = &toep->td->tod;
+
+	free_atid(sc, atid);
+	toep->tid = -1;
+
+	if (status != EAGAIN)
+		INP_INFO_RLOCK(&V_tcbinfo);
+	INP_WLOCK(inp);
+	toe_connect_failed(tod, inp, status);
+	final_cpl_received(toep);	/* unlocks inp */
+	if (status != EAGAIN)
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+}
+
 static int
 do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
 	const struct cpl_act_open_rpl *cpl = (const void *)(rss + 1);
-	unsigned int atid = G_TID_TID(G_AOPEN_ATID(be32toh(cpl->atid_status)));
-	unsigned int status = G_AOPEN_STATUS(be32toh(cpl->atid_status));
+	u_int atid = G_TID_TID(G_AOPEN_ATID(be32toh(cpl->atid_status)));
+	u_int status = G_AOPEN_STATUS(be32toh(cpl->atid_status));
 	struct toepcb *toep = lookup_atid(sc, atid);
-	struct inpcb *inp = toep->inp;
-	struct toedev *tod = &toep->td->tod;
 	int rc;
 
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
@@ -200,20 +215,11 @@ do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	if (negative_advice(status))
 		return (0);
 
-	free_atid(sc, atid);
-	toep->tid = -1;
-
 	if (status && act_open_has_tid(status))
 		release_tid(sc, GET_TID(cpl), toep->ctrlq);
 
 	rc = act_open_rpl_status_to_errno(status);
-	if (rc != EAGAIN)
-		INP_INFO_WLOCK(&V_tcbinfo);
-	INP_WLOCK(inp);
-	toe_connect_failed(tod, inp, rc);
-	final_cpl_received(toep);	/* unlocks inp */
-	if (rc != EAGAIN)
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+	act_open_failure_cleanup(sc, atid, rc);
 
 	return (0);
 }
@@ -312,7 +318,6 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	struct tom_data *td = tod_td(tod);
 	struct toepcb *toep = NULL;
 	struct wrqe *wr = NULL;
-	struct ifnet *rt_ifp = rt->rt_ifp;
 	struct port_info *pi;
 	int mtu_idx, rscale, qid_atid, rc, isipv6;
 	struct inpcb *inp = sotoinpcb(so);
@@ -323,15 +328,12 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	KASSERT(nam->sa_family == AF_INET || nam->sa_family == AF_INET6,
 	    ("%s: dest addr %p has family %u", __func__, nam, nam->sa_family));
 
-	if (rt_ifp->if_type == IFT_ETHER)
-		pi = rt_ifp->if_softc;
-	else if (rt_ifp->if_type == IFT_L2VLAN) {
-		struct ifnet *ifp = VLAN_COOKIE(rt_ifp);
-
-		pi = ifp->if_softc;
-	} else if (rt_ifp->if_type == IFT_IEEE8023ADLAG)
-		DONT_OFFLOAD_ACTIVE_OPEN(ENOSYS); /* XXX: implement lagg+TOE */
-	else
+	/*
+	 * Get port of a NIC or vlan(4).
+	 * XXX: implement lagg+TOE
+	 */
+	pi = if_getsoftc(rt->rt_ifp, IF_CXGBE_PORT);
+	if (pi == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
 
 	toep = alloc_toepcb(pi, -1, -1, M_NOWAIT);
@@ -342,7 +344,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	if (toep->tid < 0)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
-	toep->l2te = t4_l2t_get(pi, rt_ifp,
+	toep->l2te = t4_l2t_get(pi, rt->rt_ifp,
 	    rt->rt_flags & RTF_GATEWAY ? rt->rt_gateway : nam);
 	if (toep->l2te == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);

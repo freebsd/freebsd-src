@@ -83,7 +83,7 @@ enum dwarf_data_encoding
  */
 static inline enum dwarf_data_encoding get_encoding(unsigned char x)
 {
-	return (enum dwarf_data_encoding)(x & 0xf);
+	return static_cast<enum dwarf_data_encoding>(x & 0xf);
 }
 
 /**
@@ -115,7 +115,7 @@ enum dwarf_data_relative
  */
 static inline enum dwarf_data_relative get_base(unsigned char x)
 {
-	return (enum dwarf_data_relative)(x & 0x70);
+	return static_cast<enum dwarf_data_relative>(x & 0x70);
 }
 /**
  * Returns whether an encoding represents an indirect address.
@@ -206,9 +206,9 @@ static int64_t read_sleb128(dw_eh_ptr_t *data)
 	if ((uleb >> (bits-1)) == 1)
 	{
 		// Sign extend by setting all bits in front of it to 1
-		uleb |= ((int64_t)-1) << bits;
+		uleb |= static_cast<int64_t>(-1) << bits;
 	}
-	return (int64_t)uleb;
+	return static_cast<int64_t>(uleb);
 }
 /**
  * Reads a value using the specified encoding from the address pointed to by
@@ -218,15 +218,17 @@ static int64_t read_sleb128(dw_eh_ptr_t *data)
 static uint64_t read_value(char encoding, dw_eh_ptr_t *data)
 {
 	enum dwarf_data_encoding type = get_encoding(encoding);
-	uint64_t v;
 	switch (type)
 	{
 		// Read fixed-length types
 #define READ(dwarf, type) \
 		case dwarf:\
-			v = (uint64_t)(*(type*)(*data));\
-			*data += sizeof(type);\
-			break;
+		{\
+			type t;\
+			memcpy(&t, *data, sizeof t);\
+			*data += sizeof t;\
+			return static_cast<uint64_t>(t);\
+		}
 		READ(DW_EH_PE_udata2, uint16_t)
 		READ(DW_EH_PE_udata4, uint32_t)
 		READ(DW_EH_PE_udata8, uint64_t)
@@ -237,15 +239,11 @@ static uint64_t read_value(char encoding, dw_eh_ptr_t *data)
 #undef READ
 		// Read variable-length types
 		case DW_EH_PE_sleb128:
-			v = read_sleb128(data);
-			break;
+			return read_sleb128(data);
 		case DW_EH_PE_uleb128:
-			v = read_uleb128(data);
-			break;
+			return read_uleb128(data);
 		default: abort();
 	}
-
-	return v;
 }
 
 /**
@@ -263,16 +261,16 @@ static uint64_t resolve_indirect_value(_Unwind_Context *c,
 	switch (get_base(encoding))
 	{
 		case DW_EH_PE_pcrel:
-			v += (uint64_t)start;
+			v += reinterpret_cast<uint64_t>(start);
 			break;
 		case DW_EH_PE_textrel:
-			v += (uint64_t)_Unwind_GetTextRelBase(c);
+			v += static_cast<uint64_t>(static_cast<uintptr_t>(_Unwind_GetTextRelBase(c)));
 			break;
 		case DW_EH_PE_datarel:
-			v += (uint64_t)_Unwind_GetDataRelBase(c);
+			v += static_cast<uint64_t>(static_cast<uintptr_t>(_Unwind_GetDataRelBase(c)));
 			break;
 		case DW_EH_PE_funcrel:
-			v += (uint64_t)_Unwind_GetRegionStart(c);
+			v += static_cast<uint64_t>(static_cast<uintptr_t>(_Unwind_GetRegionStart(c)));
 		default:
 			break;
 	}
@@ -282,7 +280,7 @@ static uint64_t resolve_indirect_value(_Unwind_Context *c,
 	// be a GCC extensions, so not properly documented...
 	if (is_indirect(encoding))
 	{
-		v = (uint64_t)(uintptr_t)*(void**)v;
+		v = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(*reinterpret_cast<void**>(v)));
 	}
 	return v;
 }
@@ -342,14 +340,14 @@ static inline struct dwarf_eh_lsda parse_lsda(_Unwind_Context *context,
 {
 	struct dwarf_eh_lsda lsda;
 
-	lsda.region_start = (dw_eh_ptr_t)(uintptr_t)_Unwind_GetRegionStart(context);
+	lsda.region_start = reinterpret_cast<dw_eh_ptr_t>(_Unwind_GetRegionStart(context));
 
 	// If the landing pads are relative to anything other than the start of
 	// this region, find out where.  This is @LPStart in the spec, although the
 	// encoding that GCC uses does not quite match the spec.
-	uint64_t v = (uint64_t)(uintptr_t)lsda.region_start;
+	uint64_t v = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(lsda.region_start));
 	read_value_with_encoding(context, &data, &v);
-	lsda.landing_pads = (dw_eh_ptr_t)(uintptr_t)v;
+	lsda.landing_pads = reinterpret_cast<dw_eh_ptr_t>(static_cast<uintptr_t>(v));
 
 	// If there is a type table, find out where it is.  This is @TTBase in the
 	// spec.  Note: we find whether there is a type table pointer by checking
@@ -365,18 +363,18 @@ static inline struct dwarf_eh_lsda parse_lsda(_Unwind_Context *context,
 		lsda.type_table = type_table;
 		//lsda.type_table = (uintptr_t*)(data + v);
 	}
-#if __arm__
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 	lsda.type_table_encoding = (DW_EH_PE_pcrel | DW_EH_PE_indirect);
 #endif
 
-	lsda.callsite_encoding = (enum dwarf_data_encoding)(*(data++));
+	lsda.callsite_encoding = static_cast<enum dwarf_data_encoding>(*(data++));
 
 	// Action table is immediately after the call site table
 	lsda.action_table = data;
-	uintptr_t callsite_size = (uintptr_t)read_uleb128(&data);
+	uintptr_t callsite_size = static_cast<uintptr_t>(read_uleb128(&data));
 	lsda.action_table = data + callsite_size;
 	// Call site table is immediately after the header
-	lsda.call_site_table = (dw_eh_ptr_t)data;
+	lsda.call_site_table = static_cast<dw_eh_ptr_t>(data);
 
 
 	return lsda;
@@ -413,7 +411,7 @@ static bool dwarf_eh_find_callsite(struct _Unwind_Context *context,
 	result->landing_pad = 0;
 	// The current instruction pointer offset within the region
 	uint64_t ip = _Unwind_GetIP(context) - _Unwind_GetRegionStart(context);
-	unsigned char *callsite_table = (unsigned char*)lsda->call_site_table;
+	unsigned char *callsite_table = static_cast<unsigned char*>(lsda->call_site_table);
 
 	while (callsite_table <= lsda->action_table)
 	{
@@ -463,17 +461,17 @@ static bool dwarf_eh_find_callsite(struct _Unwind_Context *context,
 
 /// Defines an exception class from 8 bytes (endian independent)
 #define EXCEPTION_CLASS(a,b,c,d,e,f,g,h) \
-	(((uint64_t)a << 56) +\
-	 ((uint64_t)b << 48) +\
-	 ((uint64_t)c << 40) +\
-	 ((uint64_t)d << 32) +\
-	 ((uint64_t)e << 24) +\
-	 ((uint64_t)f << 16) +\
-	 ((uint64_t)g << 8) +\
-	 ((uint64_t)h))
+	((static_cast<uint64_t>(a) << 56) +\
+	 (static_cast<uint64_t>(b) << 48) +\
+	 (static_cast<uint64_t>(c) << 40) +\
+	 (static_cast<uint64_t>(d) << 32) +\
+	 (static_cast<uint64_t>(e) << 24) +\
+	 (static_cast<uint64_t>(f) << 16) +\
+	 (static_cast<uint64_t>(g) << 8) +\
+	 (static_cast<uint64_t>(h)))
 
 #define GENERIC_EXCEPTION_CLASS(e,f,g,h) \
-	 ((uint32_t)e << 24) +\
-	 ((uint32_t)f << 16) +\
-	 ((uint32_t)g << 8) +\
-	 ((uint32_t)h)
+	 (static_cast<uint32_t>(e) << 24) +\
+	 (static_cast<uint32_t>(f) << 16) +\
+	 (static_cast<uint32_t>(g) << 8) +\
+	 (static_cast<uint32_t>(h))

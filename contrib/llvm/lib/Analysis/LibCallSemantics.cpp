@@ -18,7 +18,7 @@
 #include "llvm/IR/Function.h"
 using namespace llvm;
 
-/// getMap - This impl pointer in ~LibCallInfo is actually a StringMap.  This
+/// This impl pointer in ~LibCallInfo is actually a StringMap.  This
 /// helper does the cast.
 static StringMap<const LibCallFunctionInfo*> *getMap(void *Ptr) {
   return static_cast<StringMap<const LibCallFunctionInfo*> *>(Ptr);
@@ -38,7 +38,7 @@ const LibCallLocationInfo &LibCallInfo::getLocationInfo(unsigned LocID) const {
 }
 
 
-/// getFunctionInfo - Return the LibCallFunctionInfo object corresponding to
+/// Return the LibCallFunctionInfo object corresponding to
 /// the specified function if we have it.  If not, return null.
 const LibCallFunctionInfo *
 LibCallInfo::getFunctionInfo(const Function *F) const {
@@ -46,11 +46,11 @@ LibCallInfo::getFunctionInfo(const Function *F) const {
   
   /// If this is the first time we are querying for this info, lazily construct
   /// the StringMap to index it.
-  if (Map == 0) {
+  if (!Map) {
     Impl = Map = new StringMap<const LibCallFunctionInfo*>();
     
     const LibCallFunctionInfo *Array = getFunctionInfoArray();
-    if (Array == 0) return 0;
+    if (!Array) return nullptr;
     
     // We now have the array of entries.  Populate the StringMap.
     for (unsigned i = 0; Array[i].Name; ++i)

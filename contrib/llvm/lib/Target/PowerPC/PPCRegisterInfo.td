@@ -11,11 +11,13 @@
 //===----------------------------------------------------------------------===//
 
 let Namespace = "PPC" in {
-def sub_lt : SubRegIndex;
-def sub_gt : SubRegIndex;
-def sub_eq : SubRegIndex;
-def sub_un : SubRegIndex;
-def sub_32 : SubRegIndex;
+def sub_lt : SubRegIndex<1>;
+def sub_gt : SubRegIndex<1, 1>;
+def sub_eq : SubRegIndex<1, 2>;
+def sub_un : SubRegIndex<1, 3>;
+def sub_32 : SubRegIndex<32>;
+def sub_64 : SubRegIndex<64>;
+def sub_128 : SubRegIndex<128>;
 }
 
 
@@ -47,9 +49,36 @@ class FPR<bits<5> num, string n> : PPCReg<n> {
   let HWEncoding{4-0} = num;
 }
 
-// VR - One of the 32 128-bit vector registers
-class VR<bits<5> num, string n> : PPCReg<n> {
+// VF - One of the 32 64-bit floating-point subregisters of the vector
+// registers (used by VSX).
+class VF<bits<5> num, string n> : PPCReg<n> {
   let HWEncoding{4-0} = num;
+  let HWEncoding{5} = 1;
+}
+
+// VR - One of the 32 128-bit vector registers
+class VR<VF SubReg, string n> : PPCReg<n> {
+  let HWEncoding{4-0} = SubReg.HWEncoding{4-0};
+  let HWEncoding{5} = 0;
+  let SubRegs = [SubReg];
+  let SubRegIndices = [sub_64];
+}
+
+// VSRL - One of the 32 128-bit VSX registers that overlap with the scalar
+// floating-point registers.
+class VSRL<FPR SubReg, string n> : PPCReg<n> {
+  let HWEncoding = SubReg.HWEncoding;
+  let SubRegs = [SubReg];
+  let SubRegIndices = [sub_64];
+}
+
+// VSRH - One of the 32 128-bit VSX registers that overlap with the vector
+// registers.
+class VSRH<VR SubReg, string n> : PPCReg<n> {
+  let HWEncoding{4-0} = SubReg.HWEncoding{4-0};
+  let HWEncoding{5} = 1;
+  let SubRegs = [SubReg];
+  let SubRegIndices = [sub_128];
 }
 
 // CR - One of the 8 4-bit condition registers
@@ -80,19 +109,38 @@ foreach Index = 0-31 in {
                 DwarfRegNum<[!add(Index, 32), !add(Index, 32)]>;
 }
 
+// Floating-point vector subregisters (for VSX)
+foreach Index = 0-31 in {
+  def VF#Index : VF<Index, "vs" # !add(Index, 32)>;
+}
+
 // Vector registers
 foreach Index = 0-31 in {
-  def V#Index : VR<Index, "v"#Index>,
+  def V#Index : VR<!cast<VF>("VF"#Index), "v"#Index>,
                 DwarfRegNum<[!add(Index, 77), !add(Index, 77)]>;
 }
 
+// VSX registers
+foreach Index = 0-31 in {
+  def VSL#Index : VSRL<!cast<FPR>("F"#Index), "vs"#Index>,
+                  DwarfRegAlias<!cast<FPR>("F"#Index)>;
+}
+foreach Index = 0-31 in {
+  def VSH#Index : VSRH<!cast<VR>("V"#Index), "vs" # !add(Index, 32)>,
+                  DwarfRegAlias<!cast<VR>("V"#Index)>;
+}
+
 // The reprsentation of r0 when treated as the constant 0.
-def ZERO  : GPR<0, "0">;
-def ZERO8 : GP8<ZERO, "0">;
+def ZERO  : GPR<0, "0">,    DwarfRegAlias<R0>;
+def ZERO8 : GP8<ZERO, "0">, DwarfRegAlias<X0>;
 
 // Representations of the frame pointer used by ISD::FRAMEADDR.
 def FP   : GPR<0 /* arbitrary */, "**FRAME POINTER**">;
 def FP8  : GP8<FP, "**FRAME POINTER**">;
+
+// Representations of the base pointer used by setjmp.
+def BP   : GPR<0 /* arbitrary */, "**BASE POINTER**">;
+def BP8  : GP8<BP, "**BASE POINTER**">;
 
 // Condition register bits
 def CR0LT : CRBIT< 0, "0">;
@@ -150,12 +198,12 @@ def CTR  : SPR<9, "ctr">, DwarfRegNum<[-2, 66]>;
 def CTR8 : SPR<9, "ctr">, DwarfRegNum<[66, -2]>;
 
 // VRsave register
-def VRSAVE: SPR<256, "VRsave">, DwarfRegNum<[109]>;
+def VRSAVE: SPR<256, "vrsave">, DwarfRegNum<[109]>;
 
 // Carry bit.  In the architecture this is really bit 0 of the XER register
 // (which really is SPR register 1);  this is the only bit interesting to a
 // compiler.
-def CARRY: SPR<1, "ca">;
+def CARRY: SPR<1, "ca">, DwarfRegNum<[76]>;
 
 // FP rounding mode:  bits 30 and 31 of the FP status and control register
 // This is not allocated as a normal register; it appears only in
@@ -164,19 +212,18 @@ def CARRY: SPR<1, "ca">;
 // most registers, it has to be done in code; to make this work all the
 // return and call instructions are described as Uses of RM, so instructions
 // that do nothing but change RM will not get deleted.
-// Also, in the architecture it is not really a SPR; 512 is arbitrary.
-def RM: SPR<512, "**ROUNDING MODE**">;
+def RM: PPCReg<"**ROUNDING MODE**">;
 
 /// Register classes
 // Allocate volatiles first
 // then nonvolatiles in reverse order since stmw/lmw save from rN to r31
 def GPRC : RegisterClass<"PPC", [i32], 32, (add (sequence "R%u", 2, 12),
                                                 (sequence "R%u", 30, 13),
-                                                R31, R0, R1, FP)>;
+                                                R31, R0, R1, FP, BP)>;
 
 def G8RC : RegisterClass<"PPC", [i64], 64, (add (sequence "X%u", 2, 12),
                                                 (sequence "X%u", 30, 14),
-                                                X31, X13, X0, X1, FP8)>;
+                                                X31, X13, X0, X1, FP8, BP8)>;
 
 // For some instructions r0 is special (representing the value 0 instead of
 // the value in the r0 register), and we use these register subclasses to
@@ -200,17 +247,39 @@ def VRRC : RegisterClass<"PPC", [v16i8,v8i16,v4i32,v4f32], 128,
                              V12, V13, V14, V15, V16, V17, V18, V19, V31, V30,
                              V29, V28, V27, V26, V25, V24, V23, V22, V21, V20)>;
 
-def CRBITRC : RegisterClass<"PPC", [i32], 32,
-  (add CR0LT, CR0GT, CR0EQ, CR0UN,
-       CR1LT, CR1GT, CR1EQ, CR1UN,
-       CR2LT, CR2GT, CR2EQ, CR2UN,
+// VSX register classes (the allocation order mirrors that of the corresponding
+// subregister classes).
+def VSLRC : RegisterClass<"PPC", [v4i32,v4f32,v2f64,v2i64], 128,
+                          (add (sequence "VSL%u", 0, 13),
+                               (sequence "VSL%u", 31, 14))>;
+def VSHRC : RegisterClass<"PPC", [v4i32,v4f32,v2f64,v2i64], 128,
+                          (add VSH2, VSH3, VSH4, VSH5, VSH0, VSH1, VSH6, VSH7,
+			       VSH8, VSH9, VSH10, VSH11, VSH12, VSH13, VSH14,
+                               VSH15, VSH16, VSH17, VSH18, VSH19, VSH31, VSH30,
+                               VSH29, VSH28, VSH27, VSH26, VSH25, VSH24, VSH23,
+                               VSH22, VSH21, VSH20)>;
+def VSRC  : RegisterClass<"PPC", [v4i32,v4f32,v2f64,v2i64], 128,
+                          (add VSLRC, VSHRC)>;
+
+// Register classes for the 64-bit "scalar" VSX subregisters.
+def VFRC :  RegisterClass<"PPC", [f64], 64,
+                          (add VF2, VF3, VF4, VF5, VF0, VF1, VF6, VF7,
+                               VF8, VF9, VF10, VF11, VF12, VF13, VF14,
+                               VF15, VF16, VF17, VF18, VF19, VF31, VF30,
+                               VF29, VF28, VF27, VF26, VF25, VF24, VF23,
+                               VF22, VF21, VF20)>;
+def VSFRC : RegisterClass<"PPC", [f64], 64, (add F8RC, VFRC)>;
+
+def CRBITRC : RegisterClass<"PPC", [i1], 32,
+  (add CR2LT, CR2GT, CR2EQ, CR2UN,
        CR3LT, CR3GT, CR3EQ, CR3UN,
        CR4LT, CR4GT, CR4EQ, CR4UN,
        CR5LT, CR5GT, CR5EQ, CR5UN,
        CR6LT, CR6GT, CR6EQ, CR6UN,
-       CR7LT, CR7GT, CR7EQ, CR7UN)>
-{
-  let CopyCost = -1;
+       CR7LT, CR7GT, CR7EQ, CR7UN,
+       CR1LT, CR1GT, CR1EQ, CR1UN,
+       CR0LT, CR0GT, CR0EQ, CR0UN)> {
+  let Size = 32;
 }
 
 def CRRC : RegisterClass<"PPC", [i32], 32, (add CR0, CR1, CR5, CR6,
@@ -230,3 +299,4 @@ def VRSAVERC : RegisterClass<"PPC", [i32], 32, (add VRSAVE)>;
 def CARRYRC : RegisterClass<"PPC", [i32], 32, (add CARRY)> {
   let CopyCost = -1;
 }
+

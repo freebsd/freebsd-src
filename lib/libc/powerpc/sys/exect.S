@@ -37,5 +37,6 @@ ENTRY(exect)
 	blr
 1:
 	b	PIC_PLT(HIDENAME(cerror))
+END(exect)
 
 	.section .note.GNU-stack,"",%progbits

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_STORE_H
-#define LLVM_CLANG_GR_STORE_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_STORE_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_STORE_H
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/MemRegion.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SValBuilder.h"
@@ -111,7 +111,7 @@ public:
 
   /// ArrayToPointer - Used by ExprEngine::VistCast to handle implicit
   ///  conversions between arrays and pointers.
-  virtual SVal ArrayToPointer(Loc Array) = 0;
+  virtual SVal ArrayToPointer(Loc Array, QualType ElementTy) = 0;
 
   /// Evaluates a chain of derived-to-base casts through the path specified in
   /// \p Cast.
@@ -164,8 +164,6 @@ public:
   ///  the given regions. Optionally, invalidates non-static globals as well.
   /// \param[in] store The initial store
   /// \param[in] Values The values to invalidate.
-  /// \param[in] ConstValues The values to invalidate; these are known to be
-  ///   const, so only regions accesible from them should be invalidated.
   /// \param[in] E The current statement being evaluated. Used to conjure
   ///   symbols to mark the values of invalidated regions.
   /// \param[in] Count The current block count. Used to conjure
@@ -174,13 +172,10 @@ public:
   ///   globals should get invalidated.
   /// \param[in,out] IS A set to fill with any symbols that are no longer
   ///   accessible. Pass \c NULL if this information will not be used.
-  /// \param[in,out] ConstIS A set to fill with any symbols corresponding to
-  ///   the ConstValues.
+  /// \param[in] ITraits Information about invalidation for a particular 
+  ///   region/symbol.
   /// \param[in,out] InvalidatedTopLevel A vector to fill with regions
-  ////  explicitely being invalidated. Pass \c NULL if this
-  ///   information will not be used.
-  /// \param[in,out] InvalidatedTopLevelConst A vector to fill with const 
-  ////  regions explicitely being invalidated. Pass \c NULL if this
+  ////  explicitly being invalidated. Pass \c NULL if this
   ///   information will not be used.
   /// \param[in,out] Invalidated A vector to fill with any regions being
   ///   invalidated. This should include any regions explicitly invalidated
@@ -188,14 +183,12 @@ public:
   ///   information will not be used.
   virtual StoreRef invalidateRegions(Store store,
                                   ArrayRef<SVal> Values,
-                                  ArrayRef<SVal> ConstValues,
                                   const Expr *E, unsigned Count,
                                   const LocationContext *LCtx,
                                   const CallEvent *Call,
                                   InvalidatedSymbols &IS,
-                                  InvalidatedSymbols &ConstIS,
+                                  RegionAndSymbolInvalidationTraits &ITraits,
                                   InvalidatedRegions *InvalidatedTopLevel,
-                                  InvalidatedRegions *InvalidatedTopLevelConst,
                                   InvalidatedRegions *Invalidated) = 0;
 
   /// enterStackFrame - Let the StoreManager to do something when execution
@@ -227,11 +220,12 @@ public:
     bool First;
 
   public:
-    FindUniqueBinding(SymbolRef sym) : Sym(sym), Binding(0), First(true) {}
+    FindUniqueBinding(SymbolRef sym)
+      : Sym(sym), Binding(nullptr), First(true) {}
 
     bool HandleBinding(StoreManager& SMgr, Store store, const MemRegion* R,
-                       SVal val);
-    operator bool() { return First && Binding; }
+                       SVal val) override;
+    LLVM_EXPLICIT operator bool() { return First && Binding; }
     const MemRegion *getRegion() { return Binding; }
   };
 
@@ -282,8 +276,10 @@ inline StoreRef &StoreRef::operator=(StoreRef const &newStore) {
 }
 
 // FIXME: Do we need to pass ProgramStateManager anymore?
-StoreManager *CreateRegionStoreManager(ProgramStateManager& StMgr);
-StoreManager *CreateFieldsOnlyRegionStoreManager(ProgramStateManager& StMgr);
+std::unique_ptr<StoreManager>
+CreateRegionStoreManager(ProgramStateManager &StMgr);
+std::unique_ptr<StoreManager>
+CreateFieldsOnlyRegionStoreManager(ProgramStateManager &StMgr);
 
 } // end GR namespace
 

@@ -20,8 +20,13 @@ let TargetPrefix = "arm" in {  // All intrinsics start with "llvm.arm.".
 def int_arm_thread_pointer : GCCBuiltin<"__builtin_thread_pointer">,
             Intrinsic<[llvm_ptr_ty], [], [IntrNoMem]>;
 
+// A space-consuming intrinsic primarily for testing ARMConstantIslands. The
+// first argument is the number of bytes this "instruction" takes up, the second
+// and return value are essentially chains, used to force ordering during ISel.
+def int_arm_space : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
+
 //===----------------------------------------------------------------------===//
-// Saturating Arithmentic
+// Saturating Arithmetic
 
 def int_arm_qadd : GCCBuiltin<"__builtin_arm_qadd">,
     Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
@@ -34,12 +39,32 @@ def int_arm_usat : GCCBuiltin<"__builtin_arm_usat">,
     Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], [IntrNoMem]>;
 
 //===----------------------------------------------------------------------===//
-// Load and Store exclusive doubleword
+// Load, Store and Clear exclusive
+
+def int_arm_ldrex : Intrinsic<[llvm_i32_ty], [llvm_anyptr_ty]>;
+def int_arm_strex : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_anyptr_ty]>;
+
+def int_arm_ldaex : Intrinsic<[llvm_i32_ty], [llvm_anyptr_ty]>;
+def int_arm_stlex : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_anyptr_ty]>;
+
+def int_arm_clrex : Intrinsic<[]>;
 
 def int_arm_strexd : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty,
-    llvm_ptr_ty], [IntrReadWriteArgMem]>;
-def int_arm_ldrexd : Intrinsic<[llvm_i32_ty, llvm_i32_ty], [llvm_ptr_ty],
-    [IntrReadArgMem]>;
+    llvm_ptr_ty]>;
+def int_arm_ldrexd : Intrinsic<[llvm_i32_ty, llvm_i32_ty], [llvm_ptr_ty]>;
+
+def int_arm_stlexd : Intrinsic<[llvm_i32_ty],
+                               [llvm_i32_ty, llvm_i32_ty, llvm_ptr_ty]>;
+def int_arm_ldaexd : Intrinsic<[llvm_i32_ty, llvm_i32_ty], [llvm_ptr_ty]>;
+
+//===----------------------------------------------------------------------===//
+// Data barrier instructions
+def int_arm_dmb : GCCBuiltin<"__builtin_arm_dmb">, MSBuiltin<"__dmb">,
+                  Intrinsic<[], [llvm_i32_ty]>;
+def int_arm_dsb : GCCBuiltin<"__builtin_arm_dsb">, MSBuiltin<"__dsb">,
+                  Intrinsic<[], [llvm_i32_ty]>;
+def int_arm_isb : GCCBuiltin<"__builtin_arm_isb">, MSBuiltin<"__isb">,
+                  Intrinsic<[], [llvm_i32_ty]>;
 
 //===----------------------------------------------------------------------===//
 // VFP
@@ -58,17 +83,21 @@ def int_arm_vcvtru    : Intrinsic<[llvm_float_ty], [llvm_anyfloat_ty],
 
 // Move to coprocessor
 def int_arm_mcr : GCCBuiltin<"__builtin_arm_mcr">,
+                  MSBuiltin<"_MoveToCoprocessor">,
    Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
                   llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
 def int_arm_mcr2 : GCCBuiltin<"__builtin_arm_mcr2">,
+                   MSBuiltin<"_MoveToCoprocessor2">,
    Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
                   llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
 
 // Move from coprocessor
 def int_arm_mrc : GCCBuiltin<"__builtin_arm_mrc">,
+                  MSBuiltin<"_MoveFromCoprocessor">,
    Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
                              llvm_i32_ty, llvm_i32_ty], []>;
 def int_arm_mrc2 : GCCBuiltin<"__builtin_arm_mrc2">,
+                   MSBuiltin<"_MoveFromCoprocessor2">,
    Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty,
                              llvm_i32_ty, llvm_i32_ty], []>;
 
@@ -89,26 +118,53 @@ def int_arm_mcrr2 : GCCBuiltin<"__builtin_arm_mcrr2">,
                   llvm_i32_ty, llvm_i32_ty], []>;
 
 //===----------------------------------------------------------------------===//
+// CRC32
+
+def int_arm_crc32b  : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
+    [IntrNoMem]>;
+def int_arm_crc32cb : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
+    [IntrNoMem]>;
+def int_arm_crc32h  : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
+    [IntrNoMem]>;
+def int_arm_crc32ch : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
+    [IntrNoMem]>;
+def int_arm_crc32w  : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
+    [IntrNoMem]>;
+def int_arm_crc32cw : Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
+    [IntrNoMem]>;
+
+//===----------------------------------------------------------------------===//
+// HINT
+
+def int_arm_hint : Intrinsic<[], [llvm_i32_ty]>;
+def int_arm_dbg : Intrinsic<[], [llvm_i32_ty]>;
+
+//===----------------------------------------------------------------------===//
+// RBIT
+
+def int_arm_rbit : Intrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]>;
+
+//===----------------------------------------------------------------------===//
+// UND (reserved undefined sequence)
+
+def int_arm_undefined : Intrinsic<[], [llvm_i32_ty]>;
+
+//===----------------------------------------------------------------------===//
 // Advanced SIMD (NEON)
 
 // The following classes do not correspond directly to GCC builtins.
 class Neon_1Arg_Intrinsic
   : Intrinsic<[llvm_anyvector_ty], [LLVMMatchType<0>], [IntrNoMem]>;
 class Neon_1Arg_Narrow_Intrinsic
-  : Intrinsic<[llvm_anyvector_ty],
-              [LLVMExtendedElementVectorType<0>], [IntrNoMem]>;
+  : Intrinsic<[llvm_anyvector_ty], [LLVMExtendedType<0>], [IntrNoMem]>;
 class Neon_2Arg_Intrinsic
   : Intrinsic<[llvm_anyvector_ty], [LLVMMatchType<0>, LLVMMatchType<0>],
               [IntrNoMem]>;
 class Neon_2Arg_Narrow_Intrinsic
-  : Intrinsic<[llvm_anyvector_ty],
-              [LLVMExtendedElementVectorType<0>,
-               LLVMExtendedElementVectorType<0>],
+  : Intrinsic<[llvm_anyvector_ty], [LLVMExtendedType<0>, LLVMExtendedType<0>],
               [IntrNoMem]>;
 class Neon_2Arg_Long_Intrinsic
-  : Intrinsic<[llvm_anyvector_ty],
-              [LLVMTruncatedElementVectorType<0>,
-               LLVMTruncatedElementVectorType<0>],
+  : Intrinsic<[llvm_anyvector_ty], [LLVMTruncatedType<0>, LLVMTruncatedType<0>],
               [IntrNoMem]>;
 class Neon_3Arg_Intrinsic
   : Intrinsic<[llvm_anyvector_ty],
@@ -116,14 +172,18 @@ class Neon_3Arg_Intrinsic
               [IntrNoMem]>;
 class Neon_3Arg_Long_Intrinsic
   : Intrinsic<[llvm_anyvector_ty],
-              [LLVMMatchType<0>,
-               LLVMTruncatedElementVectorType<0>,
-               LLVMTruncatedElementVectorType<0>],
+              [LLVMMatchType<0>, LLVMTruncatedType<0>, LLVMTruncatedType<0>],
               [IntrNoMem]>;
 class Neon_CvtFxToFP_Intrinsic
   : Intrinsic<[llvm_anyfloat_ty], [llvm_anyint_ty, llvm_i32_ty], [IntrNoMem]>;
 class Neon_CvtFPToFx_Intrinsic
   : Intrinsic<[llvm_anyint_ty], [llvm_anyfloat_ty, llvm_i32_ty], [IntrNoMem]>;
+class Neon_CvtFPtoInt_1Arg_Intrinsic
+  : Intrinsic<[llvm_anyvector_ty], [llvm_anyvector_ty], [IntrNoMem]>;
+
+class Neon_Compare_Intrinsic
+  : Intrinsic<[llvm_anyvector_ty], [llvm_anyvector_ty, LLVMMatchType<1>],
+              [IntrNoMem]>;
 
 // The table operands for VTBL and VTBX consist of 1 to 4 v8i8 vectors.
 // Besides the table, VTBL has one other v8i8 argument and VTBX has two.
@@ -158,7 +218,6 @@ let Properties = [IntrNoMem, Commutative] in {
   def int_arm_neon_vrhaddu : Neon_2Arg_Intrinsic;
   def int_arm_neon_vqadds : Neon_2Arg_Intrinsic;
   def int_arm_neon_vqaddu : Neon_2Arg_Intrinsic;
-  def int_arm_neon_vaddhn : Neon_2Arg_Narrow_Intrinsic;
   def int_arm_neon_vraddhn : Neon_2Arg_Narrow_Intrinsic;
 
   // Vector Multiply.
@@ -170,17 +229,15 @@ let Properties = [IntrNoMem, Commutative] in {
   def int_arm_neon_vmullp : Neon_2Arg_Long_Intrinsic;
   def int_arm_neon_vqdmull : Neon_2Arg_Long_Intrinsic;
 
-  // Vector Multiply and Accumulate/Subtract.
-  def int_arm_neon_vqdmlal : Neon_3Arg_Long_Intrinsic;
-  def int_arm_neon_vqdmlsl : Neon_3Arg_Long_Intrinsic;
-
   // Vector Maximum.
   def int_arm_neon_vmaxs : Neon_2Arg_Intrinsic;
   def int_arm_neon_vmaxu : Neon_2Arg_Intrinsic;
+  def int_arm_neon_vmaxnm : Neon_2Arg_Intrinsic;
 
   // Vector Minimum.
   def int_arm_neon_vmins : Neon_2Arg_Intrinsic;
   def int_arm_neon_vminu : Neon_2Arg_Intrinsic;
+  def int_arm_neon_vminnm : Neon_2Arg_Intrinsic;
 
   // Vector Reciprocal Step.
   def int_arm_neon_vrecps : Neon_2Arg_Intrinsic;
@@ -194,22 +251,11 @@ def int_arm_neon_vhsubs : Neon_2Arg_Intrinsic;
 def int_arm_neon_vhsubu : Neon_2Arg_Intrinsic;
 def int_arm_neon_vqsubs : Neon_2Arg_Intrinsic;
 def int_arm_neon_vqsubu : Neon_2Arg_Intrinsic;
-def int_arm_neon_vsubhn : Neon_2Arg_Narrow_Intrinsic;
 def int_arm_neon_vrsubhn : Neon_2Arg_Narrow_Intrinsic;
 
 // Vector Absolute Compare.
-def int_arm_neon_vacged : Intrinsic<[llvm_v2i32_ty],
-                                    [llvm_v2f32_ty, llvm_v2f32_ty],
-                                    [IntrNoMem]>;
-def int_arm_neon_vacgeq : Intrinsic<[llvm_v4i32_ty],
-                                    [llvm_v4f32_ty, llvm_v4f32_ty],
-                                    [IntrNoMem]>;
-def int_arm_neon_vacgtd : Intrinsic<[llvm_v2i32_ty],
-                                    [llvm_v2f32_ty, llvm_v2f32_ty],
-                                    [IntrNoMem]>;
-def int_arm_neon_vacgtq : Intrinsic<[llvm_v4i32_ty],
-                                    [llvm_v4f32_ty, llvm_v4f32_ty],
-                                    [IntrNoMem]>;
+def int_arm_neon_vacge : Neon_Compare_Intrinsic;
+def int_arm_neon_vacgt : Neon_Compare_Intrinsic;
 
 // Vector Absolute Differences.
 def int_arm_neon_vabds : Neon_2Arg_Intrinsic;
@@ -267,9 +313,6 @@ def int_arm_neon_vpminu : Neon_2Arg_Intrinsic;
 // Vector Shift.
 def int_arm_neon_vshifts : Neon_2Arg_Intrinsic;
 def int_arm_neon_vshiftu : Neon_2Arg_Intrinsic;
-def int_arm_neon_vshiftls : Neon_2Arg_Long_Intrinsic;
-def int_arm_neon_vshiftlu : Neon_2Arg_Long_Intrinsic;
-def int_arm_neon_vshiftn : Neon_2Arg_Narrow_Intrinsic;
 
 // Vector Rounding Shift.
 def int_arm_neon_vrshifts : Neon_2Arg_Intrinsic;
@@ -303,16 +346,22 @@ def int_arm_neon_vqneg : Neon_1Arg_Intrinsic;
 
 // Vector Count Leading Sign/Zero Bits.
 def int_arm_neon_vcls : Neon_1Arg_Intrinsic;
-def int_arm_neon_vclz : Neon_1Arg_Intrinsic;
-
-// Vector Count One Bits.
-def int_arm_neon_vcnt : Neon_1Arg_Intrinsic;
 
 // Vector Reciprocal Estimate.
 def int_arm_neon_vrecpe : Neon_1Arg_Intrinsic;
 
 // Vector Reciprocal Square Root Estimate.
 def int_arm_neon_vrsqrte : Neon_1Arg_Intrinsic;
+
+// Vector Conversions Between Floating-point and Integer
+def int_arm_neon_vcvtau : Neon_CvtFPtoInt_1Arg_Intrinsic;
+def int_arm_neon_vcvtas : Neon_CvtFPtoInt_1Arg_Intrinsic;
+def int_arm_neon_vcvtnu : Neon_CvtFPtoInt_1Arg_Intrinsic;
+def int_arm_neon_vcvtns : Neon_CvtFPtoInt_1Arg_Intrinsic;
+def int_arm_neon_vcvtpu : Neon_CvtFPtoInt_1Arg_Intrinsic;
+def int_arm_neon_vcvtps : Neon_CvtFPtoInt_1Arg_Intrinsic;
+def int_arm_neon_vcvtmu : Neon_CvtFPtoInt_1Arg_Intrinsic;
+def int_arm_neon_vcvtms : Neon_CvtFPtoInt_1Arg_Intrinsic;
 
 // Vector Conversions Between Floating-point and Fixed-point.
 def int_arm_neon_vcvtfp2fxs : Neon_CvtFPToFx_Intrinsic;
@@ -346,6 +395,14 @@ def int_arm_neon_vtbx1 : Neon_Tbl3Arg_Intrinsic;
 def int_arm_neon_vtbx2 : Neon_Tbl4Arg_Intrinsic;
 def int_arm_neon_vtbx3 : Neon_Tbl5Arg_Intrinsic;
 def int_arm_neon_vtbx4 : Neon_Tbl6Arg_Intrinsic;
+
+// Vector Rounding
+def int_arm_neon_vrintn : Neon_1Arg_Intrinsic;
+def int_arm_neon_vrintx : Neon_1Arg_Intrinsic;
+def int_arm_neon_vrinta : Neon_1Arg_Intrinsic;
+def int_arm_neon_vrintz : Neon_1Arg_Intrinsic;
+def int_arm_neon_vrintm : Neon_1Arg_Intrinsic;
+def int_arm_neon_vrintp : Neon_1Arg_Intrinsic;
 
 // De-interleaving vector loads from N-element structures.
 // Source operands are the address and alignment.
@@ -425,5 +482,40 @@ def int_arm_neon_vst4lane : Intrinsic<[],
 def int_arm_neon_vbsl : Intrinsic<[llvm_anyvector_ty],
                         [LLVMMatchType<0>, LLVMMatchType<0>, LLVMMatchType<0>],
                         [IntrNoMem]>;
+
+
+// Crypto instructions
+class AES_1Arg_Intrinsic : Intrinsic<[llvm_v16i8_ty],
+                                     [llvm_v16i8_ty], [IntrNoMem]>;
+class AES_2Arg_Intrinsic : Intrinsic<[llvm_v16i8_ty],
+                                     [llvm_v16i8_ty, llvm_v16i8_ty],
+                                     [IntrNoMem]>;
+
+class SHA_1Arg_Intrinsic : Intrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                                     [IntrNoMem]>;
+class SHA_2Arg_Intrinsic : Intrinsic<[llvm_v4i32_ty],
+                                     [llvm_v4i32_ty, llvm_v4i32_ty],
+                                     [IntrNoMem]>;
+class SHA_3Arg_i32_Intrinsic : Intrinsic<[llvm_v4i32_ty],
+                                   [llvm_v4i32_ty, llvm_i32_ty, llvm_v4i32_ty],
+                                   [IntrNoMem]>;
+class SHA_3Arg_v4i32_Intrinsic : Intrinsic<[llvm_v4i32_ty],
+                                   [llvm_v4i32_ty, llvm_v4i32_ty,llvm_v4i32_ty],
+                                   [IntrNoMem]>;
+
+def int_arm_neon_aesd : AES_2Arg_Intrinsic;
+def int_arm_neon_aese : AES_2Arg_Intrinsic;
+def int_arm_neon_aesimc : AES_1Arg_Intrinsic;
+def int_arm_neon_aesmc : AES_1Arg_Intrinsic;
+def int_arm_neon_sha1h : SHA_1Arg_Intrinsic;
+def int_arm_neon_sha1su1 : SHA_2Arg_Intrinsic;
+def int_arm_neon_sha256su0 : SHA_2Arg_Intrinsic;
+def int_arm_neon_sha1c : SHA_3Arg_i32_Intrinsic;
+def int_arm_neon_sha1m : SHA_3Arg_i32_Intrinsic;
+def int_arm_neon_sha1p : SHA_3Arg_i32_Intrinsic;
+def int_arm_neon_sha1su0: SHA_3Arg_v4i32_Intrinsic;
+def int_arm_neon_sha256h: SHA_3Arg_v4i32_Intrinsic;
+def int_arm_neon_sha256h2: SHA_3Arg_v4i32_Intrinsic;
+def int_arm_neon_sha256su1: SHA_3Arg_v4i32_Intrinsic;
 
 } // end TargetPrefix

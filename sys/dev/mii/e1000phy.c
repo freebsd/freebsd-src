@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -83,10 +81,11 @@ static driver_t e1000phy_driver = {
 
 DRIVER_MODULE(e1000phy, miibus, e1000phy_driver, e1000phy_devclass, 0, 0);
 
-static int	e1000phy_service(struct mii_softc *, struct mii_data *, int);
-static void	e1000phy_status(struct mii_softc *);
-static void	e1000phy_reset(struct mii_softc *);
-static int	e1000phy_mii_phy_auto(struct mii_softc *, int);
+static int	e1000phy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	e1000phy_status(struct mii_softc *, if_media_t);
+static void	e1000phy_reset(struct mii_softc *, if_media_t);
+static int	e1000phy_mii_phy_auto(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc e1000phys[] = {
 	MII_PHY_DESC(MARVELL, E1000),
@@ -132,14 +131,12 @@ static int
 e1000phy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
 
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &e1000phy_funcs, 0);
 
-	ifp = sc->mii_pdata->mii_ifp;
-	if (strcmp(ifp->if_dname, "msk") == 0 &&
+	if (mii_dev_mac_match(dev, "msk") &&
 	    (sc->mii_flags & MIIF_MACPRIV0) != 0)
 		sc->mii_flags |= MIIF_PHYPRIV0;
 
@@ -166,13 +163,17 @@ e1000phy_attach(device_t dev)
 		break;
 	}
 
-	PHY_RESET(sc);
+	PHY_RESET(sc, 0);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
-	if (sc->mii_capabilities & BMSR_EXTSTAT)
+	if (sc->mii_capabilities & BMSR_EXTSTAT) {
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
+		if ((sc->mii_extcapabilities &
+		    (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
+			sc->mii_flags |= MIIF_HAVE_GTCR;
+	}
 	device_printf(dev, " ");
-	mii_phy_add_media(sc);
+	mii_phy_generic_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
@@ -180,7 +181,7 @@ e1000phy_attach(device_t dev)
 }
 
 static void
-e1000phy_reset(struct mii_softc *sc)
+e1000phy_reset(struct mii_softc *sc, if_media_t media)
 {
 	uint16_t reg, page;
 
@@ -300,9 +301,9 @@ e1000phy_reset(struct mii_softc *sc)
 }
 
 static int
-e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+e1000phy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	uint16_t speed, gig;
 	int reg;
 
@@ -311,16 +312,15 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		if (IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO) {
-			e1000phy_mii_phy_auto(sc, ife->ifm_media);
+		if (IFM_SUBTYPE(media) == IFM_AUTO) {
+			e1000phy_mii_phy_auto(sc, media);
 			break;
 		}
 
 		speed = 0;
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		switch (IFM_SUBTYPE(media)) {
 		case IFM_1000_T:
-			if ((sc->mii_extcapabilities &
-			    (EXTSR_1000TFDX | EXTSR_1000THDX)) == 0)
+			if ((sc->mii_flags & MIIF_HAVE_GTCR) == 0)
 				return (EINVAL);
 			speed = E1000_CR_SPEED_1000;
 			break;
@@ -345,7 +345,7 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			return (EINVAL);
 		}
 
-		if ((ife->ifm_media & IFM_FDX) != 0) {
+		if ((media & IFM_FDX) != 0) {
 			speed |= E1000_CR_FULL_DUPLEX;
 			gig = E1000_1GCR_1000T_FD;
 		} else
@@ -355,12 +355,11 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		reg &= ~E1000_CR_AUTO_NEG_ENABLE;
 		PHY_WRITE(sc, E1000_CR, reg | E1000_CR_RESET);
 
-		if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
+		if (IFM_SUBTYPE(media) == IFM_1000_T) {
 			gig |= E1000_1GCR_MS_ENABLE;
-			if ((ife->ifm_media & IFM_ETH_MASTER) != 0)	
+			if ((media & IFM_ETH_MASTER) != 0)
 				gig |= E1000_1GCR_MS_VALUE;
-		} else if ((sc->mii_extcapabilities &
-		    (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
+		} else if ((sc->mii_flags & MIIF_HAVE_GTCR) != 0)
 			gig = 0;
 		PHY_WRITE(sc, E1000_1GCR, gig);
 		PHY_WRITE(sc, E1000_AR, E1000_AR_SELECTOR_FIELD);
@@ -371,7 +370,7 @@ done:
 		/*
 		 * Only used for autonegotiation.
 		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+		if (IFM_SUBTYPE(media) != IFM_AUTO) {
 			sc->mii_ticks = 0;
 			break;
 		}
@@ -393,13 +392,13 @@ done:
 			break;
 
 		sc->mii_ticks = 0;
-		PHY_RESET(sc);
-		e1000phy_mii_phy_auto(sc, ife->ifm_media);
+		PHY_RESET(sc, media);
+		e1000phy_mii_phy_auto(sc, media);
 		break;
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -407,7 +406,7 @@ done:
 }
 
 static void
-e1000phy_status(struct mii_softc *sc)
+e1000phy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmcr, bmsr, ssr;
@@ -470,7 +469,7 @@ e1000phy_status(struct mii_softc *sc)
 }
 
 static int
-e1000phy_mii_phy_auto(struct mii_softc *sc, int media)
+e1000phy_mii_phy_auto(struct mii_softc *sc, if_media_t media)
 {
 	uint16_t reg;
 
@@ -485,9 +484,14 @@ e1000phy_mii_phy_auto(struct mii_softc *sc, int media)
 		PHY_WRITE(sc, E1000_AR, reg | E1000_AR_SELECTOR_FIELD);
 	} else
 		PHY_WRITE(sc, E1000_AR, E1000_FA_1000X_FD | E1000_FA_1000X);
-	if ((sc->mii_extcapabilities & (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
-		PHY_WRITE(sc, E1000_1GCR,
-		    E1000_1GCR_1000T_FD | E1000_1GCR_1000T);
+	if ((sc->mii_flags & MIIF_HAVE_GTCR) != 0) {
+		reg = 0;
+		if ((sc->mii_extcapabilities & EXTSR_1000TFDX) != 0)
+			reg |= E1000_1GCR_1000T_FD;
+		if ((sc->mii_extcapabilities & EXTSR_1000THDX) != 0)
+			reg |= E1000_1GCR_1000T;
+		PHY_WRITE(sc, E1000_1GCR, reg);
+	}
 	PHY_WRITE(sc, E1000_CR,
 	    E1000_CR_AUTO_NEG_ENABLE | E1000_CR_RESTART_AUTO_NEG);
 

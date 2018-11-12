@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: main.c,v 8.85 2013/11/22 20:51:36 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.85 2013-11-22 20:51:36 ca Exp $")
 
 #define _DEFINE	1
 #include "libmilter.h"

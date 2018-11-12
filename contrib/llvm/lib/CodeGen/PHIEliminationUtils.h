@@ -1,4 +1,4 @@
-//=- PHIEliminationUtils.h - Helper functions for PHI elimination *- C++ -*--=//
+//=- PHIEliminationUtils.h - Helper functions for PHI elimination -*- C++ -*-=//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_PHIELIMINATIONUTILS_H
-#define LLVM_CODEGEN_PHIELIMINATIONUTILS_H
+#ifndef LLVM_LIB_CODEGEN_PHIELIMINATIONUTILS_H
+#define LLVM_LIB_CODEGEN_PHIELIMINATIONUTILS_H
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
 

@@ -37,7 +37,6 @@
  * are in appendix B.28.
  */
 
-
 #ifndef _ZY7_SLCR_H_
 #define _ZY7_SLCR_H_
 
@@ -126,6 +125,18 @@
 #define ZY7_SLCR_GEM1_RCLK_CTRL		0x013c
 #define ZY7_SLCR_GEM0_CLK_CTRL		0x0140
 #define ZY7_SLCR_GEM1_CLK_CTRL		0x0144
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR1_MASK		(0x3f<<20)
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR1_SHIFT		20
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR1_MAX		0x3f
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR_MASK		(0x3f<<8)
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR_SHIFT		8
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR_MAX		0x3f
+#define   ZY7_SLCR_GEM_CLK_CTRL_SRCSEL_MASK		(7<<4)
+#define   ZY7_SLCR_GEM_CLK_CTRL_SRCSEL_IO_PLL		(0<<4)
+#define   ZY7_SLCR_GEM_CLK_CTRL_SRCSEL_ARM_PLL		(2<<4)
+#define   ZY7_SLCR_GEM_CLK_CTRL_SRCSEL_DDR_PLL		(3<<4)
+#define   ZY7_SLCR_GEM_CLK_CTRL_SRCSEL_EMIO_CLK		(4<<4)
+#define   ZY7_SLCR_GEM_CLK_CTRL_CLKACT			1
 #define ZY7_SLCR_SMC_CLK_CTRL		0x0148
 #define ZY7_SLCR_LQSPI_CLK_CTRL		0x014c
 #define ZY7_SLCR_SDIO_CLK_CTRL		0x0150
@@ -136,10 +147,19 @@
 #define ZY7_SLCR_DBG_CLK_CTRL		0x0164
 #define ZY7_SLCR_PCAP_CLK_CTRL		0x0168
 #define ZY7_SLCR_TOPSW_CLK_CTRL		0x016c	/* central intercnn clk ctrl */
-#define ZY7_SLCR_FPGA0_CLK_CTRL		0x0170
-#define ZY7_SLCR_FPGA1_CLK_CTRL		0x0180
-#define ZY7_SLCR_FPGA2_CLK_CTRL		0x0190
-#define ZY7_SLCR_FPGA3_CLK_CTRL		0x01a0
+#define ZY7_SLCR_FPGA_CLK_CTRL(unit)	(0x0170 + 0x10*(unit))
+#define	  ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR1_SHIFT	20
+#define	  ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR1_MASK	(0x3f << 20)
+#define	  ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR0_SHIFT	8
+#define	  ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR0_MASK	(0x3f << 8)
+#define	  ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR_MAX	0x3f
+#define	  ZY7_SLCR_FPGA_CLK_CTRL_SRCSEL_SHIFT	4
+#define	  ZY7_SLCR_FPGA_CLK_CTRL_SRCSEL_MASK	(3 << 4)
+#define ZY7_SLCR_FPGA_THR_CTRL(unit)	(0x0174 + 0x10*(unit))
+#define ZY7_SLCR_FPGA_THR_CTRL_CNT_RST		(1 << 1)
+#define ZY7_SLCR_FPGA_THR_CTRL_CPU_START	(1 << 0)
+#define ZY7_SLCR_FPGA_THR_CNT(unit)	(0x0178 + 0x10*(unit))
+#define ZY7_SLCR_FPGA_THR_STA(unit)	(0x017c + 0x10*(unit))
 #define ZY7_SLCR_CLK_621_TRUE		0x01c4	/* cpu clock ratio mode */
 
 /* Reset controls. */
@@ -274,6 +294,25 @@
 
 #ifdef _KERNEL
 extern void zy7_slcr_preload_pl(void);
-extern void zy7_slcr_postload_pl(int);
+extern void zy7_slcr_postload_pl(int en_level_shifters);
+extern int cgem_set_ref_clk(int unit, int frequency);
+
+/* Should be consistent with SRCSEL field of FPGAx_CLK_CTRL */
+#define	ZY7_PL_FCLK_SRC_IO	0 
+#define	ZY7_PL_FCLK_SRC_IO_ALT	1 /* ZY7_PL_FCLK_SRC_IO is b0x */
+#define	ZY7_PL_FCLK_SRC_ARM	2
+#define	ZY7_PL_FCLK_SRC_DDR	3
+
+int zy7_pl_fclk_set_source(int unit, int source);
+int zy7_pl_fclk_get_source(int unit);
+int zy7_pl_fclk_set_freq(int unit, int freq);
+int zy7_pl_fclk_get_freq(int unit);
+int zy7_pl_fclk_enable(int unit);
+int zy7_pl_fclk_disable(int unit);
+int zy7_pl_fclk_enabled(int unit);
+int zy7_pl_level_shifters_enabled(void);
+void zy7_pl_level_shifters_enable(void);
+void zy7_pl_level_shifters_disable(void);
+
 #endif
 #endif /* _ZY7_SLCR_H_ */

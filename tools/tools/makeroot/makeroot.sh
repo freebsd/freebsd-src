@@ -75,7 +75,7 @@ KEYDIR=
 KEYUSERS=
 PASSWD=
 
-while getopts "B:de:f:g:K:k:p:s:" opt; do
+while getopts "B:de:f:g:K:k:l:p:s:" opt; do
 	case "$opt" in
 	B)	BFLAG="-B ${OPTARG}" ;;
 	d)	DEBUG=1 ;;
@@ -84,6 +84,7 @@ while getopts "B:de:f:g:K:k:p:s:" opt; do
 	g)	GROUP="${OPTARG}" ;;
 	K)	KEYUSERS="${KEYUSERS} ${OPTARG}" ;;
 	k)	KEYDIR="${OPTARG}" ;;
+	l)	LABEL="${OPTARG}" ;;
 	p)	PASSWD="${OPTARG}" ;;
 	s)	SIZE="${OPTARG}" ;;
 	*)	usage ;;
@@ -160,18 +161,20 @@ if [ -n "${FILELIST}" ]; then
 		while [ -n "${path}" ]; do
 			echo ".${path}"
 			path="${path%/*}"
-		done 
+		done
 	done) | sort -u ${BSDROOT}/METALOG - | \
 	    awk '
 		!/ type=/ { file = $1 }
 		/ type=/ { if ($1 == file) {print} }' >> ${manifest}
-else
+elif [ -n "${EXTRAS}" ]; then
 	# Start with all the files in BSDROOT/METALOG except those in
 	# one of the EXTRAS manifests.
 	grep -h type=file ${EXTRAS} | cut -d' ' -f1 | \
 	    sort -u ${BSDROOT}/METALOG - | awk '
 		!/ type=/ { file = $1 }
 		/ type=/ { if ($1 != file) {print} }' >> ${manifest}
+else
+	sort -u ${BSDROOT}/METALOG >> ${manifest}
 fi
 
 # For each extras file, add contents keys relative to the directory the
@@ -199,7 +202,7 @@ done
 
 # /etc/rcorder.start allows the startup order to be stable even if
 # not all startup scripts are installed.  In theory it should be
-# unnecessicary, but dependencies in rc.d appear to be under recorded.
+# unnecessary, but dependencies in rc.d appear to be under recorded.
 # This is a hack local to beri/cheribsd.
 #
 echo /etc/rc.d/FIRST > ${tmpdir}/rcorder.start
@@ -228,9 +231,12 @@ if [ -n "${KEYDIR}" ]; then
 	done
 fi
 
+if [ -n "${LABEL}" ]; then
+LABELFLAG="-o label=${LABEL}"
+fi
 if [ -n "${SIZE}" ]; then
 SIZEFLAG="-s ${SIZE}"
 fi
 
 cd ${BSDROOT}; makefs ${DUPFLAG} -N ${DBDIR} ${SIZEFLAG} ${BFLAG} \
-     -t ffs -f 256 ${IMGFILE} ${manifest}
+     -t ffs ${LABELFLAG} -f 256 ${IMGFILE} ${manifest}

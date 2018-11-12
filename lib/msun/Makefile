@@ -35,6 +35,8 @@ CFLAGS+=	-I${.CURDIR}/ld80
 CFLAGS+=	-I${.CURDIR}/ld128
 .endif
 
+CFLAGS+=	-I${.CURDIR}/${ARCH_SUBDIR}
+
 .PATH:	${.CURDIR}/bsdsrc
 .PATH:	${.CURDIR}/src
 .PATH:	${.CURDIR}/man
@@ -43,6 +45,7 @@ LIB=	m
 SHLIBDIR?= /lib
 SHLIB_MAJOR= 5
 WARNS?=	1
+IGNORE_PRAGMA=
 COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 	e_atan2.c e_atan2f.c e_atanh.c e_atanhf.c e_cosh.c e_coshf.c e_exp.c \
@@ -97,10 +100,11 @@ COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 # If long double != double use these; otherwise, we alias the double versions.
 COMMON_SRCS+=	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
 	e_coshl.c e_fmodl.c e_hypotl.c \
+	e_lgammal.c e_lgammal_r.c \
 	e_remainderl.c e_sinhl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
 	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
-	s_csqrtl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
+	s_csqrtl.c s_erfl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
 	s_frexpl.c s_logbl.c s_logl.c s_nanl.c s_nextafterl.c \
 	s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c s_scalbnl.c \
 	s_sinl.c s_tanhl.c s_tanl.c s_truncl.c w_cabsl.c
@@ -163,7 +167,7 @@ MLINKS+=copysign.3 copysignf.3 copysign.3 copysignl.3
 MLINKS+=cos.3 cosf.3 cos.3 cosl.3
 MLINKS+=cosh.3 coshf.3 cosh.3 coshl.3
 MLINKS+=csqrt.3 csqrtf.3 csqrt.3 csqrtl.3
-MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3
+MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3 erf.3 erfl.3 erf.3 erfcl.3
 MLINKS+=exp.3 expm1.3 exp.3 expm1f.3 exp.3 expm1l.3 exp.3 pow.3 exp.3 powf.3 \
 	exp.3 exp2.3 exp.3 exp2f.3 exp.3 exp2l.3 exp.3 expf.3 exp.3 expl.3
 MLINKS+=fabs.3 fabsf.3 fabs.3 fabsl.3
@@ -187,7 +191,8 @@ MLINKS+=ilogb.3 ilogbf.3 ilogb.3 ilogbl.3 \
 	ilogb.3 logb.3 ilogb.3 logbf.3 ilogb.3 logbl.3
 MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 y1f.3 j0.3 yn.3
 MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
-MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 \
+MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 \
+	lgamma.3 lgammaf.3 lgamma.3 lgammal.3 \
 	lgamma.3 tgamma.3 lgamma.3 tgammaf.3
 MLINKS+=log.3 log10.3 log.3 log10f.3 log.3 log10l.3 \
 	log.3 log1p.3 log.3 log1pf.3 log.3 log1pl.3 \
@@ -215,5 +220,11 @@ MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 cbrtl.3 sqrt.3 sqrtf.3 \
 MLINKS+=tan.3 tanf.3 tan.3 tanl.3
 MLINKS+=tanh.3 tanhf.3 tanh.3 tanhl.3
 MLINKS+=trunc.3 truncf.3 trunc.3 truncl.3
+
+.include <src.opts.mk>
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.lib.mk>

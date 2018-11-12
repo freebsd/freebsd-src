@@ -21,7 +21,8 @@
  */
 /*
  * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013 Joyent, Inc. All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -779,7 +780,7 @@ dt_decl_enumerator(char *s, dt_node_t *dnp)
 	yyintdecimal = 0;
 
 	dnp = dt_node_int(value);
-	dt_node_type_assign(dnp, dsp->ds_ctfp, dsp->ds_type);
+	dt_node_type_assign(dnp, dsp->ds_ctfp, dsp->ds_type, B_FALSE);
 
 	if ((inp = malloc(sizeof (dt_idnode_t))) == NULL)
 		longjmp(yypcb->pcb_jmpbuf, EDT_NOMEM);
@@ -821,12 +822,17 @@ dt_decl_type(dt_decl_t *ddp, dtrace_typeinfo_t *tip)
 	char *name;
 	int rv;
 
+	tip->dtt_flags = 0;
+
 	/*
 	 * Based on our current #include depth and decl stack depth, determine
 	 * which dynamic CTF module and scope to use when adding any new types.
 	 */
 	dmp = yypcb->pcb_idepth ? dtp->dt_cdefs : dtp->dt_ddefs;
 	flag = yypcb->pcb_dstack.ds_next ? CTF_ADD_NONROOT : CTF_ADD_ROOT;
+
+	if (ddp->dd_attr & DT_DA_USER)
+		tip->dtt_flags = DTT_FL_USER;
 
 	/*
 	 * If we have already cached a CTF type for this decl, then we just

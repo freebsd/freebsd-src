@@ -362,6 +362,15 @@ field set to
 and the
 .Fa si_pid
 field set to the process ID of the process reporting status.
+For the exited process, the
+.Fa si_status
+field of the
+.Dv siginfo_t
+structure contains the full 32 bit exit status passed to
+.Xr _exit 2 ;
+the
+.Fa status
+argument of other calls only returns 8 lowest bits of the exit status.
 .Pp
 When the
 .Dv WNOHANG
@@ -656,13 +665,6 @@ is an extension;
 .Tn POSIX
 only permits this flag with
 .Fn waitid .
-.Pp
-.Tn POSIX
-requires
-.Fn waitid
-to return the full 32 bits passed to
-.Xr _exit 2 ;
-this implementation only returns 8 bits like the other calls.
 .Sh HISTORY
 The
 .Fn wait

@@ -1027,9 +1027,9 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	SYSCTL_ADD_STRING(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "lowaddr", CTLFLAG_RD, bz->lowaddrid, 0, "");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
+	SYSCTL_ADD_UAUTO(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "alignment", CTLFLAG_RD, &bz->alignment, 0, "");
+	    "alignment", CTLFLAG_RD, &bz->alignment, "");
 
 	return (0);
 }
@@ -1121,8 +1121,8 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 
 	if (dmat->flags & BUS_DMA_KEEP_PG_OFFSET) {
 		/* Page offset needs to be preserved. */
-		bpage->vaddr |= vaddr & PAGE_MASK;
-		bpage->busaddr |= vaddr & PAGE_MASK;
+		bpage->vaddr |= addr & PAGE_MASK;
+		bpage->busaddr |= addr & PAGE_MASK;
 	}
 	bpage->datavaddr = vaddr;
 	bpage->dataaddr = addr;

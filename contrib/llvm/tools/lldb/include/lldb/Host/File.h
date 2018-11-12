@@ -16,6 +16,7 @@
 #include <sys/types.h>
 
 #include "lldb/lldb-private.h"
+#include "lldb/Host/IOObject.h"
 
 namespace lldb_private {
 
@@ -26,7 +27,7 @@ namespace lldb_private {
 /// A file class that divides abstracts the LLDB core from host file
 /// functionality.
 //----------------------------------------------------------------------
-class File
+class File : public IOObject
 {
 public:
     static int kInvalidDescriptor;
@@ -48,18 +49,24 @@ public:
     ConvertOpenOptionsForPOSIXOpen (uint32_t open_options);
     
     File() : 
+        IOObject(eFDTypeFile, false),
         m_descriptor (kInvalidDescriptor),
         m_stream (kInvalidStream),
         m_options (0),
-        m_owned (false)
+        m_own_stream (false),
+        m_is_interactive (eLazyBoolCalculate),
+        m_is_real_terminal (eLazyBoolCalculate)
     {
     }
     
     File (FILE *fh, bool transfer_ownership) :
+        IOObject(eFDTypeFile, false),
         m_descriptor (kInvalidDescriptor),
         m_stream (fh),
         m_options (0),
-        m_owned (transfer_ownership)
+        m_own_stream (transfer_ownership),
+        m_is_interactive (eLazyBoolCalculate),
+        m_is_real_terminal (eLazyBoolCalculate)
     {
     }
 
@@ -111,13 +118,15 @@ public:
           uint32_t options,
           uint32_t permissions = lldb::eFilePermissionsFileDefault);
     
-    File (int fd, bool tranfer_ownership) : 
+    File (int fd, bool transfer_ownership) :
+        IOObject(eFDTypeFile, transfer_ownership),
         m_descriptor (fd),
         m_stream (kInvalidStream),
         m_options (0),
-        m_owned (tranfer_ownership)
+        m_own_stream (false)
     {
     }
+
     //------------------------------------------------------------------
     /// Destructor.
     ///
@@ -213,6 +222,10 @@ public:
 
     int
     GetDescriptor() const;
+
+    WaitableHandle
+    GetWaitableHandle();
+
 
     void
     SetDescriptor(int fd, bool transfer_ownership);
@@ -323,7 +336,7 @@ public:
     ///
     /// @param[in/out] offset
     ///     The offset to seek to within the file relative to the 
-    ///     end of the file which gets filled in the the resulting
+    ///     end of the file which gets filled in with the resulting
     ///     absolute file offset.
     ///
     /// @param[in] error_ptr
@@ -458,6 +471,32 @@ public:
     static uint32_t
     GetPermissions (const char *path, Error &error);
 
+    
+    //------------------------------------------------------------------
+    /// Return true if this file is interactive.
+    ///
+    /// @return
+    ///     True if this file is a terminal (tty or pty), false
+    ///     otherwise.
+    //------------------------------------------------------------------
+    bool
+    GetIsInteractive ();
+    
+    //------------------------------------------------------------------
+    /// Return true if this file from a real terminal.
+    ///
+    /// Just knowing a file is a interactive isn't enough, we also need
+    /// to know if the terminal has a width and height so we can do
+    /// cursor movement and other terminal manipulations by sending
+    /// escape sequences.
+    ///
+    /// @return
+    ///     True if this file is a terminal (tty, not a pty) that has
+    ///     a non-zero width and height, false otherwise.
+    //------------------------------------------------------------------
+    bool
+    GetIsRealTerminal ();
+
     //------------------------------------------------------------------
     /// Output printf formatted output to the stream.
     ///
@@ -476,6 +515,12 @@ public:
     size_t
     PrintfVarArg(const char *format, va_list args);
 
+    
+    void
+    SetOptions (uint32_t options)
+    {
+        m_options = options;
+    }
 protected:
     
     
@@ -491,13 +536,18 @@ protected:
         return m_stream != kInvalidStream;
     }
     
+    void
+    CalculateInteractiveAndTerminal ();
+    
     //------------------------------------------------------------------
     // Member variables
     //------------------------------------------------------------------
     int m_descriptor;
     FILE *m_stream;
     uint32_t m_options;
-    bool m_owned;
+    bool m_own_stream;
+    LazyBool m_is_interactive;
+    LazyBool m_is_real_terminal;
 };
 
 } // namespace lldb_private

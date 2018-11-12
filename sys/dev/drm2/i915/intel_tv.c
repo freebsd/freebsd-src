@@ -814,7 +814,7 @@ intel_tv_mode_lookup(const char *tv_format)
 {
 	int i;
 
-	for (i = 0; i < sizeof(tv_modes) / sizeof(tv_modes[0]); i++) {
+	for (i = 0; i < DRM_ARRAY_SIZE(tv_modes); i++) {
 		const struct tv_mode *tv_mode = &tv_modes[i];
 
 		if (!strcmp(tv_format, tv_mode->name))
@@ -1155,6 +1155,15 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 		   DAC_B_0_7_V |
 		   DAC_C_0_7_V);
 
+
+	/*
+	 * The TV sense state should be cleared to zero on cantiga platform. Otherwise
+	 * the TV is misdetected. This is hardware requirement.
+	 */
+	if (IS_GM45(dev))
+		tv_dac &= ~(TVDAC_STATE_CHG_EN | TVDAC_A_SENSE_CTL |
+			    TVDAC_B_SENSE_CTL | TVDAC_C_SENSE_CTL);
+
 	I915_WRITE(TV_CTL, tv_ctl);
 	I915_WRITE(TV_DAC, tv_dac);
 	POSTING_READ(TV_DAC);
@@ -1224,7 +1233,7 @@ static void intel_tv_find_better_format(struct drm_connector *connector)
 	}
 
 	intel_tv->tv_format = tv_mode->name;
-	drm_connector_property_set_value(connector,
+	drm_object_property_set_value(&connector->base,
 		connector->dev->mode_config.tv_mode_property, i);
 }
 
@@ -1244,9 +1253,7 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 	mode = reported_modes[0];
 	drm_mode_set_crtcinfo(&mode, 0);
 
-	if (intel_tv->base.base.crtc && intel_tv->base.base.crtc->enabled) {
-		type = intel_tv_detect_type(intel_tv, connector);
-	} else if (force) {
+	if (force) {
 		struct intel_load_detect_pipe tmp;
 
 		if (intel_get_load_detect_pipe(&intel_tv->base, connector,
@@ -1319,7 +1326,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 	int j, count = 0;
 	u64 tmp;
 
-	for (j = 0; j < DRM_ARRAY_SIZE(input_res_table);
+	for (j = 0; j < ARRAY_SIZE(input_res_table);
 	     j++) {
 		const struct input_res *input = &input_res_table[j];
 		unsigned int hactive_s = input->w;
@@ -1386,7 +1393,7 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 	int ret = 0;
 	bool changed = false;
 
-	ret = drm_connector_property_set_value(connector, property, val);
+	ret = drm_object_property_set_value(&connector->base, property, val);
 	if (ret < 0)
 		goto out;
 
@@ -1407,7 +1414,7 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 		intel_tv->margin[TV_MARGIN_BOTTOM] = val;
 		changed = true;
 	} else if (property == dev->mode_config.tv_mode_property) {
-		if (val >= DRM_ARRAY_SIZE(tv_modes)) {
+		if (val >= ARRAY_SIZE(tv_modes)) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1499,7 +1506,7 @@ intel_tv_init(struct drm_device *dev)
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
 	u32 tv_dac_on, tv_dac_off, save_tv_dac;
-	char *tv_format_names[DRM_ARRAY_SIZE(tv_modes)];
+	char *tv_format_names[ARRAY_SIZE(tv_modes)];
 	int i, initial_mode = 0;
 
 	if ((I915_READ(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
@@ -1583,24 +1590,24 @@ intel_tv_init(struct drm_device *dev)
 	connector->doublescan_allowed = false;
 
 	/* Create TV properties then attach current values */
-	for (i = 0; i < DRM_ARRAY_SIZE(tv_modes); i++)
+	for (i = 0; i < ARRAY_SIZE(tv_modes); i++)
 		tv_format_names[i] = __DECONST(char *, tv_modes[i].name);
 	drm_mode_create_tv_properties(dev,
-				      DRM_ARRAY_SIZE(tv_modes),
+				      ARRAY_SIZE(tv_modes),
 				      tv_format_names);
 
-	drm_connector_attach_property(connector, dev->mode_config.tv_mode_property,
+	drm_object_attach_property(&connector->base, dev->mode_config.tv_mode_property,
 				   initial_mode);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				   dev->mode_config.tv_left_margin_property,
 				   intel_tv->margin[TV_MARGIN_LEFT]);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				   dev->mode_config.tv_top_margin_property,
 				   intel_tv->margin[TV_MARGIN_TOP]);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				   dev->mode_config.tv_right_margin_property,
 				   intel_tv->margin[TV_MARGIN_RIGHT]);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				   dev->mode_config.tv_bottom_margin_property,
 				   intel_tv->margin[TV_MARGIN_BOTTOM]);
 #if 0

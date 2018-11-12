@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -100,9 +99,10 @@ static driver_t acphy_driver = {
 
 DRIVER_MODULE(acphy, miibus, acphy_driver, acphy_devclass, 0, 0);
 
-static int	acphy_service(struct mii_softc *, struct mii_data *, int);
-static void	acphy_reset(struct mii_softc *);
-static void	acphy_status(struct mii_softc *);
+static int	acphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	acphy_reset(struct mii_softc *, if_media_t);
+static void	acphy_status(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc acphys[] = {
 	MII_PHY_DESC(ALTIMA, AC101),
@@ -134,24 +134,22 @@ acphy_attach(device_t dev)
 
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &acphy_funcs, 0);
 
-	PHY_RESET(sc);
+	PHY_RESET(sc, 0);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
 	device_printf(dev, " ");
 
-#define	ADD(m, c)	ifmedia_add(&sc->mii_pdata->mii_media, (m), (c), NULL)
 	if ((PHY_READ(sc, MII_ACPHY_MCTL) & AC_MCTL_FX_SEL) != 0) {
 		sc->mii_flags |= MIIF_HAVEFIBER;
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, 0, sc->mii_inst),
-		    MII_MEDIA_100_TX);
+		mii_phy_add_media(sc->mii_pdata, IFM_MAKEWORD(IFM_ETHER,
+		    IFM_100_FX, 0, sc->mii_inst));
 		printf("100baseFX, ");
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, IFM_FDX, sc->mii_inst),
-		    MII_MEDIA_100_TX_FDX);
+		mii_phy_add_media(sc->mii_pdata, IFM_MAKEWORD(IFM_ETHER,
+		    IFM_100_FX, IFM_FDX, sc->mii_inst));
 		printf("100baseFX-FDX, ");
 	}
-#undef ADD
 
-	mii_phy_add_media(sc);
+	mii_phy_generic_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
@@ -159,7 +157,8 @@ acphy_attach(device_t dev)
 }
 
 static int
-acphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+acphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 	int reg;
 
@@ -173,7 +172,7 @@ acphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if (reg & (BMCR_ISO | BMCR_PDOWN))
 			PHY_WRITE(sc, MII_BMCR, reg & ~(BMCR_ISO | BMCR_PDOWN));
 
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -184,7 +183,7 @@ acphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -192,10 +191,9 @@ acphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-acphy_status(struct mii_softc *sc)
+acphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, diag;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -234,13 +232,13 @@ acphy_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active = media;
 }
 
 static void
-acphy_reset(struct mii_softc *sc)
+acphy_reset(struct mii_softc *sc, if_media_t media)
 {
 
-	mii_phy_reset(sc);
+	mii_phy_reset(sc, media);
 	PHY_WRITE(sc, MII_ACPHY_INT, 0);
 }

@@ -1,11 +1,13 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+SUBDIR=	ncurses form menu panel \
+	ncursesw formw menuw panelw
 
-SUBDIR=	ncurses form menu panel
+SUBDIR_PARALLEL=
 
-.if ${MK_NCURSESW} != "no"
-SUBDIR+=	ncursesw formw menuw panelw
-.endif
+.for subdir in ${SUBDIR:Nncurses*:N*w}
+SUBDIR_DEPEND_${subdir}=	ncurses
+SUBDIR_DEPEND_${subdir}w=	ncursesw
+.endfor
 
 .include <bsd.subdir.mk>

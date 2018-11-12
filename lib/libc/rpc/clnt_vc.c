@@ -141,7 +141,6 @@ static cond_t   *vc_cv;
 
 static const char clnt_vc_errstr[] = "%s : %s";
 static const char clnt_vc_str[] = "clnt_vc_create";
-static const char clnt_read_vc_str[] = "read_vc";
 static const char __no_mem_str[] = "out of memory";
 
 /*
@@ -301,15 +300,13 @@ clnt_vc_create(fd, raddr, prog, vers, sendsz, recvsz)
 	return (cl);
 
 err:
-	if (cl) {
-		if (ct) {
-			if (ct->ct_addr.len)
-				mem_free(ct->ct_addr.buf, ct->ct_addr.len);
-			mem_free(ct, sizeof (struct ct_data));
-		}
-		if (cl)
-			mem_free(cl, sizeof (CLIENT));
+	if (ct) {
+		if (ct->ct_addr.len)
+			mem_free(ct->ct_addr.buf, ct->ct_addr.len);
+		mem_free(ct, sizeof (struct ct_data));
 	}
+	if (cl)
+		mem_free(cl, sizeof (CLIENT));
 	return ((CLIENT *)NULL);
 }
 

@@ -27,6 +27,7 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <signal.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 /*
@@ -34,13 +35,13 @@
  * leading underscores.
  */
 
-#pragma weak _go = go
-
 static int
 go(int a)
 {
 	return (a + 1);
 }
+
+#pragma weak _go = go
 
 static void
 handle(int sig)

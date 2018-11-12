@@ -172,15 +172,8 @@ main(int argc, char **argv)
 					continue;
 				if (strstr(fsp->fs_mntops, "noauto") != NULL)
 					continue;
-				/*
-				 * Forcibly enable "late" option when file= is
-				 * specified.  This is because mounting file
-				 * systems with rw option is typically
-				 * required to make the backing store ready.
-				 */
 				if (which_prog != SWAPOFF &&
-				    (strstr(fsp->fs_mntops, "late") != NULL ||
-				     strstr(fsp->fs_mntops, "file=") != NULL) &&
+				    strstr(fsp->fs_mntops, "late") &&
 				    late == 0)
 					continue;
 				swfile = swap_on_off(fsp->fs_spec, 1,
@@ -320,7 +313,7 @@ static char *
 swap_on_geli_args(const char *mntops)
 {
 	const char *aalgo, *ealgo, *keylen_str, *sectorsize_str;
-	const char *aflag, *eflag, *lflag, *sflag;
+	const char *aflag, *eflag, *lflag, *Tflag, *sflag;
 	char *p, *args, *token, *string, *ops;
 	int argsize, pagesize;
 	size_t pagesize_len;
@@ -328,7 +321,7 @@ swap_on_geli_args(const char *mntops)
 
 	/* Use built-in defaults for geli(8). */
 	aalgo = ealgo = keylen_str = "";
-	aflag = eflag = lflag = "";
+	aflag = eflag = lflag = Tflag = "";
 
 	/* We will always specify sectorsize. */
 	sflag = " -s ";
@@ -372,6 +365,8 @@ swap_on_geli_args(const char *mntops)
 					free(ops);
 					return (NULL);
 				}
+			} else if ((p = strstr(token, "notrim")) == token) {
+				Tflag = " -T ";
 			} else if (strcmp(token, "sw") != 0) {
 				warnx("Invalid option: %s", token);
 				free(ops);
@@ -394,8 +389,8 @@ swap_on_geli_args(const char *mntops)
 		sectorsize_str = p;
 	}
 
-	argsize = asprintf(&args, "%s%s%s%s%s%s%s%s -d",
-	    aflag, aalgo, eflag, ealgo, lflag, keylen_str,
+	argsize = asprintf(&args, "%s%s%s%s%s%s%s%s%s -d",
+	    aflag, aalgo, eflag, ealgo, lflag, keylen_str, Tflag,
 	    sflag, sectorsize_str);
 
 	free(ops);

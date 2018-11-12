@@ -169,6 +169,11 @@ isEepromValid(struct ath_hal *ah)
 			if (regDomainPairs[i].regDmnEnum == rd)
 				return AH_TRUE;
 	}
+
+	if (rd == FCC_UBNT) {
+		return AH_TRUE;
+	}
+
 	HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
 	    "%s: invalid regulatory domain/country code 0x%x\n", __func__, rd);
 	return AH_FALSE;

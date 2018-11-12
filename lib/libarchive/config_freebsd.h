@@ -25,6 +25,8 @@
  * $FreeBSD$
  */
 
+#include <osreldate.h>
+
 /* FreeBSD 5.0 and later have ACL and extattr support. */
 #if __FreeBSD__ > 4
 #define HAVE_ACL_CREATE_ENTRY 1
@@ -220,6 +222,11 @@
 #define HAVE_ZLIB_H 1
 #define TIME_WITH_SYS_TIME 1
 
+#if __FreeBSD_version >= 1100056
+#define HAVE_FUTIMENS 1
+#define HAVE_UTIMENSAT 1
+#endif
+
 /* FreeBSD 4 and earlier lack intmax_t/uintmax_t */
 #if __FreeBSD__ < 5
 #define intmax_t int64_t
@@ -228,15 +235,15 @@
 
 /* FreeBSD defines for archive_hash.h */
 #ifdef WITH_OPENSSL
-#define ARCHIVE_HASH_MD5_OPENSSL 1
-#define ARCHIVE_HASH_RMD160_OPENSSL 1
-#define ARCHIVE_HASH_SHA1_OPENSSL
-#define ARCHIVE_HASH_SHA256_OPENSSL 1
-#define ARCHIVE_HASH_SHA384_OPENSSL 1
-#define ARCHIVE_HASH_SHA512_OPENSSL 1
+#define ARCHIVE_CRYPTO_MD5_OPENSSL 1
+#define ARCHIVE_CRYPTO_RMD160_OPENSSL 1
+#define ARCHIVE_CRYPTO_SHA1_OPENSSL
+#define ARCHIVE_CRYPTO_SHA256_OPENSSL 1
+#define ARCHIVE_CRYPTO_SHA384_OPENSSL 1
+#define ARCHIVE_CRYPTO_SHA512_OPENSSL 1
 #else
-#define ARCHIVE_HASH_MD5_LIBMD 1
-#define ARCHIVE_HASH_SHA1_LIBMD 1
-#define ARCHIVE_HASH_SHA256_LIBMD 1
-#define ARCHIVE_HASH_SHA512_LIBMD 1
+#define ARCHIVE_CRYPTO_MD5_LIBMD 1
+#define ARCHIVE_CRYPTO_SHA1_LIBMD 1
+#define ARCHIVE_CRYPTO_SHA256_LIBMD 1
+#define ARCHIVE_CRYPTO_SHA512_LIBMD 1
 #endif

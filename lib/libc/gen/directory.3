@@ -28,7 +28,7 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2013
+.Dd May 6, 2015
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -169,6 +169,10 @@ If the directory is closed and then
 reopened, prior values returned by
 .Fn telldir
 will no longer be valid.
+Values returned by
+.Fn telldir
+are also invalidated by a call to
+.Fn rewinddir .
 .Pp
 The
 .Fn seekdir
@@ -182,13 +186,6 @@ The new position reverts to the one associated with the
 when the
 .Fn telldir
 operation was performed.
-State associated with the token returned by
-.Fn telldir is freed when it is passed to
-.Fn seekdir .
-If you wish return to the same location again,
-then you must create a new token with another
-.Fn telldir
-call.
 .Pp
 The
 .Fn rewinddir
@@ -266,8 +263,25 @@ function appeared in
 function appeared in
 .Fx 10.0 .
 .Sh BUGS
-The invalidation of
+The behaviour of
 .Fn telldir
-tokens when calling
+and
 .Fn seekdir
-is non-standard.
+is likely to be wrong if there are parallel unlinks happening
+and the directory is larger than one page.
+There is code to ensure that a
+.Fn seekdir
+to the location given by a 
+.Fn telldir
+immediately before the last 
+.Fn readdir
+will always set the correct location to return the same value as that last
+.Fn readdir
+performed.
+This is enough for some applications which want to "push back the last entry read" E.g. Samba. 
+Seeks back to any other location,
+other than the beginning of the directory,
+may result in unexpected behaviour if deletes are present.
+It is hoped that this situation will be resolved with changes to
+.Fn getdirentries
+and the VFS.

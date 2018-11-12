@@ -57,16 +57,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
+#include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
 
 /**
- *	ti_clk_devmap - Array of clock devices, should be defined one per SoC 
+ *	ti_*_clk_devmap - Array of clock devices, should be defined one per SoC 
  *
  *	This array is typically defined in one of the targeted *_prcm_clk.c
  *	files and is specific to the given SoC platform.  Each entry in the array
  *	corresponds to an individual clock device.
  */
-extern struct ti_clock_dev ti_clk_devmap[];
+extern struct ti_clock_dev ti_omap4_clk_devmap[];
+extern struct ti_clock_dev ti_am335x_clk_devmap[];
 
 /**
  *	ti_prcm_clk_dev - returns a pointer to the clock device with given id
@@ -90,7 +92,21 @@ ti_prcm_clk_dev(clk_ident_t clk)
 	 * loop for this, but this function should only called when a driver is 
 	 * being activated so IMHO not a big issue.
 	 */
-	clk_dev = &(ti_clk_devmap[0]);
+	clk_dev = NULL;
+	switch(ti_chip()) {
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
+		clk_dev = &(ti_omap4_clk_devmap[0]);
+		break;
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
+		clk_dev = &(ti_am335x_clk_devmap[0]);
+		break;
+#endif
+	}
+	if (clk_dev == NULL)
+		panic("No clock devmap found");
 	while (clk_dev->id != INVALID_CLK_IDENT) {
 		if (clk_dev->id == clk) {
 			return (clk_dev);
@@ -269,7 +285,7 @@ ti_prcm_clk_set_source(clk_ident_t clk, clk_src_t clksrc)
  *	@clk: identifier for the module to enable, see ti_prcm.h for a list
  *	      of possible modules.
  *	@freq: pointer to an integer that upon return will contain the src freq
- *	
+ *
  *	This function returns the frequency of the source clock.
  *
  *	The real work done to enable the clock is really done in the callback
@@ -303,6 +319,39 @@ ti_prcm_clk_get_source_freq(clk_ident_t clk, unsigned int *freq)
 		ret = clk_dev->clk_get_source_freq(clk_dev, freq);
 	else
 		ret = EINVAL;
-	
+
+	return (ret);
+}
+
+/**
+ *	ti_prcm_clk_set_source_freq - sets the source clock frequency as close to freq as possible
+ *	@clk: identifier for the module to enable, see ti_prcm.h for a list
+ *	      of possible modules.
+ *	@freq: requested freq
+ *
+ *	LOCKING:
+ *	Internally locks the driver context.
+ *
+ *	RETURNS:
+ *	Returns 0 on success or positive error code on failure.
+ */
+int
+ti_prcm_clk_set_source_freq(clk_ident_t clk, unsigned int freq)
+{
+	struct ti_clock_dev *clk_dev;
+	int ret;
+
+	clk_dev = ti_prcm_clk_dev(clk);
+
+	/* Sanity check we managed to find the clock */
+	if (clk_dev == NULL)
+		return (EINVAL);
+
+	/* Get the source frequency of the clock */
+	if (clk_dev->clk_set_source_freq)
+		ret = clk_dev->clk_set_source_freq(clk_dev, freq);
+	else
+		ret = EINVAL;
+
 	return (ret);
 }

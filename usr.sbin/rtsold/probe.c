@@ -40,7 +40,6 @@
 #include <sys/queue.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
 
 #include <netinet/in.h>
@@ -78,12 +77,6 @@ probe_init(void)
 
 	if ((probesock = socket(AF_INET6, SOCK_RAW, IPPROTO_NONE)) < 0) {
 		warnmsg(LOG_ERR, __func__, "socket: %s", strerror(errno));
-		return (-1);
-	}
-
-	/* make the socket send-only */
-	if (shutdown(probesock, 0)) {
-		warnmsg(LOG_ERR, __func__, "shutdown: %s", strerror(errno));
 		return (-1);
 	}
 

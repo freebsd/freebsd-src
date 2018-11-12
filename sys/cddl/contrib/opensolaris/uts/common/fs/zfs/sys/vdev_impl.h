@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_VDEV_IMPL_H
@@ -60,7 +60,7 @@ typedef int	vdev_open_func_t(vdev_t *vd, uint64_t *size, uint64_t *max_size,
     uint64_t *logical_ashift, uint64_t *physical_ashift);
 typedef void	vdev_close_func_t(vdev_t *vd);
 typedef uint64_t vdev_asize_func_t(vdev_t *vd, uint64_t psize);
-typedef int	vdev_io_start_func_t(zio_t *zio);
+typedef void	vdev_io_start_func_t(zio_t *zio);
 typedef void	vdev_io_done_func_t(zio_t *zio);
 typedef void	vdev_state_change_func_t(vdev_t *vd, int, int);
 typedef void	vdev_hold_func_t(vdev_t *vd);
@@ -113,6 +113,8 @@ struct vdev_queue {
 	vdev_t		*vq_vdev;
 	vdev_queue_class_t vq_class[ZIO_PRIORITY_NUM_QUEUEABLE];
 	avl_tree_t	vq_active_tree;
+	avl_tree_t	vq_read_offset_tree;
+	avl_tree_t	vq_write_offset_tree;
 	uint64_t	vq_last_offset;
 	hrtime_t	vq_io_complete_ts; /* time last i/o completed */
 	kmutex_t	vq_lock;
@@ -225,7 +227,7 @@ struct vdev {
 	boolean_t	vdev_isl2cache;	/* was a l2cache device		*/
 	vdev_queue_t	vdev_queue;	/* I/O deadline schedule queue	*/
 	vdev_cache_t	vdev_cache;	/* physical block cache		*/
-	spa_aux_vdev_t	*vdev_aux;	/* for l2cache vdevs		*/
+	spa_aux_vdev_t	*vdev_aux;	/* for l2cache and spares vdevs	*/
 	zio_t		*vdev_probe_zio; /* root of current probe	*/
 	vdev_aux_t	vdev_label_aux;	/* on-disk aux state		*/
 	struct trim_map	*vdev_trimmap;	/* map on outstanding trims	*/ 
@@ -253,8 +255,11 @@ struct vdev {
 #define	VDEV_PHYS_SIZE		(112 << 10)
 #define	VDEV_UBERBLOCK_RING	(128 << 10)
 
+/* The largest uberblock we support is 8k. */
+#define	MAX_UBERBLOCK_SHIFT (13)
 #define	VDEV_UBERBLOCK_SHIFT(vd)	\
-	MAX((vd)->vdev_top->vdev_ashift, UBERBLOCK_SHIFT)
+	MIN(MAX((vd)->vdev_top->vdev_ashift, UBERBLOCK_SHIFT), \
+	    MAX_UBERBLOCK_SHIFT)
 #define	VDEV_UBERBLOCK_COUNT(vd)	\
 	(VDEV_UBERBLOCK_RING >> VDEV_UBERBLOCK_SHIFT(vd))
 #define	VDEV_UBERBLOCK_OFFSET(vd, n)	\

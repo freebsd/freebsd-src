@@ -32,7 +32,7 @@
 
 #include <sys/cdefs.h>
 
-void	 brace_subst(char *, char **, char *, int);
+void	 brace_subst(char *, char **, char *, size_t);
 PLAN	*find_create(char ***);
 int	 find_execute(PLAN *, char **);
 PLAN	*find_formplan(char **);
@@ -118,6 +118,7 @@ extern int ftsoptions, ignore_readdir_race, isdeprecated, isdepth, isoutput;
 extern int issort, isxargs;
 extern int mindepth, maxdepth;
 extern int regexp_flags;
+extern int exitstatus;
 extern time_t now;
 extern int dotfd;
 extern FTS *tree;

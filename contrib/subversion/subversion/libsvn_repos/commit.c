@@ -761,6 +761,13 @@ close_edit(void *edit_baton,
 
   if (SVN_IS_VALID_REVNUM(new_revision))
     {
+      /* The actual commit succeeded, i.e. the transaction does no longer
+         exist and we can't use txn_root for conflict resolution etc.
+
+         Since close_edit is supposed to release resources, do it now. */
+      if (eb->txn_root)
+        svn_fs_close_root(eb->txn_root);
+
       if (err)
         {
           /* If the error was in post-commit, then the commit itself
@@ -770,6 +777,13 @@ close_edit(void *edit_baton,
           post_commit_err = svn_repos__post_commit_error_str(err, pool);
           svn_error_clear(err);
         }
+
+      /* Make sure a future abort doesn't perform
+         any work. This may occur if the commit
+         callback returns an error! */
+
+      eb->txn = NULL;
+      eb->txn_root = NULL;
     }
   else
     {
@@ -820,6 +834,10 @@ abort_edit(void *edit_baton,
     return SVN_NO_ERROR;
 
   eb->txn_aborted = TRUE;
+
+  /* Since abort_edit is supposed to release resources, do it now. */
+  if (eb->txn_root)
+    svn_fs_close_root(eb->txn_root);
 
   return svn_error_trace(svn_fs_abort_txn(eb->txn, pool));
 }

@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 
 extern bool_t xdr_authdes_cred( XDR *, struct authdes_cred *);
 extern bool_t xdr_authdes_verf( XDR *, struct authdes_verf *);
-extern int key_encryptsession_pk();
+extern int key_encryptsession_pk(char *, netobj *, des_block *);
 
 extern bool_t __rpc_get_time_offset(struct timeval *, nis_server *, char *,
 	char **, char **);
@@ -259,7 +259,7 @@ failed:
  */	
 /*ARGSUSED*/
 static void
-authdes_nextverf(AUTH *auth)
+authdes_nextverf(AUTH *auth __unused)
 {
 	/* what the heck am I supposed to do??? */
 }
@@ -420,7 +420,7 @@ authdes_validate(AUTH *auth, struct opaque_auth *rverf)
  */
 /*ARGSUSED*/
 static bool_t
-authdes_refresh(AUTH *auth, void *dummy)
+authdes_refresh(AUTH *auth, void *dummy __unused)
 {
 /* LINTED pointer alignment */
 	struct ad_private *ad = AUTH_PRIVATE(auth);

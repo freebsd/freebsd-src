@@ -22,7 +22,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: mail.eecs.mc,v 8.19 2013/11/22 20:51:08 ca Exp $')
+VERSIONID(`$Id: mail.eecs.mc,v 8.19 2013-11-22 20:51:08 ca Exp $')
 OSTYPE(ultrix4)dnl
 DOMAIN(EECS.Berkeley.EDU)dnl
 MASQUERADE_AS(EECS.Berkeley.EDU)dnl

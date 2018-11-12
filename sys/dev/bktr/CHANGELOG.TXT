@@ -515,5 +515,5 @@
                   support for audio on Hauppauge cards without the audio mux.
                   The MSP is used for audio selection. (the 44xxx models)
 
-[see http://www.freebsd.org/cgi/cvsweb.cgi/src/sys/dev/bktr/
+[see https://svnweb.freebsd.org/base/head/sys/dev/bktr/
 for newer change logs ]

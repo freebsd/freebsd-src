@@ -28,8 +28,6 @@
  * $FreeBSD$
  */
 
-#define FXP_VENDORID_INTEL	0x8086
-
 #define FXP_PCI_MMBA	0x10
 #define FXP_PCI_IOBA	0x14
 
@@ -250,7 +248,7 @@ struct fxp_cb_ucode {
 /*
  * Number of DMA segments in a TxCB.
  */
-#define FXP_NTXSEG	32
+#define FXP_NTXSEG	35
 
 struct fxp_tbd {
 	uint32_t tb_addr;

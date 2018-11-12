@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2011
+.Dd July 24, 2015
 .Dt ALTQ 4
 .Os
 .Sh NAME
@@ -35,11 +35,13 @@
 .Cd options ALTQ
 .Pp
 .Cd options ALTQ_CBQ
+.Cd options ALTQ_CODEL
 .Cd options ALTQ_RED
 .Cd options ALTQ_RIO
 .Cd options ALTQ_HFSC
 .Cd options ALTQ_CDNR
 .Cd options ALTQ_PRIQ
+.Cd options ALTQ_FAIRQ
 .Sh DESCRIPTION
 The
 .Nm
@@ -73,6 +75,10 @@ Enable
 Build the
 .Dq "Class Based Queuing"
 discipline.
+.It Dv ALTQ_CODEL
+Build the
+.Dq "Controlled Delay"
+discipline.
 .It Dv ALTQ_RED
 Build the
 .Dq "Random Early Detection"
@@ -92,6 +98,10 @@ any of the available disciplines or consumers.
 .It Dv ALTQ_PRIQ
 Build the
 .Dq "Priority Queuing"
+discipline.
+.It Dv ALTQ_FAIRQ
+Build the
+.Dq "Fair Queuing"
 discipline.
 .It Dv ALTQ_NOPCC
 Required if the TSC is unusable.
@@ -151,7 +161,6 @@ They have been applied to the following hardware drivers:
 .Xr nfe 4 ,
 .Xr nge 4 ,
 .Xr npe 4 ,
-.Xr nve 4 ,
 .Xr qlxgb 4 ,
 .Xr ral 4 ,
 .Xr re 4 ,

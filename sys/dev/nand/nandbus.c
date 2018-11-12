@@ -174,7 +174,7 @@ nandbus_attach(device_t dev)
 	nfc = device_get_parent(dev);
 	nfc_sc = device_get_softc(nfc);
 
-	mtx_init(&sc->nandbus_mtx, "nandbus lock", MTX_DEF, 0);
+	mtx_init(&sc->nandbus_mtx, "nandbus lock", NULL, MTX_DEF);
 	cv_init(&sc->nandbus_cv, "nandbus cv");
 
 	/* Check each possible CS for existing nand devices */

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/syscallsubr.h>
@@ -107,7 +108,7 @@ spx_open(struct thread *td)
 	sun.sun_len = sizeof(struct sockaddr_un) - sizeof(sun.sun_path) +
 	    strlen(sun.sun_path) + 1;
 
-	error = kern_connect(td, fd, (struct sockaddr *)&sun);
+	error = kern_connectat(td, AT_FDCWD, fd, (struct sockaddr *)&sun);
 	if (error) {
 		kern_close(td, fd);
 		return error;

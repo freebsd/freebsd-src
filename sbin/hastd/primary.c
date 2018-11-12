@@ -330,9 +330,8 @@ primary_exitx(int exitcode, const char *fmt, ...)
 	exit(exitcode);
 }
 
-/* Expects res->hr_amp locked, returns unlocked. */
 static int
-hast_activemap_flush(struct hast_resource *res)
+hast_activemap_flush(struct hast_resource *res) __unlocks(res->hr_amp_lock)
 {
 	const unsigned char *buf;
 	size_t size;

@@ -26,7 +26,7 @@
 /*
  * $FreeBSD$
  *
- * netmap support for: ixgbe
+ * netmap support for: ixgbe (both ix and ixv)
  *
  * This file is meant to be a reference on how to implement
  * netmap support for a network driver.
@@ -48,6 +48,7 @@
  */
 #include <dev/netmap/netmap_kern.h>
 
+void ixgbe_netmap_attach(struct adapter *adapter);
 
 /*
  * device-specific sysctl variables:
@@ -61,7 +62,8 @@
  *	count packets that might be missed due to lost interrupts.
  */
 SYSCTL_DECL(_dev_netmap);
-static int ix_rx_miss, ix_rx_miss_bufs, ix_crcstrip;
+static int ix_rx_miss, ix_rx_miss_bufs;
+int ix_crcstrip;
 SYSCTL_INT(_dev_netmap, OID_AUTO, ix_crcstrip,
     CTLFLAG_RW, &ix_crcstrip, 0, "strip CRC on rx frames");
 SYSCTL_INT(_dev_netmap, OID_AUTO, ix_rx_miss,
@@ -119,20 +121,19 @@ ixgbe_netmap_reg(struct netmap_adapter *na, int onoff)
 	struct adapter *adapter = ifp->if_softc;
 
 	IXGBE_CORE_LOCK(adapter);
-	ixgbe_disable_intr(adapter); // XXX maybe ixgbe_stop ?
+	adapter->stop_locked(adapter);
 
-	/* Tell the stack that the interface is no longer active */
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-
-	set_crcstrip(&adapter->hw, onoff);
+	if (!IXGBE_IS_VF(adapter))
+		set_crcstrip(&adapter->hw, onoff);
 	/* enable or disable flags and callbacks in na and ifp */
 	if (onoff) {
 		nm_set_native_flags(na);
 	} else {
 		nm_clear_native_flags(na);
 	}
-	ixgbe_init_locked(adapter);	/* also enables intr */
-	set_crcstrip(&adapter->hw, onoff); // XXX why twice ?
+	adapter->init_locked(adapter);	/* also enables intr */
+	if (!IXGBE_IS_VF(adapter))
+		set_crcstrip(&adapter->hw, onoff); // XXX why twice ?
 	IXGBE_CORE_UNLOCK(adapter);
 	return (ifp->if_drv_flags & IFF_DRV_RUNNING ? 0 : 1);
 }
@@ -153,10 +154,10 @@ ixgbe_netmap_reg(struct netmap_adapter *na, int onoff)
  * methods should be handled by the individual drivers.
  */
 static int
-ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
+ixgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 {
+	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
-	struct netmap_kring *kring = &na->tx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
 	u_int nm_i;	/* index into the netmap ring */
 	u_int nic_i;	/* index into the NIC ring */
@@ -171,7 +172,7 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 
 	/* device-specific */
 	struct adapter *adapter = ifp->if_softc;
-	struct tx_ring *txr = &adapter->tx_rings[ring_nr];
+	struct tx_ring *txr = &adapter->tx_rings[kring->ring_id];
 	int reclaim_tx;
 
 	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
@@ -223,7 +224,7 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			u_int len = slot->len;
 			uint64_t paddr;
-			void *addr = PNMB(slot, &paddr);
+			void *addr = PNMB(na, slot, &paddr);
 
 			/* device-specific */
 			union ixgbe_adv_tx_desc *curr = &txr->tx_base[nic_i];
@@ -236,11 +237,11 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			__builtin_prefetch(&ring->slot[nm_i + 1]);
 			__builtin_prefetch(&txr->tx_buffers[nic_i + 1]);
 
-			NM_CHECK_ADDR_LEN(addr, len);
+			NM_CHECK_ADDR_LEN(na, addr, len);
 
 			if (slot->flags & NS_BUF_CHANGED) {
 				/* buffer has changed, reload map */
-				netmap_reload_map(txr->txtag, txbuf->map, addr);
+				netmap_reload_map(na, txr->txtag, txbuf->map, addr);
 			}
 			slot->flags &= ~(NS_REPORT | NS_BUF_CHANGED);
 
@@ -265,7 +266,7 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 		/* (re)start the tx unit up to slot nic_i (excluded) */
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_TDT(txr->me), nic_i);
+		IXGBE_WRITE_REG(&adapter->hw, txr->tail, nic_i);
 	}
 
 	/*
@@ -309,7 +310,8 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 		 * REPORT_STATUS in a few slots so TDH is the only
 		 * good way.
 		 */
-		nic_i = IXGBE_READ_REG(&adapter->hw, IXGBE_TDH(ring_nr));
+		nic_i = IXGBE_READ_REG(&adapter->hw, IXGBE_IS_VF(adapter) ?
+				       IXGBE_VFTDH(kring->ring_id) : IXGBE_TDH(kring->ring_id));
 		if (nic_i >= kring->nkr_num_slots) { /* XXX can it happen ? */
 			D("TDH wrap %d", nic_i);
 			nic_i -= kring->nkr_num_slots;
@@ -320,8 +322,6 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			kring->nr_hwtail = nm_prev(netmap_idx_n2k(kring, nic_i), lim);
 		}
 	}
-
-	nm_txsync_finalize(kring);
 
 	return 0;
 }
@@ -341,21 +341,21 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
  * of whether or not we received an interrupt.
  */
 static int
-ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
+ixgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 {
+	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
-	struct netmap_kring *kring = &na->rx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
 	u_int nm_i;	/* index into the netmap ring */
 	u_int nic_i;	/* index into the NIC ring */
 	u_int n;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int const head = nm_rxsync_prologue(kring);
+	u_int const head = kring->rhead;
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 
 	/* device-specific */
 	struct adapter *adapter = ifp->if_softc;
-	struct rx_ring *rxr = &adapter->rx_rings[ring_nr];
+	struct rx_ring *rxr = &adapter->rx_rings[kring->ring_id];
 
 	if (head > lim)
 		return netmap_ring_reinit(kring);
@@ -380,7 +380,7 @@ ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	 * rxr->next_to_check is set to 0 on a ring reinit
 	 */
 	if (netmap_no_pendintr || force_update) {
-		int crclen = ix_crcstrip ? 0 : 4;
+		int crclen = (ix_crcstrip || IXGBE_IS_VF(adapter) ) ? 0 : 4;
 		uint16_t slot_flags = kring->nkr_slot_flags;
 
 		nic_i = rxr->next_to_check; // or also k2n(kring->nr_hwtail)
@@ -425,17 +425,17 @@ ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 		for (n = 0; nm_i != head; n++) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			uint64_t paddr;
-			void *addr = PNMB(slot, &paddr);
+			void *addr = PNMB(na, slot, &paddr);
 
 			union ixgbe_adv_rx_desc *curr = &rxr->rx_base[nic_i];
 			struct ixgbe_rx_buf *rxbuf = &rxr->rx_buffers[nic_i];
 
-			if (addr == netmap_buffer_base) /* bad buf */
+			if (addr == NETMAP_BUF_BASE(na)) /* bad buf */
 				goto ring_reset;
 
 			if (slot->flags & NS_BUF_CHANGED) {
 				/* buffer has changed, reload map */
-				netmap_reload_map(rxr->ptag, rxbuf->pmap, addr);
+				netmap_reload_map(na, rxr->ptag, rxbuf->pmap, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
 			curr->wb.upper.status_error = 0;
@@ -454,11 +454,8 @@ ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 		 * so move nic_i back by one unit
 		 */
 		nic_i = nm_prev(nic_i, lim);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_RDT(rxr->me), nic_i);
+		IXGBE_WRITE_REG(&adapter->hw, rxr->tail, nic_i);
 	}
-
-	/* tell userspace that there might be new packets */
-	nm_rxsync_finalize(kring);
 
 	return 0;
 
@@ -474,7 +471,7 @@ ring_reset:
  * netmap mode will be disabled and the driver will only
  * operate in standard mode.
  */
-static void
+void
 ixgbe_netmap_attach(struct adapter *adapter)
 {
 	struct netmap_adapter na;

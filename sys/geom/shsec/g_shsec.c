@@ -71,12 +71,10 @@ SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, shsec, CTLFLAG_RW, 0,
     "GEOM_SHSEC stuff");
 static u_int g_shsec_debug = 0;
-TUNABLE_INT("kern.geom.shsec.debug", &g_shsec_debug);
-SYSCTL_UINT(_kern_geom_shsec, OID_AUTO, debug, CTLFLAG_RW, &g_shsec_debug, 0,
+SYSCTL_UINT(_kern_geom_shsec, OID_AUTO, debug, CTLFLAG_RWTUN, &g_shsec_debug, 0,
     "Debug level");
 static u_int g_shsec_maxmem = MAXPHYS * 100;
-TUNABLE_INT("kern.geom.shsec.maxmem", &g_shsec_maxmem);
-SYSCTL_UINT(_kern_geom_shsec, OID_AUTO, maxmem, CTLFLAG_RD, &g_shsec_maxmem,
+SYSCTL_UINT(_kern_geom_shsec, OID_AUTO, maxmem, CTLFLAG_RDTUN, &g_shsec_maxmem,
     0, "Maximum memory that can be allocated for I/O (in bytes)");
 static u_int g_shsec_alloc_failed = 0;
 SYSCTL_UINT(_kern_geom_shsec, OID_AUTO, alloc_failed, CTLFLAG_RD,

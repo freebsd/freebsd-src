@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # machine-independent net sources
-.PATH: ${.CURDIR}/net
+.PATH: ${LIBC_SRCTOP}/net
 
 SRCS+=	base64.c ether_addr.c eui64.c \
 	gai_strerror.c getaddrinfo.c \
@@ -20,7 +20,7 @@ SRCS+=	base64.c ether_addr.c eui64.c \
 SRCS+=	nscache.c nscachedcli.c
 .endif
 
-SYM_MAPS+=${.CURDIR}/net/Symbol.map
+SYM_MAPS+=${LIBC_SRCTOP}/net/Symbol.map
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
@@ -29,16 +29,18 @@ CFLAGS+=-DINET6
 CFLAGS+=-I${.OBJDIR}
 
 # name6.c refers res_private.h
-CFLAGS+=-I${.CURDIR}/resolv
+CFLAGS+=-I${LIBC_SRCTOP}/resolv
 
 YFLAGS+=-p_nsyy
 LFLAGS+=-P_nsyy
 
-CLEANFILES+=nslexer.c
+CLEANFILES+=nslexer.c nslexer.c.*
 
 nslexer.c: nslexer.l nsparser.h
-	${LEX} ${LFLAGS} -o/dev/stdout ${.IMPSRC} | \
-		sed -e '/YY_BUF_SIZE/s/16384/1024/' >${.TARGET}
+	${LEX} ${LFLAGS} -o${.TARGET}.tmp1 ${.IMPSRC}
+	sed -e '/YY_BUF_SIZE/s/16384/1024/' ${.TARGET}.tmp1 >${.TARGET}.tmp2
+	rm -f ${.TARGET}.tmp1
+	mv -f ${.TARGET}.tmp2 ${.TARGET}
 
 MAN+=	byteorder.3 ethers.3 eui64.3 \
 	getaddrinfo.3 gai_strerror.3 gethostbyname.3 \

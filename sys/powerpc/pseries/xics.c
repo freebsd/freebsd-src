@@ -169,10 +169,7 @@ xicp_attach(device_t dev)
 	sc->ibm_set_xive = rtas_token_lookup("ibm,set-xive");
 	sc->ibm_get_xive = rtas_token_lookup("ibm,get-xive");
 
-	if (OF_getproplen(phandle, "ibm,phandle") > 0)
-		OF_getprop(phandle, "ibm,phandle", &phandle, sizeof(phandle));
-
-	powerpc_register_pic(dev, phandle, MAX_XICP_IRQS,
+	powerpc_register_pic(dev, OF_xref_from_node(phandle), MAX_XICP_IRQS,
 	    1 /* Number of IPIs */, FALSE);
 	root_pic = dev;
 
@@ -184,12 +181,9 @@ xics_attach(device_t dev)
 {
 	phandle_t phandle = ofw_bus_get_node(dev);
 
-	if (OF_getproplen(phandle, "ibm,phandle") > 0)
-		OF_getprop(phandle, "ibm,phandle", &phandle, sizeof(phandle));
-
 	/* The XICP (root PIC) will handle all our interrupts */
-	powerpc_register_pic(root_pic, phandle, MAX_XICP_IRQS,
-	    1 /* Number of IPIs */, FALSE);
+	powerpc_register_pic(root_pic, OF_xref_from_node(phandle),
+	    MAX_XICP_IRQS, 1 /* Number of IPIs */, FALSE);
 
 	return (0);
 }
@@ -203,16 +197,31 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask)
 {
 	struct xicp_softc *sc = device_get_softc(dev);
 	cell_t status, cpu;
+	int ncpus, i, error;
 
 	/*
-	 * This doesn't appear to actually support affinity groups, so just
-	 * use the first CPU.
+	 * This doesn't appear to actually support affinity groups, so pick a
+	 * random CPU.
 	 */
+	ncpus = 0;
 	CPU_FOREACH(cpu)
-		if (CPU_ISSET(cpu, &cpumask)) break;
+		if (CPU_ISSET(cpu, &cpumask)) ncpus++;
 
-	rtas_call_method(sc->ibm_set_xive, 3, 1, irq, cpu, XICP_PRIORITY,
-	    &status);
+	i = mftb() % ncpus;
+	ncpus = 0;
+	CPU_FOREACH(cpu) {
+		if (!CPU_ISSET(cpu, &cpumask))
+			continue;
+		if (ncpus == i)
+			break;
+		ncpus++;
+	}
+	
+
+	error = rtas_call_method(sc->ibm_set_xive, 3, 1, irq, cpu,
+	    XICP_PRIORITY, &status);
+	if (error < 0)
+		panic("Cannot bind interrupt %d to CPU %d", irq, cpu);
 }
 
 static void

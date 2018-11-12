@@ -19,8 +19,7 @@ PTHREAD_LIBS?=	-lpthread
 
 WARNS?=		2
 
-DPADD=		${LIBPTHREAD}
-LDADD=		${PTHREAD_LIBS}
+LIBADD=		pthread
 
 MLINKS+=	libusb.3 usb.3
 
@@ -38,6 +37,7 @@ SRCS+=		libusb10_io.c
 CFLAGS+=	-DCOMPAT_32BIT
 .endif
 
+.ifndef COMPAT_32BIT
 beforeinstall:
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		${.CURDIR}/libusb-0.1.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
@@ -45,6 +45,7 @@ beforeinstall:
 		${.CURDIR}/libusb-1.0.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		${.CURDIR}/libusb-2.0.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+.endif
 
 #
 # Cross platform support
@@ -68,8 +69,6 @@ CFLAGS+=	-DLIBUSB_GLOBAL_INCLUDE_FILE=\"${LIBUSB_GLOBAL_INCLUDE_FILE}\"
 CFLAGS+=	-DUSB_GLOBAL_INCLUDE_FILE=\"${LIBUSB_GLOBAL_INCLUDE_FILE}\"
 CFLAGS+=	-I ../../sys
 .endif
-
-.include <bsd.lib.mk>
 
 # LibUSB v1.0
 MLINKS += libusb.3 libusb_init.3
@@ -258,3 +257,5 @@ MLINKS += libusb20.3 libusb20_me_decode.3
 MLINKS += libusb20.3 libusb20_desc_foreach.3
 MLINKS += libusb20.3 libusb20_strerror.3
 MLINKS += libusb20.3 libusb20_error_name.3
+
+.include <bsd.lib.mk>

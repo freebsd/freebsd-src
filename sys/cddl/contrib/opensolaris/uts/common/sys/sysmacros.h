@@ -32,6 +32,9 @@
 
 #include <sys/param.h>
 #include <sys/isa_defs.h>
+#if defined(__FreeBSD__) && defined(_KERNEL)
+#include <sys/libkern.h>
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
@@ -112,7 +115,7 @@ extern unsigned char bcd_to_byte[256];
 #define	L_MAXMIN	L_MAXMIN32
 #endif
 
-#ifdef sun
+#ifdef illumos
 #ifdef _KERNEL
 
 /* major part of a device internal to the kernel */
@@ -172,7 +175,7 @@ extern unsigned char bcd_to_byte[256];
 #define	getemajor(x)	(major_t)((((dev_t)(x) >> L_BITSMINOR) > L_MAXMAJ) ? \
 			    NODEV : (((dev_t)(x) >> L_BITSMINOR) & L_MAXMAJ))
 #define	geteminor(x)	(minor_t)((x) & L_MAXMIN)
-#endif /* sun */
+#endif /* illumos */
 
 /*
  * These are versions of the kernel routines for compressing and
@@ -382,6 +385,9 @@ extern unsigned char bcd_to_byte[256];
 static __inline int
 highbit(ulong_t i)
 {
+#if defined(__FreeBSD__) && defined(_KERNEL) && defined(HAVE_INLINE_FLSL)
+	return (flsl(i));
+#else
 	register int h = 1;
 
 	if (i == 0)
@@ -407,6 +413,43 @@ highbit(ulong_t i)
 		h += 1;
 	}
 	return (h);
+#endif
+}
+
+/*
+ * Find highest one bit set.
+ *	Returns bit number + 1 of highest bit that is set, otherwise returns 0.
+ */
+static __inline int
+highbit64(uint64_t i)
+{
+#if defined(__FreeBSD__) && defined(_KERNEL) && defined(HAVE_INLINE_FLSLL)
+	return (flsll(i));
+#else
+	int h = 1;
+
+	if (i == 0)
+		return (0);
+	if (i & 0xffffffff00000000ULL) {
+		h += 32; i >>= 32;
+	}
+	if (i & 0xffff0000) {
+		h += 16; i >>= 16;
+	}
+	if (i & 0xff00) {
+		h += 8; i >>= 8;
+	}
+	if (i & 0xf0) {
+		h += 4; i >>= 4;
+	}
+	if (i & 0xc) {
+		h += 2; i >>= 2;
+	}
+	if (i & 0x2) {
+		h += 1;
+	}
+	return (h);
+#endif
 }
 
 #ifdef	__cplusplus

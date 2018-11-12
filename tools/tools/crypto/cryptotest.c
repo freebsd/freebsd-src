@@ -82,25 +82,25 @@
  * Expect ~400 Mb/s for a Broadcom 582x for 8K buffers on a reasonable CPU
  * (64-bit PCI helps).  Hifn 7811 parts top out at ~110 Mb/s.
  */
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <sys/mman.h>
-#include <paths.h>
-#include <stdlib.h>
-#include <string.h>
 
+#include <sys/param.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/wait.h>
+
+#include <err.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include <crypto/cryptodev.h>
 
 #define	CHUNK	64	/* how much to display */
-#define	N(a)		(sizeof (a) / sizeof (a[0]))
 #define	streq(a,b)	(strcasecmp(a,b) == 0)
 
 void	hexdump(char *, int);
@@ -164,7 +164,7 @@ getalgbycode(int cipher)
 {
 	int i;
 
-	for (i = 0; i < N(algorithms); i++)
+	for (i = 0; i < nitems(algorithms); i++)
 		if (cipher == algorithms[i].code)
 			return &algorithms[i];
 	return NULL;
@@ -175,7 +175,7 @@ getalgbyname(const char* name)
 {
 	int i;
 
-	for (i = 0; i < N(algorithms); i++)
+	for (i = 0; i < nitems(algorithms); i++)
 		if (streq(name, algorithms[i].name))
 			return &algorithms[i];
 	return NULL;
@@ -239,7 +239,7 @@ rdigit(void)
 		0x10,0x54,0x11,0x48,0x45,0x12,0x4f,0x13,0x49,0x53,0x14,0x41,
 		0x15,0x16,0x4e,0x55,0x54,0x17,0x18,0x4a,0x4f,0x42,0x19,0x01
 	};
-	return 0x20+a[random()%N(a)];
+	return 0x20+a[random()%nitems(a)];
 }
 
 static void
@@ -298,7 +298,7 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 	for (i = 0; i < size; i++)
 		cleartext[i] = rdigit();
 	memcpy(originaltext, cleartext, size);
-	for (i = 0; i < N(iv); i++)
+	for (i = 0; i < nitems(iv); i++)
 		iv[i] = rdigit();
 
 	if (verbose) {
@@ -569,7 +569,7 @@ main(int argc, char **argv)
 		count = atoi(argv[0]);
 	while (argc > 1) {
 		int s = atoi(argv[1]);
-		if (nsizes < N(sizes)) {
+		if (nsizes < nitems(sizes)) {
 			sizes[nsizes++] = s;
 		} else {
 			printf("Too many sizes, ignoring %u\n", s);
@@ -590,7 +590,7 @@ main(int argc, char **argv)
 	}
 
 	if (testall) {
-		for (i = 0; i < N(algorithms); i++) {
+		for (i = 0; i < nitems(algorithms); i++) {
 			int j;
 			alg = &algorithms[i];
 			for (j = 0; j < nsizes; j++)

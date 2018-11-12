@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_ath_debug.h>
 #include <dev/ath/if_ath_keycache.h>
+#include <dev/ath/if_ath_misc.h>
 
 #ifdef ATH_DEBUG
 static void
@@ -198,6 +199,7 @@ ath_keyset(struct ath_softc *sc, struct ieee80211vap *vap,
 	u_int8_t gmac[IEEE80211_ADDR_LEN];
 	const u_int8_t *mac;
 	HAL_KEYVAL hk;
+	int ret;
 
 	memset(&hk, 0, sizeof(hk));
 	/*
@@ -251,13 +253,19 @@ ath_keyset(struct ath_softc *sc, struct ieee80211vap *vap,
 	} else
 		mac = k->wk_macaddr;
 
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
 	if (hk.kv_type == HAL_CIPHER_TKIP &&
 	    (k->wk_flags & IEEE80211_KEY_SWMIC) == 0) {
-		return ath_keyset_tkip(sc, k, &hk, mac);
+		ret = ath_keyset_tkip(sc, k, &hk, mac);
 	} else {
 		KEYPRINTF(sc, k->wk_keyix, &hk, mac);
-		return ath_hal_keyset(ah, k->wk_keyix, &hk, mac);
+		ret = ath_hal_keyset(ah, k->wk_keyix, &hk, mac);
 	}
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return (ret);
 #undef N
 }
 
@@ -417,7 +425,7 @@ int
 ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
 {
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 
 	/*
 	 * Group key allocation must be handled specially for
@@ -485,13 +493,15 @@ ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 int
 ath_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	const struct ieee80211_cipher *cip = k->wk_cipher;
 	u_int keyix = k->wk_keyix;
 
 	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s: delete key %u\n", __func__, keyix);
 
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
 	ath_hal_keyreset(ah, keyix);
 	/*
 	 * Handle split tx/rx keying required for TKIP with h/w MIC.
@@ -515,6 +525,8 @@ ath_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 			}
 		}
 	}
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
 	return 1;
 }
 
@@ -526,7 +538,7 @@ int
 ath_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 	const u_int8_t mac[IEEE80211_ADDR_LEN])
 {
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 
 	return ath_keyset(sc, vap, k, vap->iv_bss);
 }

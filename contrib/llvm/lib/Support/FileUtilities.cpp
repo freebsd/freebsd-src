@@ -13,15 +13,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/FileUtilities.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <system_error>
 using namespace llvm;
 
 static bool isSignedChar(char C) {
@@ -171,55 +170,37 @@ static bool CompareNumbers(const char *&F1P, const char *&F2P,
 /// error occurs, allowing the caller to distinguish between a failed diff and a
 /// file system error.
 ///
-int llvm::DiffFilesWithTolerance(const sys::PathWithStatus &FileA,
-                                 const sys::PathWithStatus &FileB,
+int llvm::DiffFilesWithTolerance(StringRef NameA,
+                                 StringRef NameB,
                                  double AbsTol, double RelTol,
                                  std::string *Error) {
-  const sys::FileStatus *FileAStat = FileA.getFileStatus(false, Error);
-  if (!FileAStat)
-    return 2;
-  const sys::FileStatus *FileBStat = FileB.getFileStatus(false, Error);
-  if (!FileBStat)
-    return 2;
-
-  // Check for zero length files because some systems croak when you try to
-  // mmap an empty file.
-  size_t A_size = FileAStat->getSize();
-  size_t B_size = FileBStat->getSize();
-
-  // If they are both zero sized then they're the same
-  if (A_size == 0 && B_size == 0)
-    return 0;
-
-  // If only one of them is zero sized then they can't be the same
-  if ((A_size == 0 || B_size == 0)) {
-    if (Error)
-      *Error = "Files differ: one is zero-sized, the other isn't";
-    return 1;
-  }
-
   // Now its safe to mmap the files into memory because both files
   // have a non-zero size.
-  OwningPtr<MemoryBuffer> F1;
-  if (error_code ec = MemoryBuffer::getFile(FileA.c_str(), F1)) {
+  ErrorOr<std::unique_ptr<MemoryBuffer>> F1OrErr = MemoryBuffer::getFile(NameA);
+  if (std::error_code EC = F1OrErr.getError()) {
     if (Error)
-      *Error = ec.message();
+      *Error = EC.message();
     return 2;
   }
-  OwningPtr<MemoryBuffer> F2;
-  if (error_code ec = MemoryBuffer::getFile(FileB.c_str(), F2)) {
+  MemoryBuffer &F1 = *F1OrErr.get();
+
+  ErrorOr<std::unique_ptr<MemoryBuffer>> F2OrErr = MemoryBuffer::getFile(NameB);
+  if (std::error_code EC = F2OrErr.getError()) {
     if (Error)
-      *Error = ec.message();
+      *Error = EC.message();
     return 2;
   }
+  MemoryBuffer &F2 = *F2OrErr.get();
 
   // Okay, now that we opened the files, scan them for the first difference.
-  const char *File1Start = F1->getBufferStart();
-  const char *File2Start = F2->getBufferStart();
-  const char *File1End = F1->getBufferEnd();
-  const char *File2End = F2->getBufferEnd();
+  const char *File1Start = F1.getBufferStart();
+  const char *File2Start = F2.getBufferStart();
+  const char *File1End = F1.getBufferEnd();
+  const char *File2End = F2.getBufferEnd();
   const char *F1P = File1Start;
   const char *F2P = File2Start;
+  uint64_t A_size = F1.getBufferSize();
+  uint64_t B_size = F2.getBufferSize();
 
   // Are the buffers identical?  Common case: Handle this efficiently.
   if (A_size == B_size &&

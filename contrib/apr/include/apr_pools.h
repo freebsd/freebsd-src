@@ -71,10 +71,10 @@ typedef struct apr_pool_t apr_pool_t;
  * <pre>
  *    APR_POOL_DECLARE_ACCESSOR(file);
  * becomes:
- *    APR_DECLARE(apr_pool_t *) apr_file_pool_get(apr_file_t *ob);
+ *    APR_DECLARE(apr_pool_t *) apr_file_pool_get(const apr_file_t *thefile);
  * </pre>
  * @remark Doxygen unwraps this macro (via doxygen.conf) to provide 
- * actual help for each specific occurance of apr_foo_pool_get.
+ * actual help for each specific occurrence of apr_foo_pool_get.
  * @remark the linkage is specified for APR. It would be possible to expand
  *       the macros to support other linkages.
  */
@@ -118,15 +118,15 @@ typedef struct apr_pool_t apr_pool_t;
  *
  * |   |   |   |   | x |   |   |   |  Pool owner checking.  On each use of a
  *                                    pool, check if the current thread is the
- *                                    pools owner.  If not, abort().  In
+ *                                    pool's owner.  If not, abort().  In
  *                                    combination with the verbose flag above,
  *                                    it will output OWNER in such an event
  *                                    prior to aborting.  Use the debug
  *                                    function apr_pool_owner_set() to switch
- *                                    a pools ownership.
+ *                                    a pool's ownership.
  *
  * When no debug level was specified, assume general debug mode.
- * If level 0 was specified, debugging is switched off
+ * If level 0 was specified, debugging is switched off.
  * </pre>
  */
 #if defined(APR_POOL_DEBUG)
@@ -212,12 +212,16 @@ APR_DECLARE(apr_status_t) apr_pool_create_core_ex(apr_pool_t **newpool,
  * @param newpool The pool we have just created.
  * @param abort_fn A function to use if the pool cannot allocate more memory.
  * @param allocator The allocator to use with the new pool.  If NULL a
- *        new allocator will be crated with newpool as owner.
+ *        new allocator will be created with the new pool as owner.
  * @remark An unmanaged pool is a special pool without a parent; it will
  *         NOT be destroyed upon apr_terminate.  It must be explicitly
  *         destroyed by calling apr_pool_destroy, to prevent memory leaks.
  *         Use of this function is discouraged, think twice about whether
  *         you really really need it.
+ * @warning Any child cleanups registered against the new pool, or
+ *         against sub-pools thereof, will not be executed during an
+ *         invocation of apr_proc_create(), so resources created in an
+ *         "unmanaged" pool hierarchy will leak to child processes.
  */
 APR_DECLARE(apr_status_t) apr_pool_create_unmanaged_ex(apr_pool_t **newpool,
                                                    apr_abortfunc_t abort_fn,
@@ -233,7 +237,7 @@ APR_DECLARE(apr_status_t) apr_pool_create_unmanaged_ex(apr_pool_t **newpool,
  * @param file_line Where the function is called from.
  *        This is usually APR_POOL__FILE_LINE__.
  * @remark Only available when APR_POOL_DEBUG is defined.
- *         Call this directly if you have you apr_pool_create_ex
+ *         Call this directly if you have your apr_pool_create_ex
  *         calls in a wrapper function and wish to override
  *         the file_line argument to reflect the caller of
  *         your wrapper function.  If you do not have
@@ -270,7 +274,7 @@ APR_DECLARE(apr_status_t) apr_pool_create_core_ex_debug(apr_pool_t **newpool,
  * @param file_line Where the function is called from.
  *        This is usually APR_POOL__FILE_LINE__.
  * @remark Only available when APR_POOL_DEBUG is defined.
- *         Call this directly if you have you apr_pool_create_unmanaged_ex
+ *         Call this directly if you have your apr_pool_create_unmanaged_ex
  *         calls in a wrapper function and wish to override
  *         the file_line argument to reflect the caller of
  *         your wrapper function.  If you do not have
@@ -321,7 +325,7 @@ APR_DECLARE(apr_status_t) apr_pool_create(apr_pool_t **newpool,
 #endif
 
 /**
- * Create a new pool.
+ * Create a new unmanaged pool.
  * @param newpool The pool we have just created.
  */
 #if defined(DOXYGEN)
@@ -366,7 +370,7 @@ APR_DECLARE(void) apr_pool_clear(apr_pool_t *p) __attribute__((nonnull(1)));
  * @param file_line Where the function is called from.
  *        This is usually APR_POOL__FILE_LINE__.
  * @remark Only available when APR_POOL_DEBUG is defined.
- *         Call this directly if you have you apr_pool_clear
+ *         Call this directly if you have your apr_pool_clear
  *         calls in a wrapper function and wish to override
  *         the file_line argument to reflect the caller of
  *         your wrapper function.  If you do not have
@@ -396,7 +400,7 @@ APR_DECLARE(void) apr_pool_destroy(apr_pool_t *p) __attribute__((nonnull(1)));
  * @param file_line Where the function is called from.
  *        This is usually APR_POOL__FILE_LINE__.
  * @remark Only available when APR_POOL_DEBUG is defined.
- *         Call this directly if you have you apr_pool_destroy
+ *         Call this directly if you have your apr_pool_destroy
  *         calls in a wrapper function and wish to override
  *         the file_line argument to reflect the caller of
  *         your wrapper function.  If you do not have
@@ -614,7 +618,7 @@ APR_DECLARE(apr_status_t) apr_pool_userdata_get(void **data, const char *key,
 
 /**
  * Register a function to be called when a pool is cleared or destroyed
- * @param p The pool register the cleanup with
+ * @param p The pool to register the cleanup with
  * @param data The data to pass to the cleanup function.
  * @param plain_cleanup The function to call when the pool is cleared
  *                      or destroyed
@@ -630,11 +634,11 @@ APR_DECLARE(void) apr_pool_cleanup_register(
 /**
  * Register a function to be called when a pool is cleared or destroyed.
  *
- * Unlike apr_pool_cleanup_register which register a cleanup
- * that is called AFTER all subpools are destroyed this function register
- * a function that will be called before any of the subpool is destoryed.
+ * Unlike apr_pool_cleanup_register which registers a cleanup
+ * that is called AFTER all subpools are destroyed, this function registers
+ * a function that will be called before any of the subpools are destroyed.
  *
- * @param p The pool register the cleanup with
+ * @param p The pool to register the cleanup with
  * @param data The data to pass to the cleanup function.
  * @param plain_cleanup The function to call when the pool is cleared
  *                      or destroyed

@@ -15,6 +15,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #ifdef SANDBOX_CAPSICUM
 
@@ -22,7 +23,7 @@
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 #include <errno.h>
 #include <stdarg.h>
@@ -94,11 +95,11 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 		fatal("can't limit stderr: %m");
 
 	cap_rights_init(&rights, CAP_READ, CAP_WRITE);
-	if (cap_rights_limit(box->monitor->m_recvfd, &rights) == -1 &&
+	if (cap_rights_limit(box->monitor->m_recvfd, &rights) < 0 &&
 	    errno != ENOSYS)
 		fatal("%s: failed to limit the network socket", __func__);
 	cap_rights_init(&rights, CAP_WRITE);
-	if (cap_rights_limit(box->monitor->m_log_sendfd, &rights) == -1 &&
+	if (cap_rights_limit(box->monitor->m_log_sendfd, &rights) < 0 &&
 	    errno != ENOSYS)
 		fatal("%s: failed to limit the logging socket", __func__);
 	if (cap_enter() < 0 && errno != ENOSYS)

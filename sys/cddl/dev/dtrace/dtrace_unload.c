@@ -28,23 +28,8 @@ dtrace_unload()
 	dtrace_state_t *state;
 	int error = 0;
 
-#if __FreeBSD_version < 800039
-	/*
-	 * Check if there is still an event handler callback
-	 * registered.
-	 */
-	if (eh_tag != 0) {
-		/* De-register the device cloning event handler. */
-		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
-		eh_tag = 0;
-
-		/* Stop device cloning. */
-		clone_cleanup(&dtrace_clones);
-	}
-#else
 	destroy_dev(dtrace_dev);
 	destroy_dev(helper_dev);
-#endif
 
 	mutex_enter(&dtrace_provider_lock);
 	mutex_enter(&dtrace_lock);
@@ -83,11 +68,6 @@ dtrace_unload()
 	bzero(&dtrace_anon, sizeof (dtrace_anon_t));
 
 	mutex_exit(&cpu_lock);
-
-	if (dtrace_helptrace_enabled) {
-		kmem_free(dtrace_helptrace_buffer, 0);
-		dtrace_helptrace_buffer = NULL;
-	}
 
 	if (dtrace_probes != NULL) {
 		kmem_free(dtrace_probes, 0);

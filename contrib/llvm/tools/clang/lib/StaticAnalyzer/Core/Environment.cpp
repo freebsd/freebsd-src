@@ -54,7 +54,8 @@ static const Stmt *ignoreTransparentExprs(const Stmt *S) {
 EnvironmentEntry::EnvironmentEntry(const Stmt *S, const LocationContext *L)
   : std::pair<const Stmt *,
               const StackFrameContext *>(ignoreTransparentExprs(S),
-                                         L ? L->getCurrentStackFrame() : 0) {}
+                                         L ? L->getCurrentStackFrame()
+                                           : nullptr) {}
 
 SVal Environment::lookupExpr(const EnvironmentEntry &E) const {
   const SVal* X = ExprBindings.lookup(E);
@@ -123,11 +124,11 @@ class MarkLiveCallback : public SymbolVisitor {
   SymbolReaper &SymReaper;
 public:
   MarkLiveCallback(SymbolReaper &symreaper) : SymReaper(symreaper) {}
-  bool VisitSymbol(SymbolRef sym) {
+  bool VisitSymbol(SymbolRef sym) override {
     SymReaper.markLive(sym);
     return true;
   }
-  bool VisitMemRegion(const MemRegion *R) {
+  bool VisitMemRegion(const MemRegion *R) override {
     SymReaper.markLive(R);
     return true;
   }
@@ -204,11 +205,12 @@ void Environment::print(raw_ostream &Out, const char *NL,
     }
     
     const Stmt *S = En.getStmt();
-    
+    assert(S != nullptr && "Expected non-null Stmt");
+
     Out << " (" << (const void*) En.getLocationContext() << ','
       << (const void*) S << ") ";
     LangOptions LO; // FIXME.
-    S->printPretty(Out, 0, PrintingPolicy(LO));
+    S->printPretty(Out, nullptr, PrintingPolicy(LO));
     Out << " : " << I.getData();
   }
 }

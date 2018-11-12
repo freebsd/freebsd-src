@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: hpux9.m4,v 8.25 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: hpux9.m4,v 8.25 2013-11-22 20:51:15 ca Exp $')
 
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', `/bin/rmail')')dnl

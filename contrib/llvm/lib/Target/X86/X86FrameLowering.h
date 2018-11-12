@@ -11,91 +11,85 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86_FRAMELOWERING_H
-#define X86_FRAMELOWERING_H
+#ifndef LLVM_LIB_TARGET_X86_X86FRAMELOWERING_H
+#define LLVM_LIB_TARGET_X86_X86FRAMELOWERING_H
 
-#include "X86Subtarget.h"
-#include "llvm/MC/MCDwarf.h"
 #include "llvm/Target/TargetFrameLowering.h"
 
 namespace llvm {
 
-namespace CU {
-
-  /// Compact unwind encoding values.
-  enum CompactUnwindEncodings {
-    /// [RE]BP based frame where [RE]BP is pused on the stack immediately after
-    /// the return address, then [RE]SP is moved to [RE]BP.
-    UNWIND_MODE_BP_FRAME                   = 0x01000000,
-
-    /// A frameless function with a small constant stack size.
-    UNWIND_MODE_STACK_IMMD                 = 0x02000000,
-
-    /// A frameless function with a large constant stack size.
-    UNWIND_MODE_STACK_IND                  = 0x03000000,
-
-    /// No compact unwind encoding is available.
-    UNWIND_MODE_DWARF                      = 0x04000000,
-
-    /// Mask for encoding the frame registers.
-    UNWIND_BP_FRAME_REGISTERS              = 0x00007FFF,
-
-    /// Mask for encoding the frameless registers.
-    UNWIND_FRAMELESS_STACK_REG_PERMUTATION = 0x000003FF
-  };
-
-} // end CU namespace
-
 class MCSymbol;
 class X86TargetMachine;
+class X86Subtarget;
 
 class X86FrameLowering : public TargetFrameLowering {
-  const X86TargetMachine &TM;
-  const X86Subtarget &STI;
 public:
-  explicit X86FrameLowering(const X86TargetMachine &tm, const X86Subtarget &sti)
-    : TargetFrameLowering(StackGrowsDown,
-                          sti.getStackAlignment(),
-                          (sti.is64Bit() ? -8 : -4)),
-      TM(tm), STI(sti) {
-  }
+  explicit X86FrameLowering(StackDirection D, unsigned StackAl, int LAO)
+    : TargetFrameLowering(StackGrowsDown, StackAl, LAO) {}
 
-  void emitCalleeSavedFrameMoves(MachineFunction &MF, MCSymbol *Label,
-                                 unsigned FramePtr) const;
+  /// Emit a call to the target's stack probe function. This is required for all
+  /// large stack allocations on Windows. The caller is required to materialize
+  /// the number of bytes to probe in RAX/EAX.
+  static void emitStackProbeCall(MachineFunction &MF, MachineBasicBlock &MBB,
+                                 MachineBasicBlock::iterator MBBI, DebugLoc DL);
+
+  void emitCalleeSavedFrameMoves(MachineBasicBlock &MBB,
+                                 MachineBasicBlock::iterator MBBI,
+                                 DebugLoc DL) const;
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
-  void emitPrologue(MachineFunction &MF) const;
-  void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
+  void emitPrologue(MachineFunction &MF) const override;
+  void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
-  void adjustForSegmentedStacks(MachineFunction &MF) const;
+  void adjustForSegmentedStacks(MachineFunction &MF) const override;
 
-  void adjustForHiPEPrologue(MachineFunction &MF) const;
+  void adjustForHiPEPrologue(MachineFunction &MF) const override;
 
   void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                            RegScavenger *RS = NULL) const;
+                                     RegScavenger *RS = nullptr) const override;
+
+  bool
+  assignCalleeSavedSpillSlots(MachineFunction &MF,
+                              const TargetRegisterInfo *TRI,
+                              std::vector<CalleeSavedInfo> &CSI) const override;
 
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI,
                                  const std::vector<CalleeSavedInfo> &CSI,
-                                 const TargetRegisterInfo *TRI) const;
+                                 const TargetRegisterInfo *TRI) const override;
 
   bool restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
-                                   MachineBasicBlock::iterator MI,
-                                   const std::vector<CalleeSavedInfo> &CSI,
-                                   const TargetRegisterInfo *TRI) const;
+                                  MachineBasicBlock::iterator MI,
+                                  const std::vector<CalleeSavedInfo> &CSI,
+                                  const TargetRegisterInfo *TRI) const override;
 
-  bool hasFP(const MachineFunction &MF) const;
-  bool hasReservedCallFrame(const MachineFunction &MF) const;
+  bool hasFP(const MachineFunction &MF) const override;
+  bool hasReservedCallFrame(const MachineFunction &MF) const override;
+  bool canSimplifyCallFramePseudos(const MachineFunction &MF) const override;
+  bool needsFrameIndexResolution(const MachineFunction &MF) const override;
 
-  int getFrameIndexOffset(const MachineFunction &MF, int FI) const;
+  int getFrameIndexOffset(const MachineFunction &MF, int FI) const override;
   int getFrameIndexReference(const MachineFunction &MF, int FI,
-                             unsigned &FrameReg) const;
-  uint32_t getCompactUnwindEncoding(MachineFunction &MF) const;
+                             unsigned &FrameReg) const override;
+
+  int getFrameIndexOffsetFromSP(const MachineFunction &MF, int FI) const;
+  int getFrameIndexReferenceFromSP(const MachineFunction &MF, int FI,
+                                   unsigned &FrameReg) const override;
 
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                     MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator MI) const;
+                                 MachineBasicBlock &MBB,
+                                 MachineBasicBlock::iterator MI) const override;
+
+private:
+  /// convertArgMovsToPushes - This method tries to convert a call sequence
+  /// that uses sub and mov instructions to put the argument onto the stack
+  /// into a series of pushes.
+  /// Returns true if the transformation succeeded, false if not.
+  bool convertArgMovsToPushes(MachineFunction &MF, 
+                              MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator I, 
+                              uint64_t Amount) const;
 };
 
 } // End llvm namespace

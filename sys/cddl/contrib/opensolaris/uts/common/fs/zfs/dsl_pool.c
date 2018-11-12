@@ -20,8 +20,9 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
+ * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
 #include <sys/dsl_pool.h>
@@ -45,6 +46,11 @@
 #include <sys/zfeature.h>
 #include <sys/zil_impl.h>
 #include <sys/dsl_userhold.h>
+
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#include <sys/types.h>
+#endif
 
 /*
  * ZFS Write Throttle
@@ -111,8 +117,8 @@ int zfs_delay_min_dirty_percent = 60;
 
 /*
  * This controls how quickly the delay approaches infinity.
- * Larger values cause it to delay less for a given amount of dirty data.
- * Therefore larger values will cause there to be more dirty data for a
+ * Larger values cause it to delay more for a given amount of dirty data.
+ * Therefore larger values will cause there to be less dirty data for a
  * given throughput.
  *
  * For the smoothest delay, this value should be about 1 billion divided
@@ -125,38 +131,99 @@ int zfs_delay_min_dirty_percent = 60;
 uint64_t zfs_delay_scale = 1000 * 1000 * 1000 / 2000;
 
 
-/*
- * XXX someday maybe turn these into #defines, and you have to tune it on a
- * per-pool basis using zfs.conf.
- */
+#ifdef __FreeBSD__
 
+extern int zfs_vdev_async_write_active_max_dirty_percent;
 
 SYSCTL_DECL(_vfs_zfs);
-#if 0
-TUNABLE_INT("vfs.zfs.no_write_throttle", &zfs_no_write_throttle);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, no_write_throttle, CTLFLAG_RDTUN,
-    &zfs_no_write_throttle, 0, "");
-TUNABLE_INT("vfs.zfs.write_limit_shift", &zfs_write_limit_shift);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, write_limit_shift, CTLFLAG_RDTUN,
-    &zfs_write_limit_shift, 0, "2^N of physical memory");
-SYSCTL_DECL(_vfs_zfs_txg);
-TUNABLE_INT("vfs.zfs.txg.synctime_ms", &zfs_txg_synctime_ms);
-SYSCTL_INT(_vfs_zfs_txg, OID_AUTO, synctime_ms, CTLFLAG_RDTUN,
-    &zfs_txg_synctime_ms, 0, "Target milliseconds to sync a txg");
 
-TUNABLE_QUAD("vfs.zfs.write_limit_min", &zfs_write_limit_min);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_min, CTLFLAG_RDTUN,
-    &zfs_write_limit_min, 0, "Minimum write limit");
-TUNABLE_QUAD("vfs.zfs.write_limit_max", &zfs_write_limit_max);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_max, CTLFLAG_RDTUN,
-    &zfs_write_limit_max, 0, "Maximum data payload per txg");
-TUNABLE_QUAD("vfs.zfs.write_limit_inflated", &zfs_write_limit_inflated);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_inflated, CTLFLAG_RDTUN,
-    &zfs_write_limit_inflated, 0, "Maximum size of the dynamic write limit");
-TUNABLE_QUAD("vfs.zfs.write_limit_override", &zfs_write_limit_override);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_override, CTLFLAG_RDTUN,
-    &zfs_write_limit_override, 0,
-    "Force a txg if dirty buffers exceed this value (bytes)");
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max, CTLFLAG_RWTUN,
+    &zfs_dirty_data_max, 0,
+    "The maximum amount of dirty data in bytes after which new writes are "
+    "halted until space becomes available");
+
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max_max, CTLFLAG_RDTUN,
+    &zfs_dirty_data_max_max, 0,
+    "The absolute cap on dirty_data_max when auto calculating");
+
+static int sysctl_zfs_dirty_data_max_percent(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, dirty_data_max_percent,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
+    sysctl_zfs_dirty_data_max_percent, "I",
+    "The percent of physical memory used to auto calculate dirty_data_max");
+
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_sync, CTLFLAG_RWTUN,
+    &zfs_dirty_data_sync, 0,
+    "Force a txg if the number of dirty buffer bytes exceed this value");
+
+static int sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS);
+/* No zfs_delay_min_dirty_percent tunable due to limit requirements */
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, delay_min_dirty_percent,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(int),
+    sysctl_zfs_delay_min_dirty_percent, "I",
+    "The limit of outstanding dirty data before transations are delayed");
+
+static int sysctl_zfs_delay_scale(SYSCTL_HANDLER_ARGS);
+/* No zfs_delay_scale tunable due to limit requirements */
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, delay_scale,
+    CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(uint64_t),
+    sysctl_zfs_delay_scale, "QU",
+    "Controls how quickly the delay approaches infinity");
+
+static int
+sysctl_zfs_dirty_data_max_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_dirty_data_max_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < 0 || val > 100)
+		return (EINVAL);
+
+	zfs_dirty_data_max_percent = val;
+
+	return (0);
+}
+
+static int
+sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_delay_min_dirty_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < zfs_vdev_async_write_active_max_dirty_percent)
+		return (EINVAL);
+
+	zfs_delay_min_dirty_percent = val;
+
+	return (0);
+}
+
+static int
+sysctl_zfs_delay_scale(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t val;
+	int err;
+
+	val = zfs_delay_scale;
+	err = sysctl_handle_64(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val > UINT64_MAX / zfs_dirty_data_max)
+		return (EINVAL);
+
+	zfs_delay_scale = val;
+
+	return (0);
+}
 #endif
 
 hrtime_t zfs_throttle_delay = MSEC2NSEC(10);
@@ -169,7 +236,7 @@ dsl_pool_open_special_dir(dsl_pool_t *dp, const char *name, dsl_dir_t **ddp)
 	int err;
 
 	err = zap_lookup(dp->dp_meta_objset,
-	    dp->dp_root_dir->dd_phys->dd_child_dir_zapobj,
+	    dsl_dir_phys(dp->dp_root_dir)->dd_child_dir_zapobj,
 	    name, sizeof (obj), 1, &obj);
 	if (err)
 		return (err);
@@ -251,11 +318,11 @@ dsl_pool_open(dsl_pool_t *dp)
 		err = dsl_pool_open_special_dir(dp, ORIGIN_DIR_NAME, &dd);
 		if (err)
 			goto out;
-		err = dsl_dataset_hold_obj(dp, dd->dd_phys->dd_head_dataset_obj,
-		    FTAG, &ds);
+		err = dsl_dataset_hold_obj(dp,
+		    dsl_dir_phys(dd)->dd_head_dataset_obj, FTAG, &ds);
 		if (err == 0) {
 			err = dsl_dataset_hold_obj(dp,
-			    ds->ds_phys->ds_prev_snap_obj, dp,
+			    dsl_dataset_phys(ds)->ds_prev_snap_obj, dp,
 			    &dp->dp_origin_snap);
 			dsl_dataset_rele(ds, FTAG);
 		}
@@ -277,6 +344,13 @@ dsl_pool_open(dsl_pool_t *dp)
 		VERIFY0(bpobj_open(&dp->dp_free_bpobj,
 		    dp->dp_meta_objset, obj));
 	}
+
+	/*
+	 * Note: errors ignored, because the leak dir will not exist if we
+	 * have not encountered a leak yet.
+	 */
+	(void) dsl_pool_open_special_dir(dp, LEAK_DIR_NAME,
+	    &dp->dp_leak_dir);
 
 	if (spa_feature_is_active(dp->dp_spa, SPA_FEATURE_ASYNC_DESTROY)) {
 		err = zap_lookup(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
@@ -325,6 +399,8 @@ dsl_pool_close(dsl_pool_t *dp)
 		dsl_dir_rele(dp->dp_mos_dir, dp);
 	if (dp->dp_free_dir)
 		dsl_dir_rele(dp->dp_free_dir, dp);
+	if (dp->dp_leak_dir)
+		dsl_dir_rele(dp->dp_leak_dir, dp);
 	if (dp->dp_root_dir)
 		dsl_dir_rele(dp->dp_root_dir, dp);
 
@@ -339,9 +415,18 @@ dsl_pool_close(dsl_pool_t *dp)
 	txg_list_destroy(&dp->dp_sync_tasks);
 	txg_list_destroy(&dp->dp_dirty_dirs);
 
-	arc_flush(dp->dp_spa);
+	/*
+	 * We can't set retry to TRUE since we're explicitly specifying
+	 * a spa to flush. This is good enough; any missed buffers for
+	 * this spa won't cause trouble, and they'll eventually fall
+	 * out of the ARC just like any other unused buffer.
+	 */
+	arc_flush(dp->dp_spa, FALSE);
+
 	txg_fini(dp);
 	dsl_scan_fini(dp);
+	dmu_buf_user_evict_wait();
+
 	rrw_destroy(&dp->dp_config_rwlock);
 	mutex_destroy(&dp->dp_lock);
 	taskq_destroy(dp->dp_vnrele_taskq);
@@ -392,7 +477,7 @@ dsl_pool_create(spa_t *spa, nvlist_t *zplprops, uint64_t txg)
 		    FREE_DIR_NAME, &dp->dp_free_dir));
 
 		/* create and open the free_bplist */
-		obj = bpobj_alloc(dp->dp_meta_objset, SPA_MAXBLOCKSIZE, tx);
+		obj = bpobj_alloc(dp->dp_meta_objset, SPA_OLD_MAXBLOCKSIZE, tx);
 		VERIFY(zap_add(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
 		    DMU_POOL_FREE_BPOBJ, sizeof (uint64_t), 1, &obj, tx) == 0);
 		VERIFY0(bpobj_open(&dp->dp_free_bpobj,
@@ -631,17 +716,12 @@ dsl_pool_adjustedsize(dsl_pool_t *dp, boolean_t netfree)
 	uint64_t space, resv;
 
 	/*
-	 * Reserve about 1.6% (1/64), or at least 32MB, for allocation
-	 * efficiency.
-	 * XXX The intent log is not accounted for, so it must fit
-	 * within this slop.
-	 *
 	 * If we're trying to assess whether it's OK to do a free,
 	 * cut the reservation in half to allow forward progress
 	 * (e.g. make it possible to rm(1) files from a full pool).
 	 */
 	space = spa_get_dspace(dp->dp_spa);
-	resv = MAX(space >> 6, SPA_MINDEVSIZE >> 1);
+	resv = spa_get_slop_space(dp->dp_spa);
 	if (netfree)
 		resv >>= 1;
 
@@ -704,15 +784,15 @@ upgrade_clones_cb(dsl_pool_t *dp, dsl_dataset_t *hds, void *arg)
 	if (err)
 		return (err);
 
-	while (ds->ds_phys->ds_prev_snap_obj != 0) {
-		err = dsl_dataset_hold_obj(dp, ds->ds_phys->ds_prev_snap_obj,
-		    FTAG, &prev);
+	while (dsl_dataset_phys(ds)->ds_prev_snap_obj != 0) {
+		err = dsl_dataset_hold_obj(dp,
+		    dsl_dataset_phys(ds)->ds_prev_snap_obj, FTAG, &prev);
 		if (err) {
 			dsl_dataset_rele(ds, FTAG);
 			return (err);
 		}
 
-		if (prev->ds_phys->ds_next_snap_obj != ds->ds_object)
+		if (dsl_dataset_phys(prev)->ds_next_snap_obj != ds->ds_object)
 			break;
 		dsl_dataset_rele(ds, FTAG);
 		ds = prev;
@@ -726,7 +806,7 @@ upgrade_clones_cb(dsl_pool_t *dp, dsl_dataset_t *hds, void *arg)
 		 * The $ORIGIN can't have any data, or the accounting
 		 * will be wrong.
 		 */
-		ASSERT0(prev->ds_phys->ds_bp.blk_birth);
+		ASSERT0(dsl_dataset_phys(prev)->ds_bp.blk_birth);
 
 		/* The origin doesn't get attached to itself */
 		if (ds->ds_object == prev->ds_object) {
@@ -735,33 +815,35 @@ upgrade_clones_cb(dsl_pool_t *dp, dsl_dataset_t *hds, void *arg)
 		}
 
 		dmu_buf_will_dirty(ds->ds_dbuf, tx);
-		ds->ds_phys->ds_prev_snap_obj = prev->ds_object;
-		ds->ds_phys->ds_prev_snap_txg = prev->ds_phys->ds_creation_txg;
+		dsl_dataset_phys(ds)->ds_prev_snap_obj = prev->ds_object;
+		dsl_dataset_phys(ds)->ds_prev_snap_txg =
+		    dsl_dataset_phys(prev)->ds_creation_txg;
 
 		dmu_buf_will_dirty(ds->ds_dir->dd_dbuf, tx);
-		ds->ds_dir->dd_phys->dd_origin_obj = prev->ds_object;
+		dsl_dir_phys(ds->ds_dir)->dd_origin_obj = prev->ds_object;
 
 		dmu_buf_will_dirty(prev->ds_dbuf, tx);
-		prev->ds_phys->ds_num_children++;
+		dsl_dataset_phys(prev)->ds_num_children++;
 
-		if (ds->ds_phys->ds_next_snap_obj == 0) {
+		if (dsl_dataset_phys(ds)->ds_next_snap_obj == 0) {
 			ASSERT(ds->ds_prev == NULL);
 			VERIFY0(dsl_dataset_hold_obj(dp,
-			    ds->ds_phys->ds_prev_snap_obj, ds, &ds->ds_prev));
+			    dsl_dataset_phys(ds)->ds_prev_snap_obj,
+			    ds, &ds->ds_prev));
 		}
 	}
 
-	ASSERT3U(ds->ds_dir->dd_phys->dd_origin_obj, ==, prev->ds_object);
-	ASSERT3U(ds->ds_phys->ds_prev_snap_obj, ==, prev->ds_object);
+	ASSERT3U(dsl_dir_phys(ds->ds_dir)->dd_origin_obj, ==, prev->ds_object);
+	ASSERT3U(dsl_dataset_phys(ds)->ds_prev_snap_obj, ==, prev->ds_object);
 
-	if (prev->ds_phys->ds_next_clones_obj == 0) {
+	if (dsl_dataset_phys(prev)->ds_next_clones_obj == 0) {
 		dmu_buf_will_dirty(prev->ds_dbuf, tx);
-		prev->ds_phys->ds_next_clones_obj =
+		dsl_dataset_phys(prev)->ds_next_clones_obj =
 		    zap_create(dp->dp_meta_objset,
 		    DMU_OT_NEXT_CLONES, DMU_OT_NONE, 0, tx);
 	}
 	VERIFY0(zap_add_int(dp->dp_meta_objset,
-	    prev->ds_phys->ds_next_clones_obj, ds->ds_object, tx));
+	    dsl_dataset_phys(prev)->ds_next_clones_obj, ds->ds_object, tx));
 
 	dsl_dataset_rele(ds, FTAG);
 	if (prev != dp->dp_origin_snap)
@@ -776,7 +858,7 @@ dsl_pool_upgrade_clones(dsl_pool_t *dp, dmu_tx_t *tx)
 	ASSERT(dp->dp_origin_snap != NULL);
 
 	VERIFY0(dmu_objset_find_dp(dp, dp->dp_root_dir_obj, upgrade_clones_cb,
-	    tx, DS_FIND_CHILDREN));
+	    tx, DS_FIND_CHILDREN | DS_FIND_SERIALIZE));
 }
 
 /* ARGSUSED */
@@ -786,20 +868,22 @@ upgrade_dir_clones_cb(dsl_pool_t *dp, dsl_dataset_t *ds, void *arg)
 	dmu_tx_t *tx = arg;
 	objset_t *mos = dp->dp_meta_objset;
 
-	if (ds->ds_dir->dd_phys->dd_origin_obj != 0) {
+	if (dsl_dir_phys(ds->ds_dir)->dd_origin_obj != 0) {
 		dsl_dataset_t *origin;
 
 		VERIFY0(dsl_dataset_hold_obj(dp,
-		    ds->ds_dir->dd_phys->dd_origin_obj, FTAG, &origin));
+		    dsl_dir_phys(ds->ds_dir)->dd_origin_obj, FTAG, &origin));
 
-		if (origin->ds_dir->dd_phys->dd_clones == 0) {
+		if (dsl_dir_phys(origin->ds_dir)->dd_clones == 0) {
 			dmu_buf_will_dirty(origin->ds_dir->dd_dbuf, tx);
-			origin->ds_dir->dd_phys->dd_clones = zap_create(mos,
-			    DMU_OT_DSL_CLONES, DMU_OT_NONE, 0, tx);
+			dsl_dir_phys(origin->ds_dir)->dd_clones =
+			    zap_create(mos, DMU_OT_DSL_CLONES, DMU_OT_NONE,
+			    0, tx);
 		}
 
 		VERIFY0(zap_add_int(dp->dp_meta_objset,
-		    origin->ds_dir->dd_phys->dd_clones, ds->ds_object, tx));
+		    dsl_dir_phys(origin->ds_dir)->dd_clones,
+		    ds->ds_object, tx));
 
 		dsl_dataset_rele(origin, FTAG);
 	}
@@ -822,13 +906,13 @@ dsl_pool_upgrade_dir_clones(dsl_pool_t *dp, dmu_tx_t *tx)
 	 * subobj support.  So call dmu_object_alloc() directly.
 	 */
 	obj = dmu_object_alloc(dp->dp_meta_objset, DMU_OT_BPOBJ,
-	    SPA_MAXBLOCKSIZE, DMU_OT_BPOBJ_HDR, sizeof (bpobj_phys_t), tx);
+	    SPA_OLD_MAXBLOCKSIZE, DMU_OT_BPOBJ_HDR, sizeof (bpobj_phys_t), tx);
 	VERIFY0(zap_add(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
 	    DMU_POOL_FREE_BPOBJ, sizeof (uint64_t), 1, &obj, tx));
 	VERIFY0(bpobj_open(&dp->dp_free_bpobj, dp->dp_meta_objset, obj));
 
 	VERIFY0(dmu_objset_find_dp(dp, dp->dp_root_dir_obj,
-	    upgrade_dir_clones_cb, tx, DS_FIND_CHILDREN));
+	    upgrade_dir_clones_cb, tx, DS_FIND_CHILDREN | DS_FIND_SERIALIZE));
 }
 
 void
@@ -846,7 +930,7 @@ dsl_pool_create_origin(dsl_pool_t *dp, dmu_tx_t *tx)
 	    NULL, 0, kcred, tx);
 	VERIFY0(dsl_dataset_hold_obj(dp, dsobj, FTAG, &ds));
 	dsl_dataset_snapshot_sync_impl(ds, ORIGIN_DIR_NAME, tx);
-	VERIFY0(dsl_dataset_hold_obj(dp, ds->ds_phys->ds_prev_snap_obj,
+	VERIFY0(dsl_dataset_hold_obj(dp, dsl_dataset_phys(ds)->ds_prev_snap_obj,
 	    dp, &dp->dp_origin_snap));
 	dsl_dataset_rele(ds, FTAG);
 }
@@ -1062,6 +1146,13 @@ dsl_pool_config_enter(dsl_pool_t *dp, void *tag)
 }
 
 void
+dsl_pool_config_enter_prio(dsl_pool_t *dp, void *tag)
+{
+	ASSERT(!rrw_held(&dp->dp_config_rwlock, RW_READER));
+	rrw_enter_read_prio(&dp->dp_config_rwlock, tag);
+}
+
+void
 dsl_pool_config_exit(dsl_pool_t *dp, void *tag)
 {
 	rrw_exit(&dp->dp_config_rwlock, tag);
@@ -1071,4 +1162,10 @@ boolean_t
 dsl_pool_config_held(dsl_pool_t *dp)
 {
 	return (RRW_LOCK_HELD(&dp->dp_config_rwlock));
+}
+
+boolean_t
+dsl_pool_config_held_writer(dsl_pool_t *dp)
+{
+	return (RRW_WRITE_HELD(&dp->dp_config_rwlock));
 }

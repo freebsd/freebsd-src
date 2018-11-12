@@ -460,7 +460,6 @@ static d_mmap_t devstat_mmap;
 
 static struct cdevsw devstat_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_mmap =	devstat_mmap,
 	.d_name =	"devstat",
 };
@@ -482,13 +481,16 @@ devstat_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 
 	if (nprot != VM_PROT_READ)
 		return (-1);
+	mtx_lock(&devstat_mutex);
 	TAILQ_FOREACH(spp, &pagelist, list) {
 		if (offset == 0) {
 			*paddr = vtophys(spp->stat);
+			mtx_unlock(&devstat_mutex);
 			return (0);
 		}
 		offset -= PAGE_SIZE;
 	}
+	mtx_unlock(&devstat_mutex);
 	return (-1);
 }
 
@@ -503,7 +505,7 @@ devstat_alloc(void)
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 	if (!once) {
 		make_dev_credf(MAKEDEV_ETERNAL | MAKEDEV_CHECKNAME,
-		    &devstat_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0400,
+		    &devstat_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0444,
 		    DEVSTAT_DEVICE_NAME);
 		once = 1;
 	}
@@ -573,4 +575,4 @@ devstat_free(struct devstat *dsp)
 }
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, devstat, CTLFLAG_RD,
-    NULL, sizeof(struct devstat), "sizeof(struct devstat)");
+    SYSCTL_NULL_INT_PTR, sizeof(struct devstat), "sizeof(struct devstat)");

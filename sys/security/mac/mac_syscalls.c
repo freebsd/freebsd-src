@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -208,7 +208,7 @@ sys___mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 	setsugid(p);
 	crcopy(newcred, oldcred);
 	mac_cred_relabel(newcred, intlabel);
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 
 	PROC_UNLOCK(p);
 	crfree(oldcred);

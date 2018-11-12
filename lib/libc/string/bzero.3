@@ -31,11 +31,12 @@
 .\"	@(#)bzero.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd August 24, 2015
 .Dt BZERO 3
 .Os
 .Sh NAME
-.Nm bzero
+.Nm bzero ,
+.Nm explicit_bzero
 .Nd write zeroes to a byte string
 .Sh LIBRARY
 .Lb libc
@@ -43,6 +44,8 @@
 .In strings.h
 .Ft void
 .Fn bzero "void *b" "size_t len"
+.Ft void
+.Fn explicit_bzero "void *b" "size_t len"
 .Sh DESCRIPTION
 The
 .Fn bzero
@@ -56,6 +59,12 @@ If
 is zero,
 .Fn bzero
 does nothing.
+.Pp
+The
+.Fn explicit_bzero
+variant behaves the same, but will not be removed by a compiler's dead store
+optimization pass, making it useful for clearing sensitive memory such as a
+password.
 .Sh SEE ALSO
 .Xr memset 3 ,
 .Xr swab 3
@@ -72,3 +81,18 @@ before it was moved to
 for
 .St -p1003.1-2001
 compliance.
+.Pp
+The
+.Fn explicit_bzero
+function first appeared in
+.Ox 5.5
+and
+.Fx 11.0 .
+.Pp
+.St -p1003.1-2008
+removes the specification of
+.Fn bzero
+and it is marked as LEGACY in
+.St -p1003.1-2004 .
+For portability with other systems new programs should use
+.Xr memset 3 .

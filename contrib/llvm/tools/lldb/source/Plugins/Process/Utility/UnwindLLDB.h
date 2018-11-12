@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "lldb/lldb-public.h"
+#include "lldb/Core/ConstString.h"
 #include "lldb/Symbol/FuncUnwinders.h"
 #include "lldb/Symbol/UnwindPlan.h"
 #include "lldb/Target/RegisterContext.h"
@@ -47,7 +48,8 @@ protected:
             eRegisterSavedAtMemoryLocation,     // register is saved at a specific word of target mem (target_memory_location)
             eRegisterInRegister,                // register is available in a (possible other) register (register_number)
             eRegisterSavedAtHostMemoryLocation, // register is saved at a word in lldb's address space
-            eRegisterValueInferred              // register val was computed (and is in inferred_value)
+            eRegisterValueInferred,             // register val was computed (and is in inferred_value)
+            eRegisterInLiveRegisterContext      // register value is in a live (stack frame #0) register
         };
         int type;
         union
@@ -90,6 +92,24 @@ protected:
     SearchForSavedLocationForRegister (uint32_t lldb_regnum, lldb_private::UnwindLLDB::RegisterLocation &regloc, uint32_t starting_frame_num, bool pc_register);
 
 
+    //------------------------------------------------------------------
+    /// Provide the list of user-specified trap handler functions
+    ///
+    /// The Platform is one source of trap handler function names; that
+    /// may be augmented via a setting.  The setting needs to be converted
+    /// into an array of ConstStrings before it can be used - we only want
+    /// to do that once per thread so it's here in the UnwindLLDB object.
+    ///
+    /// @return
+    ///     Vector of ConstStrings of trap handler function names.  May be
+    ///     empty.
+    //------------------------------------------------------------------
+    const std::vector<ConstString> &
+    GetUserSpecifiedTrapHandlerFunctionNames ()
+    {
+        return m_user_supplied_trap_handler_functions;
+    }
+
 private:
 
     struct Cursor
@@ -110,6 +130,7 @@ private:
                             // number of frames, etc.  Otherwise we've only gone as far as directly asked, and m_frames.size()
                             // is how far we've currently gone.
  
+    std::vector<ConstString> m_user_supplied_trap_handler_functions;
 
     bool AddOneMoreFrame (ABI *abi);
     bool AddFirstFrame ();

@@ -1,8 +1,9 @@
 # $FreeBSD$
 
-NO_PROFILE=
-.include <bsd.own.mk>
+MK_PROFILE=	no
 MK_SSP=		no
+
+.include <src.opts.mk>
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
@@ -16,7 +17,7 @@ CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
 CFLAGS+=	-I${.CURDIR}/../../usr.bin/cc/cc_tools \
 		-I${GCCLIB}/include -I${GCCDIR}/config -I${GCCDIR} -I.
 
-.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${TARGET_CPUARCH} == "arm"
 CFLAGS+=	-DTARGET_ARM_EABI
 .endif
 
@@ -45,7 +46,7 @@ COMMONHDRS=	tm.h tconfig.h gcov-iov.h options.h
 CLEANFILES+=	${COMMONHDRS} cs-tm.h cs-tconfig.h options.h optionlist
 
 ${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
-	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
+	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 ${OBJS} beforedepend: ${COMMONHDRS}
 

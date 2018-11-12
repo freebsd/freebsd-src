@@ -35,6 +35,7 @@
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
 
@@ -409,17 +410,18 @@ Disassembler::PrintInstructions
     SymbolContext prev_sc;
     AddressRange sc_range;
     const Address *pc_addr_ptr = NULL;
-    ExecutionContextScope *exe_scope = exe_ctx.GetBestExecutionContextScope();
     StackFrame *frame = exe_ctx.GetFramePtr();
 
     TargetSP target_sp (exe_ctx.GetTargetSP());
     SourceManager &source_manager = target_sp ? target_sp->GetSourceManager() : debugger.GetSourceManager();
 
     if (frame)
+    {
         pc_addr_ptr = &frame->GetFrameCodeAddress();
+    }
     const uint32_t scope = eSymbolContextLineEntry | eSymbolContextFunction | eSymbolContextSymbol;
     const bool use_inline_block_range = false;
-    for (size_t i=0; i<num_instructions_found; ++i)
+    for (size_t i = 0; i < num_instructions_found; ++i)
     {
         Instruction *inst = disasm_ptr->GetInstructionList().GetInstructionAtIndex (i).get();
         if (inst)
@@ -446,7 +448,7 @@ Disassembler::PrintInstructions
                                 if (offset != 0)
                                     strm.EOL();
                                 
-                                sc.DumpStopContext(&strm, exe_ctx.GetProcessPtr(), addr, false, true, false);
+                                sc.DumpStopContext(&strm, exe_ctx.GetProcessPtr(), addr, false, true, false, false);
                                 strm.EOL();
                                 
                                 if (sc.comp_unit && sc.line_entry.IsValid())
@@ -461,23 +463,6 @@ Disassembler::PrintInstructions
                             }
                         }
                     }
-                    else if ((sc.function || sc.symbol) && (sc.function != prev_sc.function || sc.symbol != prev_sc.symbol))
-                    {
-                        if (prev_sc.function || prev_sc.symbol)
-                            strm.EOL();
-
-                        bool show_fullpaths = false;
-                        bool show_module = true;
-                        bool show_inlined_frames = true;
-                        sc.DumpStopContext (&strm, 
-                                            exe_scope, 
-                                            addr, 
-                                            show_fullpaths,
-                                            show_module,
-                                            show_inlined_frames);
-                        
-                        strm << ":\n";
-                    }
                 }
                 else
                 {
@@ -485,12 +470,13 @@ Disassembler::PrintInstructions
                 }
             }
 
-            if ((options & eOptionMarkPCAddress) && pc_addr_ptr)
-            {
-                strm.PutCString(inst_is_at_pc ? "-> " : "   ");
-            }
             const bool show_bytes = (options & eOptionShowBytes) != 0;
-            inst->Dump(&strm, max_opcode_byte_size, true, show_bytes, &exe_ctx);
+            const char *disassembly_format = "${addr-file-or-load}: ";
+            if (exe_ctx.HasTargetScope())
+            {
+                disassembly_format = exe_ctx.GetTargetRef().GetDebugger().GetDisassemblyFormat ();
+            }
+            inst->Dump (&strm, max_opcode_byte_size, true, show_bytes, &exe_ctx, &sc, &prev_sc, disassembly_format);
             strm.EOL();            
         }
         else
@@ -577,7 +563,10 @@ Instruction::Dump (lldb_private::Stream *s,
                    uint32_t max_opcode_byte_size,
                    bool show_address,
                    bool show_bytes,
-                   const ExecutionContext* exe_ctx)
+                   const ExecutionContext* exe_ctx,
+                   const SymbolContext *sym_ctx,
+                   const SymbolContext *prev_sym_ctx,
+                   const char *disassembly_addr_format_spec)
 {
     size_t opcode_column_width = 7;
     const size_t operand_column_width = 25;
@@ -588,13 +577,7 @@ Instruction::Dump (lldb_private::Stream *s,
     
     if (show_address)
     {
-        m_address.Dump(&ss,
-                       exe_ctx ? exe_ctx->GetBestExecutionContextScope() : NULL,
-                       Address::DumpStyleLoadAddress,
-                       Address::DumpStyleModuleWithFileAddress,
-                       0);
-        
-        ss.PutCString(":  ");
+        Debugger::FormatDisassemblerAddress (disassembly_addr_format_spec, sym_ctx, prev_sym_ctx, exe_ctx, &m_address, ss);
     }
     
     if (show_bytes)
@@ -620,7 +603,7 @@ Instruction::Dump (lldb_private::Stream *s,
         }        
     }
     
-    const size_t opcode_pos = ss.GetSize();
+    const size_t opcode_pos = ss.GetSizeOfLastLine();
     
     // The default opcode size of 7 characters is plenty for most architectures
     // but some like arm can pull out the occasional vqrshrun.s16.  We won't get
@@ -1002,13 +985,18 @@ InstructionList::Dump (Stream *s,
 {
     const uint32_t max_opcode_byte_size = GetMaxOpcocdeByteSize();
     collection::const_iterator pos, begin, end;
+    const char *disassemble_format = "${addr-file-or-load}: ";
+    if (exe_ctx)
+    {
+        disassemble_format = exe_ctx->GetTargetRef().GetDebugger().GetDisassemblyFormat ();
+    }
     for (begin = m_instructions.begin(), end = m_instructions.end(), pos = begin;
          pos != end;
          ++pos)
     {
         if (pos != begin)
             s->EOL();
-        (*pos)->Dump(s, max_opcode_byte_size, show_address, show_bytes, exe_ctx);
+        (*pos)->Dump(s, max_opcode_byte_size, show_address, show_bytes, exe_ctx, NULL, NULL, disassemble_format);
     }
 }
 
@@ -1044,10 +1032,8 @@ InstructionList::GetIndexOfNextBranchInstruction(uint32_t start) const
 }
 
 uint32_t
-InstructionList::GetIndexOfInstructionAtLoadAddress (lldb::addr_t load_addr, Target &target)
+InstructionList::GetIndexOfInstructionAtAddress (const Address &address)
 {
-    Address address;
-    address.SetLoadAddress(load_addr, &target);
     size_t num_instructions = m_instructions.size();
     uint32_t index = UINT32_MAX;
     for (size_t i = 0; i < num_instructions; i++)
@@ -1059,6 +1045,15 @@ InstructionList::GetIndexOfInstructionAtLoadAddress (lldb::addr_t load_addr, Tar
         }
     }
     return index;
+}
+
+
+uint32_t
+InstructionList::GetIndexOfInstructionAtLoadAddress (lldb::addr_t load_addr, Target &target)
+{
+    Address address;
+    address.SetLoadAddress(load_addr, &target);
+    return GetIndexOfInstructionAtAddress(address);
 }
 
 size_t
@@ -1235,25 +1230,25 @@ PseudoInstruction::SetOpcode (size_t opcode_size, void *opcode_data)
         case 8:
         {
             uint8_t value8 = *((uint8_t *) opcode_data);
-            m_opcode.SetOpcode8 (value8);
+            m_opcode.SetOpcode8 (value8, eByteOrderInvalid);
             break;
          }   
         case 16:
         {
             uint16_t value16 = *((uint16_t *) opcode_data);
-            m_opcode.SetOpcode16 (value16);
+            m_opcode.SetOpcode16 (value16, eByteOrderInvalid);
             break;
          }   
         case 32:
         {
             uint32_t value32 = *((uint32_t *) opcode_data);
-            m_opcode.SetOpcode32 (value32);
+            m_opcode.SetOpcode32 (value32, eByteOrderInvalid);
             break;
          }   
         case 64:
         {
             uint64_t value64 = *((uint64_t *) opcode_data);
-            m_opcode.SetOpcode64 (value64);
+            m_opcode.SetOpcode64 (value64, eByteOrderInvalid);
             break;
          }   
         default:

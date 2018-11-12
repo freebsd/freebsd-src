@@ -1,7 +1,7 @@
 #$FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
-NO_MAN=
+MAN=
 
 .include <bsd.own.mk>
 MK_SSP=	no
@@ -55,9 +55,9 @@ CRUNCH_SRCDIRS+= bin
 # setuid binaries - they use these libraries. PAM needs to be
 # built dynamically or it tries to build _all_ of the modules
 # statically - and that ends very badly.
-CRUNCH_SHLIBS+=	-lc -lutil -lcrypt
+CRUNCH_SHLIBS+=	-lc -lutil -lcrypt -lxo -lgpio
 CRUNCH_LIBS+= -lkvm -lmemstat -lnetgraph
-CRUNCH_LIBS+= -lcrypt -ledit -ll -ltermcap
+CRUNCH_LIBS+= -lcrypt -ledit -ll -ltermcapw
 
 ###################################################################
 # Programs from standard /sbin
@@ -70,11 +70,8 @@ CRUNCH_LIBS+= -lcrypt -ledit -ll -ltermcap
 #
 CRUNCH_SRCDIRS+= sbin
 
-CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec
+CRUNCH_LIBS+= -lalias -lcam -lcursesw -ldevstat -lipsec
 # Don't forget this - ifconfig, etc -adrian
-.if ${MK_IPX} != "no"
-CRUNCH_LIBS+= -lipx
-.endif
 CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lsbuf -lufs
 
 ##################################################################

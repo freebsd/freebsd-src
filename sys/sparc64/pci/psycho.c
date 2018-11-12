@@ -167,7 +167,6 @@ EARLY_DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, NULL, NULL,
 static SYSCTL_NODE(_hw, OID_AUTO, psycho, CTLFLAG_RD, 0, "psycho parameters");
 
 static u_int psycho_powerfail = 1;
-TUNABLE_INT("hw.psycho.powerfail", &psycho_powerfail);
 SYSCTL_UINT(_hw_psycho, OID_AUTO, powerfail, CTLFLAG_RDTUN, &psycho_powerfail,
     0, "powerfail action (0: none, 1: shutdown (default), 2: debugger)");
 

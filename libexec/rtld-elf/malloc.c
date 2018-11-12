@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -143,25 +139,14 @@ botch(s)
 /* Debugging stuff */
 #define TRACE()	rtld_printf("TRACE %s:%d\n", __FILE__, __LINE__)
 
-extern int pagesize;
-
-static int
-rtld_getpagesize(void)
-{
-	int mib[2];
-	size_t size;
-
-	if (pagesize != 0)
-		return (pagesize);
-
-	mib[0] = CTL_HW;
-	mib[1] = HW_PAGESIZE;
-	size = sizeof(pagesize);
-	if (sysctl(mib, 2, &pagesize, &size, NULL, 0) == -1)
-		return (-1);
-	return (pagesize);
-
-}
+/*
+ * The array of supported page sizes is provided by the user, i.e., the
+ * program that calls this storage allocator.  That program must initialize
+ * the array before making its first call to allocate storage.  The array
+ * must contain at least one page size.  The page sizes must be stored in
+ * increasing order.
+ */
+extern size_t *pagesizes;
 
 void *
 malloc(nbytes)
@@ -177,7 +162,7 @@ malloc(nbytes)
 	 * align break pointer so all data will be page aligned.
 	 */
 	if (pagesz == 0) {
-		pagesz = n = rtld_getpagesize();
+		pagesz = n = pagesizes[0];
 		if (morepages(NPOOLPAGES) == 0)
 			return NULL;
 		op = (union overhead *)(pagepool_start);

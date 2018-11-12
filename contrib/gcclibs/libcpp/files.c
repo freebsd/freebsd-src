@@ -546,6 +546,7 @@ static bool
 read_file_guts (cpp_reader *pfile, _cpp_file *file)
 {
   ssize_t size, total, count;
+  off_t offset;
   uchar *buf;
   bool regular;
 
@@ -566,13 +567,28 @@ read_file_guts (cpp_reader *pfile, _cpp_file *file)
 	 SSIZE_MAX to be much smaller than the actual range of the
 	 type.  Use INTTYPE_MAXIMUM unconditionally to ensure this
 	 does not bite us.  */
-      if (file->st.st_size > INTTYPE_MAXIMUM (ssize_t))
+      if (file->st.st_size > SSIZE_MAX)
 	{
 	  cpp_error (pfile, CPP_DL_ERROR, "%s is too large", file->path);
 	  return false;
 	}
 
       size = file->st.st_size;
+
+      if ((offset = lseek(file->fd, 0, SEEK_CUR)) < 0)
+	{
+	  cpp_error (pfile, CPP_DL_ERROR, "%s has no current position",
+	    file->path);
+	  return false;
+	}
+      else if (offset > SSIZE_MAX || (ssize_t)offset > size)
+	{
+	  cpp_error (pfile, CPP_DL_ERROR, "current position of %s is too large",
+	    file->path);
+	  return false;
+	}
+
+      size -= (ssize_t)offset;
     }
   else
     /* 8 kilobytes is a sensible starting size.  It ought to be bigger

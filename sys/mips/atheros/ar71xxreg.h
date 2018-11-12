@@ -273,6 +273,7 @@ typedef enum {
 	AR71XX_MII_MODE_MII,
 	AR71XX_MII_MODE_RGMII,
 	AR71XX_MII_MODE_RMII,
+	AR71XX_MII_MODE_SGMII	/* not hardware defined, though! */
 } ar71xx_mii_mode;
 
 /*

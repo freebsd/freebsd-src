@@ -41,10 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sbuf.h>
+#include <sys/taskqueue.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
-#include <net/if_vlan_var.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/toecore.h>
@@ -161,25 +162,17 @@ send_pending(struct adapter *sc, struct l2t_entry *e)
 }
 
 static void
-resolution_failed_for_wr(struct wrqe *wr)
+resolution_failed(struct adapter *sc, struct l2t_entry *e)
 {
-	log(LOG_ERR, "%s: leaked work request %p, wr_len %d\n", __func__, wr,
-	    wr->wr_len);
-
-	/* free(wr, M_CXGBE); */
-}
-
-static void
-resolution_failed(struct l2t_entry *e)
-{
-	struct wrqe *wr;
+	struct tom_data *td = sc->tom_softc;
 
 	mtx_assert(&e->lock, MA_OWNED);
 
-	while ((wr = STAILQ_FIRST(&e->wr_list)) != NULL) {
-		STAILQ_REMOVE_HEAD(&e->wr_list, link);
-		resolution_failed_for_wr(wr);
-	}
+	mtx_lock(&td->unsent_wr_lock);
+	STAILQ_CONCAT(&td->unsent_wr_list, &e->wr_list);
+	mtx_unlock(&td->unsent_wr_lock);
+
+	taskqueue_enqueue(taskqueue_thread, &td->reclaim_wr_resources);
 }
 
 static void
@@ -203,7 +196,7 @@ update_entry(struct adapter *sc, struct l2t_entry *e, uint8_t *lladdr,
 		 * need to wlock the table).
 		 */
 		e->state = L2T_STATE_FAILED;
-		resolution_failed(e);
+		resolution_failed(sc, e);
 		return;
 
 	} else if (lladdr == NULL) {
@@ -305,12 +298,11 @@ again:
 		if (e->state == L2T_STATE_VALID && !STAILQ_EMPTY(&e->wr_list))
 			send_pending(sc, e);
 		if (e->state == L2T_STATE_FAILED)
-			resolution_failed(e);
+			resolution_failed(sc, e);
 		mtx_unlock(&e->lock);
 		break;
 
 	case L2T_STATE_FAILED:
-		resolution_failed_for_wr(wr);
 		return (EHOSTUNREACH);
 	}
 
@@ -389,11 +381,6 @@ t4_l2t_get(struct port_info *pi, struct ifnet *ifp, struct sockaddr *sa)
 	    ("%s: sa %p has unexpected sa_family %d", __func__, sa,
 	    sa->sa_family));
 
-#ifndef VLAN_TAG
-	if (ifp->if_type == IFT_L2VLAN)
-		return (NULL);
-#endif
-
 	hash = l2_hash(d, sa, ifp->if_index);
 	rw_wlock(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next) {
@@ -418,12 +405,8 @@ t4_l2t_get(struct port_info *pi, struct ifnet *ifp, struct sockaddr *sa)
 		e->hash = hash;
 		e->lport = pi->lport;
 		atomic_store_rel_int(&e->refcnt, 1);
-#ifdef VLAN_TAG
-		if (ifp->if_type == IFT_L2VLAN)
-			VLAN_TAG(ifp, &e->vlan);
-		else
+		if (if_vlanid(ifp, &e->vlan) != 0)
 			e->vlan = VLAN_NONE;
-#endif
 		mtx_unlock(&e->lock);
 	}
 done:

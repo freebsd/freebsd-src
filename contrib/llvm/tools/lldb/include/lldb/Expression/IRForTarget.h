@@ -30,6 +30,7 @@ namespace llvm {
     class GlobalValue;
     class GlobalVariable;
     class Instruction;
+    class IntegerType;
     class Module;
     class StoreInst;
     class DataLayout;
@@ -60,6 +61,12 @@ namespace lldb_private {
 class IRForTarget : public llvm::ModulePass
 {
 public:
+    enum class LookupResult {
+        Success,
+        Fail,
+        Ignore
+    };
+    
     //------------------------------------------------------------------
     /// Constructor
     ///
@@ -181,7 +188,7 @@ private:
     //------------------------------------------------------------------
     
     //------------------------------------------------------------------
-    /// Get the address of a fuction, and a location to put the complete
+    /// Get the address of a function, and a location to put the complete
     /// Value of the function if one is available.
     ///
     /// @param[in] function
@@ -200,7 +207,7 @@ private:
     /// @return
     ///     The pointer.
     //------------------------------------------------------------------ 
-    bool 
+    LookupResult
     GetFunctionAddress (llvm::Function *function,
                         uint64_t &ptr,
                         lldb_private::ConstString &name,
@@ -572,7 +579,7 @@ private:
     ReplaceStrings ();
     
     //------------------------------------------------------------------
-    /// A basick block-level pass to find all literals that will be 
+    /// A basic block-level pass to find all literals that will be 
     /// allocated as statics by the JIT (in contrast to the Strings, 
     /// which already are statics) and synthesize loads for them.
     //------------------------------------------------------------------
@@ -650,6 +657,7 @@ private:
     StaticDataAllocator                     m_data_allocator;           ///< The allocator to use for constant strings
     llvm::Constant                         *m_CFStringCreateWithBytes;  ///< The address of the function CFStringCreateWithBytes, cast to the appropriate function pointer type
     llvm::Constant                         *m_sel_registerName;         ///< The address of the function sel_registerName, cast to the appropriate function pointer type
+    llvm::IntegerType                      *m_intptr_ty;                ///< The type of an integer large enough to hold a pointer.
     lldb_private::Stream                   *m_error_stream;             ///< If non-NULL, the stream on which errors should be printed
     
     llvm::StoreInst                        *m_result_store;             ///< If non-NULL, the store instruction that writes to the result variable.  If m_has_side_effects is true, this is NULL.

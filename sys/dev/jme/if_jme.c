@@ -878,7 +878,7 @@ jme_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Create local taskq. */
 	sc->jme_tq = taskqueue_create_fast("jme_taskq", M_WAITOK,
@@ -1408,31 +1408,29 @@ jme_dma_free(struct jme_softc *sc)
 
 	/* Tx ring */
 	if (sc->jme_cdata.jme_tx_ring_tag != NULL) {
-		if (sc->jme_cdata.jme_tx_ring_map)
+		if (sc->jme_rdata.jme_tx_ring_paddr)
 			bus_dmamap_unload(sc->jme_cdata.jme_tx_ring_tag,
 			    sc->jme_cdata.jme_tx_ring_map);
-		if (sc->jme_cdata.jme_tx_ring_map &&
-		    sc->jme_rdata.jme_tx_ring)
+		if (sc->jme_rdata.jme_tx_ring)
 			bus_dmamem_free(sc->jme_cdata.jme_tx_ring_tag,
 			    sc->jme_rdata.jme_tx_ring,
 			    sc->jme_cdata.jme_tx_ring_map);
 		sc->jme_rdata.jme_tx_ring = NULL;
-		sc->jme_cdata.jme_tx_ring_map = NULL;
+		sc->jme_rdata.jme_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->jme_cdata.jme_tx_ring_tag);
 		sc->jme_cdata.jme_tx_ring_tag = NULL;
 	}
 	/* Rx ring */
 	if (sc->jme_cdata.jme_rx_ring_tag != NULL) {
-		if (sc->jme_cdata.jme_rx_ring_map)
+		if (sc->jme_rdata.jme_rx_ring_paddr)
 			bus_dmamap_unload(sc->jme_cdata.jme_rx_ring_tag,
 			    sc->jme_cdata.jme_rx_ring_map);
-		if (sc->jme_cdata.jme_rx_ring_map &&
-		    sc->jme_rdata.jme_rx_ring)
+		if (sc->jme_rdata.jme_rx_ring)
 			bus_dmamem_free(sc->jme_cdata.jme_rx_ring_tag,
 			    sc->jme_rdata.jme_rx_ring,
 			    sc->jme_cdata.jme_rx_ring_map);
 		sc->jme_rdata.jme_rx_ring = NULL;
-		sc->jme_cdata.jme_rx_ring_map = NULL;
+		sc->jme_rdata.jme_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->jme_cdata.jme_rx_ring_tag);
 		sc->jme_cdata.jme_rx_ring_tag = NULL;
 	}
@@ -1470,15 +1468,15 @@ jme_dma_free(struct jme_softc *sc)
 
 	/* Shared status block. */
 	if (sc->jme_cdata.jme_ssb_tag != NULL) {
-		if (sc->jme_cdata.jme_ssb_map)
+		if (sc->jme_rdata.jme_ssb_block_paddr)
 			bus_dmamap_unload(sc->jme_cdata.jme_ssb_tag,
 			    sc->jme_cdata.jme_ssb_map);
-		if (sc->jme_cdata.jme_ssb_map && sc->jme_rdata.jme_ssb_block)
+		if (sc->jme_rdata.jme_ssb_block)
 			bus_dmamem_free(sc->jme_cdata.jme_ssb_tag,
 			    sc->jme_rdata.jme_ssb_block,
 			    sc->jme_cdata.jme_ssb_map);
 		sc->jme_rdata.jme_ssb_block = NULL;
-		sc->jme_cdata.jme_ssb_map = NULL;
+		sc->jme_rdata.jme_ssb_block_paddr = 0;
 		bus_dma_tag_destroy(sc->jme_cdata.jme_ssb_tag);
 		sc->jme_cdata.jme_ssb_tag = NULL;
 	}
@@ -1949,7 +1947,7 @@ jme_watchdog(struct jme_softc *sc)
 	ifp = sc->jme_ifp;
 	if ((sc->jme_flags & JME_FLAG_LINK) == 0) {
 		if_printf(sc->jme_ifp, "watchdog timeout (missed link)\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		jme_init_locked(sc);
 		return;
@@ -1964,7 +1962,7 @@ jme_watchdog(struct jme_softc *sc)
 	}
 
 	if_printf(sc->jme_ifp, "watchdog timeout\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	jme_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -2283,7 +2281,7 @@ jme_link_task(void *arg, int pending)
 				m_freem(txd->tx_m);
 				txd->tx_m = NULL;
 				txd->tx_ndesc = 0;
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			}
 		}
 	}
@@ -2451,13 +2449,13 @@ jme_txeof(struct jme_softc *sc)
 			break;
 
 		if ((status & (JME_TD_TMOUT | JME_TD_RETRY_EXP)) != 0)
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		else {
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			if ((status & JME_TD_COLLISION) != 0)
-				ifp->if_collisions +=
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
 				    le32toh(txd->tx_desc->buflen) &
-				    JME_TD_BUF_LEN_MASK;
+				    JME_TD_BUF_LEN_MASK);
 		}
 		/*
 		 * Only the first descriptor of multi-descriptor
@@ -2528,7 +2526,7 @@ jme_rxeof(struct jme_softc *sc)
 	nsegs = JME_RX_NSEGS(status);
 	sc->jme_cdata.jme_rxlen = JME_RX_BYTES(status) - JME_RX_PAD_BYTES;
 	if ((status & JME_RX_ERR_STAT) != 0) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		jme_discard_rxbuf(sc, sc->jme_cdata.jme_rx_cons);
 #ifdef JME_SHOW_ERRORS
 		device_printf(sc->jme_dev, "%s : receive error = 0x%b\n",
@@ -2545,7 +2543,7 @@ jme_rxeof(struct jme_softc *sc)
 		mp = rxd->rx_m;
 		/* Add a new receive buffer to the ring. */
 		if (jme_newbuf(sc, rxd) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			/* Reuse buffer. */
 			for (; count < nsegs; count++) {
 				jme_discard_rxbuf(sc, cons);
@@ -2628,7 +2626,7 @@ jme_rxeof(struct jme_softc *sc)
 				m->m_flags |= M_VLANTAG;
 			}
 
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			/* Pass it on. */
 			JME_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);

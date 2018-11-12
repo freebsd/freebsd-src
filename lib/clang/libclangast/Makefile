@@ -11,6 +11,7 @@ SRCS=	APValue.cpp \
 	ASTDiagnostic.cpp \
 	ASTDumper.cpp \
 	ASTImporter.cpp \
+	ASTTypeTraits.cpp \
 	AttrImpl.cpp \
 	CXXInheritance.cpp \
 	Comment.cpp \
@@ -29,7 +30,6 @@ SRCS=	APValue.cpp \
 	DeclPrinter.cpp \
 	DeclTemplate.cpp \
 	DeclarationName.cpp \
-	DumpXML.cpp \
 	Expr.cpp \
 	ExprCXX.cpp \
 	ExprClassification.cpp \
@@ -38,7 +38,6 @@ SRCS=	APValue.cpp \
 	InheritViz.cpp \
 	ItaniumCXXABI.cpp \
 	ItaniumMangle.cpp \
-	LambdaMangleContext.cpp \
 	Mangle.cpp \
 	MicrosoftCXXABI.cpp \
 	MicrosoftMangle.cpp \
@@ -65,6 +64,7 @@ SRCS=	APValue.cpp \
 TGHDRS=	AttrDump \
 	AttrImpl \
 	AttrList \
+	AttrVisitor \
 	Attrs \
 	CommentCommandInfo \
 	CommentCommandList \
@@ -76,6 +76,7 @@ TGHDRS=	AttrDump \
 	DiagnosticASTKinds \
 	DiagnosticCommentKinds \
 	DiagnosticCommonKinds \
+	DiagnosticFrontendKinds \
 	DiagnosticSemaKinds \
 	StmtNodes
 

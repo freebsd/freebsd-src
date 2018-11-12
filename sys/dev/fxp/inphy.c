@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -76,9 +74,10 @@ static driver_t inphy_driver = {
 
 DRIVER_MODULE(inphy, miibus, inphy_driver, inphy_devclass, 0, 0);
 
-static int	inphy_service(struct mii_softc *, struct mii_data *, int);
-static void	inphy_status(struct mii_softc *);
-static void	inphy_reset(struct mii_softc *);
+static int	inphy_service(struct mii_softc *, struct mii_data *,
+		    mii_cmd_t, if_media_t);
+static void	inphy_status(struct mii_softc *, if_media_t);
+static void	inphy_reset(struct mii_softc *, if_media_t);
 
 static const struct mii_phydesc inphys[] = {
 	MII_PHY_DESC(xxINTEL, I82553),
@@ -111,7 +110,8 @@ inphy_attach(device_t dev)
 }
 
 static int
-inphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
+inphy_service(struct mii_softc *sc, struct mii_data *mii, mii_cmd_t cmd,
+    if_media_t media)
 {
 
 	switch (cmd) {
@@ -119,13 +119,7 @@ inphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the interface is not up, don't do anything.
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			break;
-
-		mii_phy_setmedia(sc);
+		mii_phy_setmedia(sc, media);
 		break;
 
 	case MII_TICK:
@@ -135,7 +129,7 @@ inphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	}
 
 	/* Update the media status. */
-	PHY_STATUS(sc);
+	PHY_STATUS(sc, media);
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
@@ -143,10 +137,9 @@ inphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 }
 
 static void
-inphy_status(struct mii_softc *sc)
+inphy_status(struct mii_softc *sc, if_media_t media)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, scr;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -183,14 +176,14 @@ inphy_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active = media;
 }
 
 static void
-inphy_reset(struct mii_softc *sc)
+inphy_reset(struct mii_softc *sc, if_media_t media)
 {
 
-	mii_phy_reset(sc);
+	mii_phy_reset(sc, media);
 
 	/* Ensure Bay flow control is disabled. */
 	PHY_WRITE(sc, MII_INPHY_SCR,

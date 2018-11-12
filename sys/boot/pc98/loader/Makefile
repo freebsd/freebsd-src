@@ -1,7 +1,8 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
+MAN=
 
 LOADER?=	loader
 PROG=		${LOADER}.sym
@@ -56,6 +57,8 @@ LDFLAGS=	-static -Ttext 0x0
 LIBPC98=	${.OBJDIR}/../libpc98/libpc98.a
 CFLAGS+=	-I${.CURDIR}/..
 
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
+
 # BTX components
 CFLAGS+=	-I${.CURDIR}/../btx/lib
 
@@ -85,18 +88,9 @@ FILES=	${LOADER}
 FILESMODE_${LOADER}= ${BINMODE} -b
 
 .PATH: ${.CURDIR}/../../forth
-FILES+=	loader.help loader.4th support.4th loader.conf
-FILES+= screen.4th frames.4th beastie.4th
-FILES+= brand.4th check-password.4th color.4th delay.4th
-FILES+= menu.4th menu-commands.4th menusets.4th shortcuts.4th version.4th
-FILESDIR_loader.conf=	/boot/defaults
+.include	"${.CURDIR}/../../forth/Makefile.inc"
 
-.if !exists(${DESTDIR}/boot/loader.rc)
-FILES+=	${.CURDIR}/../../i386/loader/loader.rc
-.endif
-.if !exists(${DESTDIR}/boot/menu.rc)
-FILES+= menu.rc
-.endif
+FILES+=	${.CURDIR}/../../i386/loader/loader.rc menu.rc
 
 # XXX crt0.o needs to be first for pxeboot(8) to work
 OBJS=	${BTXCRT}

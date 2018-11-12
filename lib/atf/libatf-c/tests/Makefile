@@ -9,6 +9,7 @@ ATF=		${.CURDIR:H:H:H:H}/contrib/atf
 .PATH:		${ATF}/atf-c
 .PATH:		${ATF}/atf-c/detail
 
+CFLAGS+=	-DATF_INCLUDEDIR='"${INCLUDEDIR}"'
 CFLAGS+=	-I${ATF}
 
 # macros_test.c contains a double 'const const' which will be gone with
@@ -23,7 +24,6 @@ FILES+=		unused_test.c
 .for _T in	atf_c_test \
 		build_test \
 		check_test \
-		config_test \
 		error_test \
 		macros_test \
 		tc_test \
@@ -33,6 +33,4 @@ ATF_TESTS_C+=	${_T}
 SRCS.${_T}=	${_T}.c test_helpers.c
 .endfor
 
-ATF_TESTS_SH=	pkg_config_test
-
-.include <atf.test.mk>
+.include <bsd.test.mk>

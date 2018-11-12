@@ -210,7 +210,7 @@ ar9300_ani_get_current_state(struct ath_hal *ah)
 /*
  * Return the current statistics.
  */
-struct ar9300_stats *
+HAL_ANI_STATS *
 ar9300_ani_get_current_stats(struct ath_hal *ah)
 {
     return &AH9300(ah)->ah_stats;
@@ -484,6 +484,9 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
              */
             is_on = param ? 1 : 0;
 
+            if (AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah))
+                goto skip_ws_det;
+
             /*
              * make register setting for default (weak sig detect ON)
              * come from INI file
@@ -528,6 +531,7 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
                 m1_thresh_ext);
             OS_REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT, AR_PHY_SFCORR_EXT_M2_THRESH,
                 m2_thresh_ext);
+skip_ws_det:
             if (is_on) {
                 OS_REG_SET_BIT(ah, AR_PHY_SFCORR_LOW,
                     AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
@@ -535,7 +539,7 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
                 OS_REG_CLR_BIT(ah, AR_PHY_SFCORR_LOW,
                     AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
             }
-            if (!is_on != ani_state->ofdm_weak_sig_detect_off) {
+            if ((!is_on) != ani_state->ofdm_weak_sig_detect_off) {
                 HALDEBUG(ah, HAL_DEBUG_ANI,
                     "%s: ** ch %d: ofdm weak signal: %s=>%s\n",
                     __func__, chan->ic_freq,
@@ -680,7 +684,7 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
             OS_REG_RMW_FIELD(ah, AR_PHY_MRC_CCK_CTRL,
                 AR_PHY_MRC_CCK_MUX_REG, is_on);
         }
-        if (!is_on != ani_state->mrc_cck_off) {
+        if ((!is_on) != ani_state->mrc_cck_off) {
             HALDEBUG(ah, HAL_DEBUG_ANI,
                 "%s: ** ch %d: MRC CCK: %s=>%s\n", __func__, chan->ic_freq,
                 !ani_state->mrc_cck_off ? "on" : "off", is_on ? "on" : "off");
@@ -1057,10 +1061,13 @@ ar9300_ani_get_listen_time(struct ath_hal *ah, HAL_ANISTATS *ani_stats)
     struct ath_hal_9300 *ahp = AH9300(ah);
     struct ar9300_ani_state *ani_state;
     u_int32_t tx_frame_count, rx_frame_count, cycle_count;
+    u_int32_t rx_busy_count, rx_ext_busy_count;
     int32_t listen_time;
 
     tx_frame_count = OS_REG_READ(ah, AR_TFCNT);
     rx_frame_count = OS_REG_READ(ah, AR_RFCNT);
+    rx_busy_count = OS_REG_READ(ah, AR_RCCNT);
+    rx_ext_busy_count = OS_REG_READ(ah, AR_EXTRCCNT);
     cycle_count = OS_REG_READ(ah, AR_CCCNT);
 
     ani_state = ahp->ah_curani;
@@ -1081,17 +1088,30 @@ ar9300_ani_get_listen_time(struct ath_hal *ah, HAL_ANISTATS *ani_stats)
         int32_t ccdelta = cycle_count - ani_state->cycle_count;
         int32_t rfdelta = rx_frame_count - ani_state->rx_frame_count;
         int32_t tfdelta = tx_frame_count - ani_state->tx_frame_count;
+        int32_t rcdelta = rx_busy_count - ani_state->rx_busy_count;
+        int32_t extrcdelta = rx_ext_busy_count - ani_state->rx_ext_busy_count;
         listen_time = (ccdelta - rfdelta - tfdelta) / CLOCK_RATE(ah);
-#if HAL_ANI_DEBUG
+//#if HAL_ANI_DEBUG
         HALDEBUG(ah, HAL_DEBUG_ANI,
-            "%s: cyclecount=%d, rfcount=%d, tfcount=%d, listen_time=%d "
+            "%s: cyclecount=%d, rfcount=%d, tfcount=%d, rcdelta=%d, extrcdelta=%d, listen_time=%d "
             "CLOCK_RATE=%d\n",
-            __func__, ccdelta, rfdelta, tfdelta, listen_time, CLOCK_RATE(ah));
-#endif
+            __func__, ccdelta, rfdelta, tfdelta, rcdelta, extrcdelta,
+            listen_time, CLOCK_RATE(ah));
+//#endif
+            /* Populate as appropriate */
+            ani_stats->cyclecnt_diff = ccdelta;
+            ani_stats->rxclr_cnt = rcdelta;
+            ani_stats->txframecnt_diff = tfdelta;
+            ani_stats->rxframecnt_diff = rfdelta;
+            ani_stats->extrxclr_cnt = extrcdelta;
+            ani_stats->listen_time = listen_time;
+            ani_stats->valid = AH_TRUE;
     }
     ani_state->cycle_count = cycle_count;
     ani_state->tx_frame_count = tx_frame_count;
     ani_state->rx_frame_count = rx_frame_count;
+    ani_state->rx_busy_count = rx_busy_count;
+    ani_state->rx_ext_busy_count = rx_ext_busy_count;
     return listen_time;
 }
 
@@ -1151,7 +1171,13 @@ ar9300_ani_ar_poll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
     ofdm_phy_err_cnt = OS_REG_READ(ah, AR_PHY_ERR_1);
     cck_phy_err_cnt = OS_REG_READ(ah, AR_PHY_ERR_2);
 
-
+    /* Populate HAL_ANISTATS */
+    if (ani_stats) {
+            ani_stats->cckphyerr_cnt =
+               cck_phy_err_cnt - ani_state->cck_phy_err_count;
+            ani_stats->ofdmphyerrcnt_diff =
+              ofdm_phy_err_cnt - ani_state->ofdm_phy_err_count;
+    }
 
     /* NB: only use ast_ani_*errs with AH_PRIVATE_DIAG */
     ahp->ah_stats.ast_ani_ofdmerrs +=

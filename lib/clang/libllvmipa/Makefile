@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	llvmipa
 
@@ -8,7 +8,6 @@ SRCDIR=	lib/Analysis/IPA
 SRCS=	CallGraph.cpp \
 	CallGraphSCCPass.cpp \
 	CallPrinter.cpp \
-	FindUsedTypes.cpp \
 	GlobalsModRef.cpp \
 	InlineCost.cpp
 

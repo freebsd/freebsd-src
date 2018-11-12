@@ -42,7 +42,7 @@
 
 #define	ALC_TSO_MAXSEGSIZE	4096
 #define	ALC_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
-#define	ALC_MAXTXSEGS		32
+#define	ALC_MAXTXSEGS		35
 
 #define	ALC_ADDR_LO(x)		((uint64_t) (x) & 0xFFFFFFFF)
 #define	ALC_ADDR_HI(x)		((uint64_t) (x) >> 32)
@@ -52,6 +52,10 @@
 /* Water mark to kick reclaiming Tx buffers. */
 #define	ALC_TX_DESC_HIWAT	((ALC_TX_RING_CNT * 6) / 10)
 
+/*
+ * AR816x controllers support up to 16 messages but this driver
+ * uses single message.
+ */
 #define	ALC_MSI_MESSAGES	1
 #define	ALC_MSIX_MESSAGES	1
 
@@ -198,7 +202,7 @@ struct alc_ident {
  * Software state per device.
  */
 struct alc_softc {
-	struct ifnet 		*alc_ifp;
+	if_t			alc_ifp;
 	device_t		alc_dev;
 	device_t		alc_miibus;
 	struct resource		*alc_res[1];
@@ -217,26 +221,30 @@ struct alc_softc {
 	int			alc_expcap;
 	int			alc_pmcap;
 	int			alc_flags;
-#define	ALC_FLAG_PCIE		0x0001
-#define	ALC_FLAG_PCIX		0x0002
-#define	ALC_FLAG_MSI		0x0004
-#define	ALC_FLAG_MSIX		0x0008
-#define	ALC_FLAG_PM		0x0010
-#define	ALC_FLAG_FASTETHER	0x0020
-#define	ALC_FLAG_JUMBO		0x0040
-#define	ALC_FLAG_ASPM_MON	0x0080
-#define	ALC_FLAG_CMB_BUG	0x0100
-#define	ALC_FLAG_SMB_BUG	0x0200
-#define	ALC_FLAG_L0S		0x0400
-#define	ALC_FLAG_L1S		0x0800
-#define	ALC_FLAG_APS		0x1000
-#define	ALC_FLAG_LINK		0x8000
+#define	ALC_FLAG_PCIE		0x00000001
+#define	ALC_FLAG_PCIX		0x00000002
+#define	ALC_FLAG_MSI		0x00000004
+#define	ALC_FLAG_MSIX		0x00000008
+#define	ALC_FLAG_PM		0x00000010
+#define	ALC_FLAG_FASTETHER	0x00000020
+#define	ALC_FLAG_JUMBO		0x00000040
+#define	ALC_FLAG_CMB_BUG	0x00000100
+#define	ALC_FLAG_SMB_BUG	0x00000200
+#define	ALC_FLAG_L0S		0x00000400
+#define	ALC_FLAG_L1S		0x00000800
+#define	ALC_FLAG_APS		0x00001000
+#define	ALC_FLAG_AR816X_FAMILY	0x00002000
+#define	ALC_FLAG_LINK_WAR	0x00004000
+#define	ALC_FLAG_LINK		0x00008000
+#define	ALC_FLAG_RUNNING	0x00010000
 
 	struct callout		alc_tick_ch;
 	struct alc_hw_stats	alc_stats;
 	struct alc_chain_data	alc_cdata;
 	struct alc_ring_data	alc_rdata;
-	int			alc_if_flags;
+	uint32_t		alc_if_flags;
+	uint32_t		alc_capenable;
+	uint32_t		alc_mtu;
 	int			alc_watchdog_timer;
 	int			alc_process_limit;
 	volatile int		alc_morework;

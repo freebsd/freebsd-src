@@ -970,7 +970,7 @@
 
 #define	ZYD_TX_RATEDIV							\
 {									\
-	0x1, 0x2, 0xb, 0xb, 0x0, 0x0, 0x0, 0x0, 0x30, 0x18, 0xc, 0x6,	\
+	0x1, 0x2, 0xb, 0xb, 0x1, 0x1, 0x1, 0x1, 0x30, 0x18, 0xc, 0x6,	\
 	0x36, 0x24, 0x12, 0x9						\
 }
 
@@ -1249,7 +1249,8 @@ enum {
 };
 
 struct zyd_softc {
-	struct ifnet		*sc_ifp;
+	struct ieee80211com	sc_ic;
+	struct mbufq		sc_snd;
 	device_t		sc_dev;
 	struct usb_device	*sc_udev;
 
@@ -1260,13 +1261,13 @@ struct zyd_softc {
 #define	ZYD_FLAG_INITONCE		(1 << 1)
 #define	ZYD_FLAG_INITDONE		(1 << 2)
 #define	ZYD_FLAG_DETACHED		(1 << 3)
+#define	ZYD_FLAG_RUNNING		(1 << 4)
 
 	struct zyd_rf		sc_rf;
 
 	STAILQ_HEAD(, zyd_rq)	sc_rtx;
 	STAILQ_HEAD(, zyd_rq)	sc_rqh;
 
-	uint8_t			sc_bssid[IEEE80211_ADDR_LEN];
 	uint16_t		sc_fwbase;
 	uint8_t			sc_regdomain;
 	uint8_t			sc_macrev;

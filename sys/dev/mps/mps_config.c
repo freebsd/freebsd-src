@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2011, 2012 LSI Corp.
+ * Copyright (c) 2011-2015 LSI Corp.
+ * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  */
 
 #include <sys/cdefs.h>
@@ -229,7 +230,7 @@ mps_config_get_man_pg10(struct mps_softc *sc, Mpi2ConfigReply_t *mpi_reply)
 	 * This page must be polled because the IOC isn't ready yet when this
 	 * page is needed.
 	 */  
-	error = mps_request_polled(sc, cm);
+	error = mps_wait_command(sc, cm, 60, 0);
 	reply = (MPI2_CONFIG_REPLY *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
@@ -285,7 +286,7 @@ mps_config_get_man_pg10(struct mps_softc *sc, Mpi2ConfigReply_t *mpi_reply)
 	 * This page must be polled because the IOC isn't ready yet when this
 	 * page is needed.
 	 */  
-	error = mps_request_polled(sc, cm);
+	error = mps_wait_command(sc, cm, 60, 0);
 	reply = (MPI2_CONFIG_REPLY *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
@@ -1122,7 +1123,7 @@ mps_config_get_raid_volume_pg0(struct mps_softc *sc, Mpi2ConfigReply_t
 	 * This page must be polled because the IOC isn't ready yet when this
 	 * page is needed.
 	 */  
-	error = mps_request_polled(sc, cm);
+	error = mps_wait_command(sc, cm, 60, 0);
 	reply = (MPI2_CONFIG_REPLY *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
@@ -1179,7 +1180,7 @@ mps_config_get_raid_volume_pg0(struct mps_softc *sc, Mpi2ConfigReply_t
 	 * This page must be polled because the IOC isn't ready yet when this
 	 * page is needed.
 	 */  
-	error = mps_request_polled(sc, cm);
+	error = mps_wait_command(sc, cm, 60, 0);
 	reply = (MPI2_CONFIG_REPLY *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
@@ -1408,7 +1409,7 @@ mps_config_get_raid_pd_pg0(struct mps_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	 * This page must be polled because the IOC isn't ready yet when this
 	 * page is needed.
 	 */  
-	error = mps_request_polled(sc, cm);
+	error = mps_wait_command(sc, cm, 60, 0);
 	reply = (MPI2_CONFIG_REPLY *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
@@ -1465,7 +1466,7 @@ mps_config_get_raid_pd_pg0(struct mps_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	 * This page must be polled because the IOC isn't ready yet when this
 	 * page is needed.
 	 */  
-	error = mps_request_polled(sc, cm);
+	error = mps_wait_command(sc, cm, 60, 0);
 	reply = (MPI2_CONFIG_REPLY *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */

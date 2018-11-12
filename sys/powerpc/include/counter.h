@@ -95,7 +95,7 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 	    "bne-	1b"
 	    : "=&b" (ccpu), "=&r" (old)
 	    : "r" ((char *)c - (char *)&__pcpu[0]), "r" (inc)
-	    : "cc", "memory");
+	    : "cr0", "memory");
 }
 
 #else	/* !64bit */

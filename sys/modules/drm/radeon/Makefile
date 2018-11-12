@@ -10,4 +10,3 @@ SRCS	+=device_if.h bus_if.h pci_if.h opt_drm.h
 
 CWARNFLAGS.r600_cp.c=	-Wno-unused ${NO_WCONSTANT_CONVERSION}
 CWARNFLAGS.radeon_cp.c=	-Wno-unused ${NO_WCONSTANT_CONVERSION}
-CWARNFLAGS+=		${CWARNFLAGS.${.IMPSRC:T}}

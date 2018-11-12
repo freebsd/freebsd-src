@@ -67,15 +67,15 @@ pthread_create(pthread_t *__restrict thread,
 JEMALLOC_EXPORT int	_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
     void *(calloc_cb)(size_t, size_t));
 
-__weak_reference(_pthread_mutex_init_calloc_cb_stub,
-    _pthread_mutex_init_calloc_cb);
-
+#pragma weak _pthread_mutex_init_calloc_cb
 int
-_pthread_mutex_init_calloc_cb_stub(pthread_mutex_t *mutex,
+_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
     void *(calloc_cb)(size_t, size_t))
 {
 
-	return (0);
+	return (((int (*)(pthread_mutex_t *, void *(*)(size_t, size_t)))
+	    __libc_interposing[INTERPOS__pthread_mutex_init_calloc_cb])(mutex,
+	    calloc_cb));
 }
 #endif
 
@@ -84,9 +84,13 @@ malloc_mutex_init(malloc_mutex_t *mutex)
 {
 
 #ifdef _WIN32
+#  if _WIN32_WINNT >= 0x0600
+	InitializeSRWLock(&mutex->lock);
+#  else
 	if (!InitializeCriticalSectionAndSpinCount(&mutex->lock,
 	    _CRT_SPINCOUNT))
 		return (true);
+#  endif
 #elif (defined(JEMALLOC_OSSPIN))
 	mutex->lock = 0;
 #elif (defined(JEMALLOC_MUTEX_INIT_CB))
@@ -94,8 +98,8 @@ malloc_mutex_init(malloc_mutex_t *mutex)
 		mutex->postponed_next = postponed_mutexes;
 		postponed_mutexes = mutex;
 	} else {
-		if (_pthread_mutex_init_calloc_cb(&mutex->lock, base_calloc) !=
-		    0)
+		if (_pthread_mutex_init_calloc_cb(&mutex->lock,
+		    bootstrap_calloc) != 0)
 			return (true);
 	}
 #else
@@ -144,17 +148,28 @@ malloc_mutex_postfork_child(malloc_mutex_t *mutex)
 }
 
 bool
-mutex_boot(void)
+malloc_mutex_first_thread(void)
 {
 
 #ifdef JEMALLOC_MUTEX_INIT_CB
 	postpone_init = false;
 	while (postponed_mutexes != NULL) {
 		if (_pthread_mutex_init_calloc_cb(&postponed_mutexes->lock,
-		    base_calloc) != 0)
+		    bootstrap_calloc) != 0)
 			return (true);
 		postponed_mutexes = postponed_mutexes->postponed_next;
 	}
 #endif
 	return (false);
+}
+
+bool
+mutex_boot(void)
+{
+
+#ifndef JEMALLOC_MUTEX_INIT_CB
+	return (malloc_mutex_first_thread());
+#else
+	return (false);
+#endif
 }

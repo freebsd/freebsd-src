@@ -32,6 +32,13 @@
 # targets             - Print a list of supported TARGET/TARGET_ARCH pairs
 #                       for world and kernel targets.
 # toolchains          - Build a toolchain for all world and kernel targets.
+# xdev                - xdev-build + xdev-install for the architecture
+#                       specified with XDEV and XDEV_ARCH.
+# xdev-build          - Build cross-development tools.
+# xdev-install        - Install cross-development tools.
+# xdev-links          - Create traditional links in /usr/bin for cc, etc
+# native-xtools       - Create host binaries that produce target objects
+#                       for use in qemu user-mode jails.
 # 
 # "quick" way to test all kernel builds:
 # 	_jflag=`sysctl -n hw.ncpu`
@@ -78,7 +85,7 @@
 #
 # See src/UPDATING `COMMON ITEMS' for more complete information.
 #
-# If TARGET=machine (e.g. ia64, sparc64, ...) is specified you can
+# If TARGET=machine (e.g. powerpc, sparc64, ...) is specified you can
 # cross build world for other machine types using the buildworld target,
 # and once the world is built you can cross build a kernel using the
 # buildkernel target.
@@ -92,6 +99,14 @@
 #
 # For more information, see the build(7) manual page.
 #
+
+# Note: we use this awkward construct to be compatible with FreeBSD's
+# old make used in 10.0 and 9.2 and earlier.
+.if defined(MK_META_MODE) && ${MK_META_MODE} == "yes" && !make(showconfig)
+# targets/Makefile plays the role of top-level
+.include "targets/Makefile"
+.else
+
 TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	check-old check-old-dirs check-old-files check-old-libs \
 	checkdpadd clean cleandepend cleandir \
@@ -106,6 +121,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
 	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
+	xdev-links native-xtools \
 
 TGTS+=	${SUBDIR_TARGETS}
 
@@ -135,11 +151,7 @@ _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
 # Choices add to complexity though.
 # We cannot blindly use a make which may not be the one we want
 # so be exlicit - until all choice is removed.
-.if !defined(WITHOUT_BMAKE)
 WANT_MAKE=	bmake
-.else
-WANT_MAKE=	fmake
-.endif
 MYMAKE=		${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}/${WANT_MAKE}
 .if defined(.PARSEDIR)
 HAVE_MAKE=	bmake
@@ -148,7 +160,7 @@ HAVE_MAKE=	fmake
 .endif
 .if exists(${MYMAKE})
 SUB_MAKE:= ${MYMAKE} -m ${.CURDIR}/share/mk
-.elif ${WANT_MAKE} != ${HAVE_MAKE} || ${WANT_MAKE} != "bmake"
+.elif ${WANT_MAKE} != ${HAVE_MAKE}
 # It may not exist yet but we may cause it to.
 # In the case of fmake, upgrade_checks may cause a newer version to be built.
 SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
@@ -161,30 +173,23 @@ _MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=$
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
-_TARGET_ARCH=	${TARGET:S/pc98/i386/}
+_TARGET_ARCH=	${TARGET:S/pc98/i386/:S/arm64/aarch64/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/}
-.endif
-# Legacy names, for another transition period mips:mips(n32|64)?eb -> mips:mips\1
-.if defined(TARGET) && defined(TARGET_ARCH) && \
-    ${TARGET} == "mips" && ${TARGET_ARCH:Mmips*eb}
-_TARGET_ARCH=		${TARGET_ARCH:C/eb$//}
-.warning "TARGET_ARCH of ${TARGET_ARCH} is deprecated in favor of ${_TARGET_ARCH}"
-.endif
-.if defined(TARGET) && ${TARGET} == "mips" && defined(TARGET_BIG_ENDIAN)
-.warning "TARGET_BIG_ENDIAN is no longer necessary for MIPS.  Big-endian is not the default."
-.endif
-# arm with TARGET_BIG_ENDIAN -> armeb
-.if defined(TARGET_ARCH) && ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
-.warning "TARGET_ARCH of arm with TARGET_BIG_ENDIAN is deprecated.  use armeb"
-_TARGET_ARCH=armeb
+_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/aarch64/arm64/:C/powerpc64/powerpc/}
 .endif
 .if defined(TARGET) && !defined(_TARGET)
 _TARGET=${TARGET}
 .endif
 .if defined(TARGET_ARCH) && !defined(_TARGET_ARCH)
 _TARGET_ARCH=${TARGET_ARCH}
+.endif
+# for historical compatibility for xdev targets
+.if defined(XDEV)
+_TARGET=	${XDEV}
+.endif
+.if defined(XDEV_ARCH)
+_TARGET_ARCH=	${XDEV_ARCH}
 .endif
 # Otherwise, default to current machine type and architecture.
 _TARGET?=	${MACHINE}
@@ -248,8 +253,17 @@ tinderbox toolchains kernel-toolchains: .MAKE
 ${TGTS}:
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
-# Set a reasonable default
-.MAIN:	all
+# The historic default "all" target creates files which may cause stale
+# or (in the cross build case) unlinkable results. Fail with an error
+# when no target is given. The users can explicitly specify "all"
+# if they want the historic behavior.
+.MAIN:	_guard
+
+_guard:
+	@echo
+	@echo "Explicit target required (use \"all\" for historic behavior)"
+	@echo
+	@false
 
 STARTTIME!= LC_ALL=C date
 CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s ; echo
@@ -321,13 +335,6 @@ kernel: buildkernel installkernel
 upgrade_checks:
 .if ${HAVE_MAKE} != ${WANT_MAKE}
 	@(cd ${.CURDIR} && ${MAKE} ${WANT_MAKE:S,^f,,})
-.elif ${WANT_MAKE} == "fmake"
-	@if ! (cd ${.CURDIR}/tools/build/make_check && \
-	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
-	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
-	then \
-	    (cd ${.CURDIR} && ${MAKE} make); \
-	fi
 .endif
 
 #
@@ -339,14 +346,15 @@ MMAKEENV=	MAKEOBJDIRPREFIX=${MYMAKE:H} \
 		DESTDIR= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh"
 MMAKE=		${MMAKEENV} ${MAKE} \
-		-D_UPGRADING \
-		-DNOMAN -DNO_MAN -DNOSHARED -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WERROR DESTDIR= PROGNAME=${MYMAKE:T}
+		-DNO_MAN -DNO_SHARED \
+		-DNO_CPU_CFLAGS -DNO_WERROR \
+		MK_TESTS=no \
+		DESTDIR= PROGNAME=${MYMAKE:T}
 
-make bmake: .PHONY
+bmake: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Building an up-to-date make(1)"
+	@echo ">>> Building an up-to-date ${.TARGET}(1)"
 	@echo "--------------------------------------------------------------"
 	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
 		${MMAKE} obj && \
@@ -373,8 +381,19 @@ kernel-toolchains:
 # existing system is.
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
-TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
-TARGET_ARCHES_arm?=	arm armeb armv6
+# XXX Add arm64 to universe only if we have an external binutils installed.
+# It does not build with the in-tree linker.
+.if exists(/usr/local/aarch64-freebsd/bin/ld)
+UNIVERSE_arm64=arm64
+.elif empty(${TARGETS})
+universe: universe_arm64_skip
+universe_epilogue: universe_arm64_skip
+universe_arm64_skip: universe_prologue
+	@echo ">> arm64 skipped - install aarch64-binutils port or package to build"
+.endif
+TARGETS?=amd64 arm ${UNIVERSE_arm64} i386 mips pc98 powerpc sparc64
+TARGET_ARCHES_arm?=	arm armeb armv6 armv6hf
+TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
@@ -389,7 +408,7 @@ UNIVERSE_TARGET?=	buildworld
 .endif
 KERNSRCDIR?=		${.CURDIR}/sys
 
-targets:
+targets:	.PHONY
 	@echo "Supported TARGET/TARGET_ARCH pairs for world and kernel targets"
 .for target in ${TARGETS}
 .for target_arch in ${TARGET_ARCHES_${target}}
@@ -419,9 +438,12 @@ universe_epilogue: universe_${target}
 universe_${target}: universe_${target}_prologue
 universe_${target}_prologue: universe_prologue
 	@echo ">> ${target} started on `LC_ALL=C date`"
+universe_${target}_worlds:
+
 .if !defined(MAKE_JUST_KERNELS)
+universe_${target}_done: universe_${target}_worlds
 .for target_arch in ${TARGET_ARCHES_${target}}
-universe_${target}: universe_${target}_${target_arch}
+universe_${target}_worlds: universe_${target}_${target_arch}
 universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
@@ -434,15 +456,11 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 	    ${MAKEFAIL}))
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} completed on `LC_ALL=C date`"
 .endfor
-.endif
+.endif # !MAKE_JUST_KERNELS
+
 .if !defined(MAKE_JUST_WORLDS)
-# If we are building world and kernels wait for the required worlds to finish
-.if !defined(MAKE_JUST_KERNELS)
-.for target_arch in ${TARGET_ARCHES_${target}}
-universe_${target}_kernels: universe_${target}_${target_arch}
-.endfor
-.endif
-universe_${target}: universe_${target}_kernels
+universe_${target}_done: universe_${target}_kernels
+universe_${target}_kernels: universe_${target}_worlds
 universe_${target}_kernels: universe_${target}_prologue .MAKE
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
@@ -452,16 +470,26 @@ universe_${target}_kernels: universe_${target}_prologue .MAKE
 .endif
 	@cd ${.CURDIR} && ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
 	    universe_kernels
-.endif
+.endif # !MAKE_JUST_WORLDS
+
+# Tell the user the worlds and kernels have completed
+universe_${target}: universe_${target}_done
+universe_${target}_done:
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
 universe_kernels: universe_kernconfs
 .if !defined(TARGET)
 TARGET!=	uname -m
 .endif
+.if defined(MAKE_ALL_KERNELS)
+_THINNER=cat
+.else
+_THINNER=xargs grep -L "^.NO_UNIVERSE" || true
+.endif
 KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \
-		! -name DEFAULTS ! -name NOTES
+		! -name DEFAULTS ! -name NOTES | \
+		${_THINNER}
 universe_kernconfs:
 .for kernel in ${KERNCONFS}
 TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
@@ -500,9 +528,25 @@ buildLINT:
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
 
 .if defined(.PARSEDIR)
+# This makefile does not run in meta mode
+.MAKE.MODE= normal
+# Normally the things we run from here don't either.
+# Using -DWITH_META_FILES
+# we can buildworld with meta files created which are useful 
+# for debugging, but without any of the rest of a meta mode build.
+MK_META_MODE= no
+MK_STAGING= no
+# tell meta.autodep.mk to not even think about updating anything.
+UPDATE_DEPENDFILE= NO
+.if !make(showconfig)
+.export MK_META_MODE MK_STAGING UPDATE_DEPENDFILE
+.endif
+
 .if make(universe)
 # we do not want a failure of one branch abort all.
 MAKE_JOB_ERROR_TOKEN= no
 .export MAKE_JOB_ERROR_TOKEN
 .endif
-.endif
+.endif # bmake
+
+.endif				# META_MODE

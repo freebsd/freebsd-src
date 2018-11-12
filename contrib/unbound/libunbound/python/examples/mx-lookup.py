@@ -40,14 +40,14 @@ ctx.resolvconf("/etc/resolv.conf")
 
 status, result = ctx.resolve("nic.cz", unbound.RR_TYPE_MX, unbound.RR_CLASS_IN)
 if status == 0 and result.havedata:
-    print "Result:"
-    print "      raw data:", result.data
+    print("Result:")
+    print("      raw data:", result.data)
     for k in result.data.mx_list:
-        print "      priority:%d address:%s" % k
+        print("      priority:%d address:%s" % k)
 
 status, result = ctx.resolve("nic.cz", unbound.RR_TYPE_A, unbound.RR_CLASS_IN)
 if status == 0 and result.havedata:
-    print "Result:"
-    print "      raw data:", result.data
+    print("Result:")
+    print("      raw data:", result.data)
     for k in result.data.address_list:
-        print "      address:%s" % k
+        print("      address:%s" % k)

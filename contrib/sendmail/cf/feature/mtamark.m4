@@ -11,7 +11,7 @@ divert(-1)
 
 divert(0)
 ifdef(`_MTAMARK_R',`dnl',`dnl
-VERSIONID(`$Id: mtamark.m4,v 1.3 2013/11/22 20:51:11 ca Exp $')
+VERSIONID(`$Id: mtamark.m4,v 1.3 2013-11-22 20:51:11 ca Exp $')
 LOCAL_CONFIG
 define(`_MTAMARK_R',`')dnl
 # map for MTA mark

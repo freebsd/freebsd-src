@@ -67,9 +67,9 @@ SYSCTL_DECL(_net_link_generic);
 static SYSCTL_NODE(_net_link_generic, IFMIB_SYSTEM, system, CTLFLAG_RW, 0,
 	    "Variables global to all interfaces");
 
-SYSCTL_VNET_INT(_net_link_generic_system, IFMIB_IFCOUNT, ifcount, CTLFLAG_RD,
-	    &VNET_NAME(if_index), 0,
-	     "Number of configured interfaces");
+SYSCTL_INT(_net_link_generic_system, IFMIB_IFCOUNT, ifcount,
+	CTLFLAG_VNET | CTLFLAG_RD, &VNET_NAME(if_index), 0,
+	"Number of configured interfaces");
 
 static int
 sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
@@ -99,37 +99,17 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		bzero(&ifmd, sizeof(ifmd));
 		strlcpy(ifmd.ifmd_name, ifp->if_xname, sizeof(ifmd.ifmd_name));
 
-#define COPY(fld) ifmd.ifmd_##fld = ifp->if_##fld
-		COPY(pcount);
-		COPY(data);
-#undef COPY
-		ifmd.ifmd_flags = ifp->if_flags | ifp->if_drv_flags;
-		ifmd.ifmd_snd_len = ifp->if_snd.ifq_len;
-		ifmd.ifmd_snd_maxlen = ifp->if_snd.ifq_maxlen;
-		ifmd.ifmd_snd_drops = ifp->if_snd.ifq_drops;
+		ifmd.ifmd_pcount = ifp->if_pcount;
+		if_data_copy(ifp, &ifmd.ifmd_data);
+
+		ifmd.ifmd_flags = ifp->if_flags;
+		ifmd.ifmd_snd_len = 0;		/* XXXGL */
+		ifmd.ifmd_snd_maxlen = 0;	/* XXXGL */
+		ifmd.ifmd_snd_drops = if_get_counter(ifp, IFCOUNTER_OQDROPS);
 
 		error = SYSCTL_OUT(req, &ifmd, sizeof ifmd);
-		if (error || !req->newptr)
-			goto out;
-
-		error = SYSCTL_IN(req, &ifmd, sizeof ifmd);
 		if (error)
 			goto out;
-
-#define DONTCOPY(fld) ifmd.ifmd_data.ifi_##fld = ifp->if_data.ifi_##fld
-		DONTCOPY(type);
-		DONTCOPY(physical);
-		DONTCOPY(addrlen);
-		DONTCOPY(hdrlen);
-		DONTCOPY(mtu);
-		DONTCOPY(metric);
-		DONTCOPY(baudrate);
-#undef DONTCOPY
-#define COPY(fld) ifp->if_##fld = ifmd.ifmd_##fld
-		COPY(data);
-		ifp->if_snd.ifq_maxlen = ifmd.ifmd_snd_maxlen;
-		ifp->if_snd.ifq_drops = ifmd.ifmd_snd_drops;
-#undef COPY
 		break;
 
 	case IFDATA_LINKSPECIFIC:
@@ -144,15 +124,16 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 
 	case IFDATA_DRIVERNAME:
 		/* 20 is enough for 64bit ints */
-		dlen = strlen(ifp->if_dname) + 20 + 1;
+		dlen = strlen(ifp->if_drv->ifdrv_name) + 20 + 1;
 		if ((dbuf = malloc(dlen, M_TEMP, M_NOWAIT)) == NULL) {
 			error = ENOMEM;
 			goto out;
 		}
-		if (ifp->if_dunit == IF_DUNIT_NONE)
-			strcpy(dbuf, ifp->if_dname);
+		if (ifp->if_dunit == IFAT_DUNIT_NONE)
+			strcpy(dbuf, ifp->if_drv->ifdrv_name);
 		else
-			sprintf(dbuf, "%s%d", ifp->if_dname, ifp->if_dunit);
+			sprintf(dbuf, "%s%d", ifp->if_drv->ifdrv_name,
+			    ifp->if_dunit);
 
 		error = SYSCTL_OUT(req, dbuf, strlen(dbuf) + 1);
 		if (error == 0 && req->newptr != NULL)

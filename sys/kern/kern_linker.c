@@ -66,9 +66,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KLD_DEBUG
 int kld_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RWTUN,
     &kld_debug, 0, "Set various levels of KLD debug");
-TUNABLE_INT("debug.kld_debug", &kld_debug);
 #endif
 
 /*
@@ -140,8 +139,8 @@ static caddr_t	linker_file_lookup_symbol_internal(linker_file_t file,
 		    const char* name, int deps);
 static int	linker_load_module(const char *kldname,
 		    const char *modname, struct linker_file *parent,
-		    struct mod_depend *verinfo, struct linker_file **lfpp);
-static modlist_t modlist_lookup2(const char *name, struct mod_depend *verinfo);
+		    const struct mod_depend *verinfo, struct linker_file **lfpp);
+static modlist_t modlist_lookup2(const char *name, const struct mod_depend *verinfo);
 
 static void
 linker_init(void *arg)
@@ -293,10 +292,10 @@ linker_file_register_sysctls(linker_file_t lf)
 		return;
 
 	sx_xunlock(&kld_sx);
-	sysctl_lock();
+	sysctl_xlock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_register_oid(*oidp);
-	sysctl_unlock();
+	sysctl_xunlock();
 	sx_xlock(&kld_sx);
 }
 
@@ -314,10 +313,10 @@ linker_file_unregister_sysctls(linker_file_t lf)
 		return;
 
 	sx_xunlock(&kld_sx);
-	sysctl_lock();
+	sysctl_xlock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_unregister_oid(*oidp);
-	sysctl_unlock();
+	sysctl_xunlock();
 	sx_xlock(&kld_sx);
 }
 
@@ -574,6 +573,8 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	lf = (linker_file_t)kobj_create((kobj_class_t)lc, M_LINKER, M_WAITOK);
 	if (lf == NULL)
 		return (NULL);
+	lf->ctors_addr = 0;
+	lf->ctors_size = 0;
 	lf->refs = 1;
 	lf->userrefs = 0;
 	lf->flags = 0;
@@ -725,17 +726,8 @@ linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 	linker_file_t *newdeps;
 
 	sx_assert(&kld_sx, SA_XLOCKED);
-	newdeps = malloc((file->ndeps + 1) * sizeof(linker_file_t *),
+	file->deps = realloc(file->deps, (file->ndeps + 1) * sizeof(*newdeps),
 	    M_LINKER, M_WAITOK | M_ZERO);
-	if (newdeps == NULL)
-		return (ENOMEM);
-
-	if (file->deps) {
-		bcopy(file->deps, newdeps,
-		    file->ndeps * sizeof(linker_file_t *));
-		free(file->deps, M_LINKER);
-	}
-	file->deps = newdeps;
 	file->deps[file->ndeps] = dep;
 	file->ndeps++;
 	KLD_DPF(FILE, ("linker_file_add_dependency:"
@@ -994,9 +986,9 @@ linker_search_symbol_name(caddr_t value, char *buf, u_int buflen,
 {
 	int error;
 
-	sx_xlock(&kld_sx);
+	sx_slock(&kld_sx);
 	error = linker_debug_search_symbol_name(value, buf, buflen, offset);
-	sx_xunlock(&kld_sx);
+	sx_sunlock(&kld_sx);
 	return (error);
 }
 
@@ -1361,7 +1353,7 @@ modlist_lookup(const char *name, int ver)
 }
 
 static modlist_t
-modlist_lookup2(const char *name, struct mod_depend *verinfo)
+modlist_lookup2(const char *name, const struct mod_depend *verinfo)
 {
 	modlist_t mod, bestmod;
 	int ver;
@@ -1434,7 +1426,7 @@ linker_preload(void *arg)
 	linker_file_list_t depended_files;
 	struct mod_metadata *mp, *nmp;
 	struct mod_metadata **start, **stop, **mdp, **nmdp;
-	struct mod_depend *verinfo;
+	const struct mod_depend *verinfo;
 	int nver;
 	int resolves;
 	modlist_t mod;
@@ -1652,7 +1644,7 @@ SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, 0);
 static char linker_hintfile[] = "linker.hints";
 static char linker_path[MAXPATHLEN] = "/boot/kernel;/boot/modules";
 
-SYSCTL_STRING(_kern, OID_AUTO, module_path, CTLFLAG_RW, linker_path,
+SYSCTL_STRING(_kern, OID_AUTO, module_path, CTLFLAG_RWTUN, linker_path,
     sizeof(linker_path), "module load search path");
 
 TUNABLE_STR("module_path", linker_path, sizeof(linker_path));
@@ -1724,7 +1716,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
  */
 static char *
 linker_hints_lookup(const char *path, int pathlen, const char *modname,
-    int modnamelen, struct mod_depend *verinfo)
+    int modnamelen, const struct mod_depend *verinfo)
 {
 	struct thread *td = curthread;	/* XXX */
 	struct ucred *cred = td ? td->td_ucred : NULL;
@@ -1760,7 +1752,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	/*
 	 * XXX: we need to limit this number to some reasonable value
 	 */
-	if (vattr.va_size > 100 * 1024) {
+	if (vattr.va_size > LINKER_HINTS_MAX) {
 		printf("hints file too large %ld\n", (long)vattr.va_size);
 		goto bad;
 	}
@@ -1857,7 +1849,7 @@ bad:
  */
 static char *
 linker_search_module(const char *modname, int modnamelen,
-    struct mod_depend *verinfo)
+    const struct mod_depend *verinfo)
 {
 	char *cp, *ep, *result;
 
@@ -1961,7 +1953,7 @@ linker_hwpmc_list_objects(void)
  */
 static int
 linker_load_module(const char *kldname, const char *modname,
-    struct linker_file *parent, struct mod_depend *verinfo,
+    struct linker_file *parent, const struct mod_depend *verinfo,
     struct linker_file **lfpp)
 {
 	linker_file_t lfdep;
@@ -2035,7 +2027,7 @@ linker_load_dependencies(linker_file_t lf)
 	linker_file_t lfdep;
 	struct mod_metadata **start, **stop, **mdp, **nmdp;
 	struct mod_metadata *mp, *nmp;
-	struct mod_depend *verinfo;
+	const struct mod_depend *verinfo;
 	modlist_t mod;
 	const char *modname, *nmodname;
 	int ver, error = 0, count;

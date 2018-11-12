@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2004,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2009,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,9 +38,8 @@
 */
 
 #include <curses.priv.h>
-#include <term.h>
 
-MODULE_ID("$Id: lib_get_wstr.c,v 1.10 2008/08/16 19:25:33 tom Exp $")
+MODULE_ID("$Id: lib_get_wstr.c,v 1.13 2011/10/22 16:31:35 tom Exp $")
 
 static int
 wadd_wint(WINDOW *win, wint_t *src)
@@ -50,7 +49,7 @@ wadd_wint(WINDOW *win, wint_t *src)
 
     wch[0] = (wchar_t) (*src);
     wch[1] = 0;
-    setcchar(&tmp, wch, A_NORMAL, 0, NULL);
+    setcchar(&tmp, wch, A_NORMAL, (short) 0, NULL);
     return wadd_wch(win, &tmp);
 }
 
@@ -59,7 +58,7 @@ wadd_wint(WINDOW *win, wint_t *src)
  * or other character, and handles reverse wraparound.
  */
 static wint_t *
-WipeOut(WINDOW *win, int y, int x, wint_t *first, wint_t *last, bool echoed)
+WipeOut(WINDOW *win, int y, int x, wint_t *first, wint_t *last, int echoed)
 {
     if (last > first) {
 	*--last = '\0';
@@ -96,7 +95,7 @@ wgetn_wstr(WINDOW *win, wint_t *str, int maxlen)
     wint_t ch;
     int y, x, code;
 
-    T((T_CALLED("wgetn_wstr(%p,%p, %d)"), win, str, maxlen));
+    T((T_CALLED("wgetn_wstr(%p,%p, %d)"), (void *) win, (void *) str, maxlen));
 
     if (!win)
 	returnCode(ERR);

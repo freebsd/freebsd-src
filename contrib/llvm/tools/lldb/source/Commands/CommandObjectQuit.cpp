@@ -53,7 +53,7 @@ CommandObjectQuit::ShouldAskForConfirmation (bool& is_a_detach)
             continue;
         const TargetList& target_list(debugger_sp->GetTargetList());
         for (uint32_t target_idx = 0;
-             target_idx < target_list.GetNumTargets();
+             target_idx < static_cast<uint32_t>(target_list.GetNumTargets());
              target_idx++)
         {
             TargetSP target_sp(target_list.GetTargetAtIndex(target_idx));
@@ -92,7 +92,8 @@ CommandObjectQuit::DoExecute (Args& command, CommandReturnObject &result)
             return false;
         }
     }
-    m_interpreter.BroadcastEvent (CommandInterpreter::eBroadcastBitQuitCommandReceived);
+    const uint32_t event_type = CommandInterpreter::eBroadcastBitQuitCommandReceived;
+    m_interpreter.BroadcastEvent (event_type);
     result.SetStatus (eReturnStatusQuit);
     return true;
 }

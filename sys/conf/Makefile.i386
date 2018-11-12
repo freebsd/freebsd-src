@@ -32,10 +32,8 @@ S=	../../..
 
 INCLUDES+= -I$S/contrib/libfdt
 
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-ASM_CFLAGS.acpi_wakecode.S=	${CLANG_NO_IAS}
-ASM_CFLAGS.mpboot.s=		${CLANG_NO_IAS}
-ASM_CFLAGS+=			${ASM_CFLAGS.${.IMPSRC:T}}
+ASM_CFLAGS.acpi_wakecode.S=	${CLANG_NO_IAS34}
+ASM_CFLAGS.mpboot.s=		${CLANG_NO_IAS34}
 
 %BEFORE_DEPEND
 

@@ -13,16 +13,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef AMDGPUINSTRUCTIONINFO_H
-#define AMDGPUINSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_R600_AMDGPUINSTRINFO_H
+#define LLVM_LIB_TARGET_R600_AMDGPUINSTRINFO_H
 
-#include "AMDGPUInstrInfo.h"
 #include "AMDGPURegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include <map>
 
 #define GET_INSTRINFO_HEADER
 #define GET_INSTRINFO_ENUM
+#define GET_INSTRINFO_OPERAND_ENUM
 #include "AMDGPUGenInstrInfo.inc"
 
 #define OPCODE_IS_ZERO_INT AMDGPU::PRED_SETE_INT
@@ -32,7 +32,7 @@
 
 namespace llvm {
 
-class AMDGPUTargetMachine;
+class AMDGPUSubtarget;
 class MachineFunction;
 class MachineInstr;
 class MachineInstrBuilder;
@@ -40,24 +40,24 @@ class MachineInstrBuilder;
 class AMDGPUInstrInfo : public AMDGPUGenInstrInfo {
 private:
   const AMDGPURegisterInfo RI;
-  bool getNextBranchInstr(MachineBasicBlock::iterator &iter,
-                          MachineBasicBlock &MBB) const;
+  virtual void anchor();
 protected:
-  TargetMachine &TM;
+  const AMDGPUSubtarget &ST;
 public:
-  explicit AMDGPUInstrInfo(TargetMachine &tm);
+  explicit AMDGPUInstrInfo(const AMDGPUSubtarget &st);
 
   virtual const AMDGPURegisterInfo &getRegisterInfo() const = 0;
 
   bool isCoalescableExtInstr(const MachineInstr &MI, unsigned &SrcReg,
-                             unsigned &DstReg, unsigned &SubIdx) const;
+                             unsigned &DstReg, unsigned &SubIdx) const override;
 
-  unsigned isLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex) const;
+  unsigned isLoadFromStackSlot(const MachineInstr *MI,
+                               int &FrameIndex) const override;
   unsigned isLoadFromStackSlotPostFE(const MachineInstr *MI,
-                                     int &FrameIndex) const;
+                                     int &FrameIndex) const override;
   bool hasLoadFromStackSlot(const MachineInstr *MI,
                             const MachineMemOperand *&MMO,
-                            int &FrameIndex) const;
+                            int &FrameIndex) const override;
   unsigned isStoreFromStackSlot(const MachineInstr *MI, int &FrameIndex) const;
   unsigned isStoreFromStackSlotPostFE(const MachineInstr *MI,
                                       int &FrameIndex) const;
@@ -68,88 +68,89 @@ public:
   MachineInstr *
   convertToThreeAddress(MachineFunction::iterator &MFI,
                         MachineBasicBlock::iterator &MBBI,
-                        LiveVariables *LV) const;
+                        LiveVariables *LV) const override;
 
 
-  virtual void copyPhysReg(MachineBasicBlock &MBB,
-                           MachineBasicBlock::iterator MI, DebugLoc DL,
-                           unsigned DestReg, unsigned SrcReg,
-                           bool KillSrc) const = 0;
+  bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const override;
 
   void storeRegToStackSlot(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator MI,
                            unsigned SrcReg, bool isKill, int FrameIndex,
                            const TargetRegisterClass *RC,
-                           const TargetRegisterInfo *TRI) const;
+                           const TargetRegisterInfo *TRI) const override;
   void loadRegFromStackSlot(MachineBasicBlock &MBB,
                             MachineBasicBlock::iterator MI,
                             unsigned DestReg, int FrameIndex,
                             const TargetRegisterClass *RC,
-                            const TargetRegisterInfo *TRI) const;
+                            const TargetRegisterInfo *TRI) const override;
 
 protected:
   MachineInstr *foldMemoryOperandImpl(MachineFunction &MF,
                                       MachineInstr *MI,
                                       const SmallVectorImpl<unsigned> &Ops,
-                                      int FrameIndex) const;
+                                      int FrameIndex) const override;
   MachineInstr *foldMemoryOperandImpl(MachineFunction &MF,
                                       MachineInstr *MI,
                                       const SmallVectorImpl<unsigned> &Ops,
-                                      MachineInstr *LoadMI) const;
+                                      MachineInstr *LoadMI) const override;
 public:
+  /// \returns the smallest register index that will be accessed by an indirect
+  /// read or write or -1 if indirect addressing is not used by this program.
+  int getIndirectIndexBegin(const MachineFunction &MF) const;
+
+  /// \returns the largest register index that will be accessed by an indirect
+  /// read or write or -1 if indirect addressing is not used by this program.
+  int getIndirectIndexEnd(const MachineFunction &MF) const;
+
   bool canFoldMemoryOperand(const MachineInstr *MI,
-                            const SmallVectorImpl<unsigned> &Ops) const;
+                           const SmallVectorImpl<unsigned> &Ops) const override;
   bool unfoldMemoryOperand(MachineFunction &MF, MachineInstr *MI,
-                           unsigned Reg, bool UnfoldLoad, bool UnfoldStore,
-                           SmallVectorImpl<MachineInstr *> &NewMIs) const;
+                        unsigned Reg, bool UnfoldLoad, bool UnfoldStore,
+                        SmallVectorImpl<MachineInstr *> &NewMIs) const override;
   bool unfoldMemoryOperand(SelectionDAG &DAG, SDNode *N,
-                           SmallVectorImpl<SDNode *> &NewNodes) const;
+                           SmallVectorImpl<SDNode *> &NewNodes) const override;
   unsigned getOpcodeAfterMemoryUnfold(unsigned Opc,
-                                      bool UnfoldLoad, bool UnfoldStore,
-                                      unsigned *LoadRegIndex = 0) const;
+                               bool UnfoldLoad, bool UnfoldStore,
+                               unsigned *LoadRegIndex = nullptr) const override;
+
+  bool enableClusterLoads() const override;
+
   bool shouldScheduleLoadsNear(SDNode *Load1, SDNode *Load2,
                                int64_t Offset1, int64_t Offset2,
-                               unsigned NumLoads) const;
+                               unsigned NumLoads) const override;
 
-  bool ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const;
+  bool
+  ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override;
   void insertNoop(MachineBasicBlock &MBB,
-                  MachineBasicBlock::iterator MI) const;
-  bool isPredicated(const MachineInstr *MI) const;
+                  MachineBasicBlock::iterator MI) const override;
+  bool isPredicated(const MachineInstr *MI) const override;
   bool SubsumesPredicate(const SmallVectorImpl<MachineOperand> &Pred1,
-                         const SmallVectorImpl<MachineOperand> &Pred2) const;
+                   const SmallVectorImpl<MachineOperand> &Pred2) const override;
   bool DefinesPredicate(MachineInstr *MI,
-                        std::vector<MachineOperand> &Pred) const;
-  bool isPredicable(MachineInstr *MI) const;
-  bool isSafeToMoveRegClassDefs(const TargetRegisterClass *RC) const;
+                        std::vector<MachineOperand> &Pred) const override;
+  bool isPredicable(MachineInstr *MI) const override;
+  bool isSafeToMoveRegClassDefs(const TargetRegisterClass *RC) const override;
 
   // Helper functions that check the opcode for status information
-  bool isLoadInst(llvm::MachineInstr *MI) const;
-  bool isExtLoadInst(llvm::MachineInstr *MI) const;
-  bool isSWSExtLoadInst(llvm::MachineInstr *MI) const;
-  bool isSExtLoadInst(llvm::MachineInstr *MI) const;
-  bool isZExtLoadInst(llvm::MachineInstr *MI) const;
-  bool isAExtLoadInst(llvm::MachineInstr *MI) const;
-  bool isStoreInst(llvm::MachineInstr *MI) const;
-  bool isTruncStoreInst(llvm::MachineInstr *MI) const;
   bool isRegisterStore(const MachineInstr &MI) const;
   bool isRegisterLoad(const MachineInstr &MI) const;
+
+  /// \brief Return a target-specific opcode if Opcode is a pseudo instruction.
+  /// Return -1 if the target-specific opcode for the pseudo instruction does
+  /// not exist. If Opcode is not a pseudo instruction, this is identity.
+  int pseudoToMCOpcode(int Opcode) const;
+
+  /// \brief Return the descriptor of the target-specific machine instruction
+  /// that corresponds to the specified pseudo or native opcode.
+  const MCInstrDesc &getMCOpcodeFromPseudo(unsigned Opcode) const {
+    return get(pseudoToMCOpcode(Opcode));
+  }
 
 //===---------------------------------------------------------------------===//
 // Pure virtual funtions to be implemented by sub-classes.
 //===---------------------------------------------------------------------===//
 
-  virtual MachineInstr* getMovImmInstr(MachineFunction *MF, unsigned DstReg,
-                                       int64_t Imm) const = 0;
-  virtual unsigned getIEQOpcode() const = 0;
   virtual bool isMov(unsigned opcode) const = 0;
-
-  /// \returns the smallest register index that will be accessed by an indirect
-  /// read or write or -1 if indirect addressing is not used by this program.
-  virtual int getIndirectIndexBegin(const MachineFunction &MF) const = 0;
-
-  /// \returns the largest register index that will be accessed by an indirect
-  /// read or write or -1 if indirect addressing is not used by this program.
-  virtual int getIndirectIndexEnd(const MachineFunction &MF) const = 0;
 
   /// \brief Calculate the "Indirect Address" for the given \p RegIndex and
   ///        \p Channel
@@ -161,14 +162,9 @@ public:
   virtual unsigned calculateIndirectAddress(unsigned RegIndex,
                                             unsigned Channel) const = 0;
 
-  /// \returns The register class to be used for storing values to an
-  /// "Indirect Address" .
-  virtual const TargetRegisterClass *getIndirectAddrStoreRegClass(
-                                                  unsigned SourceReg) const = 0;
-
-  /// \returns The register class to be used for loading values from
-  /// an "Indirect Address" .
-  virtual const TargetRegisterClass *getIndirectAddrLoadRegClass() const = 0;
+  /// \returns The register class to be used for loading and storing values
+  /// from an "Indirect Address" .
+  virtual const TargetRegisterClass *getIndirectAddrRegClass() const = 0;
 
   /// \brief Build instruction(s) for an indirect register write.
   ///
@@ -186,21 +182,24 @@ public:
                                     unsigned ValueReg, unsigned Address,
                                     unsigned OffsetReg) const = 0;
 
-  /// \returns the register class whose sub registers are the set of all
-  /// possible registers that can be used for indirect addressing.
-  virtual const TargetRegisterClass *getSuperIndirectRegClass() const = 0;
+  /// \brief Build a MOV instruction.
+  virtual MachineInstr *buildMovInstr(MachineBasicBlock *MBB,
+                                      MachineBasicBlock::iterator I,
+                                      unsigned DstReg, unsigned SrcReg) const = 0;
 
-
-  /// \brief Convert the AMDIL MachineInstr to a supported ISA
-  /// MachineInstr
-  virtual void convertToISA(MachineInstr & MI, MachineFunction &MF,
-    DebugLoc DL) const;
+  /// \brief Given a MIMG \p Opcode that writes all 4 channels, return the
+  /// equivalent opcode that writes \p Channels Channels.
+  int getMaskedMIMGOp(uint16_t Opcode, unsigned Channels) const;
 
 };
+
+namespace AMDGPU {
+  int16_t getNamedOperandIdx(uint16_t Opcode, uint16_t NamedIndex);
+}  // End namespace AMDGPU
 
 } // End llvm namespace
 
 #define AMDGPU_FLAG_REGISTER_LOAD  (UINT64_C(1) << 63)
 #define AMDGPU_FLAG_REGISTER_STORE (UINT64_C(1) << 62)
 
-#endif // AMDGPUINSTRINFO_H
+#endif

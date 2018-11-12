@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -686,7 +687,7 @@ libzfs_fini(libzfs_handle_t *hdl)
 		(void) fclose(hdl->libzfs_sharetab);
 	zfs_uninit_libshare(hdl);
 	zpool_free_handles(hdl);
-#ifdef sun
+#ifdef illumos
 	libzfs_fru_clear(hdl, B_TRUE);
 #endif
 	namespace_clear(hdl);
@@ -738,7 +739,7 @@ zfs_path_to_zhandle(libzfs_handle_t *hdl, char *path, zfs_type_t argtype)
 		return (NULL);
 	}
 
-#ifdef sun
+#ifdef illumos
 	rewind(hdl->libzfs_mnttab);
 	while ((ret = getextmntent(hdl->libzfs_mnttab, &entry, 0)) == 0) {
 		if (makedevice(entry.mnt_major, entry.mnt_minor) ==
@@ -758,7 +759,7 @@ zfs_path_to_zhandle(libzfs_handle_t *hdl, char *path, zfs_type_t argtype)
 			    strerror(errno));
 		}
 	}
-#endif	/* sun */
+#endif	/* illumos */
 	if (ret != 0) {
 		return (NULL);
 	}
@@ -1267,6 +1268,16 @@ zprop_parse_value(libzfs_handle_t *hdl, nvpair_t *elem, int prop,
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "use 'none' to disable quota/refquota"));
 			goto error;
+		}
+
+		/*
+		 * Special handling for "*_limit=none". In this case it's not
+		 * 0 but UINT64_MAX.
+		 */
+		if ((type & ZFS_TYPE_DATASET) && isnone &&
+		    (prop == ZFS_PROP_FILESYSTEM_LIMIT ||
+		    prop == ZFS_PROP_SNAPSHOT_LIMIT)) {
+			*ivalp = UINT64_MAX;
 		}
 		break;
 

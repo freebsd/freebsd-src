@@ -26,19 +26,64 @@ using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::formatters;
 
+bool
+lldb_private::formatters::LibcxxSmartPointerSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options)
+{
+    ValueObjectSP valobj_sp(valobj.GetNonSyntheticValue());
+    if (!valobj_sp)
+        return false;
+    ValueObjectSP ptr_sp(valobj_sp->GetChildMemberWithName(ConstString("__ptr_"), true));
+    ValueObjectSP count_sp(valobj_sp->GetChildAtNamePath( {ConstString("__cntrl_"),ConstString("__shared_owners_")} ));
+    ValueObjectSP weakcount_sp(valobj_sp->GetChildAtNamePath( {ConstString("__cntrl_"),ConstString("__shared_weak_owners_")} ));
+    
+    if (!ptr_sp)
+        return false;
+    
+    if (ptr_sp->GetValueAsUnsigned(0) == 0)
+    {
+        stream.Printf("nullptr");
+        return true;
+    }
+    else
+    {
+        bool print_pointee = false;
+        Error error;
+        ValueObjectSP pointee_sp = ptr_sp->Dereference(error);
+        if (pointee_sp && error.Success())
+        {
+            if (pointee_sp->DumpPrintableRepresentation(stream,
+                                                        ValueObject::eValueObjectRepresentationStyleSummary,
+                                                        lldb::eFormatInvalid,
+                                                        ValueObject::ePrintableRepresentationSpecialCasesDisable,
+                                                        false))
+                print_pointee = true;
+        }
+        if (!print_pointee)
+            stream.Printf("ptr = 0x%" PRIx64, ptr_sp->GetValueAsUnsigned(0));
+    }
+    
+    if (count_sp)
+        stream.Printf(" strong=%" PRIu64, 1+count_sp->GetValueAsUnsigned(0));
+
+    if (weakcount_sp)
+        stream.Printf(" weak=%" PRIu64, 1+weakcount_sp->GetValueAsUnsigned(0));
+    
+    return true;
+}
+
 lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEnd::LibcxxVectorBoolSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp) :
 SyntheticChildrenFrontEnd(*valobj_sp.get()),
+m_bool_type(),
 m_exe_ctx_ref(),
 m_count(0),
 m_base_data_address(0),
-m_options()
+m_children()
 {
     if (valobj_sp)
+    {
         Update();
-    m_options.SetCoerceToId(false);
-    m_options.SetUnwindOnError(true);
-    m_options.SetKeepInMemory(true);
-    m_options.SetUseDynamic(lldb::eDynamicCanRunTarget);
+        m_bool_type = valobj_sp->GetClangType().GetBasicTypeFromAST(lldb::eBasicTypeBool);
+    }
 }
 
 size_t
@@ -50,9 +95,15 @@ lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEnd::CalculateNumChildre
 lldb::ValueObjectSP
 lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEnd::GetChildAtIndex (size_t idx)
 {
+    auto iter = m_children.find(idx),
+        end = m_children.end();
+    if (iter != end)
+        return iter->second;
     if (idx >= m_count)
         return ValueObjectSP();
     if (m_base_data_address == 0 || m_count == 0)
+        return ValueObjectSP();
+    if (!m_bool_type)
         return ValueObjectSP();
     size_t byte_idx = (idx >> 3); // divide by 8 to get byte index
     size_t bit_index = (idx & 7); // efficient idx % 8 for bit index
@@ -88,15 +139,13 @@ lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEnd::GetChildAtIndex (si
             return ValueObjectSP();
     }
     bool bit_set = ((byte & mask) != 0);
-    Target& target(process_sp->GetTarget());
-    ValueObjectSP retval_sp;
-    if (bit_set)
-        target.EvaluateExpression("(bool)true", NULL, retval_sp);
-    else
-        target.EvaluateExpression("(bool)false", NULL, retval_sp);
-    StreamString name; name.Printf("[%zu]",idx);
+    DataBufferSP buffer_sp(new DataBufferHeap(m_bool_type.GetByteSize(),0));
+    if (bit_set && buffer_sp && buffer_sp->GetBytes())
+        *(buffer_sp->GetBytes()) = 1; // regardless of endianness, anything non-zero is true
+    StreamString name; name.Printf("[%" PRIu64 "]", (uint64_t)idx);
+    ValueObjectSP retval_sp(CreateValueObjectFromData(name.GetData(), DataExtractor(buffer_sp, process_sp->GetByteOrder(), process_sp->GetAddressByteSize()), m_exe_ctx_ref, m_bool_type));
     if (retval_sp)
-        retval_sp->SetName(ConstString(name.GetData()));
+        m_children[idx] = retval_sp;
     return retval_sp;
 }
 
@@ -113,9 +162,8 @@ lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEnd::GetChildAtIndex (si
 bool
 lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEnd::Update()
 {
+    m_children.clear();
     ValueObjectSP valobj_sp = m_backend.GetSP();
-    if (!valobj_sp)
-        return false;
     if (!valobj_sp)
         return false;
     m_exe_ctx_ref = valobj_sp->GetExecutionContextRef();
@@ -330,7 +378,7 @@ lldb_private::formatters::LibcxxSharedPtrSyntheticFrontEnd::GetChildAtIndex (siz
                 return lldb::ValueObjectSP();
             uint64_t count = 1 + shared_owners_sp->GetValueAsUnsigned(0);
             DataExtractor data(&count, 8, m_byte_order, m_ptr_size);
-            m_count_sp = ValueObject::CreateValueObjectFromData("count", data, valobj_sp->GetExecutionContextRef(), shared_owners_sp->GetClangType());
+            m_count_sp = CreateValueObjectFromData("count", data, valobj_sp->GetExecutionContextRef(), shared_owners_sp->GetClangType());
         }
         return m_count_sp;
     }
@@ -343,7 +391,7 @@ lldb_private::formatters::LibcxxSharedPtrSyntheticFrontEnd::GetChildAtIndex (siz
                 return lldb::ValueObjectSP();
             uint64_t count = 1 + shared_weak_owners_sp->GetValueAsUnsigned(0);
             DataExtractor data(&count, 8, m_byte_order, m_ptr_size);
-            m_weak_count_sp = ValueObject::CreateValueObjectFromData("count", data, valobj_sp->GetExecutionContextRef(), shared_weak_owners_sp->GetClangType());
+            m_weak_count_sp = CreateValueObjectFromData("count", data, valobj_sp->GetExecutionContextRef(), shared_weak_owners_sp->GetClangType());
         }
         return m_weak_count_sp;
     }
@@ -402,111 +450,8 @@ lldb_private::formatters::LibcxxSharedPtrSyntheticFrontEndCreator (CXXSyntheticC
     return (new LibcxxSharedPtrSyntheticFrontEnd(valobj_sp));
 }
 
-lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::LibcxxStdVectorSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp) :
-    SyntheticChildrenFrontEnd(*valobj_sp.get()),
-    m_start(NULL),
-    m_finish(NULL),
-    m_element_type(),
-    m_element_size(0),
-    m_children()
-{
-    if (valobj_sp)
-        Update();
-}
-
-size_t
-lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::CalculateNumChildren ()
-{
-    if (!m_start || !m_finish)
-        return 0;
-    uint64_t start_val = m_start->GetValueAsUnsigned(0);
-    uint64_t finish_val = m_finish->GetValueAsUnsigned(0);
-
-    if (start_val == 0 || finish_val == 0)
-        return 0;
-    
-    if (start_val >= finish_val)
-        return 0;
-    
-    size_t num_children = (finish_val - start_val);
-    if (num_children % m_element_size)
-        return 0;
-    return num_children/m_element_size;
-}
-
-lldb::ValueObjectSP
-lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::GetChildAtIndex (size_t idx)
-{
-    if (!m_start || !m_finish)
-        return lldb::ValueObjectSP();
-    
-    auto cached = m_children.find(idx);
-    if (cached != m_children.end())
-        return cached->second;
-    
-    uint64_t offset = idx * m_element_size;
-    offset = offset + m_start->GetValueAsUnsigned(0);
-    StreamString name;
-    name.Printf("[%zu]",idx);
-    ValueObjectSP child_sp = ValueObject::CreateValueObjectFromAddress(name.GetData(), offset, m_backend.GetExecutionContextRef(), m_element_type);
-    m_children[idx] = child_sp;
-    return child_sp;
-}
-
 bool
-lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::Update()
-{
-    m_start = m_finish = NULL;
-    m_children.clear();
-    ValueObjectSP data_type_finder_sp(m_backend.GetChildMemberWithName(ConstString("__end_cap_"),true));
-    if (!data_type_finder_sp)
-        return false;
-    data_type_finder_sp = data_type_finder_sp->GetChildMemberWithName(ConstString("__first_"),true);
-    if (!data_type_finder_sp)
-        return false;
-    m_element_type = data_type_finder_sp->GetClangType().GetPointeeType();
-    m_element_size = m_element_type.GetByteSize();
-    
-    if (m_element_size > 0)
-    {
-        // store raw pointers or end up with a circular dependency
-        m_start = m_backend.GetChildMemberWithName(ConstString("__begin_"),true).get();
-        m_finish = m_backend.GetChildMemberWithName(ConstString("__end_"),true).get();
-    }
-    return false;
-}
-
-bool
-lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::MightHaveChildren ()
-{
-    return true;
-}
-
-size_t
-lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::GetIndexOfChildWithName (const ConstString &name)
-{
-    if (!m_start || !m_finish)
-        return UINT32_MAX;
-    return ExtractIndexFromString(name.GetCString());
-}
-
-lldb_private::formatters::LibcxxStdVectorSyntheticFrontEnd::~LibcxxStdVectorSyntheticFrontEnd ()
-{
-    // these need to stay around because they are child objects who will follow their parent's life cycle
-    // delete m_start;
-    // delete m_finish;
-}
-
-SyntheticChildrenFrontEnd*
-lldb_private::formatters::LibcxxStdVectorSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP valobj_sp)
-{
-    if (!valobj_sp)
-        return NULL;
-    return (new LibcxxStdVectorSyntheticFrontEnd(valobj_sp));
-}
-
-bool
-lldb_private::formatters::LibcxxContainerSummaryProvider (ValueObject& valobj, Stream& stream)
+lldb_private::formatters::LibcxxContainerSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options)
 {
     if (valobj.IsPointerType())
     {

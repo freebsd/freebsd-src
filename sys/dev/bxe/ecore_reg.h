@@ -1,9 +1,5 @@
 /*-
- * Copyright (c) 2007-2013 Broadcom Corporation. All rights reserved.
- *
- * Eric Davis        <edavis@broadcom.com>
- * David Christensen <davidch@broadcom.com>
- * Gary Zambrano     <zambrano@broadcom.com>
+ * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Broadcom Corporation nor the name of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written consent.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -1046,6 +1039,8 @@ __FBSDID("$FreeBSD$");
 	0x942cUL
 #define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ \
 	0x9430UL
+#define PGLUE_B_REG_LATCHED_ERRORS_CLR \
+	0x943CUL
 #define PGLUE_B_REG_PGLUE_B_INT_STS \
 	0x9298UL
 #define PGLUE_B_REG_PGLUE_B_INT_STS_CLR \
@@ -1970,6 +1965,7 @@ __FBSDID("$FreeBSD$");
 #define MISC_SPIO_SPIO5		       0x20
 #define HW_LOCK_MAX_RESOURCE_VALUE		 31
 #define HW_LOCK_RESOURCE_DRV_FLAGS		 10
+#define HW_LOCK_RESOURCE_MDIO	                 0	
 #define HW_LOCK_RESOURCE_GPIO			 1
 #define HW_LOCK_RESOURCE_NVRAM			 12
 #define HW_LOCK_RESOURCE_PORT0_ATT_MASK		 3

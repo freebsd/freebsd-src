@@ -27,6 +27,7 @@ class Type;
 class MachineFunction;
 class MachineBasicBlock;
 class TargetFrameLowering;
+class TargetMachine;
 class BitVector;
 class Value;
 class AllocaInst;
@@ -100,11 +101,6 @@ class MachineFrameInfo {
     // cannot alias any other memory objects.
     bool isSpillSlot;
 
-    // MayNeedSP - If true the stack object triggered the creation of the stack
-    // protector. We should allocate this object right after the stack
-    // protector.
-    bool MayNeedSP;
-
     /// Alloca - If this stack object is originated from an Alloca instruction
     /// this value saves the original IR allocation. Can be NULL.
     const AllocaInst *Alloca;
@@ -113,11 +109,23 @@ class MachineFrameInfo {
     // block and doesn't need additional handling for allocation beyond that.
     bool PreAllocated;
 
+    // If true, an LLVM IR value might point to this object.
+    // Normally, spill slots and fixed-offset objects don't alias IR-accessible
+    // objects, but there are exceptions (on PowerPC, for example, some byval
+    // arguments have ABI-prescribed offsets).
+    bool isAliased;
+
     StackObject(uint64_t Sz, unsigned Al, int64_t SP, bool IM,
-                bool isSS, bool NSP, const AllocaInst *Val)
+                bool isSS, const AllocaInst *Val, bool A)
       : SPOffset(SP), Size(Sz), Alignment(Al), isImmutable(IM),
-        isSpillSlot(isSS), MayNeedSP(NSP), Alloca(Val), PreAllocated(false) {}
+        isSpillSlot(isSS), Alloca(Val), PreAllocated(false), isAliased(A) {}
   };
+
+  /// StackAlignment - The alignment of the stack.
+  unsigned StackAlignment;
+
+  /// StackRealignable - Can the stack be realigned.
+  bool StackRealignable;
 
   /// Objects - The list of stack objects allocated...
   ///
@@ -141,6 +149,14 @@ class MachineFrameInfo {
   /// ReturnAddressTaken - This boolean keeps track of whether there is a call
   /// to builtin \@llvm.returnaddress.
   bool ReturnAddressTaken;
+
+  /// HasStackMap - This boolean keeps track of whether there is a call
+  /// to builtin \@llvm.experimental.stackmap.
+  bool HasStackMap;
+
+  /// HasPatchPoint - This boolean keeps track of whether there is a call
+  /// to builtin \@llvm.experimental.patchpoint.
+  bool HasPatchPoint;
 
   /// StackSize - The prolog/epilog code inserter calculates the final stack
   /// offsets for all of the fixed size objects, updating the Objects list
@@ -201,10 +217,6 @@ class MachineFrameInfo {
   /// CSIValid - Has CSInfo been set yet?
   bool CSIValid;
 
-  /// TargetFrameLowering - Target information about frame layout.
-  ///
-  const TargetFrameLowering &TFI;
-
   /// LocalFrameObjects - References to frame indices which are mapped
   /// into the local frame allocation block. <FrameIdx, LocalOffset>
   SmallVector<std::pair<int, int64_t>, 32> LocalFrameObjects;
@@ -223,13 +235,28 @@ class MachineFrameInfo {
 
   /// Whether the "realign-stack" option is on.
   bool RealignOption;
+
+  /// True if the function includes inline assembly that adjusts the stack
+  /// pointer.
+  bool HasInlineAsmWithSPAdjust;
+
+  /// True if the function contains a call to the llvm.vastart intrinsic.
+  bool HasVAStart;
+
+  /// True if this is a varargs function that contains a musttail call.
+  bool HasMustTailInVarArgFunc;
+
 public:
-    explicit MachineFrameInfo(const TargetFrameLowering &tfi, bool RealignOpt)
-    : TFI(tfi), RealignOption(RealignOpt) {
+  explicit MachineFrameInfo(unsigned StackAlign, bool isStackRealign,
+                            bool RealignOpt)
+      : StackAlignment(StackAlign), StackRealignable(isStackRealign),
+        RealignOption(RealignOpt) {
     StackSize = NumFixedObjects = OffsetAdjustment = MaxAlignment = 0;
     HasVarSizedObjects = false;
     FrameAddressTaken = false;
     ReturnAddressTaken = false;
+    HasStackMap = false;
+    HasPatchPoint = false;
     AdjustsStack = false;
     HasCalls = false;
     StackProtectorIdx = -1;
@@ -239,6 +266,9 @@ public:
     LocalFrameSize = 0;
     LocalFrameMaxAlign = 0;
     UseLocalStackAllocationBlock = false;
+    HasInlineAsmWithSPAdjust = false;
+    HasVAStart = false;
+    HasMustTailInVarArgFunc = false;
   }
 
   /// hasStackObjects - Return true if there are any stack objects in this
@@ -274,6 +304,18 @@ public:
   /// \@llvm.returnaddress in this function.
   bool isReturnAddressTaken() const { return ReturnAddressTaken; }
   void setReturnAddressIsTaken(bool s) { ReturnAddressTaken = s; }
+
+  /// hasStackMap - This method may be called any time after instruction
+  /// selection is complete to determine if there is a call to builtin
+  /// \@llvm.experimental.stackmap.
+  bool hasStackMap() const { return HasStackMap; }
+  void setHasStackMap(bool s = true) { HasStackMap = s; }
+
+  /// hasPatchPoint - This method may be called any time after instruction
+  /// selection is complete to determine if there is a call to builtin
+  /// \@llvm.experimental.patchpoint.
+  bool hasPatchPoint() const { return HasPatchPoint; }
+  void setHasPatchPoint(bool s = true) { HasPatchPoint = s; }
 
   /// getObjectIndexBegin - Return the minimum frame object index.
   ///
@@ -379,14 +421,6 @@ public:
     return Objects[ObjectIdx+NumFixedObjects].Alloca;
   }
 
-  /// NeedsStackProtector - Returns true if the object may need stack
-  /// protectors.
-  bool MayNeedStackProtector(int ObjectIdx) const {
-    assert(unsigned(ObjectIdx+NumFixedObjects) < Objects.size() &&
-           "Invalid Object Idx!");
-    return Objects[ObjectIdx+NumFixedObjects].MayNeedSP;
-  }
-
   /// getObjectOffset - Return the assigned stack offset of the specified object
   /// from the incoming stack pointer.
   ///
@@ -450,6 +484,18 @@ public:
   bool hasCalls() const { return HasCalls; }
   void setHasCalls(bool V) { HasCalls = V; }
 
+  /// Returns true if the function contains any stack-adjusting inline assembly.
+  bool hasInlineAsmWithSPAdjust() const { return HasInlineAsmWithSPAdjust; }
+  void setHasInlineAsmWithSPAdjust(bool B) { HasInlineAsmWithSPAdjust = B; }
+
+  /// Returns true if the function calls the llvm.va_start intrinsic.
+  bool hasVAStart() const { return HasVAStart; }
+  void setHasVAStart(bool B) { HasVAStart = B; }
+
+  /// Returns true if the function is variadic and contains a musttail call.
+  bool hasMustTailInVarArgFunc() const { return HasMustTailInVarArgFunc; }
+  void setHasMustTailInVarArgFunc(bool B) { HasMustTailInVarArgFunc = B; }
+
   /// getMaxCallFrameSize - Return the maximum size of a call frame that must be
   /// allocated for an outgoing function call.  This is only available if
   /// CallFrameSetup/Destroy pseudo instructions are used by the target, and
@@ -460,16 +506,32 @@ public:
 
   /// CreateFixedObject - Create a new object at a fixed location on the stack.
   /// All fixed objects should be created before other objects are created for
-  /// efficiency. By default, fixed objects are immutable. This returns an
-  /// index with a negative value.
+  /// efficiency. By default, fixed objects are not pointed to by LLVM IR
+  /// values. This returns an index with a negative value.
   ///
-  int CreateFixedObject(uint64_t Size, int64_t SPOffset, bool Immutable);
+  int CreateFixedObject(uint64_t Size, int64_t SPOffset, bool Immutable,
+                        bool isAliased = false);
 
+  /// CreateFixedSpillStackObject - Create a spill slot at a fixed location
+  /// on the stack.  Returns an index with a negative value.
+  int CreateFixedSpillStackObject(uint64_t Size, int64_t SPOffset);
+
+  /// Allocates memory at a fixed, target-specific offset from the frame
+  /// pointer. Marks the function as having its frame address taken.
+  int CreateFrameAllocation(uint64_t Size);
 
   /// isFixedObjectIndex - Returns true if the specified index corresponds to a
   /// fixed stack object.
   bool isFixedObjectIndex(int ObjectIdx) const {
     return ObjectIdx < 0 && (ObjectIdx >= -(int)NumFixedObjects);
+  }
+
+  /// isAliasedObjectIndex - Returns true if the specified index corresponds
+  /// to an object that might be pointed to by an LLVM IR value.
+  bool isAliasedObjectIndex(int ObjectIdx) const {
+    assert(unsigned(ObjectIdx+NumFixedObjects) < Objects.size() &&
+           "Invalid Object Idx!");
+    return Objects[ObjectIdx+NumFixedObjects].isAliased;
   }
 
   /// isImmutableObjectIndex - Returns true if the specified index corresponds
@@ -500,7 +562,7 @@ public:
   /// a nonnegative identifier to represent it.
   ///
   int CreateStackObject(uint64_t Size, unsigned Alignment, bool isSS,
-                        bool MayNeedSP = false, const AllocaInst *Alloca = 0);
+                        const AllocaInst *Alloca = nullptr);
 
   /// CreateSpillStackObject - Create a new statically sized stack object that
   /// represents a spill slot, returning a nonnegative identifier to represent
@@ -520,7 +582,7 @@ public:
   /// variable sized object is created, whether or not the index returned is
   /// actually used.
   ///
-  int CreateVariableSizedObject(unsigned Alignment);
+  int CreateVariableSizedObject(unsigned Alignment, const AllocaInst *Alloca);
 
   /// getCalleeSavedInfo - Returns a reference to call saved info vector for the
   /// current function.

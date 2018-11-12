@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	ssh-pkcs11-helper
 SRCS=	ssh-pkcs11.c ssh-pkcs11-helper.c
@@ -12,9 +12,7 @@ CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	roaming_dummy.c
 .endif
 
-DPADD=	${LIBSSH}
-LDADD=	-lssh
-USEPRIVATELIB= ssh
+LIBADD=	ssh
 
 .if ${MK_LDNS} != "no"
 CFLAGS+=	-DHAVE_LDNS=1
@@ -23,8 +21,7 @@ CFLAGS+=	-DHAVE_LDNS=1
 #USEPRIVATELIB+= ldns
 .endif
 
-DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD+= -lcrypt -lcrypto -lz
+LIBADD+=	crypto
 
 .include <bsd.prog.mk>
 

@@ -132,7 +132,7 @@ typedef unsigned long lbastart_t;
 #define	DT_STOR_SCSI	0x0020
 #define	DT_STOR_USB	0x0040
 #define	DT_STOR_MMC	0x0080
-#define	DT_STOR_NAND	0x0100
+#define	DT_STOR_SATA	0x0100
 
 #define	DEV_STA_CLOSED	0x0000		/* invalid, closed */
 #define	DEV_STA_OPEN	0x0001		/* open i.e. active */

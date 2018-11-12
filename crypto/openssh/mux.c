@@ -1,4 +1,5 @@
 /* $OpenBSD: mux.c,v 1.44 2013/07/12 00:19:58 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -31,6 +32,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -633,7 +635,8 @@ process_mux_open_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	u_int lport, cport;
 	int i, ret = 0, freefwd = 1;
 
-	fwd.listen_host = fwd.connect_host = NULL;
+	memset(&fwd, 0, sizeof(fwd));
+
 	if (buffer_get_int_ret(&ftype, m) != 0 ||
 	    (fwd.listen_host = buffer_get_string_ret(m, NULL)) == NULL ||
 	    buffer_get_int_ret(&lport, m) != 0 ||
@@ -783,7 +786,8 @@ process_mux_close_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	int i, listen_port, ret = 0;
 	u_int lport, cport;
 
-	fwd.listen_host = fwd.connect_host = NULL;
+	memset(&fwd, 0, sizeof(fwd));
+
 	if (buffer_get_int_ret(&ftype, m) != 0 ||
 	    (fwd.listen_host = buffer_get_string_ret(m, NULL)) == NULL ||
 	    buffer_get_int_ret(&lport, m) != 0 ||

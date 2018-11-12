@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86MCTARGETDESC_H
-#define X86MCTARGETDESC_H
+#ifndef LLVM_LIB_TARGET_X86_MCTARGETDESC_X86MCTARGETDESC_H
+#define LLVM_LIB_TARGET_X86_MCTARGETDESC_X86MCTARGETDESC_H
 
 #include "llvm/Support/DataTypes.h"
 #include <string>
@@ -25,7 +25,10 @@ class MCInstrInfo;
 class MCObjectWriter;
 class MCRegisterInfo;
 class MCSubtargetInfo;
+class MCRelocationInfo;
+class MCStreamer;
 class Target;
+class Triple;
 class StringRef;
 class raw_ostream;
 
@@ -37,8 +40,8 @@ namespace DWARFFlavour {
   enum {
     X86_64 = 0, X86_32_DarwinEH = 1, X86_32_Generic = 2
   };
-} 
-  
+}
+
 /// N86 namespace - Native X86 register numbers
 ///
 namespace N86 {
@@ -62,7 +65,7 @@ namespace X86_MC {
 
   void DetectFamilyModel(unsigned EAX, unsigned &Family, unsigned &Model);
 
-  unsigned getDwarfRegFlavour(StringRef TT, bool isEH);
+  unsigned getDwarfRegFlavour(Triple TT, bool isEH);
 
   void InitLLVM2SEHRegisterMapping(MCRegisterInfo *MRI);
 
@@ -78,8 +81,18 @@ MCCodeEmitter *createX86MCCodeEmitter(const MCInstrInfo &MCII,
                                       const MCSubtargetInfo &STI,
                                       MCContext &Ctx);
 
-MCAsmBackend *createX86_32AsmBackend(const Target &T, StringRef TT, StringRef CPU);
-MCAsmBackend *createX86_64AsmBackend(const Target &T, StringRef TT, StringRef CPU);
+MCAsmBackend *createX86_32AsmBackend(const Target &T, const MCRegisterInfo &MRI,
+                                     StringRef TT, StringRef CPU);
+MCAsmBackend *createX86_64AsmBackend(const Target &T, const MCRegisterInfo &MRI,
+                                     StringRef TT, StringRef CPU);
+
+/// createX86WinCOFFStreamer - Construct an X86 Windows COFF machine code
+/// streamer which will generate PE/COFF format object files.
+///
+/// Takes ownership of \p AB and \p CE.
+MCStreamer *createX86WinCOFFStreamer(MCContext &C, MCAsmBackend &AB,
+                                     MCCodeEmitter *CE, raw_ostream &OS,
+                                     bool RelaxAll);
 
 /// createX86MachObjectWriter - Construct an X86 Mach-O object writer.
 MCObjectWriter *createX86MachObjectWriter(raw_ostream &OS,
@@ -94,6 +107,12 @@ MCObjectWriter *createX86ELFObjectWriter(raw_ostream &OS,
                                          uint16_t EMachine);
 /// createX86WinCOFFObjectWriter - Construct an X86 Win COFF object writer.
 MCObjectWriter *createX86WinCOFFObjectWriter(raw_ostream &OS, bool Is64Bit);
+
+/// createX86_64MachORelocationInfo - Construct X86-64 Mach-O relocation info.
+MCRelocationInfo *createX86_64MachORelocationInfo(MCContext &Ctx);
+
+/// createX86_64ELFORelocationInfo - Construct X86-64 ELF relocation info.
+MCRelocationInfo *createX86_64ELFRelocationInfo(MCContext &Ctx);
 } // End llvm namespace
 
 

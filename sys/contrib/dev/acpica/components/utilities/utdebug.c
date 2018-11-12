@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,11 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __UTDEBUG_C__
+#define EXPORT_ACPI_INTERFACES
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acinterp.h>
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utdebug")
@@ -210,6 +211,7 @@ AcpiDebugPrint (
         }
 
         AcpiGbl_PrevThreadId = ThreadId;
+        AcpiGbl_NestingLevel = 0;
     }
 
     /*
@@ -218,13 +220,22 @@ AcpiDebugPrint (
      */
     AcpiOsPrintf ("%9s-%04ld ", ModuleName, LineNumber);
 
+#ifdef ACPI_APPLICATION
+    /*
+     * For AcpiExec/iASL only, emit the thread ID and nesting level.
+     * Note: nesting level is really only useful during a single-thread
+     * execution. Otherwise, multiple threads will keep resetting the
+     * level.
+     */
     if (ACPI_LV_THREADS & AcpiDbgLevel)
     {
         AcpiOsPrintf ("[%u] ", (UINT32) ThreadId);
     }
 
-    AcpiOsPrintf ("[%02ld] %-22.22s: ",
-        AcpiGbl_NestingLevel, AcpiUtTrimFunctionName (FunctionName));
+    AcpiOsPrintf ("[%02ld] ", AcpiGbl_NestingLevel);
+#endif
+
+    AcpiOsPrintf ("%-22.22s: ", AcpiUtTrimFunctionName (FunctionName));
 
     va_start (args, Format);
     AcpiOsVprintf (Format, args);
@@ -474,7 +485,10 @@ AcpiUtExit (
             "%s\n", AcpiGbl_FnExitStr);
     }
 
-    AcpiGbl_NestingLevel--;
+    if (AcpiGbl_NestingLevel)
+    {
+        AcpiGbl_NestingLevel--;
+    }
 }
 
 ACPI_EXPORT_SYMBOL (AcpiUtExit)
@@ -526,7 +540,10 @@ AcpiUtStatusExit (
         }
     }
 
-    AcpiGbl_NestingLevel--;
+    if (AcpiGbl_NestingLevel)
+    {
+        AcpiGbl_NestingLevel--;
+    }
 }
 
 ACPI_EXPORT_SYMBOL (AcpiUtStatusExit)
@@ -568,7 +585,10 @@ AcpiUtValueExit (
             ACPI_FORMAT_UINT64 (Value));
     }
 
-    AcpiGbl_NestingLevel--;
+    if (AcpiGbl_NestingLevel)
+    {
+        AcpiGbl_NestingLevel--;
+    }
 }
 
 ACPI_EXPORT_SYMBOL (AcpiUtValueExit)
@@ -609,7 +629,76 @@ AcpiUtPtrExit (
             "%s %p\n", AcpiGbl_FnExitStr, Ptr);
     }
 
-    AcpiGbl_NestingLevel--;
+    if (AcpiGbl_NestingLevel)
+    {
+        AcpiGbl_NestingLevel--;
+    }
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiTracePoint
+ *
+ * PARAMETERS:  Type                - Trace event type
+ *              Begin               - TRUE if before execution
+ *              Aml                 - Executed AML address
+ *              Pathname            - Object path
+ *              Pointer             - Pointer to the related object
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Interpreter execution trace.
+ *
+ ******************************************************************************/
+
+void
+AcpiTracePoint (
+    ACPI_TRACE_EVENT_TYPE   Type,
+    BOOLEAN                 Begin,
+    UINT8                   *Aml,
+    char                    *Pathname)
+{
+
+    ACPI_FUNCTION_ENTRY ();
+
+    AcpiExTracePoint (Type, Begin, Aml, Pathname);
+
+#ifdef ACPI_USE_SYSTEM_TRACER
+    AcpiOsTracePoint (Type, Begin, Aml, Pathname);
+#endif
+}
+
+ACPI_EXPORT_SYMBOL (AcpiTracePoint)
+
+#endif
+
+
+#ifdef ACPI_APPLICATION
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiLogError
+ *
+ * PARAMETERS:  Format              - Printf format field
+ *              ...                 - Optional printf arguments
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print error message to the console, used by applications.
+ *
+ ******************************************************************************/
+
+void  ACPI_INTERNAL_VAR_XFACE
+AcpiLogError (
+    const char              *Format,
+    ...)
+{
+    va_list                 Args;
+
+    va_start (Args, Format);
+    (void) AcpiUtFileVprintf (ACPI_FILE_ERR, Format, Args);
+    va_end (Args);
+}
+
+ACPI_EXPORT_SYMBOL (AcpiLogError)
 #endif

@@ -50,22 +50,22 @@ cexpf(float complex z)
 
 	/* cexp(x + I 0) = exp(x) + I 0 */
 	if (hy == 0)
-		return (cpackf(expf(x), y));
+		return (CMPLXF(expf(x), y));
 	GET_FLOAT_WORD(hx, x);
 	/* cexp(0 + I y) = cos(y) + I sin(y) */
 	if ((hx & 0x7fffffff) == 0)
-		return (cpackf(cosf(y), sinf(y)));
+		return (CMPLXF(cosf(y), sinf(y)));
 
 	if (hy >= 0x7f800000) {
 		if ((hx & 0x7fffffff) != 0x7f800000) {
 			/* cexp(finite|NaN +- I Inf|NaN) = NaN + I NaN */
-			return (cpackf(y - y, y - y));
+			return (CMPLXF(y - y, y - y));
 		} else if (hx & 0x80000000) {
 			/* cexp(-Inf +- I Inf|NaN) = 0 + I 0 */
-			return (cpackf(0.0, 0.0));
+			return (CMPLXF(0.0, 0.0));
 		} else {
 			/* cexp(+Inf +- I Inf|NaN) = Inf + I NaN */
-			return (cpackf(x, y - y));
+			return (CMPLXF(x, y - y));
 		}
 	}
 
@@ -84,6 +84,6 @@ cexpf(float complex z)
 		 *  -  x = NaN (spurious inexact exception from y)
 		 */
 		exp_x = expf(x);
-		return (cpackf(exp_x * cosf(y), exp_x * sinf(y)));
+		return (CMPLXF(exp_x * cosf(y), exp_x * sinf(y)));
 	}
 }

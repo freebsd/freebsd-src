@@ -54,5 +54,5 @@ void
 __sparc_utrap_setup(void)
 {
 
-	sysarch(SPARC_UTRAP_INSTALL, &uia);
+	sysarch(SPARC_UTRAP_INSTALL, (void *)&uia);
 }

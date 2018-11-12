@@ -6,7 +6,7 @@
 #
 # To profile, put -DPROF in DEFS and -pg in CFLAGS, and recompile.
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 TCSHDIR= ${.CURDIR}/../../contrib/tcsh
 .PATH: ${TCSHDIR}
@@ -40,8 +40,7 @@ MLINKS= csh.1 tcsh.1
 # utilities of the same name are handled with the associated manpage,
 # builtin.1 in share/man/man1/.
 
-DPADD=	${LIBTERMCAP} ${LIBCRYPT}
-LDADD=	-ltermcap -lcrypt
+LIBADD=	termcapw crypt
 
 LINKS=	${BINDIR}/csh ${BINDIR}/tcsh
 
@@ -94,7 +93,7 @@ GENHDRS+= iconv.h
 SRCS+=	iconv_stub.c
 
 iconv.h: ${.CURDIR}/iconv_stub.h
-	cp ${.CURDIR}/iconv_stub.h ${.TARGET}
+	${CP} ${.CURDIR}/iconv_stub.h ${.TARGET}
 .endif
 .endif
 

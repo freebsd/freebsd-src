@@ -6,26 +6,24 @@ LIB=	clangdriver
 
 SRCDIR=	tools/clang/lib/Driver
 SRCS=	Action.cpp \
-	Arg.cpp \
-	ArgList.cpp \
-	CC1AsOptions.cpp \
 	Compilation.cpp \
+	CrossWindowsToolChain.cpp \
 	Driver.cpp \
 	DriverOptions.cpp \
 	Job.cpp \
-	OptTable.cpp \
-	Option.cpp \
+	MSVCToolChain.cpp \
+	Multilib.cpp \
 	Phases.cpp \
+	SanitizerArgs.cpp \
 	Tool.cpp \
 	ToolChain.cpp \
 	ToolChains.cpp \
 	Tools.cpp \
-	Types.cpp \
-	WindowsToolChain.cpp
+	Types.cpp
 
-TGHDRS=	CC1AsOptions \
-	DiagnosticCommonKinds \
+TGHDRS=	DiagnosticCommonKinds \
 	DiagnosticDriverKinds \
+	DiagnosticSemaKinds \
 	Options
 
 .include "../clang.lib.mk"

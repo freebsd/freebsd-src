@@ -29,6 +29,7 @@
  */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
 #include <dev/isp/isp_freebsd.h>
 #include <sys/unistd.h>
 #include <sys/kthread.h>
@@ -51,11 +52,10 @@ MODULE_DEPEND(isp, cam, 1, 1, 1);
 int isp_announced = 0;
 int isp_fabric_hysteresis = 5;
 int isp_loop_down_limit = 60;	/* default loop down limit */
-int isp_change_is_bad = 0;	/* "changed" devices are bad */
 int isp_quickboot_time = 7;	/* don't wait more than N secs for loop up */
 int isp_gone_device_time = 30;	/* grace time before reporting device lost */
 int isp_autoconfig = 1;		/* automatically attach/detach devices */
-static const char prom3[] = "Chan %d PortID 0x%06x Departed from Target %u because of %s";
+static const char prom3[] = "Chan %d [%u] PortID 0x%06x Departed because of %s";
 
 static void isp_freeze_loopdown(ispsoftc_t *, int, char *);
 static d_ioctl_t ispioctl;
@@ -81,6 +81,40 @@ static struct cdevsw isp_cdevsw = {
 	.d_ioctl =	ispioctl,
 	.d_name =	"isp",
 };
+
+static int
+isp_role_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	ispsoftc_t *isp = (ispsoftc_t *)arg1;
+	int chan = arg2;
+	int error, old, value;
+
+	value = FCPARAM(isp, chan)->role;
+
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if ((error != 0) || (req->newptr == NULL))
+		return (error);
+
+	if (value < ISP_ROLE_NONE || value > ISP_ROLE_BOTH)
+		return (EINVAL);
+
+	ISP_LOCK(isp);
+	old = FCPARAM(isp, chan)->role;
+
+	/* We don't allow target mode switch from here. */
+	value = (old & ISP_ROLE_TARGET) | (value & ISP_ROLE_INITIATOR);
+
+	/* If nothing has changed -- we are done. */
+	if (value == old) {
+		ISP_UNLOCK(isp);
+		return (0);
+	}
+
+	/* Actually change the role. */
+	error = isp_control(isp, ISPCTL_CHANGE_ROLE, chan, value);
+	ISP_UNLOCK(isp);
+	return (error);
+}
 
 static int
 isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
@@ -132,10 +166,14 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 			ISP_SET_PC(isp, chan, proc_active, 0);
 			isp_prt(isp, ISP_LOGERR, "cannot create test target thread");
 		}
+		ISP_SPI_PC(isp, chan)->num_threads += 1;
 #endif
 	} else {
 		fcparam *fcp = FCPARAM(isp, chan);
 		struct isp_fc *fc = ISP_FC_PC(isp, chan);
+		struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(isp->isp_osinfo.dev);
+		struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
+		char name[16];
 
 		ISP_LOCK(isp);
 		fc->sim = sim;
@@ -167,26 +205,73 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 			cam_sim_free(fc->sim, FALSE);
 			return (ENOMEM);
 		}
+		ISP_FC_PC(isp, chan)->num_threads += 1;
 #ifdef	ISP_INTERNAL_TARGET
 		ISP_SET_PC(isp, chan, proc_active, 1);
 		if (THREAD_CREATE(isp_target_thread_fc, fc, &fc->target_proc, 0, 0, "%s: isp_test_tgt%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
 			ISP_SET_PC(isp, chan, proc_active, 0);
 			isp_prt(isp, ISP_LOGERR, "cannot create test target thread");
 		}
+		ISP_FC_PC(isp, chan)->num_threads += 1;
 #endif
-		if (chan == 0) {
-			struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(isp->isp_osinfo.dev);
-			struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
-			SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwnn", CTLFLAG_RD, &FCPARAM(isp, 0)->isp_wwnn, "World Wide Node Name");
-			SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwpn", CTLFLAG_RD, &FCPARAM(isp, 0)->isp_wwpn, "World Wide Port Name");
-			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "loop_down_limit", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->loop_down_limit, 0, "Loop Down Limit");
-			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "gone_device_time", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->gone_device_time, 0, "Gone Device Time");
-#if defined(ISP_TARGET_MODE) && defined(DEBUG)
-			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "inject_lost_data_frame", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->inject_lost_data_frame, 0, "Cause a Lost Frame on a Read");
-#endif
+		if (chan > 0) {
+			snprintf(name, sizeof(name), "chan%d", chan);
+			tree = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(tree),
+			    OID_AUTO, name, CTLFLAG_RW, 0, "Virtual channel");
 		}
+		SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwnn", CTLFLAG_RD, &FCPARAM(isp, chan)->isp_wwnn, "World Wide Node Name");
+		SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwpn", CTLFLAG_RD, &FCPARAM(isp, chan)->isp_wwpn, "World Wide Port Name");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "loop_down_limit", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->loop_down_limit, 0, "Loop Down Limit");
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "gone_device_time", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->gone_device_time, 0, "Gone Device Time");
+#if defined(ISP_TARGET_MODE) && defined(DEBUG)
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "inject_lost_data_frame", CTLFLAG_RW, &ISP_FC_PC(isp, chan)->inject_lost_data_frame, 0, "Cause a Lost Frame on a Read");
+#endif
+		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "role", CTLTYPE_INT | CTLFLAG_RW, isp, chan,
+		    isp_role_sysctl, "I", "Current role");
 	}
 	return (0);
+}
+
+static void
+isp_detach_internal_target(ispsoftc_t *isp, int chan)
+{
+#ifdef ISP_INTERNAL_TARGET
+	void *wchan;
+
+	ISP_GET_PC(isp, chan, target_proc, wchan);
+	ISP_SET_PC(isp, chan, proc_active, 0);
+	wakeup(wchan);
+#endif
+}
+
+static void
+isp_detach_chan(ispsoftc_t *isp, int chan)
+{
+	struct cam_sim *sim;
+	struct cam_path *path;
+	struct ccb_setasync csa;
+	int *num_threads;
+
+	ISP_GET_PC(isp, chan, sim, sim);
+	ISP_GET_PC(isp, chan, path, path);
+	ISP_GET_PC_ADDR(isp, chan, num_threads, num_threads);
+
+	xpt_setup_ccb(&csa.ccb_h, path, 5);
+	csa.ccb_h.func_code = XPT_SASYNC_CB;
+	csa.event_enable = 0;
+	csa.callback = isp_cam_async;
+	csa.callback_arg = sim;
+	xpt_action((union ccb *)&csa);
+	xpt_free_path(path);
+	xpt_bus_deregister(cam_sim_path(sim));
+	cam_sim_free(sim, FALSE);
+
+	/* Wait for the channel's spawned threads to exit. */
+	wakeup(isp->isp_osinfo.pc.ptr);
+	isp_detach_internal_target(isp, chan);
+	while (*num_threads != 0)
+		mtx_sleep(isp, &isp->isp_osinfo.lock, PRIBIO, "isp_reap", 100);
 }
 
 int
@@ -239,13 +324,9 @@ unwind:
 	while (--chan >= 0) {
 		struct cam_sim *sim;
 		struct cam_path *path;
-		if (IS_FC(isp)) {
-			sim = ISP_FC_PC(isp, chan)->sim;
-			path = ISP_FC_PC(isp, chan)->path;
-		} else {
-			sim = ISP_SPI_PC(isp, chan)->sim;
-			path = ISP_SPI_PC(isp, chan)->path;
-		}
+
+		ISP_GET_PC(isp, chan, sim, sim);
+		ISP_GET_PC(isp, chan, path, path);
 		xpt_free_path(path);
 		ISP_LOCK(isp);
 		xpt_bus_deregister(cam_sim_path(sim));
@@ -269,49 +350,26 @@ int
 isp_detach(ispsoftc_t *isp)
 {
 	struct cam_sim *sim;
-	struct cam_path *path;
-	struct ccb_setasync csa;
 	int chan;
 
 	ISP_LOCK(isp);
 	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1) {
-		if (IS_FC(isp)) {
-			sim = ISP_FC_PC(isp, chan)->sim;
-			path = ISP_FC_PC(isp, chan)->path;
-		} else {
-			sim = ISP_SPI_PC(isp, chan)->sim;
-			path = ISP_SPI_PC(isp, chan)->path;
-		}
+		ISP_GET_PC(isp, chan, sim, sim);
 		if (sim->refcount > 2) {
 			ISP_UNLOCK(isp);
 			return (EBUSY);
 		}
 	}
+	/* Tell spawned threads that we're exiting. */
+	isp->isp_osinfo.is_exiting = 1;
 	if (isp->isp_osinfo.timer_active) {
 		callout_stop(&isp->isp_osinfo.tmo);
 		isp->isp_osinfo.timer_active = 0;
 	}
-	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1) {
-		if (IS_FC(isp)) {
-			sim = ISP_FC_PC(isp, chan)->sim;
-			path = ISP_FC_PC(isp, chan)->path;
-		} else {
-			sim = ISP_SPI_PC(isp, chan)->sim;
-			path = ISP_SPI_PC(isp, chan)->path;
-		}
-		xpt_setup_ccb(&csa.ccb_h, path, 5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = 0;
-		csa.callback = isp_cam_async;
-		csa.callback_arg = sim;
-		ISP_LOCK(isp);
-		xpt_action((union ccb *)&csa);
-		ISP_UNLOCK(isp);
-		xpt_free_path(path);
-		xpt_bus_deregister(cam_sim_path(sim));
-		cam_sim_free(sim, FALSE);
-	}
+	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1)
+		isp_detach_chan(isp, chan);
 	ISP_UNLOCK(isp);
+
 	if (isp->isp_osinfo.cdev) {
 		destroy_dev(isp->isp_osinfo.cdev);
 		isp->isp_osinfo.cdev = NULL;
@@ -400,38 +458,18 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 			retval = EINVAL;
 			break;
 		}
-		if (IS_FC(isp)) {
-			/*
-			 * We don't really support dual role at present on FC cards.
-			 *
-			 * We should, but a bunch of things are currently broken,
-			 * so don't allow it.
-			 */
-			if (nr == ISP_ROLE_BOTH) {
-				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
-				retval = EINVAL;
-				break;
-			}
+		ISP_LOCK(isp);
+		if (IS_FC(isp))
 			*(int *)addr = FCPARAM(isp, chan)->role;
-#ifdef	ISP_INTERNAL_TARGET
-			ISP_LOCK(isp);
-			retval = isp_fc_change_role(isp, chan, nr);
-			ISP_UNLOCK(isp);
-#else
-			FCPARAM(isp, chan)->role = nr;
-#endif
-		} else {
+		else
 			*(int *)addr = SDPARAM(isp, chan)->role;
-			SDPARAM(isp, chan)->role = nr;
-		}
+		retval = isp_control(isp, ISPCTL_CHANGE_ROLE, chan, nr);
+		ISP_UNLOCK(isp);
 		retval = 0;
 		break;
 
 	case ISP_RESETHBA:
 		ISP_LOCK(isp);
-#ifdef	ISP_TARGET_MODE
-		isp_del_all_wwn_entries(isp, ISP_NOCHAN);
-#endif
 		isp_reinit(isp, 0);
 		ISP_UNLOCK(isp);
 		retval = 0;
@@ -483,7 +521,7 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 			break;
 		}
 		lp = &FCPARAM(isp, ifc->chan)->portdb[ifc->loopid];
-		if (lp->state == FC_PORTDB_STATE_VALID || lp->target_mode) {
+		if (lp->state != FC_PORTDB_STATE_NIL) {
 			ifc->role = (lp->prli_word3 & SVC3_ROLE_MASK) >> SVC3_ROLE_SHIFT;
 			ifc->loopid = lp->handle;
 			ifc->portid = lp->portid;
@@ -877,7 +915,7 @@ is_lun_enabled(ispsoftc_t *isp, int bus, lun_id_t lun)
 
 	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(lun)], lhp);
 	SLIST_FOREACH(tptr, lhp, next) {
-		if (xpt_path_lun_id(tptr->owner) == lun) {
+		if (tptr->ts_lun == lun) {
 			return (1);
 		}
 	}
@@ -909,16 +947,13 @@ get_lun_statep(ispsoftc_t *isp, int bus, lun_id_t lun)
 {
 	tstate_t *tptr = NULL;
 	struct tslist *lhp;
-	int i;
 
 	if (bus < isp->isp_nchan) {
-		for (i = 0; i < LUN_HASH_SIZE; i++) {
-			ISP_GET_PC_ADDR(isp, bus, lun_hash[i], lhp);
-			SLIST_FOREACH(tptr, lhp, next) {
-				if (xpt_path_lun_id(tptr->owner) == lun) {
-					tptr->hold++;
-					return (tptr);
-				}
+		ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(lun)], lhp);
+		SLIST_FOREACH(tptr, lhp, next) {
+			if (tptr->ts_lun == lun) {
+				tptr->hold++;
+				return (tptr);
 			}
 		}
 	}
@@ -1132,6 +1167,7 @@ create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rsl
 	if (tptr == NULL) {
 		return (CAM_RESRC_UNAVAIL);
 	}
+	tptr->ts_lun = lun;
 	status = xpt_create_path(&tptr->owner, NULL, xpt_path_path_id(path), xpt_path_target_id(path), lun);
 	if (status != CAM_REQ_CMP) {
 		free(tptr, M_DEVBUF);
@@ -1149,7 +1185,7 @@ create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rsl
 		tptr->ntpool[i].next = &tptr->ntpool[i+1];
 	tptr->ntfree = tptr->ntpool;
 	tptr->hold = 1;
-	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
+	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(lun)], lhp);
 	SLIST_INSERT_HEAD(lhp, tptr, next);
 	*rslt = tptr;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, path, "created tstate\n");
@@ -1180,7 +1216,7 @@ destroy_lun_state(ispsoftc_t *isp, tstate_t *tptr)
 			xpt_done(ccb);
 		}
 	} while (ccb);
-	ISP_GET_PC_ADDR(isp, cam_sim_bus(xpt_path_sim(tptr->owner)), lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
+	ISP_GET_PC_ADDR(isp, cam_sim_bus(xpt_path_sim(tptr->owner)), lun_hash[LUN_HASH_FUNC(tptr->ts_lun)], lhp);
 	SLIST_REMOVE(lhp, tptr, tstate, next);
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, tptr->owner, "destroyed tstate\n");
 	xpt_free_path(tptr->owner);
@@ -1206,11 +1242,6 @@ isp_enable_lun(ispsoftc_t *isp, union ccb *ccb)
 	target = ccb->ccb_h.target_id;
 	lun = ccb->ccb_h.target_lun;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0|ISP_LOGCONFIG, ccb->ccb_h.path, "enabling lun %u\n", lun);
-	if (target != CAM_TARGET_WILDCARD && target != 0) {
-		ccb->ccb_h.status = CAM_TID_INVALID;
-		xpt_done(ccb);
-		return;
-	}
 	if (target == CAM_TARGET_WILDCARD && lun != CAM_LUN_WILDCARD) {
 		ccb->ccb_h.status = CAM_LUN_INVALID;
 		xpt_done(ccb);
@@ -1356,7 +1387,7 @@ isp_enable_deferred_luns(ispsoftc_t *isp, int bus)
 		SLIST_FOREACH(tptr, lhp, next) {
 			tptr->hold++;
 			if (tptr->enabled == 0) {
-				if (isp_enable_deferred(isp, bus, xpt_path_lun_id(tptr->owner)) == CAM_REQ_CMP) {
+				if (isp_enable_deferred(isp, bus, tptr->ts_lun) == CAM_REQ_CMP) {
 					tptr->enabled = 1;
 					n++;
 				}
@@ -1423,12 +1454,6 @@ isp_disable_lun(ispsoftc_t *isp, union ccb *ccb)
 	target = ccb->ccb_h.target_id;
 	lun = ccb->ccb_h.target_lun;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0|ISP_LOGCONFIG, ccb->ccb_h.path, "disabling lun %u\n", lun);
-	if (target != CAM_TARGET_WILDCARD && target != 0) {
-		ccb->ccb_h.status = CAM_TID_INVALID;
-		xpt_done(ccb);
-		return;
-	}
-
 	if (target == CAM_TARGET_WILDCARD && lun != CAM_LUN_WILDCARD) {
 		ccb->ccb_h.status = CAM_LUN_INVALID;
 		xpt_done(ccb);
@@ -1480,13 +1505,7 @@ isp_disable_lun(ispsoftc_t *isp, union ccb *ccb)
 done:
 	if (status == CAM_REQ_CMP) {
 		tptr->enabled = 0;
-		/*
-		 * If we have no more luns enabled for this bus,
-		 * delete all tracked wwns for it (if we are FC), 
-		 * and disable target mode.
-		 */
 		if (is_any_lun_enabled(isp, bus) == 0) {
-			isp_del_all_wwn_entries(isp, bus);
 			if (isp_disable_target_mode(isp, bus)) {
 				status = CAM_REQ_CMP_ERR;
 			}
@@ -1879,10 +1898,10 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			cto->ct_header.rqs_entry_count = 1;
 			cto->ct_header.rqs_seqno |= ATPD_SEQ_NOTIFY_CAM;
 			ATPD_SET_SEQNO(cto, atp);
-			if (ISP_CAP_2KLOGIN(isp) == 0) {
-				((ct2e_entry_t *)cto)->ct_iid = cso->init_id;
+			if (ISP_CAP_2KLOGIN(isp)) {
+				((ct2e_entry_t *)cto)->ct_iid = atp->nphdl;
 			} else {
-				cto->ct_iid = cso->init_id;
+				cto->ct_iid = atp->nphdl;
 				if (ISP_CAP_SCCFW(isp) == 0) {
 					cto->ct_lun = ccb->ccb_h.target_lun;
 				}
@@ -2119,10 +2138,9 @@ static void
 isp_refire_putback_atio(void *arg)
 {
 	union ccb *ccb = arg;
-	ispsoftc_t *isp = XS_ISP(ccb);
-	ISP_LOCK(isp);
+
+	ISP_ASSERT_LOCKED((ispsoftc_t *)XS_ISP(ccb));
 	isp_target_putback_atio(ccb);
-	ISP_UNLOCK(isp);
 }
 
 static void
@@ -2130,13 +2148,13 @@ isp_refire_notify_ack(void *arg)
 {
 	isp_tna_t *tp  = arg;
 	ispsoftc_t *isp = tp->isp;
-	ISP_LOCK(isp);
+
+	ISP_ASSERT_LOCKED(isp);
 	if (isp_notify_ack(isp, tp->not)) {
-		(void) timeout(isp_refire_notify_ack, tp, 5);
+		callout_schedule(&tp->timer, 5);
 	} else {
 		free(tp, M_DEVBUF);
 	}
-	ISP_UNLOCK(isp);
 }
 
 
@@ -2153,7 +2171,8 @@ isp_target_putback_atio(union ccb *ccb)
 	if (qe == NULL) {
 		xpt_print(ccb->ccb_h.path,
 		    "%s: Request Queue Overflow\n", __func__);
-		(void) timeout(isp_refire_putback_atio, ccb, 10);
+		callout_reset(&PISP_PCMD(ccb)->wdog, 10,
+		    isp_refire_putback_atio, ccb);
 		return;
 	}
 	memset(qe, 0, QENTRY_LEN);
@@ -2422,33 +2441,24 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	 * We don't get 'suggested' sense data as we do with SCSI cards.
 	 */
 	atiop->sense_len = 0;
-	if (ISP_CAP_2KLOGIN(isp)) {
-		/*
-		 * NB: We could not possibly have 2K logins if we
-		 * NB: also did not have SCC FW.
-		 */
-		atiop->init_id = ((at2e_entry_t *)aep)->at_iid;
-	} else {
-		atiop->init_id = aep->at_iid;
-	}
 
 	/*
 	 * If we're not in the port database, add ourselves.
 	 */
-	if (!IS_2100(isp) && isp_find_pdb_by_loopid(isp, 0, atiop->init_id, &lp) == 0) {
-    		uint64_t iid =
-			(((uint64_t) aep->at_wwpn[0]) << 48) |
-			(((uint64_t) aep->at_wwpn[1]) << 32) |
-			(((uint64_t) aep->at_wwpn[2]) << 16) |
-			(((uint64_t) aep->at_wwpn[3]) <<  0);
-		/*
-		 * However, make sure we delete ourselves if otherwise
-		 * we were there but at a different loop id.
-		 */
-		if (isp_find_pdb_by_wwn(isp, 0, iid, &lp)) {
-			isp_del_wwn_entry(isp, 0, iid, lp->handle, lp->portid);
+	if (IS_2100(isp))
+		atiop->init_id = nphdl;
+	else {
+		if ((isp_find_pdb_by_handle(isp, 0, nphdl, &lp) == 0 ||
+		     lp->state == FC_PORTDB_STATE_ZOMBIE)) {
+			uint64_t iid =
+				(((uint64_t) aep->at_wwpn[0]) << 48) |
+				(((uint64_t) aep->at_wwpn[1]) << 32) |
+				(((uint64_t) aep->at_wwpn[2]) << 16) |
+				(((uint64_t) aep->at_wwpn[3]) <<  0);
+			isp_add_wwn_entry(isp, 0, iid, nphdl, PORT_ANY, 0);
+			isp_find_pdb_by_handle(isp, 0, nphdl, &lp);
 		}
-		isp_add_wwn_entry(isp, 0, iid, atiop->init_id, PORT_ANY, 0);
+		atiop->init_id = FC_PORTDB_TGT(isp, 0, lp);
 	}
 	atiop->cdb_len = ATIO2_CDBLEN;
 	ISP_MEMCPY(atiop->cdb_io.cdb_bytes, aep->at_cdb, ATIO2_CDBLEN);
@@ -2477,7 +2487,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	atp->orig_datalen = aep->at_datalen;
 	atp->bytes_xfered = 0;
 	atp->lun = lun;
-	atp->nphdl = atiop->init_id;
+	atp->nphdl = nphdl;
 	atp->sid = PORT_ANY;
 	atp->oxid = aep->at_oxid;
 	atp->cdb0 = aep->at_cdb[0];
@@ -2506,7 +2516,6 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	int cdbxlen;
 	uint16_t lun, chan, nphdl = NIL_HANDLE;
 	uint32_t did, sid;
-	uint64_t wwn = INI_NONE;
 	fcportdb_t *lp;
 	tstate_t *tptr;
 	struct ccb_accept_tio *atiop;
@@ -2524,7 +2533,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	 * If we can't, we're somewhat in trouble because we can't actually respond w/o that information.
 	 * We also, as a matter of course, need to know the WWN of the initiator too.
 	 */
-	if (ISP_CAP_MULTI_ID(isp)) {
+	if (ISP_CAP_MULTI_ID(isp) && isp->isp_nchan > 1) {
 		/*
 		 * Find the right channel based upon D_ID
 		 */
@@ -2569,11 +2578,11 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 		 */
 		isp_prt(isp, ISP_LOGTINFO, "%s: [RX_ID 0x%x] D_ID 0x%06x found on Chan %d for S_ID 0x%06x wasn't in PDB already",
 		    __func__, aep->at_rxid, did, chan, sid);
+		isp_dump_portdb(isp, chan);
 		isp_endcmd(isp, aep, NIL_HANDLE, chan, ECMD_TERMINATE, 0);
 		return;
 	}
 	nphdl = lp->handle;
-	wwn = lp->port_wwn;
 
 	/*
 	 * Get the tstate pointer
@@ -2661,7 +2670,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
 	tptr->atio_count--;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, atiop->ccb_h.path, "Take FREE ATIO count now %d\n", tptr->atio_count);
-	atiop->init_id = nphdl;
+	atiop->init_id = FC_PORTDB_TGT(isp, chan, lp);
 	atiop->ccb_h.target_id = FCPARAM(isp, chan)->isp_loopid;
 	atiop->ccb_h.target_lun = lun;
 	atiop->sense_len = 0;
@@ -2915,6 +2924,14 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 		atp = isp_find_atpd(isp, tptr, ((ct_entry_t *)arg)->ct_fwhandle);
 	}
 	if (atp == NULL) {
+		/*
+		 * XXX: isp_clear_commands() generates fake CTIO with zero
+		 * ct_rxid value, filling only ct_syshandle.  Workaround
+		 * that using tag_id from the CCB, pointed by ct_syshandle.
+		 */
+		atp = isp_find_atpd(isp, tptr, ccb->csio.tag_id);
+	}
+	if (atp == NULL) {
 		rls_lun_statep(isp, tptr);
 		isp_prt(isp, ISP_LOGERR, "%s: cannot find adjunct for %x after I/O", __func__, ccb->csio.tag_id);
 		return;
@@ -3067,7 +3084,7 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 	{
 		tstate_t *tptr;
 		uint16_t lun;
-		uint32_t loopid;
+		uint32_t loopid, sid;
 		uint64_t wwn;
 		atio_private_data_t *atp;
 		fcportdb_t *lp;
@@ -3083,10 +3100,12 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 		} else {
 			loopid = inp->in_iid;
 		}
-		if (isp_find_pdb_by_loopid(isp, 0, loopid, &lp)) {
+		if (isp_find_pdb_by_handle(isp, 0, loopid, &lp)) {
 			wwn = lp->port_wwn;
+			sid = lp->portid;
 		} else {
 			wwn = INI_ANY;
+			sid = PORT_ANY;
 		}
 		tptr = get_lun_statep(isp, 0, lun);
 		if (tptr == NULL) {
@@ -3118,7 +3137,7 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 			nt->nt_tgt = FCPARAM(isp, 0)->isp_wwpn;
 			nt->nt_wwn = wwn;
 			nt->nt_nphdl = loopid;
-			nt->nt_sid = PORT_ANY;
+			nt->nt_sid = sid;
 			nt->nt_did = PORT_ANY;
     			nt->nt_lun = lun;
             		nt->nt_need_ack = 1;
@@ -3237,7 +3256,7 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 
 	case IN24XX_PORT_LOGOUT:
 		ptr = "PORT LOGOUT";
-		if (isp_find_pdb_by_loopid(isp, ISP_GET_VPIDX(isp, inot->in_vpidx), nphdl, &lp)) {
+		if (isp_find_pdb_by_handle(isp, ISP_GET_VPIDX(isp, inot->in_vpidx), nphdl, &lp)) {
 			isp_del_wwn_entry(isp, ISP_GET_VPIDX(isp, inot->in_vpidx), lp->port_wwn, nphdl, lp->portid);
 		}
 		/* FALLTHROUGH */
@@ -3430,10 +3449,11 @@ isp_handle_platform_target_tmf(ispsoftc_t *isp, isp_notify_t *notify)
 		goto bad;
 	}
 
-	if (isp_find_pdb_by_sid(isp, notify->nt_channel, notify->nt_sid, &lp) == 0) {
+	if (isp_find_pdb_by_sid(isp, notify->nt_channel, notify->nt_sid, &lp) == 0 &&
+	    isp_find_pdb_by_handle(isp, notify->nt_channel, notify->nt_nphdl, &lp) == 0) {
 		inot->initiator_id = CAM_TARGET_WILDCARD;
 	} else {
-		inot->initiator_id = lp->handle;
+		inot->initiator_id = FC_PORTDB_TGT(isp, notify->nt_channel, lp);
 	}
 	inot->seq_id = notify->nt_tagval;
 	inot->tag_id = notify->nt_tagval >> 32;
@@ -4225,7 +4245,7 @@ isp_target_thread(ispsoftc_t *isp, int chan)
 	/*
 	 * Add resources
 	 */
-	ISP_GET_PC_ADDR(isp, chan, target_proc, wchan);
+	ISP_GET_PC(isp, chan, target_proc, wchan);
 	for (i = 0; i < 4; i++) {
 		ccb = malloc(sizeof (*ccb), M_ISPTARG, M_WAITOK | M_ZERO);
 		xpt_setup_ccb(&ccb->ccb_h, wperiph->path, 1);
@@ -4313,14 +4333,24 @@ static void
 isp_target_thread_pi(void *arg)
 {
 	struct isp_spi *pi = arg;
-	isp_target_thread(cam_sim_softc(pi->sim), cam_sim_bus(pi->sim));
+	ispsoftc_t *isp = cam_sim_softc(pi->sim);
+	int chan = cam_sim_bus(pi->sim);
+
+	isp_target_thread(isp, chan);
+	ISP_SPI_PC(isp, chan)->num_threads -= 1;
+	kthread_exit();
 }
 
 static void
 isp_target_thread_fc(void *arg)
 {
 	struct isp_fc *fc = arg;
-	isp_target_thread(cam_sim_softc(fc->sim), cam_sim_bus(fc->sim));
+	ispsoftc_t *isp = cam_sim_softc(pi->sim);
+	int chan = cam_sim_bus(pi->sim);
+
+	isp_target_thread(isp, chan);
+	ISP_FC_PC(isp, chan)->num_threads -= 1;
+	kthread_exit();
 }
 
 static int
@@ -4540,7 +4570,7 @@ isp_watchdog(void *arg)
 }
 
 static void
-isp_make_here(ispsoftc_t *isp, int chan, int tgt)
+isp_make_here(ispsoftc_t *isp, fcportdb_t *fcp, int chan, int tgt)
 {
 	union ccb *ccb;
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);
@@ -4567,7 +4597,7 @@ isp_make_here(ispsoftc_t *isp, int chan, int tgt)
 }
 
 static void
-isp_make_gone(ispsoftc_t *isp, int chan, int tgt)
+isp_make_gone(ispsoftc_t *isp, fcportdb_t *fcp, int chan, int tgt)
 {
 	struct cam_path *tp;
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);
@@ -4605,7 +4635,9 @@ isp_gdt_task(void *arg, int pending)
 	ispsoftc_t *isp = fc->isp;
 	int chan = fc - isp->isp_osinfo.pc.fc;
 	fcportdb_t *lp;
-	int dbidx, tgt, more_to_do = 0;
+	struct ac_contract ac;
+	struct ac_device_changed *adc;
+	int dbidx, more_to_do = 0;
 
 	ISP_LOCK(isp);
 	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d GDT timer expired", chan);
@@ -4615,21 +4647,27 @@ isp_gdt_task(void *arg, int pending)
 		if (lp->state != FC_PORTDB_STATE_ZOMBIE) {
 			continue;
 		}
-		if (lp->dev_map_idx == 0 || lp->target_mode) {
-			continue;
-		}
 		if (lp->gone_timer != 0) {
-			isp_prt(isp, ISP_LOG_SANCFG, "%s: Chan %d more to do for target %u (timer=%u)", __func__, chan, lp->dev_map_idx - 1, lp->gone_timer);
 			lp->gone_timer -= 1;
 			more_to_do++;
 			continue;
 		}
-		tgt = lp->dev_map_idx - 1;
-		FCPARAM(isp, chan)->isp_dev_map[tgt] = 0;
-		lp->dev_map_idx = 0;
+		isp_prt(isp, ISP_LOGCONFIG, prom3, chan, dbidx, lp->portid, "Gone Device Timeout");
+		if (lp->is_target) {
+			lp->is_target = 0;
+			isp_make_gone(isp, lp, chan, dbidx);
+		}
+		if (lp->is_initiator) {
+			lp->is_initiator = 0;
+			ac.contract_number = AC_CONTRACT_DEV_CHG;
+			adc = (struct ac_device_changed *) ac.contract_data;
+			adc->wwpn = lp->port_wwn;
+			adc->port = lp->portid;
+			adc->target = dbidx;
+			adc->arrived = 0;
+			xpt_async(AC_CONTRACT, fc->path, &ac);
+		}
 		lp->state = FC_PORTDB_STATE_NIL;
-		isp_prt(isp, ISP_LOGCONFIG, prom3, chan, lp->portid, tgt, "Gone Device Timeout");
-		isp_make_gone(isp, chan, tgt);
 	}
 	if (fc->ready) {
 		if (more_to_do) {
@@ -4665,7 +4703,9 @@ isp_ldt_task(void *arg, int pending)
 	ispsoftc_t *isp = fc->isp;
 	int chan = fc - isp->isp_osinfo.pc.fc;
 	fcportdb_t *lp;
-	int dbidx, tgt, i;
+	struct ac_contract ac;
+	struct ac_device_changed *adc;
+	int dbidx, i;
 
 	ISP_LOCK(isp);
 	isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Chan %d Loop Down Timer expired @ %lu", chan, (unsigned long) time_uptime);
@@ -4677,18 +4717,12 @@ isp_ldt_task(void *arg, int pending)
 	for (dbidx = 0; dbidx < MAX_FC_TARG; dbidx++) {
 		lp = &FCPARAM(isp, chan)->portdb[dbidx];
 
-		if (lp->state != FC_PORTDB_STATE_PROBATIONAL) {
+		if (lp->state == FC_PORTDB_STATE_NIL)
 			continue;
-		}
-		if (lp->dev_map_idx == 0 || lp->target_mode) {
-			continue;
-		}
 
 		/*
 		 * XXX: CLEAN UP AND COMPLETE ANY PENDING COMMANDS FIRST!
 		 */
-
-
 		for (i = 0; i < isp->isp_maxcmds; i++) {
 			struct ccb_scsiio *xs;
 
@@ -4698,36 +4732,31 @@ isp_ldt_task(void *arg, int pending)
 			if ((xs = isp->isp_xflist[i].cmd) == NULL) {
 				continue;
                         }
-			if (dbidx != (FCPARAM(isp, chan)->isp_dev_map[XS_TGT(xs)] - 1)) {
+			if (dbidx != XS_TGT(xs)) {
 				continue;
 			}
 			isp_prt(isp, ISP_LOGWARN, "command handle 0x%x for %d.%d.%d orphaned by loop down timeout",
 			    isp->isp_xflist[i].handle, chan, XS_TGT(xs), XS_LUN(xs));
 		}
 
-		/*
-		 * Mark that we've announced that this device is gone....
-		 */
-		lp->announced = 1;
-
-		/*
-		 * but *don't* change the state of the entry. Just clear
-		 * any target id stuff and announce to CAM that the
-		 * device is gone. This way any necessary PLOGO stuff
-		 * will happen when loop comes back up.
-		 */
-
-		tgt = lp->dev_map_idx - 1;
-		FCPARAM(isp, chan)->isp_dev_map[tgt] = 0;
-		lp->dev_map_idx = 0;
-		lp->state = FC_PORTDB_STATE_NIL;
-		isp_prt(isp, ISP_LOGCONFIG, prom3, chan, lp->portid, tgt, "Loop Down Timeout");
-		isp_make_gone(isp, chan, tgt);
+		isp_prt(isp, ISP_LOGCONFIG, prom3, chan, dbidx, lp->portid, "Loop Down Timeout");
+		if (lp->is_target) {
+			lp->is_target = 0;
+			isp_make_gone(isp, lp, chan, dbidx);
+		}
+		if (lp->is_initiator) {
+			lp->is_initiator = 0;
+			ac.contract_number = AC_CONTRACT_DEV_CHG;
+			adc = (struct ac_device_changed *) ac.contract_data;
+			adc->wwpn = lp->port_wwn;
+			adc->port = lp->portid;
+			adc->target = dbidx;
+			adc->arrived = 0;
+			xpt_async(AC_CONTRACT, fc->path, &ac);
+		}
 	}
 
-	if (FCPARAM(isp, chan)->role & ISP_ROLE_INITIATOR) {
-		isp_unfreeze_loopdown(isp, chan);
-	}
+	isp_unfreeze_loopdown(isp, chan);
 	/*
 	 * The loop down timer has expired. Wake up the kthread
 	 * to notice that fact (or make it false).
@@ -4748,7 +4777,7 @@ isp_kthread(void *arg)
 
 	mtx_lock(&isp->isp_osinfo.lock);
 
-	for (;;) {
+	while (isp->isp_osinfo.is_exiting == 0) {
 		int lb, lim;
 
 		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "%s: Chan %d checking FC state", __func__, chan);
@@ -4844,7 +4873,9 @@ isp_kthread(void *arg)
 			mtx_lock(&isp->isp_osinfo.lock);
 		}
 	}
+	fc->num_threads -= 1;
 	mtx_unlock(&isp->isp_osinfo.lock);
+	kthread_exit();
 }
 
 static void
@@ -4858,6 +4889,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 	isp = (ispsoftc_t *)cam_sim_softc(sim);
 	mtx_assert(&isp->isp_lock, MA_OWNED);
+	isp_prt(isp, ISP_LOGDEBUG2, "isp_action code %x", ccb->ccb_h.func_code);
+	ISP_PCMD(ccb) = NULL;
 
 	if (isp->isp_state != ISP_RUNSTATE && ccb->ccb_h.func_code == XPT_SCSI_IO) {
 		isp_init(isp);
@@ -4865,15 +4898,12 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			/*
 			 * Lie. Say it was a selection timeout.
 			 */
-			ccb->ccb_h.status = CAM_SEL_TIMEOUT | CAM_DEV_QFRZN;
-			xpt_freeze_devq(ccb->ccb_h.path, 1);
-			xpt_done(ccb);
+			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+			isp_done((struct ccb_scsiio *) ccb);
 			return;
 		}
 		isp->isp_state = ISP_RUNSTATE;
 	}
-	isp_prt(isp, ISP_LOGDEBUG2, "isp_action code %x", ccb->ccb_h.func_code);
-	ISP_PCMD(ccb) = NULL;
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
@@ -4884,7 +4914,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0) {
 			if ((ccb->ccb_h.flags & CAM_CDB_PHYS) != 0) {
 				ccb->ccb_h.status = CAM_REQ_INVALID;
-				xpt_done(ccb);
+				isp_done((struct ccb_scsiio *) ccb);
 				break;
 			}
 		}
@@ -4907,6 +4937,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			isp_prt(isp, ISP_LOGWARN, "out of PCMDs");
 			cam_freeze_devq(ccb->ccb_h.path);
 			cam_release_devq(ccb->ccb_h.path, RELSIM_RELEASE_AFTER_TIMEOUT, 0, 250, 0);
+			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			xpt_done(ccb);
 			break;
 		}
@@ -4939,10 +4970,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				} else {
 					isp_prt(isp, ISP_LOGDEBUG0, "%d.%d downtime (%d) > lim (%d)", XS_TGT(ccb), XS_LUN(ccb), ISP_FC_PC(isp, bus)->loop_down_time, lim);
 				}
-				ccb->ccb_h.status = CAM_SEL_TIMEOUT|CAM_DEV_QFRZN;
-				xpt_freeze_devq(ccb->ccb_h.path, 1);
-				isp_free_pcmd(isp, ccb);
-				xpt_done(ccb);
+				ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+				isp_done((struct ccb_scsiio *) ccb);
 				break;
 			}
 			isp_prt(isp, ISP_LOGDEBUG0, "%d.%d retry later", XS_TGT(ccb), XS_LUN(ccb));
@@ -5084,19 +5113,34 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 #endif
 	case XPT_RESET_DEV:		/* BDR the specified SCSI device */
+	{
+		struct isp_fc *fc;
 
 		bus = cam_sim_bus(xpt_path_sim(ccb->ccb_h.path));
 		tgt = ccb->ccb_h.target_id;
 		tgt |= (bus << 16);
+		if (IS_FC(isp))
+			fc = ISP_FC_PC(isp, bus);
+		else
+			fc = NULL;
 
 		error = isp_control(isp, ISPCTL_RESET_DEV, bus, tgt);
 		if (error) {
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		} else {
+			/*
+			 * If we have a FC device, reset the Command
+			 * Reference Number, because the target will expect
+			 * that we re-start the CRN at 1 after a reset.
+			 */
+			if (fc != NULL)
+				isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
+
 			ccb->ccb_h.status = CAM_REQ_CMP;
 		}
 		xpt_done(ccb);
 		break;
+	}
 	case XPT_ABORT:			/* Abort the specified CCB */
 	{
 		union ccb *accb = ccb->cab.abort_ccb;
@@ -5107,7 +5151,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 #endif
 		case XPT_SCSI_IO:
-			error = isp_control(isp, ISPCTL_ABORT_CMD, ccb);
+			error = isp_control(isp, ISPCTL_ABORT_CMD, accb);
 			if (error) {
 				ccb->ccb_h.status = CAM_UA_ABORT;
 			} else {
@@ -5203,7 +5247,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			fcparam *fcp = FCPARAM(isp, bus);
 			struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
 			struct ccb_trans_settings_fc *fc = &cts->xport_specific.fc;
-			unsigned int hdlidx;
 
 			cts->protocol = PROTO_SCSI;
 			cts->protocol_version = SCSI_REV_2;
@@ -5215,9 +5258,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			fc->valid = CTS_FC_VALID_SPEED;
 			fc->bitrate = 100000;
 			fc->bitrate *= fcp->isp_gbspeed;
-			hdlidx = fcp->isp_dev_map[tgt] - 1;
-			if (hdlidx < MAX_FC_TARG) {
-				fcportdb_t *lp = &fcp->portdb[hdlidx];
+			if (tgt < MAX_FC_TARG) {
+				fcportdb_t *lp = &fcp->portdb[tgt];
 				fc->wwnn = lp->node_wwn;
 				fc->wwpn = lp->port_wwn;
 				fc->port = lp->portid;
@@ -5357,21 +5399,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				}
 				break;
 			case KNOB_ROLE_BOTH:
-#if 0
 				if (fcp->role != ISP_ROLE_BOTH) {
 					rchange = 1;
 					newrole = ISP_ROLE_BOTH;
 				}
-#else
-				/*
-				 * We don't really support dual role at present on FC cards.
-				 *
-				 * We should, but a bunch of things are currently broken,
-				 * so don't allow it.
-				 */
-				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
-				ccb->ccb_h.status = CAM_REQ_INVALID;
-#endif
 				break;
 			}
 			if (rchange) {
@@ -5380,7 +5411,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				ISP_SET_PC(isp, bus, tm_enabled, 0);
 				ISP_SET_PC(isp, bus, tm_luns_enabled, 0);
 #endif
-				if (isp_fc_change_role(isp, bus, newrole) != 0) {
+				if (isp_control(isp, ISPCTL_CHANGE_ROLE,
+				    bus, newrole) != 0) {
 					ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 					xpt_done(ccb);
 					break;
@@ -5534,6 +5566,13 @@ isp_done(XS_T *sccb)
 	if (status != CAM_REQ_CMP) {
 		if (status != CAM_SEL_TIMEOUT)
 			isp_prt(isp, ISP_LOGDEBUG0, "target %d lun %d CAM status 0x%x SCSI status 0x%x", XS_TGT(sccb), XS_LUN(sccb), sccb->ccb_h.status, sccb->scsi_status);
+		else if ((IS_FC(isp))
+		      && (XS_TGT(sccb) < MAX_FC_TARG)) {
+			fcparam *fcp;
+
+			fcp = FCPARAM(isp, XS_CHANNEL(sccb));
+			fcp->portdb[XS_TGT(sccb)].is_target = 0;
+		}
 		if ((sccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 			sccb->ccb_h.status |= CAM_DEV_QFRZN;
 			xpt_freeze_devq(sccb->ccb_h.path, 1);
@@ -5544,9 +5583,11 @@ isp_done(XS_T *sccb)
 		xpt_print(sccb->ccb_h.path, "cam completion status 0x%x\n", sccb->ccb_h.status);
 	}
 
-	if (callout_active(&PISP_PCMD(sccb)->wdog))
-		callout_stop(&PISP_PCMD(sccb)->wdog);
-	isp_free_pcmd(isp, (union ccb *) sccb);
+	if (ISP_PCMD(sccb)) {
+		if (callout_active(&PISP_PCMD(sccb)->wdog))
+			callout_stop(&PISP_PCMD(sccb)->wdog);
+		isp_free_pcmd(isp, (union ccb *) sccb);
+	}
 	xpt_done((union ccb *) sccb);
 }
 
@@ -5554,14 +5595,15 @@ void
 isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 {
 	int bus;
-	static const char prom0[] = "Chan %d PortID 0x%06x handle 0x%x %s %s WWPN 0x%08x%08x";
-	static const char prom2[] = "Chan %d PortID 0x%06x handle 0x%x %s %s tgt %u WWPN 0x%08x%08x";
+	static const char prom[] = "Chan %d [%d] WWPN 0x%16jx PortID 0x%06x handle 0x%x %s %s";
 	char buf[64];
 	char *msg = NULL;
 	target_id_t tgt;
 	fcportdb_t *lp;
 	struct isp_fc *fc;
 	struct cam_path *tmppath;
+	struct ac_contract ac;
+	struct ac_device_changed *adc;
 	va_list ap;
 
 	switch (cmd) {
@@ -5663,12 +5705,14 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				if (fc->path) {
 					isp_freeze_loopdown(isp, bus, msg);
 				}
-				if (!callout_active(&fc->ldt)) {
-					callout_reset(&fc->ldt, fc->loop_down_limit * hz, isp_ldt, fc);
-					isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Starting Loop Down Timer @ %lu", (unsigned long) time_uptime);
-				}
+			}
+			if (!callout_active(&fc->ldt)) {
+				callout_reset(&fc->ldt, fc->loop_down_limit * hz, isp_ldt, fc);
+				isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Starting Loop Down Timer @ %lu", (unsigned long) time_uptime);
 			}
 		}
+		isp_fcp_reset_crn(fc, /*tgt*/0, /*tgt_set*/ 0);
+
 		isp_prt(isp, ISP_LOGINFO, "Chan %d: %s", bus, msg);
 		break;
 	}
@@ -5694,35 +5738,25 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		lp = va_arg(ap, fcportdb_t *);
 		va_end(ap);
 		fc = ISP_FC_PC(isp, bus);
-		lp->announced = 0;
-		lp->gone_timer = 0;
-		if ((FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) && (lp->prli_word3 & PRLI_WD3_TARGET_FUNCTION)) {
-			int dbidx = lp - FCPARAM(isp, bus)->portdb;
-			int i;
-
-			for (i = 0; i < MAX_FC_TARG; i++) {
-				if (i >= FL_ID && i <= SNS_ID) {
-					continue;
-				}
-				if (FCPARAM(isp, bus)->isp_dev_map[i] == 0) {
-					break;
-				}
-			}
-			if (i < MAX_FC_TARG) {
-				FCPARAM(isp, bus)->isp_dev_map[i] = dbidx + 1;
-				lp->dev_map_idx = i + 1;
-			} else {
-				isp_prt(isp, ISP_LOGWARN, "out of target ids");
-				isp_dump_portdb(isp, bus);
-			}
-		}
+		tgt = FC_PORTDB_TGT(isp, bus, lp);
 		isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
-		if (lp->dev_map_idx) {
-			tgt = lp->dev_map_idx - 1;
-			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "arrived at", tgt, (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
-			isp_make_here(isp, bus, tgt);
-		} else {
-			isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "arrived", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+		isp_prt(isp, ISP_LOGCONFIG, prom, bus, tgt, lp->port_wwn, lp->portid, lp->handle, buf, "arrived");
+		if ((FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) &&
+		    (lp->prli_word3 & PRLI_WD3_TARGET_FUNCTION)) {
+			lp->is_target = 1;
+			isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
+			isp_make_here(isp, lp, bus, tgt);
+		}
+		if ((FCPARAM(isp, bus)->role & ISP_ROLE_TARGET) &&
+		    (lp->prli_word3 & PRLI_WD3_INITIATOR_FUNCTION)) {
+			lp->is_initiator = 1;
+			ac.contract_number = AC_CONTRACT_DEV_CHG;
+			adc = (struct ac_device_changed *) ac.contract_data;
+			adc->wwpn = lp->port_wwn;
+			adc->port = lp->portid;
+			adc->target = tgt;
+			adc->arrived = 1;
+			xpt_async(AC_CONTRACT, fc->path, &ac);
 		}
 		break;
 	case ISPASYNC_DEV_CHANGED:
@@ -5731,34 +5765,33 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		lp = va_arg(ap, fcportdb_t *);
 		va_end(ap);
 		fc = ISP_FC_PC(isp, bus);
-		lp->announced = 0;
-		lp->gone_timer = 0;
-		if (isp_change_is_bad) {
-			lp->state = FC_PORTDB_STATE_NIL;
-			if (lp->dev_map_idx) {
-				tgt = lp->dev_map_idx - 1;
-				FCPARAM(isp, bus)->isp_dev_map[tgt] = 0;
-				lp->dev_map_idx = 0;
-				isp_prt(isp, ISP_LOGCONFIG, prom3, bus, lp->portid, tgt, "change is bad");
-				isp_make_gone(isp, bus, tgt);
+		tgt = FC_PORTDB_TGT(isp, bus, lp);
+		isp_gen_role_str(buf, sizeof (buf), lp->new_prli_word3);
+		isp_prt(isp, ISP_LOGCONFIG, prom, bus, tgt, lp->port_wwn, lp->new_portid, lp->handle, buf, "changed");
+changed:
+		if (lp->is_target !=
+		    ((FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) &&
+		     (lp->new_prli_word3 & PRLI_WD3_TARGET_FUNCTION))) {
+			lp->is_target = !lp->is_target;
+			if (lp->is_target) {
+				isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
+				isp_make_here(isp, lp, bus, tgt);
 			} else {
-				isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
-				isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "changed and departed",
-				    (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+				isp_make_gone(isp, lp, bus, tgt);
+				isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
 			}
-		} else {
-			lp->portid = lp->new_portid;
-			lp->prli_word3 = lp->new_prli_word3;
-			isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
-			if (lp->dev_map_idx) {
-				int t = lp->dev_map_idx - 1;
-				FCPARAM(isp, bus)->isp_dev_map[t] = (lp - FCPARAM(isp, bus)->portdb) + 1;
-				tgt = lp->dev_map_idx - 1;
-				isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "changed at", tgt,
-				    (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
-			} else {
-				isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "changed", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
-			}
+		}
+		if (lp->is_initiator !=
+		    ((FCPARAM(isp, bus)->role & ISP_ROLE_TARGET) &&
+		     (lp->new_prli_word3 & PRLI_WD3_INITIATOR_FUNCTION))) {
+			lp->is_initiator = !lp->is_initiator;
+			ac.contract_number = AC_CONTRACT_DEV_CHG;
+			adc = (struct ac_device_changed *) ac.contract_data;
+			adc->wwpn = lp->port_wwn;
+			adc->port = lp->portid;
+			adc->target = tgt;
+			adc->arrived = lp->is_initiator;
+			xpt_async(AC_CONTRACT, fc->path, &ac);
 		}
 		break;
 	case ISPASYNC_DEV_STAYED:
@@ -5766,45 +5799,34 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		bus = va_arg(ap, int);
 		lp = va_arg(ap, fcportdb_t *);
 		va_end(ap);
+		fc = ISP_FC_PC(isp, bus);
+		tgt = FC_PORTDB_TGT(isp, bus, lp);
 		isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
-		if (lp->dev_map_idx) {
-			tgt = lp->dev_map_idx - 1;
-			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "stayed at", tgt,
-		    	    (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
-		} else {
-			isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "stayed",
-		    	    (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
-		}
-		break;
+		isp_prt(isp, ISP_LOGCONFIG, prom, bus, tgt, lp->port_wwn, lp->portid, lp->handle, buf, "stayed");
+		goto changed;
 	case ISPASYNC_DEV_GONE:
 		va_start(ap, cmd);
 		bus = va_arg(ap, int);
 		lp = va_arg(ap, fcportdb_t *);
 		va_end(ap);
 		fc = ISP_FC_PC(isp, bus);
+		tgt = FC_PORTDB_TGT(isp, bus, lp);
 		/*
-		 * If this has a virtual target and we haven't marked it
-		 * that we're going to have isp_gdt tell the OS it's gone,
-		 * set the isp_gdt timer running on it.
-		 *
-		 * If it isn't marked that isp_gdt is going to get rid of it,
-		 * announce that it's gone.
-		 *
+		 * If this has a virtual target or initiator set the isp_gdt
+		 * timer running on it to delay its departure.
 		 */
 		isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
-		if (lp->dev_map_idx && lp->announced == 0) {
-			lp->announced = 1;
+		if (lp->is_target || lp->is_initiator) {
 			lp->state = FC_PORTDB_STATE_ZOMBIE;
-			lp->gone_timer = ISP_FC_PC(isp, bus)->gone_device_time;
+			lp->gone_timer = fc->gone_device_time;
+			isp_prt(isp, ISP_LOGCONFIG, prom, bus, tgt, lp->port_wwn, lp->portid, lp->handle, buf, "gone zombie");
 			if (fc->ready && !callout_active(&fc->gdt)) {
 				isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Chan %d Starting Gone Device Timer with %u seconds time now %lu", bus, lp->gone_timer, (unsigned long)time_uptime);
 				callout_reset(&fc->gdt, hz, isp_gdt, fc);
 			}
-			tgt = lp->dev_map_idx - 1;
-			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "gone zombie at", tgt, (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
-		} else if (lp->announced == 0) {
-			isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "departed", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+			break;
 		}
+		isp_prt(isp, ISP_LOGCONFIG, prom, bus, tgt, lp->port_wwn, lp->portid, lp->handle, buf, "gone");
 		break;
 	case ISPASYNC_CHANGE_NOTIFY:
 	{
@@ -5870,12 +5892,10 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		case NT_LIP_RESET:
 		case NT_LINK_UP:
 		case NT_LINK_DOWN:
+		case NT_HBA_RESET:
 			/*
 			 * No action need be taken here.
 			 */
-			break;
-		case NT_HBA_RESET:
-			isp_del_all_wwn_entries(isp, ISP_NOCHAN);
 			break;
 		case NT_GLOBAL_LOGOUT:
 		case NT_LOGOUT:
@@ -5884,34 +5904,6 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			 */
 			isp_handle_platform_target_notify_ack(isp, notify);
 			break;
-		case NT_ARRIVED:
-		{
-			struct ac_contract ac;
-			struct ac_device_changed *fc;
-
-			ac.contract_number = AC_CONTRACT_DEV_CHG;
-			fc = (struct ac_device_changed *) ac.contract_data;
-			fc->wwpn = notify->nt_wwn;
-			fc->port = notify->nt_sid;
-			fc->target = notify->nt_nphdl;
-			fc->arrived = 1;
-			xpt_async(AC_CONTRACT, ISP_FC_PC(isp, notify->nt_channel)->path, &ac);
-			break;
-		}
-		case NT_DEPARTED:
-		{
-			struct ac_contract ac;
-			struct ac_device_changed *fc;
-
-			ac.contract_number = AC_CONTRACT_DEV_CHG;
-			fc = (struct ac_device_changed *) ac.contract_data;
-			fc->wwpn = notify->nt_wwn;
-			fc->port = notify->nt_sid;
-			fc->target = notify->nt_nphdl;
-			fc->arrived = 0;
-			xpt_async(AC_CONTRACT, ISP_FC_PC(isp, notify->nt_channel)->path, &ac);
-			break;
-		}
 		default:
 			isp_prt(isp, ISP_LOGALL, "target notify code 0x%x", notify->nt_ncode);
 			isp_handle_platform_target_notify_ack(isp, notify);
@@ -5935,7 +5927,9 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				} else {
 					tp->not = NULL;
 				}
-				(void) timeout(isp_refire_notify_ack, tp, 5);
+				callout_init_mtx(&tp->timer, &isp->isp_lock, 0);
+				callout_reset(&tp->timer, 5,
+				    isp_refire_notify_ack, tp);
 			} else {
 				isp_prt(isp, ISP_LOGERR, "you lose- cannot allocate a notify refire");
 			}
@@ -6000,7 +5994,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				nt->nt_tgt = TGT_ANY;
 			} else {
 				nt->nt_tgt = FCPARAM(isp, chan)->isp_wwpn;
-				if (isp_find_pdb_by_loopid(isp, chan, abts->abts_nphdl, &lp)) {
+				if (isp_find_pdb_by_handle(isp, chan, abts->abts_nphdl, &lp)) {
 					nt->nt_wwn = lp->port_wwn;
 				} else {
 					nt->nt_wwn = INI_ANY;
@@ -6011,7 +6005,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			 */
 			tptr = get_lun_statep_from_tag(isp, chan, abts->abts_rxid_task);
 			if (tptr) {
-				nt->nt_lun = xpt_path_lun_id(tptr->owner);
+				nt->nt_lun = tptr->ts_lun;
 				rls_lun_statep(isp, tptr);
 			} else {
 				nt->nt_lun = LUN_ANY;
@@ -6109,10 +6103,9 @@ isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 			return (seed);
 		}
 		return (0x400000007F000009ull);
-	} else {
-		seed = iswwnn ? fc->def_wwnn : fc->def_wwpn;
 	}
 
+	seed = iswwnn ? fc->def_wwnn : fc->def_wwpn;
 
 	/*
 	 * For channel zero just return what we have. For either ACTIVE or
@@ -6135,11 +6128,9 @@ isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 	if (seed) {
 		return (seed);
 	}
-	if (isactive) {
+	seed = iswwnn ? ISP_FC_PC(isp, 0)->def_wwnn : ISP_FC_PC(isp, 0)->def_wwpn;
+	if (seed == 0)
 		seed = iswwnn ? FCPARAM(isp, 0)->isp_wwnn_nvram : FCPARAM(isp, 0)->isp_wwpn_nvram;
-	} else {
-		seed = iswwnn ? ISP_FC_PC(isp, 0)->def_wwnn : ISP_FC_PC(isp, 0)->def_wwpn;
-	}
 
 	if (((seed >> 60) & 0xf) == 2) {
 		/*
@@ -6349,6 +6340,33 @@ isp_common_dmateardown(ispsoftc_t *isp, struct ccb_scsiio *csio, uint32_t hdl)
 		bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_POSTWRITE);
 	}
 	bus_dmamap_unload(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap);
+}
+
+/*
+ * Reset the command reference number for all LUNs on a specific target
+ * (needed when a target arrives again) or for all targets on a port
+ * (needed for events like a LIP).
+ */
+void
+isp_fcp_reset_crn(struct isp_fc *fc, uint32_t tgt, int tgt_set)
+{
+	int i;
+	struct isp_nexus *nxp;
+
+	if (tgt_set == 0)
+		isp_prt(fc->isp, ISP_LOG_SANCFG, "resetting CRN on all targets");
+	else
+		isp_prt(fc->isp, ISP_LOG_SANCFG, "resetting CRN target %u", tgt);
+
+	for (i = 0; i < NEXUS_HASH_WIDTH; i++) {
+		nxp = fc->nexus_hash[i];
+		while (nxp) {
+			if ((tgt_set != 0) && (tgt == nxp->tgt))
+				nxp->crnseed = 0;
+
+			nxp = nxp->next;
+		}
+	}
 }
 
 int

@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -40,7 +40,6 @@
  */
 
 #include "config.h"
-#include <ldns/wire2host.h>
 #include "util/data/msgencode.h"
 #include "util/data/msgreply.h"
 #include "util/data/msgparse.h"
@@ -48,6 +47,7 @@
 #include "util/log.h"
 #include "util/regional.h"
 #include "util/net_help.h"
+#include "ldns/sbuffer.h"
 
 /** return code that means the function ran out of memory. negative so it does
  * not conflict with DNS rcodes. */
@@ -243,7 +243,7 @@ compress_tree_store(uint8_t* dname, int labs, size_t offset,
 
 /** compress a domain name */
 static int
-write_compressed_dname(ldns_buffer* pkt, uint8_t* dname, int labs,
+write_compressed_dname(sldns_buffer* pkt, uint8_t* dname, int labs,
 	struct compress_tree_node* p)
 {
 	/* compress it */
@@ -253,32 +253,32 @@ write_compressed_dname(ldns_buffer* pkt, uint8_t* dname, int labs,
 
 	if(labs == 1) {
 		/* write root label */
-		if(ldns_buffer_remaining(pkt) < 1)
+		if(sldns_buffer_remaining(pkt) < 1)
 			return 0;
-		ldns_buffer_write_u8(pkt, 0);
+		sldns_buffer_write_u8(pkt, 0);
 		return 1;
 	}
 
 	/* copy the first couple of labels */
 	while(labcopy--) {
 		lablen = *dname++;
-		if(ldns_buffer_remaining(pkt) < (size_t)lablen+1)
+		if(sldns_buffer_remaining(pkt) < (size_t)lablen+1)
 			return 0;
-		ldns_buffer_write_u8(pkt, lablen);
-		ldns_buffer_write(pkt, dname, lablen);
+		sldns_buffer_write_u8(pkt, lablen);
+		sldns_buffer_write(pkt, dname, lablen);
 		dname += lablen;
 	}
 	/* insert compression ptr */
-	if(ldns_buffer_remaining(pkt) < 2)
+	if(sldns_buffer_remaining(pkt) < 2)
 		return 0;
 	ptr = PTR_CREATE(p->offset);
-	ldns_buffer_write_u16(pkt, ptr);
+	sldns_buffer_write_u16(pkt, ptr);
 	return 1;
 }
 
 /** compress owner name of RR, return RETVAL_OUTMEM RETVAL_TRUNC */
 static int
-compress_owner(struct ub_packed_rrset_key* key, ldns_buffer* pkt, 
+compress_owner(struct ub_packed_rrset_key* key, sldns_buffer* pkt, 
 	struct regional* region, struct compress_tree_node** tree, 
 	size_t owner_pos, uint16_t* owner_ptr, int owner_labs)
 {
@@ -296,13 +296,13 @@ compress_owner(struct ub_packed_rrset_key* key, ldns_buffer* pkt,
 				owner_labs, p))
 				return RETVAL_TRUNC;
 			/* check if typeclass+4 ttl + rdatalen is available */
-			if(ldns_buffer_remaining(pkt) < 4+4+2)
+			if(sldns_buffer_remaining(pkt) < 4+4+2)
 				return RETVAL_TRUNC;
 		} else {
 			/* no compress */
-			if(ldns_buffer_remaining(pkt) < key->rk.dname_len+4+4+2)
+			if(sldns_buffer_remaining(pkt) < key->rk.dname_len+4+4+2)
 				return RETVAL_TRUNC;
-			ldns_buffer_write(pkt, key->rk.dname, 
+			sldns_buffer_write(pkt, key->rk.dname, 
 				key->rk.dname_len);
 			if(owner_pos <= PTR_MAX_OFFSET)
 				*owner_ptr = htons(PTR_CREATE(owner_pos));
@@ -313,13 +313,13 @@ compress_owner(struct ub_packed_rrset_key* key, ldns_buffer* pkt,
 	} else {
 		/* always compress 2nd-further RRs in RRset */
 		if(owner_labs == 1) {
-			if(ldns_buffer_remaining(pkt) < 1+4+4+2) 
+			if(sldns_buffer_remaining(pkt) < 1+4+4+2) 
 				return RETVAL_TRUNC;
-			ldns_buffer_write_u8(pkt, 0);
+			sldns_buffer_write_u8(pkt, 0);
 		} else {
-			if(ldns_buffer_remaining(pkt) < 2+4+4+2) 
+			if(sldns_buffer_remaining(pkt) < 2+4+4+2) 
 				return RETVAL_TRUNC;
-			ldns_buffer_write(pkt, owner_ptr, 2);
+			sldns_buffer_write(pkt, owner_ptr, 2);
 		}
 	}
 	return RETVAL_OK;
@@ -327,12 +327,12 @@ compress_owner(struct ub_packed_rrset_key* key, ldns_buffer* pkt,
 
 /** compress any domain name to the packet, return RETVAL_* */
 static int
-compress_any_dname(uint8_t* dname, ldns_buffer* pkt, int labs, 
+compress_any_dname(uint8_t* dname, sldns_buffer* pkt, int labs, 
 	struct regional* region, struct compress_tree_node** tree)
 {
 	struct compress_tree_node* p;
 	struct compress_tree_node** insertpt = NULL;
-	size_t pos = ldns_buffer_position(pkt);
+	size_t pos = sldns_buffer_position(pkt);
 	if((p = compress_tree_lookup(tree, dname, labs, &insertpt))) {
 		if(!write_compressed_dname(pkt, dname, labs, p))
 			return RETVAL_TRUNC;
@@ -346,27 +346,27 @@ compress_any_dname(uint8_t* dname, ldns_buffer* pkt, int labs,
 }
 
 /** return true if type needs domain name compression in rdata */
-static const ldns_rr_descriptor*
+static const sldns_rr_descriptor*
 type_rdata_compressable(struct ub_packed_rrset_key* key)
 {
 	uint16_t t = ntohs(key->rk.type);
-	if(ldns_rr_descript(t) && 
-		ldns_rr_descript(t)->_compress == LDNS_RR_COMPRESS)
-		return ldns_rr_descript(t);
+	if(sldns_rr_descript(t) && 
+		sldns_rr_descript(t)->_compress == LDNS_RR_COMPRESS)
+		return sldns_rr_descript(t);
 	return 0;
 }
 
 /** compress domain names in rdata, return RETVAL_* */
 static int
-compress_rdata(ldns_buffer* pkt, uint8_t* rdata, size_t todolen, 
+compress_rdata(sldns_buffer* pkt, uint8_t* rdata, size_t todolen, 
 	struct regional* region, struct compress_tree_node** tree, 
-	const ldns_rr_descriptor* desc)
+	const sldns_rr_descriptor* desc)
 {
 	int labs, r, rdf = 0;
-	size_t dname_len, len, pos = ldns_buffer_position(pkt);
+	size_t dname_len, len, pos = sldns_buffer_position(pkt);
 	uint8_t count = desc->_dname_count;
 
-	ldns_buffer_skip(pkt, 2); /* rdata len fill in later */
+	sldns_buffer_skip(pkt, 2); /* rdata len fill in later */
 	/* space for rdatalen checked for already */
 	rdata += 2;
 	todolen -= 2;
@@ -390,9 +390,9 @@ compress_rdata(ldns_buffer* pkt, uint8_t* rdata, size_t todolen,
 		}
 		if(len) {
 			/* copy over */
-			if(ldns_buffer_remaining(pkt) < len)
+			if(sldns_buffer_remaining(pkt) < len)
 				return RETVAL_TRUNC;
-			ldns_buffer_write(pkt, rdata, len);
+			sldns_buffer_write(pkt, rdata, len);
 			todolen -= len;
 			rdata += len;
 		}
@@ -400,19 +400,19 @@ compress_rdata(ldns_buffer* pkt, uint8_t* rdata, size_t todolen,
 	}
 	/* copy remainder */
 	if(todolen > 0) {
-		if(ldns_buffer_remaining(pkt) < todolen)
+		if(sldns_buffer_remaining(pkt) < todolen)
 			return RETVAL_TRUNC;
-		ldns_buffer_write(pkt, rdata, todolen);
+		sldns_buffer_write(pkt, rdata, todolen);
 	}
 
 	/* set rdata len */
-	ldns_buffer_write_u16_at(pkt, pos, ldns_buffer_position(pkt)-pos-2);
+	sldns_buffer_write_u16_at(pkt, pos, sldns_buffer_position(pkt)-pos-2);
 	return RETVAL_OK;
 }
 
 /** Returns true if RR type should be included */
 static int
-rrset_belongs_in_reply(ldns_pkt_section s, uint16_t rrtype, uint16_t qtype, 
+rrset_belongs_in_reply(sldns_pkt_section s, uint16_t rrtype, uint16_t qtype, 
 	int dnssec)
 {
 	if(dnssec)
@@ -440,10 +440,10 @@ rrset_belongs_in_reply(ldns_pkt_section s, uint16_t rrtype, uint16_t qtype,
 
 /** store rrset in buffer in wireformat, return RETVAL_* */
 static int
-packed_rrset_encode(struct ub_packed_rrset_key* key, ldns_buffer* pkt, 
-	uint16_t* num_rrs, uint32_t timenow, struct regional* region,
+packed_rrset_encode(struct ub_packed_rrset_key* key, sldns_buffer* pkt, 
+	uint16_t* num_rrs, time_t timenow, struct regional* region,
 	int do_data, int do_sig, struct compress_tree_node** tree,
-	ldns_pkt_section s, uint16_t qtype, int dnssec, size_t rr_offset)
+	sldns_pkt_section s, uint16_t qtype, int dnssec, size_t rr_offset)
 {
 	size_t i, j, owner_pos;
 	int r, owner_labs;
@@ -456,10 +456,10 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, ldns_buffer* pkt,
 		return RETVAL_OK;
 
 	owner_labs = dname_count_labels(key->rk.dname);
-	owner_pos = ldns_buffer_position(pkt);
+	owner_pos = sldns_buffer_position(pkt);
 
 	if(do_data) {
-		const ldns_rr_descriptor* c = type_rdata_compressable(key);
+		const sldns_rr_descriptor* c = type_rdata_compressable(key);
 		for(i=0; i<data->count; i++) {
 			/* rrset roundrobin */
 			j = (i + rr_offset) % data->count;
@@ -467,11 +467,11 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, ldns_buffer* pkt,
 				owner_pos, &owner_ptr, owner_labs))
 				!= RETVAL_OK)
 				return r;
-			ldns_buffer_write(pkt, &key->rk.type, 2);
-			ldns_buffer_write(pkt, &key->rk.rrset_class, 2);
+			sldns_buffer_write(pkt, &key->rk.type, 2);
+			sldns_buffer_write(pkt, &key->rk.rrset_class, 2);
 			if(data->rr_ttl[j] < timenow)
-				ldns_buffer_write_u32(pkt, 0);
-			else 	ldns_buffer_write_u32(pkt, 
+				sldns_buffer_write_u32(pkt, 0);
+			else 	sldns_buffer_write_u32(pkt, 
 					data->rr_ttl[j]-timenow);
 			if(c) {
 				if((r=compress_rdata(pkt, data->rr_data[j],
@@ -479,9 +479,9 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, ldns_buffer* pkt,
 					!= RETVAL_OK)
 					return r;
 			} else {
-				if(ldns_buffer_remaining(pkt) < data->rr_len[j])
+				if(sldns_buffer_remaining(pkt) < data->rr_len[j])
 					return RETVAL_TRUNC;
-				ldns_buffer_write(pkt, data->rr_data[j],
+				sldns_buffer_write(pkt, data->rr_data[j],
 					data->rr_len[j]);
 			}
 		}
@@ -491,28 +491,28 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, ldns_buffer* pkt,
 		size_t total = data->count+data->rrsig_count;
 		for(i=data->count; i<total; i++) {
 			if(owner_ptr && owner_labs != 1) {
-				if(ldns_buffer_remaining(pkt) <
+				if(sldns_buffer_remaining(pkt) <
 					2+4+4+data->rr_len[i]) 
 					return RETVAL_TRUNC;
-				ldns_buffer_write(pkt, &owner_ptr, 2);
+				sldns_buffer_write(pkt, &owner_ptr, 2);
 			} else {
 				if((r=compress_any_dname(key->rk.dname, 
 					pkt, owner_labs, region, tree))
 					!= RETVAL_OK)
 					return r;
-				if(ldns_buffer_remaining(pkt) < 
+				if(sldns_buffer_remaining(pkt) < 
 					4+4+data->rr_len[i])
 					return RETVAL_TRUNC;
 			}
-			ldns_buffer_write_u16(pkt, LDNS_RR_TYPE_RRSIG);
-			ldns_buffer_write(pkt, &key->rk.rrset_class, 2);
+			sldns_buffer_write_u16(pkt, LDNS_RR_TYPE_RRSIG);
+			sldns_buffer_write(pkt, &key->rk.rrset_class, 2);
 			if(data->rr_ttl[i] < timenow)
-				ldns_buffer_write_u32(pkt, 0);
-			else 	ldns_buffer_write_u32(pkt, 
+				sldns_buffer_write_u32(pkt, 0);
+			else 	sldns_buffer_write_u32(pkt, 
 					data->rr_ttl[i]-timenow);
 			/* rrsig rdata cannot be compressed, perform 100+ byte
 			 * memcopy. */
-			ldns_buffer_write(pkt, data->rr_data[i],
+			sldns_buffer_write(pkt, data->rr_data[i],
 				data->rr_len[i]);
 		}
 	}
@@ -528,9 +528,9 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, ldns_buffer* pkt,
 /** store msg section in wireformat buffer, return RETVAL_* */
 static int
 insert_section(struct reply_info* rep, size_t num_rrsets, uint16_t* num_rrs,
-	ldns_buffer* pkt, size_t rrsets_before, uint32_t timenow, 
+	sldns_buffer* pkt, size_t rrsets_before, time_t timenow, 
 	struct regional* region, struct compress_tree_node** tree,
-	ldns_pkt_section s, uint16_t qtype, int dnssec, size_t rr_offset)
+	sldns_pkt_section s, uint16_t qtype, int dnssec, size_t rr_offset)
 {
 	int r;
 	size_t i, setstart;
@@ -539,36 +539,36 @@ insert_section(struct reply_info* rep, size_t num_rrsets, uint16_t* num_rrs,
 		if(s == LDNS_SECTION_ANSWER && qtype == LDNS_RR_TYPE_ANY)
 			dnssec = 1; /* include all types in ANY answer */
 	  	for(i=0; i<num_rrsets; i++) {
-			setstart = ldns_buffer_position(pkt);
+			setstart = sldns_buffer_position(pkt);
 			if((r=packed_rrset_encode(rep->rrsets[rrsets_before+i], 
 				pkt, num_rrs, timenow, region, 1, 1, tree,
 				s, qtype, dnssec, rr_offset))
 				!= RETVAL_OK) {
 				/* Bad, but if due to size must set TC bit */
 				/* trim off the rrset neatly. */
-				ldns_buffer_set_position(pkt, setstart);
+				sldns_buffer_set_position(pkt, setstart);
 				return r;
 			}
 		}
 	} else {
 	  	for(i=0; i<num_rrsets; i++) {
-			setstart = ldns_buffer_position(pkt);
+			setstart = sldns_buffer_position(pkt);
 			if((r=packed_rrset_encode(rep->rrsets[rrsets_before+i], 
 				pkt, num_rrs, timenow, region, 1, 0, tree,
 				s, qtype, dnssec, rr_offset))
 				!= RETVAL_OK) {
-				ldns_buffer_set_position(pkt, setstart);
+				sldns_buffer_set_position(pkt, setstart);
 				return r;
 			}
 		}
 		if(dnssec)
 	  	  for(i=0; i<num_rrsets; i++) {
-			setstart = ldns_buffer_position(pkt);
+			setstart = sldns_buffer_position(pkt);
 			if((r=packed_rrset_encode(rep->rrsets[rrsets_before+i], 
 				pkt, num_rrs, timenow, region, 0, 1, tree,
 				s, qtype, dnssec, rr_offset))
 				!= RETVAL_OK) {
-				ldns_buffer_set_position(pkt, setstart);
+				sldns_buffer_set_position(pkt, setstart);
 				return r;
 			}
 		  }
@@ -579,21 +579,21 @@ insert_section(struct reply_info* rep, size_t num_rrsets, uint16_t* num_rrs,
 /** store query section in wireformat buffer, return RETVAL */
 static int
 insert_query(struct query_info* qinfo, struct compress_tree_node** tree, 
-	ldns_buffer* buffer, struct regional* region)
+	sldns_buffer* buffer, struct regional* region)
 {
-	if(ldns_buffer_remaining(buffer) < 
+	if(sldns_buffer_remaining(buffer) < 
 		qinfo->qname_len+sizeof(uint16_t)*2)
 		return RETVAL_TRUNC; /* buffer too small */
 	/* the query is the first name inserted into the tree */
 	if(!compress_tree_store(qinfo->qname, 
 		dname_count_labels(qinfo->qname), 
-		ldns_buffer_position(buffer), region, NULL, tree))
+		sldns_buffer_position(buffer), region, NULL, tree))
 		return RETVAL_OUTMEM;
-	if(ldns_buffer_current(buffer) == qinfo->qname)
-		ldns_buffer_skip(buffer, (ssize_t)qinfo->qname_len);
-	else	ldns_buffer_write(buffer, qinfo->qname, qinfo->qname_len);
-	ldns_buffer_write_u16(buffer, qinfo->qtype);
-	ldns_buffer_write_u16(buffer, qinfo->qclass);
+	if(sldns_buffer_current(buffer) == qinfo->qname)
+		sldns_buffer_skip(buffer, (ssize_t)qinfo->qname_len);
+	else	sldns_buffer_write(buffer, qinfo->qname, qinfo->qname_len);
+	sldns_buffer_write_u16(buffer, qinfo->qtype);
+	sldns_buffer_write_u16(buffer, qinfo->qclass);
 	return RETVAL_OK;
 }
 
@@ -624,7 +624,7 @@ positive_answer(struct reply_info* rep, uint16_t qtype) {
 
 int 
 reply_info_encode(struct query_info* qinfo, struct reply_info* rep, 
-	uint16_t id, uint16_t flags, ldns_buffer* buffer, uint32_t timenow, 
+	uint16_t id, uint16_t flags, sldns_buffer* buffer, time_t timenow, 
 	struct regional* region, uint16_t udpsize, int dnssec)
 {
 	uint16_t ancount=0, nscount=0, arcount=0;
@@ -632,17 +632,17 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 	int r;
 	size_t rr_offset; 
 
-	ldns_buffer_clear(buffer);
-	if(udpsize < ldns_buffer_limit(buffer))
-		ldns_buffer_set_limit(buffer, udpsize);
-	if(ldns_buffer_remaining(buffer) < LDNS_HEADER_SIZE)
+	sldns_buffer_clear(buffer);
+	if(udpsize < sldns_buffer_limit(buffer))
+		sldns_buffer_set_limit(buffer, udpsize);
+	if(sldns_buffer_remaining(buffer) < LDNS_HEADER_SIZE)
 		return 0;
 
-	ldns_buffer_write(buffer, &id, sizeof(uint16_t));
-	ldns_buffer_write_u16(buffer, flags);
-	ldns_buffer_write_u16(buffer, rep->qdcount);
+	sldns_buffer_write(buffer, &id, sizeof(uint16_t));
+	sldns_buffer_write_u16(buffer, flags);
+	sldns_buffer_write_u16(buffer, rep->qdcount);
 	/* set an, ns, ar counts to zero in case of small packets */
-	ldns_buffer_write(buffer, "\000\000\000\000\000\000", 6);
+	sldns_buffer_write(buffer, "\000\000\000\000\000\000", 6);
 
 	/* insert query section */
 	if(rep->qdcount) {
@@ -650,16 +650,17 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 			RETVAL_OK) {
 			if(r == RETVAL_TRUNC) {
 				/* create truncated message */
-				ldns_buffer_write_u16_at(buffer, 4, 0);
-				LDNS_TC_SET(ldns_buffer_begin(buffer));
-				ldns_buffer_flip(buffer);
+				sldns_buffer_write_u16_at(buffer, 4, 0);
+				LDNS_TC_SET(sldns_buffer_begin(buffer));
+				sldns_buffer_flip(buffer);
 				return 1;
 			}
 			return 0;
 		}
 	}
-	/* roundrobin offset. using query id for random number */
-	rr_offset = RRSET_ROUNDROBIN?id:0;
+	/* roundrobin offset. using query id for random number.  With ntohs
+	 * for different roundrobins for sequential id client senders. */
+	rr_offset = RRSET_ROUNDROBIN?ntohs(id):0;
 
 	/* insert answer section */
 	if((r=insert_section(rep, rep->an_numrrsets, &ancount, buffer, 
@@ -667,14 +668,14 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 		dnssec, rr_offset)) != RETVAL_OK) {
 		if(r == RETVAL_TRUNC) {
 			/* create truncated message */
-			ldns_buffer_write_u16_at(buffer, 6, ancount);
-			LDNS_TC_SET(ldns_buffer_begin(buffer));
-			ldns_buffer_flip(buffer);
+			sldns_buffer_write_u16_at(buffer, 6, ancount);
+			LDNS_TC_SET(sldns_buffer_begin(buffer));
+			sldns_buffer_flip(buffer);
 			return 1;
 		}
 		return 0;
 	}
-	ldns_buffer_write_u16_at(buffer, 6, ancount);
+	sldns_buffer_write_u16_at(buffer, 6, ancount);
 
 	/* if response is positive answer, auth/add sections are not required */
 	if( ! (MINIMAL_RESPONSES && positive_answer(rep, qinfo->qtype)) ) {
@@ -685,14 +686,14 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 			dnssec, rr_offset)) != RETVAL_OK) {
 			if(r == RETVAL_TRUNC) {
 				/* create truncated message */
-				ldns_buffer_write_u16_at(buffer, 8, nscount);
-				LDNS_TC_SET(ldns_buffer_begin(buffer));
-				ldns_buffer_flip(buffer);
+				sldns_buffer_write_u16_at(buffer, 8, nscount);
+				LDNS_TC_SET(sldns_buffer_begin(buffer));
+				sldns_buffer_flip(buffer);
 				return 1;
 			}
 			return 0;
 		}
-		ldns_buffer_write_u16_at(buffer, 8, nscount);
+		sldns_buffer_write_u16_at(buffer, 8, nscount);
 
 		/* insert add section */
 		if((r=insert_section(rep, rep->ar_numrrsets, &arcount, buffer, 
@@ -701,18 +702,15 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 			dnssec, rr_offset)) != RETVAL_OK) {
 			if(r == RETVAL_TRUNC) {
 				/* no need to set TC bit, this is the additional */
-				ldns_buffer_write_u16_at(buffer, 10, arcount);
-				ldns_buffer_flip(buffer);
+				sldns_buffer_write_u16_at(buffer, 10, arcount);
+				sldns_buffer_flip(buffer);
 				return 1;
 			}
 			return 0;
 		}
-		ldns_buffer_write_u16_at(buffer, 10, arcount);
-	} else {
-		ldns_buffer_write_u16_at(buffer, 8, nscount);
-		ldns_buffer_write_u16_at(buffer, 10, arcount);
+		sldns_buffer_write_u16_at(buffer, 10, arcount);
 	}
-	ldns_buffer_flip(buffer);
+	sldns_buffer_flip(buffer);
 	return 1;
 }
 
@@ -726,31 +724,31 @@ calc_edns_field_size(struct edns_data* edns)
 }
 
 void
-attach_edns_record(ldns_buffer* pkt, struct edns_data* edns)
+attach_edns_record(sldns_buffer* pkt, struct edns_data* edns)
 {
 	size_t len;
 	if(!edns || !edns->edns_present)
 		return;
 	/* inc additional count */
-	ldns_buffer_write_u16_at(pkt, 10,
-		ldns_buffer_read_u16_at(pkt, 10) + 1);
-	len = ldns_buffer_limit(pkt);
-	ldns_buffer_clear(pkt);
-	ldns_buffer_set_position(pkt, len);
+	sldns_buffer_write_u16_at(pkt, 10,
+		sldns_buffer_read_u16_at(pkt, 10) + 1);
+	len = sldns_buffer_limit(pkt);
+	sldns_buffer_clear(pkt);
+	sldns_buffer_set_position(pkt, len);
 	/* write EDNS record */
-	ldns_buffer_write_u8(pkt, 0); /* '.' label */
-	ldns_buffer_write_u16(pkt, LDNS_RR_TYPE_OPT); /* type */
-	ldns_buffer_write_u16(pkt, edns->udp_size); /* class */
-	ldns_buffer_write_u8(pkt, edns->ext_rcode); /* ttl */
-	ldns_buffer_write_u8(pkt, edns->edns_version);
-	ldns_buffer_write_u16(pkt, edns->bits);
-	ldns_buffer_write_u16(pkt, 0); /* rdatalen */
-	ldns_buffer_flip(pkt);
+	sldns_buffer_write_u8(pkt, 0); /* '.' label */
+	sldns_buffer_write_u16(pkt, LDNS_RR_TYPE_OPT); /* type */
+	sldns_buffer_write_u16(pkt, edns->udp_size); /* class */
+	sldns_buffer_write_u8(pkt, edns->ext_rcode); /* ttl */
+	sldns_buffer_write_u8(pkt, edns->edns_version);
+	sldns_buffer_write_u16(pkt, edns->bits);
+	sldns_buffer_write_u16(pkt, 0); /* rdatalen */
+	sldns_buffer_flip(pkt);
 }
 
 int 
 reply_info_answer_encode(struct query_info* qinf, struct reply_info* rep, 
-	uint16_t id, uint16_t qflags, ldns_buffer* pkt, uint32_t timenow,
+	uint16_t id, uint16_t qflags, sldns_buffer* pkt, time_t timenow,
 	int cached, struct regional* region, uint16_t udpsize, 
 	struct edns_data* edns, int dnssec, int secure)
 {
@@ -788,54 +786,54 @@ reply_info_answer_encode(struct query_info* qinf, struct reply_info* rep,
 }
 
 void 
-qinfo_query_encode(ldns_buffer* pkt, struct query_info* qinfo)
+qinfo_query_encode(sldns_buffer* pkt, struct query_info* qinfo)
 {
 	uint16_t flags = 0; /* QUERY, NOERROR */
-	ldns_buffer_clear(pkt);
-	log_assert(ldns_buffer_remaining(pkt) >= 12+255+4/*max query*/);
-	ldns_buffer_skip(pkt, 2); /* id done later */
-	ldns_buffer_write_u16(pkt, flags);
-	ldns_buffer_write_u16(pkt, 1); /* query count */
-	ldns_buffer_write(pkt, "\000\000\000\000\000\000", 6); /* counts */
-	ldns_buffer_write(pkt, qinfo->qname, qinfo->qname_len);
-	ldns_buffer_write_u16(pkt, qinfo->qtype);
-	ldns_buffer_write_u16(pkt, qinfo->qclass);
-	ldns_buffer_flip(pkt);
+	sldns_buffer_clear(pkt);
+	log_assert(sldns_buffer_remaining(pkt) >= 12+255+4/*max query*/);
+	sldns_buffer_skip(pkt, 2); /* id done later */
+	sldns_buffer_write_u16(pkt, flags);
+	sldns_buffer_write_u16(pkt, 1); /* query count */
+	sldns_buffer_write(pkt, "\000\000\000\000\000\000", 6); /* counts */
+	sldns_buffer_write(pkt, qinfo->qname, qinfo->qname_len);
+	sldns_buffer_write_u16(pkt, qinfo->qtype);
+	sldns_buffer_write_u16(pkt, qinfo->qclass);
+	sldns_buffer_flip(pkt);
 }
 
 void 
-error_encode(ldns_buffer* buf, int r, struct query_info* qinfo,
+error_encode(sldns_buffer* buf, int r, struct query_info* qinfo,
 	uint16_t qid, uint16_t qflags, struct edns_data* edns)
 {
 	uint16_t flags;
 
-	ldns_buffer_clear(buf);
-	ldns_buffer_write(buf, &qid, sizeof(uint16_t));
+	sldns_buffer_clear(buf);
+	sldns_buffer_write(buf, &qid, sizeof(uint16_t));
 	flags = (uint16_t)(BIT_QR | BIT_RA | r); /* QR and retcode*/
 	flags |= (qflags & (BIT_RD|BIT_CD)); /* copy RD and CD bit */
-	ldns_buffer_write_u16(buf, flags);
+	sldns_buffer_write_u16(buf, flags);
 	if(qinfo) flags = 1;
 	else	flags = 0;
-	ldns_buffer_write_u16(buf, flags);
+	sldns_buffer_write_u16(buf, flags);
 	flags = 0;
-	ldns_buffer_write(buf, &flags, sizeof(uint16_t));
-	ldns_buffer_write(buf, &flags, sizeof(uint16_t));
-	ldns_buffer_write(buf, &flags, sizeof(uint16_t));
+	sldns_buffer_write(buf, &flags, sizeof(uint16_t));
+	sldns_buffer_write(buf, &flags, sizeof(uint16_t));
+	sldns_buffer_write(buf, &flags, sizeof(uint16_t));
 	if(qinfo) {
-		if(ldns_buffer_current(buf) == qinfo->qname)
-			ldns_buffer_skip(buf, (ssize_t)qinfo->qname_len);
-		else	ldns_buffer_write(buf, qinfo->qname, qinfo->qname_len);
-		ldns_buffer_write_u16(buf, qinfo->qtype);
-		ldns_buffer_write_u16(buf, qinfo->qclass);
+		if(sldns_buffer_current(buf) == qinfo->qname)
+			sldns_buffer_skip(buf, (ssize_t)qinfo->qname_len);
+		else	sldns_buffer_write(buf, qinfo->qname, qinfo->qname_len);
+		sldns_buffer_write_u16(buf, qinfo->qtype);
+		sldns_buffer_write_u16(buf, qinfo->qclass);
 	}
-	ldns_buffer_flip(buf);
+	sldns_buffer_flip(buf);
 	if(edns) {
 		struct edns_data es = *edns;
 		es.edns_version = EDNS_ADVERTISED_VERSION;
 		es.udp_size = EDNS_ADVERTISED_SIZE;
 		es.ext_rcode = 0;
 		es.bits &= EDNS_DO;
-		if(ldns_buffer_limit(buf) + calc_edns_field_size(&es) >
+		if(sldns_buffer_limit(buf) + calc_edns_field_size(&es) >
 			edns->udp_size)
 			return;
 		attach_edns_record(buf, &es);

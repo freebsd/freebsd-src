@@ -131,13 +131,11 @@ struct ext4_extent_path *
 ext4_ext_find_extent(struct m_ext2fs *fs, struct inode *ip,
 		     daddr_t lbn, struct ext4_extent_path *path)
 {
-	struct vnode *vp;
 	struct ext4_extent_header *ehp;
 	uint16_t i;
 	int error, size;
 	daddr_t nblk;
 
-	vp = ITOV(ip);
 	ehp = (struct ext4_extent_header *)(char *)ip->i_db;
 
 	if (ehp->eh_magic != EXT4_EXT_MAGIC)

@@ -17,8 +17,6 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @(#) $Header: /tcpdump/master/tcpdump/ethertype.h,v 1.30 2008-02-06 10:47:53 guy Exp $ (LBL)
  * $FreeBSD$
  */
 
@@ -169,11 +167,14 @@
 #ifndef ETHERTYPE_RRCP
 #define ETHERTYPE_RRCP  	0x8899
 #endif
+#ifndef ETHERTYPE_AOE
+#define ETHERTYPE_AOE  		0x88a2
+#endif
 #ifndef	ETHERTYPE_LOOPBACK
 #define	ETHERTYPE_LOOPBACK	0x9000
 #endif
 #ifndef	ETHERTYPE_VMAN
-#define	ETHERTYPE_VMAN	        0x9100 /* Extreme VMAN Protocol */ 
+#define	ETHERTYPE_VMAN	        0x9100 /* Extreme VMAN Protocol */
 #endif
 #ifndef	ETHERTYPE_CFM_OLD
 #define	ETHERTYPE_CFM_OLD       0xabcd /* 802.1ag depreciated */
@@ -181,8 +182,20 @@
 #ifndef	ETHERTYPE_CFM
 #define	ETHERTYPE_CFM           0x8902 /* 802.1ag */
 #endif
+#ifndef	ETHERTYPE_IEEE1905_1
+#define	ETHERTYPE_IEEE1905_1    0x893a /* IEEE 1905.1 */
+#endif
 #ifndef	ETHERTYPE_ISO
 #define	ETHERTYPE_ISO           0xfefe  /* nonstandard - used in Cisco HDLC encapsulation */
+#endif
+#ifndef	ETHERTYPE_CALM_FAST
+#define	ETHERTYPE_CALM_FAST     0x1111  /* ISO CALM FAST */
+#endif
+#ifndef	ETHERTYPE_GEONET_OLD
+#define	ETHERTYPE_GEONET_OLD    0x0707  /* ETSI GeoNetworking (before Jan 2013) */
+#endif
+#ifndef	ETHERTYPE_GEONET
+#define	ETHERTYPE_GEONET        0x8947  /* ETSI GeoNetworking (Official IEEE registration from Jan 2013) */
 #endif
 
 extern const struct tok ethertype_values[];

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-dss.c,v 1.30 2014/01/09 23:20:00 djm Exp $ */
+/* $OpenBSD: ssh-dss.c,v 1.31 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -65,7 +65,7 @@ ssh_dss_sign(const Key *key, u_char **sigp, u_int *lenp,
 	}
 
 	sig = DSA_do_sign(digest, dlen, key->dsa);
-	memset(digest, 'd', sizeof(digest));
+	explicit_bzero(digest, sizeof(digest));
 
 	if (sig == NULL) {
 		error("ssh_dss_sign: sign failed");
@@ -79,7 +79,7 @@ ssh_dss_sign(const Key *key, u_char **sigp, u_int *lenp,
 		DSA_SIG_free(sig);
 		return -1;
 	}
-	memset(sigblob, 0, SIGBLOB_LEN);
+	explicit_bzero(sigblob, SIGBLOB_LEN);
 	BN_bn2bin(sig->r, sigblob+ SIGBLOB_LEN - INTBLOB_LEN - rlen);
 	BN_bn2bin(sig->s, sigblob+ SIGBLOB_LEN - slen);
 	DSA_SIG_free(sig);
@@ -168,7 +168,7 @@ ssh_dss_verify(const Key *key, const u_char *signature, u_int signaturelen,
 		fatal("%s: BN_bin2bn failed", __func__);
 
 	/* clean up */
-	memset(sigblob, 0, len);
+	explicit_bzero(sigblob, len);
 	free(sigblob);
 
 	/* sha1 the data */
@@ -179,7 +179,7 @@ ssh_dss_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	}
 
 	ret = DSA_do_verify(digest, dlen, sig, key->dsa);
-	memset(digest, 'd', sizeof(digest));
+	explicit_bzero(digest, sizeof(digest));
 
 	DSA_SIG_free(sig);
 

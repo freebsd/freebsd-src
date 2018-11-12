@@ -9,4 +9,3 @@ SRCS	+=device_if.h bus_if.h pci_if.h opt_drm.h
 
 CWARNFLAGS.r128_cce.c=		-Wno-unused ${NO_WCONSTANT_CONVERSION}
 CWARNFLAGS.r128_state.c=	-Wno-unused
-CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

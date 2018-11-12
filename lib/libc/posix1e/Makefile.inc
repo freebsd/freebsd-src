@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/posix1e
+.PATH: ${LIBC_SRCTOP}/posix1e
 
 CFLAGS+=-D_ACL_PRIVATE
 
 # Copy kern/subr_acl_nfs4.c to the libc object directory.
-subr_acl_nfs4.c: ${.CURDIR}/../../sys/kern/subr_acl_nfs4.c
+subr_acl_nfs4.c: ${LIBC_SRCTOP}/../../sys/kern/subr_acl_nfs4.c
 	cat ${.ALLSRC} > ${.TARGET}
 
 SRCS+=	acl_branding.c			\
@@ -37,7 +37,7 @@ SRCS+=	acl_branding.c			\
 	mac_set.c			\
 	subr_acl_nfs4.c
 
-SYM_MAPS+=${.CURDIR}/posix1e/Symbol.map
+SYM_MAPS+=${LIBC_SRCTOP}/posix1e/Symbol.map
 
 MAN+=	acl.3				\
 	acl_add_flag_np.3		\

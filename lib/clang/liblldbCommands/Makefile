@@ -14,6 +14,7 @@ SRCS=	CommandCompletions.cpp \
 	CommandObjectDisassemble.cpp \
 	CommandObjectExpression.cpp \
 	CommandObjectFrame.cpp \
+	CommandObjectGUI.cpp \
 	CommandObjectHelp.cpp \
 	CommandObjectLog.cpp \
 	CommandObjectMemory.cpp \
@@ -33,7 +34,9 @@ SRCS=	CommandCompletions.cpp \
 	CommandObjectWatchpoint.cpp \
 	CommandObjectWatchpointCommand.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	AttrList \
+	Attrs \
+	DiagnosticCommonKinds \
 	DeclNodes \
 	StmtNodes \
 	CommentCommandList

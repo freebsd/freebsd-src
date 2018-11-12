@@ -35,10 +35,6 @@
 #include <netinet/in.h>
 #endif
 
-#ifndef _NETIPX_IPX_H_
-#include <netipx/ipx.h>
-#endif
-
 #define	NMB_TCP_PORT	137
 
 #define	NBPROTO_TCPSSN	1		/* NETBIOS session over TCP */
@@ -114,7 +110,7 @@
  */
 union nb_tran {
 	struct sockaddr_in	x_in;
-	struct sockaddr_ipx	x_ipx;
+	/* struct sockaddr_ipx was here. */
 };
 
 struct nb_name {

@@ -45,7 +45,7 @@
  * The cpu_switch() code assumes ARM_RAS_START is ARM_TP_ADDRESS + 4, and
  * ARM_RAS_END is ARM_TP_ADDRESS + 8, so if that ever changes, be sure to
  * update the cpu_switch() (and cpu_throw()) code as well.
- * In addition, code in arm/include/atomic.h and arm/include/asmacros.h
+ * In addition, code in arm/include/atomic.h and arm/arm/exception.S
  * assumes that ARM_RAS_END is at ARM_RAS_START+4, so be sure to update those
  * if ARM_RAS_END moves in relation to ARM_RAS_START (look for occurrences
  * of ldr/str rm,[rn, #4]).

@@ -43,7 +43,7 @@
 
 /*
  * This node is also a system networking interface. It has
- * a hook for each protocol (IP, AppleTalk, IPX, etc). Packets
+ * a hook for each protocol (IP, AppleTalk, etc). Packets
  * are simply relayed between the interface and the hooks.
  *
  * Interfaces are named ng0, ng1, etc.  New nodes take the
@@ -52,10 +52,8 @@
  * This node also includes Berkeley packet filter support.
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -71,10 +69,9 @@
 #include <sys/syslog.h>
 #include <sys/libkern.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_types.h>
 #include <net/bpf.h>
+#include <net/if.h>
+#include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -85,7 +82,6 @@
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_iface.h>
-#include <netgraph/ng_cisco.h>
 
 #ifdef NG_SEPARATE_MALLOC
 static MALLOC_DEFINE(M_NETGRAPH_IFACE, "netgraph_iface", "netgraph iface node");
@@ -104,8 +100,6 @@ typedef const struct iffam *iffam_p;
 const static struct iffam gFamilies[] = {
 	{ AF_INET,	NG_IFACE_HOOK_INET	},
 	{ AF_INET6,	NG_IFACE_HOOK_INET6	},
-	{ AF_APPLETALK,	NG_IFACE_HOOK_ATALK	},
-	{ AF_IPX,	NG_IFACE_HOOK_IPX	},
 	{ AF_ATM,	NG_IFACE_HOOK_ATM	},
 	{ AF_NATM,	NG_IFACE_HOOK_NATM	},
 };
@@ -113,24 +107,23 @@ const static struct iffam gFamilies[] = {
 
 /* Node private data */
 struct ng_iface_private {
-	struct	ifnet *ifp;		/* Our interface */
+	if_t	ifp;			/* Our interface */
+	u_int	fib;			/* Interface fib */
 	int	unit;			/* Interface unit number */
+	uint32_t flags;			/* Interface flags */
 	node_p	node;			/* Our netgraph node */
 	hook_p	hooks[NUM_FAMILIES];	/* Hook for each address family */
 };
 typedef struct ng_iface_private *priv_p;
 
 /* Interface methods */
-static void	ng_iface_start(struct ifnet *ifp);
-static int	ng_iface_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
-static int	ng_iface_output(struct ifnet *ifp, struct mbuf *m0,
+static int	ng_iface_transmit(if_t, struct mbuf *);
+static int	ng_iface_ioctl(if_t, u_long, void *, struct thread *);
+static int	ng_iface_output(if_t, struct mbuf *m0,
     			const struct sockaddr *dst, struct route *ro);
-static void	ng_iface_bpftap(struct ifnet *ifp,
-			struct mbuf *m, sa_family_t family);
-static int	ng_iface_send(struct ifnet *ifp, struct mbuf *m,
-			sa_family_t sa);
+static int	ng_iface_send(if_t, struct mbuf *m, sa_family_t sa);
 #ifdef DEBUG
-static void	ng_iface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
+static void	ng_iface_print_ioctl(if_t, int cmd, caddr_t data);
 #endif
 
 /* Netgraph methods */
@@ -147,14 +140,6 @@ static iffam_p	get_iffam_from_af(sa_family_t family);
 static iffam_p	get_iffam_from_hook(priv_p priv, hook_p hook);
 static iffam_p	get_iffam_from_name(const char *name);
 static hook_p  *get_hook_from_iffam(priv_p priv, iffam_p iffam);
-
-/* Parse type for struct ng_cisco_ipaddr */
-static const struct ng_parse_struct_field ng_cisco_ipaddr_type_fields[]
-	= NG_CISCO_IPADDR_TYPE_INFO;
-static const struct ng_parse_type ng_cisco_ipaddr_type = {
-	&ng_parse_struct_type,
-	&ng_cisco_ipaddr_type_fields
-};
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_iface_cmds[] = {
@@ -178,13 +163,6 @@ static const struct ng_cmdlist ng_iface_cmds[] = {
 	  "broadcast",
 	  NULL,
 	  NULL
-	},
-	{
-	  NGM_CISCO_COOKIE,
-	  NGM_CISCO_GET_IPADDR,
-	  "getipaddr",
-	  NULL,
-	  &ng_cisco_ipaddr_type
 	},
 	{
 	  NGM_IFACE_COOKIE,
@@ -213,6 +191,18 @@ NETGRAPH_INIT(iface, &typestruct);
 
 static VNET_DEFINE(struct unrhdr *, ng_iface_unit);
 #define	V_ng_iface_unit			VNET(ng_iface_unit)
+
+static struct ifdriver ng_ifdrv = {
+	.ifdrv_ops = {
+		.ifop_output = ng_iface_output,
+		.ifop_transmit = ng_iface_transmit,
+		.ifop_ioctl = ng_iface_ioctl,
+	},
+	.ifdrv_name = NG_IFACE_IFACE_NAME,
+	.ifdrv_type = IFT_PROPVIRTUAL,
+	.ifdrv_dlt = DLT_NULL,
+	.ifdrv_dlt_hdrlen = sizeof(uint32_t),
+};
 
 /************************************************************************
 			HELPER STUFF
@@ -284,8 +274,9 @@ get_iffam_from_name(const char *name)
  * Process an ioctl for the virtual interface
  */
 static int
-ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+ng_iface_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
+	const priv_p priv = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct ifreq *const ifr = (struct ifreq *) data;
 	int error = 0;
 
@@ -293,32 +284,8 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	ng_iface_print_ioctl(ifp, command, data);
 #endif
 	switch (command) {
-
-	/* These two are mostly handled at a higher layer */
-	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-		ifp->if_drv_flags |= IFF_DRV_RUNNING;
-		ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
-		break;
-	case SIOCGIFADDR:
-		break;
-
-	/* Set flags */
 	case SIOCSIFFLAGS:
-		/*
-		 * If the interface is marked up and stopped, then start it.
-		 * If it is marked down and running, then stop it.
-		 */
-		if (ifr->ifr_flags & IFF_UP) {
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
-				ifp->if_drv_flags |= IFF_DRV_RUNNING;
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				ifp->if_drv_flags &= ~(IFF_DRV_RUNNING |
-				    IFF_DRV_OACTIVE);
-		}
+		priv->flags = ifr->ifr_flags;
 		break;
 
 	/* Set the interface MTU */
@@ -326,21 +293,21 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifr->ifr_mtu > NG_IFACE_MTU_MAX
 		    || ifr->ifr_mtu < NG_IFACE_MTU_MIN)
 			error = EINVAL;
-		else
-			ifp->if_mtu = ifr->ifr_mtu;
+		break;
+
+	/* Update interface FIB */
+	case SIOCSIFFIB:
+		priv->fib = ifr->ifr_fib;
 		break;
 
 	/* Stuff that's not supported */
+	case SIOCGIFADDR:
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		error = 0;
-		break;
-	case SIOCSIFPHYS:
-		error = EOPNOTSUPP;
 		break;
 
 	default:
-		error = EINVAL;
+		error = EOPNOTSUPP;
 		break;
 	}
 	return (error);
@@ -353,16 +320,15 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
  */
 
 static int
-ng_iface_output(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct route *ro)
+ng_iface_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
+    struct route *ro)
 {
+	const priv_p priv = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct m_tag *mtag;
 	uint32_t af;
-	int error;
 
 	/* Check interface flags */
-	if (!((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
+	if ((priv->flags & IFF_UP) == 0) {
 		m_freem(m);
 		return (ENETDOWN);
 	}
@@ -370,19 +336,18 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	/* Protect from deadly infinite recursion. */
 	mtag = NULL;
 	while ((mtag = m_tag_locate(m, MTAG_NGIF, MTAG_NGIF_CALLED, mtag))) {
-		if (*(struct ifnet **)(mtag + 1) == ifp) {
-			log(LOG_NOTICE, "Loop detected on %s\n", ifp->if_xname);
+		if (*(if_t *)(mtag + 1) == ifp) {
+			log(LOG_NOTICE, "Loop detected on %s\n", if_name(ifp));
 			m_freem(m);
 			return (EDEADLK);
 		}
 	}
-	mtag = m_tag_alloc(MTAG_NGIF, MTAG_NGIF_CALLED, sizeof(struct ifnet *),
-	    M_NOWAIT);
+	mtag = m_tag_alloc(MTAG_NGIF, MTAG_NGIF_CALLED, sizeof(if_t), M_NOWAIT);
 	if (mtag == NULL) {
 		m_freem(m);
 		return (ENOMEM);
 	}
-	*(struct ifnet **)(mtag + 1) = ifp;
+	*(if_t *)(mtag + 1) = ifp;
 	m_tag_prepend(m, mtag);
 
 	/* BPF writes need to be handled specially. */
@@ -391,59 +356,31 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	else
 		af = dst->sa_family;
 
-	/* Berkeley packet filter */
-	ng_iface_bpftap(ifp, m, af);
+	M_PREPEND(m, sizeof(sa_family_t), M_NOWAIT);
+	if (m == NULL) {
+		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
+		return (ENOBUFS);
+	}
+	*(sa_family_t *)m->m_data = af;
 
-	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		M_PREPEND(m, sizeof(sa_family_t), M_NOWAIT);
-		if (m == NULL) {
-			IFQ_LOCK(&ifp->if_snd);
-			IFQ_INC_DROPS(&ifp->if_snd);
-			IFQ_UNLOCK(&ifp->if_snd);
-			ifp->if_oerrors++;
-			return (ENOBUFS);
-		}
-		*(sa_family_t *)m->m_data = af;
-		error = (ifp->if_transmit)(ifp, m);
-	} else
-		error = ng_iface_send(ifp, m, af);
-
-	return (error);
+	return (if_transmit(ifp, m));
 }
 
 /*
  * Start method is used only when ALTQ is enabled.
  */
-static void
-ng_iface_start(struct ifnet *ifp)
+static int
+ng_iface_transmit(if_t ifp, struct mbuf *m)
 {
-	struct mbuf *m;
-	sa_family_t sa;
+	sa_family_t af;
 
-	KASSERT(ALTQ_IS_ENABLED(&ifp->if_snd), ("%s without ALTQ", __func__));
+	af = *mtod(m, sa_family_t *);
+	KASSERT(af != AF_UNSPEC, ("%s: af = AF_UNSPEC", __func__));
+	m_adj(m, sizeof(sa_family_t));
 
-	for(;;) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
-			break;
-		sa = *mtod(m, sa_family_t *);
-		m_adj(m, sizeof(sa_family_t));
-		ng_iface_send(ifp, m, sa);
-	}
-}
+	if_mtap(ifp, m, &af, sizeof(af));
 
-/*
- * Flash a packet by the BPF (requires prepending 4 byte AF header)
- * Note the phoney mbuf; this is OK because BPF treats it read-only.
- */
-static void
-ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, sa_family_t family)
-{
-	KASSERT(family != AF_UNSPEC, ("%s: family=AF_UNSPEC", __func__));
-	if (bpf_peers_present(ifp->if_bpf)) {
-		int32_t family4 = (int32_t)family;
-		bpf_mtap2(ifp->if_bpf, &family4, sizeof(family4), m);
-	}
+	return (ng_iface_send(ifp, m, af));
 }
 
 /*
@@ -452,17 +389,16 @@ ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, sa_family_t family)
  * ng_iface_output().
  */
 static int
-ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
+ng_iface_send(if_t ifp, struct mbuf *m, sa_family_t sa)
 {
-	const priv_p priv = (priv_p) ifp->if_softc;
+	const priv_p priv = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	const iffam_p iffam = get_iffam_from_af(sa);
 	int error;
 	int len;
 
 	/* Check address family to determine hook (if known) */
 	if (iffam == NULL) {
-		m_freem(m);
-		log(LOG_WARNING, "%s: can't handle af%d\n", ifp->if_xname, sa);
+		log(LOG_WARNING, "%s: can't handle af%d\n", if_name(ifp), sa);
 		return (EAFNOSUPPORT);
 	}
 
@@ -476,11 +412,13 @@ ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
 
 	/* Update stats. */
 	if (error == 0) {
-		ifp->if_obytes += len;
-		ifp->if_opackets++;
-	}
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	} else
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
-	return (error);
+	/* Netgraph frees the mbuf, so we can't return an error. */
+	return (0);
 }
 
 #ifdef DEBUG
@@ -489,7 +427,7 @@ ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
  */
 
 static void
-ng_iface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
+ng_iface_print_ioctl(if_t ifp, int command, caddr_t data)
 {
 	char   *str;
 
@@ -510,7 +448,7 @@ ng_iface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 		str = "IO??";
 	}
 	log(LOG_DEBUG, "%s: %s('%c', %d, char[%d])\n",
-	       ifp->if_xname,
+	       if_name(ifp),
 	       str,
 	       IOCGROUP(command),
 	       command & 0xff,
@@ -528,53 +466,29 @@ ng_iface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 static int
 ng_iface_constructor(node_p node)
 {
-	struct ifnet *ifp;
+	struct if_attach_args ifat = {
+		.ifat_version = IF_ATTACH_VERSION,
+		.ifat_drv = &ng_ifdrv,
+		.ifat_mtu = NG_IFACE_MTU_DEFAULT,
+		.ifat_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_NOARP |
+		    IFF_MULTICAST,
+		.ifat_baudrate = 64000,	/* XXX */
+	};
 	priv_p priv;
 
-	/* Allocate node and interface private structures */
 	priv = malloc(sizeof(*priv), M_NETGRAPH_IFACE, M_WAITOK | M_ZERO);
-	ifp = if_alloc(IFT_PROPVIRTUAL);
-	if (ifp == NULL) {
-		free(priv, M_NETGRAPH_IFACE);
-		return (ENOMEM);
-	}
-
-	/* Link them together */
-	ifp->if_softc = priv;
-	priv->ifp = ifp;
-
-	/* Get an interface unit number */
-	priv->unit = alloc_unr(V_ng_iface_unit);
-
-	/* Link together node and private info */
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
-
-	/* Initialize interface structure */
-	if_initname(ifp, NG_IFACE_IFACE_NAME, priv->unit);
-	ifp->if_output = ng_iface_output;
-	ifp->if_start = ng_iface_start;
-	ifp->if_ioctl = ng_iface_ioctl;
-	ifp->if_mtu = NG_IFACE_MTU_DEFAULT;
-	ifp->if_flags = (IFF_SIMPLEX|IFF_POINTOPOINT|IFF_NOARP|IFF_MULTICAST);
-	ifp->if_type = IFT_PROPVIRTUAL;		/* XXX */
-	ifp->if_addrlen = 0;			/* XXX */
-	ifp->if_hdrlen = 0;			/* XXX */
-	ifp->if_baudrate = 64000;		/* XXX */
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
+	ifat.ifat_softc = priv;
+	ifat.ifat_dunit = priv->unit = alloc_unr(V_ng_iface_unit);
+	priv->flags = ifat.ifat_flags;
+	priv->ifp = if_attach(&ifat);
 
 	/* Give this node the same name as the interface (if possible) */
-	if (ng_name_node(node, ifp->if_xname) != 0)
+	if (ng_name_node(node, if_name(priv->ifp)) != 0)
 		log(LOG_WARNING, "%s: can't acquire netgraph name\n",
-		    ifp->if_xname);
+		    if_name(priv->ifp));
 
-	/* Attach the interface */
-	if_attach(ifp);
-	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
-
-	/* Done */
 	return (0);
 }
 
@@ -605,7 +519,7 @@ static int
 ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct ifnet *const ifp = priv->ifp;
+	const if_t ifp = priv->ifp;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
@@ -620,75 +534,20 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			strlcpy(resp->data, ifp->if_xname, IFNAMSIZ);
+			strlcpy(resp->data, if_name(ifp), IFNAMSIZ);
 			break;
-
-		case NGM_IFACE_POINT2POINT:
-		case NGM_IFACE_BROADCAST:
-		    {
-
-			/* Deny request if interface is UP */
-			if ((ifp->if_flags & IFF_UP) != 0)
-				return (EBUSY);
-
-			/* Change flags */
-			switch (msg->header.cmd) {
-			case NGM_IFACE_POINT2POINT:
-				ifp->if_flags |= IFF_POINTOPOINT;
-				ifp->if_flags &= ~IFF_BROADCAST;
-				break;
-			case NGM_IFACE_BROADCAST:
-				ifp->if_flags &= ~IFF_POINTOPOINT;
-				ifp->if_flags |= IFF_BROADCAST;
-				break;
-			}
-			break;
-		    }
 
 		case NGM_IFACE_GET_IFINDEX:
+		    {
+			struct ifreq ifr;
+
 			NG_MKRESPONSE(resp, msg, sizeof(uint32_t), M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			*((uint32_t *)resp->data) = priv->ifp->if_index;
-			break;
-
-		default:
-			error = EINVAL;
-			break;
-		}
-		break;
-	case NGM_CISCO_COOKIE:
-		switch (msg->header.cmd) {
-		case NGM_CISCO_GET_IPADDR:	/* we understand this too */
-		    {
-			struct ifaddr *ifa;
-
-			/* Return the first configured IP address */
-			if_addr_rlock(ifp);
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				struct ng_cisco_ipaddr *ips;
-
-				if (ifa->ifa_addr->sa_family != AF_INET)
-					continue;
-				NG_MKRESPONSE(resp, msg, sizeof(ips), M_NOWAIT);
-				if (resp == NULL) {
-					error = ENOMEM;
-					break;
-				}
-				ips = (struct ng_cisco_ipaddr *)resp->data;
-				ips->ipaddr = ((struct sockaddr_in *)
-						ifa->ifa_addr)->sin_addr;
-				ips->netmask = ((struct sockaddr_in *)
-						ifa->ifa_netmask)->sin_addr;
-				break;
-			}
-			if_addr_runlock(ifp);
-
-			/* No IP addresses on this interface? */
-			if (ifa == NULL)
-				error = EADDRNOTAVAIL;
+			if_drvioctl(ifp, SIOCGIFINDEX, &ifr, curthread);
+			*((uint32_t *)resp->data) = ifr.ifr_index;
 			break;
 		    }
 		default:
@@ -699,10 +558,10 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	case NGM_FLOW_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_LINK_IS_UP:
-			ifp->if_drv_flags |= IFF_DRV_RUNNING;
+			if_link_state_change(ifp, LINK_STATE_UP);
 			break;
 		case NGM_LINK_IS_DOWN:
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			if_link_state_change(ifp, LINK_STATE_DOWN);
 			break;
 		default:
 			break;
@@ -725,8 +584,9 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 {
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);
-	struct ifnet *const ifp = priv->ifp;
+	const if_t ifp = priv->ifp;
 	struct mbuf *m;
+	sa_family_t af;
 	int isr;
 
 	NGI_GET_M(item, m);
@@ -734,20 +594,21 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	/* Sanity checks */
 	KASSERT(iffam != NULL, ("%s: iffam", __func__));
 	M_ASSERTPKTHDR(m);
-	if ((ifp->if_flags & IFF_UP) == 0) {
+	if ((priv->flags & IFF_UP) == 0) {
 		NG_FREE_M(m);
 		return (ENETDOWN);
 	}
 
 	/* Update interface stats */
-	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	/* Note receiving interface */
 	m->m_pkthdr.rcvif = ifp;
 
 	/* Berkeley packet filter */
-	ng_iface_bpftap(ifp, m, iffam->family);
+	af = iffam->family;
+	if_mtap(ifp, m, &af, sizeof(af));
 
 	/* Send packet */
 	switch (iffam->family) {
@@ -761,23 +622,12 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 		isr = NETISR_IPV6;
 		break;
 #endif
-#ifdef IPX
-	case AF_IPX:
-		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		isr = NETISR_ATALK2;
-		break;
-#endif
 	default:
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	if (harvest.point_to_point)
-		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_NG);
-	M_SETFIB(m, ifp->if_fib);
+	random_harvest_queue(m, sizeof(*m), 2, RANDOM_NET_NG);
+	M_SETFIB(m, priv->fib);
 	netisr_dispatch(isr, m);
 	return (0);
 }
@@ -795,9 +645,7 @@ ng_iface_shutdown(node_p node)
 	 * hence we have to change the current vnet context here.
 	 */
 	CURVNET_SET_QUIET(priv->ifp->if_vnet);
-	bpfdetach(priv->ifp);
 	if_detach(priv->ifp);
-	if_free(priv->ifp);
 	CURVNET_RESTORE();
 	priv->ifp = NULL;
 	free_unr(V_ng_iface_unit, priv->unit);

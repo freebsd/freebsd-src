@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <arpa/nameser.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 extern int innetgr( const char *, const char *, const char *, const char * );
 
@@ -148,7 +149,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 	refused = 0;
 	sigemptyset(&newmask);
 	sigaddset(&newmask, SIGURG);
-	_sigprocmask(SIG_BLOCK, (const sigset_t *)&newmask, &oldmask);
+	__libc_sigprocmask(SIG_BLOCK, (const sigset_t *)&newmask, &oldmask);
 	for (timo = 1, lport = IPPORT_RESERVED - 1;;) {
 		s = rresvport_af(&lport, ai->ai_family);
 		if (s < 0) {
@@ -163,7 +164,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 				(void)fprintf(stderr, "rcmd: socket: %s\n",
 				    strerror(errno));
 			freeaddrinfo(res);
-			_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask,
+			__libc_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask,
 			    NULL);
 			return (-1);
 		}
@@ -181,7 +182,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 			(void)fprintf(stderr, "%s: %s\n",
 				      *ahost, strerror(errno));
 			freeaddrinfo(res);
-			_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask,
+			__libc_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask,
 			    NULL);
 			return (-1);
 		}
@@ -306,7 +307,7 @@ again:
 		}
 		goto bad2;
 	}
-	_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask, NULL);
+	__libc_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask, NULL);
 	freeaddrinfo(res);
 	return (s);
 bad2:
@@ -314,7 +315,7 @@ bad2:
 		(void)_close(*fd2p);
 bad:
 	(void)_close(s);
-	_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask, NULL);
+	__libc_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask, NULL);
 	freeaddrinfo(res);
 	return (-1);
 }

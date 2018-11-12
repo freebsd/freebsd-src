@@ -239,6 +239,7 @@ typedef struct vfnt	vfnt_t;
 #define GIO_FONT8x16	_IOR('c', 69, fnt16_t)
 #define PIO_VFONT	_IOW('c', 70, vfnt_t)
 #define GIO_VFONT	_IOR('c', 71, vfnt_t)
+#define PIO_VFONT_DEFAULT _IO('c', 72)
 
 /* get video mode information */
 struct colors	{

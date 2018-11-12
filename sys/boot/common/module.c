@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/stdint.h>
 
 #include "bootstrap.h"
 
@@ -52,7 +53,6 @@ struct moduledir {
 };
 
 static int			file_load(char *filename, vm_offset_t dest, struct preloaded_file **result);
-static int			file_loadraw(char *type, char *name);
 static int			file_load_dependencies(struct preloaded_file *base_mod);
 static char *			file_search(const char *name, char **extlist);
 static struct kernel_module *	file_findmodule(struct preloaded_file *fp, char *modname, struct mod_depend *verinfo);
@@ -66,7 +66,12 @@ static void			moduledir_rebuild(void);
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
 
+#if defined(LOADER_FDT_SUPPORT)
+static const char	*default_searchpath =
+    "/boot/kernel;/boot/modules;/boot/dtb";
+#else
 static const char	*default_searchpath ="/boot/kernel;/boot/modules";
+#endif
 
 static STAILQ_HEAD(, moduledir) moduledir_list = STAILQ_HEAD_INITIALIZER(moduledir_list);
 
@@ -97,6 +102,7 @@ COMMAND_SET(load, "load", "load a kernel or module", command_load);
 static int
 command_load(int argc, char *argv[])
 {
+    struct preloaded_file *fp;
     char	*typestr;
     int		dofile, dokld, ch, error;
     
@@ -134,7 +140,14 @@ command_load(int argc, char *argv[])
 	    command_errmsg = "invalid load type";
 	    return(CMD_ERROR);
 	}
-	return(file_loadraw(typestr, argv[1]));
+
+	fp = file_findfile(argv[1], typestr);
+	if (fp) {
+		sprintf(command_errbuf, "warning: file '%s' already loaded", argv[1]);
+		return (CMD_ERROR);
+	}
+
+	return (file_loadraw(argv[1], typestr, 1) ? CMD_OK : CMD_ERROR);
     }
     /*
      * Do we have explicit KLD load ?
@@ -189,16 +202,14 @@ command_load_geli(int argc, char *argv[])
     argv += (optind - 1);
     argc -= (optind - 1);
     sprintf(typestr, "%s:geli_keyfile%d", argv[1], num);
-    return(file_loadraw(typestr, argv[2]));
+    return (file_loadraw(argv[2], typestr, 1) ? CMD_OK : CMD_ERROR);
 }
 
-COMMAND_SET(unload, "unload", "unload all modules", command_unload);
-
-static int
-command_unload(int argc, char *argv[])
+void
+unload(void)
 {
-    struct preloaded_file	*fp;
-    
+    struct preloaded_file *fp;
+
     while (preloaded_files != NULL) {
 	fp = preloaded_files;
 	preloaded_files = preloaded_files->f_next;
@@ -206,6 +217,14 @@ command_unload(int argc, char *argv[])
     }
     loadaddr = 0;
     unsetenv("kernelname");
+}
+
+COMMAND_SET(unload, "unload", "unload all modules", command_unload);
+
+static int
+command_unload(int argc, char *argv[])
+{
+    unload();
     return(CMD_OK);
 }
 
@@ -237,8 +256,10 @@ command_lsmod(int argc, char *argv[])
 
     pager_open();
     for (fp = preloaded_files; fp; fp = fp->f_next) {
-	sprintf(lbuf, " %p: %s (%s, 0x%lx)\n", 
-		(void *) fp->f_addr, fp->f_name, fp->f_type, (long) fp->f_size);
+	sprintf(lbuf, " %p: ", (void *) fp->f_addr);
+	pager_output(lbuf);
+	pager_output(fp->f_name);
+	sprintf(lbuf, " (%s, 0x%lx)\n", fp->f_type, (long)fp->f_size);
 	pager_output(lbuf);
 	if (fp->f_args != NULL) {
 	    pager_output("    args: ");
@@ -357,8 +378,8 @@ file_load_dependencies(struct preloaded_file *base_file)
  * We've been asked to load (name) as (type), so just suck it in,
  * no arguments or anything.
  */
-int
-file_loadraw(char *type, char *name)
+struct preloaded_file *
+file_loadraw(char *name, char *type, int insert)
 {
     struct preloaded_file	*fp;
     char			*cp;
@@ -368,25 +389,27 @@ file_loadraw(char *type, char *name)
     /* We can't load first */
     if ((file_findfile(NULL, NULL)) == NULL) {
 	command_errmsg = "can't load file before kernel";
-	return(CMD_ERROR);
+	return(NULL);
     }
 
     /* locate the file on the load path */
     cp = file_search(name, NULL);
     if (cp == NULL) {
 	sprintf(command_errbuf, "can't find '%s'", name);
-	return(CMD_ERROR);
+	return(NULL);
     }
     name = cp;
 
     if ((fd = open(name, O_RDONLY)) < 0) {
 	sprintf(command_errbuf, "can't open '%s': %s", name, strerror(errno));
 	free(name);
-	return(CMD_ERROR);
+	return(NULL);
     }
 
     if (archsw.arch_loadaddr != NULL)
 	loadaddr = archsw.arch_loadaddr(LOAD_RAW, name, loadaddr);
+
+    printf("%s ", name);
 
     laddr = loadaddr;
     for (;;) {
@@ -398,11 +421,13 @@ file_loadraw(char *type, char *name)
 	    sprintf(command_errbuf, "error reading '%s': %s", name, strerror(errno));
 	    free(name);
 	    close(fd);
-	    return(CMD_ERROR);
+	    return(NULL);
 	}
 	laddr += got;
     }
-    
+
+    printf("size=%#jx\n", (uintmax_t)(laddr - loadaddr));
+
     /* Looks OK so far; create & populate control structure */
     fp = file_alloc();
     fp->f_name = strdup(name);
@@ -417,9 +442,10 @@ file_loadraw(char *type, char *name)
     loadaddr = laddr;
 
     /* Add to the list of loaded files */
-    file_insert_tail(fp);
+    if (insert != 0)
+    	file_insert_tail(fp);
     close(fd);
-    return(CMD_OK);
+    return(fp);
 }
 
 /*
@@ -520,7 +546,7 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
  * NULL may be passed as a wildcard to either.
  */
 struct preloaded_file *
-file_findfile(char *name, char *type)
+file_findfile(const char *name, const char *type)
 {
     struct preloaded_file *fp;
 
@@ -921,7 +947,7 @@ moduledir_readhints(struct moduledir *mdp)
     path = moduledir_fullpath(mdp, "linker.hints");
     if (stat(path, &st) != 0 ||
 	st.st_size < (ssize_t)(sizeof(version) + sizeof(int)) ||
-	st.st_size > 100 * 1024 || (fd = open(path, O_RDONLY)) < 0) {
+	st.st_size > LINKER_HINTS_MAX || (fd = open(path, O_RDONLY)) < 0) {
 	free(path);
 	mdp->d_flags |= MDIR_NOHINTS;
 	return;

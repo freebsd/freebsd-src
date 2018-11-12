@@ -211,7 +211,8 @@ safe_partname(struct safe_softc *sc)
 static void
 default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
 {
-	random_harvest(buf, count, count*NBBY/2, RANDOM_PURE_SAFE);
+	/* MarkM: FIX!! Check that this does not swamp the harvester! */
+	random_harvest_queue(buf, count, count*NBBY/2, RANDOM_PURE_SAFE);
 }
 #endif /* SAFE_NO_RNG */
 
@@ -425,7 +426,7 @@ safe_attach(device_t dev)
 #endif
 		safe_rng_init(sc);
 
-		callout_init(&sc->sc_rngto, CALLOUT_MPSAFE);
+		callout_init(&sc->sc_rngto, 1);
 		callout_reset(&sc->sc_rngto, hz*safe_rnginterval, safe_rng, sc);
 	}
 #endif /* SAFE_NO_RNG */
@@ -1328,8 +1329,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 					goto errout;
 				}
 				if (totlen >= MINCLSIZE) {
-					MCLGET(m, M_NOWAIT);
-					if ((m->m_flags & M_EXT) == 0) {
+					if (!(MCLGET(m, M_NOWAIT))) {
 						m_free(m);
 						safestats.st_nomcl++;
 						err = sc->sc_nqchip ?
@@ -1355,8 +1355,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 						len = MLEN;
 					}
 					if (top && totlen >= MINCLSIZE) {
-						MCLGET(m, M_NOWAIT);
-						if ((m->m_flags & M_EXT) == 0) {
+						if (!(MCLGET(m, M_NOWAIT))) {
 							*mp = m;
 							m_freem(top);
 							safestats.st_nomcl++;
@@ -1807,20 +1806,13 @@ safe_dma_malloc(
 		goto fail_0;
 	}
 
-	r = bus_dmamap_create(dma->dma_tag, BUS_DMA_NOWAIT, &dma->dma_map);
-	if (r != 0) {
-		device_printf(sc->sc_dev, "safe_dma_malloc: "
-			"bus_dmamap_create failed; error %u\n", r);
-		goto fail_1;
-	}
-
 	r = bus_dmamem_alloc(dma->dma_tag, (void**) &dma->dma_vaddr,
 			     BUS_DMA_NOWAIT, &dma->dma_map);
 	if (r != 0) {
 		device_printf(sc->sc_dev, "safe_dma_malloc: "
-			"bus_dmammem_alloc failed; size %zu, error %u\n",
-			size, r);
-		goto fail_2;
+			"bus_dmammem_alloc failed; size %ju, error %u\n",
+			(uintmax_t)size, r);
+		goto fail_1;
 	}
 
 	r = bus_dmamap_load(dma->dma_tag, dma->dma_map, dma->dma_vaddr,
@@ -1831,21 +1823,18 @@ safe_dma_malloc(
 	if (r != 0) {
 		device_printf(sc->sc_dev, "safe_dma_malloc: "
 			"bus_dmamap_load failed; error %u\n", r);
-		goto fail_3;
+		goto fail_2;
 	}
 
 	dma->dma_size = size;
 	return (0);
 
-fail_3:
 	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 fail_2:
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 fail_1:
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
 fail_0:
-	dma->dma_map = NULL;
 	dma->dma_tag = NULL;
 	return (r);
 }
@@ -1855,7 +1844,6 @@ safe_dma_free(struct safe_softc *sc, struct safe_dma_alloc *dma)
 {
 	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
 }
 

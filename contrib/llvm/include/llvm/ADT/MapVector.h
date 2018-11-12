@@ -1,4 +1,4 @@
-//===- llvm/ADT/MapVector.h - Map with deterministic value order *- C++ -*-===//
+//===- llvm/ADT/MapVector.h - Map w/ deterministic value order --*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -17,9 +17,8 @@
 #ifndef LLVM_ADT_MAPVECTOR_H
 #define LLVM_ADT_MAPVECTOR_H
 
-#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include <vector>
 
 namespace llvm {
@@ -31,7 +30,7 @@ template<typename KeyT, typename ValueT,
          typename MapType = llvm::DenseMap<KeyT, unsigned>,
          typename VectorType = std::vector<std::pair<KeyT, ValueT> > >
 class MapVector {
-  typedef typename VectorType::size_type SizeType;
+  typedef typename VectorType::size_type size_type;
 
   MapType Map;
   VectorType Vector;
@@ -39,26 +38,20 @@ class MapVector {
 public:
   typedef typename VectorType::iterator iterator;
   typedef typename VectorType::const_iterator const_iterator;
+  typedef typename VectorType::reverse_iterator reverse_iterator;
+  typedef typename VectorType::const_reverse_iterator const_reverse_iterator;
 
-  SizeType size() const {
-    return Vector.size();
-  }
+  size_type size() const { return Vector.size(); }
 
-  iterator begin() {
-    return Vector.begin();
-  }
+  iterator begin() { return Vector.begin(); }
+  const_iterator begin() const { return Vector.begin(); }
+  iterator end() { return Vector.end(); }
+  const_iterator end() const { return Vector.end(); }
 
-  const_iterator begin() const {
-    return Vector.begin();
-  }
-
-  iterator end() {
-    return Vector.end();
-  }
-
-  const_iterator end() const {
-    return Vector.end();
-  }
+  reverse_iterator rbegin() { return Vector.rbegin(); }
+  const_reverse_iterator rbegin() const { return Vector.rbegin(); }
+  reverse_iterator rend() { return Vector.rend(); }
+  const_reverse_iterator rend() const { return Vector.rend(); }
 
   bool empty() const {
     return Vector.empty();
@@ -97,12 +90,12 @@ public:
     if (Result.second) {
       Vector.push_back(std::make_pair(KV.first, KV.second));
       I = Vector.size() - 1;
-      return std::make_pair(llvm::prior(end()), true);
+      return std::make_pair(std::prev(end()), true);
     }
     return std::make_pair(begin() + I, false);
   }
 
-  unsigned count(const KeyT &Key) const {
+  size_type count(const KeyT &Key) const {
     typename MapType::const_iterator Pos = Map.find(Key);
     return Pos == Map.end()? 0 : 1;
   }
@@ -125,8 +118,78 @@ public:
     Map.erase(Pos);
     Vector.pop_back();
   }
+
+  /// \brief Remove the element given by Iterator.
+  ///
+  /// Returns an iterator to the element following the one which was removed,
+  /// which may be end().
+  ///
+  /// \note This is a deceivingly expensive operation (linear time).  It's
+  /// usually better to use \a remove_if() if possible.
+  typename VectorType::iterator erase(typename VectorType::iterator Iterator) {
+    Map.erase(Iterator->first);
+    auto Next = Vector.erase(Iterator);
+    if (Next == Vector.end())
+      return Next;
+
+    // Update indices in the map.
+    size_t Index = Next - Vector.begin();
+    for (auto &I : Map) {
+      assert(I.second != Index && "Index was already erased!");
+      if (I.second > Index)
+        --I.second;
+    }
+    return Next;
+  }
+
+  /// \brief Remove all elements with the key value Key.
+  ///
+  /// Returns the number of elements removed.
+  size_type erase(const KeyT &Key) {
+    auto Iterator = find(Key);
+    if (Iterator == end())
+      return 0;
+    erase(Iterator);
+    return 1;
+  }
+
+  /// \brief Remove the elements that match the predicate.
+  ///
+  /// Erase all elements that match \c Pred in a single pass.  Takes linear
+  /// time.
+  template <class Predicate> void remove_if(Predicate Pred);
 };
 
+template <typename KeyT, typename ValueT, typename MapType, typename VectorType>
+template <class Function>
+void MapVector<KeyT, ValueT, MapType, VectorType>::remove_if(Function Pred) {
+  auto O = Vector.begin();
+  for (auto I = O, E = Vector.end(); I != E; ++I) {
+    if (Pred(*I)) {
+      // Erase from the map.
+      Map.erase(I->first);
+      continue;
+    }
+
+    if (I != O) {
+      // Move the value and update the index in the map.
+      *O = std::move(*I);
+      Map[O->first] = O - Vector.begin();
+    }
+    ++O;
+  }
+  // Erase trailing entries in the vector.
+  Vector.erase(O, Vector.end());
 }
+
+/// \brief A MapVector that performs no allocations if smaller than a certain
+/// size.
+template <typename KeyT, typename ValueT, unsigned N>
+struct SmallMapVector
+    : MapVector<KeyT, ValueT, SmallDenseMap<KeyT, unsigned, N>,
+                SmallVector<std::pair<KeyT, ValueT>, N>> {
+};
+
+} // end namespace llvm
 
 #endif

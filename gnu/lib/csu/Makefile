@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.MAIN: all
+
+.include <src.opts.mk>
 MK_SSP=		no
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
@@ -24,17 +26,10 @@ CFLAGS+=	-I${GCCLIB}/include -I${GCCDIR}/config -I${GCCDIR} -I. \
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
 MKDEP=		-DCRT_BEGIN
 
-.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${TARGET_CPUARCH} == "arm"
 CFLAGS+=	-DTARGET_ARM_EABI
 .endif
 
-.if ${MACHINE_CPUARCH} == "ia64"
-BEGINSRC=	crtbegin.asm
-ENDSRC=		crtend.asm
-CFLAGS+=	-x assembler-with-cpp	# Ugly hack
-CFLAGS+=	-include osreldate.h
-.undef SRCS				# hack for 'make depend'
-.endif
 .if ${MACHINE_CPUARCH} == "powerpc"
 TGTOBJS=	crtsavres.o
 SRCS+=		crtsavres.asm
@@ -73,12 +68,19 @@ crtendS.o:	${ENDSRC}
 
 CLEANFILES+=	tm.h tconfig.h options.h optionlist cs-tconfig.h cs-tm.h
 tm.h tconfig.h options.h: ${CCDIR}/cc_tools/Makefile
-	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
+	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 realinstall:
 .for file in ${OBJS} ${SOBJS} ${TGTOBJS}
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${file} ${DESTDIR}${LIBDIR}/${file}
 .endfor
+
+.if ${MK_STAGING} == "yes"
+STAGE_DIR= ${STAGE_LIBDIR}
+STAGE_FILES= ${OBJS} ${SOBJS} ${TGTOBJS}
+staging: stage_files
+.endif
+.NOPATH: ${CLEANFILES}
 
 .include <bsd.lib.mk>

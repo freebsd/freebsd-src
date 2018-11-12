@@ -64,25 +64,21 @@ static void ata_cam_end_transaction(device_t dev, struct ata_request *request);
 static void ata_cam_request_sense(device_t dev, struct ata_request *request);
 static int ata_check_ids(device_t dev, union ccb *ccb);
 static void ata_conn_event(void *context, int dummy);
-static void ata_init(void);
 static void ata_interrupt_locked(void *data);
 static int ata_module_event_handler(module_t mod, int what, void *arg);
 static void ata_periodic_poll(void *data);
 static int ata_str2mode(const char *str);
-static void ata_uninit(void);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
 int (*ata_raid_ioctl_func)(u_long cmd, caddr_t data) = NULL;
 devclass_t ata_devclass;
-uma_zone_t ata_request_zone;
 int ata_dma_check_80pin = 1;
 
 /* sysctl vars */
 static SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
-TUNABLE_INT("hw.ata.ata_dma_check_80pin", &ata_dma_check_80pin);
 SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma_check_80pin,
-	   CTLFLAG_RW, &ata_dma_check_80pin, 1,
+	   CTLFLAG_RWTUN, &ata_dma_check_80pin, 0,
 	   "Check for 80pin cable before setting ATA DMA mode");
 FEATURE(ata_cam, "ATA devices are accessed through the cam(4) driver");
 
@@ -92,7 +88,7 @@ FEATURE(ata_cam, "ATA devices are accessed through the cam(4) driver");
 int
 ata_probe(device_t dev)
 {
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 int
@@ -360,24 +356,23 @@ ata_interrupt(void *data)
 static void
 ata_interrupt_locked(void *data)
 {
-    struct ata_channel *ch = (struct ata_channel *)data;
-    struct ata_request *request;
+	struct ata_channel *ch = (struct ata_channel *)data;
+	struct ata_request *request;
 
-    do {
 	/* ignore interrupt if its not for us */
 	if (ch->hw.status && !ch->hw.status(ch->dev))
-	    break;
+		return;
 
 	/* do we have a running request */
 	if (!(request = ch->running))
-	    break;
+		return;
 
 	ATA_DEBUG_RQ(request, "interrupt");
 
 	/* safetycheck for the right state */
 	if (ch->state == ATA_IDLE) {
-	    device_printf(request->dev, "interrupt on idle channel ignored\n");
-	    break;
+		device_printf(request->dev, "interrupt on idle channel ignored\n");
+		return;
 	}
 
 	/*
@@ -385,13 +380,12 @@ ata_interrupt_locked(void *data)
 	 * if it finishes immediately otherwise wait for next interrupt
 	 */
 	if (ch->hw.end_transaction(request) == ATA_OP_FINISHED) {
-	    ch->running = NULL;
-	    if (ch->state == ATA_ACTIVE)
-		ch->state = ATA_IDLE;
-	    ata_cam_end_transaction(ch->dev, request);
-	    return;
+		ch->running = NULL;
+		if (ch->state == ATA_ACTIVE)
+			ch->state = ATA_IDLE;
+		ata_cam_end_transaction(ch->dev, request);
+		return;
 	}
-    } while (0);
 }
 
 static void
@@ -575,6 +569,7 @@ ata_mode2str(int mode)
     case ATA_UDMA6: return "UDMA133";
     case ATA_SA150: return "SATA150";
     case ATA_SA300: return "SATA300";
+    case ATA_SA600: return "SATA600";
     default:
 	if (mode & ATA_DMA_MASK)
 	    return "BIOSDMA";
@@ -652,12 +647,7 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 	struct ata_channel *ch = device_get_softc(dev);
 	struct ata_request *request;
 
-	if (!(request = ata_alloc_request())) {
-		device_printf(dev, "FAILURE - out of memory in start\n");
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
-		return;
-	}
+	request = &ch->request;
 	bzero(request, sizeof(*request));
 
 	/* setup request */
@@ -796,7 +786,6 @@ ata_cam_process_sense(device_t dev, struct ata_request *request)
 		ccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
 	}
 
-	ata_free_request(request);
 	xpt_done(ccb);
 	/* Do error recovery if needed. */
 	if (fatalerr)
@@ -867,10 +856,8 @@ ata_cam_end_transaction(device_t dev, struct ata_request *request)
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR &&
 	    (ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0)
 		ata_cam_request_sense(dev, request);
-	else {
-		ata_free_request(request);
+	else
 		xpt_done(ccb);
-	}
 	/* Do error recovery if needed. */
 	if (fatalerr)
 		ata_reinit(dev);
@@ -1077,7 +1064,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_SDTR_ABLE;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		if (ch->flags & ATA_NO_SLAVE)
 			cpi->max_target = 0;
@@ -1150,18 +1137,3 @@ static moduledata_t ata_moduledata = { "ata", ata_module_event_handler, NULL };
 DECLARE_MODULE(ata, ata_moduledata, SI_SUB_CONFIGURE, SI_ORDER_SECOND);
 MODULE_VERSION(ata, 1);
 MODULE_DEPEND(ata, cam, 1, 1, 1);
-
-static void
-ata_init(void)
-{
-    ata_request_zone = uma_zcreate("ata_request", sizeof(struct ata_request),
-				   NULL, NULL, NULL, NULL, 0, 0);
-}
-SYSINIT(ata_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_init, NULL);
-
-static void
-ata_uninit(void)
-{
-    uma_zdestroy(ata_request_zone);
-}
-SYSUNINIT(ata_unregister, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_uninit, NULL);

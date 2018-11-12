@@ -31,7 +31,9 @@
 
 #define OFFSET 0
 
-void
+int main(void);
+
+int
 main(void)
 {
 	int len, i, j, off, sec;
@@ -59,4 +61,5 @@ main(void)
 	    continue;
 	printf("Done\n");
 	reset();
+	return (1);
 }

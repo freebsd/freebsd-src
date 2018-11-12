@@ -15,12 +15,12 @@
 */
 
 /* #define LITTLE_ENDIAN * This should be #define'd already, if true. */
-/* #define SHA1HANDSOFF * Copies data before messing with it. */
 
 #include <ldns/config.h>
 #include <ldns/ldns.h>
 #include <strings.h>
 
+#define SHA1HANDSOFF 1 /* Copies data before messing with it. */
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
 
 /* blk0() and blk() perform the initial expand. */

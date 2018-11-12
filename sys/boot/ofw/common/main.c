@@ -45,7 +45,7 @@ u_int32_t	acells, scells;
 
 static char bootargs[128];
 
-#define	HEAP_SIZE	0x80000
+#define	HEAP_SIZE	0x100000
 
 #define OF_puts(fd, text) OF_write(fd, text, strlen(text))
 
@@ -162,7 +162,7 @@ main(int (*openfirm)(void *))
 	archsw.arch_readin = ofw_readin;
 	archsw.arch_autoload = ofw_autoload;
 
-	interact();				/* doesn't return */
+	interact(NULL);				/* doesn't return */
 
 	OF_exit();
 

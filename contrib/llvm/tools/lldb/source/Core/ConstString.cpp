@@ -11,6 +11,8 @@
 #include "lldb/Host/Mutex.h"
 #include "llvm/ADT/StringMap.h"
 
+#include <mutex>
+
 using namespace lldb_private;
 
 
@@ -93,7 +95,7 @@ public:
         {
             Mutex::Locker locker (m_mutex);
             llvm::StringRef string_ref (cstr, cstr_len);
-            StringPoolEntryType& entry = m_string_map.GetOrCreateValue (string_ref, (StringPoolValueType)NULL);
+            StringPoolEntryType& entry = *m_string_map.insert (std::make_pair (string_ref, (StringPoolValueType)NULL)).first;
             return entry.getKeyData();
         }
         return NULL;
@@ -105,7 +107,7 @@ public:
         if (string_ref.data())
         {
             Mutex::Locker locker (m_mutex);
-            StringPoolEntryType& entry = m_string_map.GetOrCreateValue (string_ref, (StringPoolValueType)NULL);
+            StringPoolEntryType& entry = *m_string_map.insert (std::make_pair (string_ref, (StringPoolValueType)NULL)).first;
             return entry.getKeyData();
         }
         return NULL;
@@ -118,7 +120,7 @@ public:
         {
             Mutex::Locker locker (m_mutex);
             // Make string pool entry with the mangled counterpart already set
-            StringPoolEntryType& entry = m_string_map.GetOrCreateValue (llvm::StringRef (demangled_cstr), mangled_ccstr);
+            StringPoolEntryType& entry = *m_string_map.insert (std::make_pair (llvm::StringRef (demangled_cstr), mangled_ccstr)).first;
 
             // Extract the const version of the demangled_cstr
             const char *demangled_ccstr = entry.getKeyData();
@@ -184,25 +186,16 @@ protected:
 // we can't guarantee that some objects won't get destroyed after the
 // global destructor chain is run, and trying to make sure no destructors
 // touch ConstStrings is difficult.  So we leak the pool instead.
-//
-// FIXME: If we are going to keep it this way we should come up with some
-// abstraction to "pthread_once" so we don't have to check the pointer
-// every time.
 //----------------------------------------------------------------------
 static Pool &
 StringPool()
 {
-    static Mutex g_pool_initialization_mutex;
+    static std::once_flag g_pool_initialization_flag;
     static Pool *g_string_pool = NULL;
 
-    if (g_string_pool == NULL)
-    {
-        Mutex::Locker initialization_locker(g_pool_initialization_mutex);
-        if (g_string_pool == NULL)
-        {
-            g_string_pool = new Pool();
-        }
-    }
+    std::call_once(g_pool_initialization_flag, [] () {
+        g_string_pool = new Pool();
+    });
     
     return *g_string_pool;
 }
@@ -294,7 +287,10 @@ ConstString::DumpDebug(Stream *s) const
     size_t cstr_len = GetLength();
     // Only print the parens if we have a non-NULL string
     const char *parens = cstr ? "\"" : "";
-    s->Printf("%*p: ConstString, string = %s%s%s, length = %" PRIu64, (int)sizeof(void*) * 2, this, parens, cstr, parens, (uint64_t)cstr_len);
+    s->Printf("%*p: ConstString, string = %s%s%s, length = %" PRIu64,
+              static_cast<int>(sizeof(void*) * 2),
+              static_cast<const void*>(this), parens, cstr, parens,
+              static_cast<uint64_t>(cstr_len));
 }
 
 void
