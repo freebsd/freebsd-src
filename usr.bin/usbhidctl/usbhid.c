@@ -1,4 +1,3 @@
-/*	$NetBSD: usbhid.c,v 1.14 2000/07/03 02:51:37 matt Exp $	*/
 /*	$FreeBSD$ */
 
 /*
