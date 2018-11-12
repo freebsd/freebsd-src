@@ -17,10 +17,11 @@ if [ -z "${MACHINE}" ]; then
 fi
 
 : ${DTC:=dtc}
+: ${ECHO:=echo}
 
 for d in ${dts}; do
     dtb=${dtb_path}/`basename $d .dts`.dtb
-    echo "converting $d -> $dtb"
+    ${ECHO} "converting $d -> $dtb"
     cpp -P -x assembler-with-cpp -I $S/gnu/dts/include -I $S/dts/${MACHINE} -I $S/gnu/dts/${MACHINE} -I $S/gnu/dts/ -include $d /dev/null | 
 	${DTC} -@ -O dtb -o $dtb -b 0 -p 1024 -i $S/dts/${MACHINE} -i $S/gnu/dts/${MACHINE} -i $S/gnu/dts/
 done
