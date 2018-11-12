@@ -1581,6 +1581,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	identify_cpu1();
 	identify_hypervisor();
+	identify_cpu_fixup_bsp();
 	identify_cpu2();
 	initializecpucache();
 
