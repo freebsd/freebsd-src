@@ -31,6 +31,9 @@ FBSD_1.4 {
 FBSD_1.5 {
 } FBSD_1.4;
 
+# This version was first added to 13.0-current.
+FBSD_1.6 {
+} FBSD_1.5;
 
 # This is our private namespace.  Any global interfaces that are
 # strictly for use only by other FreeBSD applications and libraries
@@ -39,4 +42,4 @@ FBSD_1.5 {
 #
 # Please do NOT increment the version of this namespace.
 FBSDprivate_1.0 {
-} FBSD_1.5;
+} FBSD_1.6;
