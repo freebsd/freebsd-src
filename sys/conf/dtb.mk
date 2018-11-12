@@ -58,8 +58,8 @@ all: ${DTB} ${DTBO}
 .export DTC
 .for _dts in ${DTS}
 ${_dts:R:S/$/.dtb/}:	${_dts} ${OP_META}
-	@echo Generating ${.TARGET} from ${_dts}
-	@${SYSDIR}/tools/fdt/make_dtb.sh ${SYSDIR} ${_dts} ${.OBJDIR}
+	@${ECHO} Generating ${.TARGET} from ${_dts}
+	@env ECHO=${ECHO} ${SYSDIR}/tools/fdt/make_dtb.sh ${SYSDIR} ${_dts} ${.OBJDIR}
 CLEANFILES+=${_dts:R:S/$/.dtb/}
 .endfor
 .endif
@@ -68,8 +68,8 @@ CLEANFILES+=${_dts:R:S/$/.dtb/}
 .export DTC
 .for _dtso in ${DTSO}
 ${_dtso:R:S/$/.dtbo/}:	${_dtso} ${OP_META}
-	@echo Generating ${.TARGET} from ${_dtso}
-	@${SYSDIR}/tools/fdt/make_dtbo.sh ${SYSDIR} overlays/${_dtso} ${.OBJDIR}
+	@${ECHO} Generating ${.TARGET} from ${_dtso}
+	@env ECHO=${ECHO} ${SYSDIR}/tools/fdt/make_dtbo.sh ${SYSDIR} overlays/${_dtso} ${.OBJDIR}
 CLEANFILES+=${_dtso:R:S/$/.dtbo/}
 .endfor
 .endif
