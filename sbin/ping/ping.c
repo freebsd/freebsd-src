@@ -612,7 +612,7 @@ main(int argc, char *const *argv)
 	if (capdns != NULL) {
 		const char *types[1];
 
-		types[0] = "ADDR";
+		types[0] = "ADDR2NAME";
 		if (cap_dns_type_limit(capdns, types, 1) < 0)
 			err(1, "unable to limit access to system.dns service");
 	}
@@ -1781,8 +1781,8 @@ capdns_setup(void)
 	cap_close(capcas);
 	if (capdnsloc == NULL)
 		err(1, "unable to open system.dns service");
-	types[0] = "NAME";
-	types[1] = "ADDR";
+	types[0] = "NAME2ADDR";
+	types[1] = "ADDR2NAME";
 	if (cap_dns_type_limit(capdnsloc, types, 2) < 0)
 		err(1, "unable to limit access to system.dns service");
 	families[0] = AF_INET;

@@ -6,7 +6,7 @@ SHLIBDIR?=	/lib/casper
 
 PACKAGE=libcasper
 
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 INCSDIR?=	${INCLUDEDIR}/casper
 
 .if ${MK_CASPER} != "no"
