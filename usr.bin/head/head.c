@@ -75,14 +75,17 @@ static const struct option long_opts[] =
 int
 main(int argc, char *argv[])
 {
-	int ch;
 	FILE *fp;
-	int first, linecnt = -1, eval = 0;
-	off_t bytecnt = -1;
 	char *ep;
+	off_t bytecnt;
+	int ch, first, linecnt, eval;
+
+	linecnt = -1;
+	eval = 0;
+	bytecnt = -1;
 
 	obsolete(argv);
-	while ((ch = getopt_long(argc, argv, "+n:c:", long_opts, NULL)) != -1)
+	while ((ch = getopt_long(argc, argv, "+n:c:", long_opts, NULL)) != -1) {
 		switch(ch) {
 		case 'c':
 			bytecnt = strtoimax(optarg, &ep, 10);
@@ -97,16 +100,18 @@ main(int argc, char *argv[])
 		case '?':
 		default:
 			usage();
+			/* NOTREACHED */
 		}
+	}
 	argc -= optind;
 	argv += optind;
 
 	if (linecnt != -1 && bytecnt != -1)
 		errx(1, "can't combine line and byte counts");
-	if (linecnt == -1 )
+	if (linecnt == -1)
 		linecnt = 10;
-	if (*argv) {
-		for (first = 1; *argv; ++argv) {
+	if (*argv != NULL) {
+		for (first = 1; *argv != NULL; ++argv) {
 			if ((fp = fopen(*argv, "r")) == NULL) {
 				warn("%s", *argv);
 				eval = 1;
@@ -137,7 +142,7 @@ head(FILE *fp, int cnt)
 	char *cp;
 	size_t error, readlen;
 
-	while (cnt && (cp = fgetln(fp, &readlen)) != NULL) {
+	while (cnt != 0 && (cp = fgetln(fp, &readlen)) != NULL) {
 		error = fwrite(cp, sizeof(char), readlen, stdout);
 		if (error != readlen)
 			err(1, "stdout");
