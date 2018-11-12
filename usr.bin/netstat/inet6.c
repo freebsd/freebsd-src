@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
-#include <sys/sysctl.h>
 
 #include <net/route.h>
 #include <net/if.h>
@@ -359,23 +358,13 @@ static const char *srcrule_str[] = {
 void
 ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct ip6stat ip6stat, zerostat;
+	struct ip6stat ip6stat;
 	int first, i;
-	size_t len;
 
-	len = sizeof ip6stat;
-	if (live) {
-		memset(&ip6stat, 0, len);
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet6.ip6.stats", &ip6stat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			if (errno != ENOENT)
-				xo_warn("sysctl: net.inet6.ip6.stats");
-			return;
-		}
-	} else
-		kread_counters(off, &ip6stat, len);
+	if (fetch_stats("net.inet6.ip6.stats", off, &ip6stat,
+	    sizeof(ip6stat), kread_counters) != 0)
+		return;
+
 	xo_open_container(name);
 	xo_emit("{T:/%s}:\n", name);
 
@@ -956,23 +945,12 @@ static	const char *icmp6names[] = {
 void
 icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct icmp6stat icmp6stat, zerostat;
+	struct icmp6stat icmp6stat;
 	int i, first;
-	size_t len;
 
-	len = sizeof icmp6stat;
-	if (live) {
-		memset(&icmp6stat, 0, len);
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet6.icmp6.stats", &icmp6stat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			if (errno != ENOENT)
-				xo_warn("sysctl: net.inet6.icmp6.stats");
-			return;
-		}
-	} else
-		kread_counters(off, &icmp6stat, len);
+	if (fetch_stats("net.inet6.icmp6.stats", off, &icmp6stat,
+	    sizeof(icmp6stat), kread_counters) != 0)
+		return;
 
 	xo_emit("{T:/%s}:\n", name);
 	xo_open_container(name);
@@ -1196,23 +1174,11 @@ end:
 void
 pim6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct pim6stat pim6stat, zerostat;
-	size_t len = sizeof pim6stat;
+	struct pim6stat pim6stat;
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet6.pim.stats", &pim6stat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			if (errno != ENOENT)
-				xo_warn("sysctl: net.inet6.pim.stats");
-			return;
-		}
-	} else {
-		if (off == 0)
-			return;
-		kread(off, &pim6stat, len);
-	}
+	if (fetch_stats("net.inet6.pim.stats", off, &pim6stat,
+	    sizeof(pim6stat), kread) != 0)
+		return;
 
 	xo_emit("{T:/%s}:\n", name);
 	xo_open_container(name);
@@ -1244,22 +1210,12 @@ pim6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 void
 rip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct rip6stat rip6stat, zerostat;
+	struct rip6stat rip6stat;
 	u_quad_t delivered;
-	size_t len;
 
-	len = sizeof(rip6stat);
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet6.ip6.rip6stats", &rip6stat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			if (errno != ENOENT)
-				xo_warn("sysctl: net.inet6.ip6.rip6stats");
-			return;
-		}
-	} else
-		kread_counters(off, &rip6stat, len);
+	if (fetch_stats("net.inet6.ip6.rip6stats", off, &rip6stat,
+	    sizeof(rip6stat), kread_counters) != 0)
+		return;
 
 	xo_emit("{T:/%s}:\n", name);
 	xo_open_container(name);

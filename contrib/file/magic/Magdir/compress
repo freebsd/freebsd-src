@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.63 2015/03/11 19:27:35 christos Exp $
+# $File: compress,v 1.64 2015/07/27 15:41:09 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -258,7 +258,8 @@
 !:mime	application/x-qpress
 
 # Zlib https://www.ietf.org/rfc/rfc6713.txt
-0	beshort%31	=0	
->0	byte&0xf	=8
->>0	byte&0x80 	=0	zlib compressed data
+0	string/b	x
+>0	beshort%31	=0	
+>>0	byte&0xf	=8
+>>>0	byte&0x80 	=0	zlib compressed data
 !:mime	application/zlib

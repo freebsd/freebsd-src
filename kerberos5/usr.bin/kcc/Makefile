@@ -16,12 +16,12 @@ SRCS=	kcc.c \
 	kswitch.c \
 	copy_cred_cache.c
 
+CLEANFILES=	kcc-commands.h kcc-commands.c
+
 kcc-commands.h: kcc-commands.in
 	${SLC} ${.ALLSRC:M*.in}
 
-.for ext in c o
-kcc-commands.${ext}: kcc-commands.h
-.endfor
+kcc-commands.c: kcc-commands.h
 
 .include <bsd.prog.mk>
 

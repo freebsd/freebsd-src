@@ -213,6 +213,22 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 		}
 	}
 
+	/*
+	 * XXX If we aren't doing AMPDU TX then we /could/ do
+	 * fast-frames encapsulation, however right now this
+	 * output logic doesn't handle that case.
+	 *
+	 * So we'll be limited to "fast-frames" xmit for non-11n STA
+	 * and "no fast frames" xmit for 11n STAs.
+	 * It'd be nice to eventually test fast-frames out by
+	 * gracefully falling from failing A-MPDU transmission
+	 * (driver says no, fail to negotiate it with peer) to
+	 * using fast-frames.
+	 *
+	 * Note: we can actually put A-MSDU's inside an A-MPDU,
+	 * so hopefully we can figure out how to make that particular
+	 * combination work right.
+	 */
 #ifdef IEEE80211_SUPPORT_SUPERG
 	else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF)) {
 		m = ieee80211_ff_check(ni, m);
@@ -230,6 +246,11 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 */
 	IEEE80211_TX_LOCK(ic);
 
+	/*
+	 * XXX make the encap and transmit code a separate function
+	 * so things like the FF (and later A-MSDU) path can just call
+	 * it for flushed frames.
+	 */
 	if (__predict_true((vap->iv_caps & IEEE80211_C_8023ENCAP) == 0)) {
 		/*
 		 * Encapsulate the packet in prep for transmission.
@@ -1787,7 +1808,7 @@ add_ie(uint8_t *frm, const uint8_t *ie)
 /*
  * Add a WME information element to a frame.
  */
-static uint8_t *
+uint8_t *
 ieee80211_add_wme_info(uint8_t *frm, struct ieee80211_wme_state *wme)
 {
 	static const struct ieee80211_wme_info info = {
@@ -2839,9 +2860,10 @@ ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 
 static void
 ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
-	struct ieee80211_beacon_offsets *bo, struct ieee80211_node *ni)
+	struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_rateset *rs = &ni->ni_rates;
 	uint16_t capinfo;
@@ -3000,8 +3022,7 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
  * Allocate a beacon frame and fillin the appropriate bits.
  */
 struct mbuf *
-ieee80211_beacon_alloc(struct ieee80211_node *ni,
-	struct ieee80211_beacon_offsets *bo)
+ieee80211_beacon_alloc(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -3083,7 +3104,7 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 		vap->iv_stats.is_tx_nobuf++;
 		return NULL;
 	}
-	ieee80211_beacon_construct(m, frm, bo, ni);
+	ieee80211_beacon_construct(m, frm, ni);
 
 	M_PREPEND(m, sizeof(struct ieee80211_frame), M_NOWAIT);
 	KASSERT(m != NULL, ("no space for 802.11 header?"));
@@ -3104,10 +3125,10 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
  * Update the dynamic parts of a beacon frame based on the current state.
  */
 int
-ieee80211_beacon_update(struct ieee80211_node *ni,
-	struct ieee80211_beacon_offsets *bo, struct mbuf *m, int mcast)
+ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 	struct ieee80211com *ic = ni->ni_ic;
 	int len_changed = 0;
 	uint16_t capinfo;
@@ -3137,7 +3158,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 		 * clear IEEE80211_BEACON_CSA.
 		 */
 		ieee80211_beacon_construct(m,
-		    mtod(m, uint8_t*) + sizeof(struct ieee80211_frame), bo, ni);
+		    mtod(m, uint8_t*) + sizeof(struct ieee80211_frame), ni);
 
 		/* XXX do WME aggressive mode processing? */
 		IEEE80211_UNLOCK(ic);

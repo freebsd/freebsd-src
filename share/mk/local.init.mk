@@ -28,8 +28,12 @@ CXXFLAGS_LAST+= -I/usr/include
 .if ${.MAKE.DEPENDFILE:E} != "host"
 UPDATE_DEPENDFILE?= no
 .endif
-HOST_CC?= /usr/bin/cc
+HOST_CC?=	/usr/bin/cc
+CC=		${HOST_CC}
+HOST_CXX?=	/usr/bin/c++
+CXX=		${HOST_CXX}
+HOST_CPP?=	/usr/bin/cpp
+CPP=		${HOST_CPP}
 HOST_CFLAGS+= -DHOSTPROG
-CC= ${HOST_CC}
 CFLAGS+= ${HOST_CFLAGS}
 .endif

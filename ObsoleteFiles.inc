@@ -38,7 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2015mmdd: new clang import which bumps version from 3.6.1 to 3.7.0.
+# 20151006: new libc++ import
+OLD_FILES+=usr/include/c++/__tuple_03
+# 20151006: new clang import which bumps version from 3.6.1 to 3.7.0.
 OLD_FILES+=usr/lib/clang/3.6.1/include/__stddef_max_align_t.h
 OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_aes.h
 OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_pclmul.h
@@ -99,6 +101,14 @@ OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
 OLD_DIRS+=usr/lib/clang/3.6.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.6.1/lib
 OLD_DIRS+=usr/lib/clang/3.6.1
+# 20150928: unused sgsmsg utility is removed
+OLD_FILES+=usr/bin/sgsmsg
+# 20150926: remove links to removed/unimplemented mbuf(9) macros
+OLD_FILES+=usr/share/man/man9/MEXT_ADD_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MEXTFREE.9.gz
+OLD_FILES+=usr/share/man/man9/MEXT_IS_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MEXT_REM_REF.9.gz
+OLD_FILES+=usr/share/man/man9/MFREE.9.gz
 # 20150818: *allocm() are gone in jemalloc 4.0.0
 OLD_FILES+=usr/share/man/man3/allocm.3.gz
 OLD_FILES+=usr/share/man/man3/dallocm.3.gz
@@ -544,8 +554,6 @@ OLD_FILES+=usr/share/man/man9/splstatclock.9.gz
 OLD_FILES+=usr/share/man/man9/spltty.9.gz
 OLD_FILES+=usr/share/man/man9/splvm.9.gz
 OLD_FILES+=usr/share/man/man9/splx.9.gz
-# 20150122: callout changes reverted
-OLD_FILES+=usr/share/man/man9/callout_drain_async.9.gz
 # 20150118: toeplitz.c moved from netinet to net
 OLD_FILES+=usr/include/netinet/toeplitz.h
 # 20150118: new clang import which bumps version from 3.5.0 to 3.5.1.
@@ -7297,6 +7305,12 @@ OLD_LIBS+=usr/lib/libposix1e.so.2
 OLD_LIBS+=usr/lib/libskey.so.2
 OLD_LIBS+=usr/lib/libusbhid.so.0
 OLD_LIBS+=usr/lib/libvgl.so.2
+# 20030218: OpenSSL 0.9.7 import
+OLD_FILES+=usr/include/des.h
+OLD_FILES+=usr/lib/libdes.a
+OLD_FILES+=usr/lib/libdes.so
+OLD_LIBS+=usr/lib/libdes.so.3
+OLD_FILES+=usr/lib/libdes_p.a
 # 200302XX
 OLD_LIBS+=usr/lib/libacl.so.3
 OLD_LIBS+=usr/lib/libasn1.so.5
@@ -7355,6 +7369,8 @@ OLD_LIBS+=usr/lib/libtermcap.so.2
 OLD_LIBS+=usr/lib/libutil.so.2
 OLD_LIBS+=usr/lib/libvgl.so.1
 OLD_LIBS+=usr/lib/libwrap.so.2
+# 19991216
+OLD_FILES+=usr/sbin/xntpdc
 # 199909XX
 OLD_LIBS+=usr/lib/libc_r.so.3
 # ???

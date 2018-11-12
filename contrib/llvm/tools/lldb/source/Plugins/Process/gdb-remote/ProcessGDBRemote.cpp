@@ -370,7 +370,7 @@ ProcessGDBRemote::ProcessGDBRemote(Target& target, Listener &listener) :
     m_flags (0),
     m_gdb_comm (),
     m_debugserver_pid (LLDB_INVALID_PROCESS_ID),
-    m_last_stop_packet_mutex (Mutex::eMutexTypeNormal),
+    m_last_stop_packet_mutex (Mutex::eMutexTypeRecursive),
     m_register_info (),
     m_async_broadcaster (NULL, "lldb.process.gdb-remote.async-broadcaster"),
     m_async_thread_state_mutex(Mutex::eMutexTypeRecursive),
@@ -821,7 +821,13 @@ ProcessGDBRemote::DoConnectRemote (Stream *strm, const char *remote_url)
         log->Printf ("ProcessGDBRemote::%s pid %" PRIu64 ": normalized target architecture triple: %s", __FUNCTION__, GetID (), GetTarget ().GetArchitecture ().GetTriple ().getTriple ().c_str ());
 
     if (error.Success())
-        SetUnixSignals(std::make_shared<GDBRemoteSignals>(GetTarget().GetPlatform()->GetUnixSignals()));
+    {
+        PlatformSP platform_sp = GetTarget().GetPlatform();
+        if (platform_sp && platform_sp->IsConnected())
+            SetUnixSignals(platform_sp->GetUnixSignals());
+        else
+            SetUnixSignals(UnixSignals::Create(GetTarget().GetArchitecture()));
+    }
 
     return error;
 }
@@ -1983,6 +1989,7 @@ ProcessGDBRemote::SetThreadStopInfo (lldb::tid_t tid,
                         StringExtractor desc_extractor(description.c_str());
                         addr_t wp_addr = desc_extractor.GetU64(LLDB_INVALID_ADDRESS);
                         uint32_t wp_index = desc_extractor.GetU32(LLDB_INVALID_INDEX32);
+                        addr_t wp_hit_addr = desc_extractor.GetU64(LLDB_INVALID_ADDRESS);
                         watch_id_t watch_id = LLDB_INVALID_WATCH_ID;
                         if (wp_addr != LLDB_INVALID_ADDRESS)
                         {
@@ -1998,7 +2005,7 @@ ProcessGDBRemote::SetThreadStopInfo (lldb::tid_t tid,
                             Log *log (ProcessGDBRemoteLog::GetLogIfAllCategoriesSet (GDBR_LOG_WATCHPOINTS));
                             if (log) log->Printf ("failed to find watchpoint");
                         }
-                        thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithWatchpointID (*thread_sp, watch_id));
+                        thread_sp->SetStopInfo (StopInfo::CreateStopReasonWithWatchpointID (*thread_sp, watch_id, wp_hit_addr));
                         handled = true;
                     }
                     else if (reason.compare("exception") == 0)
@@ -2432,11 +2439,38 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
                         }
                     }
                 }
+                else if (key.compare("watch") == 0 || key.compare("rwatch") == 0 || key.compare("awatch") == 0)
+                {
+                    // Support standard GDB remote stop reply packet 'TAAwatch:addr'
+                    lldb::addr_t wp_addr = StringConvert::ToUInt64 (value.c_str(), LLDB_INVALID_ADDRESS, 16);
+                    WatchpointSP wp_sp = GetTarget().GetWatchpointList().FindByAddress(wp_addr);
+                    uint32_t wp_index = LLDB_INVALID_INDEX32;
+
+                    if (wp_sp)
+                        wp_index = wp_sp->GetHardwareIndex();
+
+                    reason = "watchpoint";
+                    StreamString ostr;
+                    ostr.Printf("%" PRIu64 " %" PRIu32, wp_addr, wp_index);
+                    description = ostr.GetString().c_str();
+                }
                 else if (key.size() == 2 && ::isxdigit(key[0]) && ::isxdigit(key[1]))
                 {
                     uint32_t reg = StringConvert::ToUInt32 (key.c_str(), UINT32_MAX, 16);
                     if (reg != UINT32_MAX)
                         expedited_register_map[reg] = std::move(value);
+                }
+            }
+
+            if (tid == LLDB_INVALID_THREAD_ID)
+            {
+                // A thread id may be invalid if the response is old style 'S' packet which does not provide the 
+                // thread information. So update the thread list and choose the first one.
+                UpdateThreadIDList ();
+                
+                if (!m_thread_ids.empty ())
+                {
+                    tid = m_thread_ids.front ();
                 }
             }
 
@@ -2453,19 +2487,6 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
                                                     queue_name,
                                                     queue_kind,
                                                     queue_serial);
-
-            // If the response is old style 'S' packet which does not provide us with thread information
-            // then update the thread list and choose the first one.
-            if (!thread_sp)
-            {
-                UpdateThreadIDList ();
-
-                if (!m_thread_ids.empty ())
-                {
-                    Mutex::Locker locker (m_thread_list_real.GetMutex ());
-                    thread_sp = m_thread_list_real.FindThreadByProtocolID (m_thread_ids.front (), false);
-                }
-            }
 
             return eStateStopped;
         }
@@ -3007,7 +3028,7 @@ ProcessGDBRemote::GetWatchpointSupportInfo (uint32_t &num)
 Error
 ProcessGDBRemote::GetWatchpointSupportInfo (uint32_t &num, bool& after)
 {
-    Error error (m_gdb_comm.GetWatchpointSupportInfo (num, after));
+    Error error (m_gdb_comm.GetWatchpointSupportInfo (num, after, GetTarget().GetArchitecture()));
     return error;
 }
 

@@ -8,10 +8,11 @@
 \*===----------------------------------------------------------------------===*/
 
 #include "InstrProfiling.h"
+#include "InstrProfilingUtil.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/errno.h>
 
 #define UNCONST(ptr) ((void *)(uintptr_t)(ptr))
 
@@ -76,40 +77,61 @@ static int writeFileWithName(const char *OutputName) {
 __attribute__((weak)) int __llvm_profile_OwnsFilename = 0;
 __attribute__((weak)) const char *__llvm_profile_CurrentFilename = NULL;
 
-static void setFilename(const char *Filename, int OwnsFilename) {
-  if (__llvm_profile_OwnsFilename)
-    free(UNCONST(__llvm_profile_CurrentFilename));
-
-  __llvm_profile_CurrentFilename = Filename;
-  __llvm_profile_OwnsFilename = OwnsFilename;
-}
-
 static void truncateCurrentFile(void) {
-  const char *Filename = __llvm_profile_CurrentFilename;
+  const char *Filename;
+  FILE *File;
+
+  Filename = __llvm_profile_CurrentFilename;
   if (!Filename || !Filename[0])
     return;
 
+  /* Create the directory holding the file, if needed. */
+  if (strchr(Filename, '/')) {
+    char *Copy = malloc(strlen(Filename) + 1);
+    strcpy(Copy, Filename);
+    __llvm_profile_recursive_mkdir(Copy);
+    free(Copy);
+  }
+
   /* Truncate the file.  Later we'll reopen and append. */
-  FILE *File = fopen(Filename, "w");
+  File = fopen(Filename, "w");
   if (!File)
     return;
   fclose(File);
 }
 
-static void setDefaultFilename(void) { setFilename("default.profraw", 0); }
+static void setFilename(const char *Filename, int OwnsFilename) {
+  /* Check if this is a new filename and therefore needs truncation. */
+  int NewFile = !__llvm_profile_CurrentFilename ||
+      (Filename && strcmp(Filename, __llvm_profile_CurrentFilename));
+  if (__llvm_profile_OwnsFilename)
+    free(UNCONST(__llvm_profile_CurrentFilename));
+
+  __llvm_profile_CurrentFilename = Filename;
+  __llvm_profile_OwnsFilename = OwnsFilename;
+
+  /* If not a new file, append to support profiling multiple shared objects. */
+  if (NewFile)
+    truncateCurrentFile();
+}
+
+static void resetFilenameToDefault(void) { setFilename("default.profraw", 0); }
 
 int getpid(void);
-static int setFilenameFromEnvironment(void) {
-  const char *Filename = getenv("LLVM_PROFILE_FILE");
-  if (!Filename || !Filename[0])
-    return -1;
-
-  /* Check the filename for "%p", which indicates a pid-substitution. */
+static int setFilenamePossiblyWithPid(const char *Filename) {
 #define MAX_PID_SIZE 16
   char PidChars[MAX_PID_SIZE] = {0};
-  int NumPids = 0;
-  int PidLength = 0;
-  int I;
+  int NumPids = 0, PidLength = 0;
+  char *Allocated;
+  int I, J;
+
+  /* Reset filename on NULL, except with env var which is checked by caller. */
+  if (!Filename) {
+    resetFilenameToDefault();
+    return 0;
+  }
+
+  /* Check the filename for "%p", which indicates a pid-substitution. */
   for (I = 0; Filename[I]; ++I)
     if (Filename[I] == '%' && Filename[++I] == 'p')
       if (!NumPids++) {
@@ -123,12 +145,11 @@ static int setFilenameFromEnvironment(void) {
   }
 
   /* Allocate enough space for the substituted filename. */
-  char *Allocated = (char*)malloc(I + NumPids*(PidLength - 2) + 1);
+  Allocated = malloc(I + NumPids*(PidLength - 2) + 1);
   if (!Allocated)
     return -1;
 
   /* Construct the new filename. */
-  int J;
   for (I = 0, J = 0; Filename[I]; ++I)
     if (Filename[I] == '%') {
       if (Filename[++I] == 'p') {
@@ -145,11 +166,20 @@ static int setFilenameFromEnvironment(void) {
   return 0;
 }
 
+static int setFilenameFromEnvironment(void) {
+  const char *Filename = getenv("LLVM_PROFILE_FILE");
+
+  if (!Filename || !Filename[0])
+    return -1;
+
+  return setFilenamePossiblyWithPid(Filename);
+}
+
 static void setFilenameAutomatically(void) {
   if (!setFilenameFromEnvironment())
     return;
 
-  setDefaultFilename();
+  resetFilenameToDefault();
 }
 
 __attribute__((visibility("hidden")))
@@ -160,23 +190,32 @@ void __llvm_profile_initialize_file(void) {
 
   /* Detect the filename and truncate. */
   setFilenameAutomatically();
-  truncateCurrentFile();
 }
 
 __attribute__((visibility("hidden")))
 void __llvm_profile_set_filename(const char *Filename) {
-  setFilename(Filename, 0);
-  truncateCurrentFile();
+  setFilenamePossiblyWithPid(Filename);
+}
+
+__attribute__((visibility("hidden")))
+void __llvm_profile_override_default_filename(const char *Filename) {
+  /* If the env var is set, skip setting filename from argument. */
+  const char *Env_Filename = getenv("LLVM_PROFILE_FILE");
+  if (Env_Filename && Env_Filename[0])
+    return;
+  setFilenamePossiblyWithPid(Filename);
 }
 
 __attribute__((visibility("hidden")))
 int __llvm_profile_write_file(void) {
+  int rc;
+
   /* Check the filename. */
   if (!__llvm_profile_CurrentFilename)
     return -1;
 
   /* Write the file. */
-  int rc = writeFileWithName(__llvm_profile_CurrentFilename);
+  rc = writeFileWithName(__llvm_profile_CurrentFilename);
   if (rc && getenv("LLVM_PROFILE_VERBOSE_ERRORS"))
     fprintf(stderr, "LLVM Profile: Failed to write file \"%s\": %s\n",
             __llvm_profile_CurrentFilename, strerror(errno));

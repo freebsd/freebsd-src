@@ -928,25 +928,29 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			switch (req) {
 			case PT_TO_SCE:
 				p->p_stops |= S_PT_SCE;
-				CTR2(KTR_PTRACE,
-				    "PT_TO_SCE: pid %d, stops = %#x", p->p_pid,
-				    p->p_stops);
+				CTR4(KTR_PTRACE,
+		    "PT_TO_SCE: pid %d, stops = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_stops,
+				    (u_long)(uintfptr_t)addr, data);
 				break;
 			case PT_TO_SCX:
 				p->p_stops |= S_PT_SCX;
-				CTR2(KTR_PTRACE,
-				    "PT_TO_SCX: pid %d, stops = %#x", p->p_pid,
-				    p->p_stops);
+				CTR4(KTR_PTRACE,
+		    "PT_TO_SCX: pid %d, stops = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_stops,
+				    (u_long)(uintfptr_t)addr, data);
 				break;
 			case PT_SYSCALL:
 				p->p_stops |= S_PT_SCE | S_PT_SCX;
-				CTR2(KTR_PTRACE,
-				    "PT_SYSCALL: pid %d, stops = %#x", p->p_pid,
-				    p->p_stops);
+				CTR4(KTR_PTRACE,
+		    "PT_SYSCALL: pid %d, stops = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_stops,
+				    (u_long)(uintfptr_t)addr, data);
 				break;
 			case PT_CONTINUE:
-				CTR1(KTR_PTRACE,
-				    "PT_CONTINUE: pid %d", p->p_pid);
+				CTR3(KTR_PTRACE,
+				    "PT_CONTINUE: pid %d, PC = %#lx, sig = %d",
+				    p->p_pid, (u_long)(uintfptr_t)addr, data);
 				break;
 			}
 			break;
@@ -969,11 +973,12 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				proc_reparent(p, pp);
 				if (pp == initproc)
 					p->p_sigparent = SIGCHLD;
-				CTR2(KTR_PTRACE,
-				    "PT_DETACH: pid %d reparented to pid %d",
-				    p->p_pid, pp->p_pid);
+				CTR3(KTR_PTRACE,
+			    "PT_DETACH: pid %d reparented to pid %d, sig %d",
+				    p->p_pid, pp->p_pid, data);
 			} else
-				CTR1(KTR_PTRACE, "PT_DETACH: pid %d", p->p_pid);
+				CTR2(KTR_PTRACE, "PT_DETACH: pid %d, sig %d",
+				    p->p_pid, data);
 			p->p_oppid = 0;
 			p->p_stops = 0;
 
@@ -1226,10 +1231,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		if (wrap32)
 			ptrace_lwpinfo_to32(pl, pl32);
 #endif
-		CTR5(KTR_PTRACE,
-	    "PT_LWPINFO: tid %d (pid %d) event %d flags %#x child pid %d",
+		CTR6(KTR_PTRACE,
+    "PT_LWPINFO: tid %d (pid %d) event %d flags %#x child pid %d syscall %d",
 		    td2->td_tid, p->p_pid, pl->pl_event, pl->pl_flags,
-		    pl->pl_child_pid);
+		    pl->pl_child_pid, pl->pl_syscall_code);
 		break;
 
 	case PT_GETNUMLWPS:

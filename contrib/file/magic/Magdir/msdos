@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.100 2014/06/03 19:17:27 christos Exp $
+# $File: msdos,v 1.101 2015/08/24 05:08:48 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -772,7 +772,7 @@
 0	ulequad	0x3a000000024e4c	MS Advisor help file
 
 # HtmlHelp files (.chm)
-0	string/b	ITSF\003\000\000\000\x60\000\000\000\001\000\000\000	MS Windows HtmlHelp Data
+0	string/b	ITSF\003\000\000\000\x60\000\000\000	MS Windows HtmlHelp Data
 
 # GFA-BASIC (Wolfram Kleff)
 2	string/b	GFA-BASIC3	GFA-BASIC 3 data

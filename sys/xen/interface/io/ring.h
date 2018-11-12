@@ -45,15 +45,9 @@ typedef unsigned int RING_IDX;
 #define __RD32(_x) (((_x) & 0xffff0000) ? __RD16((_x)>>16)<<16 : __RD16(_x))
 
 /*
- * The amount of space reserved in the shared ring for accounting information.
- */
-#define __RING_HEADER_SIZE(_s) \
-    ((intptr_t)(_s)->ring - (intptr_t)(_s))
-
-/*
  * Calculate size of a shared ring, given the total available space for the
  * ring and indexes (_sz), and the name tag of the request/response structure.
- * A ring contains as many entries as will fit, rounded down to the nearest
+ * A ring contains as many entries as will fit, rounded down to the nearest 
  * power of two (so we can mask with (size-1) to loop around).
  */
 #define __CONST_RING_SIZE(_s, _sz) \
@@ -63,17 +57,7 @@ typedef unsigned int RING_IDX;
  * The same for passing in an actual pointer instead of a name tag.
  */
 #define __RING_SIZE(_s, _sz) \
-    (__RD32(((_sz) - __RING_HEADER_SIZE(_s)) / sizeof((_s)->ring[0])))
-
-/*
- * The number of pages needed to support a given number of request/reponse
- * entries.  The entry count is rounded down to the nearest power of two
- * as required by the ring macros.
- */
-#define __RING_PAGES(_s, _entries)              \
-    ((__RING_HEADER_SIZE(_s)                    \
-   + (__RD32(_entries) * sizeof((_s)->ring[0])) \
-   + PAGE_SIZE - 1) / PAGE_SIZE)
+    (__RD32(((_sz) - (long)(_s)->ring + (long)(_s)) / sizeof((_s)->ring[0])))
 
 /*
  * Macros to make the correct C datatypes for a new kind of ring.
@@ -127,7 +111,7 @@ struct __name##_sring {                                                 \
             uint8_t msg;                                                \
         } tapif_user;                                                   \
         uint8_t pvt_pad[4];                                             \
-    } private;                                                          \
+    } pvt;                                                              \
     uint8_t __pad[44];                                                  \
     union __name##_sring_entry ring[1]; /* variable-length */           \
 };                                                                      \
@@ -172,7 +156,7 @@ typedef struct __name##_back_ring __name##_back_ring_t
 #define SHARED_RING_INIT(_s) do {                                       \
     (_s)->req_prod  = (_s)->rsp_prod  = 0;                              \
     (_s)->req_event = (_s)->rsp_event = 1;                              \
-    (void)memset((_s)->private.pvt_pad, 0, sizeof((_s)->private.pvt_pad)); \
+    (void)memset((_s)->pvt.pvt_pad, 0, sizeof((_s)->pvt.pvt_pad));      \
     (void)memset((_s)->__pad, 0, sizeof((_s)->__pad));                  \
 } while(0)
 
@@ -188,21 +172,6 @@ typedef struct __name##_back_ring __name##_back_ring_t
     (_r)->req_cons = 0;                                                 \
     (_r)->nr_ents = __RING_SIZE(_s, __size);                            \
     (_r)->sring = (_s);                                                 \
-} while (0)
-
-/* Initialize to existing shared indexes -- for recovery */
-#define FRONT_RING_ATTACH(_r, _s, __size) do {                          \
-    (_r)->sring = (_s);                                                 \
-    (_r)->req_prod_pvt = (_s)->req_prod;                                \
-    (_r)->rsp_cons = (_s)->rsp_prod;                                    \
-    (_r)->nr_ents = __RING_SIZE(_s, __size);                            \
-} while (0)
-
-#define BACK_RING_ATTACH(_r, _s, __size) do {                           \
-    (_r)->sring = (_s);                                                 \
-    (_r)->rsp_prod_pvt = (_s)->rsp_prod;                                \
-    (_r)->req_cons = (_s)->req_prod;                                    \
-    (_r)->nr_ents = __RING_SIZE(_s, __size);                            \
 } while (0)
 
 /* How big is this ring? */
@@ -249,6 +218,10 @@ typedef struct __name##_back_ring __name##_back_ring_t
 /* Loop termination condition: Would the specified index overflow the ring? */
 #define RING_REQUEST_CONS_OVERFLOW(_r, _cons)                           \
     (((_cons) - (_r)->rsp_prod_pvt) >= RING_SIZE(_r))
+
+/* Ill-behaved frontend determination: Can there be this many requests? */
+#define RING_REQUEST_PROD_OVERFLOW(_r, _prod)                           \
+    (((_prod) - (_r)->rsp_prod_pvt) > RING_SIZE(_r))
 
 #define RING_PUSH_REQUESTS(_r) do {                                     \
     xen_wmb(); /* back sees requests /before/ updated producer index */ \
@@ -331,7 +304,7 @@ typedef struct __name##_back_ring __name##_back_ring_t
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

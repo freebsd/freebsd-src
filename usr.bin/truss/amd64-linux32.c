@@ -29,122 +29,35 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-/*
- * Linux/i386-specific system call handling.  Given how much of this code
- * is taken from the freebsd equivalent, I can probably put even more of
- * it in support routines that can be used by any personality support.
- */
+/* Linux/i386-specific system call handling. */
 
-#include <sys/types.h>
 #include <sys/ptrace.h>
 
 #include <machine/reg.h>
 #include <machine/psl.h>
 
-#include <errno.h>
-#include <fcntl.h>
-#include <signal.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
 
 #include "truss.h"
-#include "syscall.h"
-#include "extern.h"
 
 #include "linux32_syscalls.h"
 
-static int nsyscalls = nitems(linux32_syscallnames);
-
-/*
- * This is what this particular file uses to keep track of a system call.
- * It is probably not quite sufficient -- I can probably use the same
- * structure for the various syscall personalities, and I also probably
- * need to nest system calls (for signal handlers).
- *
- * 'struct syscall' describes the system call; it may be NULL, however,
- * if we don't know about this particular system call yet.
- */
-struct linux_syscall {
-	struct syscall *sc;
-	const char *name;
-	int number;
-	unsigned long args[5];
-	int nargs;	/* number of arguments -- *not* number of words! */
-	char **s_args;	/* the printable arguments */
-};
-
-static struct linux_syscall *
-alloc_fsc(void)
-{
-
-	return (malloc(sizeof(struct linux_syscall)));
-}
-
-/* Clear up and free parts of the fsc structure. */
-static void
-free_fsc(struct linux_syscall *fsc)
-{
-	int i;
-
-	if (fsc->s_args) {
-		for (i = 0; i < fsc->nargs; i++)
-			free(fsc->s_args[i]);
-		free(fsc->s_args);
-	}
-	free(fsc);
-}
-
-/*
- * Called when a process has entered a system call.  nargs is the
- * number of words, not number of arguments (a necessary distinction
- * in some cases).  Note that if the STOPEVENT() code in i386/i386/trap.c
- * is ever changed these functions need to keep up.
- */
-
-void
-amd64_linux32_syscall_entry(struct trussinfo *trussinfo, int nargs)
+static int
+amd64_linux32_fetch_args(struct trussinfo *trussinfo, u_int narg)
 {
 	struct reg regs;
-	struct linux_syscall *fsc;
-	struct syscall *sc;
+	struct current_syscall *cs;
 	lwpid_t tid;
-	int i, syscall_num;
 
 	tid = trussinfo->curthread->tid;
-
+	cs = &trussinfo->curthread->cs;
 	if (ptrace(PT_GETREGS, tid, (caddr_t)&regs, 0) < 0) {
 		fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
-		return;
+		return (-1);
 	}
-
-	syscall_num = regs.r_rax;
-
-	fsc = alloc_fsc();
-	if (fsc == NULL)
-		return;
-	fsc->number = syscall_num;
-	fsc->name = (syscall_num < 0 || syscall_num >= nsyscalls) ?
-	    NULL : linux32_syscallnames[syscall_num];
-	if (!fsc->name) {
-		fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n",
-		    syscall_num);
-	}
-
-	if (fsc->name && (trussinfo->flags & FOLLOWFORKS) &&
-	    (strcmp(fsc->name, "linux_fork") == 0 ||
-	    strcmp(fsc->name, "linux_vfork") == 0))
-		trussinfo->curthread->in_fork = 1;
-
-	if (nargs == 0)
-		return;
 
 	/*
 	 * Linux passes syscall arguments in registers, not
@@ -153,60 +66,22 @@ amd64_linux32_syscall_entry(struct trussinfo *trussinfo, int nargs)
 	 * number of arguments.	And what does linux do for syscalls
 	 * that have more than five arguments?
 	 */
-
-	fsc->args[0] = regs.r_rbx;
-	fsc->args[1] = regs.r_rcx;
-	fsc->args[2] = regs.r_rdx;
-	fsc->args[3] = regs.r_rsi;
-	fsc->args[4] = regs.r_rdi;
-
-	sc = get_syscall(fsc->name);
-	if (sc)
-		fsc->nargs = sc->nargs;
-	else {
-#if DEBUG
-		fprintf(trussinfo->outfile, "unknown syscall %s -- setting "
-		    "args to %d\n", fsc->name, nargs);
-#endif
-		fsc->nargs = nargs;
+	switch (narg) {
+	default:
+		cs->args[5] = regs.r_rbp;	/* Unconfirmed */
+	case 5:
+		cs->args[4] = regs.r_rdi;
+	case 4:
+		cs->args[3] = regs.r_rsi;
+	case 3:
+		cs->args[2] = regs.r_rdx;
+	case 2:
+		cs->args[1] = regs.r_rcx;
+	case 1:
+		cs->args[0] = regs.r_rbx;
 	}
 
-	fsc->s_args = calloc(1, (1 + fsc->nargs) * sizeof(char *));
-	fsc->sc = sc;
-
-	/*
-	 * At this point, we set up the system call arguments.
-	 * We ignore any OUT ones, however -- those are arguments that
-	 * are set by the system call, and so are probably meaningless
-	 * now.	This doesn't currently support arguments that are
-	 * passed in *and* out, however.
-	 */
-
-	if (fsc->name) {
-#if DEBUG
-		fprintf(stderr, "syscall %s(", fsc->name);
-#endif
-		for (i = 0; i < fsc->nargs; i++) {
-#if DEBUG
-			fprintf(stderr, "0x%x%s", sc ?
-			    fsc->args[sc->args[i].offset] : fsc->args[i],
-			    i < (fsc->nargs - 1) ? "," : "");
-#endif
-			if (sc && !(sc->args[i].type & OUT)) {
-				fsc->s_args[i] = print_arg(&sc->args[i],
-				    fsc->args, 0, trussinfo);
-			}
-		}
-#if DEBUG
-		fprintf(stderr, ")\n");
-#endif
-	}
-
-#if DEBUG
-	fprintf(trussinfo->outfile, "\n");
-#endif
-
-	trussinfo->curthread->fsc = fsc;
+	return (0);
 }
 
 /*
@@ -224,83 +99,43 @@ static const int bsd_to_linux_errno[] = {
 	-6,
 };
 
-long
-amd64_linux32_syscall_exit(struct trussinfo *trussinfo,
-    int syscall_num __unused)
+static int
+amd64_linux32_fetch_retval(struct trussinfo *trussinfo, long *retval,
+    int *errorp)
 {
 	struct reg regs;
-	struct linux_syscall *fsc;
-	struct syscall *sc;
 	lwpid_t tid;
-	long retval;
-	int errorp, i;
-
-	if (trussinfo->curthread->fsc == NULL)
-		return (-1);
+	size_t i;
 
 	tid = trussinfo->curthread->tid;
-
 	if (ptrace(PT_GETREGS, tid, (caddr_t)&regs, 0) < 0) {
 		fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
 		return (-1);
 	}
 
-	retval = regs.r_rax;
-	errorp = !!(regs.r_rflags & PSL_C);
+	retval[0] = regs.r_rax & 0xffffffff;
+	retval[1] = regs.r_rdx & 0xffffffff;
+	*errorp = !!(regs.r_rflags & PSL_C);
 
-	/*
-	 * This code, while simpler than the initial versions I used, could
-	 * stand some significant cleaning.
-	 */
-
-	fsc = trussinfo->curthread->fsc;
-	sc = fsc->sc;
-	if (!sc) {
-		for (i = 0; i < fsc->nargs; i++)
-			asprintf(&fsc->s_args[i], "0x%lx", fsc->args[i]);
-	} else {
-		/*
-		 * Here, we only look for arguments that have OUT masked in --
-		 * otherwise, they were handled in the syscall_entry function.
-		 */
-		for (i = 0; i < sc->nargs; i++) {
-			char *temp;
-
-			if (sc->args[i].type & OUT) {
-				/*
-				 * If an error occurred, then don't bother
-				 * getting the data; it may not be valid.
-				 */
-				if (errorp) {
-					asprintf(&temp, "0x%lx",
-					    fsc->args[sc->args[i].offset]);
-				} else {
-					temp = print_arg(&sc->args[i],
-					    fsc->args, retval, trussinfo);
-				}
-				fsc->s_args[i] = temp;
+	if (*errorp) {
+		for (i = 0; i < nitems(bsd_to_linux_errno); i++) {
+			if (retval[0] == bsd_to_linux_errno[i]) {
+				retval[0] = i;
+				return (0);
 			}
 		}
+
+		/* XXX: How to handle unknown errors? */
 	}
-
-	/*
-	 * It would probably be a good idea to merge the error handling,
-	 * but that complicates things considerably.
-	 */
-	if (errorp) {
-		for (i = 0; (size_t)i < nitems(bsd_to_linux_errno); i++) {
-			if (retval == bsd_to_linux_errno[i])
-				break;
-		}
-	}
-
-	if (fsc->name != NULL && (strcmp(fsc->name, "linux_execve") == 0 ||
-	    strcmp(fsc->name, "exit") == 0))
-		trussinfo->curthread->in_syscall = 1;
-
-	print_syscall_ret(trussinfo, fsc->name, fsc->nargs, fsc->s_args, errorp,
-	    errorp ? i : retval, fsc->sc);
-	free_fsc(fsc);
-
-	return (retval);
+	return (0);
 }
+
+static struct procabi amd64_linux32 = {
+	"Linux ELF32",
+	linux32_syscallnames,
+	nitems(linux32_syscallnames),
+	amd64_linux32_fetch_args,
+	amd64_linux32_fetch_retval
+};
+
+PROCABI(amd64_linux32);

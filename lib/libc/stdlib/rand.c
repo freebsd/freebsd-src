@@ -111,14 +111,13 @@ static u_long next =
 #endif
 
 int
-rand()
+rand(void)
 {
 	return (do_rand(&next));
 }
 
 void
-srand(seed)
-u_int seed;
+srand(u_int seed)
 {
 	next = seed;
 #ifndef USE_WEAK_SEEDING
@@ -136,7 +135,7 @@ u_int seed;
  * data from the kernel.
  */
 void
-sranddev()
+sranddev(void)
 {
 	int mib[2];
 	size_t len;

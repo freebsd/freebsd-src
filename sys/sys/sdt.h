@@ -398,7 +398,7 @@ struct sdt_probe {
 	struct sdt_provider *prov;	/* Ptr to the provider structure. */
 	TAILQ_ENTRY(sdt_probe)
 			probe_entry;	/* SDT probe list entry. */
-	TAILQ_HEAD(argtype_list_head, sdt_argtype) argtype_list;
+	TAILQ_HEAD(, sdt_argtype) argtype_list;
 	const char	*mod;
 	const char	*func;
 	const char	*name;

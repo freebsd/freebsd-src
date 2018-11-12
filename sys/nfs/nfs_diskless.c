@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs.h>
 #include <nfs/nfsdiskless.h>
 
+#define	NFS_IFACE_TIMEOUT_SECS	10 /* Timeout for interface to appear. */
+
 static int inaddr_to_sockaddr(char *ev, struct sockaddr_in *sa);
 static int hwaddr_to_sockaddr(char *ev, struct sockaddr_dl *sa);
 static int decode_nfshandle(char *ev, u_char *fh, int maxfh);
@@ -170,6 +172,7 @@ nfs_setup_diskless(void)
 	char *cp;
 	int cnt, fhlen, is_nfsv3;
 	uint32_t len;
+	time_t timeout_at;
 
 	if (nfs_diskless_valid != 0)
 		return;
@@ -214,6 +217,8 @@ nfs_setup_diskless(void)
 		return;
 	}
 	ifa = NULL;
+	timeout_at = time_uptime + NFS_IFACE_TIMEOUT_SECS;
+retry:
 	CURVNET_SET(TD_TO_VNET(curthread));
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
@@ -234,6 +239,10 @@ nfs_setup_diskless(void)
 	}
 	IFNET_RUNLOCK();
 	CURVNET_RESTORE();
+	if (time_uptime < timeout_at) {
+		pause("nfssdl", hz / 5);
+		goto retry;
+	}
 	printf("nfs_diskless: no interface\n");
 	return;	/* no matching interface */
 match_done:

@@ -1947,7 +1947,8 @@ template <class _CharT>
 void
 __l_anchor<_CharT>::__exec(__state& __s) const
 {
-    if (__s.__at_first_ && __s.__current_ == __s.__first_)
+    if (__s.__at_first_ && __s.__current_ == __s.__first_ &&
+        !(__s.__flags_ & regex_constants::match_not_bol))
     {
         __s.__do_ = __state::__accept_but_not_consume;
         __s.__node_ = this->first();
@@ -1981,7 +1982,8 @@ template <class _CharT>
 void
 __r_anchor<_CharT>::__exec(__state& __s) const
 {
-    if (__s.__current_ == __s.__last_)
+    if (__s.__current_ == __s.__last_ &&
+        !(__s.__flags_ & regex_constants::match_not_eol))
     {
         __s.__do_ = __state::__accept_but_not_consume;
         __s.__node_ = this->first();
@@ -2599,9 +2601,7 @@ public:
         assign(_ForwardIterator __first, _ForwardIterator __last,
                             flag_type __f = regex_constants::ECMAScript)
         {
-            __member_init(__f);
-            __parse(__first, __last);
-            return *this;
+            return assign(basic_regex(__first, __last, __f));
         }
 
 #ifndef _LIBCPP_HAS_NO_GENERALIZED_INITIALIZERS
@@ -5603,12 +5603,17 @@ basic_regex<_CharT, _Traits>::__match_at_start_ecma(
     __node* __st = __start_.get();
     if (__st)
     {
+        sub_match<const _CharT*> __unmatched;
+        __unmatched.first   = __last;
+        __unmatched.second  = __last;
+        __unmatched.matched = false;
+
         __states.push_back(__state());
         __states.back().__do_ = 0;
         __states.back().__first_ = __first;
         __states.back().__current_ = __first;
         __states.back().__last_ = __last;
-        __states.back().__sub_matches_.resize(mark_count());
+        __states.back().__sub_matches_.resize(mark_count(), __unmatched);
         __states.back().__loop_data_.resize(__loop_count());
         __states.back().__node_ = __st;
         __states.back().__flags_ = __flags;
@@ -5748,12 +5753,17 @@ basic_regex<_CharT, _Traits>::__match_at_start_posix_subs(
     __node* __st = __start_.get();
     if (__st)
     {
+        sub_match<const _CharT*> __unmatched;
+        __unmatched.first   = __last;
+        __unmatched.second  = __last;
+        __unmatched.matched = false;
+
         __states.push_back(__state());
         __states.back().__do_ = 0;
         __states.back().__first_ = __first;
         __states.back().__current_ = __first;
         __states.back().__last_ = __last;
-        __states.back().__sub_matches_.resize(mark_count());
+        __states.back().__sub_matches_.resize(mark_count(), __unmatched);
         __states.back().__loop_data_.resize(__loop_count());
         __states.back().__node_ = __st;
         __states.back().__flags_ = __flags;

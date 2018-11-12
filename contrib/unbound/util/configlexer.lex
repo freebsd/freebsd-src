@@ -128,6 +128,10 @@ static void config_start_include_glob(const char* filename)
 #endif
 		;
 		memset(&g, 0, sizeof(g));
+		if(cfg_parser->chroot && strncmp(filename, cfg_parser->chroot,
+			strlen(cfg_parser->chroot)) == 0) {
+			filename += strlen(cfg_parser->chroot);
+		}
 		r = glob(filename, flags, NULL, &g);
 		if(r) {
 			/* some error */
@@ -228,6 +232,7 @@ interface-automatic{COLON}	{ YDVAR(1, VAR_INTERFACE_AUTOMATIC) }
 so-rcvbuf{COLON}		{ YDVAR(1, VAR_SO_RCVBUF) }
 so-sndbuf{COLON}		{ YDVAR(1, VAR_SO_SNDBUF) }
 so-reuseport{COLON}		{ YDVAR(1, VAR_SO_REUSEPORT) }
+ip-transparent{COLON}		{ YDVAR(1, VAR_IP_TRANSPARENT) }
 chroot{COLON}			{ YDVAR(1, VAR_CHROOT) }
 username{COLON}			{ YDVAR(1, VAR_USERNAME) }
 directory{COLON}		{ YDVAR(1, VAR_DIRECTORY) }
@@ -241,6 +246,7 @@ msg-cache-slabs{COLON}		{ YDVAR(1, VAR_MSG_CACHE_SLABS) }
 rrset-cache-size{COLON}		{ YDVAR(1, VAR_RRSET_CACHE_SIZE) }
 rrset-cache-slabs{COLON}	{ YDVAR(1, VAR_RRSET_CACHE_SLABS) }
 cache-max-ttl{COLON}     	{ YDVAR(1, VAR_CACHE_MAX_TTL) }
+cache-max-negative-ttl{COLON}   { YDVAR(1, VAR_CACHE_MAX_NEGATIVE_TTL) }
 cache-min-ttl{COLON}     	{ YDVAR(1, VAR_CACHE_MIN_TTL) }
 infra-host-ttl{COLON}		{ YDVAR(1, VAR_INFRA_HOST_TTL) }
 infra-lame-ttl{COLON}		{ YDVAR(1, VAR_INFRA_LAME_TTL) }
@@ -258,7 +264,9 @@ harden-glue{COLON}		{ YDVAR(1, VAR_HARDEN_GLUE) }
 harden-dnssec-stripped{COLON}	{ YDVAR(1, VAR_HARDEN_DNSSEC_STRIPPED) }
 harden-below-nxdomain{COLON}	{ YDVAR(1, VAR_HARDEN_BELOW_NXDOMAIN) }
 harden-referral-path{COLON}	{ YDVAR(1, VAR_HARDEN_REFERRAL_PATH) }
+harden-algo-downgrade{COLON}	{ YDVAR(1, VAR_HARDEN_ALGO_DOWNGRADE) }
 use-caps-for-id{COLON}		{ YDVAR(1, VAR_USE_CAPS_FOR_ID) }
+caps-whitelist{COLON}		{ YDVAR(1, VAR_CAPS_WHITELIST) }
 unwanted-reply-threshold{COLON}	{ YDVAR(1, VAR_UNWANTED_REPLY_THRESHOLD) }
 private-address{COLON}		{ YDVAR(1, VAR_PRIVATE_ADDRESS) }
 private-domain{COLON}		{ YDVAR(1, VAR_PRIVATE_DOMAIN) }
@@ -350,6 +358,12 @@ dnstap-log-forwarder-query-messages{COLON}	{
 		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES) }
 dnstap-log-forwarder-response-messages{COLON}	{
 		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES) }
+ratelimit{COLON}		{ YDVAR(1, VAR_RATELIMIT) }
+ratelimit-slabs{COLON}		{ YDVAR(1, VAR_RATELIMIT_SLABS) }
+ratelimit-size{COLON}		{ YDVAR(1, VAR_RATELIMIT_SIZE) }
+ratelimit-for-domain{COLON}	{ YDVAR(2, VAR_RATELIMIT_FOR_DOMAIN) }
+ratelimit-below-domain{COLON}	{ YDVAR(2, VAR_RATELIMIT_BELOW_DOMAIN) }
+ratelimit-factor{COLON}		{ YDVAR(1, VAR_RATELIMIT_FACTOR) }
 <INITIAL,val>{NEWLINE}		{ LEXOUT(("NL\n")); cfg_parser->line++; }
 
 	/* Quoted strings. Strip leading and ending quotes */

@@ -18,6 +18,9 @@ CFLAGS+=${PICFLAG}
 CFLAGS+=-fno-builtin
 CFLAGS+=-fno-exceptions
 CFLAGS+=-fno-rtti
+.if ${COMPILER_VERSION} >= 30700
+CFLAGS+=-fno-sanitize=safe-stack
+.endif
 CFLAGS+=-fno-stack-protector
 CFLAGS+=-funwind-tables
 CFLAGS+=-fvisibility-inlines-hidden

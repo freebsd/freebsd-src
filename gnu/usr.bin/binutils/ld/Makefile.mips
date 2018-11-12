@@ -22,6 +22,7 @@ EMS+= ${abi}
 #.endif
 .for ext in ${ELF_SCR_EXT}
 LDSCRIPTS+= ${abi}.${ext}
+ldscripts/${abi}.${ext}: e${abi}.c
 .endfor
 SRCS+=	e${abi}.c 
 CLEANFILES+=	e${abi}.c

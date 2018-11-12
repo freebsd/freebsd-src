@@ -894,6 +894,7 @@ int intel_gpu_reset(struct drm_device *dev)
 	case 4:
 		ret = i965_do_reset(dev);
 		break;
+	case 3:
 	case 2:
 		ret = i8xx_do_reset(dev);
 		break;

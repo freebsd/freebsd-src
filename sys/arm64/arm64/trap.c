@@ -76,6 +76,7 @@ extern register_t fsu_intr_fault;
 void do_el1h_sync(struct trapframe *);
 void do_el0_sync(struct trapframe *);
 void do_el0_error(struct trapframe *);
+static void print_registers(struct trapframe *frame);
 
 int (*dtrace_invop_jump_addr)(struct trapframe *);
 
@@ -144,7 +145,7 @@ svc_handler(struct trapframe *frame)
 }
 
 static void
-data_abort(struct trapframe *frame, uint64_t esr, int lower)
+data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
 {
 	struct vm_map *map;
 	struct thread *td;
@@ -152,8 +153,14 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 	struct pcb *pcb;
 	vm_prot_t ftype;
 	vm_offset_t va;
-	uint64_t far;
 	int error, sig, ucode;
+
+	/*
+	 * According to the ARMv8-A rev. A.g, B2.10.5 "Load-Exclusive
+	 * and Store-Exclusive instruction usage restrictions", state
+	 * of the exclusive monitors after data abort exception is unknown.
+	 */
+	clrex();
 
 #ifdef KDB
 	if (kdb_active) {
@@ -174,45 +181,30 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 		return;
 	}
 
-	far = READ_SPECIALREG(far_el1);
-	p = td->td_proc;
+	KASSERT(td->td_md.md_spinlock_count == 0,
+	    ("data abort with spinlock held"));
+	if (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK |
+	    WARN_GIANTOK, NULL, "Kernel page fault") != 0) {
+		print_registers(frame);
+		panic("data abort in critical section or under mutex");
+	}
 
+	p = td->td_proc;
 	if (lower)
-		map = &td->td_proc->p_vmspace->vm_map;
+		map = &p->p_vmspace->vm_map;
 	else {
 		/* The top bit tells us which range to use */
 		if ((far >> 63) == 1)
 			map = kernel_map;
 		else
-			map = &td->td_proc->p_vmspace->vm_map;
+			map = &p->p_vmspace->vm_map;
 	}
 
 	va = trunc_page(far);
 	ftype = ((esr >> 6) & 1) ? VM_PROT_READ | VM_PROT_WRITE : VM_PROT_READ;
 
-	if (map != kernel_map) {
-		/*
-		 * Keep swapout from messing with us during this
-		 *	critical time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
-
-		/* Fault in the user page: */
-		error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
-	} else {
-		/*
-		 * Don't have to worry about process locking or stacks in the
-		 * kernel.
-		 */
-		error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-	}
-
+	/* Fault in the page. */
+	error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	if (error != KERN_SUCCESS) {
 		if (lower) {
 			sig = SIGSEGV;
@@ -260,7 +252,7 @@ void
 do_el1h_sync(struct trapframe *frame)
 {
 	uint32_t exception;
-	uint64_t esr;
+	uint64_t esr, far;
 
 	/* Read the esr register to get the exception details */
 	esr = READ_SPECIALREG(esr_el1);
@@ -283,7 +275,7 @@ do_el1h_sync(struct trapframe *frame)
 	 */
 	KASSERT((esr & ESR_ELx_IL) == ESR_ELx_IL ||
 	    (exception == EXCP_DATA_ABORT && ((esr & ISS_DATA_ISV) == 0)),
-	    ("Invalid instruction length in exception"));
+	    ("Invalid instruction length in exception, esr %lx", esr));
 
 	CTR4(KTR_TRAP,
 	    "do_el1_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
@@ -295,7 +287,9 @@ do_el1h_sync(struct trapframe *frame)
 		print_registers(frame);
 		panic("VFP exception in the kernel");
 	case EXCP_DATA_ABORT:
-		data_abort(frame, esr, 0);
+		far = READ_SPECIALREG(far_el1);
+		intr_enable();
+		data_abort(frame, esr, far, 0);
 		break;
 	case EXCP_BRK:
 #ifdef KDTRACE_HOOKS
@@ -342,7 +336,7 @@ do_el0_sync(struct trapframe *frame)
 {
 	struct thread *td;
 	uint32_t exception;
-	uint64_t esr;
+	uint64_t esr, far;
 
 	/* Check we have a sane environment when entering from userland */
 	KASSERT((uintptr_t)get_pcpu() >= VM_MIN_KERNEL_ADDRESS,
@@ -351,6 +345,13 @@ do_el0_sync(struct trapframe *frame)
 
 	esr = READ_SPECIALREG(esr_el1);
 	exception = ESR_ELx_EXCEPTION(esr);
+	switch (exception) {
+	case EXCP_INSN_ABORT_L:
+	case EXCP_DATA_ABORT_L:
+	case EXCP_DATA_ABORT:
+		far = READ_SPECIALREG(far_el1);
+	}
+	intr_enable();
 
 	CTR4(KTR_TRAP,
 	    "do_el0_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
@@ -366,21 +367,20 @@ do_el0_sync(struct trapframe *frame)
 #endif
 		break;
 	case EXCP_SVC:
-		/*
-		 * Ensure the svc_handler is being run with interrupts enabled.
-		 * They will be automatically restored when returning from
-		 * exception handler.
-		 */
-		intr_enable();
 		svc_handler(frame);
 		break;
 	case EXCP_INSN_ABORT_L:
 	case EXCP_DATA_ABORT_L:
 	case EXCP_DATA_ABORT:
-		data_abort(frame, esr, 1);
+		data_abort(frame, esr, far, 1);
 		break;
 	case EXCP_UNKNOWN:
 		el0_excp_unknown(frame);
+		break;
+	case EXCP_PC_ALIGN:
+		td = curthread;
+		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_elr);
+		userret(td, frame);
 		break;
 	case EXCP_BRK:
 		td = curthread;

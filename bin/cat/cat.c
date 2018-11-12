@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <errno.h>
+#include <netdb.h>
 #endif
 
 #include <ctype.h>
@@ -167,6 +168,7 @@ scanfiles(char *argv[], int cooked)
 	FILE *fp;
 
 	i = 0;
+	fd = -1;
 	while ((path = argv[i]) != NULL || i == 0) {
 		if (path == NULL || strcmp(path, "-") == 0) {
 			filename = "stdin";
@@ -302,31 +304,40 @@ raw_cat(int rfd)
 static int
 udom_open(const char *path, int flags)
 {
-	struct sockaddr_un sou;
-	int fd;
-	unsigned int len;
-
-	bzero(&sou, sizeof(sou));
+	struct addrinfo hints, *res, *res0;
+	char rpath[PATH_MAX];
+	int fd = -1;
+	int error;
 
 	/*
-	 * Construct the unix domain socket address and attempt to connect
+	 * Construct the unix domain socket address and attempt to connect.
 	 */
-	fd = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (fd >= 0) {
-		sou.sun_family = AF_UNIX;
-		if ((len = strlcpy(sou.sun_path, path,
-		    sizeof(sou.sun_path))) >= sizeof(sou.sun_path)) {
-			close(fd);
-			errno = ENAMETOOLONG;
+	bzero(&hints, sizeof(hints));
+	hints.ai_family = AF_LOCAL;
+	if (realpath(path, rpath) == NULL)
+		return (-1);
+	error = getaddrinfo(rpath, NULL, &hints, &res0);
+	if (error) {
+		warn("%s", gai_strerror(error));
+		errno = EINVAL;
+		return (-1);
+	}
+	for (res = res0; res != NULL; res = res->ai_next) {
+		fd = socket(res->ai_family, res->ai_socktype,
+		    res->ai_protocol);
+		if (fd < 0) {
+			freeaddrinfo(res0);
 			return (-1);
 		}
-		len = offsetof(struct sockaddr_un, sun_path[len+1]);
-
-		if (connect(fd, (void *)&sou, len) < 0) {
+		error = connect(fd, res->ai_addr, res->ai_addrlen);
+		if (error == 0)
+			break;
+		else {
 			close(fd);
 			fd = -1;
 		}
 	}
+	freeaddrinfo(res0);
 
 	/*
 	 * handle the open flags by shutting down appropriate directions

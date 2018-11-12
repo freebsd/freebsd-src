@@ -168,6 +168,13 @@ static const struct ng_cmdlist ng_pppoe_cmds[] = {
 	  &ng_parse_enaddr_type,
 	  NULL
 	},
+	{
+	  NGM_PPPOE_COOKIE,
+	  NGM_PPPOE_SETMAXP,
+	  "setmaxp",
+	  &ng_parse_uint16_type,
+	  NULL
+	},
 	{ 0 }
 };
 
@@ -262,6 +269,7 @@ struct PPPoE {
 	struct ether_header	eh;
 	LIST_HEAD(, sess_con) listeners;
 	struct sess_hash_entry	sesshash[SESSHASHSIZE];
+	struct maxptag	max_payload;	/* PPP-Max-Payload (RFC4638) */
 };
 typedef struct PPPoE *priv_p;
 
@@ -1004,6 +1012,13 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			bcopy(msg->data, &privp->eh.ether_shost,
 			    ETHER_ADDR_LEN);
 			break;
+		case NGM_PPPOE_SETMAXP:
+			if (msg->header.arglen != sizeof(uint16_t))
+				LEAVE(EINVAL);
+			privp->max_payload.hdr.tag_type = PTT_MAX_PAYL;
+			privp->max_payload.hdr.tag_len = htons(sizeof(uint16_t));
+			privp->max_payload.data = htons(*((uint16_t *)msg->data));
+			break;
 		default:
 			LEAVE(EINVAL);
 		}
@@ -1071,6 +1086,8 @@ pppoe_start(sessp sp)
 	init_tags(sp);
 	insert_tag(sp, &uniqtag.hdr);
 	insert_tag(sp, &neg->service.hdr);
+	if (privp->max_payload.data != 0)
+		insert_tag(sp, &privp->max_payload.hdr);
 	make_packet(sp);
 	/*
 	 * Send packet and prepare to retransmit it after timeout.
@@ -1119,6 +1136,28 @@ send_sessionid(sessp sp)
 		return (ENOMEM);
 
 	*(uint16_t *)msg->data = sp->Session_ID;
+	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
+
+	return (error);
+}
+
+static int
+send_maxp(sessp sp, const struct pppoe_tag *tag)
+{
+	int error;
+	struct ng_mesg *msg;
+	struct ngpppoe_maxp *maxp;
+
+	CTR2(KTR_NET, "%20s: called %d", __func__, sp->Session_ID);
+
+	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, NGM_PPPOE_SETMAXP,
+	    sizeof(struct ngpppoe_maxp), M_NOWAIT);
+	if (msg == NULL)
+		return (ENOMEM);
+
+	maxp = (struct ngpppoe_maxp *)msg->data;
+	strncpy(maxp->hook, NG_HOOK_NAME(sp->hook), NG_HOOKSIZ);
+	maxp->data = ntohs(((const struct maxptag *)tag)->data);
 	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
 
 	return (error);
@@ -1464,6 +1503,9 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 				insert_tag(sp, tag); 	/* return it */
 				send_acname(sp, tag);
 			}
+			if ((tag = get_tag(ph, PTT_MAX_PAYL)) &&
+			    (privp->max_payload.data != 0))
+				insert_tag(sp, tag);	/* return it */
 			insert_tag(sp, &neg->service.hdr); /* Service */
 			scan_tags(sp, ph);
 			make_packet(sp);
@@ -1602,6 +1644,9 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			m_freem(neg->m);
 			free(sp->neg, M_NETGRAPH_PPPOE);
 			sp->neg = NULL;
+			if ((tag = get_tag(ph, PTT_MAX_PAYL)) &&
+			    (privp->max_payload.data != 0))
+				send_maxp(sp, tag);
 			pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
 			break;
 		case	PADT_CODE:

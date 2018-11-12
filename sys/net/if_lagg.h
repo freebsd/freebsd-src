@@ -53,7 +53,6 @@ typedef enum {
 	LAGG_PROTO_FAILOVER,	/* active failover */
 	LAGG_PROTO_LOADBALANCE,	/* loadbalance */
 	LAGG_PROTO_LACP,	/* 802.3ad lacp */
-	LAGG_PROTO_ETHERCHANNEL,/* Cisco FEC */
 	LAGG_PROTO_BROADCAST,	/* broadcast */
 	LAGG_PROTO_MAX,
 } lagg_proto;
@@ -66,7 +65,6 @@ struct lagg_protos {
 #define	LAGG_PROTO_DEFAULT	LAGG_PROTO_FAILOVER
 #define LAGG_PROTOS	{						\
 	{ "failover",		LAGG_PROTO_FAILOVER },		\
-	{ "fec",		LAGG_PROTO_ETHERCHANNEL },		\
 	{ "lacp",		LAGG_PROTO_LACP },			\
 	{ "loadbalance",	LAGG_PROTO_LOADBALANCE },		\
 	{ "roundrobin",	LAGG_PROTO_ROUNDROBIN },		\

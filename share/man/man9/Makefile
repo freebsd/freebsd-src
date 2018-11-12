@@ -39,6 +39,7 @@ MAN=	accept_filter.9 \
 	bus_generic_print_child.9 \
 	bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 \
+	bus_get_resource.9 \
 	BUS_NEW_PASS.9 \
 	BUS_PRINT_CHILD.9 \
 	BUS_READ_IVAR.9 \
@@ -1007,12 +1008,7 @@ MLINKS+=\
 	mbuf.9 m_dup.9 \
 	mbuf.9 m_dup_pkthdr.9 \
 	mbuf.9 MEXTADD.9 \
-	mbuf.9 MEXT_ADD_REF.9 \
-	mbuf.9 MEXTFREE.9 \
-	mbuf.9 MEXT_IS_REF.9 \
-	mbuf.9 MEXT_REM_REF.9 \
 	mbuf.9 m_fixhdr.9 \
-	mbuf.9 MFREE.9 \
 	mbuf.9 m_free.9 \
 	mbuf.9 m_freem.9 \
 	mbuf.9 MGET.9 \

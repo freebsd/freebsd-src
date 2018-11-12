@@ -89,8 +89,7 @@ null_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	return 1;
 }
 static 	int
-null_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+null_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	return 1;
 }
@@ -132,7 +131,7 @@ dev_key_delete(struct ieee80211vap *vap,
 static __inline int
 dev_key_set(struct ieee80211vap *vap, const struct ieee80211_key *key)
 {
-	return vap->iv_key_set(vap, key, key->wk_macaddr);
+	return vap->iv_key_set(vap, key);
 }
 
 /*
@@ -521,17 +520,21 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	return dev_key_set(vap, key);
 }
 
-/*
- * Add privacy headers appropriate for the specified key.
- */
+uint8_t
+ieee80211_crypto_get_keyid(struct ieee80211vap *vap, struct ieee80211_key *k)
+{
+	if (k >= &vap->iv_nw_keys[0] &&
+	    k <  &vap->iv_nw_keys[IEEE80211_WEP_NKID])
+		return (k - vap->iv_nw_keys);
+	else
+		return (0);
+}
+
 struct ieee80211_key *
-ieee80211_crypto_encap(struct ieee80211_node *ni, struct mbuf *m)
+ieee80211_crypto_get_txkey(struct ieee80211_node *ni, struct mbuf *m)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211_key *k;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_cipher *cip;
-	uint8_t keyid;
 
 	/*
 	 * Multicast traffic always uses the multicast key.
@@ -550,14 +553,27 @@ ieee80211_crypto_encap(struct ieee80211_node *ni, struct mbuf *m)
 			vap->iv_stats.is_tx_nodefkey++;
 			return NULL;
 		}
-		keyid = vap->iv_def_txkey;
-		k = &vap->iv_nw_keys[vap->iv_def_txkey];
-	} else {
-		keyid = 0;
-		k = &ni->ni_ucastkey;
+		return &vap->iv_nw_keys[vap->iv_def_txkey];
 	}
-	cip = k->wk_cipher;
-	return (cip->ic_encap(k, m, keyid<<6) ? k : NULL);
+
+	return &ni->ni_ucastkey;
+}
+
+/*
+ * Add privacy headers appropriate for the specified key.
+ */
+struct ieee80211_key *
+ieee80211_crypto_encap(struct ieee80211_node *ni, struct mbuf *m)
+{
+	struct ieee80211_key *k;
+	const struct ieee80211_cipher *cip;
+
+	if ((k = ieee80211_crypto_get_txkey(ni, m)) != NULL) {
+		cip = k->wk_cipher;
+		return (cip->ic_encap(k, m) ? k : NULL);
+	}
+
+	return NULL;
 }
 
 /*

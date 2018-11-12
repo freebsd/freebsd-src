@@ -7,7 +7,8 @@ LIB=	clang_rt.asan-${CRTARCH}
 .PATH:	${CRTSRC}/lib/asan\
 	${CRTSRC}/lib/interception\
 	${CRTSRC}/lib/sanitizer_common\
-	${CRTSRC}/lib/lsan
+	${CRTSRC}/lib/lsan\
+	${CRTSRC}/lib/ubsan
 
 SRCS=	asan_preinit.cc\
 	asan_allocator.cc\
@@ -60,6 +61,7 @@ SRCS=	asan_preinit.cc\
 	sanitizer_suppressions.cc\
 	sanitizer_symbolizer.cc\
 	sanitizer_symbolizer_libbacktrace.cc\
+	sanitizer_symbolizer_mac.cc\
 	sanitizer_symbolizer_win.cc\
 	sanitizer_tls_get_addr.cc\
 	sanitizer_thread_registry.cc\
@@ -73,8 +75,14 @@ SRCS=	asan_preinit.cc\
 	sanitizer_stoptheworld_linux_libcdep.cc\
 	sanitizer_symbolizer_libcdep.cc\
 	sanitizer_symbolizer_posix_libcdep.cc\
-	sanitizer_unwind_posix_libcdep.cc\
+	sanitizer_symbolizer_process_libcdep.cc\
+	sanitizer_unwind_linux_libcdep.cc\
 	lsan_common.cc\
-	lsan_common_linux.cc
+	lsan_common_linux.cc\
+	ubsan_diag.cc\
+	ubsan_init.cc\
+	ubsan_flags.cc\
+	ubsan_handlers.cc\
+	ubsan_value.cc
 
 .include <bsd.lib.mk>

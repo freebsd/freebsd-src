@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.90 2015/04/24 15:44:12 christos Exp $
+# $File: archive,v 1.91 2015/09/16 13:49:33 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -434,16 +434,34 @@
 # AIN
 0	string	\x33\x18 AIN archive data
 0	string	\x33\x17 AIN archive data
-# XPA32
-0	string	xpa\0\1 XPA32 archive data
+# XPA32 test moved and merged with XPA by Joerg Jenderek at Sep 2015
 # SZip (TODO: doesn't catch all versions)
 0	string	SZ\x0a\4 SZip archive data
 # XPack DiskImage
-0	string	jm XPack DiskImage archive data
+# *.XDI updated by Joerg Jenderek Sep 2015
+# ftp://ftp.sac.sk/pub/sac/pack/0index.txt 
+# GRR: this test is still too general as it catches also text files starting with jm
+0	string	jm	
+# only found examples with this additional characteristic 2 bytes
+>2	string	\x2\x4	Xpack DiskImage archive data
+#!:ext xdi
 # XPack Data
-0	string	xpa XPack archive data
+# *.xpa updated by Joerg Jenderek Sep 2015
+# ftp://ftp.elf.stuba.sk/pub/pc/pack/
+0	string	xpa	XPA
+!:ext	xpa
+# XPA32
+# ftp://ftp.elf.stuba.sk/pub/pc/pack/xpa32.zip
+# created by XPA32.EXE version 1.0.2 for Windows
+>0	string	xpa\0\1 \b32 archive data
+# created by XPACK.COM version 1.67m or 1.67r with short 0x1800 
+>3	ubeshort	!0x0001	\bck archive data
 # XPack Single Data
-0	string	\xc3\x8d\ jm XPack single archive data
+# changed by Joerg Jenderek Sep 2015 back to like in version 5.12
+# letter 'I'+ acute accent is equivalent to \xcd
+0	string	\xcd\ jm	Xpack single archive data
+#!:mime	application/x-xpa-compressed
+!:ext xpa
 
 # TODO: missing due to unknown magic/magic at end of file:
 #DWC

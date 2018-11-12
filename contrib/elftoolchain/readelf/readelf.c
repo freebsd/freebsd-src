@@ -414,8 +414,8 @@ elf_osabi(unsigned int abi)
 	static char s_abi[32];
 
 	switch(abi) {
-	case ELFOSABI_SYSV: return "SYSV";
-	case ELFOSABI_HPUX: return "HPUS";
+	case ELFOSABI_NONE: return "NONE";
+	case ELFOSABI_HPUX: return "HPUX";
 	case ELFOSABI_NETBSD: return "NetBSD";
 	case ELFOSABI_GNU: return "GNU";
 	case ELFOSABI_HURD: return "HURD";

@@ -789,8 +789,7 @@ int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev)
 {
 	int pending;
 
-	taskqueue_cancel_timeout(taskqueue_thread, &bdev->wq, &pending);
-	if (pending)
+	if (taskqueue_cancel_timeout(taskqueue_thread, &bdev->wq, &pending))
 		taskqueue_drain_timeout(taskqueue_thread, &bdev->wq);
 	return (pending);
 }

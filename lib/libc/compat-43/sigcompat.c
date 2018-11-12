@@ -42,9 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 int
-sigvec(signo, sv, osv)
-	int signo;
-	struct sigvec *sv, *osv;
+sigvec(int signo, struct sigvec *sv, struct sigvec *osv)
 {
 	struct sigaction sa, osa;
 	struct sigaction *sap, *osap;
@@ -69,8 +67,7 @@ sigvec(signo, sv, osv)
 }
 
 int
-sigsetmask(mask)
-	int mask;
+sigsetmask(int mask)
 {
 	sigset_t set, oset;
 	int n;
@@ -84,8 +81,7 @@ sigsetmask(mask)
 }
 
 int
-sigblock(mask)
-	int mask;
+sigblock(int mask)
 {
 	sigset_t set, oset;
 	int n;

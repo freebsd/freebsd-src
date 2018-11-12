@@ -7,7 +7,13 @@ OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		Scrt1.o gcrt1.o
 CFLAGS+=	-I${.CURDIR}/../common -I${.CURDIR}/../../libc/include
 
-all: ${OBJS}
+FILES=		${OBJS}
+FILESMODE=	${LIBMODE}
+FILESOWN=	${LIBOWN}
+FILESGRP=	${LIBGRP}
+FILESDIR=	${LIBDIR}
+# These FILES qualify as libraries for the purpose of LIBRARIES_ONLY.
+.undef LIBRARIES_ONLY
 
 CLEANFILES=	${OBJS}
 
@@ -16,9 +22,5 @@ gcrt1.o: crt1.c
 
 Scrt1.o: crt1.c
 	${CC} ${CFLAGS} -fPIC -DPIC -c -o Scrt1.o ${.ALLSRC}
-
-realinstall:
-	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${OBJS} ${DESTDIR}${LIBDIR}
 
 .include <bsd.lib.mk>

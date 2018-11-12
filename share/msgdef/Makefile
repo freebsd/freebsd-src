@@ -134,11 +134,4 @@ SYMLINKS+=	../${lang_terr:C/:.*$//}.${enc1}/${FILESNAME} \
 .endfor
 .endfor
 
-beforeinstall:
-.for locale in ${LOCALES}
-.if exists(${DESTDIR}${LOCALEDIR}/${locale}/LC_MESSAGES/)
-	rm -rf ${DESTDIR}${LOCALEDIR}/${locale}/LC_MESSAGES
-.endif
-.endfor
-
 .include <bsd.prog.mk>

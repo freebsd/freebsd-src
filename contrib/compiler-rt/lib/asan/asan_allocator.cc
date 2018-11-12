@@ -223,7 +223,7 @@ void AllocatorOptions::CopyTo(Flags *f, CommonFlags *cf) {
 
 struct Allocator {
   static const uptr kMaxAllowedMallocSize =
-      FIRST_32_SECOND_64(3UL << 30, 64UL << 30);
+      FIRST_32_SECOND_64(3UL << 30, 1UL << 40);
   static const uptr kMaxThreadLocalQuarantine =
       FIRST_32_SECOND_64(1 << 18, 1 << 20);
 
@@ -354,7 +354,7 @@ struct Allocator {
     }
     CHECK(IsAligned(needed_size, min_alignment));
     if (size > kMaxAllowedMallocSize || needed_size > kMaxAllowedMallocSize) {
-      Report("WARNING: AddressSanitizer failed to allocate %p bytes\n",
+      Report("WARNING: AddressSanitizer failed to allocate 0x%zx bytes\n",
              (void*)size);
       return allocator.ReturnNullOrDie();
     }
@@ -437,11 +437,10 @@ struct Allocator {
     thread_stats.mallocs++;
     thread_stats.malloced += size;
     thread_stats.malloced_redzones += needed_size - size;
-    uptr class_id =
-        Min(kNumberOfSizeClasses, SizeClassMap::ClassID(needed_size));
-    thread_stats.malloced_by_size[class_id]++;
     if (needed_size > SizeClassMap::kMaxSize)
       thread_stats.malloc_large++;
+    else
+      thread_stats.malloced_by_size[SizeClassMap::ClassID(needed_size)]++;
 
     void *res = reinterpret_cast<void *>(user_beg);
     if (can_fill && fl.max_malloc_fill_size) {

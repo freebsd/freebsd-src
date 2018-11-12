@@ -724,6 +724,8 @@ MSAsmStmt::MSAsmStmt(const ASTContext &C, SourceLocation asmloc,
 }
 
 static StringRef copyIntoContext(const ASTContext &C, StringRef str) {
+  if (str.empty())
+    return StringRef();
   size_t size = str.size();
   char *buffer = new (C) char[size];
   memcpy(buffer, str.data(), size);
@@ -1499,6 +1501,12 @@ void OMPLoopDirective::setCounters(ArrayRef<Expr *> A) {
   std::copy(A.begin(), A.end(), getCounters().begin());
 }
 
+void OMPLoopDirective::setInits(ArrayRef<Expr *> A) {
+  assert(A.size() == getCollapsedNumber() &&
+         "Number of counter inits is not the same as the collapsed number");
+  std::copy(A.begin(), A.end(), getInits().begin());
+}
+
 void OMPLoopDirective::setUpdates(ArrayRef<Expr *> A) {
   assert(A.size() == getCollapsedNumber() &&
          "Number of counter updates is not the same as the collapsed number");
@@ -1664,6 +1672,7 @@ OMPSimdDirective::Create(const ASTContext &C, SourceLocation StartLoc,
   Dir->setInit(Exprs.Init);
   Dir->setInc(Exprs.Inc);
   Dir->setCounters(Exprs.Counters);
+  Dir->setInits(Exprs.Inits);
   Dir->setUpdates(Exprs.Updates);
   Dir->setFinals(Exprs.Finals);
   return Dir;
@@ -1710,6 +1719,7 @@ OMPForDirective::Create(const ASTContext &C, SourceLocation StartLoc,
   Dir->setNextLowerBound(Exprs.NLB);
   Dir->setNextUpperBound(Exprs.NUB);
   Dir->setCounters(Exprs.Counters);
+  Dir->setInits(Exprs.Inits);
   Dir->setUpdates(Exprs.Updates);
   Dir->setFinals(Exprs.Finals);
   return Dir;
@@ -1756,6 +1766,7 @@ OMPForSimdDirective::Create(const ASTContext &C, SourceLocation StartLoc,
   Dir->setNextLowerBound(Exprs.NLB);
   Dir->setNextUpperBound(Exprs.NUB);
   Dir->setCounters(Exprs.Counters);
+  Dir->setInits(Exprs.Inits);
   Dir->setUpdates(Exprs.Updates);
   Dir->setFinals(Exprs.Finals);
   return Dir;
@@ -1911,6 +1922,7 @@ OMPParallelForDirective *OMPParallelForDirective::Create(
   Dir->setNextLowerBound(Exprs.NLB);
   Dir->setNextUpperBound(Exprs.NUB);
   Dir->setCounters(Exprs.Counters);
+  Dir->setInits(Exprs.Inits);
   Dir->setUpdates(Exprs.Updates);
   Dir->setFinals(Exprs.Finals);
   return Dir;
@@ -1955,6 +1967,7 @@ OMPParallelForSimdDirective *OMPParallelForSimdDirective::Create(
   Dir->setNextLowerBound(Exprs.NLB);
   Dir->setNextUpperBound(Exprs.NUB);
   Dir->setCounters(Exprs.Counters);
+  Dir->setInits(Exprs.Inits);
   Dir->setUpdates(Exprs.Updates);
   Dir->setFinals(Exprs.Finals);
   return Dir;

@@ -33,7 +33,6 @@
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
-#include <machine/intr_machdep.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
 

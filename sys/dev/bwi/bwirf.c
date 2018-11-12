@@ -1155,7 +1155,6 @@ bwi_rf_map_txpower(struct bwi_mac *mac)
 	}
 
 #define IS_VALID_PA_PARAM(p)	((p) != 0 && (p) != -1)
-#define N(arr)	(int)(sizeof(arr) / sizeof(arr[0]))
 
 	/*
 	 * Extract PA parameters
@@ -1164,10 +1163,10 @@ bwi_rf_map_txpower(struct bwi_mac *mac)
 		sprom_ofs = BWI_SPROM_PA_PARAM_11A;
 	else
 		sprom_ofs = BWI_SPROM_PA_PARAM_11BG;
-	for (i = 0; i < N(pa_params); ++i)
+	for (i = 0; i < nitems(pa_params); ++i)
 		pa_params[i] = (int16_t)bwi_read_sprom(sc, sprom_ofs + (i * 2));
 
-	for (i = 0; i < N(pa_params); ++i) {
+	for (i = 0; i < nitems(pa_params); ++i) {
 		/*
 		 * If one of the PA parameters from SPROM is not valid,
 		 * fall back to the default values, if there are any.
@@ -1199,8 +1198,6 @@ bwi_rf_map_txpower(struct bwi_mac *mac)
 			goto back;
 		}
 	}
-
-#undef N
 
 	/*
 	 * All of the PA parameters from SPROM are valid.

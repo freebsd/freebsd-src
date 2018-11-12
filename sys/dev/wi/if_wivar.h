@@ -58,7 +58,6 @@
 
 struct wi_vap {
 	struct ieee80211vap	wv_vap;
-	struct ieee80211_beacon_offsets	wv_bo;
 
 	void		(*wv_recv_mgmt)(struct ieee80211_node *, struct mbuf *,
 			    int, const struct ieee80211_rx_stats *rxs, int, int);

@@ -32,7 +32,6 @@
 #define	_SPARC64_PCI_SCHIZOREG_H_
 
 #define	STX_NINTR			5	/* 4 via OFW + 1 CDMA */
-#define	STX_NRANGE			4
 #define	SCZ_NREG			3
 #define	TOM_NREG			4
 
@@ -279,7 +278,7 @@
 
 /*
  * Safari/JBus performance control register
- * NB: for Tomatillo only events 0x00 through 0x08 are documented as
+ * NB: For Tomatillo only events 0x00 through 0x08 are documented as
  * implemented.
  */
 #define	SCZ_CTRL_PERF_ZDATA_OUT		0x0000000000000016ULL
@@ -345,7 +344,7 @@
 
 /* Non-Standard registers in the configration space */
 /*
- * NB: for Tomatillo the secondary and subordinate bus number registers
+ * NB: For Tomatillo the secondary and subordinate bus number registers
  * apparently are read-only although documented otherwise; writing to
  * them just triggers a PCI bus error interrupt or has no effect at best.
  */

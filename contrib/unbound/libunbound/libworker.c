@@ -70,8 +70,8 @@
 #include "util/tube.h"
 #include "iterator/iter_fwd.h"
 #include "iterator/iter_hints.h"
-#include "ldns/sbuffer.h"
-#include "ldns/str2wire.h"
+#include "sldns/sbuffer.h"
+#include "sldns/str2wire.h"
 
 /** handle new query command for bg worker */
 static void handle_newq(struct libworker* w, uint8_t* buf, uint32_t len);

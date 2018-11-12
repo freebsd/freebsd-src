@@ -53,10 +53,19 @@ static bool CheckMemoryRangeAvailability(uptr beg, uptr size) {
   return true;
 }
 
-static bool ProtectMemoryRange(uptr beg, uptr size) {
+static bool ProtectMemoryRange(uptr beg, uptr size, const char *name) {
   if (size > 0) {
-    uptr end = beg + size - 1;
-    if (!Mprotect(beg, size)) {
+    void *addr = MmapNoAccess(beg, size, name);
+    if (beg == 0 && addr != 0) {
+      // Depending on the kernel configuration, we may not be able to protect
+      // the page at address zero.
+      uptr gap = 16 * GetPageSizeCached();
+      beg += gap;
+      size -= gap;
+      addr = MmapNoAccess(beg, size, name);
+    }
+    if ((uptr)addr != beg) {
+      uptr end = beg + size - 1;
       Printf("FATAL: Cannot protect memory range %p - %p.\n", beg, end);
       return false;
     }
@@ -95,7 +104,7 @@ static void CheckMemoryLayoutSanity() {
   }
 }
 
-bool InitShadow(bool map_shadow, bool init_origins) {
+bool InitShadow(bool init_origins) {
   // Let user know mapping parameters first.
   VPrintf(1, "__msan_init %p\n", &__msan_init);
   for (unsigned i = 0; i < kMemoryLayoutSize; ++i)
@@ -115,15 +124,27 @@ bool InitShadow(bool map_shadow, bool init_origins) {
     uptr end = kMemoryLayout[i].end;
     uptr size= end - start;
     MappingDesc::Type type = kMemoryLayout[i].type;
-    if ((map_shadow && type == MappingDesc::SHADOW) ||
-        (init_origins && type == MappingDesc::ORIGIN)) {
-      if (!CheckMemoryRangeAvailability(start, size)) return false;
-      if ((uptr)MmapFixedNoReserve(start, size) != start) return false;
+
+    bool map = type == MappingDesc::SHADOW ||
+               (init_origins && type == MappingDesc::ORIGIN);
+    bool protect = type == MappingDesc::INVALID ||
+                   (!init_origins && type == MappingDesc::ORIGIN);
+    CHECK(!(map && protect));
+    if (!map && !protect)
+      CHECK(type == MappingDesc::APP);
+    if (map) {
+      if (!CheckMemoryRangeAvailability(start, size))
+        return false;
+      if ((uptr)MmapFixedNoReserve(start, size, kMemoryLayout[i].name) != start)
+        return false;
       if (common_flags()->use_madv_dontdump)
         DontDumpShadowMemory(start, size);
-    } else if (type == MappingDesc::INVALID) {
-      if (!CheckMemoryRangeAvailability(start, size)) return false;
-      if (!ProtectMemoryRange(start, size)) return false;
+    }
+    if (protect) {
+      if (!CheckMemoryRangeAvailability(start, size))
+        return false;
+      if (!ProtectMemoryRange(start, size, kMemoryLayout[i].name))
+        return false;
     }
   }
 

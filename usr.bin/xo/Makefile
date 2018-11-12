@@ -1,14 +1,14 @@
 # $FreeBSD$
 
-LIBXO=	${.CURDIR:H:H}/contrib/libxo
+LIBXOSRC=	${SRCTOP}/contrib/libxo
 
-.PATH:	${LIBXO}/xo
+.PATH:	${LIBXOSRC}/xo
 
 PROG=	xo
 MAN=	xo.1
 
 # XXX For xoversion.h
-CFLAGS+=-I${LIBXO}/libxo
+CFLAGS+=-I${LIBXOSRC}/libxo
 
 LIBADD=	xo util
 

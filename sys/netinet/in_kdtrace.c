@@ -105,6 +105,25 @@ SDT_PROBE_DEFINE5_XLATE(tcp, , , send,
 SDT_PROBE_DEFINE1_XLATE(tcp, , , siftr,
     "struct pkt_node *", "siftrinfo_t *");
 
+SDT_PROBE_DEFINE3_XLATE(tcp, , , debug__input,
+    "struct tcpcb *", "tcpsinfo_t *" ,
+    "struct tcphdr *", "tcpinfo_t *",
+    "uint8_t *", "ipinfo_t *");
+
+SDT_PROBE_DEFINE3_XLATE(tcp, , , debug__output,
+    "struct tcpcb *", "tcpsinfo_t *" ,
+    "struct tcphdr *", "tcpinfo_t *",
+    "uint8_t *", "ipinfo_t *");
+
+SDT_PROBE_DEFINE2_XLATE(tcp, , , debug__user,
+    "struct tcpcb *", "tcpsinfo_t *" ,
+    "int", "int");
+
+SDT_PROBE_DEFINE3_XLATE(tcp, , , debug__drop,
+    "struct tcpcb *", "tcpsinfo_t *" ,
+    "struct tcphdr *", "tcpinfo_t *",
+    "uint8_t *", "ipinfo_t *")
+
 SDT_PROBE_DEFINE6_XLATE(tcp, , , state__change,
     "void *", "void *",
     "struct tcpcb *", "csinfo_t *",

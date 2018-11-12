@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.83 2015/06/16 14:17:37 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.84 2015/09/10 13:32:19 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -204,7 +204,10 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 
 #ifdef __EMX__
 	if ((ms->flags & MAGIC_NO_CHECK_APPTYPE) == 0 && inname) {
-		switch (file_os2_apptype(ms, inname, buf, nb)) {
+		m = file_os2_apptype(ms, inname, buf, nb);
+		if ((ms->flags & MAGIC_DEBUG) != 0)
+			(void)fprintf(stderr, "[try os2_apptype %d]\n", m);
+		switch (m) {
 		case -1:
 			return -1;
 		case 0:
@@ -216,37 +219,43 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 #endif
 #if HAVE_FORK
 	/* try compression stuff */
-	if ((ms->flags & MAGIC_NO_CHECK_COMPRESS) == 0)
-		if ((m = file_zmagic(ms, fd, inname, ubuf, nb)) != 0) {
-			if ((ms->flags & MAGIC_DEBUG) != 0)
-				(void)fprintf(stderr, "zmagic %d\n", m);
+	if ((ms->flags & MAGIC_NO_CHECK_COMPRESS) == 0) {
+		m = file_zmagic(ms, fd, inname, ubuf, nb);
+		if ((ms->flags & MAGIC_DEBUG) != 0)
+			(void)fprintf(stderr, "[try zmagic %d]\n", m);
+		if (m) {
 			goto done_encoding;
 		}
+	}
 #endif
 	/* Check if we have a tar file */
-	if ((ms->flags & MAGIC_NO_CHECK_TAR) == 0)
-		if ((m = file_is_tar(ms, ubuf, nb)) != 0) {
-			if ((ms->flags & MAGIC_DEBUG) != 0)
-				(void)fprintf(stderr, "tar %d\n", m);
+	if ((ms->flags & MAGIC_NO_CHECK_TAR) == 0) {
+		m = file_is_tar(ms, ubuf, nb);
+		if ((ms->flags & MAGIC_DEBUG) != 0)
+			(void)fprintf(stderr, "[try tar %d]\n", m);
+		if (m) {
 			if (checkdone(ms, &rv))
 				goto done;
 		}
+	}
 
 	/* Check if we have a CDF file */
-	if ((ms->flags & MAGIC_NO_CHECK_CDF) == 0)
-		if ((m = file_trycdf(ms, fd, ubuf, nb)) != 0) {
-			if ((ms->flags & MAGIC_DEBUG) != 0)
-				(void)fprintf(stderr, "cdf %d\n", m);
+	if ((ms->flags & MAGIC_NO_CHECK_CDF) == 0) {
+		m = file_trycdf(ms, fd, ubuf, nb);
+		if ((ms->flags & MAGIC_DEBUG) != 0)
+			(void)fprintf(stderr, "[try cdf %d]\n", m);
+		if (m) {
 			if (checkdone(ms, &rv))
 				goto done;
 		}
+	}
 
 	/* try soft magic tests */
 	if ((ms->flags & MAGIC_NO_CHECK_SOFT) == 0)
-		if ((m = file_softmagic(ms, ubuf, nb, 0, NULL, BINTEST,
-		    looks_text)) != 0) {
-			if ((ms->flags & MAGIC_DEBUG) != 0)
-				(void)fprintf(stderr, "softmagic %d\n", m);
+		m = file_softmagic(ms, ubuf, nb, 0, NULL, BINTEST, looks_text);
+		if ((ms->flags & MAGIC_DEBUG) != 0)
+			(void)fprintf(stderr, "[try softmagic %d]\n", m);
+		if (m) {
 #ifdef BUILTIN_ELF
 			if ((ms->flags & MAGIC_NO_CHECK_ELF) == 0 && m == 1 &&
 			    nb > 5 && fd != -1) {
@@ -259,10 +268,10 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 				 * ELF headers that cannot easily * be
 				 * extracted with rules in the magic file.
 				 */
-				if ((m = file_tryelf(ms, fd, ubuf, nb)) != 0)
-					if ((ms->flags & MAGIC_DEBUG) != 0)
-						(void)fprintf(stderr,
-						    "elf %d\n", m);
+				m = file_tryelf(ms, fd, ubuf, nb);
+				if ((ms->flags & MAGIC_DEBUG) != 0)
+					(void)fprintf(stderr, "[try elf %d]\n",
+					    m);
 			}
 #endif
 			if (checkdone(ms, &rv))
@@ -272,9 +281,10 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((__u
 	/* try text properties */
 	if ((ms->flags & MAGIC_NO_CHECK_TEXT) == 0) {
 
-		if ((m = file_ascmagic(ms, ubuf, nb, looks_text)) != 0) {
-			if ((ms->flags & MAGIC_DEBUG) != 0)
-				(void)fprintf(stderr, "ascmagic %d\n", m);
+		m = file_ascmagic(ms, ubuf, nb, looks_text);
+		if ((ms->flags & MAGIC_DEBUG) != 0)
+			(void)fprintf(stderr, "[try ascmagic %d]\n", m);
+		if (m) {
 			if (checkdone(ms, &rv))
 				goto done;
 		}

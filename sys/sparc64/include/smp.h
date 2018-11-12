@@ -47,6 +47,7 @@
 #include <sys/sched.h>
 #include <sys/smp.h>
 
+#include <machine/atomic.h>
 #include <machine/intr_machdep.h>
 #include <machine/tte.h>
 
@@ -143,7 +144,7 @@ ipi_all_but_self(u_int ipi)
 {
 	cpuset_t cpus;
 
-	if (__predict_false(smp_started == 0))
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return;
 	cpus = all_cpus;
 	sched_pin();
@@ -158,7 +159,8 @@ static __inline void
 ipi_selected(cpuset_t cpus, u_int ipi)
 {
 
-	if (__predict_false(smp_started == 0 || CPU_EMPTY(&cpus)))
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0 ||
+	    CPU_EMPTY(&cpus)))
 		return;
 	mtx_lock_spin(&ipi_mtx);
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
@@ -169,7 +171,7 @@ static __inline void
 ipi_cpu(int cpu, u_int ipi)
 {
 
-	if (__predict_false(smp_started == 0))
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return;
 	mtx_lock_spin(&ipi_mtx);
 	cpu_ipi_single(cpu, 0, (u_long)tl_ipi_level, ipi);
@@ -183,7 +185,7 @@ ipi_dcache_page_inval(void *func, vm_paddr_t pa)
 {
 	struct ipi_cache_args *ica;
 
-	if (__predict_false(smp_started == 0))
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return (NULL);
 	sched_pin();
 	ica = &ipi_cache_args;
@@ -200,7 +202,7 @@ ipi_icache_page_inval(void *func, vm_paddr_t pa)
 {
 	struct ipi_cache_args *ica;
 
-	if (__predict_false(smp_started == 0))
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return (NULL);
 	sched_pin();
 	ica = &ipi_cache_args;
@@ -217,7 +219,7 @@ ipi_rd(u_int cpu, void *func, u_long *val)
 {
 	struct ipi_rd_args *ira;
 
-	if (__predict_false(smp_started == 0))
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return (NULL);
 	sched_pin();
 	ira = &ipi_rd_args;
@@ -234,7 +236,7 @@ ipi_tlb_context_demap(struct pmap *pm)
 	struct ipi_tlb_args *ita;
 	cpuset_t cpus;
 
-	if (__predict_false(smp_started == 0))
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return (NULL);
 	sched_pin();
 	cpus = pm->pm_active;
@@ -259,7 +261,7 @@ ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 	struct ipi_tlb_args *ita;
 	cpuset_t cpus;
 
-	if (__predict_false(smp_started == 0))
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return (NULL);
 	sched_pin();
 	cpus = pm->pm_active;
@@ -284,7 +286,7 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	struct ipi_tlb_args *ita;
 	cpuset_t cpus;
 
-	if (__predict_false(smp_started == 0))
+	if (__predict_false(atomic_load_acq_int(&smp_started) == 0))
 		return (NULL);
 	sched_pin();
 	cpus = pm->pm_active;

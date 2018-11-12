@@ -299,16 +299,15 @@ namei(struct nameidata *ndp)
 		namei_cleanup_cnp(cnp);
 		return (error);
 	}
-	SDT_PROBE(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
-	    cnp->cn_flags, 0, 0);
+	SDT_PROBE3(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
+	    cnp->cn_flags);
 	for (;;) {
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
 		if (error != 0) {
 			vrele(ndp->ni_rootdir);
 			namei_cleanup_cnp(cnp);
-			SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0,
-			    0, 0);
+			SDT_PROBE2(vfs, namei, lookup, return, error, NULL);
 			return (error);
 		}
 		/*
@@ -321,8 +320,7 @@ namei(struct nameidata *ndp)
 			} else
 				cnp->cn_flags |= HASBUF;
 
-			SDT_PROBE(vfs, namei, lookup, return, 0, ndp->ni_vp,
-			    0, 0, 0);
+			SDT_PROBE2(vfs, namei, lookup, return, 0, ndp->ni_vp);
 			return (0);
 		}
 		if (ndp->ni_loopcnt++ >= MAXSYMLINKS) {
@@ -397,7 +395,7 @@ namei(struct nameidata *ndp)
 	vput(ndp->ni_vp);
 	ndp->ni_vp = NULL;
 	vrele(ndp->ni_dvp);
-	SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0, 0, 0);
+	SDT_PROBE2(vfs, namei, lookup, return, error, NULL);
 	return (error);
 }
 

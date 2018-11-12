@@ -451,7 +451,7 @@
 #define R92C_RQPN_LD		0x80000000
 
 /* Bits for R92C_TDECTRL. */
-#define R92C_TDECTRL_BLK_DESC_NUM_M	0x0000000f
+#define R92C_TDECTRL_BLK_DESC_NUM_M	0x000000f0
 #define R92C_TDECTRL_BLK_DESC_NUM_S	4
 
 /* Bits for R92C_FWHW_TXQ_CTRL. */
@@ -801,10 +801,6 @@
 #define R92C_RAID_11B	6
 
 
-/* Macros to access unaligned little-endian memory. */
-#define LE_READ_2(x)	((x)[0] | (x)[1] << 8)
-#define LE_READ_4(x)	((x)[0] | (x)[1] << 8 | (x)[2] << 16 | (x)[3] << 24)
-
 /*
  * Macros to access subfields in registers.
  */
@@ -1138,7 +1134,6 @@ struct urtwn_fw_info {
 
 struct urtwn_vap {
 	struct ieee80211vap		vap;
-	struct ieee80211_beacon_offsets	bo;
 
 	int				(*newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);

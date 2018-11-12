@@ -179,6 +179,8 @@ gre_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	GRE2IFP(sc)->if_ioctl = gre_ioctl;
 	GRE2IFP(sc)->if_transmit = gre_transmit;
 	GRE2IFP(sc)->if_qflush = gre_qflush;
+	GRE2IFP(sc)->if_capabilities |= IFCAP_LINKSTATE;
+	GRE2IFP(sc)->if_capenable |= IFCAP_LINKSTATE;
 	if_attach(GRE2IFP(sc));
 	bpfattach(GRE2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	GRE_LIST_LOCK();
@@ -623,7 +625,7 @@ gre_set_tunnel(struct ifnet *ifp, struct sockaddr *src,
 	default:
 		return (EAFNOSUPPORT);
 	}
-	if (sc->gre_family != src->sa_family)
+	if (sc->gre_family != 0)
 		gre_detach(sc);
 	GRE_WLOCK(sc);
 	if (sc->gre_family != 0)
@@ -648,8 +650,10 @@ gre_set_tunnel(struct ifnet *ifp, struct sockaddr *src,
 		break;
 #endif
 	}
-	if (error == 0)
+	if (error == 0) {
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		if_link_state_change(ifp, LINK_STATE_UP);
+	}
 	return (error);
 }
 
@@ -668,6 +672,7 @@ gre_delete_tunnel(struct ifnet *ifp)
 		free(sc->gre_hdr, M_GRE);
 	}
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_link_state_change(ifp, LINK_STATE_DOWN);
 }
 
 int

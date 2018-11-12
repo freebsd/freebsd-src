@@ -2,7 +2,7 @@
 #-
 # Copyright (c) 2011 Nathan Whitehorn
 # Copyright (c) 2011 The FreeBSD Foundation
-# Copyright (c) 2013 Devin Teske
+# Copyright (c) 2013-2015 Devin Teske
 # All rights reserved.
 #
 # Portions of this software were developed by Bjoern Zeeb
@@ -141,15 +141,19 @@ BEGIN {
 	}
 	printf("ifconfig_%s_ipv6=\"inet6 %s\"\n", iface, $1);
 }' >> $BSDINSTALL_TMPETC/._rc.conf.net
+retval=$?
 
-if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
+if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	. $BSDINSTALL_TMPETC/._rc.conf.net
 	ifconfig ${INTERFACE} `eval echo \\\$ifconfig_${INTERFACE}_ipv6`
-	if [ -n "${ipv6_defaultrouter}" ]; then
+	if [ "$ipv6_defaultrouter" ]; then
 		route delete -inet6 default
 		route add -inet6 default ${ipv6_defaultrouter}
+		retval=$?
 	fi
 fi
+
+exit $retval
 
 ################################################################################
 # END

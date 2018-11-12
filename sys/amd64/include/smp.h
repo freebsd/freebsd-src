@@ -35,7 +35,6 @@ extern int			mp_naps;
 extern int			boot_cpu_id;
 extern struct pcb		stoppcbs[];
 extern int			cpu_apic_ids[];
-extern int bootAP;
 extern void *dpcpu;
 extern char *bootSTK;
 extern int bootAP;

@@ -13,6 +13,7 @@ SRCS+=	ctl_frontend.c
 SRCS+=	ctl_frontend_cam_sim.c
 SRCS+=	ctl_frontend_ioctl.c
 SRCS+=	ctl_frontend_iscsi.c
+SRCS+=	ctl_ha.c
 SRCS+=	ctl_scsi_all.c
 SRCS+=	ctl_tpc.c
 SRCS+=	ctl_tpc_local.c

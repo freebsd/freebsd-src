@@ -114,7 +114,7 @@ ctl_scsi_path_string(union ctl_io *io, char *path_str, int len)
 {
 
 	snprintf(path_str, len, "(%u:%u:%u/%u): ",
-	    io->io_hdr.nexus.initid.id, io->io_hdr.nexus.targ_port,
+	    io->io_hdr.nexus.initid, io->io_hdr.nexus.targ_port,
 	    io->io_hdr.nexus.targ_lun, io->io_hdr.nexus.targ_mapped_lun);
 }
 

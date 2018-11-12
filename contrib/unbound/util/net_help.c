@@ -43,8 +43,8 @@
 #include "util/data/dname.h"
 #include "util/module.h"
 #include "util/regional.h"
-#include "ldns/parseutil.h"
-#include "ldns/wire2str.h"
+#include "sldns/parseutil.h"
+#include "sldns/wire2str.h"
 #include <fcntl.h>
 #ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
@@ -770,7 +770,7 @@ static lock_basic_t *ub_openssl_locks = NULL;
 static unsigned long
 ub_crypto_id_cb(void)
 {
-	return (unsigned long)ub_thread_self();
+	return (unsigned long)log_thread_get();
 }
 
 static void
@@ -789,8 +789,8 @@ int ub_openssl_lock_init(void)
 {
 #if defined(HAVE_SSL) && defined(OPENSSL_THREADS) && !defined(THREADS_DISABLED)
 	int i;
-	ub_openssl_locks = (lock_basic_t*)malloc(
-		sizeof(lock_basic_t)*CRYPTO_num_locks());
+	ub_openssl_locks = (lock_basic_t*)reallocarray(
+		NULL, (size_t)CRYPTO_num_locks(), sizeof(lock_basic_t));
 	if(!ub_openssl_locks)
 		return 0;
 	for(i=0; i<CRYPTO_num_locks(); i++) {

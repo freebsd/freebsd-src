@@ -45,9 +45,7 @@ __FBSDID("$FreeBSD$");
  * and if it is resident, return its xvfsconf structure.
  */
 int
-getvfsbyname(fsname, vfcp)
-	const char *fsname;
-	struct xvfsconf *vfcp;
+getvfsbyname(const char *fsname, struct xvfsconf *vfcp)
 {
 	struct xvfsconf *xvfsp;
 	size_t buflen;

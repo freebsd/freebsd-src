@@ -59,7 +59,7 @@
  * All data in the XenStore is stored as strings.  Nodes specifying numeric
  * values are encoded in decimal.  Integer value ranges listed below are
  * expressed as fixed sized integer types capable of storing the conversion
- * of a properly formatted node string, without loss of information.
+ * of a properly formated node string, without loss of information.
  *
  * Any specified default value is in effect if the corresponding XenBus node
  * is not present in the XenStore.
@@ -88,9 +88,15 @@
  * params
  *      Values:         string
  *
- *      Data used by the backend driver to locate and configure the backing
- *      device.  The format and semantics of this data vary according to the
- *      backing device in use and are outside the scope of this specification.
+ *      A free formatted string providing sufficient information for the
+ *      backend driver to open the backing device.  (e.g. the path to the
+ *      file or block device representing the backing store.)
+ *
+ * physical-device
+ *      Values:         "MAJOR:MINOR"
+ *
+ *      MAJOR and MINOR are the major number and minor number of the
+ *      backing device respectively.
  *
  * type
  *      Values:         "file", "phy", "tap"
@@ -493,7 +499,7 @@
  * discarded region on the device must be rendered unrecoverable before the
  * command returns.
  *
- * This operation is analogous to performing a trim (ATA) or unmap (SCSI),
+ * This operation is analogous to performing a trim (ATA) or unamp (SCSI),
  * command on a native device.
  *
  * More information about trim/unmap operations can be found at:
@@ -558,7 +564,6 @@ struct blkif_request_segment {
     /* @last_sect: last sector in frame to transfer (inclusive).     */
     uint8_t     first_sect, last_sect;
 };
-typedef struct blkif_request_segment blkif_request_segment_t;
 
 /*
  * Starting ring element for any I/O request.
@@ -569,7 +574,7 @@ struct blkif_request {
     blkif_vdev_t   handle;       /* only for read/write requests         */
     uint64_t       id;           /* private guest value, echoed in resp  */
     blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
-    blkif_request_segment_t seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+    struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 typedef struct blkif_request blkif_request_t;
 

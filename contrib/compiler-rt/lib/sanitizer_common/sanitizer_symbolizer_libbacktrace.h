@@ -16,7 +16,7 @@
 
 #include "sanitizer_platform.h"
 #include "sanitizer_common.h"
-#include "sanitizer_symbolizer.h"
+#include "sanitizer_symbolizer_internal.h"
 
 #ifndef SANITIZER_LIBBACKTRACE
 # define SANITIZER_LIBBACKTRACE 0
@@ -28,17 +28,16 @@
 
 namespace __sanitizer {
 
-class LibbacktraceSymbolizer {
+class LibbacktraceSymbolizer : public SymbolizerTool {
  public:
   static LibbacktraceSymbolizer *get(LowLevelAllocator *alloc);
 
-  SymbolizedStack *SymbolizeCode(uptr addr, const char *module_name,
-                                 uptr module_offset);
+  bool SymbolizePC(uptr addr, SymbolizedStack *stack) override;
 
-  bool SymbolizeData(uptr addr, DataInfo *info);
+  bool SymbolizeData(uptr addr, DataInfo *info) override;
 
   // May return NULL if demangling failed.
-  static char *Demangle(const char *name, bool always_alloc = false);
+  const char *Demangle(const char *name) override;
 
  private:
   explicit LibbacktraceSymbolizer(void *state) : state_(state) {}

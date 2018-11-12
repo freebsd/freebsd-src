@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 
 __weak_reference(__strchrnul, strchrnul);
 
+char *__strchrnul(const char *, int);
+
 char *
 __strchrnul(const char *p, int ch)
 {

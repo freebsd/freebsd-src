@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #endif /* ! COPY_CHUNK */
 
 #ifndef SAVE_REGS
-#define	SAVE_REGS	stmfd	sp!, {r4-r8, lr}
+#define	SAVE_REGS	stmfd	sp!, {r4-r8, lr}; _SAVE({r4-r8, lr})
 #define	RESTORE_REGS	ldmfd	sp!, {r4-r8, pc}
 #endif
 
@@ -134,6 +134,7 @@ END(bcopy_page)
 
 ENTRY(bzero_page)
 	stmfd	sp!, {r4-r8, lr}
+	_SAVE({r4-r8, lr})
 #ifdef BIG_LOOPS
 	mov	r2, #(PAGE_SIZE >> 9)
 #else
@@ -189,6 +190,7 @@ END(bzero_page)
 ENTRY(bcopy_page)
 	pld	[r0]
 	stmfd	sp!, {r4, r5}
+	_SAVE({r4, r5})
 	mov	ip, #32
 	ldr	r2, [r0], #0x04		/* 0x00 */
 	ldr	r3, [r0], #0x04		/* 0x04 */

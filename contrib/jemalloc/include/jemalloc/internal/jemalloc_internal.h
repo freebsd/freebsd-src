@@ -181,7 +181,7 @@ static const bool config_cache_oblivious =
 #include "jemalloc/internal/jemalloc_internal_macros.h"
 
 /* Size class index type. */
-typedef unsigned index_t;
+typedef unsigned szind_t;
 
 /*
  * Flags bits:
@@ -229,7 +229,7 @@ typedef unsigned index_t;
 #  ifdef __alpha__
 #    define LG_QUANTUM		4
 #  endif
-#  ifdef __sparc64__
+#  if (defined(__sparc64__) || defined(__sparcv9))
 #    define LG_QUANTUM		4
 #  endif
 #  if (defined(__amd64__) || defined(__x86_64__) || defined(_M_X64))
@@ -508,12 +508,12 @@ void	jemalloc_postfork_child(void);
 #include "jemalloc/internal/huge.h"
 
 #ifndef JEMALLOC_ENABLE_INLINE
-index_t	size2index_compute(size_t size);
-index_t	size2index_lookup(size_t size);
-index_t	size2index(size_t size);
-size_t	index2size_compute(index_t index);
-size_t	index2size_lookup(index_t index);
-size_t	index2size(index_t index);
+szind_t	size2index_compute(size_t size);
+szind_t	size2index_lookup(size_t size);
+szind_t	size2index(size_t size);
+size_t	index2size_compute(szind_t index);
+size_t	index2size_lookup(szind_t index);
+size_t	index2size(szind_t index);
 size_t	s2u_compute(size_t size);
 size_t	s2u_lookup(size_t size);
 size_t	s2u(size_t size);
@@ -524,7 +524,7 @@ arena_t	*arena_get(tsd_t *tsd, unsigned ind, bool init_if_missing,
 #endif
 
 #if (defined(JEMALLOC_ENABLE_INLINE) || defined(JEMALLOC_C_))
-JEMALLOC_INLINE index_t
+JEMALLOC_INLINE szind_t
 size2index_compute(size_t size)
 {
 
@@ -555,7 +555,7 @@ size2index_compute(size_t size)
 	}
 }
 
-JEMALLOC_ALWAYS_INLINE index_t
+JEMALLOC_ALWAYS_INLINE szind_t
 size2index_lookup(size_t size)
 {
 
@@ -568,7 +568,7 @@ size2index_lookup(size_t size)
 	}
 }
 
-JEMALLOC_ALWAYS_INLINE index_t
+JEMALLOC_ALWAYS_INLINE szind_t
 size2index(size_t size)
 {
 
@@ -579,7 +579,7 @@ size2index(size_t size)
 }
 
 JEMALLOC_INLINE size_t
-index2size_compute(index_t index)
+index2size_compute(szind_t index)
 {
 
 #if (NTBINS > 0)
@@ -606,7 +606,7 @@ index2size_compute(index_t index)
 }
 
 JEMALLOC_ALWAYS_INLINE size_t
-index2size_lookup(index_t index)
+index2size_lookup(szind_t index)
 {
 	size_t ret = (size_t)index2size_tab[index];
 	assert(ret == index2size_compute(index));
@@ -614,7 +614,7 @@ index2size_lookup(index_t index)
 }
 
 JEMALLOC_ALWAYS_INLINE size_t
-index2size(index_t index)
+index2size(szind_t index)
 {
 
 	assert(index < NSIZES);
@@ -702,7 +702,7 @@ sa2u(size_t size, size_t alignment)
 	}
 
 	/* Try for a large size class. */
-	if (likely(size <= arena_maxclass) && likely(alignment < chunksize)) {
+	if (likely(size <= large_maxclass) && likely(alignment < chunksize)) {
 		/*
 		 * We can't achieve subpage alignment, so round up alignment
 		 * to the minimum that can actually be supported.
@@ -973,7 +973,7 @@ u2rz(size_t usize)
 	size_t ret;
 
 	if (usize <= SMALL_MAXCLASS) {
-		index_t binind = size2index(usize);
+		szind_t binind = size2index(usize);
 		ret = arena_bin_info[binind].redzone_size;
 	} else
 		ret = 0;
@@ -1093,7 +1093,7 @@ iralloct(tsd_t *tsd, void *ptr, size_t oldsize, size_t size, size_t alignment,
 		    zero, tcache, arena));
 	}
 
-	return (arena_ralloc(tsd, arena, ptr, oldsize, size, 0, alignment, zero,
+	return (arena_ralloc(tsd, arena, ptr, oldsize, size, alignment, zero,
 	    tcache));
 }
 

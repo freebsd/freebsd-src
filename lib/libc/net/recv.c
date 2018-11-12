@@ -40,10 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 
 ssize_t
-recv(s, buf, len, flags)
-	int s, flags;
-	size_t len;
-	void *buf;
+recv(int s, void *buf, size_t len, int flags)
 {
 	/*
 	 * POSIX says recv() shall be a cancellation point, so call the

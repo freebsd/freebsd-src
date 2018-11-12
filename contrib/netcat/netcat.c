@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.127 2015/02/14 22:40:22 jca Exp $ */
+/* $OpenBSD: netcat.c,v 1.130 2015/07/26 19:12:28 chl Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -52,15 +52,16 @@
 #include <err.h>
 #include <errno.h>
 #include <getopt.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <netdb.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <limits.h>
 #include "atomicio.h"
 
 #ifndef SUN_LEN
@@ -162,6 +163,8 @@ main(int argc, char *argv[])
 	host = NULL;
 	uport = NULL;
 	sv = NULL;
+
+	signal(SIGPIPE, SIG_IGN);
 
 	while ((ch = getopt_long(argc, argv,
 	    "46DdEe:FhI:i:klNnoO:P:p:rSs:tT:UuV:vw:X:x:z",
@@ -1042,7 +1045,6 @@ fdpass(int nfd)
 	bzero(&mh, sizeof(mh));
 	bzero(&cmsgbuf, sizeof(cmsgbuf));
 	bzero(&iov, sizeof(iov));
-	bzero(&pfd, sizeof(pfd));
 
 	mh.msg_control = (caddr_t)&cmsgbuf.buf;
 	mh.msg_controllen = sizeof(cmsgbuf.buf);
@@ -1059,17 +1061,17 @@ fdpass(int nfd)
 
 	bzero(&pfd, sizeof(pfd));
 	pfd.fd = STDOUT_FILENO;
+	pfd.events = POLLOUT;
 	for (;;) {
 		r = sendmsg(STDOUT_FILENO, &mh, 0);
 		if (r == -1) {
 			if (errno == EAGAIN || errno == EINTR) {
-				pfd.events = POLLOUT;
 				if (poll(&pfd, 1, -1) == -1)
 					err(1, "poll");
 				continue;
 			}
 			err(1, "sendmsg");
-		} else if (r == -1)
+		} else if (r != 1)
 			errx(1, "sendmsg: unexpected return value %zd", r);
 		else
 			break;

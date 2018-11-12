@@ -1902,11 +1902,6 @@ __elfN(note_procstat_proc)(void *arg, struct sbuf *sb, size_t *sizep)
 CTASSERT(sizeof(struct kinfo_file) == KINFO_FILE_SIZE);
 #endif
 
-static int pack_fileinfo = 1;
-SYSCTL_INT(_kern, OID_AUTO, coredump_pack_fileinfo, CTLFLAG_RWTUN,
-    &pack_fileinfo, 0,
-    "Enable file path packing in 'procstat -f' coredump notes");
-
 static void
 note_procstat_files(void *arg, struct sbuf *sb, size_t *sizep)
 {
@@ -1915,7 +1910,7 @@ note_procstat_files(void *arg, struct sbuf *sb, size_t *sizep)
 	ssize_t start_len, sect_len;
 	int structsize, filedesc_flags;
 
-	if (pack_fileinfo)
+	if (coredump_pack_fileinfo)
 		filedesc_flags = KERN_FILEDESC_PACK_KINFO;
 	else
 		filedesc_flags = 0;

@@ -36,8 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 
 long
-labs(j)
-	long j;
+labs(long j)
 {
 	return(j < 0 ? -j : j);
 }

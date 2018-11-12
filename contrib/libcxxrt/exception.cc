@@ -516,7 +516,7 @@ static void emergency_malloc_free(char *ptr)
 			break;
 		}
 	}
-	assert(buffer > 0 &&
+	assert(buffer >= 0 &&
 	       "Trying to free something that is not an emergency buffer!");
 	// emergency_malloc() is expected to return 0-initialized data.  We don't
 	// zero the buffer when allocating it, because the static buffers will
@@ -556,7 +556,7 @@ static void free_exception(char *e)
 {
 	// If this allocation is within the address range of the emergency buffer,
 	// don't call free() because it was not allocated with malloc()
-	if ((e > emergency_buffer) &&
+	if ((e >= emergency_buffer) &&
 	    (e < (emergency_buffer + sizeof(emergency_buffer))))
 	{
 		emergency_malloc_free(e);
@@ -1472,6 +1472,15 @@ namespace std
 	{
 		__cxa_thread_info *info = thread_info();
 		return info->globals.uncaughtExceptions != 0;
+	}
+	/**
+	 * Returns the number of exceptions currently being thrown that have not
+	 * been caught.  This can occur inside a nested catch statement.
+	 */
+	int uncaught_exceptions() throw()
+	{
+		__cxa_thread_info *info = thread_info();
+		return info->globals.uncaughtExceptions;
 	}
 	/**
 	 * Returns the current unexpected handler.

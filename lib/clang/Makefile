@@ -62,7 +62,6 @@ SUBDIR=	libclanganalysis \
 	libllvmaarch64asmparser \
 	libllvmaarch64codegen \
 	libllvmaarch64desc \
-	libllvmaarch64disassembler \
 	libllvmaarch64info \
 	libllvmaarch64instprinter \
 	libllvmaarch64utils \
@@ -75,7 +74,6 @@ SUBDIR=	libclanganalysis \
 	libllvmmipsasmparser \
 	libllvmmipscodegen \
 	libllvmmipsdesc \
-	libllvmmipsdisassembler \
 	libllvmmipsinfo \
 	libllvmmipsinstprinter \
 	libllvmpowerpcasmparser \
@@ -87,13 +85,11 @@ SUBDIR=	libclanganalysis \
 	libllvmsparcasmparser \
 	libllvmsparccodegen \
 	libllvmsparcdesc \
-	libllvmsparcdisassembler \
 	libllvmsparcinfo \
 	libllvmsparcinstprinter \
 	libllvmx86asmparser \
 	libllvmx86codegen \
 	libllvmx86desc \
-	libllvmx86disassembler \
 	libllvmx86info \
 	libllvmx86instprinter \
 	libllvmx86utils
@@ -106,10 +102,14 @@ SUBDIR+=libllvmdebuginfodwarf \
 	libllvmpasses
 .endif # MK_CLANG_EXTRAS
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
-SUBDIR+=libllvmexecutionengine \
+SUBDIR+=libllvmaarch64disassembler \
+	libllvmexecutionengine \
 	libllvminterpreter \
 	libllvmmcjit \
-	libllvmruntimedyld
+	libllvmmipsdisassembler \
+	libllvmruntimedyld \
+	libllvmsparcdisassembler \
+	libllvmx86disassembler
 .endif # MK_CLANG_EXTRAS | LLDB
 
 .if ${MK_LLDB} != "no"

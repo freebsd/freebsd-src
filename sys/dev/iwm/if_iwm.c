@@ -884,7 +884,9 @@ iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 		(void) iwm_pcie_rx_stop(sc);
 		iwm_nic_unlock(sc);
 	}
+	/* Reset the ring state */
 	ring->cur = 0;
+	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
 }
 
 static void

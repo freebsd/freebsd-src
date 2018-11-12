@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	llvmcore
 
@@ -42,7 +42,6 @@ SRCS=	AsmWriter.cpp \
 	Module.cpp \
 	Operator.cpp \
 	Pass.cpp \
-	PassManager.cpp \
 	PassRegistry.cpp \
 	Statepoint.cpp \
 	Type.cpp \
@@ -53,6 +52,10 @@ SRCS=	AsmWriter.cpp \
 	ValueSymbolTable.cpp \
 	ValueTypes.cpp \
 	Verifier.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	PassManager.cpp
+.endif
 
 TGHDRS=	Intrinsics
 

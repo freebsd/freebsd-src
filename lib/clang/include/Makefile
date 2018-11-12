@@ -10,8 +10,7 @@ LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
 
 INCSDIR=${LIBDIR}/clang/3.7.0/include
 
-INCS=	Intrin.h \
-	__stddef_max_align_t.h \
+INCS=	__stddef_max_align_t.h \
 	__wmmintrin_aes.h \
 	__wmmintrin_pclmul.h \
 	adxintrin.h \
@@ -58,6 +57,7 @@ INCS=	Intrin.h \
 	tbmintrin.h \
 	tmmintrin.h \
 	vadefs.h \
+	vecintrin.h \
 	wmmintrin.h \
 	x86intrin.h \
 	xmmintrin.h \
@@ -65,7 +65,7 @@ INCS=	Intrin.h \
 	xtestintrin.h \
 	${GENINCS}
 GENINCS= arm_neon.h
-CLEANFILES= ${GENINCS}
+CLEANFILES= ${GENINCS} ${GENINCS:C/\.h$/.d/}
 
 # avoid a circular dependency
 GENDIRDEPS_FILTER+= Nusr.bin/clang/clang-tblgen.host

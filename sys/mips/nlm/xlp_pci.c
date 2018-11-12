@@ -314,7 +314,7 @@ xlp_pcib_attach(device_t dev)
 		for (link = 0; link < 4; link++)
 			xlp_pcib_hardware_swap_enable(node, link);
 
-	device_add_child(dev, "pci", 0);
+	device_add_child(dev, "pci", -1);
 	bus_generic_attach(dev);
 	return (0);
 }

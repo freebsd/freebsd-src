@@ -63,8 +63,13 @@ __FBSDID("$FreeBSD$");
 .endm
 
 .macro	restore_registers el
-	msr	daifset, #2		/* Disable interrupts, x18 may change
-					 * in the interrupt exception handler */
+.if \el == 1
+	msr	daifset, #2
+	/*
+	 * Disable interrupts, x18 may change in the interrupt exception
+	 * handler.  For EL0 exceptions, do_ast already did this.
+	 */
+.endif
 	ldp	x18, lr, [sp], #16
 	ldp	x10, x11, [sp], #16
 .if \el == 0
@@ -100,10 +105,11 @@ __FBSDID("$FreeBSD$");
 .macro	do_ast
 	/* Disable interrupts */
 	mrs	x19, daif
+1:
 	msr	daifset, #2
 
 	/* Read the current thread flags */
-1:	ldr	x1, [x18, #PC_CURTHREAD]	/* Load curthread */
+	ldr	x1, [x18, #PC_CURTHREAD]	/* Load curthread */
 	ldr	x2, [x1, #TD_FLAGS]
 
 	/* Check if we have either bits set */
@@ -120,53 +126,56 @@ __FBSDID("$FreeBSD$");
 	mov	x0, sp
 	bl	_C_LABEL(ast)
 
-	/* Disable interrupts */
-	mrs	x19, daif
-	msr	daifset, #2
-
+	/* Re-check for new ast scheduled */
+	b	1b
 2:
-	/* Restore interrupts */
-	msr	daif, x19
 .endm
 
-handle_el1h_sync:
+ENTRY(handle_el1h_sync)
 	save_registers 1
 	mov	x0, sp
 	bl	do_el1h_sync
 	restore_registers 1
 	eret
+END(handle_el1h_sync)
 
-handle_el1h_irq:
+ENTRY(handle_el1h_irq)
 	save_registers 1
 	mov	x0, sp
 	bl	arm_cpu_intr
 	restore_registers 1
 	eret
+END(handle_el1h_irq)
 
-handle_el1h_error:
+ENTRY(handle_el1h_error)
 	brk	0xf13
+END(handle_el1h_error)
 
-handle_el0_sync:
+ENTRY(handle_el0_sync)
 	save_registers 0
 	mov	x0, sp
 	bl	do_el0_sync
 	do_ast
 	restore_registers 0
 	eret
+END(handle_el0_sync)
 
-handle_el0_irq:
+ENTRY(handle_el0_irq)
 	save_registers 0
 	mov	x0, sp
 	bl	arm_cpu_intr
+	do_ast
 	restore_registers 0
 	eret
+END(handle_el0_irq)
 
-handle_el0_error:
+ENTRY(handle_el0_error)
 	save_registers 0
 	mov	x0, sp
 	bl	do_el0_error
 	brk	0xf23
 	1: b 1b
+END(handle_el0_error)
 
 .macro	vempty
 	.align 7

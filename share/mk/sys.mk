@@ -29,7 +29,10 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 	STAGING/META_MODE \
 	SYSROOT/META_MODE
 
-.include <bsd.mkopt.mk>
+__ENV_ONLY_OPTIONS:= \
+	${__DEFAULT_NO_OPTIONS} \
+	${__DEFAULT_YES_OPTIONS} \
+	${__DEFAULT_DEPENDENT_OPTIONS:H}
 
 # early include for customization
 # see local.sys.mk below
@@ -37,6 +40,8 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 # for older system support)
 .if defined(.PARSEDIR)
 .sinclude <local.sys.env.mk>
+
+.include <bsd.mkopt.mk>
 
 .if ${MK_META_MODE} == "yes"
 .sinclude <meta.sys.mk>
@@ -47,9 +52,16 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 .endif
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
+# Don't do this if just running 'make -V' (but do when inspecting .OBJDIR) or
+# 'make showconfig' (during makeman which enables all options when meta mode
+# is not expected)
+.if (${.MAKEFLAGS:M-V} == "" || ${.MAKEFLAGS:M.OBJDIR} != "") && \
+    !make(showconfig)
 .sinclude <auto.obj.mk>
 .endif
-
+.endif
+.else # bmake
+.include <bsd.mkopt.mk>
 .endif
 
 # If the special target .POSIX appears (without prerequisites or
@@ -381,6 +393,10 @@ SHELL=	${__MAKE_SHELL}
 
 # Tell bmake the makefile preference
 .MAKE.MAKEFILE_PREFERENCE= BSDmakefile makefile Makefile
+
+# Tell bmake to always pass job tokens, regardless of target depending on
+# .MAKE or looking like ${MAKE}/${.MAKE}/$(MAKE)/$(.MAKE)/make.
+.MAKE.ALWAYS_PASS_JOB_QUEUE= yes
 
 # By default bmake does *not* use set -e
 # when running target scripts, this is a problem for many makefiles here.

@@ -99,8 +99,8 @@ static dtrace_pops_t sdt_pops = {
 
 static TAILQ_HEAD(, sdt_provider) sdt_prov_list;
 
-eventhandler_tag	sdt_kld_load_tag;
-eventhandler_tag	sdt_kld_unload_try_tag;
+static eventhandler_tag	sdt_kld_load_tag;
+static eventhandler_tag	sdt_kld_unload_try_tag;
 
 static void
 sdt_create_provider(struct sdt_provider *prov)
@@ -141,6 +141,12 @@ sdt_create_probe(struct sdt_probe *probe)
 	char *to;
 	size_t len;
 
+	if (probe->version != (int)sizeof(*probe)) {
+		printf("ignoring probe %p, version %u expected %u\n",
+		    probe, probe->version, (int)sizeof(*probe));
+		return;
+	}
+
 	TAILQ_FOREACH(prov, &sdt_prov_list, prov_entry)
 		if (strcmp(prov->name, probe->prov->name) == 0)
 			break;
@@ -162,6 +168,8 @@ sdt_create_probe(struct sdt_probe *probe)
 	 * in the C compiler, so we have to respect const vs non-const.
 	 */
 	strlcpy(func, probe->func, sizeof(func));
+	if (func[0] == '\0')
+		strcpy(func, "none");
 
 	from = probe->name;
 	to = name;
@@ -401,4 +409,3 @@ sdt_modevent(module_t mod __unused, int type, void *data __unused)
 DEV_MODULE(sdt, sdt_modevent, NULL);
 MODULE_VERSION(sdt, 1);
 MODULE_DEPEND(sdt, dtrace, 1, 1, 1);
-MODULE_DEPEND(sdt, opensolaris, 1, 1, 1);

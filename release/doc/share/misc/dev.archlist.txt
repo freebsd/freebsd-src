@@ -101,6 +101,7 @@ nxge	i386,amd64
 oce	i386,amd64
 ohci	i386,pc98,amd64,powerpc
 oltr	i386
+otus	i386,amd64
 pcn	i386,pc98,amd64
 pst	i386
 qlxgb	amd64

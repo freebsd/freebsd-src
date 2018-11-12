@@ -227,10 +227,22 @@ bool CodeGenFunction::EmitOMPCopyinClause(const OMPExecutableDirective &D) {
       auto *VD = cast<VarDecl>(cast<DeclRefExpr>(*IRef)->getDecl());
       QualType Type = VD->getType();
       if (CopiedVars.insert(VD->getCanonicalDecl()).second) {
-        // Get the address of the master variable.
-        auto *MasterAddr = VD->isStaticLocal()
-                               ? CGM.getStaticLocalDeclAddress(VD)
-                               : CGM.GetAddrOfGlobal(VD);
+
+        // Get the address of the master variable. If we are emitting code with
+        // TLS support, the address is passed from the master as field in the
+        // captured declaration.
+        llvm::Value *MasterAddr;
+        if (getLangOpts().OpenMPUseTLS &&
+            getContext().getTargetInfo().isTLSSupported()) {
+          assert(CapturedStmtInfo->lookup(VD) &&
+                 "Copyin threadprivates should have been captured!");
+          DeclRefExpr DRE(const_cast<VarDecl *>(VD), true, (*IRef)->getType(),
+                          VK_LValue, (*IRef)->getExprLoc());
+          MasterAddr = EmitLValue(&DRE).getAddress();
+        } else {
+          MasterAddr = VD->isStaticLocal() ? CGM.getStaticLocalDeclAddress(VD)
+                                           : CGM.GetAddrOfGlobal(VD);
+        }
         // Get the address of the threadprivate variable.
         auto *PrivateAddr = EmitLValue(*IRef).getAddress();
         if (CopiedVars.size() == 1) {
@@ -686,27 +698,9 @@ static void emitPreCond(CodeGenFunction &CGF, const OMPLoopDirective &S,
   {
     CodeGenFunction::OMPPrivateScope PreCondScope(CGF);
     emitPrivateLoopCounters(CGF, PreCondScope, S.counters());
-    const VarDecl *IVDecl =
-        cast<VarDecl>(cast<DeclRefExpr>(S.getIterationVariable())->getDecl());
-    bool IsRegistered = PreCondScope.addPrivate(IVDecl, [&]() -> llvm::Value *{
-      // Emit var without initialization.
-      auto VarEmission = CGF.EmitAutoVarAlloca(*IVDecl);
-      CGF.EmitAutoVarCleanups(VarEmission);
-      return VarEmission.getAllocatedAddress();
-    });
-    assert(IsRegistered && "counter already registered as private");
-    // Silence the warning about unused variable.
-    (void)IsRegistered;
     (void)PreCondScope.Privatize();
-    // Initialize internal counter to 0 to calculate initial values of real
-    // counters.
-    LValue IV = CGF.EmitLValue(S.getIterationVariable());
-    CGF.EmitStoreOfScalar(
-        llvm::ConstantInt::getNullValue(
-            IV.getAddress()->getType()->getPointerElementType()),
-        CGF.EmitLValue(S.getIterationVariable()), /*isInit=*/true);
     // Get initial values of real counters.
-    for (auto I : S.updates()) {
+    for (auto I : S.inits()) {
       CGF.EmitIgnoredExpr(I);
     }
   }

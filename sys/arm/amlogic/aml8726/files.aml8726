@@ -32,5 +32,3 @@ arm/amlogic/aml8726/aml8726_pinctrl.c		optional	fdt_pinctrl
 arm/amlogic/aml8726/uart_dev_aml8726.c		optional	uart
 arm/amlogic/aml8726/aml8726_usb_phy-m3.c	optional	dwcotg usb gpio
 arm/amlogic/aml8726/aml8726_usb_phy-m6.c	optional	dwcotg usb gpio
-
-dev/dwc/if_dwc.c				optional	dwc

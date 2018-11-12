@@ -54,6 +54,7 @@ extern int use_kvm;
 
 #define	CF_INIT		0x1		/* been initialized */
 #define	CF_LOADAV	0x2		/* display w/ load average */
+#define	CF_ZFSARC	0x4		/* display w/ ZFS cache usage */
 
 #define	TCP	0x1
 #define	UDP	0x2

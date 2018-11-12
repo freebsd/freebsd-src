@@ -1241,7 +1241,7 @@ setservent(int stayopen)
 }
 
 void
-endservent()
+endservent(void)
 {
 #ifdef NS_CACHING
 	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
@@ -1362,7 +1362,7 @@ getservbyport(int port, const char *proto)
 }
 
 struct servent *
-getservent()
+getservent(void)
 {
 	struct key key;
 

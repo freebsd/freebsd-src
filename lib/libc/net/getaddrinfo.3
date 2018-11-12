@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2013
+.Dd October 5, 2015
 .Dt GETADDRINFO 3
 .Os
 .Sh NAME
@@ -40,7 +40,6 @@
 The
 .Fn getaddrinfo
 function is used to get a list of
-.Tn IP
 addresses and port numbers for host
 .Fa hostname
 and service
@@ -59,7 +58,9 @@ arguments are either pointers to NUL-terminated strings or the null pointer.
 An acceptable value for
 .Fa hostname
 is either a valid host name or a numeric host address string consisting
-of a dotted decimal IPv4 address or an IPv6 address.
+of a dotted decimal IPv4 address,
+an IPv6 address,
+or a UNIX-domain address.
 The
 .Fa servname
 is either a decimal port number or a service name listed in
@@ -105,6 +106,7 @@ operating system.
 Denotes the type of socket that is wanted:
 .Dv SOCK_STREAM ,
 .Dv SOCK_DGRAM ,
+.Dv SOCK_SEQPACKET ,
 or
 .Dv SOCK_RAW .
 When
@@ -112,9 +114,11 @@ When
 is zero the caller will accept any socket type.
 .It Fa ai_protocol
 Indicates which transport protocol is desired,
-.Dv IPPROTO_UDP
+.Dv IPPROTO_UDP ,
+.Dv IPPROTO_TCP ,
+.Dv IPPROTO_SCTP ,
 or
-.Dv IPPROTO_TCP .
+.Dv IPPROTO_UDPLITE .
 If
 .Fa ai_protocol
 is zero the caller will accept any protocol.
@@ -131,6 +135,9 @@ or be the bitwise-inclusive OR of one or more of the values
 .Dv AI_NUMERICSERV
 and
 .Dv AI_PASSIVE .
+For a UNIX-domain address,
+.Fa ai_flags
+is ignored.
 .Bl -tag -width "AI_CANONNAMEXX"
 .It Dv AI_ADDRCONFIG
 If the
@@ -236,15 +243,14 @@ The list can be traversed by following the
 pointer in each
 .Li addrinfo
 structure until a null pointer is encountered.
-The three members
+Each returned
+.Li addrinfo
+structure contains three members that are suitable for a call to
+.Xr socket 2 :
 .Fa ai_family ,
 .Fa ai_socktype ,
 and
-.Fa ai_protocol
-in each returned
-.Li addrinfo
-structure are suitable for a call to
-.Xr socket 2 .
+.Fa ai_protocol .
 For each
 .Li addrinfo
 structure in the list, the
@@ -419,6 +425,9 @@ freeaddrinfo(res0);
 .Xr getnameinfo 3 ,
 .Xr getservbyname 3 ,
 .Xr resolver 3 ,
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr unix 4 ,
 .Xr hosts 5 ,
 .Xr resolv.conf 5 ,
 .Xr services 5 ,

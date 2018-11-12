@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/fcntl.h>
+#include <unistd.h>
 #include "libc_private.h"
 
 __weak_reference(__sys_close, __close);

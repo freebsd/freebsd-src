@@ -13,5 +13,6 @@ SRCS=	GCDAProfiling.c\
 	InstrProfilingPlatformDarwin.c\
 	InstrProfilingPlatformOther.c\
 	InstrProfilingRuntime.cc\
+	InstrProfilingUtil.c
 
 .include <bsd.lib.mk>

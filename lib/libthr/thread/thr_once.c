@@ -50,9 +50,11 @@ __weak_reference(_pthread_once, pthread_once);
 static void
 once_cancel_handler(void *arg)
 {
-	pthread_once_t *once_control = arg;
+	pthread_once_t *once_control;
 
-	if (atomic_cmpset_rel_int(&once_control->state, ONCE_IN_PROGRESS, ONCE_NEVER_DONE))
+	once_control = arg;
+	if (atomic_cmpset_rel_int(&once_control->state, ONCE_IN_PROGRESS,
+	    ONCE_NEVER_DONE))
 		return;
 	atomic_store_rel_int(&once_control->state, ONCE_NEVER_DONE);
 	_thr_umtx_wake(&once_control->state, INT_MAX, 0);
@@ -68,16 +70,22 @@ _pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 
 	for (;;) {
 		state = once_control->state;
-		if (state == ONCE_DONE)
+		if (state == ONCE_DONE) {
+			atomic_thread_fence_acq();
 			return (0);
+		}
 		if (state == ONCE_NEVER_DONE) {
-			if (atomic_cmpset_acq_int(&once_control->state, state, ONCE_IN_PROGRESS))
+			if (atomic_cmpset_int(&once_control->state, state,
+			    ONCE_IN_PROGRESS))
 				break;
 		} else if (state == ONCE_IN_PROGRESS) {
-			if (atomic_cmpset_acq_int(&once_control->state, state, ONCE_WAIT))
-				_thr_umtx_wait_uint(&once_control->state, ONCE_WAIT, NULL, 0);
+			if (atomic_cmpset_int(&once_control->state, state,
+			    ONCE_WAIT))
+				_thr_umtx_wait_uint(&once_control->state,
+				    ONCE_WAIT, NULL, 0);
 		} else if (state == ONCE_WAIT) {
-			_thr_umtx_wait_uint(&once_control->state, state, NULL, 0);
+			_thr_umtx_wait_uint(&once_control->state, state,
+			    NULL, 0);
 		} else
 			return (EINVAL);
         }
@@ -86,7 +94,8 @@ _pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 	THR_CLEANUP_PUSH(curthread, once_cancel_handler, once_control);
 	init_routine();
 	THR_CLEANUP_POP(curthread, 0);
-	if (atomic_cmpset_rel_int(&once_control->state, ONCE_IN_PROGRESS, ONCE_DONE))
+	if (atomic_cmpset_rel_int(&once_control->state, ONCE_IN_PROGRESS,
+	    ONCE_DONE))
 		return (0);
 	atomic_store_rel_int(&once_control->state, ONCE_DONE);
 	_thr_umtx_wake(&once_control->state, INT_MAX, 0);
@@ -94,6 +103,6 @@ _pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 }
 
 void
-_thr_once_init()
+_thr_once_init(void)
 {
 }

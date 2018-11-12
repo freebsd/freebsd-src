@@ -202,34 +202,6 @@ struct sctp_state_cookie {	/* this is our definition... */
 	 */
 }                 SCTP_PACKED;
 
-
-/* Used for NAT state error cause */
-struct sctp_missing_nat_state {
-	uint16_t cause;
-	uint16_t length;
-	uint8_t data[];
-}                      SCTP_PACKED;
-
-
-struct sctp_inv_mandatory_param {
-	uint16_t cause;
-	uint16_t length;
-	uint32_t num_param;
-	uint16_t param;
-	/*
-	 * We include this to 0 it since only a missing cookie will cause
-	 * this error.
-	 */
-	uint16_t resv;
-}                        SCTP_PACKED;
-
-struct sctp_unresolv_addr {
-	uint16_t cause;
-	uint16_t length;
-	uint16_t addr_type;
-	uint16_t reserved;	/* Only one invalid addr type */
-}                  SCTP_PACKED;
-
 /* state cookie parameter */
 struct sctp_state_cookie_param {
 	struct sctp_paramhdr ph;
@@ -370,27 +342,10 @@ struct sctp_shutdown_complete_chunk {
 	struct sctp_chunkhdr ch;
 }                            SCTP_PACKED;
 
-/* Oper error holding a stale cookie */
-struct sctp_stale_cookie_msg {
-	struct sctp_paramhdr ph;/* really an error cause */
-	uint32_t time_usec;
-}                     SCTP_PACKED;
-
 struct sctp_adaptation_layer_indication {
 	struct sctp_paramhdr ph;
 	uint32_t indication;
 }                                SCTP_PACKED;
-
-struct sctp_cookie_while_shutting_down {
-	struct sctphdr sh;
-	struct sctp_chunkhdr ch;
-	struct sctp_paramhdr ph;/* really an error cause */
-}                               SCTP_PACKED;
-
-struct sctp_shutdown_complete_msg {
-	struct sctphdr sh;
-	struct sctp_shutdown_complete_chunk shut_cmp;
-}                          SCTP_PACKED;
 
 /*
  * draft-ietf-tsvwg-addip-sctp
@@ -553,12 +508,6 @@ struct sctp_auth_chunk {
 	uint16_t hmac_id;
 	uint8_t hmac[];
 }               SCTP_PACKED;
-
-struct sctp_auth_invalid_hmac {
-	struct sctp_paramhdr ph;
-	uint16_t hmac_id;
-	uint16_t padding;
-}                      SCTP_PACKED;
 
 /*
  * we pre-reserve enough room for a ECNE or CWR AND a SACK with no missing

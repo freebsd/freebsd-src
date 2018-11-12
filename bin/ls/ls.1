@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2015
+.Dd September 27, 2015
 .Dt LS 1
 .Os
 .Sh NAME
@@ -296,9 +296,9 @@ subsection below, except (if the long format is not also requested)
 the directory totals are not output when the output is in a
 single column, even if multi-column output is requested.
 .It Fl t
-Sort by descending time modified (most recently modified first).  If two files
-have the same modification timestamp, sort their names in ascending
-lexicographical order.
+Sort by descending time modified (most recently modified first).
+If two files have the same modification timestamp, sort their names
+in ascending lexicographical order.
 The
 .Fl r
 option reverses both of these sort orders.
@@ -320,7 +320,7 @@ or use the
 option.
 This causes
 .Nm
-to reverse the lexicographal sort order when sorting files with the
+to reverse the lexicographical sort order when sorting files with the
 same modification timestamp.
 .It Fl u
 Use time of last access,

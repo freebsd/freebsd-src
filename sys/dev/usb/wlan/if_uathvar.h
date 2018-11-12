@@ -102,7 +102,6 @@ struct uath_wme_settings {
 	uint8_t				logcwmin;
 	uint8_t				logcwmax;
 	uint16_t			txop;
-#define	UATH_TXOP_TO_US(txop)		((txop) << 5)
 	uint8_t				acm;
 };
 

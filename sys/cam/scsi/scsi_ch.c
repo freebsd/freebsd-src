@@ -655,11 +655,13 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				return;
 			} else if (error != 0) {
-				int retry_scheduled;
 				struct scsi_mode_sense_6 *sms;
+				int frozen, retry_scheduled;
 
 				sms = (struct scsi_mode_sense_6 *)
 					done_ccb->csio.cdb_io.cdb_bytes;
+				frozen = (done_ccb->ccb_h.status &
+				    CAM_DEV_QFRZN) != 0;
 
 				/*
 				 * Check to see if block descriptors were
@@ -670,7 +672,8 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 				 * block descriptors were disabled, enable
 				 * them and re-send the command.
 				 */
-				if (sms->byte2 & SMS_DBD) {
+				if ((sms->byte2 & SMS_DBD) != 0 &&
+				    (periph->flags & CAM_PERIPH_INVALID) == 0) {
 					sms->byte2 &= ~SMS_DBD;
 					xpt_action(done_ccb);
 					softc->quirks |= CH_Q_NO_DBD;
@@ -679,7 +682,7 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 					retry_scheduled = 0;
 
 				/* Don't wedge this device's queue */
-				if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+				if (frozen)
 					cam_release_devq(done_ccb->ccb_h.path,
 						 /*relsim_flags*/0,
 						 /*reduction*/0,

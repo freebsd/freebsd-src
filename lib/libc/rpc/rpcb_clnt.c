@@ -194,10 +194,8 @@ delete_cache(struct netbuf *addr)
 }
 
 static void
-add_cache(host, netid, taddr, uaddr)
-	const char *host, *netid;
-	char *uaddr;
-	struct netbuf *taddr;
+add_cache(const char *host, const char *netid, struct netbuf *taddr,
+    char *uaddr)
 {
 	struct address_cache  *ad_cache, *cptr, *prevptr;
 
@@ -428,7 +426,7 @@ getclnthandle(const char *host, const struct netconfig *nconf, char **targaddr)
  * rpcbind. Returns NULL on error and free's everything.
  */
 static CLIENT *
-local_rpcb()
+local_rpcb(void)
 {
 	CLIENT *client;
 	static struct netconfig *loopnconf;
@@ -1101,19 +1099,20 @@ done:
  * which will look up a service program in the address maps, and then
  * remotely call that routine with the given parameters. This allows
  * programs to do a lookup and call in one step.
-*/
+ *
+ * nconf    -Netconfig structure
+ * host     - Remote host name
+ * proc     - Remote proc identifiers
+ * xdrargs, xdrres;  XDR routines
+ * argsp, resp - Argument and Result
+ * tout     - Timeout value for this call
+ * addr_ptr - Preallocated netbuf address
+ */
 enum clnt_stat
-rpcb_rmtcall(nconf, host, prog, vers, proc, xdrargs, argsp,
-		xdrres, resp, tout, addr_ptr)
-	const struct netconfig *nconf;	/* Netconfig structure */
-	const char *host;			/* Remote host name */
-	rpcprog_t prog;
-	rpcvers_t vers;
-	rpcproc_t proc;			/* Remote proc identifiers */
-	xdrproc_t xdrargs, xdrres;	/* XDR routines */
-	caddr_t argsp, resp;		/* Argument and Result */
-	struct timeval tout;		/* Timeout value for this call */
-	const struct netbuf *addr_ptr;	/* Preallocated netbuf address */
+rpcb_rmtcall(const struct netconfig *nconf, const char *host, rpcprog_t prog,
+    rpcvers_t vers, rpcproc_t proc, xdrproc_t xdrargs, caddr_t argsp,
+    xdrproc_t xdrres, caddr_t resp, struct timeval tout,
+    const struct netbuf *addr_ptr)
 {
 	CLIENT *client;
 	enum clnt_stat stat;

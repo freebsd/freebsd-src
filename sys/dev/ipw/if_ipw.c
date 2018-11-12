@@ -1417,7 +1417,6 @@ ipw_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static const char *
 ipw_cmdname(int cmd)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	static const struct {
 		int	cmd;
 		const char *name;
@@ -1454,12 +1453,11 @@ ipw_cmdname(int cmd)
 	static char buf[12];
 	int i;
 
-	for (i = 0; i < N(cmds); i++)
+	for (i = 0; i < nitems(cmds); i++)
 		if (cmds[i].cmd == cmd)
 			return cmds[i].name;
 	snprintf(buf, sizeof(buf), "%u", cmd);
 	return buf;
-#undef N
 }
 
 /*

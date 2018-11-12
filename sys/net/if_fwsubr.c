@@ -89,8 +89,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct mbuf *mtail;
 	int unicast, dgl, foff;
 	static int next_dgl;
-#ifdef INET
-	int is_gw;
+#if defined(INET) || defined(INET6)
+	int is_gw = 0;
 #endif
 
 #ifdef MAC
@@ -105,6 +105,11 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		goto bad;
 	}
 
+#if defined(INET) || defined(INET6)
+	if (ro != NULL && ro->ro_rt != NULL &&
+	    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+		is_gw = 1;
+#endif
 	/*
 	 * For unicast, we make a tag to store the lladdr of the
 	 * destination. This might not be the first time we have seen
@@ -173,10 +178,10 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #ifdef INET6
 	case AF_INET6:
 		if (unicast) {
-			error = nd6_storelladdr(fc->fc_ifp, m, dst,
+			error = nd6_resolve(fc->fc_ifp, is_gw, m, dst,
 			    (u_char *) destfw, NULL);
 			if (error)
-				return (error);
+				return (error == EWOULDBLOCK ? 0 : error);
 		}
 		type = ETHERTYPE_IPV6;
 		break;

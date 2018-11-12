@@ -29,6 +29,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <machine/sysarch.h>
+#include "libc_private.h"
 
 void
 _set_tp(void *tp)

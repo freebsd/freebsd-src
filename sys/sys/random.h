@@ -33,8 +33,6 @@
 
 #include <sys/types.h>
 
-#include "opt_random.h"
-
 #if !defined(KLD_MODULE)
 #if defined(RANDOM_LOADABLE) && defined(RANDOM_YARROW)
 #error "Cannot define both RANDOM_LOADABLE and RANDOM_YARROW"

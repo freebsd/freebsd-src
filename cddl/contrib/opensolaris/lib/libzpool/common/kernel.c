@@ -45,7 +45,9 @@
  * Emulation of kernel services in userland.
  */
 
+#ifndef __FreeBSD__
 int aok;
+#endif
 uint64_t physmem;
 vnode_t *rootdir = (vnode_t *)0xabcd1234;
 char hw_serial[HW_HOSTID_LEN];

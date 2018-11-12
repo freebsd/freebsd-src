@@ -173,6 +173,9 @@
 
       <para revision="272350">The <literal>MK_ARM_EABI</literal>
 	&man.src.conf.5; option has been removed.</para>
+
+      <para revision="285169">The <application>ntp</application> suite
+	has been updated to version 4.2.8p3.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
@@ -392,9 +395,63 @@
 	updated to be able to detect &man.zfs.8; and &man.geli.8;
 	filesystems.</para>
 
+      <para revision="284883">The &man.mkimg.1; utility has been
+	updated to include support for <literal>NTFS</literal>
+	filesystems in both <acronym>MBR</acronym> and
+	<acronym>GPT</acronym> partitioning schemes.</para>
+
+      <para revision="285253">The &man.quota.1; utility has been
+	updated to include support for <acronym>IPv6</acronym>.</para>
+
+      <para revision="285420">The &man.jail.8; utility has been
+	updated to include a new flag, <literal>-l</literal>, which
+	ensures a clean environment in the target jail when used.
+	Additionally, &man.jail.8; will run a shell within the target
+	jail when run no commands are specified.</para>
+
       <para revision="285550">The &man.w.1; utility has been updated
 	to display the full IPv6 remote address of the host from which
 	a user is connected.</para>
+
+      <para revision="285685">The &man.jail.8; framework has been
+	updated to allow mounting &man.linprocfs.5; and
+	&man.linsysfs.5; within a jail.</para>
+
+      <para revision="285772" contrib="sponsor"
+	sponsor="&emcisilon;">The &man.patch.1; utility has been
+	updated to include a new option to the <literal>-V</literal>
+	flag, <literal>none</literal>, which disables backup file
+	creation when applying a patch.</para>
+
+      <para revision="286010" contrib="sponsor" sponsor="&ff;">The
+	&man.ar.1; utility now enables deterministic mode
+	(<literal>-D</literal>) by default.  This behavior can be
+	disabled by specifying the <literal>-U</literal> flag.</para>
+
+      <para revision="286289" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.xargs.1; utility has been
+	updated to allow specifying <literal>0</literal> as an
+	argument to the <literal>-P</literal> (parallel mode) flag,
+	which allows creating as many concurrent processes as
+	possible.</para>
+
+      <para revision="286795">The &man.patch.1; utility has been
+	updated to remove the automatic checkout feature.</para>
+
+      <para revision="287473" contrib="sponsor" sponsor="&gandi;">A
+	new utility, &man.sesutil.8;, has been added, which is used
+	to manage &man.ses.4; devices.</para>
+
+      <para revision="287522">The &man.pciconf.8; utility has been
+	updated to use the PCI ID database from the <filename
+	  role="package">misc/pciids</filename> package, if present,
+	falling back to the PCI ID database in the &os; base
+	system.</para>
+
+      <para revision="287842" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.ifconfig.8; utility has been
+	updated to always exit with an error code if an important
+	&man.ioctl.2; fails.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -406,9 +463,6 @@
 
       <para revision="260445">&man.byacc.1; has been updated to
 	version 20140101.</para>
-
-      <para revision="261071">&man.jemalloc.3; has been updated to
-	version 3.5.0.</para>
 
       <para revision="261283"><application>libc++</application> has
 	been updated to version 3.4.</para>
@@ -471,27 +525,12 @@
 	&man.hostapd.8; utilities have been updated to version
 	2.4.</para>
 
-      <para revision="282089">The &man.unbound.8; utility has been
-	updated to version 1.5.3.</para>
-
       <para revision="282434" contrib="sponsor" sponsor="&ff;">The
 	&man.resolvconf.8; utility has been updated to version
 	3.7.0.</para>
 
-      <para revision="282613">The &man.nc.1; utility has been updated
-	to the OpenBSD 5.7 version.</para>
-
-      <para revision="283092">The &man.acpi.4; subsystem has been
-	updated to version 20150515.</para>
-
-      <para revision="284237">The &man.file.1; utility has been
-	updated to version 5.23.</para>
-
       <para revision="284254"><application>bmake</application> has
 	been updated to version 20150606.</para>
-
-      <para revision="284397">Timezone data files have been updated to
-	version 2015e.</para>
 
       <para revision="285229"><application>sendmail</application> has
 	been updated to 8.15.2.  Starting with &os;&nbsp;11.0 and
@@ -509,6 +548,9 @@
 	<literal>confUSE_COMPRESSED_IPV6_ADDRESSES</literal> or the cf
 	option <literal>UseCompressedIPv6Addresses</literal>.</para>
 
+      <para revision="285275">The &man.tcpdump.1; utility has been
+	updated to version 4.7.4.</para>
+
       <para revision="285329"><application>OpenSSL</application> has
 	been updated to version 1.0.1p.</para>
 
@@ -516,6 +558,43 @@
 	&man.ssh.1; utility has been updated to re-implement hostname
 	canonicalization before locating the host in
 	<filename>known_hosts</filename>.</para>
+
+      <para revision="285972">The &man.libarchive.3; library has been
+	updated to properly skip a sparse file entry in a &man.tar.1;
+	file, which would previously produce errors.</para>
+
+      <para revision="286503">The <application>apr</application>
+	library used by &man.svnlite.1; has been updated to version
+	1.5.2.</para>
+
+      <para revision="286505">The <application>serf</application>
+	library used by &man.svnlite.1; has been updated to version
+	1.3.8.</para>
+
+      <para revision="286505">The &man.svnlite.1; utility has been
+	updated to version 1.8.14.</para>
+
+      <para revision="286510">The <application>sqlite3</application>
+	library used by &man.svnlite.1; and &man.kerberos.8; has been
+	updated to version 3.8.11.1.</para>
+
+      <para revision="286750">Timezone data files have been updated to
+	version 2015f.</para>
+
+      <para revision="287168">The &man.acpi.4; subsystem has been
+	updated to version 20150818.</para>
+
+      <para revision="287917">The &man.unbound.8; utility has been
+	updated to version 1.5.4.</para>
+
+      <para revision="288090">&man.jemalloc.3; has been updated to
+	version 4.0.2.</para>
+
+      <para revision="288143">The &man.file.1; utility has been
+	updated to version 5.25.</para>
+
+      <para revision="288303">The &man.nc.1; utility has been updated
+	to the OpenBSD 5.8 version.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -590,6 +669,12 @@
 	<filename>iovctl</filename>, has been added, which allows
 	automatically starting the &man.iovctl.8; utility at
 	boot.</para>
+
+      <para revision="287576" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.service.8; utility has been
+	updated to honor entries within <filename
+	  class="directory">/etc/rc.conf.d/</filename>.</para>
+
     </sect2>
 
     <sect2 xml:id="userland-periodic">
@@ -695,6 +780,11 @@
       <para revision="284483" contrib="sponsor"
 	sponsor="&scaleengine;">The Blowfish &man.crypt.3; library
 	has been updated to support &dollar;2y&dollar; hashes.</para>
+
+      <para revision="285277">The &man.execl.3; and &man.execlp.3;
+	library functions have been updated to use the
+	<literal>__sentinel</literal> <application>gcc</application>
+	attribute.</para>
     </sect2>
 
     <sect2 xml:id="userland-abi">
@@ -765,6 +855,11 @@
       <para revision="281261" arch="powerpc">Support for
 	&man.dtrace.1; has been added for the
 	Book-E&nbsp;&trade;.</para>
+
+      <para revision="287886" contrib="sponsor"
+	sponsor="&multiplay;">The &man.kqueue.2; system call has been
+	updated to handle write events to files larger than 2
+	gigabytes.</para>
     </sect2>
 
     <sect2 xml:id="kernel-config">
@@ -867,6 +962,32 @@
 	<para>Multi-queue support in the &man.em.4; driver is not
 	  officially supported by &intel;.</para>
       </note>
+
+      <para revision="285142" contrib="sponsor"
+	sponsor="&netgate;">The <filename>GENERIC</filename> kernel
+	configuration has been updated to include the
+	<literal>IPSEC</literal> option by default.</para>
+
+      <para revision="285387" contrib="sponsor"
+	sponsor="&norse;, &dell;">Initial <acronym>NUMA</acronym>
+	affinity and policy configuration has been added.  See
+	&man.numactl.1;, and &man.numa.getaffinity.2;, for usage
+	details.</para>
+
+      <para revision="286231">The &man.pms.4; driver has been added
+	to the <filename>GENERIC</filename> kernel configuration for
+	supported architectures.</para>
+
+      <para revision="287306" arch="arm">The
+	<filename>CUBIEBOARD2</filename> kernel configuration has been
+	renamed to <filename>A20</filename>.</para>
+
+      <para revision="288176" contrib="sponsor" sponsor="&ff;">Kernel
+	debugging symbols are now installed to <filename
+	  class="directory">/usr/lib/debug/boot/kernel/</filename>.
+	To retain the previous behavior, add
+	<literal>KERN_DEBUGDIR=""</literal> to
+	&man.src.conf.5;.</para>
     </sect2>
 
     <sect2 xml:id="kernel-sysctl">
@@ -915,6 +1036,14 @@
 	been added, which when set to <literal>1</literal> during
 	runtime will flush all
 	<literal>net.inet.tcp.hostcache</literal> entries.</para>
+
+      <para revision="285524">A new &man.sysctl.8;,
+	<literal>hw.model</literal>, has been added, which displays
+	<acronym>CPU</acronym> model information.</para>
+
+      <para revision="286591">The &man.uart.4; driver has been
+	updated to allow tuning packets per second captured during
+	runtime.</para>
     </sect2>
   </sect1>
 
@@ -965,6 +1094,13 @@
       <para revision="282783" arch="powerpc">Support for the Freescale
 	<acronym>PCI</acronym> Root Complex device has been
 	added.</para>
+
+      <para revision="285876">The &man.cyapa.4; driver has been added,
+	supporting the Cypress APA I2C trackpad.</para>
+
+      <para revision="285883">The &man.isl.4; driver has been added,
+	supporting the Intersil I2C ISL29018 digital ambient light
+	sensor.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
@@ -1002,6 +1138,23 @@
 
       <para revision="281387">The &man.hptnr.4; driver has been
 	updated to version 1.1.1.</para>
+
+      <para revision="285662">The &man.pms.4; driver has been added,
+	providing support for the PMC Sierra line of
+	<acronym>SAS</acronym>/<acronym>SATA</acronym> host bus
+	adapters.</para>
+
+      <para revision="287117" contrib="sponsor"
+	sponsor="&emcisilon;">The &man.ioat.4; driver has been added,
+	providing support for the <acronym>PSE</acronym> (Platform
+	Storage Extension).</para>
+
+      <para revision="287621" contrib="sponsor" sponsor="&ix;">The
+	<acronym>CTL</acronym> High Availability implementation has
+	been rewritten.</para>
+
+      <para revision="288310">The &man.ctl.4; driver has been updated
+	to support CD-ROM and removable devices.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
@@ -1049,8 +1202,8 @@
       <para revision="272730">The &man.alc.4; driver has been updated
 	to support AR816x and AR817x ethernet controllers.</para>
 
-      <para revision="272906">The &man.pf.4; packet filter default hash
-	has been changed from <literal>Jenkins</literal> to
+      <para revision="272906">The &man.pf.4; packet filter default
+	hash has been changed from <literal>Jenkins</literal> to
 	<literal>Murmur3</literal>, providing a 3-percent performance
 	increase in packets-per-second.</para>
 
@@ -1079,6 +1232,25 @@
 
       <para revision="284125">The &man.cdce.4; driver has been updated
 	to include support for the RTL8153 chipset.</para>
+
+      <para revision="286441">The &man.iwm.4; driver has been imported
+	from OpenBSD, providing support for &intel; 3160/7260/7265
+	wireless chipsets.</para>
+
+      <para revision="286829" contrib="sponsor"
+	sponsor="&limelight;">The &man.em.4; driver has been updated
+	to allow disabling <acronym>CRC</acronym> stripping.</para>
+
+      <para revision="287222">The &man.pf.4; implementation has been
+	updated to remove support for the <literal>scrub fragment
+	  crop|drop-ovl</literal> filtering rule.  Systems with this
+	rule in &man.pf.conf.5; will implicitly be converted to the
+	<literal>scrub fragment reassemble</literal> filtering rule,
+	without necessary intervention.</para>
+
+      <para revision="287469" contrib="sponsor"
+	sponsor="&intelcorp;">The &man.em.4; driver has been updated
+	to support the Skylake I219 chipset.</para>
     </sect2>
   </sect1>
 
@@ -1131,6 +1303,10 @@
 
       <para>The &man.uart.4; driver has been updated to support
 	<acronym>AMT</acronym> devices on newer systems.</para>
+
+      <para revision="285316" contrib="sponsor" sponsor="&ff;"
+	arch="arm64">Initial <acronym>SMP</acronym> support has been
+	added to the &os;/&arch.arm64; port.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
@@ -1217,6 +1393,10 @@
       <para revision="284746" contrib="sponsor" sponsor="&msostc;">The
 	&man.hv.netvsc.4; driver has been updated to support checksum
 	offloading and <acronym>TSO</acronym>.</para>
+
+      <para revision="286062">The &man.xen.4; driver has been updated
+	to include support for <literal>blkif</literal> indirect
+	segment I/O.</para>
     </sect2>
 
     <sect2 xml:id="hardware-arm">
@@ -1269,6 +1449,15 @@
 	sponsor="&ff;">Initial
 	<acronym>ACPI</acronym> support has been added for
 	&os;/&arch.arm64;.</para>
+
+      <para revision="287225">Support for 1-Wire devices has been
+	added, providing support for 1-Wire hardware through
+	&man.gpio.4;.  See &man.ow.4;, &man.owc.4;, and
+	&man.ow.temp.4; for more information.</para>
+
+      <para revision="287371" arch="arm64" contrib="sponsor"
+	sponsor="&abt;">Support for the HiSilicon HI6220 SoC has been
+	added.</para>
     </sect2>
   </sect1>
 
@@ -1302,6 +1491,13 @@
 	&man.auto.master.5; map, <literal>-noauto</literal>, which
 	handles &man.fstab.5; entries set to
 	<literal>noauto</literal>.</para>
+
+      <para revision="286444">The <acronym>GELI</acronym> class has
+	been updated to support the <literal>BIO_DELETE</literal>
+	&man.g.bio.9; <literal>bio_cmd</literal> field, providing
+	<acronym>TRIM</acronym>/<acronym>UNMAP</acronym> support on
+	<acronym>GELI</acronym>-backed <acronym>SSD</acronym> storage
+	providers.</para>
     </sect2>
 
     <sect2 xml:id="storage-net">
@@ -1333,6 +1529,12 @@
 	&man.sysctl.8; has been removed, and replaced with the
 	<literal>kstat.zfs.misc.arcstats.arc_meta_used</literal>
 	&man.sysctl.8;.</para>
+
+      <para revision="287099" contrib="sponsor"
+	sponsor="&clusterhq;">The &man.zfs.8; <literal>l2arc</literal>
+	code has been updated to take <literal>ashift</literal> into
+	account when gathering buffers to be written to the
+	<literal>l2arc</literal> device.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
@@ -1346,6 +1548,13 @@
 	<literal>apple-boot</literal>, <literal>apple-hfs</literal>,
 	and <literal>apple-ufs</literal> <acronym>MBR</acronym>
 	partitioning schemes have been added to &man.gpart.8;.</para>
+
+      <para revision="285594" contrib="sponsor"
+	sponsor="&scaleengine;">The &man.gpart.8; utility has been
+	updated to include a new attribute for <acronym>GPT</acronym>
+	partitions, <literal>lenovofix</literal>, which when set,
+	which works around <acronym>BIOS</acronym> compatibility
+	issues reported on several Lenovo&nbsp;&trade; laptops.</para>
     </sect2>
   </sect1>
 
@@ -1491,6 +1700,16 @@
 	6864) has been added.  Support for this feature can be toggled
 	with the <literal>net.inet.ip.rfc6864</literal>
 	&man.sysctl.8;, which is enabled by default.</para>
+
+      <para revision="285336" contrib="sponsor"
+	sponsor="&netgate;">The <acronym>IPSEC</acronym> has been
+	updated to include support for <acronym>AES</acronym> modes on
+	both software-only and hardware-backed (&man.aesni.4;)
+	systems.</para>
+
+      <para revision="287798" contrib="sponsor" sponsor="&dell;">The
+	network stack has been updated to fix handling of
+	<acronym>IPv6</acronym> On-Link redirects.</para>
     </sect2>
   </sect1>
 

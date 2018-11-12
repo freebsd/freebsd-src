@@ -183,8 +183,16 @@ static int
 thunder_pem_maxslots(device_t dev)
 {
 
+#if 0
 	/* max slots per bus acc. to standard */
 	return (PCI_SLOTMAX);
+#else
+	/*
+	 * ARM64TODO Workaround - otherwise an em(4) interface appears to be
+	 * present on every PCI function on the bus to which it is connected
+	 */
+	return (0);
+#endif
 }
 
 static int

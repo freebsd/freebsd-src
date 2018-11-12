@@ -149,7 +149,7 @@ CXXFLAGS.clang+=	 -Wno-c++11-extensions
 .if ${MK_SSP} != "no" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 # Don't use -Wstack-protector as it breaks world with -Werror.
-SSP_CFLAGS?=	-fstack-protector
+SSP_CFLAGS?=	-fstack-protector-strong
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP && !ARM && !MIPS
 
@@ -186,7 +186,6 @@ staging stage_libs stage_files stage_as stage_links stage_symlinks:
 .else
 # allow targets like beforeinstall to be leveraged
 DESTDIR= ${STAGE_OBJTOP}
-_SHLIBDIRPREFIX= ${STAGE_OBJTOP}
 
 .if commands(beforeinstall)
 .if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"

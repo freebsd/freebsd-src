@@ -985,7 +985,7 @@ carp_ifa_delroute(struct ifaddr *ifa)
 	case AF_INET6:
 		ifa_del_loopback_route(ifa,
 		    (struct sockaddr *)&ifatoia6(ifa)->ia_addr);
-		nd6_rem_ifa_lle(ifatoia6(ifa));
+		nd6_rem_ifa_lle(ifatoia6(ifa), 1);
 		break;
 #endif
 	}

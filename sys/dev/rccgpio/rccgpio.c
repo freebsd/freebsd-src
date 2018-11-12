@@ -126,7 +126,7 @@ rcc_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 	struct rcc_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->sc_gpio_npins)
+	if (pin >= sc->sc_gpio_npins)
 		return (EINVAL);
 
 	*caps = rcc_pins[pin].caps;
@@ -140,7 +140,7 @@ rcc_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	struct rcc_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->sc_gpio_npins)
+	if (pin >= sc->sc_gpio_npins)
 		return (EINVAL);
 
 	/* Flags cannot be changed. */
@@ -155,7 +155,7 @@ rcc_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 	struct rcc_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->sc_gpio_npins)
+	if (pin >= sc->sc_gpio_npins)
 		return (EINVAL);
 
 	memcpy(name, rcc_pins[pin].name, GPIOMAXNAME);
@@ -169,7 +169,7 @@ rcc_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	struct rcc_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->sc_gpio_npins)
+	if (pin >= sc->sc_gpio_npins)
 		return (EINVAL);
 
 	/* Flags cannot be changed - risk of short-circuit!!! */
@@ -183,7 +183,10 @@ rcc_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	struct rcc_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->sc_gpio_npins)
+	if (pin >= sc->sc_gpio_npins)
+		return (EINVAL);
+
+	if ((rcc_pins[pin].caps & GPIO_PIN_OUTPUT) == 0)
 		return (EINVAL);
 
 	RCC_GPIO_LOCK(sc);
@@ -204,7 +207,7 @@ rcc_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	uint32_t value;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->sc_gpio_npins)
+	if (pin >= sc->sc_gpio_npins)
 		return (EINVAL);
 
 	RCC_GPIO_LOCK(sc);
@@ -224,7 +227,10 @@ rcc_gpio_pin_toggle(device_t dev, uint32_t pin)
 	struct rcc_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->sc_gpio_npins)
+	if (pin >= sc->sc_gpio_npins)
+		return (EINVAL);
+
+	if ((rcc_pins[pin].caps & GPIO_PIN_OUTPUT) == 0)
 		return (EINVAL);
 
 	RCC_GPIO_LOCK(sc);

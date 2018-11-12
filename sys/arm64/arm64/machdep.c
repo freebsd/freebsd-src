@@ -894,8 +894,11 @@ DB_SHOW_COMMAND(specialregs, db_show_spregs)
 	PRINT_REG(elr_el1);
 	PRINT_REG(esr_el1);
 	PRINT_REG(far_el1);
+#if 0
+	/* ARM64TODO: Enable VFP before reading floating-point registers */
 	PRINT_REG(fpcr);
 	PRINT_REG(fpsr);
+#endif
 	PRINT_REG(id_aa64afr0_el1);
 	PRINT_REG(id_aa64afr1_el1);
 	PRINT_REG(id_aa64dfr0_el1);

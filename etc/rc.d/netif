@@ -88,7 +88,7 @@ netif_start()
 	fi
 	if [ -f /etc/rc.d/routing -a -n "$cmdifn" ] ; then
 		for _if in $cmdifn; do
-			/etc/rc.d/routing start any $_if
+			/etc/rc.d/routing static any $_if
 		done
 	fi
 }

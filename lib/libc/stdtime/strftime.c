@@ -127,13 +127,8 @@ strftime(char * __restrict s, size_t maxsize, const char * __restrict format,
 }
 
 static char *
-_fmt(format, t, pt, ptlim, warnp, loc)
-const char *		format;
-const struct tm * const	t;
-char *			pt;
-const char * const	ptlim;
-int *			warnp;
-locale_t	loc;
+_fmt(const char *format, const struct tm * const t, char *pt,
+    const char * const ptlim, int *warnp, locale_t loc)
 {
 	int Ealternative, Oalternative, PadIndex;
 	struct lc_time_T *tptr = __get_current_time_locale(loc);
@@ -592,12 +587,8 @@ label:
 }
 
 static char *
-_conv(n, format, pt, ptlim, loc)
-const int		n;
-const char * const	format;
-char * const		pt;
-const char * const	ptlim;
-locale_t		loc;
+_conv(const int n, const char * const format, char * const pt,
+    const char * const ptlim, locale_t  loc)
 {
 	char	buf[INT_STRLEN_MAXIMUM(int) + 1];
 
@@ -606,10 +597,7 @@ locale_t		loc;
 }
 
 static char *
-_add(str, pt, ptlim)
-const char *		str;
-char *			pt;
-const char * const	ptlim;
+_add(const char *str, char *pt, const char * const ptlim)
 {
 	while (pt < ptlim && (*pt = *str++) != '\0')
 		++pt;
@@ -625,14 +613,8 @@ const char * const	ptlim;
  */
 
 static char *
-_yconv(a, b, convert_top, convert_yy, pt, ptlim, loc)
-const int		a;
-const int		b;
-const int		convert_top;
-const int		convert_yy;
-char *			pt;
-const char * const	ptlim;
-locale_t		loc;
+_yconv(const int a, const int b, const int convert_top, const int convert_yy,
+    char *pt, const char * const ptlim, locale_t  loc)
 {
 	register int	lead;
 	register int	trail;

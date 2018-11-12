@@ -134,6 +134,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	phandle_t node, chosen;
 	pcell_t shift, br, rclk;
 	u_long start, size, pbase, psize;
+	char *cp;
 	int err;
 
 	uart_bus_space_mem = fdtbus_bs_tag;
@@ -148,18 +149,25 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (devtype != UART_DEV_CONSOLE)
 		return (ENXIO);
 
-	/*
-	 * Retrieve /chosen/std{in,out}.
-	 */
-	node = -1;
-	if ((chosen = OF_finddevice("/chosen")) != -1) {
-		for (name = propnames; *name != NULL; name++) {
-			if (phandle_chosen_propdev(chosen, *name, &node) == 0)
-				break;
+	/* Has the user forced a specific device node? */
+	cp = kern_getenv("hw.fdt.console");
+	if (cp == NULL) {
+		/*
+		 * Retrieve /chosen/std{in,out}.
+		 */
+		node = -1;
+		if ((chosen = OF_finddevice("/chosen")) != -1) {
+			for (name = propnames; *name != NULL; name++) {
+				if (phandle_chosen_propdev(chosen, *name,
+				    &node) == 0)
+					break;
+			}
 		}
+		if (chosen == -1 || *name == NULL)
+			node = OF_finddevice("serial0"); /* Last ditch */
+	} else {
+		node = OF_finddevice(cp);
 	}
-	if (chosen == -1 || *name == NULL)
-		node = OF_finddevice("serial0"); /* Last ditch */
 
 	if (node == -1) /* Can't find anything */
 		return (ENXIO);
