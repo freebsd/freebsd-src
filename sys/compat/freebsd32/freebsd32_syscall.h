@@ -188,7 +188,7 @@
 				/* 199 is freebsd6 freebsd32_lseek */
 				/* 200 is freebsd6 freebsd32_truncate */
 				/* 201 is freebsd6 freebsd32_ftruncate */
-#define	FREEBSD32_SYS_freebsd32_sysctl	202
+#define	FREEBSD32_SYS_freebsd32___sysctl	202
 #define	FREEBSD32_SYS_mlock	203
 #define	FREEBSD32_SYS_munlock	204
 #define	FREEBSD32_SYS_undelete	205
@@ -374,7 +374,7 @@
 #define	FREEBSD32_SYS_getaudit_addr	451
 #define	FREEBSD32_SYS_setaudit_addr	452
 #define	FREEBSD32_SYS_auditctl	453
-#define	FREEBSD32_SYS_freebsd32_umtx_op	454
+#define	FREEBSD32_SYS_freebsd32__umtx_op	454
 #define	FREEBSD32_SYS_freebsd32_thr_new	455
 #define	FREEBSD32_SYS_freebsd32_sigqueue	456
 #define	FREEBSD32_SYS_freebsd32_kmq_open	457
