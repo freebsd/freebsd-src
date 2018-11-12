@@ -143,6 +143,7 @@ static vop_advlockasync_t nfs_advlockasync;
 static vop_getacl_t nfs_getacl;
 static vop_setacl_t nfs_setacl;
 static vop_set_text_t nfs_set_text;
+static vop_advise_t nfs_advise;
 
 /*
  * Global vfs data structures for nfs
@@ -181,6 +182,7 @@ static struct vop_vector newnfs_vnodeops_nosig = {
 	.vop_getacl =		nfs_getacl,
 	.vop_setacl =		nfs_setacl,
 	.vop_set_text =		nfs_set_text,
+	.vop_advise =		nfs_advise,
 };
 
 static int
@@ -3443,6 +3445,34 @@ nfs_set_text(struct vop_set_text_args *ap)
 	mtx_unlock(&np->n_mtx);
 
 	vp->v_vflag |= VV_TEXT;
+	return (0);
+}
+
+/*
+ * VOP_ADVISE for NFS.
+ * Just return 0 for any errors, since it is just a hint.
+ */
+static int
+nfs_advise(struct vop_advise_args *ap)
+{
+	struct thread *td = curthread;
+	struct nfsmount *nmp;
+	uint64_t len;
+
+	if (ap->a_start < 0 || ap->a_end < 0)
+		return (0);
+	if (ap->a_end == OFF_MAX)
+		len = 0;
+	else if (ap->a_end < ap->a_start)
+		return (0);
+	else
+		len = ap->a_end - ap->a_start + 1;
+	nmp = VFSTONFS(ap->a_vp->v_mount);
+	if (NFSHASPNFS(nmp) && (nmp->nm_privflag & NFSMNTP_IOADVISETHRUMDS) ==
+	    0)
+		return (0);
+	nfsrpc_advise(ap->a_vp, ap->a_start, len, ap->a_advice,
+	    td->td_ucred, td);
 	return (0);
 }
 

@@ -105,6 +105,7 @@ struct	nfsmount {
 /* Private flags. */
 #define	NFSMNTP_FORCEDISM	0x00000001
 #define	NFSMNTP_CANCELRPCS	0x00000002
+#define	NFSMNTP_IOADVISETHRUMDS	0x00000004
 
 #define	NFSMNT_DIRPATH(m)	(&((m)->nm_name[(m)->nm_krbnamelen + 1]))
 #define	NFSMNT_SRVKRBNAME(m)						\

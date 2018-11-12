@@ -110,6 +110,9 @@ struct nfsclwritedsdorpc {
 	struct nfsclds		*dsp;
 	uint64_t		off;
 	int			len;
+#ifdef notyet
+	int			advise;
+#endif
 	struct nfsfh		*fhp;
 	struct mbuf		*m;
 	int			vers;
@@ -172,12 +175,19 @@ static int nfsio_commitds(vnode_t, uint64_t, int, struct nfsclds *,
     NFSPROC_T *);
 static int nfsrpc_commitds(vnode_t, uint64_t, int, struct nfsclds *,
     struct nfsfh *, int, int, struct ucred *, NFSPROC_T *);
+#ifdef notyet
+static int nfsio_adviseds(vnode_t, uint64_t, int, int, struct nfsclds *,
+    struct nfsfh *, int, int, struct nfsclwritedsdorpc *, struct ucred *,
+    NFSPROC_T *);
+static int nfsrpc_adviseds(vnode_t, uint64_t, int, int, struct nfsclds *,
+    struct nfsfh *, int, int, struct ucred *, NFSPROC_T *);
+#endif
 static void nfsrv_setuplayoutget(struct nfsrv_descript *, int, uint64_t,
     uint64_t, uint64_t, nfsv4stateid_t *, int, int, int);
 static int nfsrv_parseug(struct nfsrv_descript *, int, uid_t *, gid_t *,
     NFSPROC_T *);
-static int nfsrv_parselayoutget(struct nfsrv_descript *, nfsv4stateid_t *,
-    int *, struct nfsclflayouthead *);
+static int nfsrv_parselayoutget(struct nfsmount *, struct nfsrv_descript *,
+    nfsv4stateid_t *, int *, struct nfsclflayouthead *);
 static int nfsrpc_getopenlayout(struct nfsmount *, vnode_t, u_int8_t *,
     int, uint8_t *, int, uint32_t, struct nfsclopen *, uint8_t *, int,
     struct nfscldeleg **, struct ucred *, NFSPROC_T *);
@@ -4922,7 +4932,8 @@ nfsrpc_layoutget(struct nfsmount *nmp, uint8_t *fhp, int fhlen, int iomode,
 	if (error != 0)
 		return (error);
 	if (nd->nd_repstat == 0)
-		error = nfsrv_parselayoutget(nd, stateidp, retonclosep, flhp);
+		error = nfsrv_parselayoutget(nmp, nd, stateidp, retonclosep,
+		    flhp);
 	if (error == 0 && nd->nd_repstat != 0)
 		error = nd->nd_repstat;
 	mbuf_freem(nd->nd_mrep);
@@ -6682,6 +6693,147 @@ nfsio_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
 }
 
 /*
+ * NFS Advise rpc
+ */
+APPLESTATIC int
+nfsrpc_advise(vnode_t vp, off_t offset, uint64_t cnt, int advise,
+    struct ucred *cred, NFSPROC_T *p)
+{
+	u_int32_t *tl;
+	struct nfsrv_descript nfsd, *nd = &nfsd;
+	nfsattrbit_t hints;
+	int error;
+	
+	NFSZERO_ATTRBIT(&hints);
+	if (advise == POSIX_FADV_WILLNEED)
+		NFSSETBIT_ATTRBIT(&hints, NFSV4IOHINT_WILLNEED);
+	else if (advise == POSIX_FADV_DONTNEED)
+		NFSSETBIT_ATTRBIT(&hints, NFSV4IOHINT_DONTNEED);
+	else
+		return (0);
+	NFSCL_REQSTART(nd, NFSPROC_IOADVISE, vp);
+	nfsm_stateidtom(nd, NULL, NFSSTATEID_PUTALLZERO);
+	NFSM_BUILD(tl, uint32_t *, 2 * NFSX_HYPER);
+	txdr_hyper(offset, tl);
+	tl += 2;
+	txdr_hyper(cnt, tl);
+	nfsrv_putattrbit(nd, &hints);
+	error = nfscl_request(nd, vp, p, cred, NULL);
+	if (error != 0)
+		return (error);
+	if (nd->nd_repstat != 0)
+		error = nd->nd_repstat;
+	mbuf_freem(nd->nd_mrep);
+	return (error);
+}
+
+#ifdef notyet
+/*
+ * NFS advise rpc to a NFSv4.2 DS.
+ */
+static int
+nfsrpc_adviseds(vnode_t vp, uint64_t offset, int cnt, int advise,
+    struct nfsclds *dsp, struct nfsfh *fhp, int vers, int minorvers,
+    struct ucred *cred, NFSPROC_T *p)
+{
+	uint32_t *tl;
+	struct nfsrv_descript nfsd, *nd = &nfsd;
+	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfssockreq *nrp;
+	nfsattrbit_t hints;
+	int error;
+	
+	/* For NFS DSs prior to NFSv4.2, just return OK. */
+	if (vers == NFS_VER3 || minorversion < NFSV42_MINORVERSION)
+		return (0);
+	NFSZERO_ATTRBIT(&hints);
+	if (advise == POSIX_FADV_WILLNEED)
+		NFSSETBIT_ATTRBIT(&hints, NFSV4IOHINT_WILLNEED);
+	else if (advise == POSIX_FADV_DONTNEED)
+		NFSSETBIT_ATTRBIT(&hints, NFSV4IOHINT_DONTNEED);
+	else
+		return (0);
+	nd->nd_mrep = NULL;
+	nfscl_reqstart(nd, NFSPROC_IOADVISEDS, nmp, fhp->nfh_fh,
+	    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+	vers = NFS_VER4;
+	NFSCL_DEBUG(4, "nfsrpc_adviseds: vers=%d minvers=%d\n", vers,
+	    minorvers);
+	nfsm_stateidtom(nd, NULL, NFSSTATEID_PUTALLZERO);
+	NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + NFSX_UNSIGNED);
+	txdr_hyper(offset, tl);
+	tl += 2;
+	*tl = txdr_unsigned(cnt);
+	nfsrv_putattrbit(nd, &hints);
+	nrp = dsp->nfsclds_sockp;
+	if (nrp == NULL)
+		/* If NULL, use the MDS socket. */
+		nrp = &nmp->nm_sockreq;
+	error = newnfs_request(nd, nmp, NULL, nrp, vp, p, cred,
+	    NFS_PROG, vers, NULL, 1, NULL, &dsp->nfsclds_sess);
+	NFSCL_DEBUG(4, "nfsrpc_adviseds: err=%d stat=%d\n", error,
+	    nd->nd_repstat);
+	if (error != 0)
+		return (error);
+	if (nd->nd_repstat != 0)
+		error = nd->nd_repstat;
+	mbuf_freem(nd->nd_mrep);
+	return (error);
+}
+
+/*
+ * Start up the thread that will execute nfsrpc_commitds().
+ */
+static void
+start_adviseds(void *arg, int pending)
+{
+	struct nfsclwritedsdorpc *drpc;
+
+	drpc = (struct nfsclwritedsdorpc *)arg;
+	drpc->err = nfsrpc_adviseds(drpc->vp, drpc->off, drpc->len,
+	    drpc->advise, drpc->dsp, drpc->fhp, drpc->vers, drpc->minorvers,
+	    drpc->cred, drpc->p);
+	drpc->done = 1;
+	NFSCL_DEBUG(4, "start_adviseds: err=%d\n", drpc->err);
+}
+
+/*
+ * Set up the commit DS mirror call for the pNFS I/O thread.
+ */
+static int
+nfsio_adviseds(vnode_t vp, uint64_t offset, int cnt, int advise,
+    struct nfsclds *dsp, struct nfsfh *fhp, int vers, int minorvers,
+    struct nfsclwritedsdorpc *drpc, struct ucred *cred, NFSPROC_T *p)
+{
+	int error, ret;
+
+	error = 0;
+	drpc->done = 0;
+	drpc->vp = vp;
+	drpc->off = offset;
+	drpc->len = cnt;
+	drpc->advise = advise;
+	drpc->dsp = dsp;
+	drpc->fhp = fhp;
+	drpc->vers = vers;
+	drpc->minorvers = minorvers;
+	drpc->cred = cred;
+	drpc->p = p;
+	drpc->inprog = 0;
+	ret = EIO;
+	if (nfs_pnfsiothreads != 0) {
+		ret = nfs_pnfsio(start_adviseds, drpc);
+		NFSCL_DEBUG(4, "nfsio_adviseds: nfs_pnfsio=%d\n", ret);
+	}
+	if (ret != 0)
+		error = nfsrpc_adviseds(vp, offset, cnt, advise, dsp, fhp, vers,
+		    minorvers, cred, p);
+	NFSCL_DEBUG(4, "nfsio_adviseds: error=%d\n", error);
+	return (error);
+}
+#endif	/* notyet */
+
+/*
  * Set up the XDR arguments for the LayoutGet operation.
  */
 static void
@@ -6722,8 +6874,8 @@ nfsrv_setuplayoutget(struct nfsrv_descript *nd, int iomode, uint64_t offset,
  * Parse the reply for a successful LayoutGet operation.
  */
 static int
-nfsrv_parselayoutget(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
-    int *retonclosep, struct nfsclflayouthead *flhp)
+nfsrv_parselayoutget(struct nfsmount *nmp, struct nfsrv_descript *nd,
+    nfsv4stateid_t *stateidp, int *retonclosep, struct nfsclflayouthead *flhp)
 {
 	uint32_t *tl;
 	struct nfsclflayout *flp, *prevflp, *tflp;
@@ -6803,6 +6955,11 @@ nfsrv_parselayoutget(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
 			tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
 			flp->nfsfl_util = fxdr_unsigned(uint32_t, *tl++);
 			NFSCL_DEBUG(4, "flutil=0x%x\n", flp->nfsfl_util);
+			mtx_lock(&nmp->nm_mtx);
+			if (nmp->nm_minorvers > 1 && (flp->nfsfl_util &
+			    NFSFLAYUTIL_IOADVISE_THRU_MDS) != 0)
+				nmp->nm_privflag |= NFSMNTP_IOADVISETHRUMDS;
+			mtx_unlock(&nmp->nm_mtx);
 			flp->nfsfl_stripe1 = fxdr_unsigned(uint32_t, *tl++);
 			flp->nfsfl_patoff = fxdr_hyper(tl); tl += 2;
 			NFSCL_DEBUG(4, "stripe1=%u poff=%ju\n",
@@ -6951,6 +7108,18 @@ nfsrv_parselayoutget(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
 			}
 			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 			flp->nfsfl_fflags = fxdr_unsigned(uint32_t, *tl++);
+#ifdef notnow
+			/*
+			 * At this time, there is no flag.
+			 * NFSFLEXFLAG_IOADVISE_THRU_MDS might need to be
+			 * added, or it may never exist?
+			 */
+			mtx_lock(&nmp->nm_mtx);
+			if (nmp->nm_minorvers > 1 && (flp->nfsfl_fflags &
+			    NFSFLEXFLAG_IOADVISE_THRU_MDS) != 0)
+				nmp->nm_privflag |= NFSMNTP_IOADVISETHRUMDS;
+			mtx_unlock(&nmp->nm_mtx);
+#endif
 			flp->nfsfl_statshint = fxdr_unsigned(uint32_t, *tl);
 			NFSCL_DEBUG(4, "fflags=0x%x statshint=%d\n",
 			    flp->nfsfl_fflags, flp->nfsfl_statshint);
@@ -7262,7 +7431,7 @@ nfsrpc_openlayoutrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp,
 				NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 				*laystatp = fxdr_unsigned(int, *++tl);
 				if (*laystatp == 0) {
-					error = nfsrv_parselayoutget(nd,
+					error = nfsrv_parselayoutget(nmp, nd,
 					    stateidp, retonclosep, flhp);
 					if (error != 0)
 						*laystatp = error;
@@ -7511,7 +7680,7 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 				NFSM_DISSECT(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 				*laystatp = fxdr_unsigned(int, *(tl + 3));
 				if (*laystatp == 0) {
-					error = nfsrv_parselayoutget(nd,
+					error = nfsrv_parselayoutget(nmp, nd,
 					    stateidp, retonclosep, flhp);
 					if (error != 0)
 						*laystatp = error;
