@@ -71,6 +71,8 @@ make_malloc.h
 makefile.in
 meta.c
 meta.h
+metachar.c
+metachar.h
 missing/sys/cdefs.h
 mkdeps.sh
 nonints.h

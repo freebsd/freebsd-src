@@ -276,11 +276,9 @@ static int event_send_start(struct subscription *s)
 	 * Assume we are called ONLY with no current event and ONLY with
 	 * nonempty event queue and ONLY with at least one address to send to.
 	 */
-	if (dl_list_empty(&s->addr_list))
-		return -1;
-	if (s->current_event)
-		return -1;
-	if (dl_list_empty(&s->event_queue))
+	if (dl_list_empty(&s->addr_list) ||
+	    s->current_event ||
+	    dl_list_empty(&s->event_queue))
 		return -1;
 
 	s->current_event = e = event_dequeue(s);

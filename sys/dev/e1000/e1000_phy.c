@@ -1827,9 +1827,9 @@ s32 e1000_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 					     phy_data);
 		if (ret_val)
 			return ret_val;
-	}
 
-	DEBUGOUT1("M88E1000 PSCR: %X\n", phy_data);
+		DEBUGOUT1("M88E1000 PSCR: %X\n", phy_data);
+	}
 
 	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &phy_data);
 	if (ret_val)
@@ -3429,13 +3429,11 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 					  u16 *data, bool read, bool page_set)
 {
 	s32 ret_val;
-	u16 reg, page;
+	u16 reg = BM_PHY_REG_NUM(offset);
+	u16 page = BM_PHY_REG_PAGE(offset);
 	u16 phy_reg = 0;
 
 	DEBUGFUNC("e1000_access_phy_wakeup_reg_bm");
-
-	reg = BM_PHY_REG_NUM(offset);
-	page = BM_PHY_REG_PAGE(offset);
 
 	/* Gig must be disabled for MDIO accesses to Host Wakeup reg page */
 	if ((hw->mac.type == e1000_pchlan) &&
@@ -4148,13 +4146,12 @@ s32 e1000_read_phy_reg_mphy(struct e1000_hw *hw, u32 address, u32 *data)
 	*data = E1000_READ_REG(hw, E1000_MPHY_DATA);
 
 	/* Disable access to mPHY if it was originally disabled */
-	if (locked)
+	if (locked) {
 		ready = e1000_is_mphy_ready(hw);
 		if (!ready)
 			return -E1000_ERR_PHY;
-		E1000_WRITE_REG(hw, E1000_MPHY_ADDR_CTRL,
-				E1000_MPHY_DIS_ACCESS);
-
+	}
+	E1000_WRITE_REG(hw, E1000_MPHY_ADDR_CTRL, E1000_MPHY_DIS_ACCESS);
 	return E1000_SUCCESS;
 }
 
@@ -4213,13 +4210,12 @@ s32 e1000_write_phy_reg_mphy(struct e1000_hw *hw, u32 address, u32 data,
 	E1000_WRITE_REG(hw, E1000_MPHY_DATA, data);
 
 	/* Disable access to mPHY if it was originally disabled */
-	if (locked)
+	if (locked) {
 		ready = e1000_is_mphy_ready(hw);
 		if (!ready)
 			return -E1000_ERR_PHY;
-		E1000_WRITE_REG(hw, E1000_MPHY_ADDR_CTRL,
-				E1000_MPHY_DIS_ACCESS);
-
+	}
+	E1000_WRITE_REG(hw, E1000_MPHY_ADDR_CTRL, E1000_MPHY_DIS_ACCESS);
 	return E1000_SUCCESS;
 }
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.h,v 1.24 2013/10/17 00:30:13 djm Exp $ */
+/* $OpenBSD: sftp-client.h,v 1.27 2015/05/08 06:45:13 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
@@ -56,79 +56,81 @@ struct sftp_conn *do_init(int, int, u_int, u_int, u_int64_t);
 u_int sftp_proto_version(struct sftp_conn *);
 
 /* Close file referred to by 'handle' */
-int do_close(struct sftp_conn *, char *, u_int);
+int do_close(struct sftp_conn *, const u_char *, u_int);
 
 /* Read contents of 'path' to NULL-terminated array 'dir' */
-int do_readdir(struct sftp_conn *, char *, SFTP_DIRENT ***);
+int do_readdir(struct sftp_conn *, const char *, SFTP_DIRENT ***);
 
 /* Frees a NULL-terminated array of SFTP_DIRENTs (eg. from do_readdir) */
 void free_sftp_dirents(SFTP_DIRENT **);
 
 /* Delete file 'path' */
-int do_rm(struct sftp_conn *, char *);
+int do_rm(struct sftp_conn *, const char *);
 
 /* Create directory 'path' */
-int do_mkdir(struct sftp_conn *, char *, Attrib *, int);
+int do_mkdir(struct sftp_conn *, const char *, Attrib *, int);
 
 /* Remove directory 'path' */
-int do_rmdir(struct sftp_conn *, char *);
+int do_rmdir(struct sftp_conn *, const char *);
 
 /* Get file attributes of 'path' (follows symlinks) */
-Attrib *do_stat(struct sftp_conn *, char *, int);
+Attrib *do_stat(struct sftp_conn *, const char *, int);
 
 /* Get file attributes of 'path' (does not follow symlinks) */
-Attrib *do_lstat(struct sftp_conn *, char *, int);
+Attrib *do_lstat(struct sftp_conn *, const char *, int);
 
 /* Set file attributes of 'path' */
-int do_setstat(struct sftp_conn *, char *, Attrib *);
+int do_setstat(struct sftp_conn *, const char *, Attrib *);
 
 /* Set file attributes of open file 'handle' */
-int do_fsetstat(struct sftp_conn *, char *, u_int, Attrib *);
+int do_fsetstat(struct sftp_conn *, const u_char *, u_int, Attrib *);
 
 /* Canonicalise 'path' - caller must free result */
-char *do_realpath(struct sftp_conn *, char *);
+char *do_realpath(struct sftp_conn *, const char *);
 
 /* Get statistics for filesystem hosting file at "path" */
 int do_statvfs(struct sftp_conn *, const char *, struct sftp_statvfs *, int);
 
 /* Rename 'oldpath' to 'newpath' */
-int do_rename(struct sftp_conn *, char *, char *m, int force_legacy);
+int do_rename(struct sftp_conn *, const char *, const char *, int force_legacy);
 
 /* Link 'oldpath' to 'newpath' */
-int do_hardlink(struct sftp_conn *, char *, char *);
+int do_hardlink(struct sftp_conn *, const char *, const char *);
 
 /* Rename 'oldpath' to 'newpath' */
-int do_symlink(struct sftp_conn *, char *, char *);
+int do_symlink(struct sftp_conn *, const char *, const char *);
 
 /* Call fsync() on open file 'handle' */
-int do_fsync(struct sftp_conn *conn, char *, u_int);
+int do_fsync(struct sftp_conn *conn, u_char *, u_int);
 
 /*
  * Download 'remote_path' to 'local_path'. Preserve permissions and times
  * if 'pflag' is set
  */
-int do_download(struct sftp_conn *, char *, char *, Attrib *, int, int, int);
+int do_download(struct sftp_conn *, const char *, const char *,
+    Attrib *, int, int, int);
 
 /*
- * Recursively download 'remote_directory' to 'local_directory'. Preserve 
+ * Recursively download 'remote_directory' to 'local_directory'. Preserve
  * times if 'pflag' is set
  */
-int download_dir(struct sftp_conn *, char *, char *, Attrib *, int,
-    int, int, int);
+int download_dir(struct sftp_conn *, const char *, const char *,
+    Attrib *, int, int, int, int);
 
 /*
  * Upload 'local_path' to 'remote_path'. Preserve permissions and times
  * if 'pflag' is set
  */
-int do_upload(struct sftp_conn *, char *, char *, int, int);
+int do_upload(struct sftp_conn *, const char *, const char *, int, int, int);
 
 /*
- * Recursively upload 'local_directory' to 'remote_directory'. Preserve 
+ * Recursively upload 'local_directory' to 'remote_directory'. Preserve
  * times if 'pflag' is set
  */
-int upload_dir(struct sftp_conn *, char *, char *, int, int, int);
+int upload_dir(struct sftp_conn *, const char *, const char *, int, int, int,
+    int);
 
 /* Concatenate paths, taking care of slashes. Caller must free result. */
-char *path_append(char *, char *);
+char *path_append(const char *, const char *);
 
 #endif

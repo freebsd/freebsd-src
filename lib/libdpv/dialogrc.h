@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Devin Teske <dteske@FreeBSD.org>
+ * Copyright (c) 2013-2015 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,7 @@ extern char separator[];
 __BEGIN_DECLS
 void			 dialogrc_free(void);
 int			 parse_dialogrc(void);
-struct fp_config	*dialogrc_config_option(const char *_directive);
+struct figpar_config	*dialogrc_config_option(const char *_directive);
 __END_DECLS
 
 #endif /* !_DIALOGRC_H_ */

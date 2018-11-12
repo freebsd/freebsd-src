@@ -36,7 +36,7 @@
  * This enum represents the current state of our XML parsing for a REPORT.
  */
 enum drev_state_e {
-  INITIAL = 0,
+  INITIAL = XML_STATE_INITIAL,
   REPORT,
   VERSION_NAME
 };
@@ -75,11 +75,13 @@ getdrev_closed(svn_ra_serf__xml_estate_t *xes,
                apr_pool_t *scratch_pool)
 {
   drev_context_t *drev_ctx = baton;
+  apr_int64_t rev;
 
   SVN_ERR_ASSERT(leaving_state == VERSION_NAME);
   SVN_ERR_ASSERT(cdata != NULL);
 
-  *drev_ctx->revision_deleted = SVN_STR_TO_REV(cdata->data);
+  SVN_ERR(svn_cstring_atoi64(&rev, cdata->data));
+  *drev_ctx->revision_deleted = (svn_revnum_t)rev;
 
   return SVN_NO_ERROR;
 }
@@ -90,7 +92,8 @@ static svn_error_t *
 create_getdrev_body(serf_bucket_t **body_bkt,
                     void *baton,
                     serf_bucket_alloc_t *alloc,
-                    apr_pool_t *pool)
+                    apr_pool_t *pool /* request pool */,
+                    apr_pool_t *scratch_pool)
 {
   serf_bucket_t *buckets;
   drev_context_t *drev_ctx = baton;
@@ -101,7 +104,7 @@ create_getdrev_body(serf_bucket_t **body_bkt,
                                     "S:get-deleted-rev-report",
                                     "xmlns:S", SVN_XML_NAMESPACE,
                                     "xmlns:D", "DAV:",
-                                    NULL, NULL);
+                                    SVN_VA_NULL);
 
   svn_ra_serf__add_tag_buckets(buckets,
                                "S:path", drev_ctx->path,
@@ -146,23 +149,20 @@ svn_ra_serf__get_deleted_rev(svn_ra_session_t *session,
   drev_ctx->revision_deleted = revision_deleted;
 
   SVN_ERR(svn_ra_serf__get_stable_url(&req_url, NULL /* latest_revnum */,
-                                      ras, NULL /* conn */,
-                                      NULL /* url */, peg_revision,
+                                      ras, NULL /* url */, peg_revision,
                                       pool, pool));
 
   xmlctx = svn_ra_serf__xml_context_create(getdrev_ttable,
                                            NULL, getdrev_closed, NULL,
                                            drev_ctx,
                                            pool);
-  handler = svn_ra_serf__create_expat_handler(xmlctx, pool);
+  handler = svn_ra_serf__create_expat_handler(ras, xmlctx, NULL, pool);
 
   handler->method = "REPORT";
   handler->path = req_url;
   handler->body_type = "text/xml";
   handler->body_delegate = create_getdrev_body;
   handler->body_delegate_baton = drev_ctx;
-  handler->conn = ras->conns[0];
-  handler->session = ras;
 
   err = svn_ra_serf__context_run_one(handler, pool);
 

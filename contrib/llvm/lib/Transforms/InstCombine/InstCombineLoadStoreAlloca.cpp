@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "InstCombineInternal.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/IR/DataLayout.h"
@@ -90,21 +91,23 @@ isOnlyCopiedFromConstantGlobal(Value *V, MemTransferInst *&TheCopy,
         if (CS.isCallee(&U))
           continue;
 
+        unsigned DataOpNo = CS.getDataOperandNo(&U);
+        bool IsArgOperand = CS.isArgOperand(&U);
+
         // Inalloca arguments are clobbered by the call.
-        unsigned ArgNo = CS.getArgumentNo(&U);
-        if (CS.isInAllocaArgument(ArgNo))
+        if (IsArgOperand && CS.isInAllocaArgument(DataOpNo))
           return false;
 
         // If this is a readonly/readnone call site, then we know it is just a
         // load (but one that potentially returns the value itself), so we can
         // ignore it if we know that the value isn't captured.
         if (CS.onlyReadsMemory() &&
-            (CS.getInstruction()->use_empty() || CS.doesNotCapture(ArgNo)))
+            (CS.getInstruction()->use_empty() || CS.doesNotCapture(DataOpNo)))
           continue;
 
         // If this is being passed as a byval argument, the caller is making a
         // copy, so it is only a read of the alloca.
-        if (CS.isByValArgument(ArgNo))
+        if (IsArgOperand && CS.isByValArgument(DataOpNo))
           continue;
       }
 
@@ -186,7 +189,7 @@ static Instruction *simplifyAllocaArraySize(InstCombiner &IC, AllocaInst &AI) {
     // Scan to the end of the allocation instructions, to skip over a block of
     // allocas if possible...also skip interleaved debug info
     //
-    BasicBlock::iterator It = New;
+    BasicBlock::iterator It(New);
     while (isa<AllocaInst>(*It) || isa<DbgInfoIntrinsic>(*It))
       ++It;
 
@@ -367,7 +370,13 @@ static LoadInst *combineLoadToNewType(InstCombiner &IC, LoadInst &LI, Type *NewT
                              MDB.createRange(NonNullInt, NullInt));
       }
       break;
-
+    case LLVMContext::MD_align:
+    case LLVMContext::MD_dereferenceable:
+    case LLVMContext::MD_dereferenceable_or_null:
+      // These only directly apply if the new type is also a pointer.
+      if (NewTy->isPointerTy())
+        NewLoad->setMetadata(ID, N);
+      break;
     case LLVMContext::MD_range:
       // FIXME: It would be nice to propagate this in some way, but the type
       // conversions make it hard. If the new type is a pointer, we could
@@ -418,6 +427,9 @@ static StoreInst *combineStoreToNewValue(InstCombiner &IC, StoreInst &SI, Value 
     case LLVMContext::MD_invariant_load:
     case LLVMContext::MD_nonnull:
     case LLVMContext::MD_range:
+    case LLVMContext::MD_align:
+    case LLVMContext::MD_dereferenceable:
+    case LLVMContext::MD_dereferenceable_or_null:
       // These don't apply for stores.
       break;
     }
@@ -511,16 +523,47 @@ static Instruction *unpackLoadToAggregate(InstCombiner &IC, LoadInst &LI) {
   if (!T->isAggregateType())
     return nullptr;
 
-  assert(LI.getAlignment() && "Alignement must be set at this point");
+  assert(LI.getAlignment() && "Alignment must be set at this point");
 
   if (auto *ST = dyn_cast<StructType>(T)) {
     // If the struct only have one element, we unpack.
-    if (ST->getNumElements() == 1) {
+    unsigned Count = ST->getNumElements();
+    if (Count == 1) {
       LoadInst *NewLoad = combineLoadToNewType(IC, LI, ST->getTypeAtIndex(0U),
                                                ".unpack");
       return IC.ReplaceInstUsesWith(LI, IC.Builder->CreateInsertValue(
         UndefValue::get(T), NewLoad, 0, LI.getName()));
     }
+
+    // We don't want to break loads with padding here as we'd loose
+    // the knowledge that padding exists for the rest of the pipeline.
+    const DataLayout &DL = IC.getDataLayout();
+    auto *SL = DL.getStructLayout(ST);
+    if (SL->hasPadding())
+      return nullptr;
+
+    auto Name = LI.getName();
+    SmallString<16> LoadName = Name;
+    LoadName += ".unpack";
+    SmallString<16> EltName = Name;
+    EltName += ".elt";
+    auto *Addr = LI.getPointerOperand();
+    Value *V = UndefValue::get(T);
+    auto *IdxType = Type::getInt32Ty(ST->getContext());
+    auto *Zero = ConstantInt::get(IdxType, 0);
+    for (unsigned i = 0; i < Count; i++) {
+      Value *Indices[2] = {
+        Zero,
+        ConstantInt::get(IdxType, i),
+      };
+      auto *Ptr = IC.Builder->CreateInBoundsGEP(ST, Addr, makeArrayRef(Indices), EltName);
+      auto *L = IC.Builder->CreateAlignedLoad(Ptr, LI.getAlignment(),
+                                              LoadName);
+      V = IC.Builder->CreateInsertValue(V, L, i);
+    }
+
+    V->setName(Name);
+    return IC.ReplaceInstUsesWith(LI, V);
   }
 
   if (auto *AT = dyn_cast<ArrayType>(T)) {
@@ -681,7 +724,7 @@ static bool canReplaceGEPIdxWithZero(InstCombiner &IC, GetElementPtrInst *GEPI,
   // FIXME: If the GEP is not inbounds, and there are extra indices after the
   // one we'll replace, those could cause the address computation to wrap
   // (rendering the IsAllNonNegative() check below insufficient). We can do
-  // better, ignoring zero indicies (and other indicies we can prove small
+  // better, ignoring zero indices (and other indices we can prove small
   // enough not to wrap).
   if (Idx+1 != GEPI->getNumOperands() && !GEPI->isInBounds())
     return false;
@@ -748,19 +791,19 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
   // Do really simple store-to-load forwarding and load CSE, to catch cases
   // where there are several consecutive memory accesses to the same location,
   // separated by a few arithmetic operations.
-  BasicBlock::iterator BBI = &LI;
+  BasicBlock::iterator BBI(LI);
   AAMDNodes AATags;
-  if (Value *AvailableVal = FindAvailableLoadedValue(Op, LI.getParent(), BBI,
-                                                     6, AA, &AATags)) {
+  if (Value *AvailableVal =
+      FindAvailableLoadedValue(Op, LI.getParent(), BBI,
+                               DefMaxInstsToScan, AA, &AATags)) {
     if (LoadInst *NLI = dyn_cast<LoadInst>(AvailableVal)) {
       unsigned KnownIDs[] = {
-        LLVMContext::MD_tbaa,
-        LLVMContext::MD_alias_scope,
-        LLVMContext::MD_noalias,
-        LLVMContext::MD_range,
-        LLVMContext::MD_invariant_load,
-        LLVMContext::MD_nonnull,
-      };
+          LLVMContext::MD_tbaa,            LLVMContext::MD_alias_scope,
+          LLVMContext::MD_noalias,         LLVMContext::MD_range,
+          LLVMContext::MD_invariant_load,  LLVMContext::MD_nonnull,
+          LLVMContext::MD_invariant_group, LLVMContext::MD_align,
+          LLVMContext::MD_dereferenceable,
+          LLVMContext::MD_dereferenceable_or_null};
       combineMetadata(NLI, &LI, KnownIDs);
     };
 
@@ -822,7 +865,7 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
       }
 
       // load (select (cond, null, P)) -> load P
-      if (isa<ConstantPointerNull>(SI->getOperand(1)) && 
+      if (isa<ConstantPointerNull>(SI->getOperand(1)) &&
           LI.getPointerAddressSpace() == 0) {
         LI.setOperand(0, SI->getOperand(2));
         return &LI;
@@ -857,7 +900,7 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
 ///
 /// \returns true if the store was successfully combined away. This indicates
 /// the caller must erase the store instruction. We have to let the caller erase
-/// the store instruction sas otherwise there is no way to signal whether it was
+/// the store instruction as otherwise there is no way to signal whether it was
 /// combined or not: IC.EraseInstFromFunction returns a null pointer.
 static bool combineStoreToValueType(InstCombiner &IC, StoreInst &SI) {
   // FIXME: We could probably with some care handle both volatile and atomic
@@ -893,11 +936,38 @@ static bool unpackStoreToAggregate(InstCombiner &IC, StoreInst &SI) {
 
   if (auto *ST = dyn_cast<StructType>(T)) {
     // If the struct only have one element, we unpack.
-    if (ST->getNumElements() == 1) {
+    unsigned Count = ST->getNumElements();
+    if (Count == 1) {
       V = IC.Builder->CreateExtractValue(V, 0);
       combineStoreToNewValue(IC, SI, V);
       return true;
     }
+
+    // We don't want to break loads with padding here as we'd loose
+    // the knowledge that padding exists for the rest of the pipeline.
+    const DataLayout &DL = IC.getDataLayout();
+    auto *SL = DL.getStructLayout(ST);
+    if (SL->hasPadding())
+      return false;
+
+    SmallString<16> EltName = V->getName();
+    EltName += ".elt";
+    auto *Addr = SI.getPointerOperand();
+    SmallString<16> AddrName = Addr->getName();
+    AddrName += ".repack";
+    auto *IdxType = Type::getInt32Ty(ST->getContext());
+    auto *Zero = ConstantInt::get(IdxType, 0);
+    for (unsigned i = 0; i < Count; i++) {
+      Value *Indices[2] = {
+        Zero,
+        ConstantInt::get(IdxType, i),
+      };
+      auto *Ptr = IC.Builder->CreateInBoundsGEP(ST, Addr, makeArrayRef(Indices), AddrName);
+      auto *Val = IC.Builder->CreateExtractValue(V, i, EltName);
+      IC.Builder->CreateStore(Val, Ptr);
+    }
+
+    return true;
   }
 
   if (auto *AT = dyn_cast<ArrayType>(T)) {
@@ -971,9 +1041,9 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
       return &SI;
   }
 
-  // Don't hack volatile/atomic stores.
-  // FIXME: Some bits are legal for atomic stores; needs refactoring.
-  if (!SI.isSimple()) return nullptr;
+  // Don't hack volatile/ordered stores.
+  // FIXME: Some bits are legal for ordered atomic stores; needs refactoring.
+  if (!SI.isUnordered()) return nullptr;
 
   // If the RHS is an alloca with a single use, zapify the store, making the
   // alloca dead.
@@ -991,7 +1061,7 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
   // Do really simple DSE, to catch cases where there are several consecutive
   // stores to the same location, separated by a few arithmetic operations. This
   // situation often occurs with bitfield accesses.
-  BasicBlock::iterator BBI = &SI;
+  BasicBlock::iterator BBI(SI);
   for (unsigned ScanInsts = 6; BBI != SI.getParent()->begin() && ScanInsts;
        --ScanInsts) {
     --BBI;
@@ -1005,7 +1075,7 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
 
     if (StoreInst *PrevSI = dyn_cast<StoreInst>(BBI)) {
       // Prev store isn't volatile, and stores to the same location?
-      if (PrevSI->isSimple() && equivalentAddressValues(PrevSI->getOperand(1),
+      if (PrevSI->isUnordered() && equivalentAddressValues(PrevSI->getOperand(1),
                                                         SI.getOperand(1))) {
         ++NumDeadStore;
         ++BBI;
@@ -1019,9 +1089,10 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
     // the pointer we're loading and is producing the pointer we're storing,
     // then *this* store is dead (X = load P; store X -> P).
     if (LoadInst *LI = dyn_cast<LoadInst>(BBI)) {
-      if (LI == Val && equivalentAddressValues(LI->getOperand(0), Ptr) &&
-          LI->isSimple())
+      if (LI == Val && equivalentAddressValues(LI->getOperand(0), Ptr)) {
+        assert(SI.isUnordered() && "can't eliminate ordering operation");
         return EraseInstFromFunction(SI);
+      }
 
       // Otherwise, this is a load from some other location.  Stores before it
       // may not be dead.
@@ -1047,10 +1118,14 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
   if (isa<UndefValue>(Val))
     return EraseInstFromFunction(SI);
 
+  // The code below needs to be audited and adjusted for unordered atomics
+  if (!SI.isSimple())
+    return nullptr;
+
   // If this store is the last instruction in the basic block (possibly
   // excepting debug info instructions), and if the block ends with an
   // unconditional branch, try to move it to the successor block.
-  BBI = &SI;
+  BBI = SI.getIterator();
   do {
     ++BBI;
   } while (isa<DbgInfoIntrinsic>(BBI) ||
@@ -1106,7 +1181,7 @@ bool InstCombiner::SimplifyStoreAtEndOfBlock(StoreInst &SI) {
     return false;
 
   // Verify that the other block ends in a branch and is not otherwise empty.
-  BasicBlock::iterator BBI = OtherBB->getTerminator();
+  BasicBlock::iterator BBI(OtherBB->getTerminator());
   BranchInst *OtherBr = dyn_cast<BranchInst>(BBI);
   if (!OtherBr || BBI == OtherBB->begin())
     return false;

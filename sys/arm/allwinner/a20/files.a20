@@ -1,4 +1,5 @@
 # $FreeBSD$
 
+arm/allwinner/a20/a20_padconf.c		standard
 arm/allwinner/a20/a20_mp.c		optional	smp
 arm/allwinner/a20/a20_if_dwc.c		optional	dwc

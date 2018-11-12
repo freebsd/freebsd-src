@@ -270,12 +270,14 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	bus_space_tag_t tag = BUSTAG(ah);
 	bus_space_handle_t h = ah->ah_sh;
 
+#ifdef	AH_DEBUG
 	/* Debug - complain if we haven't fully waken things up */
 	if (! ath_hal_reg_whilst_asleep(ah, reg) &&
 	    ah->ah_powerMode != HAL_PM_AWAKE) {
 		ath_hal_printf(ah, "%s: reg=0x%08x, val=0x%08x, pm=%d\n",
 		    __func__, reg, val, ah->ah_powerMode);
 	}
+#endif
 
 	if (ath_hal_alq) {
 		struct ale *ale = ath_hal_alq_get(ah);
@@ -291,6 +293,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
 	bus_space_write_4(tag, h, reg, val);
+	OS_BUS_BARRIER_REG(ah, reg, OS_BUS_BARRIER_WRITE);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 }
@@ -302,15 +305,18 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	bus_space_handle_t h = ah->ah_sh;
 	u_int32_t val;
 
+#ifdef	AH_DEBUG
 	/* Debug - complain if we haven't fully waken things up */
 	if (! ath_hal_reg_whilst_asleep(ah, reg) &&
 	    ah->ah_powerMode != HAL_PM_AWAKE) {
 		ath_hal_printf(ah, "%s: reg=0x%08x, pm=%d\n",
 		    __func__, reg, ah->ah_powerMode);
 	}
+#endif
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
+	OS_BUS_BARRIER_REG(ah, reg, OS_BUS_BARRIER_READ);
 	val = bus_space_read_4(tag, h, reg);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
@@ -343,7 +349,8 @@ OS_MARK(struct ath_hal *ah, u_int id, u_int32_t v)
 		}
 	}
 }
-#elif defined(AH_DEBUG) || defined(AH_REGOPS_FUNC)
+#else /* AH_DEBUG_ALQ */
+
 /*
  * Memory-mapped device register read/write.  These are here
  * as routines when debugging support is enabled and/or when
@@ -361,16 +368,19 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	bus_space_tag_t tag = BUSTAG(ah);
 	bus_space_handle_t h = ah->ah_sh;
 
+#ifdef	AH_DEBUG
 	/* Debug - complain if we haven't fully waken things up */
 	if (! ath_hal_reg_whilst_asleep(ah, reg) &&
 	    ah->ah_powerMode != HAL_PM_AWAKE) {
 		ath_hal_printf(ah, "%s: reg=0x%08x, val=0x%08x, pm=%d\n",
 		    __func__, reg, val, ah->ah_powerMode);
 	}
+#endif
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
 	bus_space_write_4(tag, h, reg, val);
+	OS_BUS_BARRIER_REG(ah, reg, OS_BUS_BARRIER_WRITE);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 }
@@ -382,21 +392,24 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	bus_space_handle_t h = ah->ah_sh;
 	u_int32_t val;
 
+#ifdef	AH_DEBUG
 	/* Debug - complain if we haven't fully waken things up */
 	if (! ath_hal_reg_whilst_asleep(ah, reg) &&
 	    ah->ah_powerMode != HAL_PM_AWAKE) {
 		ath_hal_printf(ah, "%s: reg=0x%08x, pm=%d\n",
 		    __func__, reg, ah->ah_powerMode);
 	}
+#endif
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
+	OS_BUS_BARRIER_REG(ah, reg, OS_BUS_BARRIER_READ);
 	val = bus_space_read_4(tag, h, reg);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 	return val;
 }
-#endif /* AH_DEBUG || AH_REGOPS_FUNC */
+#endif /* AH_DEBUG_ALQ */
 
 #ifdef AH_ASSERT
 void

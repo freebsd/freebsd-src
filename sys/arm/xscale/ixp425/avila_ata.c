@@ -282,7 +282,7 @@ ata_avila_intr(void *xsc)
 
 static struct resource *
 ata_avila_alloc_resource(device_t dev, device_t child, int type, int *rid,
-		       u_long start, u_long end, u_long count, u_int flags)
+		   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ata_avila_softc *sc = device_get_softc(dev);
 

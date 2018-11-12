@@ -1145,12 +1145,17 @@ int mlx4_get_module_info(struct mlx4_dev *dev, u8 port, u16 offset,
 		size = MODULE_INFO_MAX_READ;
 
 	inbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(inbox))
+	if (IS_ERR(inbox)) {
+		mlx4_err(dev,
+			 "mlx4_alloc_cmd_mailbox returned with error(%lx)", PTR_ERR(inbox));
 		return PTR_ERR(inbox);
+	}
 
 	outbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(outbox)) {
 		mlx4_free_cmd_mailbox(dev, inbox);
+		mlx4_err(dev,
+			 "mlx4_alloc_cmd_mailbox returned with error(%lx)", PTR_ERR(outbox));
 		return PTR_ERR(outbox);
 	}
 

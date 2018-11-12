@@ -82,9 +82,6 @@ __FBSDID("$FreeBSD$");
  */
 #define	DCACHE_SIZE		0x00008000
 
-.Lblock_userspace_access:
-	.word	_C_LABEL(block_userspace_access)
-
 /*
  * CPWAIT -- Canonical method to wait for CP15 update.
  * From: Intel 80200 manual, section 2.3.3.
@@ -130,16 +127,8 @@ __FBSDID("$FreeBSD$");
 	msr	cpsr_fsxc, r4					;	\
 	ldmfd	sp!, {r4}
 #else
-#define	XSCALE_CACHE_CLEAN_BLOCK					\
-	stmfd	sp!, {r4}					;	\
-	ldr	r4, .Lblock_userspace_access			;	\
-	ldr	ip, [r4]					;	\
-	orr	r0, ip, #1					;	\
-	str	r0, [r4]
-
-#define	XSCALE_CACHE_CLEAN_UNBLOCK					\
-	str	ip, [r3]					;	\
-	ldmfd	sp!, {r4}
+#define	XSCALE_CACHE_CLEAN_BLOCK
+#define	XSCALE_CACHE_CLEAN_UNBLOCK
 #endif /* CACHE_CLEAN_BLOCK_INTR */
 
 
@@ -352,11 +341,6 @@ ENTRY(xscalec3_setttb)
 	mrs	r3, cpsr
 	orr	r1, r3, #(PSR_I | PSR_F)
 	msr	cpsr_fsxc, r1
-#else
-	ldr	r3, .Lblock_userspace_access
-	ldr	r2, [r3]
-	orr	r1, r2, #1
-	str	r1, [r3]
 #endif
 	stmfd	sp!, {r0-r3, lr}
 	bl	_C_LABEL(xscalec3_cache_cleanID)

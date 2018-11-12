@@ -38,8 +38,7 @@
 #include "debug.h"
 #include "rtld.h"
 
-static Elf_Ehdr *get_elf_header(int, const char *);
-static int convert_prot(int);	/* Elf flags -> mmap protection */
+static Elf_Ehdr *get_elf_header(int, const char *, const struct stat *);
 static int convert_flags(int); /* Elf flags -> mmap flags */
 
 /*
@@ -88,8 +87,10 @@ map_object(int fd, const char *path, const struct stat *sb)
     size_t relro_size;
     Elf_Addr note_start;
     Elf_Addr note_end;
+    char *note_map;
+    size_t note_map_len;
 
-    hdr = get_elf_header(fd, path);
+    hdr = get_elf_header(fd, path, sb);
     if (hdr == NULL)
 	return (NULL);
 
@@ -108,6 +109,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     relro_size = 0;
     note_start = 0;
     note_end = 0;
+    note_map = NULL;
     segs = alloca(sizeof(segs[0]) * hdr->e_phnum);
     stack_flags = RTLD_DEFAULT_STACK_PF_EXEC | PF_R | PF_W;
     while (phdr < phlimit) {
@@ -150,9 +152,20 @@ map_object(int fd, const char *path, const struct stat *sb)
 
 	case PT_NOTE:
 	    if (phdr->p_offset > PAGE_SIZE ||
-	      phdr->p_offset + phdr->p_filesz > PAGE_SIZE)
-		break;
-	    note_start = (Elf_Addr)(char *)hdr + phdr->p_offset;
+	      phdr->p_offset + phdr->p_filesz > PAGE_SIZE) {
+		note_map_len = round_page(phdr->p_offset +
+		  phdr->p_filesz) - trunc_page(phdr->p_offset);
+		note_map = mmap(NULL, note_map_len, PROT_READ,
+		  MAP_PRIVATE, fd, trunc_page(phdr->p_offset));
+		if (note_map == MAP_FAILED) {
+		    _rtld_error("%s: error mapping PT_NOTE (%d)", path, errno);
+		    goto error;
+		}
+		note_start = (Elf_Addr)(note_map + phdr->p_offset -
+		  trunc_page(phdr->p_offset));
+	    } else {
+		note_start = (Elf_Addr)(char *)hdr + phdr->p_offset;
+	    }
 	    note_end = note_start + phdr->p_filesz;
 	    break;
 	}
@@ -295,20 +308,30 @@ map_object(int fd, const char *path, const struct stat *sb)
     obj->relro_size = round_page(relro_size);
     if (note_start < note_end)
 	digest_notes(obj, note_start, note_end);
+    if (note_map != NULL)
+	munmap(note_map, note_map_len);
     munmap(hdr, PAGE_SIZE);
     return (obj);
 
 error1:
     munmap(mapbase, mapsize);
 error:
+    if (note_map != NULL && note_map != MAP_FAILED)
+	munmap(note_map, note_map_len);
     munmap(hdr, PAGE_SIZE);
     return (NULL);
 }
 
 static Elf_Ehdr *
-get_elf_header(int fd, const char *path)
+get_elf_header(int fd, const char *path, const struct stat *sbp)
 {
 	Elf_Ehdr *hdr;
+
+	/* Make sure file has enough data for the ELF header */
+	if (sbp != NULL && sbp->st_size < sizeof(Elf_Ehdr)) {
+		_rtld_error("%s: invalid file format", path);
+		return (NULL);
+	}
 
 	hdr = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE | MAP_PREFAULT_READ,
 	    fd, 0);
@@ -421,7 +444,7 @@ obj_new(void)
  * Given a set of ELF protection flags, return the corresponding protection
  * flags for MMAP.
  */
-static int
+int
 convert_prot(int elfflags)
 {
     int prot = 0;

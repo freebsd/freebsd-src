@@ -307,7 +307,7 @@ struct eap_config {
 };
 
 struct eap_sm * eap_peer_sm_init(void *eapol_ctx,
-				 struct eapol_callbacks *eapol_cb,
+				 const struct eapol_callbacks *eapol_cb,
 				 void *msg_ctx, struct eap_config *conf);
 void eap_peer_sm_deinit(struct eap_sm *sm);
 int eap_peer_sm_step(struct eap_sm *sm);

@@ -47,6 +47,7 @@ int  ng_hci_lp_discon_ind                (ng_hci_unit_con_p, int);
 int  ng_hci_lp_qos_req                   (ng_hci_unit_p, item_p, hook_p);
 int  ng_hci_lp_qos_cfm                   (ng_hci_unit_con_p, int);
 int  ng_hci_lp_qos_ind                   (ng_hci_unit_con_p);
+int  ng_hci_lp_enc_change                (ng_hci_unit_con_p, int);
 
 void ng_hci_process_con_timeout          (node_p, hook_p, void *, int);
 

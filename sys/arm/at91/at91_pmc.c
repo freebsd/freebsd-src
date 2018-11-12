@@ -661,7 +661,10 @@ static int
 at91_pmc_probe(device_t dev)
 {
 #ifdef FDT
-	if (!ofw_bus_is_compatible(dev, "atmel,at91rm9200-pmc"))
+	if (!ofw_bus_is_compatible(dev, "atmel,at91rm9200-pmc") &&
+ 		!ofw_bus_is_compatible(dev, "atmel,at91sam9260-pmc") &&
+		!ofw_bus_is_compatible(dev, "atmel,at91sam9g45-pmc") &&
+		!ofw_bus_is_compatible(dev, "atmel,at91sam9x5-pmc"))
 		return (ENXIO);
 #endif
 	device_set_desc(dev, "PMC");

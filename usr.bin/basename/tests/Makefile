@@ -1,12 +1,7 @@
 # $FreeBSD$
 
-TESTSRC=	${.CURDIR}/../../../contrib/netbsd-tests/usr.bin/basename
-.PATH: ${TESTSRC}
+NETBSD_ATF_TESTS_SH=	basename_test
 
-.include <bsd.own.mk>
-
-TESTSDIR=	${TESTSBASE}/usr.bin/basename
-ATF_TESTS_SH=	basename_test
-ATF_TESTS_SH_SRC_basename_test=	t_basename.sh
+.include <netbsd-tests.test.mk>
 
 .include <bsd.test.mk>

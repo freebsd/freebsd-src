@@ -553,7 +553,7 @@ extern	HAL_STATUS ar5212ProcRxDesc(struct ath_hal *ah, struct ath_desc *,
 
 extern	HAL_BOOL ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		struct ieee80211_channel *chan, HAL_BOOL bChannelChange,
-		HAL_STATUS *status);
+		HAL_RESET_TYPE, HAL_STATUS *status);
 extern	HAL_BOOL ar5212SetChannel(struct ath_hal *,
 		const struct ieee80211_channel *);
 extern	void ar5212SetOperatingMode(struct ath_hal *ah, int opmode);

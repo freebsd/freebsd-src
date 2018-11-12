@@ -48,7 +48,6 @@
 #define SVN_FS_WANT_DB_MINOR    0
 #define SVN_FS_WANT_DB_PATCH    14
 
-
 /* Path separator for local filesystem */
 #define SVN_PATH_LOCAL_SEPARATOR '\\'
 
@@ -57,6 +56,9 @@
 
 /* Link fs fs library into the fs library */
 #define SVN_LIBSVN_FS_LINKS_FS_FS
+
+/* Link fs fs library into the fs library */
+#define SVN_LIBSVN_FS_LINKS_FS_X
 
 /* Link local repos access library to client */
 #define SVN_LIBSVN_CLIENT_LINKS_RA_LOCAL
@@ -100,6 +102,25 @@
 #define gettext(x) (x)
 #define dgettext(domain, x) (x)
 #endif
+
+/* compiler hints as supported by MS VC */
+#if defined(SVN_DEBUG)
+# define SVN__FORCE_INLINE
+# define SVN__PREVENT_INLINE
+#elif defined(_MSC_VER)
+# define SVN__FORCE_INLINE __forceinline
+# define SVN__PREVENT_INLINE __declspec(noinline)
+#else
+# define SVN__FORCE_INLINE APR_INLINE
+# define SVN__PREVENT_INLINE
+#endif
+
+#define SVN__PREDICT_TRUE(x)  (x)
+#define SVN__PREDICT_FALSE(x)  (x)
+
+/* Macro used to specify that a variable is intentionally left unused.
+   Supresses compiler warnings about the variable being unused.  */
+#define SVN_UNUSED(v) ( (void)(v) )
 
 #endif /* SVN_PRIVATE_CONFIG_HW */
 

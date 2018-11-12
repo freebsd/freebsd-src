@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.bin/soelim
-
 ATF_TESTS_SH=	soelim
 
 FILES=		nonexisting.in \

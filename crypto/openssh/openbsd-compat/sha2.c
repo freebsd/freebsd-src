@@ -38,13 +38,18 @@
 
 #include "includes.h"
 
-#include <openssl/opensslv.h>
+#ifdef WITH_OPENSSL
+# include <openssl/opensslv.h>
+# if !defined(HAVE_EVP_SHA256) && (OPENSSL_VERSION_NUMBER >= 0x00907000L)
+#  define _NEED_SHA2 1
+# endif
+#else
+# define _NEED_SHA2 1
+#endif
 
-#if !defined(HAVE_EVP_SHA256) && !defined(HAVE_SHA256_UPDATE) && \
-    (OPENSSL_VERSION_NUMBER >= 0x00907000L)
-#include <sys/types.h>
+#if defined(_NEED_SHA2) && !defined(HAVE_SHA256_UPDATE)
+
 #include <string.h>
-#include "sha2.h"
 
 /*
  * UNROLLED TRANSFORM LOOP NOTE:
@@ -838,7 +843,6 @@ SHA512_Final(u_int8_t digest[SHA512_DIGEST_LENGTH], SHA512_CTX *context)
 }
 
 
-#if 0
 /*** SHA-384: *********************************************************/
 void
 SHA384_Init(SHA384_CTX *context)
@@ -851,9 +855,29 @@ SHA384_Init(SHA384_CTX *context)
 	context->bitcount[0] = context->bitcount[1] = 0;
 }
 
+#if 0
 __weak_alias(SHA384_Transform, SHA512_Transform);
 __weak_alias(SHA384_Update, SHA512_Update);
 __weak_alias(SHA384_Pad, SHA512_Pad);
+#endif
+
+void
+SHA384_Transform(u_int64_t state[8], const u_int8_t data[SHA512_BLOCK_LENGTH])
+{
+	return SHA512_Transform(state, data);
+}
+
+void
+SHA384_Update(SHA512_CTX *context, const u_int8_t *data, size_t len)
+{
+	SHA512_Update(context, data, len);
+}
+
+void
+SHA384_Pad(SHA512_CTX *context)
+{
+	SHA512_Pad(context);
+}
 
 void
 SHA384_Final(u_int8_t digest[SHA384_DIGEST_LENGTH], SHA384_CTX *context)
@@ -876,7 +900,5 @@ SHA384_Final(u_int8_t digest[SHA384_DIGEST_LENGTH], SHA384_CTX *context)
 	/* Zero out state data */
 	memset(context, 0, sizeof(*context));
 }
-#endif
 
-#endif /* !defined(HAVE_EVP_SHA256) && !defined(HAVE_SHA256_UPDATE) && \
-    (OPENSSL_VERSION_NUMBER >= 0x00907000L) */
+#endif /* defined(_NEED_SHA2) && !defined(HAVE_SHA256_UPDATE) */

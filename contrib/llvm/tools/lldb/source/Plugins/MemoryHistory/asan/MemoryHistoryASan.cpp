@@ -30,36 +30,25 @@ MemoryHistoryASan::CreateInstance (const ProcessSP &process_sp)
 {
     if (!process_sp.get())
         return NULL;
-    
+
     Target & target = process_sp->GetTarget();
-    
-    bool found_asan_runtime = false;
-    
+
     const ModuleList &target_modules = target.GetImages();
     Mutex::Locker modules_locker(target_modules.GetMutex());
     const size_t num_modules = target_modules.GetSize();
     for (size_t i = 0; i < num_modules; ++i)
     {
         Module *module_pointer = target_modules.GetModulePointerAtIndexUnlocked(i);
-        
-        SymbolContextList sc_list;
-        const bool include_symbols = true;
-        const bool append = true;
-        const bool include_inlines = true;
 
-        size_t num_matches = module_pointer->FindFunctions(ConstString("__asan_get_alloc_stack"), NULL, eFunctionNameTypeAuto, include_symbols, include_inlines, append, sc_list);
-        
-        if (num_matches)
-        {
-            found_asan_runtime = true;
-            break;
-        }
+        const Symbol* symbol = module_pointer->FindFirstSymbolWithNameAndType(
+                ConstString("__asan_get_alloc_stack"),
+                lldb::eSymbolTypeAny);
+
+        if (symbol != nullptr)
+            return MemoryHistorySP(new MemoryHistoryASan(process_sp));        
     }
-    
-    if (! found_asan_runtime)
-        return MemoryHistorySP();
 
-    return MemoryHistorySP(new MemoryHistoryASan(process_sp));
+    return MemoryHistorySP();
 }
 
 void
@@ -86,7 +75,8 @@ MemoryHistoryASan::GetPluginNameStatic()
 
 MemoryHistoryASan::MemoryHistoryASan(const ProcessSP &process_sp)
 {
-    this->m_process_sp = process_sp;
+    if (process_sp)
+        m_process_wp = process_sp;
 }
 
 const char *
@@ -112,14 +102,23 @@ static void CreateHistoryThreadFromValueObject(ProcessSP process_sp, ValueObject
     std::string count_path = "." + std::string(type) + "_count";
     std::string tid_path = "." + std::string(type) + "_tid";
     std::string trace_path = "." + std::string(type) + "_trace";
+    
+    ValueObjectSP count_sp = return_value_sp->GetValueForExpressionPath(count_path.c_str());
+    ValueObjectSP tid_sp = return_value_sp->GetValueForExpressionPath(tid_path.c_str());
+    
+    if (!count_sp || !tid_sp)
+        return;
 
-    int count = return_value_sp->GetValueForExpressionPath(count_path.c_str())->GetValueAsUnsigned(0);
-    tid_t tid = return_value_sp->GetValueForExpressionPath(tid_path.c_str())->GetValueAsUnsigned(0);
+    int count = count_sp->GetValueAsUnsigned(0);
+    tid_t tid = tid_sp->GetValueAsUnsigned(0);
 
     if (count <= 0)
         return;
 
     ValueObjectSP trace_sp = return_value_sp->GetValueForExpressionPath(trace_path.c_str());
+    
+    if (!trace_sp)
+        return;
 
     std::vector<lldb::addr_t> pcs;
     for (int i = 0; i < count; i++)
@@ -144,40 +143,41 @@ static void CreateHistoryThreadFromValueObject(ProcessSP process_sp, ValueObject
 HistoryThreads
 MemoryHistoryASan::GetHistoryThreads(lldb::addr_t address)
 {
-    ProcessSP process_sp = m_process_sp;
-    ThreadSP thread_sp = m_process_sp->GetThreadList().GetSelectedThread();
-    StackFrameSP frame_sp = thread_sp->GetSelectedFrame();
-
-    if (!frame_sp)
-    {
-        return HistoryThreads();
-    }
-
-    ExecutionContext exe_ctx (frame_sp);
-    ValueObjectSP return_value_sp;
-    StreamString expr;
-    expr.Printf(memory_history_asan_command_format, address, address);
-    
-    EvaluateExpressionOptions options;
-    options.SetUnwindOnError(true);
-    options.SetTryAllThreads(true);
-    options.SetStopOthers(true);
-    options.SetIgnoreBreakpoints(true);
-    options.SetTimeoutUsec(GET_STACK_FUNCTION_TIMEOUT_USEC);
-
-    if (m_process_sp->GetTarget().EvaluateExpression(expr.GetData(), frame_sp.get(), return_value_sp, options) != eExpressionCompleted)
-    {
-        return HistoryThreads();
-    }
-    if (!return_value_sp)
-    {
-        return HistoryThreads();
-    }
-    
     HistoryThreads result;
 
-    CreateHistoryThreadFromValueObject(process_sp, return_value_sp, "alloc", "Memory allocated at", result);
-    CreateHistoryThreadFromValueObject(process_sp, return_value_sp, "free", "Memory deallocated at", result);
-    
+    ProcessSP process_sp = m_process_wp.lock();
+    if (process_sp)
+    {
+        ThreadSP thread_sp = process_sp->GetThreadList().GetSelectedThread();
+
+        if (thread_sp)
+        {
+            StackFrameSP frame_sp = thread_sp->GetSelectedFrame();
+
+            if (frame_sp)
+            {
+                ExecutionContext exe_ctx (frame_sp);
+                ValueObjectSP return_value_sp;
+                StreamString expr;
+                expr.Printf(memory_history_asan_command_format, address, address);
+                
+                EvaluateExpressionOptions options;
+                options.SetUnwindOnError(true);
+                options.SetTryAllThreads(true);
+                options.SetStopOthers(true);
+                options.SetIgnoreBreakpoints(true);
+                options.SetTimeoutUsec(GET_STACK_FUNCTION_TIMEOUT_USEC);
+
+                if (process_sp->GetTarget().EvaluateExpression(expr.GetData(), frame_sp.get(), return_value_sp, options) == eExpressionCompleted)
+                {
+                    if (return_value_sp)
+                    {
+                        CreateHistoryThreadFromValueObject(process_sp, return_value_sp, "free", "Memory deallocated at", result);
+                        CreateHistoryThreadFromValueObject(process_sp, return_value_sp, "alloc", "Memory allocated at", result);
+                    }
+                }
+            }
+        }
+    }
     return result;
 }

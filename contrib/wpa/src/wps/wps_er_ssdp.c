@@ -78,9 +78,7 @@ static void wps_er_ssdp_rx(int sd, void *eloop_ctx, void *sock_ctx)
 			if (os_strstr(start, "ssdp:byebye"))
 				byebye = 1;
 		} else if (os_strncasecmp(start, "CACHE-CONTROL:", 14) == 0) {
-			start += 9;
-			while (*start == ' ')
-				start++;
+			start += 14;
 			pos2 = os_strstr(start, "max-age=");
 			if (pos2 == NULL)
 				continue;

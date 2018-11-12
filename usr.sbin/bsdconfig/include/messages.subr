@@ -1,5 +1,5 @@
 # Copyright (c) 2012 Ron McDowell
-# Copyright (c) 2012-2013 Devin Teske
+# Copyright (c) 2012-2016 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,6 +60,7 @@ msg_biology_desc="Software related to biology."
 msg_bootstrapping_pkg="Bootstrapping pkg(8)..."
 msg_brazil="Brazil"
 msg_building_package_menus="Building package menu(s)..."
+msg_building_package_main_menu="Building package main menu..."
 msg_cad_desc="Computer Aided Design utilities."
 msg_canada="Canada"
 msg_cancel="Cancel"
@@ -201,7 +202,6 @@ msg_linux_desc="Linux programs that can run under binary compatibility."
 msg_lisp_desc="Software related to the Lisp language."
 msg_lithuania="Lithuania"
 msg_loading_of_dependent_package_failed="Loading of dependent package %s failed"
-msg_located_index_now_reading_package_data_from_it="Located INDEX, now reading package data from it..."
 msg_logging_in_to_user_at_host="Logging in to %s@%s.."
 msg_looking_for_keymap_files="Looking for keymap files..."
 msg_looking_up_host="Looking up host %s"
@@ -313,6 +313,7 @@ msg_proceed="Proceed"
 msg_processing_selection="Processing selection..."
 msg_python_desc="Software related to the Python language."
 msg_quick_start_how_to_use_this_menu_system="Quick start - How to use this menu system"
+msg_reading_package_index_data="Reading package index data"
 msg_reinstall="Reinstall"
 msg_reinstall_desc="Mark this package for reinstall"
 msg_release_name="Release Name"

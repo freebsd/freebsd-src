@@ -1,4 +1,4 @@
-/* $OpenBSD: mac.c,v 1.28 2014/02/07 06:55:54 djm Exp $ */
+/* $OpenBSD: mac.c,v 1.32 2015/01/15 18:32:54 naddy Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -27,22 +27,16 @@
 
 #include <sys/types.h>
 
-#include <stdarg.h>
 #include <string.h>
-#include <signal.h>
-
-#include "xmalloc.h"
-#include "log.h"
-#include "cipher.h"
-#include "buffer.h"
-#include "key.h"
-#include "kex.h"
-#include "mac.h"
-#include "misc.h"
+#include <stdio.h>
 
 #include "digest.h"
 #include "hmac.h"
 #include "umac.h"
+#include "mac.h"
+#include "misc.h"
+#include "ssherr.h"
+#include "sshbuf.h"
 
 #include "openbsd-compat/openssl-compat.h"
 
@@ -95,7 +89,7 @@ static const struct macalg macs[] = {
 char *
 mac_alg_list(char sep)
 {
-	char *ret = NULL;
+	char *ret = NULL, *tmp;
 	size_t nlen, rlen = 0;
 	const struct macalg *m;
 
@@ -103,20 +97,24 @@ mac_alg_list(char sep)
 		if (ret != NULL)
 			ret[rlen++] = sep;
 		nlen = strlen(m->name);
-		ret = xrealloc(ret, 1, rlen + nlen + 2);
+		if ((tmp = realloc(ret, rlen + nlen + 2)) == NULL) {
+			free(ret);
+			return NULL;
+		}
+		ret = tmp;
 		memcpy(ret + rlen, m->name, nlen + 1);
 		rlen += nlen;
 	}
 	return ret;
 }
 
-static void
-mac_setup_by_alg(Mac *mac, const struct macalg *macalg)
+static int
+mac_setup_by_alg(struct sshmac *mac, const struct macalg *macalg)
 {
 	mac->type = macalg->type;
 	if (mac->type == SSH_DIGEST) {
 		if ((mac->hmac_ctx = ssh_hmac_start(macalg->alg)) == NULL)
-			fatal("ssh_hmac_start(alg=%d) failed", macalg->alg);
+			return SSH_ERR_ALLOC_FAIL;
 		mac->key_len = mac->mac_len = ssh_hmac_bytes(macalg->alg);
 	} else {
 		mac->mac_len = macalg->len / 8;
@@ -126,60 +124,61 @@ mac_setup_by_alg(Mac *mac, const struct macalg *macalg)
 	if (macalg->truncatebits != 0)
 		mac->mac_len = macalg->truncatebits / 8;
 	mac->etm = macalg->etm;
+	return 0;
 }
 
 int
-mac_setup(Mac *mac, char *name)
+mac_setup(struct sshmac *mac, char *name)
 {
 	const struct macalg *m;
 
 	for (m = macs; m->name != NULL; m++) {
 		if (strcmp(name, m->name) != 0)
 			continue;
-		if (mac != NULL) {
-			mac_setup_by_alg(mac, m);
-			debug2("mac_setup: setup %s", name);
-		}
-		return (0);
+		if (mac != NULL)
+			return mac_setup_by_alg(mac, m);
+		return 0;
 	}
-	debug2("mac_setup: unknown %s", name);
-	return (-1);
+	return SSH_ERR_INVALID_ARGUMENT;
 }
 
 int
-mac_init(Mac *mac)
+mac_init(struct sshmac *mac)
 {
 	if (mac->key == NULL)
-		fatal("%s: no key", __func__);
+		return SSH_ERR_INVALID_ARGUMENT;
 	switch (mac->type) {
 	case SSH_DIGEST:
 		if (mac->hmac_ctx == NULL ||
 		    ssh_hmac_init(mac->hmac_ctx, mac->key, mac->key_len) < 0)
-			return -1;
+			return SSH_ERR_INVALID_ARGUMENT;
 		return 0;
 	case SSH_UMAC:
-		mac->umac_ctx = umac_new(mac->key);
+		if ((mac->umac_ctx = umac_new(mac->key)) == NULL)
+			return SSH_ERR_ALLOC_FAIL;
 		return 0;
 	case SSH_UMAC128:
-		mac->umac_ctx = umac128_new(mac->key);
+		if ((mac->umac_ctx = umac128_new(mac->key)) == NULL)
+			return SSH_ERR_ALLOC_FAIL;
 		return 0;
 	default:
-		return -1;
+		return SSH_ERR_INVALID_ARGUMENT;
 	}
 }
 
-u_char *
-mac_compute(Mac *mac, u_int32_t seqno, u_char *data, int datalen)
+int
+mac_compute(struct sshmac *mac, u_int32_t seqno, const u_char *data, int datalen,
+    u_char *digest, size_t dlen)
 {
 	static union {
-		u_char m[EVP_MAX_MD_SIZE];
+		u_char m[SSH_DIGEST_MAX_LENGTH];
 		u_int64_t for_align;
 	} u;
-	u_char b[4], nonce[8];
+	u_char b[4];
+	u_char nonce[8];
 
 	if (mac->mac_len > sizeof(u))
-		fatal("mac_compute: mac too long %u %zu",
-		    mac->mac_len, sizeof(u));
+		return SSH_ERR_INTERNAL_ERROR;
 
 	switch (mac->type) {
 	case SSH_DIGEST:
@@ -189,10 +188,10 @@ mac_compute(Mac *mac, u_int32_t seqno, u_char *data, int datalen)
 		    ssh_hmac_update(mac->hmac_ctx, b, sizeof(b)) < 0 ||
 		    ssh_hmac_update(mac->hmac_ctx, data, datalen) < 0 ||
 		    ssh_hmac_final(mac->hmac_ctx, u.m, sizeof(u.m)) < 0)
-			fatal("ssh_hmac failed");
+			return SSH_ERR_LIBCRYPTO_ERROR;
 		break;
 	case SSH_UMAC:
-		put_u64(nonce, seqno);
+		POKE_U64(nonce, seqno);
 		umac_update(mac->umac_ctx, data, datalen);
 		umac_final(mac->umac_ctx, u.m, nonce);
 		break;
@@ -202,13 +201,18 @@ mac_compute(Mac *mac, u_int32_t seqno, u_char *data, int datalen)
 		umac128_final(mac->umac_ctx, u.m, nonce);
 		break;
 	default:
-		fatal("mac_compute: unknown MAC type");
+		return SSH_ERR_INVALID_ARGUMENT;
 	}
-	return (u.m);
+	if (digest != NULL) {
+		if (dlen > mac->mac_len)
+			dlen = mac->mac_len;
+		memcpy(digest, u.m, dlen);
+	}
+	return 0;
 }
 
 void
-mac_clear(Mac *mac)
+mac_clear(struct sshmac *mac)
 {
 	if (mac->type == SSH_UMAC) {
 		if (mac->umac_ctx != NULL)
@@ -230,17 +234,16 @@ mac_valid(const char *names)
 	char *maclist, *cp, *p;
 
 	if (names == NULL || strcmp(names, "") == 0)
-		return (0);
-	maclist = cp = xstrdup(names);
+		return 0;
+	if ((maclist = cp = strdup(names)) == NULL)
+		return 0;
 	for ((p = strsep(&cp, MAC_SEP)); p && *p != '\0';
 	    (p = strsep(&cp, MAC_SEP))) {
 		if (mac_setup(NULL, p) < 0) {
-			debug("bad mac %s [%s]", p, names);
 			free(maclist);
-			return (0);
+			return 0;
 		}
 	}
-	debug3("macs ok: [%s]", names);
 	free(maclist);
-	return (1);
+	return 1;
 }

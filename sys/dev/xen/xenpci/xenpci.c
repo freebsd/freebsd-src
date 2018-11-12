@@ -43,13 +43,12 @@ __FBSDID("$FreeBSD$");
 #include <xen/features.h>
 #include <xen/hypervisor.h>
 #include <xen/hvm.h>
+#include <xen/xen_intr.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #include <dev/xen/xenpci/xenpcivar.h>
-
-extern void xen_intr_handle_upcall(struct trapframe *trap_frame);
 
 /*
  * This is used to find our platform device instance.

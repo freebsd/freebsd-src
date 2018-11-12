@@ -22,6 +22,6 @@
 void sntp_init_logging(const char *program);
 void open_logfile(const char *logfile);
 
-extern char *progname;		/* for msyslog use too */
+extern char const *progname;		/* for msyslog use too */
 
 #endif

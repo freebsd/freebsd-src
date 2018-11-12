@@ -133,13 +133,13 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_s_connect 3"
-.TH BIO_s_connect 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH BIO_s_connect 3 "2016-03-01" "1.0.2g" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_s_connect, BIO_set_conn_hostname, BIO_set_conn_port,
+BIO_s_connect, BIO_new_connect, BIO_set_conn_hostname, BIO_set_conn_port,
 BIO_set_conn_ip, BIO_set_conn_int_port, BIO_get_conn_hostname,
 BIO_get_conn_port, BIO_get_conn_ip, BIO_get_conn_int_port,
 BIO_set_nbio, BIO_do_connect \- connect BIO
@@ -158,8 +158,8 @@ BIO_set_nbio, BIO_do_connect \- connect BIO
 \& long BIO_set_conn_int_port(BIO *b, char *port);
 \& char *BIO_get_conn_hostname(BIO *b);
 \& char *BIO_get_conn_port(BIO *b);
-\& char *BIO_get_conn_ip(BIO *b, dummy);
-\& long BIO_get_conn_int_port(BIO *b, int port);
+\& char *BIO_get_conn_ip(BIO *b);
+\& long BIO_get_conn_int_port(BIO *b);
 \&
 \& long BIO_set_nbio(BIO *b, long n);
 \&

@@ -18,20 +18,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-config.o: config.c
-config.po: config.c
-kernconf.o: kernconf.c
-kernconf.po: kernconf.c
-lang.o: lang.c
-lang.o: y.tab.h
-lang.po: lang.c
-lang.po: y.tab.h
-main.o: y.tab.h
-main.po: y.tab.h
-mkheaders.o: y.tab.h
-mkheaders.po: y.tab.h
-mkmakefile.o: y.tab.h
-mkmakefile.po: y.tab.h
-mkoptions.o: y.tab.h
-mkoptions.po: y.tab.h
 .endif

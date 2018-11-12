@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-arm/arm/bus_space_base.c 			standard
-arm/arm/bus_space_asm_generic.S			standard
-arm/arm/bus_space_generic.c                     standard
-
 arm/versatile/pl050.c				optional sc
 arm/versatile/sp804.c				standard
 arm/versatile/versatile_machdep.c		standard

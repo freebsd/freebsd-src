@@ -133,8 +133,8 @@ RABasic::RABasic(): MachineFunctionPass(ID) {
 
 void RABasic::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesCFG();
-  AU.addRequired<AliasAnalysis>();
-  AU.addPreserved<AliasAnalysis>();
+  AU.addRequired<AAResultsWrapperPass>();
+  AU.addPreserved<AAResultsWrapperPass>();
   AU.addRequired<LiveIntervals>();
   AU.addPreserved<LiveIntervals>();
   AU.addPreserved<SlotIndexes>();
@@ -223,7 +223,7 @@ unsigned RABasic::selectOrSplit(LiveInterval &VirtReg,
   SmallVector<unsigned, 8> PhysRegSpillCands;
 
   // Check for an available register in this class.
-  AllocationOrder Order(VirtReg.reg, *VRM, RegClassInfo);
+  AllocationOrder Order(VirtReg.reg, *VRM, RegClassInfo, Matrix);
   while (unsigned PhysReg = Order.next()) {
     // Check for interference in PhysReg
     switch (Matrix->checkInterference(VirtReg, PhysReg)) {
@@ -276,7 +276,7 @@ bool RABasic::runOnMachineFunction(MachineFunction &mf) {
                      getAnalysis<LiveIntervals>(),
                      getAnalysis<LiveRegMatrix>());
 
-  calculateSpillWeightsAndHints(*LIS, *MF,
+  calculateSpillWeightsAndHints(*LIS, *MF, VRM,
                                 getAnalysis<MachineLoopInfo>(),
                                 getAnalysis<MachineBlockFrequencyInfo>());
 

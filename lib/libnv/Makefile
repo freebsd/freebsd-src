@@ -15,8 +15,6 @@ SRCS+=	msgio.c
 SRCS+=	nvlist.c
 SRCS+=	nvpair.c
 
-WARNS?=	6
-
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
 .endif

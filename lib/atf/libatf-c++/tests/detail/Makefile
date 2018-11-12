@@ -4,7 +4,7 @@
 
 TESTSDIR=	${TESTSBASE}/lib/atf/libatf-c++/detail
 
-ATF=		${.CURDIR:H:H:H:H:H}/contrib/atf
+ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}/atf-c++/detail
 
 CFLAGS+=	-DATF_C_TESTS_BASE='"${TESTSBASE}/lib/atf/libatf-c"'

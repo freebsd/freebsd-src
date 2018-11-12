@@ -814,6 +814,37 @@ ng_hci_lp_con_cfm(ng_hci_unit_con_p con, int status)
 	return (0);
 } /* ng_hci_lp_con_cfm */
 
+int
+ng_hci_lp_enc_change(ng_hci_unit_con_p con, int status)
+{
+	ng_hci_unit_p		 unit = con->unit;
+	struct ng_mesg		*msg = NULL;
+	ng_hci_lp_enc_change_ep	*ep = NULL;
+	int			 error;
+
+
+	if (con->link_type != NG_HCI_LINK_SCO) {
+		if (unit->acl != NULL && NG_HOOK_IS_VALID(unit->acl)) {
+			NG_MKMESSAGE(msg, NGM_HCI_COOKIE, NGM_HCI_LP_ENC_CHG, 
+				sizeof(*ep), M_NOWAIT);
+			if (msg != NULL) {
+				ep = (ng_hci_lp_enc_change_ep *) msg->data;
+				ep->status = status;
+				ep->link_type = con->link_type;
+				ep->con_handle = con->con_handle;
+
+				NG_SEND_MSG_HOOK(error, unit->node, msg,
+					unit->acl, 0);
+			}
+		} else
+			NG_HCI_INFO(
+"%s: %s - ACL hook not valid, hook=%p\n",
+				__func__, NG_NODE_NAME(unit->node), unit->acl);
+
+	}
+	return (0);
+} /* ng_hci_lp_con_cfm */
+
 /*
  * Send LP_ConnectInd event to the upper layer protocol
  */

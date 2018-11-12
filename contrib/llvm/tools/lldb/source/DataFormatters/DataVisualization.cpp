@@ -14,8 +14,6 @@
 // Other libraries and framework includes
 // Project includes
 
-#include "lldb/Core/Debugger.h"
-
 using namespace lldb;
 using namespace lldb_private;
 
@@ -133,6 +131,14 @@ DataVisualization::Categories::GetCategory (const ConstString &category, lldb::T
     return (entry.get() != NULL);
 }
 
+bool
+DataVisualization::Categories::GetCategory (lldb::LanguageType language, lldb::TypeCategoryImplSP &entry)
+{
+    if (LanguageCategory *lang_category = GetFormatManager().GetCategoryForLanguage(language))
+        entry = lang_category->GetCategory();
+    return (entry.get() != nullptr);
+}
+
 void
 DataVisualization::Categories::Add (const ConstString &category)
 {
@@ -164,7 +170,14 @@ DataVisualization::Categories::Enable (const ConstString& category,
 {
     if (GetFormatManager().GetCategory(category)->IsEnabled())
         GetFormatManager().DisableCategory(category);
-    GetFormatManager().EnableCategory(category, pos);
+    GetFormatManager().EnableCategory(category, pos, std::initializer_list<lldb::LanguageType>());
+}
+
+void
+DataVisualization::Categories::Enable (lldb::LanguageType lang_type)
+{
+    if (LanguageCategory* lang_category = GetFormatManager().GetCategoryForLanguage(lang_type))
+        lang_category->Enable();
 }
 
 void
@@ -172,6 +185,13 @@ DataVisualization::Categories::Disable (const ConstString& category)
 {
     if (GetFormatManager().GetCategory(category)->IsEnabled() == true)
         GetFormatManager().DisableCategory(category);
+}
+
+void
+DataVisualization::Categories::Disable (lldb::LanguageType lang_type)
+{
+    if (LanguageCategory* lang_category = GetFormatManager().GetCategoryForLanguage(lang_type))
+        lang_category->Disable();
 }
 
 void
@@ -206,9 +226,9 @@ DataVisualization::Categories::DisableStar ()
 }
 
 void
-DataVisualization::Categories::LoopThrough (FormatManager::CategoryCallback callback, void* callback_baton)
+DataVisualization::Categories::ForEach (TypeCategoryMap::ForEachCallback callback)
 {
-    GetFormatManager().LoopThroughCategories(callback, callback_baton);
+    GetFormatManager().ForEachCategory(callback);
 }
 
 uint32_t
@@ -248,9 +268,9 @@ DataVisualization::NamedSummaryFormats::Clear ()
 }
 
 void
-DataVisualization::NamedSummaryFormats::LoopThrough (TypeSummaryImpl::SummaryCallback callback, void* callback_baton)
+DataVisualization::NamedSummaryFormats::ForEach (std::function<bool(ConstString, const lldb::TypeSummaryImplSP&)> callback)
 {
-    GetFormatManager().GetNamedSummaryContainer().LoopThrough(callback, callback_baton);
+    GetFormatManager().GetNamedSummaryContainer().ForEach(callback);
 }
 
 uint32_t

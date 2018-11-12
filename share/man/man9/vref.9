@@ -28,17 +28,19 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd January 18, 2016
 .Dt VREF 9
 .Os
 .Sh NAME
-.Nm vref
+.Nm vref , vrefl
 .Nd increment the use count for a vnode
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
 .Ft void
 .Fn vref "struct vnode *vp"
+.Ft void
+.Fn vrefl "struct vnode *vp"
 .Sh DESCRIPTION
 Increment the
 .Va v_usecount
@@ -56,7 +58,14 @@ no longer being used and can be safely recycled for a different file.
 Any code in the system which is using a vnode (e.g.\& during the
 operation of some algorithm or to store in a data structure) should
 call
-.Fn vref .
+.Fn vref
+or
+.Fn vrefl .
+.Pp
+.Fn vref
+locks the vnode interlock while
+.Fn vrefl
+expects the interlock to already be held.
 .Sh SEE ALSO
 .Xr vget 9 ,
 .Xr vnode 9 ,

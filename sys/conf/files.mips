@@ -7,7 +7,6 @@
 # Arch dependent files
 mips/mips/autoconf.c			standard
 mips/mips/bus_space_generic.c		standard
-mips/mips/bus_space_fdt.c		optional	fdt
 mips/mips/busdma_machdep.c		standard
 mips/mips/cache.c			standard
 mips/mips/cache_mipsNN.c		standard
@@ -30,6 +29,7 @@ mips/mips/minidump_machdep.c		standard
 mips/mips/mp_machdep.c			optional	smp
 mips/mips/mpboot.S			optional	smp
 mips/mips/nexus.c			standard
+mips/mips/ofw_machdep.c			optional	fdt
 mips/mips/pm_machdep.c			standard
 mips/mips/pmap.c			standard
 mips/mips/ptrace_machdep.c		standard
@@ -50,11 +50,13 @@ mips/mips/vm_machdep.c			standard
 # misc opt-in bits
 kern/kern_clocksource.c			standard
 kern/link_elf_obj.c			standard
+kern/subr_busdma_bufalloc.c		standard
 kern/subr_dummy_vdso_tc.c		standard
 kern/subr_sfbuf.c			optional	mips | mipsel | mipsn32
 
 # gcc/clang runtime
 libkern/ffsl.c				standard
+libkern/ffsll.c				standard
 libkern/fls.c				standard
 libkern/flsl.c				standard
 libkern/flsll.c				standard
@@ -77,7 +79,6 @@ dev/syscons/scvtb.c			optional	sc
 mips/mips/sc_machdep.c			optional	sc
 
 # FDT support
-dev/fdt/fdt_mips.c			optional	fdt
 dev/uart/uart_cpu_fdt.c			optional	uart fdt
 
 # crypto support -- use generic

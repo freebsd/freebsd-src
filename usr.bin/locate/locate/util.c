@@ -93,7 +93,7 @@ colon(dbv, path, dot)
 	char **pv;
 
 	if (dbv == NULL) {
-		if ((dbv = malloc(sizeof(char **))) == NULL)
+		if ((dbv = malloc(sizeof(char *))) == NULL)
 			err(1, "malloc");
 		*dbv = NULL;
 	}
@@ -123,7 +123,7 @@ colon(dbv, path, dot)
 				*(p + slen) = '\0';
 			}
 			/* increase dbv with element p */
-			if ((dbv = realloc(dbv, sizeof(char **) * (vlen + 2)))
+			if ((dbv = realloc(dbv, sizeof(char *) * (vlen + 2)))
 			    == NULL)
 				err(1, "realloc");
 			*(dbv + vlen) = p;

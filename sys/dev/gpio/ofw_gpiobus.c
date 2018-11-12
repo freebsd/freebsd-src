@@ -47,6 +47,166 @@ static void ofw_gpiobus_destroy_devinfo(device_t, struct ofw_gpiobus_devinfo *);
 static int ofw_gpiobus_parse_gpios_impl(device_t, phandle_t, char *,
 	struct gpiobus_softc *, struct gpiobus_pin **);
 
+/*
+ * Utility functions for easier handling of OFW GPIO pins.
+ *
+ * !!! BEWARE !!!
+ * GPIOBUS uses children's IVARs, so we cannot use this interface for cross
+ * tree consumers.
+ *
+ */
+static int
+gpio_pin_get_by_ofw_impl(device_t consumer_dev, char *prop_name, int idx,
+    gpio_pin_t *out_pin)
+{
+	phandle_t cnode, xref;
+	pcell_t *cells;
+	device_t busdev;
+	struct gpiobus_pin pin;
+	int ncells, rv;
+
+	cnode = ofw_bus_get_node(consumer_dev);
+	if (cnode <= 0) {
+		device_printf(consumer_dev,
+		    "%s called on not ofw based device\n", __func__);
+		return (ENXIO);
+	}
+
+	rv = ofw_bus_parse_xref_list_alloc(cnode, prop_name, "#gpio-cells",
+	    idx, &xref, &ncells, &cells);
+	if (rv != 0)
+		return (rv);
+
+	/* Translate provider to device. */
+	pin.dev = OF_device_from_xref(xref);
+	if (pin.dev == NULL) {
+		free(cells, M_OFWPROP);
+		return (ENODEV);
+	}
+
+	/* Test if GPIO bus already exist. */
+	busdev = GPIO_GET_BUS(pin.dev);
+	if (busdev == NULL) {
+		free(cells, M_OFWPROP);
+		return (ENODEV);
+	}
+
+	/* Map GPIO pin. */
+	rv = gpio_map_gpios(pin.dev, cnode, OF_node_from_xref(xref), ncells,
+	    cells, &pin.pin, &pin.flags);
+	free(cells, M_OFWPROP);
+	if (rv != 0) {
+		device_printf(consumer_dev, "Cannot map the gpio property.\n");
+		return (ENXIO);
+	}
+
+	/* Reserve GPIO pin. */
+	rv = gpiobus_map_pin(busdev, pin.pin);
+	if (rv != 0) {
+		device_printf(consumer_dev, "Cannot reserve gpio pin.\n");
+		return (EBUSY);
+	}
+
+	*out_pin = malloc(sizeof(struct gpiobus_pin), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
+	**out_pin = pin;
+	return (0);
+}
+
+int
+gpio_pin_get_by_ofw_idx(device_t consumer_dev, int idx, gpio_pin_t *pin)
+{
+
+	return (gpio_pin_get_by_ofw_impl(consumer_dev, "gpios", idx, pin));
+}
+
+int
+gpio_pin_get_by_ofw_property(device_t consumer_dev, char *name, gpio_pin_t *pin)
+{
+
+	return (gpio_pin_get_by_ofw_impl(consumer_dev, name, 0, pin));
+}
+
+int
+gpio_pin_get_by_ofw_name(device_t consumer_dev, char *name, gpio_pin_t *pin)
+{
+	int rv, idx;
+	phandle_t cnode;
+
+	cnode = ofw_bus_get_node(consumer_dev);
+	if (cnode <= 0) {
+		device_printf(consumer_dev,
+		    "%s called on not ofw based device\n",  __func__);
+		return (ENXIO);
+	}
+	rv = ofw_bus_find_string_index(cnode, "gpio-names", name, &idx);
+	if (rv != 0)
+		return (rv);
+	return (gpio_pin_get_by_ofw_idx(consumer_dev, idx, pin));
+}
+
+void
+gpio_pin_release(gpio_pin_t gpio)
+{
+
+	if (gpio == NULL)
+		return;
+
+	/* XXXX Unreserve pin. */
+	free(gpio, M_DEVBUF);
+}
+
+int
+gpio_pin_is_active(gpio_pin_t pin, bool *active)
+{
+	int rv;
+	uint32_t tmp;
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+	rv = GPIO_PIN_GET(pin->dev, pin->pin, &tmp);
+	if (rv  != 0) {
+		return (rv);
+	}
+
+	*active = tmp != 0;
+	if (pin->flags & GPIO_ACTIVE_LOW)
+		*active = !(*active);
+	return (0);
+}
+
+int
+gpio_pin_set_active(gpio_pin_t pin, bool active)
+{
+	int rv;
+	uint32_t tmp;
+
+	if (pin->flags & GPIO_ACTIVE_LOW)
+		tmp = active ? 0 : 1;
+	else
+		tmp = active ? 1 : 0;
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+	rv = GPIO_PIN_SET(pin->dev, pin->pin, tmp);
+	return (rv);
+}
+
+int
+gpio_pin_setflags(gpio_pin_t pin, uint32_t flags)
+{
+	int rv;
+
+	KASSERT(pin != NULL, ("GPIO pin is NULL."));
+	KASSERT(pin->dev != NULL, ("GPIO pin device is NULL."));
+
+	rv = GPIO_PIN_SETFLAGS(pin->dev, pin->pin, flags);
+	return (rv);
+}
+
+/*
+ * OFW_GPIOBUS driver.
+ */
 device_t
 ofw_gpiobus_add_fdt_child(device_t bus, const char *drvname, phandle_t child)
 {

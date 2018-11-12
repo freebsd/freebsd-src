@@ -27,8 +27,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/nv.h>
+#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/nv.h>
 #include <sys/socket.h>
 
 #include <atf-c++.hpp>
@@ -50,7 +51,7 @@ ATF_TEST_CASE_BODY(nvlist_bool_array__basic)
 	const bool *const_result;
 	bool *result;
 	nvlist_t *nvl;
-	size_t nitems;
+	size_t num_items;
 	unsigned int i;
 	const char *key;
 
@@ -69,16 +70,16 @@ ATF_TEST_CASE_BODY(nvlist_bool_array__basic)
 	ATF_REQUIRE(nvlist_exists_bool_array(nvl, key));
 	ATF_REQUIRE(nvlist_exists_bool_array(nvl, "nvl/bool"));
 
-	const_result = nvlist_get_bool_array(nvl, key, &nitems);
-	ATF_REQUIRE_EQ(nitems, 16);
+	const_result = nvlist_get_bool_array(nvl, key, &num_items);
+	ATF_REQUIRE_EQ(num_items, 16);
 	ATF_REQUIRE(const_result != NULL);
-	for (i = 0; i < nitems; i++)
+	for (i = 0; i < num_items; i++)
 		ATF_REQUIRE_EQ(const_result[i], testbool[i]);
 
-	result = nvlist_take_bool_array(nvl, key, &nitems);
-	ATF_REQUIRE_EQ(nitems, 16);
+	result = nvlist_take_bool_array(nvl, key, &num_items);
+	ATF_REQUIRE_EQ(num_items, 16);
 	ATF_REQUIRE(const_result != NULL);
-	for (i = 0; i < nitems; i++)
+	for (i = 0; i < num_items; i++)
 		ATF_REQUIRE_EQ(result[i], testbool[i]);
 
 	ATF_REQUIRE(!nvlist_exists_bool_array(nvl, key));
@@ -95,10 +96,10 @@ ATF_TEST_CASE_BODY(nvlist_string_array__basic)
 	const char * const *const_result;
 	char **result;
 	nvlist_t *nvl;
-	size_t nitems;
+	size_t num_items;
 	unsigned int i;
 	const char *key;
-	const char *string[8] = { "a", "b", "kot", "foo",
+	const char *string_arr[8] = { "a", "b", "kot", "foo",
 	    "tests", "nice test", "", "abcdef" };
 
 	key = "nvl/string";
@@ -107,32 +108,33 @@ ATF_TEST_CASE_BODY(nvlist_string_array__basic)
 	ATF_REQUIRE(nvlist_empty(nvl));
 	ATF_REQUIRE(!nvlist_exists_string_array(nvl, key));
 
-	nvlist_add_string_array(nvl, key, string, 8);
+	nvlist_add_string_array(nvl, key, string_arr, nitems(string_arr));
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists_string_array(nvl, key));
 	ATF_REQUIRE(nvlist_exists_string_array(nvl, "nvl/string"));
 
-	const_result = nvlist_get_string_array(nvl, key, &nitems);
+	const_result = nvlist_get_string_array(nvl, key, &num_items);
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(const_result != NULL);
-	ATF_REQUIRE(nitems == 8);
-	for (i = 0; i < nitems; i++) {
-		if (string[i] != NULL) {
-			ATF_REQUIRE(strcmp(const_result[i], string[i]) == 0);
+	ATF_REQUIRE(num_items == nitems(string_arr));
+	for (i = 0; i < num_items; i++) {
+		if (string_arr[i] != NULL) {
+			ATF_REQUIRE(strcmp(const_result[i],
+			    string_arr[i]) == 0);
 		} else {
-			ATF_REQUIRE(const_result[i] == string[i]);
+			ATF_REQUIRE(const_result[i] == string_arr[i]);
 		}
 	}
 
-	result = nvlist_take_string_array(nvl, key, &nitems);
+	result = nvlist_take_string_array(nvl, key, &num_items);
 	ATF_REQUIRE(result != NULL);
-	ATF_REQUIRE_EQ(nitems, 8);
-	for (i = 0; i < nitems; i++) {
-		if (string[i] != NULL) {
-			ATF_REQUIRE_EQ(strcmp(result[i], string[i]), 0);
+	ATF_REQUIRE_EQ(num_items, nitems(string_arr));
+	for (i = 0; i < num_items; i++) {
+		if (string_arr[i] != NULL) {
+			ATF_REQUIRE_EQ(strcmp(result[i], string_arr[i]), 0);
 		} else {
-			ATF_REQUIRE_EQ(result[i], string[i]);
+			ATF_REQUIRE_EQ(result[i], string_arr[i]);
 		}
 	}
 
@@ -140,7 +142,7 @@ ATF_TEST_CASE_BODY(nvlist_string_array__basic)
 	ATF_REQUIRE(nvlist_empty(nvl));
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
 
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < num_items; i++)
 		free(result[i]);
 	free(result);
 	nvlist_destroy(nvl);
@@ -152,11 +154,11 @@ ATF_TEST_CASE_BODY(nvlist_descriptor_array__basic)
 	int fd[32], *result;
 	const int *const_result;
 	nvlist_t *nvl;
-	size_t nitems;
+	size_t num_items;
 	unsigned int i;
 	const char *key;
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < nitems(fd); i++) {
 		fd[i] = dup(STDERR_FILENO);
 		ATF_REQUIRE(fd_is_valid(fd[i]));
 	}
@@ -167,26 +169,26 @@ ATF_TEST_CASE_BODY(nvlist_descriptor_array__basic)
 	ATF_REQUIRE(nvlist_empty(nvl));
 	ATF_REQUIRE(!nvlist_exists_descriptor_array(nvl, key));
 
-	nvlist_add_descriptor_array(nvl, key, fd, 32);
+	nvlist_add_descriptor_array(nvl, key, fd, nitems(fd));
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists_descriptor_array(nvl, key));
 	ATF_REQUIRE(nvlist_exists_descriptor_array(nvl, "nvl/descriptor"));
 
-	const_result = nvlist_get_descriptor_array(nvl, key, &nitems);
+	const_result = nvlist_get_descriptor_array(nvl, key, &num_items);
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(const_result != NULL);
-	ATF_REQUIRE(nitems == 32);
-	for (i = 0; i < nitems; i++) {
+	ATF_REQUIRE(num_items == nitems(fd));
+	for (i = 0; i < num_items; i++) {
 		ATF_REQUIRE(fd_is_valid(const_result[i]));
 		if (i > 0)
 			ATF_REQUIRE(const_result[i] != const_result[i - 1]);
 	}
 
-	result = nvlist_take_descriptor_array(nvl, key, &nitems);
+	result = nvlist_take_descriptor_array(nvl, key, &num_items);
 	ATF_REQUIRE(result != NULL);
-	ATF_REQUIRE_EQ(nitems, 32);
-	for (i = 0; i < nitems; i++) {
+	ATF_REQUIRE_EQ(num_items, nitems(fd));
+	for (i = 0; i < num_items; i++) {
 		ATF_REQUIRE(fd_is_valid(result[i]));
 		if (i > 0)
 			ATF_REQUIRE(const_result[i] != const_result[i - 1]);
@@ -196,7 +198,7 @@ ATF_TEST_CASE_BODY(nvlist_descriptor_array__basic)
 	ATF_REQUIRE(nvlist_empty(nvl));
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
 
-	for (i = 0; i < nitems; i++) {
+	for (i = 0; i < num_items; i++) {
 		close(result[i]);
 		close(fd[i]);
 	}
@@ -210,7 +212,7 @@ ATF_TEST_CASE_BODY(nvlist_number_array__basic)
 	const uint64_t *const_result;
 	uint64_t *result;
 	nvlist_t *nvl;
-	size_t nitems;
+	size_t num_items;
 	unsigned int i;
 	const char *key;
 	const uint64_t number[8] = { 0, UINT_MAX, 7, 123, 90,
@@ -222,23 +224,23 @@ ATF_TEST_CASE_BODY(nvlist_number_array__basic)
 	ATF_REQUIRE(nvlist_empty(nvl));
 	ATF_REQUIRE(!nvlist_exists_string_array(nvl, key));
 
-	nvlist_add_number_array(nvl, key, number, 8);
+	nvlist_add_number_array(nvl, key, number, nitems(number));
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists_number_array(nvl, key));
 	ATF_REQUIRE(nvlist_exists_number_array(nvl, "nvl/number"));
 
-	const_result = nvlist_get_number_array(nvl, key, &nitems);
+	const_result = nvlist_get_number_array(nvl, key, &num_items);
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(const_result != NULL);
-	ATF_REQUIRE(nitems == 8);
-	for (i = 0; i < nitems; i++)
+	ATF_REQUIRE(num_items == nitems(number));
+	for (i = 0; i < num_items; i++)
 		ATF_REQUIRE_EQ(const_result[i], number[i]);
 
-	result = nvlist_take_number_array(nvl, key, &nitems);
+	result = nvlist_take_number_array(nvl, key, &num_items);
 	ATF_REQUIRE(result != NULL);
-	ATF_REQUIRE_EQ(nitems, 8);
-	for (i = 0; i < nitems; i++)
+	ATF_REQUIRE_EQ(num_items, nitems(number));
+	for (i = 0; i < num_items; i++)
 		ATF_REQUIRE_EQ(result[i], number[i]);
 
 	ATF_REQUIRE(!nvlist_exists_string_array(nvl, key));
@@ -256,7 +258,7 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__basic)
 	const nvlist_t * const *const_result;
 	nvlist_t **result;
 	nvlist_t *nvl;
-	size_t nitems;
+	size_t num_items;
 	unsigned int i;
 	const char *somestr[8] = { "a", "b", "c", "d", "e", "f", "g", "h" };
 	const char *key;
@@ -282,14 +284,14 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__basic)
 	ATF_REQUIRE(nvlist_exists_nvlist_array(nvl, key));
 	ATF_REQUIRE(nvlist_exists_nvlist_array(nvl, "nvl/nvlist"));
 
-	const_result = nvlist_get_nvlist_array(nvl, key, &nitems);
+	const_result = nvlist_get_nvlist_array(nvl, key, &num_items);
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(const_result != NULL);
-	ATF_REQUIRE(nitems == 8);
+	ATF_REQUIRE(num_items == nitems(testnvl));
 
-	for (i = 0; i < nitems; i++) {
+	for (i = 0; i < num_items; i++) {
 		ATF_REQUIRE_EQ(nvlist_error(const_result[i]), 0);
-		if (i < nitems - 1) {
+		if (i < num_items - 1) {
 			ATF_REQUIRE(nvlist_get_array_next(const_result[i]) ==
 			    const_result[i + 1]);
 		} else {
@@ -304,10 +306,10 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__basic)
 		    "nvl/string"), somestr[i]) == 0);
 	}
 
-	result = nvlist_take_nvlist_array(nvl, key, &nitems);
+	result = nvlist_take_nvlist_array(nvl, key, &num_items);
 	ATF_REQUIRE(result != NULL);
-	ATF_REQUIRE_EQ(nitems, 8);
-	for (i = 0; i < nitems; i++) {
+	ATF_REQUIRE_EQ(num_items, 8);
+	for (i = 0; i < num_items; i++) {
 		ATF_REQUIRE_EQ(nvlist_error(result[i]), 0);
 		ATF_REQUIRE(nvlist_get_array_next(result[i]) == NULL);
 		ATF_REQUIRE(nvlist_get_array_next(const_result[i]) == NULL);
@@ -335,19 +337,19 @@ ATF_TEST_CASE_BODY(nvlist_clone_array)
 	const nvlist_t *nvl;
 	bool testbool[16];
 	int testfd[16];
-	size_t i, nitems;
-	const char *string[8] = { "a", "b", "kot", "foo",
+	size_t i, num_items;
+	const char *string_arr[8] = { "a", "b", "kot", "foo",
 	    "tests", "nice test", "", "abcdef" };
 	const char *somestr[8] = { "a", "b", "c", "d", "e", "f", "g", "h" };
 	const uint64_t number[8] = { 0, UINT_MAX, 7, 123, 90,
 	    100000, 8, 1 };
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < nitems(testfd); i++) {
 		testbool[i] = (i % 2 == 0);
 		testfd[i] = dup(STDERR_FILENO);
 		ATF_REQUIRE(fd_is_valid(testfd[i]));
 	}
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < nitems(testnvl); i++) {
 		testnvl[i] = nvlist_create(0);
 		ATF_REQUIRE(nvlist_error(testnvl[i]) == 0);
 		nvlist_add_string(testnvl[i], "nvl/nvl/teststr", somestr[i]);
@@ -358,28 +360,30 @@ ATF_TEST_CASE_BODY(nvlist_clone_array)
 	ATF_REQUIRE(nvlist_error(src) == 0);
 
 	ATF_REQUIRE(!nvlist_exists_bool_array(src, "nvl/bool"));
-	nvlist_add_bool_array(src, "nvl/bool", testbool, 16);
+	nvlist_add_bool_array(src, "nvl/bool", testbool, nitems(testbool));
 	ATF_REQUIRE_EQ(nvlist_error(src), 0);
 	ATF_REQUIRE(nvlist_exists_bool_array(src, "nvl/bool"));
 
 	ATF_REQUIRE(!nvlist_exists_string_array(src, "nvl/string"));
-	nvlist_add_string_array(src, "nvl/string", string, 8);
+	nvlist_add_string_array(src, "nvl/string", string_arr,
+	    nitems(string_arr));
 	ATF_REQUIRE_EQ(nvlist_error(src), 0);
 	ATF_REQUIRE(nvlist_exists_string_array(src, "nvl/string"));
 
 	ATF_REQUIRE(!nvlist_exists_descriptor_array(src, "nvl/fd"));
-	nvlist_add_descriptor_array(src, "nvl/fd", testfd, 16);
+	nvlist_add_descriptor_array(src, "nvl/fd", testfd, nitems(testfd));
 	ATF_REQUIRE_EQ(nvlist_error(src), 0);
 	ATF_REQUIRE(nvlist_exists_descriptor_array(src, "nvl/fd"));
 
 	ATF_REQUIRE(!nvlist_exists_number_array(src, "nvl/number"));
-	nvlist_add_number_array(src, "nvl/number", number, 8);
+	nvlist_add_number_array(src, "nvl/number", number,
+	    nitems(number));
 	ATF_REQUIRE_EQ(nvlist_error(src), 0);
 	ATF_REQUIRE(nvlist_exists_number_array(src, "nvl/number"));
 
 	ATF_REQUIRE(!nvlist_exists_nvlist_array(src, "nvl/array"));
 	nvlist_add_nvlist_array(src, "nvl/array",
-	    (const nvlist_t * const *)testnvl, 8);
+	    (const nvlist_t * const *)testnvl, nitems(testnvl));
 	ATF_REQUIRE_EQ(nvlist_error(src), 0);
 	ATF_REQUIRE(nvlist_exists_nvlist_array(src, "nvl/array"));
 
@@ -387,62 +391,62 @@ ATF_TEST_CASE_BODY(nvlist_clone_array)
 	ATF_REQUIRE(dst != NULL);
 
 	ATF_REQUIRE(nvlist_exists_bool_array(dst, "nvl/bool"));
-	(void) nvlist_get_bool_array(dst, "nvl/bool", &nitems);
-	ATF_REQUIRE_EQ(nitems, 16);
-	for (i = 0; i < nitems; i++) {
+	(void) nvlist_get_bool_array(dst, "nvl/bool", &num_items);
+	ATF_REQUIRE_EQ(num_items, nitems(testbool));
+	for (i = 0; i < num_items; i++) {
 		ATF_REQUIRE(
-		    nvlist_get_bool_array(dst, "nvl/bool", &nitems)[i] ==
-		    nvlist_get_bool_array(src, "nvl/bool", &nitems)[i]);
+		    nvlist_get_bool_array(dst, "nvl/bool", &num_items)[i] ==
+		    nvlist_get_bool_array(src, "nvl/bool", &num_items)[i]);
 	}
 
 	ATF_REQUIRE(nvlist_exists_string_array(dst, "nvl/string"));
-	(void) nvlist_get_string_array(dst, "nvl/string", &nitems);
-	ATF_REQUIRE_EQ(nitems, 8);
-	for (i = 0; i < nitems; i++) {
+	(void) nvlist_get_string_array(dst, "nvl/string", &num_items);
+	ATF_REQUIRE_EQ(num_items, nitems(string_arr));
+	for (i = 0; i < num_items; i++) {
 		if (nvlist_get_string_array(dst, "nvl/string",
-		    &nitems)[i] == NULL) {
+		    &num_items)[i] == NULL) {
 			ATF_REQUIRE(nvlist_get_string_array(dst, "nvl/string",
-			    &nitems)[i] == nvlist_get_string_array(src,
-			    "nvl/string", &nitems)[i]);
+			    &num_items)[i] == nvlist_get_string_array(src,
+			    "nvl/string", &num_items)[i]);
 		} else {
 			ATF_REQUIRE(strcmp(nvlist_get_string_array(dst,
-			    "nvl/string", &nitems)[i], nvlist_get_string_array(
-			    src, "nvl/string", &nitems)[i]) == 0);
+			    "nvl/string", &num_items)[i], nvlist_get_string_array(
+			    src, "nvl/string", &num_items)[i]) == 0);
 		}
 	}
 
 	ATF_REQUIRE(nvlist_exists_descriptor_array(dst, "nvl/fd"));
-	(void) nvlist_get_descriptor_array(dst, "nvl/fd", &nitems);
-	ATF_REQUIRE_EQ(nitems, 16);
-	for (i = 0; i < nitems; i++) {
+	(void) nvlist_get_descriptor_array(dst, "nvl/fd", &num_items);
+	ATF_REQUIRE_EQ(num_items, nitems(testfd));
+	for (i = 0; i < num_items; i++) {
 		ATF_REQUIRE(fd_is_valid(
-		    nvlist_get_descriptor_array(dst, "nvl/fd", &nitems)[i]));
+		    nvlist_get_descriptor_array(dst, "nvl/fd", &num_items)[i]));
 	}
 	ATF_REQUIRE(nvlist_exists_number_array(dst, "nvl/number"));
-	(void) nvlist_get_number_array(dst, "nvl/number", &nitems);
-	ATF_REQUIRE_EQ(nitems, 8);
+	(void) nvlist_get_number_array(dst, "nvl/number", &num_items);
+	ATF_REQUIRE_EQ(num_items, nitems(number));
 
-	for (i = 0; i < nitems; i++) {
+	for (i = 0; i < num_items; i++) {
 		ATF_REQUIRE(
-		    nvlist_get_number_array(dst, "nvl/number", &nitems)[i] ==
-		    nvlist_get_number_array(src, "nvl/number", &nitems)[i]);
+		    nvlist_get_number_array(dst, "nvl/number", &num_items)[i] ==
+		    nvlist_get_number_array(src, "nvl/number", &num_items)[i]);
 	}
 
 	ATF_REQUIRE(nvlist_exists_nvlist_array(dst, "nvl/array"));
-	(void) nvlist_get_nvlist_array(dst, "nvl/array", &nitems);
-	ATF_REQUIRE_EQ(nitems, 8);
-	for (i = 0; i < nitems; i++) {
-		nvl = nvlist_get_nvlist_array(dst, "nvl/array", &nitems)[i];
+	(void) nvlist_get_nvlist_array(dst, "nvl/array", &num_items);
+	ATF_REQUIRE_EQ(num_items, nitems(testnvl));
+	for (i = 0; i < num_items; i++) {
+		nvl = nvlist_get_nvlist_array(dst, "nvl/array", &num_items)[i];
 		ATF_REQUIRE(nvlist_exists_string(nvl, "nvl/nvl/teststr"));
 		ATF_REQUIRE(strcmp(nvlist_get_string(nvl, "nvl/nvl/teststr"),
 		    somestr[i]) == 0);
 	}
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < nitems(testfd); i++) {
 		close(testfd[i]);
-		if (i < 8) {
-			nvlist_destroy(testnvl[i]);
-		}
+	}
+	for (i = 0; i < nitems(testnvl); i++) {
+		nvlist_destroy(testnvl[i]);
 	}
 	nvlist_destroy(src);
 	nvlist_destroy(dst);
@@ -454,7 +458,7 @@ ATF_TEST_CASE_BODY(nvlist_bool_array__move)
 	bool *testbool;
 	const bool *const_result;
 	nvlist_t *nvl;
-	size_t nitems, count;
+	size_t num_items, count;
 	unsigned int i;
 	const char *key;
 
@@ -475,11 +479,11 @@ ATF_TEST_CASE_BODY(nvlist_bool_array__move)
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists_bool_array(nvl, key));
 
-	const_result = nvlist_get_bool_array(nvl, key, &nitems);
-	ATF_REQUIRE_EQ(nitems, count);
+	const_result = nvlist_get_bool_array(nvl, key, &num_items);
+	ATF_REQUIRE_EQ(num_items, count);
 	ATF_REQUIRE(const_result != NULL);
 	ATF_REQUIRE(const_result == testbool);
-	for (i = 0; i < nitems; i++)
+	for (i = 0; i < num_items; i++)
 		ATF_REQUIRE_EQ(const_result[i], (i % 2 == 0));
 
 	nvlist_destroy(nvl);
@@ -491,7 +495,7 @@ ATF_TEST_CASE_BODY(nvlist_string_array__move)
 	char **teststr;
 	const char * const *const_result;
 	nvlist_t *nvl;
-	size_t nitems, count;
+	size_t num_items, count;
 	unsigned int i;
 	const char *key;
 
@@ -516,11 +520,11 @@ ATF_TEST_CASE_BODY(nvlist_string_array__move)
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists_string_array(nvl, key));
 
-	const_result = nvlist_get_string_array(nvl, key, &nitems);
-	ATF_REQUIRE_EQ(nitems, count);
+	const_result = nvlist_get_string_array(nvl, key, &num_items);
+	ATF_REQUIRE_EQ(num_items, count);
 	ATF_REQUIRE(const_result != NULL);
 	ATF_REQUIRE((intptr_t)const_result == (intptr_t)teststr);
-	for (i = 0; i < nitems; i++) {
+	for (i = 0; i < num_items; i++) {
 		ATF_REQUIRE_EQ(const_result[i][0], (char)('a' + i));
 		ATF_REQUIRE_EQ(const_result[i][1], '\0');
 	}
@@ -534,7 +538,7 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__move)
 	nvlist **testnv;
 	const nvlist * const *const_result;
 	nvlist_t *nvl;
-	size_t nitems, count;
+	size_t num_items, count;
 	unsigned int i;
 	const char *key;
 
@@ -557,14 +561,14 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__move)
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists_nvlist_array(nvl, key));
 
-	const_result = nvlist_get_nvlist_array(nvl, key, &nitems);
-	ATF_REQUIRE_EQ(nitems, count);
+	const_result = nvlist_get_nvlist_array(nvl, key, &num_items);
+	ATF_REQUIRE_EQ(num_items, count);
 	ATF_REQUIRE(const_result != NULL);
 	ATF_REQUIRE((intptr_t)const_result == (intptr_t)testnv);
-	for (i = 0; i < nitems; i++) {
+	for (i = 0; i < num_items; i++) {
 		ATF_REQUIRE_EQ(nvlist_error(const_result[i]), 0);
 		ATF_REQUIRE(nvlist_empty(const_result[i]));
-		if (i < nitems - 1) {
+		if (i < num_items - 1) {
 			ATF_REQUIRE(nvlist_get_array_next(const_result[i]) ==
 			    const_result[i + 1]);
 		} else {
@@ -584,7 +588,7 @@ ATF_TEST_CASE_BODY(nvlist_number_array__move)
 	uint64_t *testnumber;
 	const uint64_t *const_result;
 	nvlist_t *nvl;
-	size_t nitems, count;
+	size_t num_items, count;
 	unsigned int i;
 	const char *key;
 
@@ -605,11 +609,11 @@ ATF_TEST_CASE_BODY(nvlist_number_array__move)
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists_number_array(nvl, key));
 
-	const_result = nvlist_get_number_array(nvl, key, &nitems);
-	ATF_REQUIRE_EQ(nitems, count);
+	const_result = nvlist_get_number_array(nvl, key, &num_items);
+	ATF_REQUIRE_EQ(num_items, count);
 	ATF_REQUIRE(const_result != NULL);
 	ATF_REQUIRE(const_result == testnumber);
-	for (i = 0; i < nitems; i++)
+	for (i = 0; i < num_items; i++)
 		ATF_REQUIRE_EQ(const_result[i], i);
 
 	nvlist_destroy(nvl);
@@ -621,7 +625,7 @@ ATF_TEST_CASE_BODY(nvlist_descriptor_array__move)
 	int *testfd;
 	const int *const_result;
 	nvlist_t *nvl;
-	size_t nitems, count;
+	size_t num_items, count;
 	unsigned int i;
 	const char *key;
 
@@ -644,11 +648,11 @@ ATF_TEST_CASE_BODY(nvlist_descriptor_array__move)
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists_descriptor_array(nvl, key));
 
-	const_result = nvlist_get_descriptor_array(nvl, key, &nitems);
-	ATF_REQUIRE_EQ(nitems, count);
+	const_result = nvlist_get_descriptor_array(nvl, key, &num_items);
+	ATF_REQUIRE_EQ(num_items, count);
 	ATF_REQUIRE(const_result != NULL);
 	ATF_REQUIRE(const_result == testfd);
-	for (i = 0; i < nitems; i++)
+	for (i = 0; i < num_items; i++)
 		ATF_REQUIRE(fd_is_valid(const_result[i]));
 
 	nvlist_destroy(nvl);
@@ -764,11 +768,12 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__travel)
 {
 	nvlist_t *nvl, *test[5], *nasted;
 	const nvlist_t *travel;
-	void *cookie;
-	int index, i, type;
 	const char *name;
+	void *cookie;
+	int type;
+	unsigned int i, index;
 
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < nitems(test); i++) {
 		test[i] = nvlist_create(0);
 		ATF_REQUIRE(test[i] != NULL);
 		nvlist_add_number(test[i], "nvl/number", i);
@@ -776,11 +781,12 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__travel)
 	}
 	nvl = nvlist_create(0);
 	ATF_REQUIRE(nvl != NULL);
-	nvlist_add_nvlist_array(nvl, "nvl/nvlist_array", test, 5);
+	nvlist_add_nvlist_array(nvl, "nvl/nvlist_array", test, nitems(test));
 	ATF_REQUIRE(nvlist_error(nvl) == 0);
 	nasted = nvlist_create(0);
 	ATF_REQUIRE(nasted != NULL);
-	nvlist_add_nvlist_array(nasted, "nvl/nvl/nvlist_array", test, 5);
+	nvlist_add_nvlist_array(nasted, "nvl/nvl/nvlist_array", test,
+	    nitems(test));
 	ATF_REQUIRE(nvlist_error(nasted) == 0);
 	nvlist_move_nvlist(nvl, "nvl/nvl", nasted);
 	ATF_REQUIRE(nvlist_error(nvl) == 0);
@@ -794,15 +800,16 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__travel)
 		while ((name = nvlist_next(travel, &type, &cookie)) != NULL) {
 			if (index == 0) {
 				ATF_REQUIRE(type == NV_TYPE_NVLIST_ARRAY);
-			} else if (index >= 1 && index <= 5) {
+			} else if (index >= 1 && index <= nitems(test)) {
 				ATF_REQUIRE(type == NV_TYPE_NUMBER);
-			} else if (index == 6) {
+			} else if (index == nitems(test) + 1) {
 				ATF_REQUIRE(type == NV_TYPE_NVLIST);
-			} else if (index == 7) {
+			} else if (index == nitems(test) + 2) {
 				ATF_REQUIRE(type == NV_TYPE_NVLIST_ARRAY);
-			} else if (index >= 8 && index <= 12) {
+			} else if (index >= nitems(test) + 3 &&
+				   index <= 2 * nitems(test) + 2) {
 				ATF_REQUIRE(type == NV_TYPE_NUMBER);
-			} else if (index == 13) {
+			} else if (index == 2 * nitems(test) + 3) {
 				ATF_REQUIRE(type == NV_TYPE_STRING);
 			}
 
@@ -818,7 +825,7 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__travel)
 		}
 	} while ((travel = nvlist_get_pararr(travel, &cookie)) != NULL);
 
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < nitems(test); i++)
 		nvlist_destroy(test[i]);
 
 	nvlist_destroy(nvl);
@@ -908,7 +915,7 @@ ATF_TEST_CASE_BODY(nvlist_bool_array__pack)
 	const bool *const_result;
 	bool testbool[16];
 
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < nitems(testbool); i++)
 		testbool[i] = (i % 2 == 0);
 
 	key = "nvl/bool";
@@ -917,7 +924,7 @@ ATF_TEST_CASE_BODY(nvlist_bool_array__pack)
 	ATF_REQUIRE(nvlist_empty(nvl));
 	ATF_REQUIRE(!nvlist_exists_string_array(nvl, key));
 
-	nvlist_add_bool_array(nvl, key, testbool, 16);
+	nvlist_add_bool_array(nvl, key, testbool, nitems(testbool));
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists_bool_array(nvl, key));
@@ -931,7 +938,7 @@ ATF_TEST_CASE_BODY(nvlist_bool_array__pack)
 	ATF_REQUIRE(nvlist_exists_bool_array(unpacked, key));
 
 	const_result = nvlist_get_bool_array(unpacked, key, &count);
-	ATF_REQUIRE_EQ(count, 16);
+	ATF_REQUIRE_EQ(count, nitems(testbool));
 	for (i = 0; i < count; i++) {
 		ATF_REQUIRE_EQ(testbool[i], const_result[i]);
 	}
@@ -973,7 +980,7 @@ ATF_TEST_CASE_BODY(nvlist_number_array__pack)
 	ATF_REQUIRE(nvlist_exists_number_array(unpacked, key));
 
 	const_result = nvlist_get_number_array(unpacked, key, &count);
-	ATF_REQUIRE_EQ(count, 8);
+	ATF_REQUIRE_EQ(count, nitems(number));
 	for (i = 0; i < count; i++) {
 		ATF_REQUIRE_EQ(number[i], const_result[i]);
 	}
@@ -988,7 +995,7 @@ ATF_TEST_CASE_BODY(nvlist_descriptor_array__pack)
 {
 	nvlist_t *nvl;
 	const char *key;
-	size_t nitems;
+	size_t num_items;
 	unsigned int i;
 	const int *const_result;
 	int desc[32], fd, socks[2];
@@ -1004,7 +1011,7 @@ ATF_TEST_CASE_BODY(nvlist_descriptor_array__pack)
 		/* Child. */
 		fd = socks[0];
 		close(socks[1]);
-		for (i = 0; i < 32; i++) {
+		for (i = 0; i < nitems(desc); i++) {
 			desc[i] = dup(STDERR_FILENO);
 			ATF_REQUIRE(fd_is_valid(desc[i]));
 		}
@@ -1014,14 +1021,14 @@ ATF_TEST_CASE_BODY(nvlist_descriptor_array__pack)
 		ATF_REQUIRE(nvlist_empty(nvl));
 		ATF_REQUIRE(!nvlist_exists_descriptor_array(nvl, key));
 
-		nvlist_add_descriptor_array(nvl, key, desc, 32);
+		nvlist_add_descriptor_array(nvl, key, desc, nitems(desc));
 		ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
 		ATF_REQUIRE(!nvlist_empty(nvl));
 		ATF_REQUIRE(nvlist_exists_descriptor_array(nvl, key));
 
 		ATF_REQUIRE(nvlist_send(fd, nvl) >= 0);
 
-		for (i = 0; i < nitems; i++)
+		for (i = 0; i < nitems(desc); i++)
 			close(desc[i]);
 	} else {
 		/* Parent */
@@ -1034,10 +1041,10 @@ ATF_TEST_CASE_BODY(nvlist_descriptor_array__pack)
 		ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
 		ATF_REQUIRE(nvlist_exists_descriptor_array(nvl, key));
 
-		const_result = nvlist_get_descriptor_array(nvl, key, &nitems);
+		const_result = nvlist_get_descriptor_array(nvl, key, &num_items);
 		ATF_REQUIRE(const_result != NULL);
-		ATF_REQUIRE_EQ(nitems, 32);
-		for (i = 0; i < nitems; i++)
+		ATF_REQUIRE_EQ(num_items, nitems(desc));
+		for (i = 0; i < num_items; i++)
 			ATF_REQUIRE(fd_is_valid(const_result[i]));
 
 		atf::utils::wait(pid, 0, "", "");
@@ -1056,7 +1063,7 @@ ATF_TEST_CASE_BODY(nvlist_string_array__pack)
 	void *packed;
 	unsigned int i;
 	const char * const *const_result;
-	const char *string[8] = { "a", "b", "kot", "foo",
+	const char *string_arr[8] = { "a", "b", "kot", "foo",
 	    "tests", "nice test", "", "abcdef" };
 
 	key = "nvl/string";
@@ -1065,7 +1072,7 @@ ATF_TEST_CASE_BODY(nvlist_string_array__pack)
 	ATF_REQUIRE(nvlist_empty(nvl));
 	ATF_REQUIRE(!nvlist_exists_string_array(nvl, key));
 
-	nvlist_add_string_array(nvl, key, string, 8);
+	nvlist_add_string_array(nvl, key, string_arr, nitems(string_arr));
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists_string_array(nvl, key));
@@ -1079,9 +1086,9 @@ ATF_TEST_CASE_BODY(nvlist_string_array__pack)
 	ATF_REQUIRE(nvlist_exists_string_array(unpacked, key));
 
 	const_result = nvlist_get_string_array(unpacked, key, &count);
-	ATF_REQUIRE_EQ(count, 8);
+	ATF_REQUIRE_EQ(count, nitems(string_arr));
 	for (i = 0; i < count; i++) {
-		ATF_REQUIRE_EQ(strcmp(string[i], const_result[i]), 0);
+		ATF_REQUIRE_EQ(strcmp(string_arr[i], const_result[i]), 0);
 	}
 
 	nvlist_destroy(nvl);
@@ -1094,15 +1101,14 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__pack)
 {
 	nvlist_t *testnvl[8], *unpacked;
 	const nvlist_t * const *const_result;
-	nvlist_t **result;
 	nvlist_t *nvl;
-	size_t nitems, packed_size;
+	size_t num_items, packed_size;
 	unsigned int i;
 	void *packed;
 	const char *somestr[8] = { "a", "b", "c", "d", "e", "f", "g", "h" };
 	const char *key;
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < nitems(testnvl); i++) {
 		testnvl[i] = nvlist_create(0);
 		ATF_REQUIRE(testnvl[i] != NULL);
 		ATF_REQUIRE_EQ(nvlist_error(testnvl[i]), 0);
@@ -1130,12 +1136,12 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__pack)
 	ATF_REQUIRE_EQ(nvlist_error(unpacked), 0);
 	ATF_REQUIRE(nvlist_exists_nvlist_array(unpacked, key));
 
-	const_result = nvlist_get_nvlist_array(unpacked, key, &nitems);
+	const_result = nvlist_get_nvlist_array(unpacked, key, &num_items);
 	ATF_REQUIRE(const_result != NULL);
-	ATF_REQUIRE_EQ(nitems, 8);
-	for (i = 0; i < nitems; i++) {
+	ATF_REQUIRE_EQ(num_items, nitems(testnvl));
+	for (i = 0; i < num_items; i++) {
 		ATF_REQUIRE_EQ(nvlist_error(const_result[i]), 0);
-		if (i < nitems - 1) {
+		if (i < num_items - 1) {
 			ATF_REQUIRE(nvlist_get_array_next(const_result[i]) ==
 			    const_result[i + 1]);
 		} else {
@@ -1150,9 +1156,8 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__pack)
 		    "nvl/string"), somestr[i]) == 0);
 	}
 
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < nitems(testnvl); i++)
 		nvlist_destroy(testnvl[i]);
-	free(result);
 	nvlist_destroy(nvl);
 	nvlist_destroy(unpacked);
 	free(packed);

@@ -10,14 +10,14 @@ sinclude(dnstap/dnstap.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[5])
-m4_define([VERSION_MICRO],[4])
+m4_define([VERSION_MICRO],[7])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=5
-LIBUNBOUND_REVISION=7
+LIBUNBOUND_REVISION=10
 LIBUNBOUND_AGE=3
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -61,6 +61,9 @@ LIBUNBOUND_AGE=3
 # 1.5.2 had 5:5:3
 # 1.5.3 had 5:6:3
 # 1.5.4 had 5:7:3
+# 1.5.5 had 5:8:3
+# 1.5.6 had 5:9:3
+# 1.5.7 had 5:10:3
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -246,6 +249,8 @@ case "$debug_enabled" in
 		;;
 esac
 ACX_CHECK_FLTO
+ACX_CHECK_PIE
+ACX_CHECK_RELRO_NOW
 
 AC_C_INLINE
 ACX_CHECK_FORMAT_ATTRIBUTE
@@ -475,7 +480,7 @@ if test x_$ub_test_python != x_no; then
 		AC_ERROR([Python version >= 2.4.0 is required])
 	fi
 
-      PY_MAJOR_VERSION="`$PYTHON -c "import sys; print(sys.version_info.major)"`"
+      [PY_MAJOR_VERSION="`$PYTHON -c \"import sys; print(sys.version_info[0])\"`"]
       AC_SUBST(PY_MAJOR_VERSION)
       # Have Python
       AC_DEFINE(HAVE_PYTHON,1,[Define if you have Python libraries and header files.])
@@ -558,15 +563,36 @@ AC_ARG_WITH([nss], AC_HELP_STRING([--with-nss=path],
 		CPPFLAGS="-I/usr/include/nspr4 $CPPFLAGS"
 	fi
         LIBS="$LIBS -lnss3 -lnspr4"
+	SSLLIB=""
+	]
+)
+
+# libnettle
+USE_NETTLE="no"
+AC_ARG_WITH([nettle], AC_HELP_STRING([--with-nettle=path],
+	[use libnettle as crypto library, installed at path.]),
+	[
+	USE_NETTLE="yes"
+	AC_DEFINE(HAVE_NETTLE, 1, [Use libnettle for crypto])
+	if test "$withval" != "" -a "$withval" != "yes"; then
+		CPPFLAGS="$CPPFLAGS -I$withval/include/nettle"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+		ACX_RUNTIME_PATH_ADD([$withval/lib])
+	else
+		CPPFLAGS="$CPPFLAGS -I/usr/include/nettle"
+	fi
+        LIBS="$LIBS -lhogweed -lnettle -lgmp"
+	SSLLIB=""
 	]
 )
 
 # openssl
-if test $USE_NSS = "no"; then
+if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
 ACX_WITH_SSL
 ACX_LIB_SSL
+SSLLIB="-lssl"
 AC_MSG_CHECKING([for LibreSSL])
-if grep OPENSSL_VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
+if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
 	AC_MSG_RESULT([yes])
 	AC_DEFINE([HAVE_LIBRESSL], [1], [Define if we have LibreSSL])
 	# libressl provides these compat functions, but they may also be
@@ -578,7 +604,7 @@ fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode])
-AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free], [], [], [
+AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
 #include <openssl/err.h>
@@ -599,6 +625,7 @@ AC_INCLUDES_DEFAULT
 #include <openssl/evp.h>
 ])
 fi
+AC_SUBST(SSLLIB)
 
 
 AC_ARG_ENABLE(sha2, AC_HELP_STRING([--disable-sha2], [Disable SHA256 and SHA512 RRSIG support]))
@@ -710,7 +737,7 @@ AC_MSG_RESULT($ac_cv_c_gost_works)
 
 AC_ARG_ENABLE(gost, AC_HELP_STRING([--disable-gost], [Disable GOST support]))
 use_gost="no"
-if test $USE_NSS = "no"; then
+if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
 case "$enable_gost" in
 	no)
 	;;
@@ -724,7 +751,7 @@ case "$enable_gost" in
 	fi
 	;;
 esac
-fi dnl !USE_NSS
+fi dnl !USE_NSS && !USE_NETTLE
 
 AC_ARG_ENABLE(ecdsa, AC_HELP_STRING([--disable-ecdsa], [Disable ECDSA support]))
 use_ecdsa="no"
@@ -732,7 +759,7 @@ case "$enable_ecdsa" in
     no)
       ;;
     *)
-      if test $USE_NSS = "no"; then
+      if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
 	      AC_CHECK_FUNC(ECDSA_sign, [], [AC_MSG_ERROR([OpenSSL does not support ECDSA: please upgrade or rerun with --disable-ecdsa])])
 	      AC_CHECK_FUNC(SHA384_Init, [], [AC_MSG_ERROR([OpenSSL does not support SHA384: please upgrade or rerun with --disable-ecdsa])])
 	      AC_CHECK_DECLS([NID_X9_62_prime256v1, NID_secp384r1], [], [AC_MSG_ERROR([OpenSSL does not support the ECDSA curves: please upgrade or rerun with --disable-ecdsa])], [AC_INCLUDES_DEFAULT
@@ -878,6 +905,9 @@ if test x_$found_libexpat != x_yes; then
 	AC_ERROR([Could not find libexpat, expat.h])
 fi
 AC_CHECK_HEADERS([expat.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_DECLS([XML_StopParser], [], [], [AC_INCLUDES_DEFAULT
+#include <expat.h>
+])
 
 # set static linking if requested
 AC_SUBST(staticexe)
@@ -982,7 +1012,7 @@ AC_INCLUDES_DEFAULT
 #endif
 ])
 AC_SEARCH_LIBS([setusercontext], [util])
-AC_CHECK_FUNCS([tzset sigprocmask fcntl getpwnam getrlimit setrlimit setsid sbrk chroot kill chown sleep usleep random srandom recvmsg sendmsg writev socketpair glob initgroups strftime localtime_r setusercontext _beginthreadex endservent endprotoent])
+AC_CHECK_FUNCS([tzset sigprocmask fcntl getpwnam getrlimit setrlimit setsid sbrk chroot kill chown sleep usleep random srandom recvmsg sendmsg writev socketpair glob initgroups strftime localtime_r setusercontext _beginthreadex endservent endprotoent fsync])
 AC_CHECK_FUNCS([setresuid],,[AC_CHECK_FUNCS([setreuid])])
 AC_CHECK_FUNCS([setresgid],,[AC_CHECK_FUNCS([setregid])])
 
@@ -994,10 +1024,25 @@ AC_REPLACE_FUNCS(inet_aton)
 AC_REPLACE_FUNCS(inet_pton)
 AC_REPLACE_FUNCS(inet_ntop)
 AC_REPLACE_FUNCS(snprintf)
+# test if snprintf return the proper length
+if test "x$ac_cv_func_snprintf" = xyes; then
+    if test c${cross_compiling} = cno; then
+	AC_MSG_CHECKING([for correct snprintf return value])
+	AC_RUN_IFELSE([AC_LANG_SOURCE(AC_INCLUDES_DEFAULT
+[[
+int main(void) { return !(snprintf(NULL, 0, "test") == 4); }
+]])], [AC_MSG_RESULT(yes)], [
+		AC_MSG_RESULT(no)
+		AC_DEFINE([SNPRINTF_RET_BROKEN], [], [define if (v)snprintf does not return length needed, (but length used)])
+		AC_LIBOBJ(snprintf)
+	  ])
+    fi
+fi
 AC_REPLACE_FUNCS(strlcat)
 AC_REPLACE_FUNCS(strlcpy)
 AC_REPLACE_FUNCS(memmove)
 AC_REPLACE_FUNCS(gmtime_r)
+AC_REPLACE_FUNCS(isblank)
 dnl without CTIME, ARC4-functions and without reallocarray.
 LIBOBJ_WITHOUT_CTIMEARC4="$LIBOBJS"
 AC_SUBST(LIBOBJ_WITHOUT_CTIMEARC4)
@@ -1232,7 +1277,13 @@ AHX_CONFIG_FORMAT_ATTRIBUTE
 AHX_CONFIG_UNUSED_ATTRIBUTE
 AHX_CONFIG_FSEEKO
 AHX_CONFIG_MAXHOSTNAMELEN
-AHX_CONFIG_SNPRINTF(unbound)
+#if !defined(HAVE_SNPRINTF) || defined(SNPRINTF_RET_BROKEN)
+#define snprintf snprintf_unbound
+#define vsnprintf vsnprintf_unbound
+#include <stdarg.h>
+int snprintf (char *str, size_t count, const char *fmt, ...);
+int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
+#endif /* HAVE_SNPRINTF or SNPRINTF_RET_BROKEN */
 AHX_CONFIG_INET_PTON(unbound)
 AHX_CONFIG_INET_NTOP(unbound)
 AHX_CONFIG_INET_ATON(unbound)
@@ -1253,6 +1304,11 @@ AHX_MEMCMP_BROKEN(unbound)
 #ifndef HAVE_CTIME_R
 #define ctime_r unbound_ctime_r
 char *ctime_r(const time_t *timep, char *buf);
+#endif
+
+#ifndef HAVE_ISBLANK
+#define isblank unbound_isblank
+int isblank(int c);
 #endif
 
 #if !defined(HAVE_STRPTIME) || !defined(STRPTIME_WORKS)

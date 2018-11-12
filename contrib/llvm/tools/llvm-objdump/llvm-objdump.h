@@ -11,6 +11,7 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
@@ -25,10 +26,12 @@ extern cl::opt<std::string> TripleName;
 extern cl::opt<std::string> ArchName;
 extern cl::opt<std::string> MCPU;
 extern cl::list<std::string> MAttrs;
-extern cl::list<std::string> DumpSections;
+extern cl::list<std::string> FilterSections;
 extern cl::opt<bool> Disassemble;
+extern cl::opt<bool> DisassembleAll;
 extern cl::opt<bool> NoShowRawInsn;
 extern cl::opt<bool> PrivateHeaders;
+extern cl::opt<bool> FirstPrivateHeader;
 extern cl::opt<bool> ExportsTrie;
 extern cl::opt<bool> Rebase;
 extern cl::opt<bool> Bind;
@@ -54,7 +57,7 @@ extern cl::opt<bool> UnwindInfo;
 extern cl::opt<bool> PrintImmHex;
 
 // Various helper functions.
-bool error(std::error_code ec);
+void error(std::error_code ec);
 bool RelocAddressLess(object::RelocationRef a, object::RelocationRef b);
 void ParseInputMachO(StringRef Filename);
 void printCOFFUnwindInfo(const object::COFFObjectFile* o);
@@ -66,7 +69,9 @@ void printMachOLazyBindTable(const object::MachOObjectFile* o);
 void printMachOWeakBindTable(const object::MachOObjectFile* o);
 void printELFFileHeader(const object::ObjectFile *o);
 void printCOFFFileHeader(const object::ObjectFile *o);
+void printCOFFSymbolTable(const object::COFFObjectFile *o);
 void printMachOFileHeader(const object::ObjectFile *o);
+void printMachOLoadCommands(const object::ObjectFile *o);
 void printExportsTrie(const object::ObjectFile *o);
 void printRebaseTable(const object::ObjectFile *o);
 void printBindTable(const object::ObjectFile *o);
@@ -77,6 +82,7 @@ void PrintRelocations(const object::ObjectFile *o);
 void PrintSectionHeaders(const object::ObjectFile *o);
 void PrintSectionContents(const object::ObjectFile *o);
 void PrintSymbolTable(const object::ObjectFile *o);
+LLVM_ATTRIBUTE_NORETURN void report_error(StringRef File, std::error_code EC);
 
 } // end namespace llvm
 

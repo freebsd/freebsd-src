@@ -627,7 +627,7 @@ inp_rawdcf(
 {
 	static struct timeval timeout = { 1, 500000 }; /* 1.5 secongs denote second #60 */
 
-	parseprintf(DD_PARSE, ("inp_rawdcf(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
+	parseprintf(DD_PARSE, ("inp_rawdcf(0x%p, 0x%x, ...)\n", (void*)parseio, ch));
 
 	parseio->parse_dtime.parse_stime = *tstamp; /* collect timestamp */
 

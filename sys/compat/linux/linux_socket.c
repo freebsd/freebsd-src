@@ -1164,6 +1164,7 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	msg.msg_iov = iov;
 	msg.msg_flags = 0;
 	error = linux_sendit(td, s, &msg, flags, control, UIO_USERSPACE);
+	control = NULL;
 
 bad:
 	m_freem(control);

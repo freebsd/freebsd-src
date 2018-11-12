@@ -31,16 +31,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
+#if EFSYS_OPT_MON_MCDI
 #include "mcdi_mon.h"
+#endif
 
 #if EFSYS_OPT_HUNTINGTON
 
 #include "ef10_tlv_layout.h"
 
-static	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_mcdi_get_port_assignment(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *portp)
@@ -48,9 +49,10 @@ efx_mcdi_get_port_assignment(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_PORT_ASSIGNMENT_IN_LEN,
 			    MC_CMD_GET_PORT_ASSIGNMENT_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_PORT_ASSIGNMENT;
@@ -78,12 +80,12 @@ efx_mcdi_get_port_assignment(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_mcdi_get_port_modes(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *modesp)
@@ -91,9 +93,10 @@ efx_mcdi_get_port_modes(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_PORT_MODES_IN_LEN,
 			    MC_CMD_GET_PORT_MODES_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_PORT_MODES;
@@ -109,7 +112,10 @@ efx_mcdi_get_port_modes(
 		goto fail1;
 	}
 
-	/* Accept pre-Medford size (8 bytes - no CurrentMode field) */
+	/*
+	 * Require only Modes and DefaultMode fields.
+	 * (CurrentMode field was added for Medford)
+	 */
 	if (req.emr_out_length_used <
 	    MC_CMD_GET_PORT_MODES_OUT_CURRENT_MODE_OFST) {
 		rc = EMSGSIZE;
@@ -123,13 +129,13 @@ efx_mcdi_get_port_modes(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-static	__checkReturn		int
+static	__checkReturn		efx_rc_t
 efx_mcdi_vadaptor_alloc(
 	__in			efx_nic_t *enp,
 	__in			uint32_t port_id)
@@ -137,7 +143,7 @@ efx_mcdi_vadaptor_alloc(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_VADAPTOR_ALLOC_IN_LEN,
 			    MC_CMD_VADAPTOR_ALLOC_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_vport_id, ==, EVB_PORT_ID_NULL);
 
@@ -149,6 +155,9 @@ efx_mcdi_vadaptor_alloc(
 	req.emr_out_length = MC_CMD_VADAPTOR_ALLOC_OUT_LEN;
 
 	MCDI_IN_SET_DWORD(req, VADAPTOR_ALLOC_IN_UPSTREAM_PORT_ID, port_id);
+	MCDI_IN_POPULATE_DWORD_1(req, VADAPTOR_ALLOC_IN_FLAGS,
+	    VADAPTOR_ALLOC_IN_FLAG_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED,
+	    enp->en_nic_cfg.enc_allow_set_mac_with_installed_filters ? 1 : 0);
 
 	efx_mcdi_execute(enp, &req);
 
@@ -160,12 +169,12 @@ efx_mcdi_vadaptor_alloc(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn		int
+static	__checkReturn		efx_rc_t
 efx_mcdi_vadaptor_free(
 	__in			efx_nic_t *enp,
 	__in			uint32_t port_id)
@@ -173,7 +182,7 @@ efx_mcdi_vadaptor_free(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_VADAPTOR_FREE_IN_LEN,
 			    MC_CMD_VADAPTOR_FREE_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_VADAPTOR_FREE;
@@ -194,12 +203,12 @@ efx_mcdi_vadaptor_free(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_mcdi_get_mac_address_pf(
 	__in			efx_nic_t *enp,
 	__out_ecount_opt(6)	uint8_t mac_addrp[6])
@@ -207,9 +216,10 @@ efx_mcdi_get_mac_address_pf(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_MAC_ADDRESSES_IN_LEN,
 			    MC_CMD_GET_MAC_ADDRESSES_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_MAC_ADDRESSES;
@@ -251,12 +261,12 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_mcdi_get_mac_address_vf(
 	__in			efx_nic_t *enp,
 	__out_ecount_opt(6)	uint8_t mac_addrp[6])
@@ -264,9 +274,10 @@ efx_mcdi_get_mac_address_vf(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_VPORT_GET_MAC_ADDRESSES_IN_LEN,
 			    MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_LENMAX)];
-	int rc;
+	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_VPORT_GET_MAC_ADDRESSES;
@@ -313,12 +324,12 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_mcdi_get_clock(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *sys_freqp)
@@ -326,9 +337,10 @@ efx_mcdi_get_clock(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_CLOCK_IN_LEN,
 			    MC_CMD_GET_CLOCK_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_CLOCK;
@@ -362,12 +374,12 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static 	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_mcdi_get_vector_cfg(
 	__in		efx_nic_t *enp,
 	__out_opt	uint32_t *vec_basep,
@@ -377,7 +389,7 @@ efx_mcdi_get_vector_cfg(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_VECTOR_CFG_IN_LEN,
 			    MC_CMD_GET_VECTOR_CFG_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_VECTOR_CFG;
@@ -410,27 +422,28 @@ efx_mcdi_get_vector_cfg(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_get_capabilities(
 	__in		efx_nic_t *enp,
-	__out		efx_dword_t *flagsp)
+	__out		uint32_t *flagsp,
+	__out		uint32_t *flags2p)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
-			    MC_CMD_GET_CAPABILITIES_OUT_LEN)];
-	int rc;
+			    MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)];
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_CAPABILITIES;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_CAPABILITIES_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_GET_CAPABILITIES_OUT_LEN;
+	req.emr_out_length = MC_CMD_GET_CAPABILITIES_V2_OUT_LEN;
 
 	efx_mcdi_execute(enp, &req);
 
@@ -444,32 +457,37 @@ efx_mcdi_get_capabilities(
 		goto fail2;
 	}
 
-	*flagsp = *MCDI_OUT2(req, efx_dword_t, GET_CAPABILITIES_OUT_FLAGS1);
+	*flagsp = MCDI_OUT_DWORD(req, GET_CAPABILITIES_OUT_FLAGS1);
+
+	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)
+		*flags2p = 0;
+	else
+		*flags2p = MCDI_OUT_DWORD(req, GET_CAPABILITIES_V2_OUT_FLAGS2);
 
 	return (0);
 
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_alloc_vis(
 	__in		efx_nic_t *enp,
 	__in		uint32_t min_vi_count,
 	__in		uint32_t max_vi_count,
-	__out_opt	uint32_t *vi_basep,
-	__out		uint32_t *vi_countp)
-
+	__out		uint32_t *vi_basep,
+	__out		uint32_t *vi_countp,
+	__out		uint32_t *vi_shiftp)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_ALLOC_VIS_IN_LEN,
 			    MC_CMD_ALLOC_VIS_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	if (vi_countp == NULL) {
 		rc = EINVAL;
@@ -498,11 +516,14 @@ efx_mcdi_alloc_vis(
 		goto fail3;
 	}
 
-	if (vi_basep != NULL)
-		*vi_basep = MCDI_OUT_DWORD(req, ALLOC_VIS_OUT_VI_BASE);
+	*vi_basep = MCDI_OUT_DWORD(req, ALLOC_VIS_OUT_VI_BASE);
+	*vi_countp = MCDI_OUT_DWORD(req, ALLOC_VIS_OUT_VI_COUNT);
 
-	if (vi_countp != NULL)
-		*vi_countp = MCDI_OUT_DWORD(req, ALLOC_VIS_OUT_VI_COUNT);
+	/* Report VI_SHIFT if available (always zero for Huntington) */
+	if (req.emr_out_length_used < MC_CMD_ALLOC_VIS_EXT_OUT_LEN)
+		*vi_shiftp = 0;
+	else
+		*vi_shiftp = MCDI_OUT_DWORD(req, ALLOC_VIS_EXT_OUT_VI_SHIFT);
 
 	return (0);
 
@@ -511,18 +532,18 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_free_vis(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_req_t req;
-	int rc;
+	efx_rc_t rc;
 
 	EFX_STATIC_ASSERT(MC_CMD_FREE_VIS_IN_LEN == 0);
 	EFX_STATIC_ASSERT(MC_CMD_FREE_VIS_OUT_LEN == 0);
@@ -544,13 +565,13 @@ efx_mcdi_free_vis(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_alloc_piobuf(
 	__in		efx_nic_t *enp,
 	__out		efx_piobuf_handle_t *handlep)
@@ -558,7 +579,7 @@ efx_mcdi_alloc_piobuf(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_ALLOC_PIOBUF_IN_LEN,
 			    MC_CMD_ALLOC_PIOBUF_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	if (handlep == NULL) {
 		rc = EINVAL;
@@ -593,20 +614,20 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_free_piobuf(
 	__in		efx_nic_t *enp,
-	__out		efx_piobuf_handle_t handle)
+	__in		efx_piobuf_handle_t handle)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_FREE_PIOBUF_IN_LEN,
 			    MC_CMD_FREE_PIOBUF_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FREE_PIOBUF;
@@ -627,12 +648,12 @@ efx_mcdi_free_piobuf(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_link_piobuf(
 	__in		efx_nic_t *enp,
 	__in		uint32_t vi_index,
@@ -641,7 +662,7 @@ efx_mcdi_link_piobuf(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_LINK_PIOBUF_IN_LEN,
 			    MC_CMD_LINK_PIOBUF_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_LINK_PIOBUF;
@@ -663,12 +684,12 @@ efx_mcdi_link_piobuf(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_unlink_piobuf(
 	__in		efx_nic_t *enp,
 	__in		uint32_t vi_index)
@@ -676,7 +697,7 @@ efx_mcdi_unlink_piobuf(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_UNLINK_PIOBUF_IN_LEN,
 			    MC_CMD_UNLINK_PIOBUF_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_UNLINK_PIOBUF;
@@ -697,67 +718,67 @@ efx_mcdi_unlink_piobuf(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 static			void
-hunt_nic_alloc_piobufs(
+ef10_nic_alloc_piobufs(
 	__in		efx_nic_t *enp,
 	__in		uint32_t max_piobuf_count)
 {
 	efx_piobuf_handle_t *handlep;
 	unsigned int i;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(max_piobuf_count, <=,
-	    EFX_ARRAY_SIZE(enp->en_u.hunt.enu_piobuf_handle));
+	    EFX_ARRAY_SIZE(enp->en_arch.ef10.ena_piobuf_handle));
 
-	enp->en_u.hunt.enu_piobuf_count = 0;
+	enp->en_arch.ef10.ena_piobuf_count = 0;
 
 	for (i = 0; i < max_piobuf_count; i++) {
-		handlep = &enp->en_u.hunt.enu_piobuf_handle[i];
+		handlep = &enp->en_arch.ef10.ena_piobuf_handle[i];
 
 		if ((rc = efx_mcdi_alloc_piobuf(enp, handlep)) != 0)
 			goto fail1;
 
-		enp->en_u.hunt.enu_pio_alloc_map[i] = 0;
-		enp->en_u.hunt.enu_piobuf_count++;
+		enp->en_arch.ef10.ena_pio_alloc_map[i] = 0;
+		enp->en_arch.ef10.ena_piobuf_count++;
 	}
 
 	return;
 
 fail1:
-	for (i = 0; i < enp->en_u.hunt.enu_piobuf_count; i++) {
-		handlep = &enp->en_u.hunt.enu_piobuf_handle[i];
+	for (i = 0; i < enp->en_arch.ef10.ena_piobuf_count; i++) {
+		handlep = &enp->en_arch.ef10.ena_piobuf_handle[i];
 
 		efx_mcdi_free_piobuf(enp, *handlep);
 		*handlep = EFX_PIOBUF_HANDLE_INVALID;
 	}
-	enp->en_u.hunt.enu_piobuf_count = 0;
+	enp->en_arch.ef10.ena_piobuf_count = 0;
 }
 
 
 static			void
-hunt_nic_free_piobufs(
+ef10_nic_free_piobufs(
 	__in		efx_nic_t *enp)
 {
 	efx_piobuf_handle_t *handlep;
 	unsigned int i;
 
-	for (i = 0; i < enp->en_u.hunt.enu_piobuf_count; i++) {
-		handlep = &enp->en_u.hunt.enu_piobuf_handle[i];
+	for (i = 0; i < enp->en_arch.ef10.ena_piobuf_count; i++) {
+		handlep = &enp->en_arch.ef10.ena_piobuf_handle[i];
 
 		efx_mcdi_free_piobuf(enp, *handlep);
 		*handlep = EFX_PIOBUF_HANDLE_INVALID;
 	}
-	enp->en_u.hunt.enu_piobuf_count = 0;
+	enp->en_arch.ef10.ena_piobuf_count = 0;
 }
 
 /* Sub-allocate a block from a piobuf */
-	__checkReturn	int
-hunt_nic_pio_alloc(
+	__checkReturn	efx_rc_t
+ef10_nic_pio_alloc(
 	__inout		efx_nic_t *enp,
 	__out		uint32_t *bufnump,
 	__out		efx_piobuf_handle_t *handlep,
@@ -765,12 +786,14 @@ hunt_nic_pio_alloc(
 	__out		uint32_t *offsetp,
 	__out		size_t *sizep)
 {
+	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_drv_cfg_t *edcp = &enp->en_drv_cfg;
 	uint32_t blk_per_buf;
 	uint32_t buf, blk;
-	int rc;
+	efx_rc_t rc;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 	EFSYS_ASSERT(bufnump);
 	EFSYS_ASSERT(handlep);
 	EFSYS_ASSERT(blknump);
@@ -778,14 +801,14 @@ hunt_nic_pio_alloc(
 	EFSYS_ASSERT(sizep);
 
 	if ((edcp->edc_pio_alloc_size == 0) ||
-	    (enp->en_u.hunt.enu_piobuf_count == 0)) {
+	    (enp->en_arch.ef10.ena_piobuf_count == 0)) {
 		rc = ENOMEM;
 		goto fail1;
 	}
-	blk_per_buf = HUNT_PIOBUF_SIZE / edcp->edc_pio_alloc_size;
+	blk_per_buf = encp->enc_piobuf_size / edcp->edc_pio_alloc_size;
 
-	for (buf = 0; buf < enp->en_u.hunt.enu_piobuf_count; buf++) {
-		uint32_t *map = &enp->en_u.hunt.enu_pio_alloc_map[buf];
+	for (buf = 0; buf < enp->en_arch.ef10.ena_piobuf_count; buf++) {
+		uint32_t *map = &enp->en_arch.ef10.ena_pio_alloc_map[buf];
 
 		if (~(*map) == 0)
 			continue;
@@ -802,7 +825,7 @@ hunt_nic_pio_alloc(
 	goto fail2;
 
 done:
-	*handlep = enp->en_u.hunt.enu_piobuf_handle[buf];
+	*handlep = enp->en_arch.ef10.ena_piobuf_handle[buf];
 	*bufnump = buf;
 	*blknump = blk;
 	*sizep = edcp->edc_pio_alloc_size;
@@ -813,28 +836,28 @@ done:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 /* Free a piobuf sub-allocated block */
-	__checkReturn	int
-hunt_nic_pio_free(
+	__checkReturn	efx_rc_t
+ef10_nic_pio_free(
 	__inout		efx_nic_t *enp,
 	__in		uint32_t bufnum,
 	__in		uint32_t blknum)
 {
 	uint32_t *map;
-	int rc;
+	efx_rc_t rc;
 
-	if ((bufnum >= enp->en_u.hunt.enu_piobuf_count) ||
+	if ((bufnum >= enp->en_arch.ef10.ena_piobuf_count) ||
 	    (blknum >= (8 * sizeof (*map)))) {
 		rc = EINVAL;
 		goto fail1;
 	}
 
-	map = &enp->en_u.hunt.enu_pio_alloc_map[bufnum];
+	map = &enp->en_arch.ef10.ena_pio_alloc_map[bufnum];
 	if ((*map & (1u << blknum)) == 0) {
 		rc = ENOENT;
 		goto fail2;
@@ -846,13 +869,13 @@ hunt_nic_pio_free(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
-hunt_nic_pio_link(
+	__checkReturn	efx_rc_t
+ef10_nic_pio_link(
 	__inout		efx_nic_t *enp,
 	__in		uint32_t vi_index,
 	__in		efx_piobuf_handle_t handle)
@@ -860,75 +883,129 @@ hunt_nic_pio_link(
 	return (efx_mcdi_link_piobuf(enp, vi_index, handle));
 }
 
-	__checkReturn	int
-hunt_nic_pio_unlink(
+	__checkReturn	efx_rc_t
+ef10_nic_pio_unlink(
 	__inout		efx_nic_t *enp,
 	__in		uint32_t vi_index)
 {
 	return (efx_mcdi_unlink_piobuf(enp, vi_index));
 }
 
-static	__checkReturn	int
-hunt_get_datapath_caps(
+	__checkReturn	efx_rc_t
+ef10_get_datapath_caps(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	efx_dword_t datapath_capabilities;
-	int rc;
+	uint32_t flags;
+	uint32_t flags2;
+	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_get_capabilities(enp, &datapath_capabilities)) != 0)
+	if ((rc = efx_mcdi_get_capabilities(enp, &flags, &flags2)) != 0)
 		goto fail1;
+
+#define	CAP_FLAG(flags1, field)		\
+	((flags1) & (1 << (MC_CMD_GET_CAPABILITIES_V2_OUT_ ## field ## _LBN)))
+
+#define	CAP_FLAG2(flags2, field)	\
+	((flags2) & (1 << (MC_CMD_GET_CAPABILITIES_V2_OUT_ ## field ## _LBN)))
 
 	/*
 	 * Huntington RXDP firmware inserts a 0 or 14 byte prefix.
 	 * We only support the 14 byte prefix here.
 	 */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-		GET_CAPABILITIES_OUT_RX_PREFIX_LEN_14) != 1) {
+	if (CAP_FLAG(flags, RX_PREFIX_LEN_14) == 0) {
 		rc = ENOTSUP;
 		goto fail2;
 	}
 	encp->enc_rx_prefix_size = 14;
 
 	/* Check if the firmware supports TSO */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-				GET_CAPABILITIES_OUT_TX_TSO) == 1)
-		encp->enc_fw_assisted_tso_enabled = B_TRUE;
-	else
-		encp->enc_fw_assisted_tso_enabled = B_FALSE;
+	encp->enc_fw_assisted_tso_enabled =
+	    CAP_FLAG(flags, TX_TSO) ? B_TRUE : B_FALSE;
+
+	/* Check if the firmware supports FATSOv2 */
+	encp->enc_fw_assisted_tso_v2_enabled =
+	    CAP_FLAG2(flags2, TX_TSO_V2) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware has vadapter/vport/vswitch support */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-				GET_CAPABILITIES_OUT_EVB) == 1)
-		encp->enc_datapath_cap_evb = B_TRUE;
-	else
-		encp->enc_datapath_cap_evb = B_FALSE;
+	encp->enc_datapath_cap_evb =
+	    CAP_FLAG(flags, EVB) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware supports VLAN insertion */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-				GET_CAPABILITIES_OUT_TX_VLAN_INSERTION) == 1)
-		encp->enc_hw_tx_insert_vlan_enabled = B_TRUE;
-	else
-		encp->enc_hw_tx_insert_vlan_enabled = B_FALSE;
+	encp->enc_hw_tx_insert_vlan_enabled =
+	    CAP_FLAG(flags, TX_VLAN_INSERTION) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware supports RX event batching */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-		GET_CAPABILITIES_OUT_RX_BATCHING) == 1) {
-		encp->enc_rx_batching_enabled = B_TRUE;
+	encp->enc_rx_batching_enabled =
+	    CAP_FLAG(flags, RX_BATCHING) ? B_TRUE : B_FALSE;
+
+	if (encp->enc_rx_batching_enabled)
 		encp->enc_rx_batch_max = 16;
-	} else {
-		encp->enc_rx_batching_enabled = B_FALSE;
-	}
+
+	/* Check if the firmware supports disabling scatter on RXQs */
+	encp->enc_rx_disable_scatter_supported =
+	    CAP_FLAG(flags, RX_DISABLE_SCATTER) ? B_TRUE : B_FALSE;
+
+	/* Check if the firmware supports set mac with running filters */
+	encp->enc_allow_set_mac_with_installed_filters =
+	    CAP_FLAG(flags, VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED) ?
+	    B_TRUE : B_FALSE;
+
+	/*
+	 * Check if firmware supports the extended MC_CMD_SET_MAC, which allows
+	 * specifying which parameters to configure.
+	 */
+	encp->enc_enhanced_set_mac_supported =
+		CAP_FLAG(flags, SET_MAC_ENHANCED) ? B_TRUE : B_FALSE;
+
+#undef CAP_FLAG
+#undef CAP_FLAG2
 
 	return (0);
 
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
+
+
+	__checkReturn		efx_rc_t
+ef10_get_privilege_mask(
+	__in			efx_nic_t *enp,
+	__out			uint32_t *maskp)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t mask;
+	efx_rc_t rc;
+
+	if ((rc = efx_mcdi_privilege_mask(enp, encp->enc_pf, encp->enc_vf,
+					    &mask)) != 0) {
+		if (rc != ENOTSUP)
+			goto fail1;
+
+		/* Fallback for old firmware without privilege mask support */
+		if (EFX_PCI_FUNCTION_IS_PF(encp)) {
+			/* Assume PF has admin privilege */
+			mask = EF10_LEGACY_PF_PRIVILEGE_MASK;
+		} else {
+			/* VF is always unprivileged by default */
+			mask = EF10_LEGACY_VF_PRIVILEGE_MASK;
+		}
+	}
+
+	*maskp = mask;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 
 /*
  * The external port mapping is a one-based numbering of the external
@@ -943,33 +1020,55 @@ static struct {
 	efx_family_t	family;
 	uint32_t	modes_mask;
 	uint32_t	stride;
-}	__hunt_external_port_mappings[] = {
+}	__ef10_external_port_mappings[] = {
 	/* Supported modes requiring 1 output per port */
 	{
 		EFX_FAMILY_HUNTINGTON,
 		(1 << TLV_PORT_MODE_10G) |
-		(1 << TLV_PORT_MODE_40G) |
 		(1 << TLV_PORT_MODE_10G_10G) |
-		(1 << TLV_PORT_MODE_40G_40G),
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G),
+		1
+	},
+	{
+		EFX_FAMILY_MEDFORD,
+		(1 << TLV_PORT_MODE_10G) |
+		(1 << TLV_PORT_MODE_10G_10G) |
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G),
 		1
 	},
 	/* Supported modes requiring 2 outputs per port */
 	{
 		EFX_FAMILY_HUNTINGTON,
-		(1 << TLV_PORT_MODE_10G_10G_10G_10G) |
+		(1 << TLV_PORT_MODE_40G) |
+		(1 << TLV_PORT_MODE_40G_40G) |
 		(1 << TLV_PORT_MODE_40G_10G_10G) |
 		(1 << TLV_PORT_MODE_10G_10G_40G),
 		2
-	}
+	},
+	{
+		EFX_FAMILY_MEDFORD,
+		(1 << TLV_PORT_MODE_40G) |
+		(1 << TLV_PORT_MODE_40G_40G) |
+		(1 << TLV_PORT_MODE_40G_10G_10G) |
+		(1 << TLV_PORT_MODE_10G_10G_40G),
+		2
+	},
+	/* Supported modes requiring 4 outputs per port */
+	{
+		EFX_FAMILY_MEDFORD,
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q) |
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q2),
+		4
+	},
 };
 
-static	__checkReturn	int
-hunt_external_port_mapping(
+	__checkReturn	efx_rc_t
+ef10_external_port_mapping(
 	__in		efx_nic_t *enp,
 	__in		uint32_t port,
 	__out		uint8_t *external_portp)
 {
-	int rc;
+	efx_rc_t rc;
 	int i;
 	uint32_t port_modes;
 	uint32_t matches;
@@ -984,14 +1083,14 @@ hunt_external_port_mapping(
 	 * Infer the internal port -> external port mapping from
 	 * the possible port modes for this NIC.
 	 */
-	for (i = 0; i < EFX_ARRAY_SIZE(__hunt_external_port_mappings); ++i) {
-		if (__hunt_external_port_mappings[i].family !=
+	for (i = 0; i < EFX_ARRAY_SIZE(__ef10_external_port_mappings); ++i) {
+		if (__ef10_external_port_mappings[i].family !=
 		    enp->en_family)
 			continue;
-		matches = (__hunt_external_port_mappings[i].modes_mask &
+		matches = (__ef10_external_port_mappings[i].modes_mask &
 		    port_modes);
 		if (matches != 0) {
-			stride = __hunt_external_port_mappings[i].stride;
+			stride = __ef10_external_port_mappings[i].stride;
 			port_modes &= ~matches;
 		}
 	}
@@ -1011,12 +1110,12 @@ out:
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_board_cfg(
 	__in		efx_nic_t *enp)
 {
@@ -1024,7 +1123,7 @@ hunt_board_cfg(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint8_t mac_addr[6];
 	uint32_t board_type = 0;
-	hunt_link_state_t hls;
+	ef10_link_state_t els;
 	efx_port_t *epp = &(enp->en_port);
 	uint32_t port;
 	uint32_t pf;
@@ -1033,7 +1132,7 @@ hunt_board_cfg(
 	uint32_t flags;
 	uint32_t sysclk;
 	uint32_t base, nvec;
-	int rc;
+	efx_rc_t rc;
 
 	if ((rc = efx_mcdi_get_port_assignment(enp, &port)) != 0)
 		goto fail1;
@@ -1044,7 +1143,7 @@ hunt_board_cfg(
 	 */
 	emip->emi_port = port + 1;
 
-	if ((rc = hunt_external_port_mapping(enp, port,
+	if ((rc = ef10_external_port_mapping(enp, port,
 		    &encp->enc_external_port)) != 0)
 		goto fail2;
 
@@ -1063,17 +1162,17 @@ hunt_board_cfg(
 	/* MAC address for this function */
 	if (EFX_PCI_FUNCTION_IS_PF(encp)) {
 		rc = efx_mcdi_get_mac_address_pf(enp, mac_addr);
+		if ((rc == 0) && (mac_addr[0] & 0x02)) {
+			/*
+			 * If the static config does not include a global MAC
+			 * address pool then the board may return a locally
+			 * administered MAC address (this should only happen on
+			 * incorrectly programmed boards).
+			 */
+			rc = EINVAL;
+		}
 	} else {
 		rc = efx_mcdi_get_mac_address_vf(enp, mac_addr);
-	}
-	if ((rc == 0) && (mac_addr[0] & 0x02)) {
-		/*
-		 * If the static config does not include a global MAC address
-		 * pool then the board may return a locally administered MAC
-		 * address (this should only happen on incorrectly programmed
-		 * boards).
-		 */
-		rc = EINVAL;
 	}
 	if (rc != 0)
 		goto fail4;
@@ -1098,10 +1197,10 @@ hunt_board_cfg(
 		goto fail6;
 
 	/* Obtain the default PHY advertised capabilities */
-	if ((rc = hunt_phy_get_link(enp, &hls)) != 0)
+	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
 		goto fail7;
-	epp->ep_default_adv_cap_mask = hls.hls_adv_cap_mask;
-	epp->ep_adv_cap_mask = hls.hls_adv_cap_mask;
+	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
+	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
 
 	/*
 	 * Enable firmware workarounds for hardware errata.
@@ -1208,7 +1307,7 @@ hunt_board_cfg(
 	}
 
 	/* Check capabilities of running datapath firmware */
-	if ((rc = hunt_get_datapath_caps(enp)) != 0)
+	if ((rc = ef10_get_datapath_caps(enp)) != 0)
 	    goto fail12;
 
 	/* Alignment for receive packet DMA buffers */
@@ -1216,7 +1315,7 @@ hunt_board_cfg(
 	encp->enc_rx_buf_align_end = 64; /* RX DMA end padding */
 
 	/* Alignment for WPTR updates */
-	encp->enc_rx_push_align = HUNTINGTON_RX_WPTR_ALIGN;
+	encp->enc_rx_push_align = EF10_RX_WPTR_ALIGN;
 
 	/*
 	 * Set resource limits for MC_CMD_ALLOC_VIS. Note that we cannot use
@@ -1232,6 +1331,7 @@ hunt_board_cfg(
 
 	encp->enc_piobuf_limit = HUNT_PIOBUF_NBUFS;
 	encp->enc_piobuf_size = HUNT_PIOBUF_SIZE;
+	encp->enc_piobuf_min_alloc_size = HUNT_MIN_PIO_ALLOC_SIZE;
 
 	/*
 	 * Get the current privilege mask. Note that this may be modified
@@ -1239,20 +1339,8 @@ hunt_board_cfg(
 	 * the privilege mask to check for sufficient privileges, as that
 	 * can result in time-of-check/time-of-use bugs.
 	 */
-	if ((rc = efx_mcdi_privilege_mask(enp, pf, vf, &mask)) != 0) {
-		if (rc != ENOTSUP)
-			goto fail13;
-
-		/* Fallback for old firmware without privilege mask support */
-		if (EFX_PCI_FUNCTION_IS_PF(encp)) {
-			/* Assume PF has admin privilege */
-			mask = HUNT_LEGACY_PF_PRIVILEGE_MASK;
-		} else {
-			/* VF is always unprivileged by default */
-			mask = HUNT_LEGACY_VF_PRIVILEGE_MASK;
-		}
-	}
-
+	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
+		goto fail13;
 	encp->enc_privilege_mask = mask;
 
 	/* Get interrupt vector limits */
@@ -1271,7 +1359,7 @@ hunt_board_cfg(
 	 * Maximum number of bytes into the frame the TCP header can start for
 	 * firmware assisted TSO to work.
 	 */
-	encp->enc_tx_tso_tcp_header_offset_limit = 208;
+	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
 
 	return (0);
 
@@ -1302,21 +1390,23 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-	__checkReturn	int
-hunt_nic_probe(
+	__checkReturn	efx_rc_t
+ef10_nic_probe(
 	__in		efx_nic_t *enp)
 {
+	efx_nic_ops_t *enop = enp->en_enop;
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_drv_cfg_t *edcp = &(enp->en_drv_cfg);
-	int rc;
+	efx_rc_t rc;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/* Read and clear any assertion state */
 	if ((rc = efx_mcdi_read_assertion(enp)) != 0)
@@ -1330,7 +1420,7 @@ hunt_nic_probe(
 	if ((rc = efx_mcdi_drv_attach(enp, B_TRUE)) != 0)
 		goto fail3;
 
-	if ((rc = hunt_board_cfg(enp)) != 0)
+	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
 			goto fail4;
 
@@ -1390,13 +1480,13 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
-hunt_nic_set_drv_limits(
+	__checkReturn	efx_rc_t
+ef10_nic_set_drv_limits(
 	__inout		efx_nic_t *enp,
 	__in		efx_drv_limits_t *edlp)
 {
@@ -1405,7 +1495,7 @@ hunt_nic_set_drv_limits(
 	uint32_t min_evq_count, max_evq_count;
 	uint32_t min_rxq_count, max_rxq_count;
 	uint32_t min_txq_count, max_txq_count;
-	int rc;
+	efx_rc_t rc;
 
 	if (edlp == NULL) {
 		rc = EINVAL;
@@ -1442,7 +1532,8 @@ hunt_nic_set_drv_limits(
 		uint32_t blk_size, blk_count, blks_per_piobuf;
 
 		blk_size =
-		    MAX(edlp->edl_min_pio_alloc_size, HUNT_MIN_PIO_ALLOC_SIZE);
+		    MAX(edlp->edl_min_pio_alloc_size,
+			    encp->enc_piobuf_min_alloc_size);
 
 		blks_per_piobuf = encp->enc_piobuf_size / blk_size;
 		EFSYS_ASSERT3U(blks_per_piobuf, <=, 32);
@@ -1463,22 +1554,22 @@ hunt_nic_set_drv_limits(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-	__checkReturn	int
-hunt_nic_reset(
+	__checkReturn	efx_rc_t
+ef10_nic_reset(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_ENTITY_RESET_IN_LEN,
 			    MC_CMD_ENTITY_RESET_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
-	/* hunt_nic_reset() is called to recover from BADASSERT failures. */
+	/* ef10_nic_reset() is called to recover from BADASSERT failures. */
 	if ((rc = efx_mcdi_read_assertion(enp)) != 0)
 		goto fail1;
 	if ((rc = efx_mcdi_exit_assertion_handler(enp)) != 0)
@@ -1511,29 +1602,32 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
-hunt_nic_init(
+	__checkReturn	efx_rc_t
+ef10_nic_init(
 	__in		efx_nic_t *enp)
 {
 	efx_drv_cfg_t *edcp = &(enp->en_drv_cfg);
 	uint32_t min_vi_count, max_vi_count;
-	uint32_t vi_count, vi_base;
+	uint32_t vi_count, vi_base, vi_shift;
 	uint32_t i;
-	int rc;
+	uint32_t retry;
+	uint32_t delay_us;
+	efx_rc_t rc;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/* Enable reporting of some events (e.g. link change) */
 	if ((rc = efx_mcdi_log_ctrl(enp)) != 0)
 		goto fail1;
 
 	/* Allocate (optional) on-chip PIO buffers */
-	hunt_nic_alloc_piobufs(enp, edcp->edc_max_piobuf_count);
+	ef10_nic_alloc_piobufs(enp, edcp->edc_max_piobuf_count);
 
 	/*
 	 * For best performance, PIO writes should use a write-combined
@@ -1549,7 +1643,8 @@ hunt_nic_init(
 	 * each VI that is using a sub-allocated block from the piobuf.
 	 */
 	min_vi_count = edcp->edc_min_vi_count;
-	max_vi_count = edcp->edc_max_vi_count + enp->en_u.hunt.enu_piobuf_count;
+	max_vi_count =
+	    edcp->edc_max_vi_count + enp->en_arch.ef10.ena_piobuf_count;
 
 	/* Ensure that the previously attached driver's VIs are freed */
 	if ((rc = efx_mcdi_free_vis(enp)) != 0)
@@ -1561,7 +1656,7 @@ hunt_nic_init(
 	 */
 	vi_count = 0;
 	if ((rc = efx_mcdi_alloc_vis(enp, min_vi_count, max_vi_count,
-		    &vi_base, &vi_count)) != 0)
+		    &vi_base, &vi_count, &vi_shift)) != 0)
 		goto fail3;
 
 	EFSYS_PROBE2(vi_alloc, uint32_t, vi_base, uint32_t, vi_count);
@@ -1571,57 +1666,93 @@ hunt_nic_init(
 		goto fail4;
 	}
 
-	enp->en_u.hunt.enu_vi_base = vi_base;
-	enp->en_u.hunt.enu_vi_count = vi_count;
+	enp->en_arch.ef10.ena_vi_base = vi_base;
+	enp->en_arch.ef10.ena_vi_count = vi_count;
+	enp->en_arch.ef10.ena_vi_shift = vi_shift;
 
-	if (vi_count < min_vi_count + enp->en_u.hunt.enu_piobuf_count) {
+	if (vi_count < min_vi_count + enp->en_arch.ef10.ena_piobuf_count) {
 		/* Not enough extra VIs to map piobufs */
-		hunt_nic_free_piobufs(enp);
+		ef10_nic_free_piobufs(enp);
 	}
 
-	enp->en_u.hunt.enu_pio_write_vi_base =
-	    vi_count - enp->en_u.hunt.enu_piobuf_count;
+	enp->en_arch.ef10.ena_pio_write_vi_base =
+	    vi_count - enp->en_arch.ef10.ena_piobuf_count;
 
 	/* Save UC memory mapping details */
-	enp->en_u.hunt.enu_uc_mem_map_offset = 0;
-	if (enp->en_u.hunt.enu_piobuf_count > 0) {
-		enp->en_u.hunt.enu_uc_mem_map_size =
+	enp->en_arch.ef10.ena_uc_mem_map_offset = 0;
+	if (enp->en_arch.ef10.ena_piobuf_count > 0) {
+		enp->en_arch.ef10.ena_uc_mem_map_size =
 		    (ER_DZ_TX_PIOBUF_STEP *
-		    enp->en_u.hunt.enu_pio_write_vi_base);
+		    enp->en_arch.ef10.ena_pio_write_vi_base);
 	} else {
-		enp->en_u.hunt.enu_uc_mem_map_size =
+		enp->en_arch.ef10.ena_uc_mem_map_size =
 		    (ER_DZ_TX_PIOBUF_STEP *
-		    enp->en_u.hunt.enu_vi_count);
+		    enp->en_arch.ef10.ena_vi_count);
 	}
 
 	/* Save WC memory mapping details */
-	enp->en_u.hunt.enu_wc_mem_map_offset =
-	    enp->en_u.hunt.enu_uc_mem_map_offset +
-	    enp->en_u.hunt.enu_uc_mem_map_size;
+	enp->en_arch.ef10.ena_wc_mem_map_offset =
+	    enp->en_arch.ef10.ena_uc_mem_map_offset +
+	    enp->en_arch.ef10.ena_uc_mem_map_size;
 
-	enp->en_u.hunt.enu_wc_mem_map_size =
+	enp->en_arch.ef10.ena_wc_mem_map_size =
 	    (ER_DZ_TX_PIOBUF_STEP *
-	    enp->en_u.hunt.enu_piobuf_count);
+	    enp->en_arch.ef10.ena_piobuf_count);
 
 	/* Link piobufs to extra VIs in WC mapping */
-	if (enp->en_u.hunt.enu_piobuf_count > 0) {
-		for (i = 0; i < enp->en_u.hunt.enu_piobuf_count; i++) {
+	if (enp->en_arch.ef10.ena_piobuf_count > 0) {
+		for (i = 0; i < enp->en_arch.ef10.ena_piobuf_count; i++) {
 			rc = efx_mcdi_link_piobuf(enp,
-			    enp->en_u.hunt.enu_pio_write_vi_base + i,
-			    enp->en_u.hunt.enu_piobuf_handle[i]);
+			    enp->en_arch.ef10.ena_pio_write_vi_base + i,
+			    enp->en_arch.ef10.ena_piobuf_handle[i]);
 			if (rc != 0)
 				break;
 		}
 	}
 
-	/* Allocate a vAdapter attached to our upstream vPort/pPort */
-	if ((rc = efx_mcdi_vadaptor_alloc(enp, EVB_PORT_ID_ASSIGNED)) != 0)
-		goto fail5;
+	/*
+	 * Allocate a vAdaptor attached to our upstream vPort/pPort.
+	 *
+	 * On a VF, this may fail with MC_CMD_ERR_NO_EVB_PORT (ENOENT) if the PF
+	 * driver has yet to bring up the EVB port. See bug 56147. In this case,
+	 * retry the request several times after waiting a while. The wait time
+	 * between retries starts small (10ms) and exponentially increases.
+	 * Total wait time is a little over two seconds. Retry logic in the
+	 * client driver may mean this whole loop is repeated if it continues to
+	 * fail.
+	 */
+	retry = 0;
+	delay_us = 10000;
+	while ((rc = efx_mcdi_vadaptor_alloc(enp, EVB_PORT_ID_ASSIGNED)) != 0) {
+		if (EFX_PCI_FUNCTION_IS_PF(&enp->en_nic_cfg) ||
+		    (rc != ENOENT)) {
+			/*
+			 * Do not retry alloc for PF, or for other errors on
+			 * a VF.
+			 */
+			goto fail5;
+		}
+
+		/* VF startup before PF is ready. Retry allocation. */
+		if (retry > 5) {
+			/* Too many attempts */
+			rc = EINVAL;
+			goto fail6;
+		}
+		EFSYS_PROBE1(mcdi_no_evb_port_retry, int, retry);
+		EFSYS_SLEEP(delay_us);
+		retry++;
+		if (delay_us < 500000)
+			delay_us <<= 2;
+	}
 
 	enp->en_vport_id = EVB_PORT_ID_ASSIGNED;
+	enp->en_nic_cfg.enc_mcdi_max_payload_length = MCDI_CTL_SDU_LEN_MAX_V2;
 
 	return (0);
 
+fail6:
+	EFSYS_PROBE(fail6);
 fail5:
 	EFSYS_PROBE(fail5);
 fail4:
@@ -1631,40 +1762,42 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 
-	hunt_nic_free_piobufs(enp);
+	ef10_nic_free_piobufs(enp);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
-hunt_nic_get_vi_pool(
+	__checkReturn	efx_rc_t
+ef10_nic_get_vi_pool(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *vi_countp)
 {
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/*
 	 * Report VIs that the client driver can use.
 	 * Do not include VIs used for PIO buffer writes.
 	 */
-	*vi_countp = enp->en_u.hunt.enu_pio_write_vi_base;
+	*vi_countp = enp->en_arch.ef10.ena_pio_write_vi_base;
 
 	return (0);
 }
 
-	__checkReturn	int
-hunt_nic_get_bar_region(
+	__checkReturn	efx_rc_t
+ef10_nic_get_bar_region(
 	__in		efx_nic_t *enp,
 	__in		efx_nic_region_t region,
 	__out		uint32_t *offsetp,
 	__out		size_t *sizep)
 {
-	int rc;
+	efx_rc_t rc;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/*
 	 * TODO: Specify host memory mapping alignment and granularity
@@ -1674,14 +1807,14 @@ hunt_nic_get_bar_region(
 	switch (region) {
 	case EFX_REGION_VI:
 		/* UC mapped memory BAR region for VI registers */
-		*offsetp = enp->en_u.hunt.enu_uc_mem_map_offset;
-		*sizep = enp->en_u.hunt.enu_uc_mem_map_size;
+		*offsetp = enp->en_arch.ef10.ena_uc_mem_map_offset;
+		*sizep = enp->en_arch.ef10.ena_uc_mem_map_size;
 		break;
 
 	case EFX_REGION_PIO_WRITE_VI:
 		/* WC mapped memory BAR region for piobuf writes */
-		*offsetp = enp->en_u.hunt.enu_wc_mem_map_offset;
-		*sizep = enp->en_u.hunt.enu_wc_mem_map_size;
+		*offsetp = enp->en_arch.ef10.ena_wc_mem_map_offset;
+		*sizep = enp->en_arch.ef10.ena_wc_mem_map_size;
 		break;
 
 	default:
@@ -1692,27 +1825,39 @@ hunt_nic_get_bar_region(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 			void
-hunt_nic_fini(
+ef10_nic_fini(
 	__in		efx_nic_t *enp)
 {
+	uint32_t i;
+	efx_rc_t rc;
+
 	(void) efx_mcdi_vadaptor_free(enp, enp->en_vport_id);
 	enp->en_vport_id = 0;
 
-	/* FIXME: do we need to unlink piobufs ? */
-	hunt_nic_free_piobufs(enp);
+	/* Unlink piobufs from extra VIs in WC mapping */
+	if (enp->en_arch.ef10.ena_piobuf_count > 0) {
+		for (i = 0; i < enp->en_arch.ef10.ena_piobuf_count; i++) {
+			rc = efx_mcdi_unlink_piobuf(enp,
+			    enp->en_arch.ef10.ena_pio_write_vi_base + i);
+			if (rc != 0)
+				break;
+		}
+	}
+
+	ef10_nic_free_piobufs(enp);
 
 	(void) efx_mcdi_free_vis(enp);
-	enp->en_u.hunt.enu_vi_count = 0;
+	enp->en_arch.ef10.ena_vi_count = 0;
 }
 
 			void
-hunt_nic_unprobe(
+ef10_nic_unprobe(
 	__in		efx_nic_t *enp)
 {
 #if EFSYS_OPT_MON_STATS
@@ -1723,11 +1868,11 @@ hunt_nic_unprobe(
 
 #if EFSYS_OPT_DIAG
 
-	__checkReturn	int
-hunt_nic_register_test(
+	__checkReturn	efx_rc_t
+ef10_nic_register_test(
 	__in		efx_nic_t *enp)
 {
-	int rc;
+	efx_rc_t rc;
 
 	/* FIXME */
 	_NOTE(ARGUNUSED(enp))
@@ -1740,7 +1885,7 @@ hunt_nic_register_test(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

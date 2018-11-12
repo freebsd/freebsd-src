@@ -51,9 +51,7 @@ __FBSDID("$FreeBSD$");
 #define	ISP_2300	1
 #define	ISP_2322	1
 #define	ISP_2400	1
-#define	ISP_2400_MULTI	1
 #define	ISP_2500	1
-#define	ISP_2500_MULTI	1
 #endif
 
 #ifndef MODULE_NAME
@@ -88,10 +86,10 @@ __FBSDID("$FreeBSD$");
 #if	defined(ISP_2322)
 #include <dev/ispfw/asm_2322.h>
 #endif
-#if	defined(ISP_2400) || defined(ISP_2400_MULTI)
+#if	defined(ISP_2400)
 #include <dev/ispfw/asm_2400.h>
 #endif
-#if	defined(ISP_2500) || defined(ISP_2500_MULTI)
+#if	defined(ISP_2500)
 #include <dev/ispfw/asm_2500.h>
 #endif
 
@@ -101,20 +99,11 @@ static int	isp_1000_loaded;
 #if	defined(ISP_1040)
 static int	isp_1040_loaded;
 #endif
-#if	defined(ISP_1040_IT)
-static int	isp_1040_it_loaded;
-#endif
 #if	defined(ISP_1080)
 static int	isp_1080_loaded;
 #endif
-#if	defined(ISP_1080_IT)
-static int	isp_1080_it_loaded;
-#endif
 #if	defined(ISP_12160)
 static int	isp_12160_loaded;
-#endif
-#if	defined(ISP_12160_IT)
-static int	isp_12160_it_loaded;
 #endif
 #if	defined(ISP_2100)
 static int	isp_2100_loaded;
@@ -131,55 +120,33 @@ static int	isp_2322_loaded;
 #if	defined(ISP_2400)
 static int	isp_2400_loaded;
 #endif
-#if	defined(ISP_2400_MULTI)
-static int	isp_2400_multi_loaded;
-#endif
 #if	defined(ISP_2500)
 static int	isp_2500_loaded;
 #endif
-#if	defined(ISP_2500_MULTI)
-static int	isp_2500_multi_loaded;
-#endif
 
 #define	ISPFW_VERSION	1
-
-#if	!defined(KLD_MODULE)
-#define	ISPFW_KLD	0
-#else
-#define	ISPFW_KLD	1
-#endif
 
 #define	RMACRO(token)	do {						\
 	if (token##_loaded)						\
 		break;							\
 	if (firmware_register(#token, token##_risc_code,		\
 	    token##_risc_code[3] * sizeof(token##_risc_code[3]),	\
-	    ISPFW_VERSION, NULL) == NULL) {				\
-		printf("%s: unable to register firmware <%s>\n",	\
-		    MODULE_NAME, #token);				\
+	    ISPFW_VERSION, NULL) == NULL)				\
 		break;							\
-	}								\
 	token##_loaded++;						\
-	if (bootverbose || ISPFW_KLD)					\
-		printf("%s: registered firmware <%s>\n", MODULE_NAME, 	\
-		    #token);						\
 } while (0)
 
 #define	UMACRO(token)	do {						\
 	if (!token##_loaded)						\
 		break;							\
 	if (firmware_unregister(#token) != 0) {				\
-		printf("%s: unable to unregister firmware <%s>\n",	\
-		    MODULE_NAME, #token);				\
+		error = EBUSY;						\
 		break;							\
 	}								\
 	token##_loaded--;						\
-	if (bootverbose || ISPFW_KLD)					\
-		printf("%s: unregistered firmware <%s>\n", MODULE_NAME,	\
-		    #token);						\
 } while (0)
 
-static void
+static int
 do_load_fw(void)
 {
 
@@ -189,20 +156,11 @@ do_load_fw(void)
 #if	defined(ISP_1040)
 	RMACRO(isp_1040);
 #endif
-#if	defined(ISP_1040_IT)
-	RMACRO(isp_1040_it);
-#endif
 #if	defined(ISP_1080)
 	RMACRO(isp_1080);
 #endif
-#if	defined(ISP_1080_IT)
-	RMACRO(isp_1080_it);
-#endif
 #if	defined(ISP_12160)
 	RMACRO(isp_12160);
-#endif
-#if	defined(ISP_12160_IT)
-	RMACRO(isp_12160_it);
 #endif
 #if	defined(ISP_2100)
 	RMACRO(isp_2100);
@@ -219,20 +177,16 @@ do_load_fw(void)
 #if	defined(ISP_2400)
 	RMACRO(isp_2400);
 #endif
-#if	defined(ISP_2400_MULTI)
-	RMACRO(isp_2400_multi);
-#endif
 #if	defined(ISP_2500)
 	RMACRO(isp_2500);
 #endif
-#if	defined(ISP_2500_MULTI)
-	RMACRO(isp_2500_multi);
-#endif
+	return (0);
 }
 
-static void
+static int
 do_unload_fw(void)
 {
+	int error = 0;
 
 #if	defined(ISP_1000)
 	UMACRO(isp_1000);
@@ -240,20 +194,11 @@ do_unload_fw(void)
 #if	defined(ISP_1040)
 	UMACRO(isp_1040);
 #endif
-#if	defined(ISP_1040_IT)
-	UMACRO(isp_1040_it);
-#endif
 #if	defined(ISP_1080)
 	UMACRO(isp_1080);
 #endif
-#if	defined(ISP_1080_IT)
-	UMACRO(isp_1080_it);
-#endif
 #if	defined(ISP_12160)
 	UMACRO(isp_12160);
-#endif
-#if	defined(ISP_12160_IT)
-	UMACRO(isp_12160_it);
 #endif
 #if	defined(ISP_2100)
 	UMACRO(isp_2100);
@@ -270,15 +215,10 @@ do_unload_fw(void)
 #if	defined(ISP_2400)
 	UMACRO(isp_2400);
 #endif
-#if	defined(ISP_2400_MULTI)
-	UMACRO(isp_2400_multi);
-#endif
 #if	defined(ISP_2500)
 	UMACRO(isp_2500);
 #endif
-#if	defined(ISP_2500_MULTI)
-	UMACRO(isp_2500_multi);
-#endif
+	return (error);
 }
 
 static int
@@ -287,17 +227,11 @@ module_handler(module_t mod, int what, void *arg)
 
 	switch (what) {
 	case MOD_LOAD:
-		do_load_fw();
-		break;
+		return (do_load_fw());
 	case MOD_UNLOAD:
-		do_unload_fw();
-		break;
-	case MOD_SHUTDOWN:
-		break;
-	default:
-		return (EOPNOTSUPP);
+		return (do_unload_fw());
 	}
-	return (0);
+	return (EOPNOTSUPP);
 }
 static moduledata_t ispfw_mod = {
 	MODULE_NAME, module_handler, NULL
@@ -308,16 +242,10 @@ DECLARE_MODULE(ispfw, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 DECLARE_MODULE(isp_1000, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_1040)
 DECLARE_MODULE(isp_1040, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_1040_IT)
-DECLARE_MODULE(isp_1040_it, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_1080)
 DECLARE_MODULE(isp_1080, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_1080_IT)
-DECLARE_MODULE(isp_1080_it, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_12160)
 DECLARE_MODULE(isp_12160, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_12160_IT)
-DECLARE_MODULE(isp_12160_IT, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2100)
 DECLARE_MODULE(isp_2100, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2200)
@@ -328,12 +256,8 @@ DECLARE_MODULE(isp_2300, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 DECLARE_MODULE(isp_2322, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2400)
 DECLARE_MODULE(isp_2400, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_2400_MULTI)
-DECLARE_MODULE(isp_2400_multi, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2500)
 DECLARE_MODULE(isp_2500, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_2500_MULTI)
-DECLARE_MODULE(isp_2500_multi, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #else
 #error	"firmware not specified"
 #endif

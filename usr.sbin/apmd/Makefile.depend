@@ -13,10 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-apmdlex.o: apmdlex.c
-apmdlex.o: y.tab.h
-apmdlex.po: apmdlex.c
-apmdlex.po: y.tab.h
-apmdparse.o: apmdparse.c
-apmdparse.po: apmdparse.c
 .endif

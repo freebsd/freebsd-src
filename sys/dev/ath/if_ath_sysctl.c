@@ -709,7 +709,7 @@ ath_sysctl_forcebstuck(SYSCTL_HANDLER_ARGS)
 	if (val == 0)
 		return 0;
 
-	taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_bstucktask);
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_bstucktask);
 	val = 0;
 	return 0;
 }

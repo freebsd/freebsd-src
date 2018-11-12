@@ -1088,7 +1088,7 @@ static void
 print_summary(void)
 {
 
-	printf("filesystem created succesfully\n");
+	printf("filesystem was created successfully\n");
 	printf("total segments: %#jx valid segments: %#jx\n", nsegments,
 	    nsegments - bad_segments_count);
 	printf("total space: %ju MB free: %ju MB\n",

@@ -119,7 +119,9 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 /* Options.  Leave them on. */
-#define DEBUG
+#ifndef	DEBUG
+#define	DEBUG
+#endif
 #include "res_debug.h"
 #include "res_private.h"
 

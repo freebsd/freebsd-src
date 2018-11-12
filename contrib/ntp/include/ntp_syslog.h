@@ -9,6 +9,7 @@
 
 #ifdef VMS
 extern void msyslog();
+extern void mvsyslog();
 #else
 # ifndef SYS_VXWORKS
 #  include <syslog.h>

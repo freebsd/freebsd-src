@@ -39,6 +39,7 @@
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -121,7 +122,7 @@ namespace SrcMgr {
     /// \brief The number of lines in this ContentCache.
     ///
     /// This is only valid if SourceLineCache is non-null.
-    unsigned NumLines : 31;
+    unsigned NumLines;
 
     /// \brief Indicates whether the buffer itself was provided to override
     /// the actual file contents.
@@ -134,12 +135,17 @@ namespace SrcMgr {
     /// file considered as a system one.
     unsigned IsSystemFile : 1;
 
+    /// \brief True if this file may be transient, that is, if it might not
+    /// exist at some later point in time when this content entry is used,
+    /// after serialization and deserialization.
+    unsigned IsTransient : 1;
+
     ContentCache(const FileEntry *Ent = nullptr) : ContentCache(Ent, Ent) {}
 
     ContentCache(const FileEntry *Ent, const FileEntry *contentEnt)
       : Buffer(nullptr, false), OrigEntry(Ent), ContentsEntry(contentEnt),
         SourceLineCache(nullptr), NumLines(0), BufferOverridden(false),
-        IsSystemFile(false) {}
+        IsSystemFile(false), IsTransient(false) {}
     
     ~ContentCache();
     
@@ -148,7 +154,7 @@ namespace SrcMgr {
     /// is not transferred, so this is a logical error.
     ContentCache(const ContentCache &RHS)
       : Buffer(nullptr, false), SourceLineCache(nullptr),
-        BufferOverridden(false), IsSystemFile(false) {
+        BufferOverridden(false), IsSystemFile(false), IsTransient(false) {
       OrigEntry = RHS.OrigEntry;
       ContentsEntry = RHS.ContentsEntry;
 
@@ -388,15 +394,16 @@ namespace SrcMgr {
   /// SourceManager keeps an array of these objects, and they are uniquely
   /// identified by the FileID datatype.
   class SLocEntry {
-    unsigned Offset;   // low bit is set for expansion info.
+    unsigned Offset : 31;
+    unsigned IsExpansion : 1;
     union {
       FileInfo File;
       ExpansionInfo Expansion;
     };
   public:
-    unsigned getOffset() const { return Offset >> 1; }
+    unsigned getOffset() const { return Offset; }
 
-    bool isExpansion() const { return Offset & 1; }
+    bool isExpansion() const { return IsExpansion; }
     bool isFile() const { return !isExpansion(); }
 
     const FileInfo &getFile() const {
@@ -410,15 +417,19 @@ namespace SrcMgr {
     }
 
     static SLocEntry get(unsigned Offset, const FileInfo &FI) {
+      assert(!(Offset & (1 << 31)) && "Offset is too large");
       SLocEntry E;
-      E.Offset = Offset << 1;
+      E.Offset = Offset;
+      E.IsExpansion = false;
       E.File = FI;
       return E;
     }
 
     static SLocEntry get(unsigned Offset, const ExpansionInfo &Expansion) {
+      assert(!(Offset & (1 << 31)) && "Offset is too large");
       SLocEntry E;
-      E.Offset = (Offset << 1) | 1;
+      E.Offset = Offset;
+      E.IsExpansion = true;
       E.Expansion = Expansion;
       return E;
     }
@@ -560,6 +571,11 @@ class SourceManager : public RefCountedBase<SourceManager> {
   /// (likely to change while trying to use them). Defaults to false.
   bool UserFilesAreVolatile;
 
+  /// \brief True if all files read during this compilation should be treated
+  /// as transient (may not be present in later compilations using a module
+  /// file created from this compilation). Defaults to false.
+  bool FilesAreTransient;
+
   struct OverriddenFilesInfoTy {
     /// \brief Files that have been overridden with the contents from another
     /// file.
@@ -615,7 +631,7 @@ class SourceManager : public RefCountedBase<SourceManager> {
   /// have already been loaded from the external source.
   ///
   /// Same indexing as LoadedSLocEntryTable.
-  std::vector<bool> SLocEntryLoaded;
+  llvm::BitVector SLocEntryLoaded;
 
   /// \brief An external source for source location entries.
   ExternalSLocEntrySource *ExternalSLocEntries;
@@ -850,6 +866,15 @@ public:
   ///
   /// This should be called before parsing has begun.
   void disableFileContentsOverride(const FileEntry *File);
+
+  /// \brief Specify that a file is transient.
+  void setFileIsTransient(const FileEntry *SourceFile);
+
+  /// \brief Specify that all files that are read during this compilation are
+  /// transient.
+  void setAllFilesAreTransient(bool Transient) {
+    FilesAreTransient = Transient;
+  }
 
   //===--------------------------------------------------------------------===//
   // FileID manipulation methods.
@@ -1139,10 +1164,14 @@ public:
   /// \brief Tests whether the given source location represents a macro
   /// argument's expansion into the function-like macro definition.
   ///
+  /// \param StartLoc If non-null and function returns true, it is set to the
+  /// start location of the macro argument expansion.
+  ///
   /// Such source locations only appear inside of the expansion
   /// locations representing where a particular function-like macro was
   /// expanded.
-  bool isMacroArgExpansion(SourceLocation Loc) const;
+  bool isMacroArgExpansion(SourceLocation Loc,
+                           SourceLocation *StartLoc = nullptr) const;
 
   /// \brief Tests whether the given source location represents the expansion of
   /// a macro body.
@@ -1462,6 +1491,8 @@ public:
   /// \brief Print statistics to stderr.
   ///
   void PrintStats() const;
+
+  void dump() const;
 
   /// \brief Get the number of local SLocEntries we have.
   unsigned local_sloc_entry_size() const { return LocalSLocEntryTable.size(); }

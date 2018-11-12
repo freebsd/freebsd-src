@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=		${TESTSBASE}/lib/libc/sys
+ATF_TESTS_C+=			queue_test
 
 # TODO: clone, lwp_create, lwp_ctl, posix_fadvise, recvmmsg,
 # swapcontext
@@ -57,10 +57,8 @@ NETBSD_ATF_TESTS_C+=		umask_test
 NETBSD_ATF_TESTS_C+=		unlink_test
 NETBSD_ATF_TESTS_C+=		write_test
 
-DPADD.getpid_test+=	${LIBPTHREAD}
-LDADD.getpid_test+=	-lpthread
-DPADD.timer_create_test+=	${LIBRT}
-LDADD.timer_create_test+=	-lrt
+LIBADD.getpid_test+=		pthread
+LIBADD.timer_create_test+=	rt
 
 .include "../Makefile.netbsd-tests"
 
@@ -80,6 +78,6 @@ truncate_test_FILESGRP= wheel
 
 CLEANFILES=	truncate_test.root_owned
 truncate_test.root_owned:
-	dd if=/dev/null bs=1 count=1 of=${.TARGET}
+	dd if=/dev/null bs=1 count=1 of=${.TARGET} status=none
 
 .include <bsd.test.mk>

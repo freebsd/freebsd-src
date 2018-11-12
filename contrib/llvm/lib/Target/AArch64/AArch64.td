@@ -32,6 +32,15 @@ def FeatureCrypto : SubtargetFeature<"crypto", "HasCrypto", "true",
 def FeatureCRC : SubtargetFeature<"crc", "HasCRC", "true",
   "Enable ARMv8 CRC-32 checksum instructions">;
 
+def FeaturePerfMon : SubtargetFeature<"perfmon", "HasPerfMon", "true",
+  "Enable ARMv8 PMUv3 Performance Monitors extension">;
+
+def FeatureFullFP16 : SubtargetFeature<"fullfp16", "HasFullFP16", "true",
+  "Full FP16", [FeatureFPARMv8]>;
+
+def FeatureSPE : SubtargetFeature<"spe", "HasSPE", "true",
+  "Enable Statistical Profiling extension">;
+
 /// Cyclone has register move instructions which are "free".
 def FeatureZCRegMove : SubtargetFeature<"zcm", "HasZeroCycleRegMove", "true",
                                         "Has zero-cycle register moves">;
@@ -40,12 +49,24 @@ def FeatureZCRegMove : SubtargetFeature<"zcm", "HasZeroCycleRegMove", "true",
 def FeatureZCZeroing : SubtargetFeature<"zcz", "HasZeroCycleZeroing", "true",
                                         "Has zero-cycle zeroing instructions">;
 
+def FeatureStrictAlign : SubtargetFeature<"strict-align",
+                                          "StrictAlign", "true",
+                                          "Disallow all unaligned memory "
+                                          "access">;
+
+def FeatureReserveX18 : SubtargetFeature<"reserve-x18", "ReserveX18", "true",
+                                         "Reserve X18, making it unavailable "
+                                         "as a GPR">;
+
 //===----------------------------------------------------------------------===//
 // Architectures.
 //
 
 def HasV8_1aOps : SubtargetFeature<"v8.1a", "HasV8_1aOps", "true",
   "Support ARM v8.1a instructions", [FeatureCRC]>;
+
+def HasV8_2aOps : SubtargetFeature<"v8.2a", "HasV8_2aOps", "true",
+  "Support ARM v8.2a instructions", [HasV8_1aOps]>;
 
 //===----------------------------------------------------------------------===//
 // Register File Description
@@ -69,20 +90,31 @@ def AArch64InstrInfo : InstrInfo;
 include "AArch64SchedA53.td"
 include "AArch64SchedA57.td"
 include "AArch64SchedCyclone.td"
+include "AArch64SchedM1.td"
+
+def ProcA35     : SubtargetFeature<"a35", "ARMProcFamily", "CortexA35",
+                                   "Cortex-A35 ARM processors",
+                                   [FeatureFPARMv8,
+                                   FeatureNEON,
+                                   FeatureCrypto,
+                                   FeatureCRC,
+                                   FeaturePerfMon]>;
 
 def ProcA53     : SubtargetFeature<"a53", "ARMProcFamily", "CortexA53",
                                    "Cortex-A53 ARM processors",
                                    [FeatureFPARMv8,
                                    FeatureNEON,
                                    FeatureCrypto,
-                                   FeatureCRC]>;
+                                   FeatureCRC,
+                                   FeaturePerfMon]>;
 
 def ProcA57     : SubtargetFeature<"a57", "ARMProcFamily", "CortexA57",
                                    "Cortex-A57 ARM processors",
                                    [FeatureFPARMv8,
                                    FeatureNEON,
                                    FeatureCrypto,
-                                   FeatureCRC]>;
+                                   FeatureCRC,
+                                   FeaturePerfMon]>;
 
 def ProcCyclone : SubtargetFeature<"cyclone", "ARMProcFamily", "Cyclone",
                                    "Cyclone",
@@ -90,17 +122,30 @@ def ProcCyclone : SubtargetFeature<"cyclone", "ARMProcFamily", "Cyclone",
                                    FeatureNEON,
                                    FeatureCrypto,
                                    FeatureCRC,
+                                   FeaturePerfMon,
                                    FeatureZCRegMove, FeatureZCZeroing]>;
+
+def ProcExynosM1 : SubtargetFeature<"exynosm1", "ARMProcFamily", "ExynosM1",
+                                    "Samsung Exynos-M1 processors",
+                                    [FeatureFPARMv8,
+                                    FeatureNEON,
+                                    FeatureCrypto,
+                                    FeatureCRC,
+                                    FeaturePerfMon]>;
 
 def : ProcessorModel<"generic", NoSchedModel, [FeatureFPARMv8,
                                               FeatureNEON,
-                                              FeatureCRC]>;
+                                              FeatureCRC,
+                                              FeaturePerfMon]>;
 
+// FIXME: Cortex-A35 is currently modelled as a Cortex-A53
+def : ProcessorModel<"cortex-a35", CortexA53Model, [ProcA35]>;
 def : ProcessorModel<"cortex-a53", CortexA53Model, [ProcA53]>;
 def : ProcessorModel<"cortex-a57", CortexA57Model, [ProcA57]>;
 // FIXME: Cortex-A72 is currently modelled as an Cortex-A57.
 def : ProcessorModel<"cortex-a72", CortexA57Model, [ProcA57]>;
 def : ProcessorModel<"cyclone", CycloneModel, [ProcCyclone]>;
+def : ProcessorModel<"exynos-m1", ExynosM1Model, [ProcExynosM1]>;
 
 //===----------------------------------------------------------------------===//
 // Assembly parser
@@ -109,11 +154,13 @@ def : ProcessorModel<"cyclone", CycloneModel, [ProcCyclone]>;
 def GenericAsmParserVariant : AsmParserVariant {
   int Variant = 0;
   string Name = "generic";
+  string BreakCharacters = ".";
 }
 
 def AppleAsmParserVariant : AsmParserVariant {
   int Variant = 1;
   string Name = "apple-neon";
+  string BreakCharacters = ".";
 }
 
 //===----------------------------------------------------------------------===//

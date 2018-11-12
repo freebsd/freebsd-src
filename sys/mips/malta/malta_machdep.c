@@ -173,21 +173,36 @@ writertc(uint8_t addr, uint8_t val)
 #endif
 
 static void
-mips_init(void)
+mips_init(unsigned long memsize, uint64_t ememsize)
 {
 	int i;
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < PHYS_AVAIL_ENTRIES; i++) {
 		phys_avail[i] = 0;
 	}
 
+	/*
+	 * memsize is the amount of RAM available below 256MB.
+	 * ememsize is the total amount of RAM available.
+	 *
+	 * The second bank starts at 0x90000000.
+	 */
+
 	/* phys_avail regions are in bytes */
 	phys_avail[0] = MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
-	phys_avail[1] = ctob(realmem);
-
+	phys_avail[1] = memsize;
 	dump_avail[0] = phys_avail[0];
 	dump_avail[1] = phys_avail[1];
 
+	/* Only specify the extended region if it's set */
+	if (ememsize > memsize) {
+		phys_avail[2] = 0x90000000;
+		phys_avail[3] = 0x90000000 + (ememsize - memsize);
+		dump_avail[2] = phys_avail[2];
+		dump_avail[3] = phys_avail[3];
+	}
+
+	/* XXX realmem assigned in the caller of mips_init() */
 	physmem = realmem;
 
 	init_param1();
@@ -272,6 +287,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	int32_t *argv = (int32_t*)a1;
 	int32_t *envp = (int32_t*)a2;
 	unsigned int memsize = a3;
+	uint64_t ememsize = 0;
 	int i;
 
 	/* clear the BSS and SBSS segments */
@@ -289,26 +305,54 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	printf("entry: platform_start()\n");
 
 	bootverbose = 1;
+
 	/* 
 	 * YAMON uses 32bit pointers to strings so
 	 * convert them to proper type manually
 	 */
+
 	if (bootverbose) {
 		printf("cmd line: ");
 		for (i = 0; i < argc; i++)
 			printf("%s ", (char*)(intptr_t)argv[i]);
 		printf("\n");
-
-		printf("envp:\n");
-		for (i = 0; envp[i]; i += 2)
-			printf("\t%s = %s\n", (char*)(intptr_t)envp[i],
-			    (char*)(intptr_t)envp[i+1]);
-
-		printf("memsize = %08x\n", memsize);
 	}
 
-	realmem = btoc(memsize);
-	mips_init();
+	if (bootverbose)
+		printf("envp:\n");
+
+	/*
+	 * Parse the environment for things like ememsize.
+	 */
+	for (i = 0; envp[i]; i += 2) {
+		const char *a, *v;
+
+		a = (char *)(intptr_t)envp[i];
+		v = (char *)(intptr_t)envp[i+1];
+
+		if (bootverbose)
+			printf("\t%s = %s\n", a, v);
+
+		if (strcmp(a, "ememsize") == 0) {
+			ememsize = strtoul(v, NULL, 0);
+		}
+	}
+
+	if (bootverbose) {
+		printf("memsize = %llu (0x%08x)\n",
+		    (unsigned long long) memsize, memsize);
+		printf("ememsize = %llu\n", (unsigned long long) ememsize);
+	}
+
+	/*
+	 * For <= 256MB RAM amounts, ememsize should equal memsize.
+	 * For > 256MB RAM amounts it's the total RAM available;
+	 * split between two banks.
+	 *
+	 * XXX TODO: just push realmem assignment into mips_init() ?
+	 */
+	realmem = btoc(ememsize);
+	mips_init(memsize, ememsize);
 
 	mips_timer_init_params(platform_counter_freq, 0);
 }

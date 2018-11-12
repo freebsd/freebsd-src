@@ -51,6 +51,11 @@ class LLVM_LIBRARY_VISIBILITY ARMAsmPrinter : public AsmPrinter {
   /// labels used for ARMv4t thumb code to make register indirect calls.
   SmallVector<std::pair<unsigned, MCSymbol*>, 4> ThumbIndirectPads;
 
+  /// OptimizationGoals - Maintain a combined optimization goal for all
+  /// functions in a module: one of Tag_ABI_optimization_goals values,
+  /// -1 if uninitialized, 0 if conflicting goals
+  int OptimizationGoals;
+
 public:
   explicit ARMAsmPrinter(TargetMachine &TM,
                          std::unique_ptr<MCStreamer> Streamer);
@@ -84,7 +89,7 @@ public:
   void EmitFunctionEntryLabel() override;
   void EmitStartOfAsmFile(Module &M) override;
   void EmitEndOfAsmFile(Module &M) override;
-  void EmitXXStructor(const Constant *CV) override;
+  void EmitXXStructor(const DataLayout &DL, const Constant *CV) override;
 
   // lowerOperand - Convert a MachineOperand into the equivalent MCOperand.
   bool lowerOperand(const MachineOperand &MO, MCOperand &MCOp);
@@ -118,8 +123,6 @@ public:
 private:
   MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol);
   MCSymbol *GetARMJTIPICJumpTableLabel(unsigned uid) const;
-
-  MCSymbol *GetARMSJLJEHLabel() const;
 
   MCSymbol *GetARMGVSymbol(const GlobalValue *GV, unsigned char TargetFlags);
 

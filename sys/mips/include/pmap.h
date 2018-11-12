@@ -74,6 +74,7 @@ struct md_page {
 };
 
 #define	PV_TABLE_REF		0x02	/* referenced */
+#define	PV_MEMATTR_UNCACHEABLE	0x04
 
 #define	ASID_BITS		8
 #define	ASIDGEN_BITS		(32 - ASID_BITS)
@@ -165,7 +166,6 @@ extern vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 #define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
-#define	pmap_page_set_memattr(m, ma)	(void)0
 
 void pmap_bootstrap(void);
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
@@ -178,7 +178,7 @@ void *pmap_kenter_temporary(vm_paddr_t pa, int i);
 void pmap_kenter_temporary_free(vm_paddr_t pa);
 void pmap_flush_pvcache(vm_page_t m);
 int pmap_emulate_modified(pmap_t pmap, vm_offset_t va);
-void pmap_grow_direct_page_cache(void);
+void pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 
 #endif				/* _KERNEL */
 

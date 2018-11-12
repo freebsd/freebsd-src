@@ -90,5 +90,6 @@ FILES+=		trim5.0
 FILES+=		trim6.0
 FILES+=		trim7.0
 FILES+=		trim8.0
+FILES+=		trim9.0
 
 .include <bsd.test.mk>

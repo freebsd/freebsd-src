@@ -63,7 +63,8 @@ done
 # ### APR's libtool. deferring to a second round of change...
 #
 
-libtoolize="`./build/PrintPath glibtoolize libtoolize libtoolize15`"
+# Much like APR except we do not prefer libtool 1 over libtool 2.
+libtoolize="`./build/PrintPath glibtoolize libtoolize glibtoolize1 libtoolize15 libtoolize14`"
 lt_major_version=`$libtoolize --version 2>/dev/null | sed -e 's/^[^0-9]*//' -e 's/\..*//' -e '/^$/d' -e 1q`
 
 if [ "x$libtoolize" = "x" ]; then
@@ -156,11 +157,11 @@ fi
 #
 # Note: this dependency on Python is fine: only SVN developers use autogen.sh
 #       and we can state that dev people need Python on their machine. Note
-#       that running gen-make.py requires Python 2.5 or newer.
+#       that running gen-make.py requires Python 2.7 or newer.
 
 PYTHON="`./build/find_python.sh`"
 if test -z "$PYTHON"; then
-  echo "Python 2.5 or later is required to run autogen.sh"
+  echo "Python 2.7 or later is required to run autogen.sh"
   echo "If you have a suitable Python installed, but not on the"
   echo "PATH, set the environment variable PYTHON to the full path"
   echo "to the Python executable, and re-run autogen.sh"
@@ -204,7 +205,7 @@ fi
 echo "Creating svn_private_config.h.in..."
 ${AUTOHEADER:-autoheader}
 
-# If there's a config.cache file, we may need to delete it.  
+# If there's a config.cache file, we may need to delete it.
 # If we have an existing configure script, save a copy for comparison.
 if [ -f config.cache ] && [ -f configure ]; then
   cp configure configure.$$.tmp
@@ -239,7 +240,7 @@ echo "./configure --enable-maintainer-mode"
 echo "./configure --disable-shared"
 echo "./configure --enable-maintainer-mode --disable-shared"
 echo "./configure --disable-optimize --enable-debug"
-echo "./configure CUSERFLAGS='--flags-for-C' CXXUSERFLAGS='--flags-for-C++'"
+echo "./configure CFLAGS='--flags-for-C' CXXFLAGS='--flags-for-C++'"
 echo ""
 echo "Note:  If you wish to run a Subversion HTTP server, you will need"
 echo "Apache 2.x.  See the INSTALL file for details."

@@ -122,7 +122,7 @@ SDT_PROBE_DEFINE2_XLATE(tcp, , , debug__user,
 SDT_PROBE_DEFINE3_XLATE(tcp, , , debug__drop,
     "struct tcpcb *", "tcpsinfo_t *" ,
     "struct tcphdr *", "tcpinfo_t *",
-    "uint8_t *", "ipinfo_t *")
+    "uint8_t *", "ipinfo_t *");
 
 SDT_PROBE_DEFINE6_XLATE(tcp, , , state__change,
     "void *", "void *",

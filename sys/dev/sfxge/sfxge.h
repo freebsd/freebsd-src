@@ -273,14 +273,20 @@ struct sfxge_softc {
 	size_t				rx_prefix_size;
 	size_t				rx_buffer_size;
 	size_t				rx_buffer_align;
-	uma_zone_t			rx_buffer_zone;
+	int				rx_cluster_size;
 
 	unsigned int			evq_max;
 	unsigned int			evq_count;
 	unsigned int			rxq_count;
 	unsigned int			txq_count;
 
-	int				tso_fw_assisted;
+	unsigned int			tso_fw_assisted;
+#define	SFXGE_FATSOV1	(1 << 0)
+#define	SFXGE_FATSOV2	(1 << 1)
+
+#if EFSYS_OPT_MCDI_LOGGING
+	int				mcdi_logging;
+#endif
 };
 
 #define	SFXGE_LINK_UP(sc) ((sc)->port.link_mode != EFX_LINK_DOWN)

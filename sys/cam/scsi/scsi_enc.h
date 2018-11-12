@@ -46,6 +46,8 @@
 #define	ENCIOC_GETELMDEVNAMES	_IO(ENCIOC, 10)
 #define	ENCIOC_GETSTRING	_IO(ENCIOC, 11)
 #define	ENCIOC_SETSTRING	_IO(ENCIOC, 12)
+#define	ENCIOC_GETENCNAME	_IO(ENCIOC, 13)
+#define	ENCIOC_GETENCID		_IO(ENCIOC, 14)
 
 /*
  * Platform Independent Definitions for enclosure devices.

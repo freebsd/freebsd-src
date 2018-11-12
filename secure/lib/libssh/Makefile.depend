@@ -6,6 +6,7 @@ DIRDEPS = \
 	gnu/lib/libgcc \
 	include \
 	include/arpa \
+	include/gssapi \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
@@ -17,7 +18,6 @@ DIRDEPS = \
 	lib/libz \
 	secure/lib/libcrypto \
 	secure/lib/libssl \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

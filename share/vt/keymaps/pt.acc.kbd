@@ -17,7 +17,7 @@
   009   '8'    '('    nop    nop    '['    '*'    nop    nop     O
   010   '9'    ')'    nop    nop    ']'    '('    nop    nop     O
   011   '0'    '='    nop    nop    '}'    ')'    nop    nop     O
-  012   '''    '?'    ns     ns     '-'    '_'    ns     ns      O
+  012   '''    '?'    us     us     '-'    '_'    us     us      O
   013   '='    '+'    nop    nop    '='    '+'    nop    nop     O
   014   bs     bs     del    del    bs     bs     del    del     O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O

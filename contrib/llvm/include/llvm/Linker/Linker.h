@@ -10,10 +10,8 @@
 #ifndef LLVM_LINKER_LINKER_H
 #define LLVM_LINKER_LINKER_H
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/IR/FunctionInfo.h"
+#include "llvm/Linker/IRMover.h"
 
 namespace llvm {
 class Module;
@@ -25,70 +23,53 @@ class Type;
 /// module since it is assumed that the user of this class will want to do
 /// something with it after the linking.
 class Linker {
+  IRMover Mover;
+
 public:
-  struct StructTypeKeyInfo {
-    struct KeyTy {
-      ArrayRef<Type *> ETypes;
-      bool IsPacked;
-      KeyTy(ArrayRef<Type *> E, bool P);
-      KeyTy(const StructType *ST);
-      bool operator==(const KeyTy &that) const;
-      bool operator!=(const KeyTy &that) const;
-    };
-    static StructType *getEmptyKey();
-    static StructType *getTombstoneKey();
-    static unsigned getHashValue(const KeyTy &Key);
-    static unsigned getHashValue(const StructType *ST);
-    static bool isEqual(const KeyTy &LHS, const StructType *RHS);
-    static bool isEqual(const StructType *LHS, const StructType *RHS);
+  enum Flags {
+    None = 0,
+    OverrideFromSrc = (1 << 0),
+    LinkOnlyNeeded = (1 << 1),
+    InternalizeLinkedSymbols = (1 << 2)
   };
 
-  typedef DenseSet<StructType *, StructTypeKeyInfo> NonOpaqueStructTypeSet;
-  typedef DenseSet<StructType *> OpaqueStructTypeSet;
+  Linker(Module &M);
 
-  struct IdentifiedStructTypeSet {
-    // The set of opaque types is the composite module.
-    OpaqueStructTypeSet OpaqueStructTypes;
-
-    // The set of identified but non opaque structures in the composite module.
-    NonOpaqueStructTypeSet NonOpaqueStructTypes;
-
-    void addNonOpaque(StructType *Ty);
-    void switchToNonOpaque(StructType *Ty);
-    void addOpaque(StructType *Ty);
-    StructType *findNonOpaque(ArrayRef<Type *> ETypes, bool IsPacked);
-    bool hasType(StructType *Ty);
-  };
-
-  Linker(Module *M, DiagnosticHandlerFunction DiagnosticHandler);
-  Linker(Module *M);
-  ~Linker();
-
-  Module *getModule() const { return Composite; }
-  void deleteModule();
-
-  /// \brief Link \p Src into the composite. The source is destroyed.
+  /// \brief Link \p Src into the composite.
+  ///
   /// Passing OverrideSymbols as true will have symbols from Src
   /// shadow those in the Dest.
+  /// For ThinLTO function importing/exporting the \p FunctionInfoIndex
+  /// is passed. If \p FunctionsToImport is provided, only the functions that
+  /// are part of the set will be imported from the source module.
+  /// The \p ValIDToTempMDMap is populated by the linker when function
+  /// importing is performed.
+  ///
   /// Returns true on error.
-  bool linkInModule(Module *Src, bool OverrideSymbols = false);
+  bool linkInModule(std::unique_ptr<Module> Src, unsigned Flags = Flags::None,
+                    const FunctionInfoIndex *Index = nullptr,
+                    DenseSet<const GlobalValue *> *FunctionsToImport = nullptr,
+                    DenseMap<unsigned, MDNode *> *ValIDToTempMDMap = nullptr);
 
-  /// \brief Set the composite to the passed-in module.
-  void setModule(Module *Dst);
+  /// This exists to implement the deprecated LLVMLinkModules C api. Don't use
+  /// for anything else.
+  bool linkInModuleForCAPI(Module &Src);
 
-  static bool LinkModules(Module *Dest, Module *Src,
-                          DiagnosticHandlerFunction DiagnosticHandler);
+  static bool linkModules(Module &Dest, std::unique_ptr<Module> Src,
+                          unsigned Flags = Flags::None);
 
-  static bool LinkModules(Module *Dest, Module *Src);
-
-private:
-  void init(Module *M, DiagnosticHandlerFunction DiagnosticHandler);
-  Module *Composite;
-
-  IdentifiedStructTypeSet IdentifiedStructTypes;
-
-  DiagnosticHandlerFunction DiagnosticHandler;
+  /// \brief Link metadata from \p Src into the composite. The source is
+  /// destroyed.
+  ///
+  /// The \p ValIDToTempMDMap sound have been populated earlier during function
+  /// importing from \p Src.
+  bool linkInMetadata(Module &Src,
+                      DenseMap<unsigned, MDNode *> *ValIDToTempMDMap);
 };
+
+/// Perform in-place global value handling on the given Module for
+/// exported local functions renamed and promoted for ThinLTO.
+bool renameModuleForThinLTO(Module &M, const FunctionInfoIndex *Index);
 
 } // End llvm namespace
 

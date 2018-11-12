@@ -65,7 +65,11 @@ public:
         eMIPSAse_mips16     = 0x00000400,   // MIPS16 ASE
         eMIPSAse_micromips  = 0x00000800,   // MICROMIPS ASE
         eMIPSAse_xpa        = 0x00001000,   // XPA ASE
-        eMIPSAse_mask       = 0x00001fff
+        eMIPSAse_mask       = 0x00001fff,
+        eMIPSABI_O32        = 0x00002000,
+        eMIPSABI_N32        = 0x00004000,
+        eMIPSABI_N64        = 0x00008000,
+        eMIPSABI_mask       = 0x000ff000
     };
 
     enum Core
@@ -208,7 +212,11 @@ public:
         kCore_mips64_last   = eCore_mips64r6,
 
         kCore_mips64el_first  = eCore_mips64el,
-        kCore_mips64el_last   = eCore_mips64r6el
+        kCore_mips64el_last   = eCore_mips64r6el,
+
+        kCore_mips_first  = eCore_mips32,
+        kCore_mips_last   = eCore_mips64r6el
+
     };
 
     typedef void (* StopInfoOverrideCallbackType)(lldb_private::Thread &thread);
@@ -337,9 +345,27 @@ public:
     }
 
     bool
+    TripleVendorIsUnspecifiedUnknown() const
+    {
+        return m_triple.getVendor() == llvm::Triple::UnknownVendor && m_triple.getVendorName().empty();
+    }
+
+    bool
     TripleOSWasSpecified() const
     {
         return !m_triple.getOSName().empty();
+    }
+    
+    bool
+    TripleEnvironmentWasSpecified () const
+    {
+        return !m_triple.getEnvironmentName().empty();
+    }
+
+    bool
+    TripleOSIsUnspecifiedUnknown() const
+    {
+        return m_triple.getOS() == llvm::Triple::UnknownOS && m_triple.getOSName().empty();
     }
 
     //------------------------------------------------------------------
@@ -480,6 +506,9 @@ public:
         return m_triple;
     }
 
+    void
+    DumpTriple(Stream &s) const;
+
     //------------------------------------------------------------------
     /// Architecture tripple setter.
     ///
@@ -564,7 +593,18 @@ public:
     //------------------------------------------------------------------
     StopInfoOverrideCallbackType
     GetStopInfoOverrideCallback () const;
+    
+    bool
+    IsFullySpecifiedTriple () const;
 
+    void
+    PiecewiseTripleCompare (const ArchSpec &other,
+                            bool &arch_different,
+                            bool &vendor_different,
+                            bool &os_different,
+                            bool &os_version_different,
+                            bool &env_different);
+    
     uint32_t
     GetFlags () const
     {

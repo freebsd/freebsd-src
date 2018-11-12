@@ -18,7 +18,6 @@ struct hostapd_vlan * vlan_add_dynamic(struct hostapd_data *hapd,
 				       int vlan_id);
 int vlan_remove_dynamic(struct hostapd_data *hapd, int vlan_id);
 int vlan_setup_encryption_dyn(struct hostapd_data *hapd,
-			      struct hostapd_ssid *mssid,
 			      const char *dyn_vlan);
 #else /* CONFIG_NO_VLAN */
 static inline int vlan_init(struct hostapd_data *hapd)
@@ -43,7 +42,6 @@ static inline int vlan_remove_dynamic(struct hostapd_data *hapd, int vlan_id)
 }
 
 static inline int vlan_setup_encryption_dyn(struct hostapd_data *hapd,
-					    struct hostapd_ssid *mssid,
 					    const char *dyn_vlan)
 {
 	return -1;

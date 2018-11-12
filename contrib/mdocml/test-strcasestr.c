@@ -9,5 +9,5 @@ main(void)
 {
 	const char *big = "BigString";
 	char *cp = strcasestr(big, "Gst");
-	return(big + 2 != cp);
+	return cp != big + 2;
 }

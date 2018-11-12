@@ -27,8 +27,6 @@
 
 /*** Includes. ***/
 
-#include <stdlib.h>
-
 #include "svn_types.h"
 #include "svn_wc.h"
 #include "svn_client.h"
@@ -39,6 +37,7 @@
 #include "svn_hash.h"
 #include "svn_sorts.h"
 #include "client.h"
+#include "private/svn_sorts_private.h"
 #include "private/svn_wc_private.h"
 
 #include "svn_private_config.h"
@@ -59,8 +58,7 @@ svn_client__resolve_conflicts(svn_boolean_t *conflicts_remain,
     *conflicts_remain = FALSE;
 
   SVN_ERR(svn_hash_keys(&array, conflicted_paths, scratch_pool));
-  qsort(array->elts, array->nelts, array->elt_size,
-        svn_sort_compare_paths);
+  svn_sort__array(array, svn_sort_compare_paths);
 
   for (i = 0; i < array->nelts; i++)
     {
@@ -79,7 +77,7 @@ svn_client__resolve_conflicts(svn_boolean_t *conflicts_remain,
                                         ctx->notify_func2, ctx->notify_baton2,
                                         iterpool));
 
-      if (conflicts_remain)
+      if (conflicts_remain && !*conflicts_remain)
         {
           svn_error_t *err;
           svn_boolean_t text_c, prop_c, tree_c;

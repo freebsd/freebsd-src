@@ -14,7 +14,7 @@
 
 #include "fp_lib.h"
 
-static inline fixuint_t __fixuint(fp_t a) {
+static __inline fixuint_t __fixuint(fp_t a) {
     // Break a into sign, exponent, significand
     const rep_t aRep = toRep(a);
     const rep_t aAbs = aRep & absMask;
@@ -27,7 +27,7 @@ static inline fixuint_t __fixuint(fp_t a) {
         return 0;
 
     // If the value is too large for the integer type, saturate.
-    if ((unsigned)exponent > sizeof(fixuint_t) * CHAR_BIT)
+    if ((unsigned)exponent >= sizeof(fixuint_t) * CHAR_BIT)
         return ~(fixuint_t)0;
 
     // If 0 <= exponent < significandBits, right shift to get the result.

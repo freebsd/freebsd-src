@@ -367,6 +367,10 @@ http_chunked_cb(struct evhttp_request *req, void *arg)
 	struct timeval when = { 0, 0 };
 	struct chunk_req_state *state = malloc(sizeof(struct chunk_req_state));
 	event_debug(("%s: called\n", __func__));
+	if (state == NULL) {
+		fprintf(stderr, "Unable to allocate memory in http_chunked_cb()\n");
+		exit(1);
+	}
 
 	memset(state, 0, sizeof(struct chunk_req_state));
 	state->req = req;

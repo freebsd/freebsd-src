@@ -94,8 +94,6 @@ struct arm32_dma_range {
 struct arm32_dma_range	*bus_dma_get_range(void);
 int	bus_dma_get_range_nb(void);
 
-extern bus_dma_tag_t arm_root_dma_tag;
-
 #endif /* _ARM32_BUS_DMA_PRIVATE */
 
 #endif /* _ARM_BUS_DMA_H */

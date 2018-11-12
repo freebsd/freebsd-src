@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2014 Devin Teske <dteske@FreeBSD.org>
+ * Copyright (c) 2002-2015 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,24 +40,25 @@ __FBSDID("$FreeBSD$");
 #include "figpar.h"
 #include "string_m.h"
 
-struct fp_config fp_dummy_config = {0, NULL, {0}, NULL};
+struct figpar_config figpar_dummy_config = {0, NULL, {0}, NULL};
 
 /*
- * Search for config option (struct fp_config) in the array of config options,
- * returning the struct whose directive matches the given parameter. If no
- * match is found, a pointer to the static dummy array (above) is returned.
+ * Search for config option (struct figpar_config) in the array of config
+ * options, returning the struct whose directive matches the given parameter.
+ * If no match is found, a pointer to the static dummy array (above) is
+ * returned.
  *
  * This is to eliminate dependency on the index position of an item in the
  * array, since the index position is more apt to be changed as code grows.
  */
-struct fp_config *
-get_config_option(struct fp_config options[], const char *directive)
+struct figpar_config *
+get_config_option(struct figpar_config options[], const char *directive)
 {
 	uint32_t n;
 
 	/* Check arguments */
 	if (options == NULL || directive == NULL)
-		return (&fp_dummy_config);
+		return (&figpar_dummy_config);
 
 	/* Loop through the array, return the index of the first match */
 	for (n = 0; options[n].directive != NULL; n++)
@@ -65,12 +66,12 @@ get_config_option(struct fp_config options[], const char *directive)
 			return (&(options[n]));
 
 	/* Re-initialize the dummy variable in case it was written to */
-	fp_dummy_config.directive	= NULL;
-	fp_dummy_config.type		= 0;
-	fp_dummy_config.action		= NULL;
-	fp_dummy_config.value.u_num	= 0;
+	figpar_dummy_config.directive	= NULL;
+	figpar_dummy_config.type	= 0;
+	figpar_dummy_config.action	= NULL;
+	figpar_dummy_config.value.u_num	= 0;
 
-	return (&fp_dummy_config);
+	return (&figpar_dummy_config);
 }
 
 /*
@@ -84,9 +85,9 @@ get_config_option(struct fp_config options[], const char *directive)
  * Returns zero on success; otherwise returns -1 and errno should be consulted.
 */
 int
-parse_config(struct fp_config options[], const char *path,
-    int (*unknown)(struct fp_config *option, uint32_t line, char *directive,
-    char *value), uint16_t processing_options)
+parse_config(struct figpar_config options[], const char *path,
+    int (*unknown)(struct figpar_config *option, uint32_t line,
+    char *directive, char *value), uint16_t processing_options)
 {
 	uint8_t bequals;
 	uint8_t bsemicolon;
@@ -119,11 +120,15 @@ parse_config(struct fp_config options[], const char *path,
 		return (-1);
 
 	/* Processing options */
-	bequals = (processing_options & FP_BREAK_ON_EQUALS) == 0 ? 0 : 1;
-	bsemicolon = (processing_options & FP_BREAK_ON_SEMICOLON) == 0 ? 0 : 1;
-	case_sensitive = (processing_options & FP_CASE_SENSITIVE) == 0 ? 0 : 1;
-	require_equals = (processing_options & FP_REQUIRE_EQUALS) == 0 ? 0 : 1;
-	strict_equals = (processing_options & FP_STRICT_EQUALS) == 0 ? 0 : 1;
+	bequals = (processing_options & FIGPAR_BREAK_ON_EQUALS) == 0 ? 0 : 1;
+	bsemicolon =
+		(processing_options & FIGPAR_BREAK_ON_SEMICOLON) == 0 ? 0 : 1;
+	case_sensitive =
+		(processing_options & FIGPAR_CASE_SENSITIVE) == 0 ? 0 : 1;
+	require_equals =
+		(processing_options & FIGPAR_REQUIRE_EQUALS) == 0 ? 0 : 1;
+	strict_equals =
+		(processing_options & FIGPAR_STRICT_EQUALS) == 0 ? 0 : 1;
 
 	/* Initialize strings */
 	directive = value = 0;

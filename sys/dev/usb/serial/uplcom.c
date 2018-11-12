@@ -326,6 +326,7 @@ DRIVER_MODULE(uplcom, uhub, uplcom_driver, uplcom_devclass, NULL, 0);
 MODULE_DEPEND(uplcom, ucom, 1, 1, 1);
 MODULE_DEPEND(uplcom, usb, 1, 1, 1);
 MODULE_VERSION(uplcom, UPLCOM_MODVER);
+USB_PNP_HOST_INFO(uplcom_devs);
 
 static int
 uplcom_probe(device_t dev)

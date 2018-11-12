@@ -824,7 +824,7 @@ bd_chs_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
     v86.es = VTOPSEG(dest);
     v86.ebp = VTOPOFF(dest);
     v86int();
-    return (v86.efl & 0x1);
+    return (V86_CY(v86.efl));
 }
 
 static int
@@ -959,7 +959,7 @@ bd_getgeom(struct open_disk *od)
 	od->od_cyl = v86.ecx;
 	od->od_hds = (v86.edx >> 8) & 0xff;
 	od->od_sec = v86.edx & 0xff;
-	if (v86.efl & 0x1)
+	if (V86_CY(v86.efl))
 	    return(1);
     }
 
@@ -1010,7 +1010,7 @@ bd_getbigeom(int bunit)
     v86.addr = 0x1b;
     v86.eax = 0x8400 | unit;
     v86int();
-    if (v86.efl & 0x1)
+    if (V86_CY(v86.efl))
 	return 0x4F020F;	/* 1200KB FD C:80 H:2 S:15 */
     return ((v86.ecx & 0xffff) << 16) | (v86.edx & 0xffff);
 }

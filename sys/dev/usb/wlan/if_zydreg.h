@@ -1291,6 +1291,7 @@ struct zyd_softc {
 	uint8_t			sc_ofdm36_cal[14];
 	uint8_t			sc_ofdm48_cal[14];
 	uint8_t			sc_ofdm54_cal[14];
+	uint8_t			sc_bssid[IEEE80211_ADDR_LEN];
 
 	struct mtx		sc_mtx;
 	struct zyd_tx_data	tx_data[ZYD_TX_LIST_CNT];
@@ -1304,9 +1305,7 @@ struct zyd_softc {
 	struct zyd_cmd		sc_ibuf;
 
 	struct zyd_rx_radiotap_header	sc_rxtap;
-	int			sc_rxtap_len;
 	struct zyd_tx_radiotap_header	sc_txtap;
-	int			sc_txtap_len;
 };
 
 #define	ZYD_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)

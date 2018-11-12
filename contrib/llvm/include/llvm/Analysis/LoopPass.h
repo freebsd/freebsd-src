@@ -127,20 +127,9 @@ public:
   }
 
 public:
-  // Delete loop from the loop queue and loop nest (LoopInfo).
-  void deleteLoopFromQueue(Loop *L);
-
-  // Insert loop into the loop queue and add it as a child of the
-  // given parent.
-  void insertLoop(Loop *L, Loop *ParentLoop);
-
-  // Insert a loop into the loop queue.
-  void insertLoopIntoQueue(Loop *L);
-
-  // Reoptimize this loop. LPPassManager will re-insert this loop into the
-  // queue. This allows LoopPass to change loop nest for the loop. This
-  // utility may send LPPassManager into infinite loops so use caution.
-  void redoLoop(Loop *L);
+  // Add a new loop into the loop queue as a child of the given parent, or at
+  // the top level if \c ParentLoop is null.
+  Loop &addLoop(Loop *ParentLoop);
 
   //===--------------------------------------------------------------------===//
   /// SimpleAnalysis - Provides simple interface to update analysis info
@@ -163,8 +152,6 @@ public:
 
 private:
   std::deque<Loop *> LQ;
-  bool skipThisLoop;
-  bool redoThisLoop;
   LoopInfo *LI;
   Loop *CurrentLoop;
 };

@@ -18,7 +18,7 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdArgValOptionLong::CMICmdArgValOptionLong(void)
+CMICmdArgValOptionLong::CMICmdArgValOptionLong()
     : m_nExpectingNOptions(0)
     , m_eExpectingOptionType(eArgValType_invalid)
 {
@@ -66,7 +66,7 @@ CMICmdArgValOptionLong::CMICmdArgValOptionLong(const CMIUtilString &vrArgName, c
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdArgValOptionLong::~CMICmdArgValOptionLong(void)
+CMICmdArgValOptionLong::~CMICmdArgValOptionLong()
 {
     // Tidy up
     Destroy();
@@ -80,7 +80,7 @@ CMICmdArgValOptionLong::~CMICmdArgValOptionLong(void)
 // Throws:  None.
 //--
 void
-CMICmdArgValOptionLong::Destroy(void)
+CMICmdArgValOptionLong::Destroy()
 {
     // Tidy up
     VecArgObjPtr_t::const_iterator it = m_vecArgsExpected.begin();
@@ -249,19 +249,19 @@ CMICmdArgValOptionLong::ExtractExpectedOptions(CMICmdArgContext &vrwTxt, const M
 bool
 CMICmdArgValOptionLong::IsArgLongOption(const CMIUtilString &vrTxt) const
 {
-    const bool bHavePosSlash = (vrTxt.find_first_of("/") != std::string::npos);
-    const bool bHaveBckSlash = (vrTxt.find_first_of("\\") != std::string::npos);
+    const bool bHavePosSlash = (vrTxt.find('/') != std::string::npos);
+    const bool bHaveBckSlash = (vrTxt.find('\\') != std::string::npos);
     if (bHavePosSlash || bHaveBckSlash)
         return false;
 
-    const size_t nPos = vrTxt.find_first_of("--");
+    const size_t nPos = vrTxt.find("--");
     if (nPos != 0)
         return false;
 
     if (vrTxt.length() < 3)
         return false;
 
-    const CMIUtilString strArg = vrTxt.substr(2).c_str();
+    const CMIUtilString strArg = vrTxt.substr(2);
     if (strArg.IsNumber())
         return false;
 
@@ -293,7 +293,7 @@ CMICmdArgValOptionLong::IsArgOptionCorrect(const CMIUtilString &vrTxt) const
 bool
 CMICmdArgValOptionLong::ArgNameMatch(const CMIUtilString &vrTxt) const
 {
-    const CMIUtilString strArg = vrTxt.substr(2).c_str();
+    const CMIUtilString strArg = vrTxt.substr(2);
     return (strArg == GetName());
 }
 
@@ -307,7 +307,7 @@ CMICmdArgValOptionLong::ArgNameMatch(const CMIUtilString &vrTxt) const
 // Throws:  None.
 //--
 const CMICmdArgValListBase::VecArgObjPtr_t &
-CMICmdArgValOptionLong::GetExpectedOptions(void) const
+CMICmdArgValOptionLong::GetExpectedOptions() const
 {
     return m_vecArgsExpected;
 }

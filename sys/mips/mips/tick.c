@@ -51,6 +51,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/locore.h>
 #include <machine/md_var.h>
 
+#ifdef MIPS_INTRNG
+#include <machine/intr.h>
+#endif
+
 uint64_t counter_freq;
 
 struct timecounter *platform_timecounter;
@@ -324,12 +328,18 @@ static int
 clock_attach(device_t dev)
 {
 	struct clock_softc *sc;
+#ifndef MIPS_INTRNG
 	int error;
+#endif
 
 	if (device_get_unit(dev) != 0)
 		panic("can't attach more clocks");
 
 	softc = sc = device_get_softc(dev);
+#ifdef MIPS_INTRNG
+	cpu_establish_hardintr("clock", clock_intr, NULL, sc, 5, INTR_TYPE_CLK,
+	    NULL);
+#else
 	sc->intr_rid = 0;
 	sc->intr_res = bus_alloc_resource(dev,
 	    SYS_RES_IRQ, &sc->intr_rid, 5, 5, 1, RF_ACTIVE);
@@ -343,6 +353,7 @@ clock_attach(device_t dev)
 		device_printf(dev, "bus_setup_intr returned %d\n", error);
 		return (error);
 	}
+#endif
 
 	sc->tc.tc_get_timecount = counter_get_timecount;
 	sc->tc.tc_counter_mask = 0xffffffff;

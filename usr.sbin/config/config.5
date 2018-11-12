@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2005
+.Dd February 21, 2016
 .Dt CONFIG 5
 .Os
 .Sh NAME
@@ -118,7 +118,8 @@ The kernel normally uses an environment prepared for it at boot time
 by
 .Xr loader 8 .
 This directive makes the kernel ignore the boot environment and use
-the compiled-in environment instead.
+the compiled-in environment instead, unless the boot environment contains
+.Va static_env.disabled=1 .
 .Pp
 This directive is useful for setting kernel tunables in
 embedded environments that do not start from
@@ -141,7 +142,9 @@ time (see
 .Xr device.hints 5 ) .
 This directive configures the kernel to use the static device configuration
 listed in
-.Ar filename .
+.Ar filename ,
+unless the boot environment contains
+.Va static_hints.disabled=1 .
 The file
 .Ar filename
 must conform to the syntax specified by

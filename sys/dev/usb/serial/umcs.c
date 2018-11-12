@@ -278,6 +278,7 @@ DRIVER_MODULE(umcs7840, uhub, umcs7840_driver, umcs7840_devclass, 0, 0);
 MODULE_DEPEND(umcs7840, ucom, 1, 1, 1);
 MODULE_DEPEND(umcs7840, usb, 1, 1, 1);
 MODULE_VERSION(umcs7840, UMCS7840_MODVER);
+USB_PNP_HOST_INFO(umcs7840_devs);
 
 static int
 umcs7840_probe(device_t dev)

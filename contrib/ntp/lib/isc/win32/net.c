@@ -216,7 +216,8 @@ initialize_ipv6only(void) {
 
 static void
 try_ipv6pktinfo(void) {
-	int s, on;
+	SOCKET s;
+	int on;
 	char strbuf[ISC_STRERRORSIZE];
 	isc_result_t result;
 	int optname;

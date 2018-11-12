@@ -333,7 +333,7 @@ static struct wpabuf * eap_pax_process(struct eap_sm *sm, void *priv,
 	u16 flen, mlen;
 
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_PAX, reqData, &len);
-	if (pos == NULL || len < EAP_PAX_ICV_LEN) {
+	if (pos == NULL || len < sizeof(*req) + EAP_PAX_ICV_LEN) {
 		ret->ignore = TRUE;
 		return NULL;
 	}

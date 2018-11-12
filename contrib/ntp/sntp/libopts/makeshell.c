@@ -401,7 +401,7 @@ emit_usage(tOptions * opts)
 
         /* Copy the program name into the time/name buffer */
         for (;;) {
-            if ((*pzPN++ = (char)tolower(*pz++)) == NUL)
+            if ((*pzPN++ = (char)tolower((unsigned char)*pz++)) == NUL)
                 break;
         }
 
@@ -671,8 +671,8 @@ emit_match_expr(char const * name, tOptDesc * cod, tOptions * opts)
                 continue;
 
             match_ct = 0;
-            while (  toupper(od->pz_DisableName[match_ct])
-                  == toupper(name[match_ct]))
+            while (  toupper((unsigned char)od->pz_DisableName[match_ct])
+                  == toupper((unsigned char)name[match_ct]))
                 match_ct++;
             if (match_ct > min_match_ct)
                 min_match_ct = match_ct;

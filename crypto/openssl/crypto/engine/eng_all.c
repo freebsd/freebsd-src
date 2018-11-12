@@ -1,4 +1,4 @@
-/* crypto/engine/eng_all.c -*- mode: C; c-file-style: "eay" -*- */
+/* crypto/engine/eng_all.c */
 /*
  * Written by Richard Levitte <richard@levitte.org> for the OpenSSL project
  * 2000.
@@ -75,9 +75,6 @@ void ENGINE_load_builtin_engines(void)
 #endif
 #if !defined(OPENSSL_NO_HW) && (defined(__OpenBSD__) || defined(__FreeBSD__) || defined(HAVE_CRYPTODEV))
     ENGINE_load_cryptodev();
-#endif
-#ifndef OPENSSL_NO_RSAX
-    ENGINE_load_rsax();
 #endif
 #ifndef OPENSSL_NO_RDRAND
     ENGINE_load_rdrand();

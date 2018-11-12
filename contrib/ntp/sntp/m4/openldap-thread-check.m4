@@ -15,6 +15,9 @@ dnl <http://www.OpenLDAP.org/license.html>.
 dnl
 dnl --------------------------------------------------------------------
 
+dnl This file is a fragment of OpenLDAP's build/openldap.m4 and some
+dnl fragments of OpenLDAP's configure.ac .
+
 #   OL_THREAD_CHECK([ACTION-IF-FOUND[, ACTION-IF-NOT-FOUND]])
 
 AC_DEFUN([OL_THREAD_CHECK], [
@@ -201,6 +204,8 @@ dnl			[ol_cv_pthread_lpthread_lexc])
 			[ol_cv_pthread_lpthreads_lexc])
 
 		OL_PTHREAD_TRY([-lpthreads],[ol_cv_pthread_lib_lpthreads])
+
+AC_MSG_NOTICE([ol_link_threads: <$ol_link_threads> ol_link_pthreads <$ol_link_pthreads>])
 
 		if test $ol_link_threads != no ; then
 			LTHREAD_LIBS="$LTHREAD_LIBS $ol_link_pthreads"
@@ -680,4 +685,8 @@ case "$ol_with_threads" in
 esac
 
 AC_LANG_RESTORE
+
+AC_SUBST(BUILD_THREAD)
+AC_SUBST(LTHREAD_LIBS)
+
 ])

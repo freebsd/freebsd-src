@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect1.c,v 1.74 2014/02/02 03:44:32 djm Exp $ */
+/* $OpenBSD: sshconnect1.c,v 1.77 2015/01/14 20:05:27 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -15,11 +15,14 @@
 
 #include "includes.h"
 
+#ifdef WITH_SSH1
+
 #include <sys/types.h>
 #include <sys/socket.h>
 
 #include <openssl/bn.h>
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,15 +41,16 @@
 #include "kex.h"
 #include "uidswap.h"
 #include "log.h"
+#include "misc.h"
 #include "readconf.h"
 #include "authfd.h"
 #include "sshconnect.h"
 #include "authfile.h"
-#include "misc.h"
 #include "canohost.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "digest.h"
+#include "ssherr.h"
 
 /* Session id for the current session. */
 u_char session_id[16];
@@ -62,33 +66,38 @@ extern char *__progname;
 static int
 try_agent_authentication(void)
 {
-	int type;
-	char *comment;
-	AuthenticationConnection *auth;
+	int r, type, agent_fd, ret = 0;
 	u_char response[16];
-	u_int i;
-	Key *key;
+	size_t i;
 	BIGNUM *challenge;
+	struct ssh_identitylist *idlist = NULL;
 
 	/* Get connection to the agent. */
-	auth = ssh_get_authentication_connection();
-	if (!auth)
+	if ((r = ssh_get_authentication_socket(&agent_fd)) != 0) {
+		if (r != SSH_ERR_AGENT_NOT_PRESENT)
+			debug("%s: ssh_get_authentication_socket: %s",
+			    __func__, ssh_err(r));
 		return 0;
+	}
 
 	if ((challenge = BN_new()) == NULL)
 		fatal("try_agent_authentication: BN_new failed");
-	/* Loop through identities served by the agent. */
-	for (key = ssh_get_first_identity(auth, &comment, 1);
-	    key != NULL;
-	    key = ssh_get_next_identity(auth, &comment, 1)) {
 
+	/* Loop through identities served by the agent. */
+	if ((r = ssh_fetch_identitylist(agent_fd, 1, &idlist)) != 0) {
+		if (r != SSH_ERR_AGENT_NO_IDENTITIES)
+			debug("%s: ssh_fetch_identitylist: %s",
+			    __func__, ssh_err(r));
+		goto out;
+	}
+	for (i = 0; i < idlist->nkeys; i++) {
 		/* Try this identity. */
-		debug("Trying RSA authentication via agent with '%.100s'", comment);
-		free(comment);
+		debug("Trying RSA authentication via agent with '%.100s'",
+		    idlist->comments[i]);
 
 		/* Tell the server that we are willing to authenticate using this key. */
 		packet_start(SSH_CMSG_AUTH_RSA);
-		packet_put_bignum(key->rsa->n);
+		packet_put_bignum(idlist->keys[i]->rsa->n);
 		packet_send();
 		packet_write_wait();
 
@@ -99,7 +108,6 @@ try_agent_authentication(void)
 		   does not support RSA authentication. */
 		if (type == SSH_SMSG_FAILURE) {
 			debug("Server refused our key.");
-			key_free(key);
 			continue;
 		}
 		/* Otherwise it should have sent a challenge. */
@@ -113,16 +121,17 @@ try_agent_authentication(void)
 		debug("Received RSA challenge from server.");
 
 		/* Ask the agent to decrypt the challenge. */
-		if (!ssh_decrypt_challenge(auth, key, challenge, session_id, 1, response)) {
+		if ((r = ssh_decrypt_challenge(agent_fd, idlist->keys[i],
+		    challenge, session_id, response)) != 0) {
 			/*
 			 * The agent failed to authenticate this identifier
 			 * although it advertised it supports this.  Just
 			 * return a wrong value.
 			 */
-			logit("Authentication agent failed to decrypt challenge.");
+			logit("Authentication agent failed to decrypt "
+			    "challenge: %s", ssh_err(r));
 			explicit_bzero(response, sizeof(response));
 		}
-		key_free(key);
 		debug("Sending response to RSA challenge.");
 
 		/* Send the decrypted challenge back to the server. */
@@ -135,22 +144,25 @@ try_agent_authentication(void)
 		/* Wait for response from the server. */
 		type = packet_read();
 
-		/* The server returns success if it accepted the authentication. */
+		/*
+		 * The server returns success if it accepted the
+		 * authentication.
+		 */
 		if (type == SSH_SMSG_SUCCESS) {
-			ssh_close_authentication_connection(auth);
-			BN_clear_free(challenge);
 			debug("RSA authentication accepted by server.");
-			return 1;
-		}
-		/* Otherwise it should return failure. */
-		if (type != SSH_SMSG_FAILURE)
-			packet_disconnect("Protocol error waiting RSA auth response: %d",
-					  type);
+			ret = 1;
+			break;
+		} else if (type != SSH_SMSG_FAILURE)
+			packet_disconnect("Protocol error waiting RSA auth "
+			    "response: %d", type);
 	}
-	ssh_close_authentication_connection(auth);
+	if (ret != 1)
+		debug("RSA authentication using agent refused.");
+ out:
+	ssh_free_identitylist(idlist);
+	ssh_close_authentication_socket(agent_fd);
 	BN_clear_free(challenge);
-	debug("RSA authentication using agent refused.");
-	return 0;
+	return ret;
 }
 
 /*
@@ -166,7 +178,7 @@ respond_to_rsa_challenge(BIGNUM * challenge, RSA * prv)
 
 	/* Decrypt the challenge using the private key. */
 	/* XXX think about Bleichenbacher, too */
-	if (rsa_private_decrypt(challenge, challenge, prv) <= 0)
+	if (rsa_private_decrypt(challenge, challenge, prv) != 0)
 		packet_disconnect(
 		    "respond_to_rsa_challenge: rsa_private_decrypt failed");
 
@@ -253,7 +265,7 @@ try_rsa_authentication(int idx)
 	 * load the private key.  Try first with empty passphrase; if it
 	 * fails, ask for a passphrase.
 	 */
-	if (public->flags & KEY_FLAG_EXT)
+	if (public->flags & SSHKEY_FLAG_EXT)
 		private = public;
 	else
 		private = key_load_private_type(KEY_RSA1, authfile, "", NULL,
@@ -302,7 +314,7 @@ try_rsa_authentication(int idx)
 	respond_to_rsa_challenge(challenge, private->rsa);
 
 	/* Destroy the private key unless it in external hardware. */
-	if (!(private->flags & KEY_FLAG_EXT))
+	if (!(private->flags & SSHKEY_FLAG_EXT))
 		key_free(private);
 
 	/* We no longer need the challenge. */
@@ -592,8 +604,9 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 			    BN_num_bits(server_key->rsa->n),
 			    SSH_KEY_BITS_RESERVED);
 		}
-		rsa_public_encrypt(key, key, server_key->rsa);
-		rsa_public_encrypt(key, key, host_key->rsa);
+		if (rsa_public_encrypt(key, key, server_key->rsa) != 0 ||
+		    rsa_public_encrypt(key, key, host_key->rsa) != 0)
+			fatal("%s: rsa_public_encrypt failed", __func__);
 	} else {
 		/* Host key has smaller modulus (or they are equal). */
 		if (BN_num_bits(server_key->rsa->n) <
@@ -604,8 +617,9 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 			    BN_num_bits(host_key->rsa->n),
 			    SSH_KEY_BITS_RESERVED);
 		}
-		rsa_public_encrypt(key, key, host_key->rsa);
-		rsa_public_encrypt(key, key, server_key->rsa);
+		if (rsa_public_encrypt(key, key, host_key->rsa) != 0 ||
+		    rsa_public_encrypt(key, key, server_key->rsa) != 0)
+			fatal("%s: rsa_public_encrypt failed", __func__);
 	}
 
 	/* Destroy the public keys since we no longer need them. */
@@ -753,3 +767,5 @@ ssh_userauth1(const char *local_user, const char *server_user, char *host,
  success:
 	return;	/* need statement after label */
 }
+
+#endif /* WITH_SSH1 */

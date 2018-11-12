@@ -202,7 +202,7 @@ svn_dirent_join(const char *base,
                 apr_pool_t *result_pool);
 
 /** Join multiple components onto a @a base dirent. The components are
- * terminated by a @c NULL.
+ * terminated by a @c SVN_VA_NULL.
  *
  * If any component is the empty string, it will be ignored.
  *
@@ -218,7 +218,7 @@ svn_dirent_join(const char *base,
 char *
 svn_dirent_join_many(apr_pool_t *result_pool,
                      const char *base,
-                     ...);
+                     ...) SVN_NEEDS_SENTINEL_NULL;
 
 /** Join a base relpath (@a base) with a component (@a component).
  * @a component need not be a single component.
@@ -353,6 +353,19 @@ svn_relpath_basename(const char *relpath,
 char *
 svn_relpath_dirname(const char *relpath,
                     apr_pool_t *result_pool);
+
+/** Return a maximum of @a max_components components of @a relpath. This is
+ * an efficient way of calling svn_relpath_dirname() multiple times until only
+ * a specific number of components is left.
+ *
+ * Allocate the result in @a result_pool (or statically in case of 0)
+ *
+ * @since New in 1.9.
+ */
+const char *
+svn_relpath_prefix(const char *relpath,
+                   int max_components,
+                   apr_pool_t *result_pool);
 
 
 /** Divide the canonicalized @a uri into a uri @a *dirpath and a

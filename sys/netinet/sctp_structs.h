@@ -189,9 +189,11 @@ struct iterator_control {
 
 struct sctp_net_route {
 	sctp_rtentry_t *ro_rt;
-	void *ro_lle;
-	void *ro_ia;
-	int ro_flags;
+	char *ro_prepend;
+	uint16_t ro_plen;
+	uint16_t ro_flags;
+	uint16_t ro_mtu;
+	uint16_t spare;
 	union sctp_sockstore _l_addr;	/* remote peer addr */
 	struct sctp_ifa *_s_addr;	/* our selected src addr */
 };

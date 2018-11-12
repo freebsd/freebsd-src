@@ -109,7 +109,7 @@ adv_isa_probe(device_t dev)
 {
 	int	port_index;
 	int	max_port_index;
-	u_long	iobase, iocount, irq;
+	rman_res_t	iobase, iocount, irq;
 	int	user_iobase = 0;
 	int	rid = 0;
 	void	*ih;

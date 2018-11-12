@@ -33,8 +33,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h> 
-#include <sys/mbuf.h>   
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>   
 #include <sys/endian.h>
 
 #include <sys/socket.h>
@@ -132,7 +133,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
-	int error, len, mcast;
+	int len, mcast;
 
 	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 	    (m->m_flags & M_PWR_SAV) == 0) {
@@ -264,18 +265,13 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 			return (ENOBUFS);
 		}
 	}
-	error = ieee80211_parent_xmitpkt(ic, m);
+	(void) ieee80211_parent_xmitpkt(ic, m);
 
 	/*
 	 * Unlock at this point - no need to hold it across
 	 * ieee80211_free_node() (ie, the comlock)
 	 */
 	IEEE80211_TX_UNLOCK(ic);
-	if (error != 0) {
-		/* NB: IFQ_HANDOFF reclaims mbuf */
-		ieee80211_free_node(ni);
-		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-	}
 	ic->ic_lastdata = ticks;
 
 	return (0);
@@ -536,8 +532,10 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		(void) ieee80211_add_xmit_params(m, params);
 
 	error = ic->ic_raw_xmit(ni, m, params);
-	if (error)
+	if (error) {
 		if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+		ieee80211_free_node(ni);
+	}
 	return (error);
 }
 
@@ -851,6 +849,15 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	return (ret);
 }
 
+static void
+ieee80211_nulldata_transmitted(struct ieee80211_node *ni, void *arg,
+    int status)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	wakeup(vap);
+}
+
 /*
  * Send a null data frame to the specified node.  If the station
  * is setup for QoS then a QoS Null Data frame is constructed.
@@ -938,6 +945,11 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 		    vap->iv_opmode != IEEE80211_M_HOSTAP)
 			wh->i_fc[1] |= IEEE80211_FC1_PWR_MGT;
+	}
+	if ((ic->ic_flags & IEEE80211_F_SCAN) &&
+	    (ni->ni_flags & IEEE80211_NODE_PWR_MGT)) {
+		ieee80211_add_callback(m, ieee80211_nulldata_transmitted,
+		    NULL);
 	}
 	m->m_len = m->m_pkthdr.len = hdrlen;
 	m->m_flags |= M_ENCAP;		/* mark encapsulated */
@@ -1583,6 +1595,21 @@ bad:
 #undef MC01
 }
 
+void
+ieee80211_free_mbuf(struct mbuf *m)
+{
+	struct mbuf *next;
+
+	if (m == NULL)
+		return;
+
+	do {
+		next = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		m_freem(m);
+	} while ((m = next) != NULL);
+}
+
 /*
  * Fragment the frame according to the specified mtu.
  * The size of the 802.11 header (w/o padding) is provided
@@ -1597,7 +1624,7 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_frame *wh, *whf;
-	struct mbuf *m, *prev, *next;
+	struct mbuf *m, *prev;
 	u_int totalhdrsize, fragno, fragsize, off, remainder, payload;
 	u_int hdrspace;
 
@@ -1692,11 +1719,7 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 	return 1;
 bad:
 	/* reclaim fragments but leave original frame for caller to free */
-	for (m = m0->m_nextpkt; m != NULL; m = next) {
-		next = m->m_nextpkt;
-		m->m_nextpkt = NULL;		/* XXX paranoid */
-		m_freem(m);
-	}
+	ieee80211_free_mbuf(m0->m_nextpkt);
 	m0->m_nextpkt = NULL;
 	return 0;
 }

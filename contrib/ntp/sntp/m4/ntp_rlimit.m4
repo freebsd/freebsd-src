@@ -26,10 +26,15 @@ AC_CACHE_CHECK(
 	[ntp_cv_rlimit_memlock=no]
     )]
 )
+case "$host" in
+ *-*-*linux*)
+    ntp_dflt_rlimit_memlock="-1" ;;
+ *) ntp_dflt_rlimit_memlock="32" ;;
+esac
 case "$ntp_cv_rlimit_memlock" in
  yes)
     AC_SUBST([HAVE_RLIMIT_MEMLOCK])
-    HAVE_RLIMIT_MEMLOCK=" memlock 32"
+    HAVE_RLIMIT_MEMLOCK=" memlock $ntp_dflt_rlimit_memlock"  ;;
 esac
 
 AC_CACHE_CHECK(
@@ -62,5 +67,59 @@ case "$ntp_cv_rlimit_stack" in
     HAVE_RLIMIT_STACK=" stacksize 50"
 esac
 
+# HMS: Only if we are doing the MLOCKALL stuff...
+AC_MSG_CHECKING([for the default number of 4k stack pages])
+AC_ARG_WITH(
+    [stack-limit],
+    [AS_HELP_STRING(
+	[--with-stack-limit],
+	[? =50 (200 for openbsd) 4k pages]
+    )],
+    [ans=$withval],
+    [ans=yes]
+)
+case "$ans" in
+ yes | no)
+    case "$host" in
+     *-*-openbsd*)
+	ans=200
+	;;
+     *) ans=50
+        ;;
+    esac
+    ;;
+ [[1-9]][[0-9]]*)
+    ;;
+ *) AC_MSG_ERROR(["--with-stack-limit requires an integer argument."])
+    ;;
+esac
+AC_MSG_RESULT([$ans])
+AC_DEFINE_UNQUOTED([DFLT_RLIMIT_STACK], [$ans],
+    [Default number of 4k pages for RLIMIT_STACK])
+
+# HMS: only if we have RLIMIT_MEMLOCK
+AC_MSG_CHECKING([for the default number of megabytes to MEMLOCK])
+AC_ARG_WITH(
+    [memlock],
+    [AS_HELP_STRING(
+	[--with-memlock],
+	[? =32 (-1 on linux) megabytes]
+    )],
+    [ans=$withval],
+    [ans=yes]
+)
+case "$ans" in
+ yes | no)
+    ans=$ntp_dflt_rlimit_memlock
+    ;;
+ [[1-9]][[0-9]]*) ;;
+ *) AC_MSG_ERROR(["--with-memlock requires an integer argument."])
+     ;;
+esac
+AC_MSG_RESULT([$ans])
+AC_DEFINE_UNQUOTED([DFLT_RLIMIT_MEMLOCK], [$ans],
+    [Default number of megabytes for RLIMIT_MEMLOCK])
+
 ])dnl
+
 dnl ======================================================================

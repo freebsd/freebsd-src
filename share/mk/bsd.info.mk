@@ -125,9 +125,10 @@ CLEANFILES+=	${IFILENS}
 .if !defined(NO_INFOCOMPRESS)
 CLEANFILES+=	${IFILENS:S/$/${ICOMPRESS_EXT}/}
 IFILES=	${IFILENS:S/$/${ICOMPRESS_EXT}/:S/.html${ICOMPRESS_EXT}/.html/}
-all: ${IFILES}
 .else
 IFILES=	${IFILENS}
+.endif
+.if !defined(_SKIP_BUILD)
 all: ${IFILES}
 .endif
 
@@ -177,11 +178,11 @@ CLEANFILES+=	${INFO:S/$/.info.*.html/} ${INFO:S/$/.info/}
 install: ${INSTALLINFODIRS}
 .if !empty(IFILES:N*.html)
 	${INSTALL} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
-		${IFILES:N*.html} ${DESTDIR}${INFODIR}
+		${IFILES:N*.html} ${DESTDIR}${INFODIR}/
 .endif
 .if !empty(FORMATS:Mhtml)
 	${INSTALL} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
-		${INFO:S/$/.info.*.html/} ${DESTDIR}${INFODIR}
+		${INFO:S/$/.info.*.html/} ${DESTDIR}${INFODIR}/
 .endif
 .else
 # The indirection in the following is to avoid the null install rule

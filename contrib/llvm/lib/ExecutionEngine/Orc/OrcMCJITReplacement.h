@@ -54,10 +54,13 @@ class OrcMCJITReplacement : public ExecutionEngine {
       return Addr;
     }
 
-    void reserveAllocationSpace(uintptr_t CodeSize, uintptr_t DataSizeRO,
-                                uintptr_t DataSizeRW) override {
-      return ClientMM->reserveAllocationSpace(CodeSize, DataSizeRO,
-                                                DataSizeRW);
+    void reserveAllocationSpace(uintptr_t CodeSize, uint32_t CodeAlign,
+                                uintptr_t RODataSize, uint32_t RODataAlign,
+                                uintptr_t RWDataSize,
+                                uint32_t RWDataAlign) override {
+      return ClientMM->reserveAllocationSpace(CodeSize, CodeAlign,
+                                              RODataSize, RODataAlign,
+                                              RWDataSize, RWDataAlign);
     }
 
     bool needsToReserveAllocationSpace() override {
@@ -72,6 +75,11 @@ class OrcMCJITReplacement : public ExecutionEngine {
     void deregisterEHFrames(uint8_t *Addr, uint64_t LoadAddr,
                             size_t Size) override {
       return ClientMM->deregisterEHFrames(Addr, LoadAddr, Size);
+    }
+
+    void notifyObjectLoaded(RuntimeDyld &RTDyld,
+                            const object::ObjectFile &O) override {
+      return ClientMM->notifyObjectLoaded(RTDyld, O);
     }
 
     void notifyObjectLoaded(ExecutionEngine *EE,
@@ -137,25 +145,26 @@ public:
   }
 
   OrcMCJITReplacement(
-                    std::shared_ptr<MCJITMemoryManager> MemMgr,
-                    std::shared_ptr<RuntimeDyld::SymbolResolver> ClientResolver,
-                    std::unique_ptr<TargetMachine> TM)
-      : TM(std::move(TM)), MemMgr(*this, std::move(MemMgr)),
-        Resolver(*this), ClientResolver(std::move(ClientResolver)),
-        NotifyObjectLoaded(*this), NotifyFinalized(*this),
+      std::shared_ptr<MCJITMemoryManager> MemMgr,
+      std::shared_ptr<RuntimeDyld::SymbolResolver> ClientResolver,
+      std::unique_ptr<TargetMachine> TM)
+      : ExecutionEngine(TM->createDataLayout()), TM(std::move(TM)),
+        MemMgr(*this, std::move(MemMgr)), Resolver(*this),
+        ClientResolver(std::move(ClientResolver)), NotifyObjectLoaded(*this),
+        NotifyFinalized(*this),
         ObjectLayer(NotifyObjectLoaded, NotifyFinalized),
         CompileLayer(ObjectLayer, SimpleCompiler(*this->TM)),
-        LazyEmitLayer(CompileLayer) {
-    setDataLayout(this->TM->getDataLayout());
-  }
+        LazyEmitLayer(CompileLayer) {}
 
   void addModule(std::unique_ptr<Module> M) override {
 
     // If this module doesn't have a DataLayout attached then attach the
     // default.
-    if (M->getDataLayout().isDefault())
-      M->setDataLayout(*getDataLayout());
-
+    if (M->getDataLayout().isDefault()) {
+      M->setDataLayout(getDataLayout());
+    } else {
+      assert(M->getDataLayout() == getDataLayout() && "DataLayout Mismatch");
+    }
     Modules.push_back(std::move(M));
     std::vector<Module *> Ms;
     Ms.push_back(&*Modules.back());
@@ -174,12 +183,7 @@ public:
     std::tie(Obj, Buf) = O.takeBinary();
     std::vector<std::unique_ptr<object::ObjectFile>> Objs;
     Objs.push_back(std::move(Obj));
-    auto H =
-      ObjectLayer.addObjectSet(std::move(Objs), &MemMgr, &Resolver);
-
-    std::vector<std::unique_ptr<MemoryBuffer>> Bufs;
-    Bufs.push_back(std::move(Buf));
-    ObjectLayer.takeOwnershipOfBuffers(H, std::move(Bufs));
+    ObjectLayer.addObjectSet(std::move(Objs), &MemMgr, &Resolver);
   }
 
   void addArchive(object::OwningBinary<object::Archive> A) override {
@@ -234,6 +238,10 @@ public:
     CompileLayer.setObjectCache(NewCache);
   }
 
+  void setProcessAllSections(bool ProcessAllSections) override {
+    ObjectLayer.setProcessAllSections(ProcessAllSections);
+  }
+
 private:
 
   RuntimeDyld::SymbolInfo findMangledSymbol(StringRef Name) {
@@ -252,10 +260,12 @@ private:
       object::Archive *A = OB.getBinary();
       // Look for our symbols in each Archive
       object::Archive::child_iterator ChildIt = A->findSym(Name);
+      if (std::error_code EC = ChildIt->getError())
+        report_fatal_error(EC.message());
       if (ChildIt != A->child_end()) {
         // FIXME: Support nested archives?
         ErrorOr<std::unique_ptr<object::Binary>> ChildBinOrErr =
-            ChildIt->getAsBinary();
+            (*ChildIt)->getAsBinary();
         if (ChildBinOrErr.getError())
           continue;
         std::unique_ptr<object::Binary> &ChildBin = ChildBinOrErr.get();
@@ -289,7 +299,7 @@ private:
              "Incorrect number of Infos for Objects.");
       for (unsigned I = 0; I < Objects.size(); ++I)
         M.MemMgr.notifyObjectLoaded(&M, *Objects[I]);
-    };
+    }
 
   private:
     OrcMCJITReplacement &M;
@@ -310,7 +320,7 @@ private:
     std::string MangledName;
     {
       raw_string_ostream MangledNameStream(MangledName);
-      Mang.getNameWithPrefix(MangledNameStream, Name, *TM->getDataLayout());
+      Mang.getNameWithPrefix(MangledNameStream, Name, getDataLayout());
     }
     return MangledName;
   }

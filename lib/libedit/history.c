@@ -1,4 +1,4 @@
-/*	$NetBSD: history.c,v 1.47 2014/05/11 01:05:17 christos Exp $	*/
+/*	$NetBSD: history.c,v 1.52 2016/02/17 19:47:49 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)history.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: history.c,v 1.47 2014/05/11 01:05:17 christos Exp $");
+__RCSID("$NetBSD: history.c,v 1.52 2016/02/17 19:47:49 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -46,11 +46,11 @@ __FBSDID("$FreeBSD$");
 /*
  * hist.c: TYPE(History) access functions
  */
-#include <string.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <vis.h>
 #include <sys/stat.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <vis.h>
 
 static const char hist_cookie[] = "_HiStOrY_V2_\n";
 
@@ -439,7 +439,7 @@ history_def_del(void *p, TYPE(HistEvent) *ev __attribute__((__unused__)),
  */
 /* ARGSUSED */
 private void
-history_def_delete(history_t *h, 
+history_def_delete(history_t *h,
 		   TYPE(HistEvent) *ev __attribute__((__unused__)), hentry_t *hp)
 {
 	HistEventPrivate *evp = (void *)&hp->ev;
@@ -734,7 +734,9 @@ history_load(TYPE(History) *h, const char *fname)
 {
 	FILE *fp;
 	char *line;
-	size_t sz, max_size;
+	size_t llen;
+	ssize_t sz;
+	size_t max_size;
 	char *ptr;
 	int i = -1;
 	TYPE(HistEvent) ev;
@@ -745,26 +747,23 @@ history_load(TYPE(History) *h, const char *fname)
 	if ((fp = fopen(fname, "r")) == NULL)
 		return i;
 
-	if ((line = fgetln(fp, &sz)) == NULL)
+	line = NULL;
+	llen = 0;
+	if ((sz = getline(&line, &llen, fp)) == -1)
 		goto done;
 
-	if (strncmp(line, hist_cookie, sz) != 0)
+	if (strncmp(line, hist_cookie, (size_t)sz) != 0)
 		goto done;
 
 	ptr = h_malloc((max_size = 1024) * sizeof(*ptr));
 	if (ptr == NULL)
 		goto done;
-	for (i = 0; (line = fgetln(fp, &sz)) != NULL; i++) {
-		char c = line[sz];
-
-		if (sz != 0 && line[sz - 1] == '\n')
+	for (i = 0; (sz = getline(&line, &llen, fp)) != -1; i++) {
+		if (sz > 0 && line[sz - 1] == '\n')
 			line[--sz] = '\0';
-		else
-			line[sz] = '\0';
-
-		if (max_size < sz) {
+		if (max_size < (size_t)sz) {
 			char *nptr;
-			max_size = (sz + 1024) & (size_t)~1023;
+			max_size = ((size_t)sz + 1024) & (size_t)~1023;
 			nptr = h_realloc(ptr, max_size * sizeof(*ptr));
 			if (nptr == NULL) {
 				i = -1;
@@ -773,7 +772,6 @@ history_load(TYPE(History) *h, const char *fname)
 			ptr = nptr;
 		}
 		(void) strunvis(ptr, line);
-		line[sz] = c;
 		if (HENTER(h, &ev, ct_decode_string(ptr, &conv)) == -1) {
 			i = -1;
 			goto oomem;
@@ -782,6 +780,7 @@ history_load(TYPE(History) *h, const char *fname)
 oomem:
 	h_free(ptr);
 done:
+	free(line);
 	(void) fclose(fp);
 	return i;
 }
@@ -813,8 +812,8 @@ history_save_fp(TYPE(History) *h, FILE *fp)
 	    retval != -1;
 	    retval = HPREV(h, &ev), i++) {
 		str = ct_encode_string(ev.str, &conv);
-		len = strlen(str) * 4;
-		if (len >= max_size) {
+		len = strlen(str) * 4 + 1;
+		if (len > max_size) {
 			char *nptr;
 			max_size = (len + 1024) & (size_t)~1023;
 			nptr = h_realloc(ptr, max_size * sizeof(*ptr));

@@ -126,8 +126,12 @@ enum {
   /// Loading instruction that may page fault, bundled with associated
   /// information on how to handle such a page fault.  It is intended to support
   /// "zero cost" null checks in managed languages by allowing LLVM to fold
-  /// comparisions into existing memory operations.
+  /// comparisons into existing memory operations.
   FAULTING_LOAD_OP = 22,
+
+  /// BUILTIN_OP_END - This must be the last enum value in this list.
+  /// The target-specific post-isel opcode values start here.
+  GENERIC_OP_END = FAULTING_LOAD_OP,
 };
 } // end namespace TargetOpcode
 } // end namespace llvm

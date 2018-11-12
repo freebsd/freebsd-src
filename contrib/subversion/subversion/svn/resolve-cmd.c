@@ -123,7 +123,7 @@ svn_cl__resolve(apr_getopt_t *os,
   svn_pool_destroy(iterpool);
 
   if (had_error)
-    return svn_error_create(SVN_ERR_CL_ERROR_PROCESSING_EXTERNALS, NULL,
+    return svn_error_create(SVN_ERR_WC_CONFLICT_RESOLVER_FAILURE, NULL,
                             _("Failure occurred resolving one or more "
                               "conflicts"));
 

@@ -45,6 +45,11 @@ extern int (*_arm_bzero)(void *, int, int);
 extern int _min_memcpy_size;
 extern int _min_bzero_size;
 
+struct vdso_timehands;
+struct timecounter;
+extern uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
+    struct timecounter *);
+
 #define DST_IS_USER	0x1
 #define SRC_IS_USER	0x2
 #define IS_PHYSICAL	0x4
@@ -70,5 +75,7 @@ void busdma_swi(void);
 void dump_add_page(vm_paddr_t);
 void dump_drop_page(vm_paddr_t);
 int minidumpsys(struct dumperinfo *);
+
+extern uint32_t initial_fpscr;
 
 #endif /* !_MACHINE_MD_VAR_H_ */

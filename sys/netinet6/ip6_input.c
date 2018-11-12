@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/hhook.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
@@ -144,6 +145,17 @@ static struct netisr_handler ip6_nh = {
 #endif
 };
 
+#ifdef RSS
+static struct netisr_handler ip6_direct_nh = {
+	.nh_name = "ip6_direct",
+	.nh_handler = ip6_direct_input,
+	.nh_proto = NETISR_IPV6_DIRECT,
+	.nh_m2cpuid = rss_soft_m2cpuid_v6,
+	.nh_policy = NETISR_POLICY_CPU,
+	.nh_dispatch = NETISR_DISPATCH_HYBRID,
+};
+#endif
+
 VNET_DECLARE(struct callout, in6_tmpaddrtimer_ch);
 #define	V_in6_tmpaddrtimer_ch		VNET(in6_tmpaddrtimer_ch)
 
@@ -190,6 +202,17 @@ ip6_init(void)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
 
+	if (hhook_head_register(HHOOK_TYPE_IPSEC_IN, AF_INET6,
+	    &V_ipsec_hhh_in[HHOOK_IPSEC_INET6],
+	    HHOOK_WAITOK | HHOOK_HEADISINVNET) != 0)
+		printf("%s: WARNING: unable to register input helper hook\n",
+		    __func__);
+	if (hhook_head_register(HHOOK_TYPE_IPSEC_OUT, AF_INET6,
+	    &V_ipsec_hhh_out[HHOOK_IPSEC_INET6],
+	    HHOOK_WAITOK | HHOOK_HEADISINVNET) != 0)
+		printf("%s: WARNING: unable to register output helper hook\n",
+		    __func__);
+
 	scope6_init();
 	addrsel_policy_init();
 	nd6_init();
@@ -222,6 +245,9 @@ ip6_init(void)
 		}
 
 	netisr_register(&ip6_nh);
+#ifdef RSS
+	netisr_register(&ip6_direct_nh);
+#endif
 }
 
 /*
@@ -286,11 +312,23 @@ ip6proto_unregister(short ip6proto)
 void
 ip6_destroy()
 {
-	int i;
+	int error;
 
-	if ((i = pfil_head_unregister(&V_inet6_pfil_hook)) != 0)
+	if ((error = pfil_head_unregister(&V_inet6_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to unregister pfil hook, "
-		    "error %d\n", __func__, i);
+		    "error %d\n", __func__, error);
+	error = hhook_head_deregister(V_ipsec_hhh_in[HHOOK_IPSEC_INET6]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister input helper hook "
+		    "type HHOOK_TYPE_IPSEC_IN, id HHOOK_IPSEC_INET6: "
+		    "error %d returned\n", __func__, error);
+	}
+	error = hhook_head_deregister(V_ipsec_hhh_out[HHOOK_IPSEC_INET6]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister output helper hook "
+		    "type HHOOK_TYPE_IPSEC_OUT, id HHOOK_IPSEC_INET6: "
+		    "error %d returned\n", __func__, error);
+	}
 	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
 	nd6_destroy();
 	callout_drain(&V_in6_tmpaddrtimer_ch);
@@ -402,6 +440,66 @@ ip6_input_hbh(struct mbuf *m, uint32_t *plen, uint32_t *rtalert, int *off,
 out:
 	return (1);
 }
+
+#ifdef RSS
+/*
+ * IPv6 direct input routine.
+ *
+ * This is called when reinjecting completed fragments where
+ * all of the previous checking and book-keeping has been done.
+ */
+void
+ip6_direct_input(struct mbuf *m)
+{
+	int off, nxt;
+	int nest;
+	struct m_tag *mtag;
+	struct ip6_direct_ctx *ip6dc;
+
+	mtag = m_tag_locate(m, MTAG_ABI_IPV6, IPV6_TAG_DIRECT, NULL);
+	KASSERT(mtag != NULL, ("Reinjected packet w/o direct ctx tag!"));
+
+	ip6dc = (struct ip6_direct_ctx *)(mtag + 1);
+	nxt = ip6dc->ip6dc_nxt;
+	off = ip6dc->ip6dc_off;
+
+	nest = 0;
+
+	m_tag_delete(m, mtag);
+
+	while (nxt != IPPROTO_DONE) {
+		if (V_ip6_hdrnestlimit && (++nest > V_ip6_hdrnestlimit)) {
+			IP6STAT_INC(ip6s_toomanyhdr);
+			goto bad;
+		}
+
+		/*
+		 * protection against faulty packet - there should be
+		 * more sanity checks in header chain processing.
+		 */
+		if (m->m_pkthdr.len < off) {
+			IP6STAT_INC(ip6s_tooshort);
+			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_truncated);
+			goto bad;
+		}
+
+#ifdef IPSEC
+		/*
+		 * enforce IPsec policy checking if we are seeing last header.
+		 * note that we do not visit this with protocols with pcb layer
+		 * code - like udp/tcp/raw ip.
+		 */
+		if (ip6_ipsec_input(m, nxt))
+			goto bad;
+#endif /* IPSEC */
+
+		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
+	}
+	return;
+bad:
+	m_freem(m);
+}
+#endif
 
 void
 ip6_input(struct mbuf *m)
@@ -713,6 +811,13 @@ passin:
 		nxt = ip6->ip6_nxt;
 
 	/*
+	 * Use mbuf flags to propagate Router Alert option to
+	 * ICMPv6 layer, as hop-by-hop options have been stripped.
+	 */
+	if (rtalert != ~0)
+		m->m_flags |= M_RTALERT_MLD;
+
+	/*
 	 * Check that the amount of data in the buffers
 	 * is as at least much as the IPv6 header would have us expect.
 	 * Trim mbufs if longer than we expect.
@@ -808,13 +913,6 @@ passin:
 		if (ip6_ipsec_input(m, nxt))
 			goto bad;
 #endif /* IPSEC */
-
-		/*
-		 * Use mbuf flags to propagate Router Alert option to
-		 * ICMPv6 layer, as hop-by-hop options have been stripped.
-		 */
-		if (nxt == IPPROTO_ICMPV6 && rtalert != ~0)
-			m->m_flags |= M_RTALERT_MLD;
 
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
 	}

@@ -255,7 +255,8 @@ static int TS_verify_cert(X509_STORE *store, STACK_OF(X509) *untrusted,
 
     /* chain is an out argument. */
     *chain = NULL;
-    X509_STORE_CTX_init(&cert_ctx, store, signer, untrusted);
+    if (!X509_STORE_CTX_init(&cert_ctx, store, signer, untrusted))
+        return 0;
     X509_STORE_CTX_set_purpose(&cert_ctx, X509_PURPOSE_TIMESTAMP_SIGN);
     i = X509_verify_cert(&cert_ctx);
     if (i <= 0) {
@@ -522,7 +523,7 @@ static int TS_check_status_info(TS_RESP *response)
             if (ASN1_BIT_STRING_get_bit(info->failure_info,
                                         TS_failure_info[i].code)) {
                 if (!first)
-                    strcpy(failure_text, ",");
+                    strcat(failure_text, ",");
                 else
                     first = 0;
                 strcat(failure_text, TS_failure_info[i].text);
@@ -637,7 +638,7 @@ static int TS_compute_imprint(BIO *data, TS_TST_INFO *tst_info,
     X509_ALGOR_free(*md_alg);
     OPENSSL_free(*imprint);
     *imprint_len = 0;
-    *imprint = NULL;
+    *imprint = 0;
     return 0;
 }
 

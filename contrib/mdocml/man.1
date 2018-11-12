@@ -1,4 +1,4 @@
-.\"	$Id: man.1,v 1.13 2015/02/16 16:23:54 schwarze Exp $
+.\"	$Id: man.1,v 1.16 2015/09/21 09:59:02 schwarze Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)man.1	8.2 (Berkeley) 1/2/94
 .\"
-.Dd $Mdocdate: February 16 2015 $
+.Dd $Mdocdate: September 21 2015 $
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -173,12 +173,6 @@ must be a colon
 separated list of directories.
 This search path may also be set using the environment variable
 .Ev MANPATH .
-The subdirectories to be searched, and their search order,
-are specified by the
-.Dq _subdir
-line in the
-.Nm
-configuration file.
 .It Fl m Ar path
 Augment the list of standard directories which
 .Nm
@@ -194,12 +188,6 @@ the directories specified using the
 option or the
 .Ev MANPATH
 environment variable.
-The subdirectories to be searched, and their search order,
-are specified by the
-.Dq _subdir
-line in the
-.Nm
-configuration file.
 .It Fl O Ar option Ns = Ns Ar value
 Comma-separated output options.
 For each output format, the available options are described in the
@@ -360,6 +348,13 @@ Any non-empty value of the environment variable
 .Ev MANPAGER
 will be used instead of the standard pagination program,
 .Xr more 1 .
+If
+.Xr less 1
+is used, the interactive
+.Ic :t
+command can be used to go to the definitions of various terms, for
+example command line options, command modifiers, internal commands,
+and environment variables.
 .It Ev MANPATH
 The standard search path used by
 .Nm
@@ -370,18 +365,13 @@ variable.
 The format of the path is a colon
 .Pq Ql \&:
 separated list of directories.
-The subdirectories to be searched, as well as their search order,
-are specified by the
-.Dq _subdir
-line in the
-.Nm
-configuration file.
 .It Ev PAGER
 Specifies the pagination program to use when
 .Ev MANPAGER
 is not defined.
 If neither PAGER nor MANPAGER is defined,
-.Pa /usr/bin/more Fl s
+.Xr more 1
+.Fl s
 will be used.
 .El
 .Sh FILES

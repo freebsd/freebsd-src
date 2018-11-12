@@ -10,6 +10,7 @@
 #ifndef liblldb_RegisterContextPOSIXProcessMonitor_x86_H_
 #define liblldb_RegisterContextPOSIXProcessMonitor_x86_H_
 
+#include "RegisterContextPOSIX.h"
 #include "Plugins/Process/Utility/RegisterContextPOSIX_x86.h"
 
 class RegisterContextPOSIXProcessMonitor_x86_64:
@@ -90,6 +91,7 @@ protected:
 private:
     ProcessMonitor &
     GetMonitor();
+    uint32_t m_fctrl_offset_in_userarea;  // Offset of 'fctrl' in 'UserArea' Structure
 };
 
 #endif

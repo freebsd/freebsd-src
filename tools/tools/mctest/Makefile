@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG_CXX=   mctest 
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
+LIBADD= pthread
 
 .include <bsd.prog.mk>

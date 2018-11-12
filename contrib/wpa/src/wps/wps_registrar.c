@@ -2605,13 +2605,16 @@ static enum wps_process_res wps_process_m1(struct wps_data *wps,
 		token = wps_get_nfc_pw_token(
 			&wps->wps->registrar->nfc_pw_tokens, wps->dev_pw_id);
 		if (token && token->peer_pk_hash_known) {
+			size_t len;
+
 			wpa_printf(MSG_DEBUG, "WPS: Found matching NFC "
 				   "Password Token");
 			dl_list_del(&token->list);
 			wps->nfc_pw_token = token;
 
 			addr[0] = attr->public_key;
-			sha256_vector(1, addr, &attr->public_key_len, hash);
+			len = attr->public_key_len;
+			sha256_vector(1, addr, &len, hash);
 			if (os_memcmp_const(hash,
 					    wps->nfc_pw_token->pubkey_hash,
 					    WPS_OOB_PUBKEY_HASH_LEN) != 0) {
@@ -3226,8 +3229,13 @@ static enum wps_process_res wps_process_wsc_done(struct wps_data *wps,
 		os_memset(&cred, 0, sizeof(cred));
 		os_memcpy(cred.ssid, wps->wps->ssid, wps->wps->ssid_len);
 		cred.ssid_len = wps->wps->ssid_len;
-		cred.auth_type = WPS_AUTH_WPAPSK | WPS_AUTH_WPA2PSK;
-		cred.encr_type = WPS_ENCR_TKIP | WPS_ENCR_AES;
+		if (wps->wps->rf_band_cb(wps->wps->cb_ctx) == WPS_RF_60GHZ) {
+			cred.auth_type = WPS_AUTH_WPA2PSK;
+			cred.encr_type = WPS_ENCR_AES;
+		} else {
+			cred.auth_type = WPS_AUTH_WPAPSK | WPS_AUTH_WPA2PSK;
+			cred.encr_type = WPS_ENCR_TKIP | WPS_ENCR_AES;
+		}
 		os_memcpy(cred.key, wps->new_psk, wps->new_psk_len);
 		cred.key_len = wps->new_psk_len;
 

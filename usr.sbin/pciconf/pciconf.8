@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 06, 2015
+.Dd November 23, 2015
 .Dt PCICONF 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd diagnostic utility for the PCI bus
 .Sh SYNOPSIS
 .Nm
-.Fl l Oo Fl bcevV Oc Op Ar device
+.Fl l Oo Fl BbceVv Oc Op Ar device
 .Nm
 .Fl a Ar device
 .Nm
@@ -112,6 +112,42 @@ device, which contains several (similar or independent) functions on
 one chip.
 .Pp
 If the
+.Fl B
+option is supplied,
+.Nm
+will list additional information for
+.Tn PCI
+to
+.Tn PCI
+and
+.Tn PCI
+to
+.Tn CardBus
+bridges,
+specifically the resource ranges decoded by the bridge for use by devices
+behind the bridge.
+Each bridge lists a range of bus numbers handled by the bridge and its
+downstream devices.
+Memory and I/O port decoding windows are enumerated via a line in the
+following format:
+.Bd -literal
+    window[1c] = type I/O Port, range 16, addr 0x5000-0x8fff, enabled
+.Ed
+.Pp
+The first value after the
+.Dq Li window
+prefix in the square brackets is the offset of the decoding window in
+config space in hexadecimal.
+The type of a window is one of
+.Dq Memory ,
+.Dq Prefetchable Memory ,
+or
+.Dq I/O Port .
+The range indicates the binary log of the maximum address the window decodes.
+The address field indicates the start and end addresses of the decoded range.
+Finally, the last flag indicates if the window is enabled or disabled.
+.Pp
+If the
 .Fl b
 option is supplied,
 .Nm
@@ -132,7 +168,7 @@ The type of a BAR is one of
 .Dq Prefetchable Memory ,
 or
 .Dq I/O Port .
-The range indicates the maximum address the BAR decodes.
+The range indicates the binary log of the maximum address the BAR decodes.
 The base and size indicate the start and length of the BAR's address window,
 respectively.
 Finally, the last flag indicates if the BAR is enabled or disabled.

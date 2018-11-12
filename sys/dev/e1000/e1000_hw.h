@@ -137,6 +137,11 @@ struct e1000_hw;
 #define E1000_DEV_ID_PCH_I218_V2		0x15A1
 #define E1000_DEV_ID_PCH_I218_LM3		0x15A2 /* Wildcat Point PCH */
 #define E1000_DEV_ID_PCH_I218_V3		0x15A3 /* Wildcat Point PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_LM		0x156F /* Sunrise Point PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_V		0x1570 /* Sunrise Point PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_LM2		0x15B7 /* Sunrise Point-H PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_V2		0x15B8 /* Sunrise Point-H PCH */
+#define E1000_DEV_ID_PCH_LBG_I219_LM3		0x15B9 /* LEWISBURG PCH */
 #define E1000_DEV_ID_82576			0x10C9
 #define E1000_DEV_ID_82576_FIBER		0x10E6
 #define E1000_DEV_ID_82576_SERDES		0x10E7
@@ -222,6 +227,7 @@ enum e1000_mac_type {
 	e1000_pchlan,
 	e1000_pch2lan,
 	e1000_pch_lpt,
+	e1000_pch_spt,
 	e1000_82575,
 	e1000_82576,
 	e1000_82580,
@@ -805,7 +811,7 @@ struct e1000_mac_info {
 	enum e1000_serdes_link_state serdes_link_state;
 	bool serdes_has_link;
 	bool tx_pkt_filtering;
-	u32 max_frame_size;
+	u32  max_frame_size;
 };
 
 struct e1000_phy_info {

@@ -119,10 +119,10 @@ __FBSDID("$FreeBSD$");
  */
 static const int file_modes[] = { O_RDONLY, O_WRONLY, O_RDWR,
     O_RDONLY | O_TRUNC, O_WRONLY | O_TRUNC, O_RDWR | O_TRUNC };
-static const int file_modes_count = sizeof(file_modes) / sizeof(int);
+static const int file_modes_count = nitems(file_modes);
 
 static const int dir_modes[] = { O_RDONLY };
-static const int dir_modes_count = sizeof(dir_modes) / sizeof(int);
+static const int dir_modes_count = nitems(dir_modes);
 
 static int testnum;
 static int aio_present;
@@ -169,9 +169,9 @@ try_directory_open(const char *testname, const char *directory,
 			ok_mode(testname, NULL, mode);
 		close(dfd);
 	} else {
-		if (expected_errno && expected_errno == expected_errno)
+		if (expected_errno && expected_errno == errno)
 			ok_mode(testname, NULL, mode);
-		else if (expected_errno)
+		else if (expected_errno != 0)
 			notok_mode(testname, "wrong errno", mode);
 		else
 			notok_mode(testname, "failed", mode);
@@ -753,7 +753,8 @@ pwritev_wrapper(int d, const void *buf, size_t nbytes)
 static ssize_t
 aio_write_wrapper(int d, const void *buf, size_t nbytes)
 {
-	struct aiocb aiocb, *aiocb_array[1];
+	struct aiocb aiocb;
+	struct aiocb const *aiocb_array[] = { &aiocb };
 
 	bzero(&aiocb, sizeof(aiocb));
 	aiocb.aio_fildes = d;
@@ -839,7 +840,8 @@ preadv_wrapper(int d, void *buf, size_t nbytes)
 static ssize_t
 aio_read_wrapper(int d, void *buf, size_t nbytes)
 {
-	struct aiocb aiocb, *aiocb_array[1];
+	struct aiocb aiocb;
+	struct aiocb const *aiocb_array[] = { &aiocb };
 
 	bzero(&aiocb, sizeof(aiocb));
 	aiocb.aio_fildes = d;
@@ -847,7 +849,6 @@ aio_read_wrapper(int d, void *buf, size_t nbytes)
 	aiocb.aio_nbytes = nbytes;
 	if (aio_read(&aiocb) < 0)
 		return (-1);
-	aiocb_array[0] = &aiocb;
 	if (aio_suspend(aiocb_array, 1, NULL) < 0)
 		return (-1);
 	return (aio_return(&aiocb));
@@ -1009,12 +1010,8 @@ check_mmap_exec(const char *testname, const char *path, int isdir,
 			if (isdir)
 				notok_mode(testname, "mmap dir succeeded",
 				    mode);
-			else if ((mode & O_ACCMODE) == O_RDONLY ||
-			    (mode & O_ACCMODE) == O_RDWR)
-				ok_mode(testname, "mmap file succeeded",
-				    mode);
 			else
-				notok_mode(testname, "mmap file succeeded",
+				ok_mode(testname, "mmap file succeeded",
 				    mode);
 			(void)munmap(addr, getpagesize());
 		}
@@ -1069,7 +1066,7 @@ check_mmap_write_private(const char *testname, const char *path, int isdir,
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	char dir_path[PATH_MAX], file_path[PATH_MAX];
 	int dummy, fd;
@@ -1084,25 +1081,25 @@ main(int argc, char *argv[])
 
 	strlcpy(dir_path, "/tmp/open-dir.XXXXXXXXXXX", sizeof(dir_path));
 	if (mkdtemp(dir_path) == NULL)
-		err(-1, "mkdtemp");
+		err(1, "mkdtemp");
 	if (chmod(dir_path, PERM_DIR) < 0) {
 		warn("chmod %s", dir_path);
 		(void)rmdir(dir_path);
-		exit(-1);
+		exit(1);
 	}
 	strlcpy(file_path, "/tmp/open-file.XXXXXXXXXXX", sizeof(file_path));
 	fd = mkstemp(file_path);
 	if (fd < 0) {
 		warn("mkstemp");
 		(void)rmdir(dir_path);
-		exit(-1);
+		exit(1);
 	}
 	close(fd);
 	if (chmod(file_path, PERM_FILE) < 0) {
 		warn("chmod %s", file_path);
 		(void)unlink(file_path);
 		(void)rmdir(dir_path);
-		exit(-1);
+		exit(1);
 	}
 	check_directory_open_modes(dir_path, file_modes, file_modes_count);
 

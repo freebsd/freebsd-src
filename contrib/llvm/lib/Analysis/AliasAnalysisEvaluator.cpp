@@ -21,8 +21,10 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Pass.h"
@@ -57,7 +59,7 @@ namespace {
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.addRequired<AliasAnalysis>();
+      AU.addRequired<AAResultsWrapperPass>();
       AU.setPreservesAll();
     }
 
@@ -81,7 +83,7 @@ namespace {
 char AAEval::ID = 0;
 INITIALIZE_PASS_BEGIN(AAEval, "aa-eval",
                 "Exhaustive Alias Analysis Precision Evaluator", false, true)
-INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
+INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_END(AAEval, "aa-eval",
                 "Exhaustive Alias Analysis Precision Evaluator", false, true)
 
@@ -139,16 +141,17 @@ static inline bool isInterestingPointer(Value *V) {
 }
 
 bool AAEval::runOnFunction(Function &F) {
-  AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
+  const DataLayout &DL = F.getParent()->getDataLayout();
+  AliasAnalysis &AA = getAnalysis<AAResultsWrapperPass>().getAAResults();
 
   SetVector<Value *> Pointers;
-  SetVector<CallSite> CallSites;
+  SmallSetVector<CallSite, 16> CallSites;
   SetVector<Value *> Loads;
   SetVector<Value *> Stores;
 
-  for (Function::arg_iterator I = F.arg_begin(), E = F.arg_end(); I != E; ++I)
-    if (I->getType()->isPointerTy())    // Add all pointer arguments.
-      Pointers.insert(I);
+  for (auto &I : F.args())
+    if (I.getType()->isPointerTy())    // Add all pointer arguments.
+      Pointers.insert(&I);
 
   for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
     if (I->getType()->isPointerTy()) // Add all pointer instructions.
@@ -164,10 +167,9 @@ bool AAEval::runOnFunction(Function &F) {
       if (!isa<Function>(Callee) && isInterestingPointer(Callee))
         Pointers.insert(Callee);
       // Consider formals.
-      for (CallSite::arg_iterator AI = CS.arg_begin(), AE = CS.arg_end();
-           AI != AE; ++AI)
-        if (isInterestingPointer(*AI))
-          Pointers.insert(*AI);
+      for (Use &DataOp : CS.data_ops())
+        if (isInterestingPointer(DataOp))
+          Pointers.insert(DataOp);
       CallSites.insert(CS);
     } else {
       // Consider all operands.
@@ -188,12 +190,12 @@ bool AAEval::runOnFunction(Function &F) {
        I1 != E; ++I1) {
     uint64_t I1Size = MemoryLocation::UnknownSize;
     Type *I1ElTy = cast<PointerType>((*I1)->getType())->getElementType();
-    if (I1ElTy->isSized()) I1Size = AA.getTypeStoreSize(I1ElTy);
+    if (I1ElTy->isSized()) I1Size = DL.getTypeStoreSize(I1ElTy);
 
     for (SetVector<Value *>::iterator I2 = Pointers.begin(); I2 != I1; ++I2) {
       uint64_t I2Size = MemoryLocation::UnknownSize;
       Type *I2ElTy =cast<PointerType>((*I2)->getType())->getElementType();
-      if (I2ElTy->isSized()) I2Size = AA.getTypeStoreSize(I2ElTy);
+      if (I2ElTy->isSized()) I2Size = DL.getTypeStoreSize(I2ElTy);
 
       switch (AA.alias(*I1, I1Size, *I2, I2Size)) {
       case NoAlias:
@@ -281,30 +283,29 @@ bool AAEval::runOnFunction(Function &F) {
   }
 
   // Mod/ref alias analysis: compare all pairs of calls and values
-  for (SetVector<CallSite>::iterator C = CallSites.begin(),
-         Ce = CallSites.end(); C != Ce; ++C) {
+  for (auto C = CallSites.begin(), Ce = CallSites.end(); C != Ce; ++C) {
     Instruction *I = C->getInstruction();
 
     for (SetVector<Value *>::iterator V = Pointers.begin(), Ve = Pointers.end();
          V != Ve; ++V) {
       uint64_t Size = MemoryLocation::UnknownSize;
       Type *ElTy = cast<PointerType>((*V)->getType())->getElementType();
-      if (ElTy->isSized()) Size = AA.getTypeStoreSize(ElTy);
+      if (ElTy->isSized()) Size = DL.getTypeStoreSize(ElTy);
 
       switch (AA.getModRefInfo(*C, *V, Size)) {
-      case AliasAnalysis::NoModRef:
+      case MRI_NoModRef:
         PrintModRefResults("NoModRef", PrintNoModRef, I, *V, F.getParent());
         ++NoModRefCount;
         break;
-      case AliasAnalysis::Mod:
+      case MRI_Mod:
         PrintModRefResults("Just Mod", PrintMod, I, *V, F.getParent());
         ++ModCount;
         break;
-      case AliasAnalysis::Ref:
+      case MRI_Ref:
         PrintModRefResults("Just Ref", PrintRef, I, *V, F.getParent());
         ++RefCount;
         break;
-      case AliasAnalysis::ModRef:
+      case MRI_ModRef:
         PrintModRefResults("Both ModRef", PrintModRef, I, *V, F.getParent());
         ++ModRefCount;
         break;
@@ -313,25 +314,24 @@ bool AAEval::runOnFunction(Function &F) {
   }
 
   // Mod/ref alias analysis: compare all pairs of calls
-  for (SetVector<CallSite>::iterator C = CallSites.begin(),
-         Ce = CallSites.end(); C != Ce; ++C) {
-    for (SetVector<CallSite>::iterator D = CallSites.begin(); D != Ce; ++D) {
+  for (auto C = CallSites.begin(), Ce = CallSites.end(); C != Ce; ++C) {
+    for (auto D = CallSites.begin(); D != Ce; ++D) {
       if (D == C)
         continue;
       switch (AA.getModRefInfo(*C, *D)) {
-      case AliasAnalysis::NoModRef:
+      case MRI_NoModRef:
         PrintModRefResults("NoModRef", PrintNoModRef, *C, *D, F.getParent());
         ++NoModRefCount;
         break;
-      case AliasAnalysis::Mod:
+      case MRI_Mod:
         PrintModRefResults("Just Mod", PrintMod, *C, *D, F.getParent());
         ++ModCount;
         break;
-      case AliasAnalysis::Ref:
+      case MRI_Ref:
         PrintModRefResults("Just Ref", PrintRef, *C, *D, F.getParent());
         ++RefCount;
         break;
-      case AliasAnalysis::ModRef:
+      case MRI_ModRef:
         PrintModRefResults("Both ModRef", PrintModRef, *C, *D, F.getParent());
         ++ModRefCount;
         break;

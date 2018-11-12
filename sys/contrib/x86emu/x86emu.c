@@ -6995,15 +6995,13 @@ rol_byte(struct x86emu *emu, uint8_t d, uint8_t s)
 		mask = (1 << cnt) - 1;
 		res |= (d >> (8 - cnt)) & mask;
 
-		/* set the new carry flag, Note that it is the low order bit
-		 * of the result!!!                               */
-		CONDITIONAL_SET_FLAG(res & 0x1, F_CF);
 		/* OVERFLOW is set *IFF* s==1, then it is the xor of CF and
 		 * the most significant bit.  Blecck. */
 		CONDITIONAL_SET_FLAG(s == 1 &&
 		    XOR2((res & 0x1) + ((res >> 6) & 0x2)),
 		    F_OF);
-	} if (s != 0) {
+	}
+	if (s != 0) {
 		/* set the new carry flag, Note that it is the low order bit
 		 * of the result!!!                               */
 		CONDITIONAL_SET_FLAG(res & 0x1, F_CF);
@@ -7025,11 +7023,11 @@ rol_word(struct x86emu *emu, uint16_t d, uint8_t s)
 		res = (d << cnt);
 		mask = (1 << cnt) - 1;
 		res |= (d >> (16 - cnt)) & mask;
-		CONDITIONAL_SET_FLAG(res & 0x1, F_CF);
 		CONDITIONAL_SET_FLAG(s == 1 &&
 		    XOR2((res & 0x1) + ((res >> 14) & 0x2)),
 		    F_OF);
-	} if (s != 0) {
+	}
+	if (s != 0) {
 		/* set the new carry flag, Note that it is the low order bit
 		 * of the result!!!                               */
 		CONDITIONAL_SET_FLAG(res & 0x1, F_CF);
@@ -7051,11 +7049,11 @@ rol_long(struct x86emu *emu, uint32_t d, uint8_t s)
 		res = (d << cnt);
 		mask = (1 << cnt) - 1;
 		res |= (d >> (32 - cnt)) & mask;
-		CONDITIONAL_SET_FLAG(res & 0x1, F_CF);
 		CONDITIONAL_SET_FLAG(s == 1 &&
 		    XOR2((res & 0x1) + ((res >> 30) & 0x2)),
 		    F_OF);
-	} if (s != 0) {
+	}
+	if (s != 0) {
 		/* set the new carry flag, Note that it is the low order bit
 		 * of the result!!!                               */
 		CONDITIONAL_SET_FLAG(res & 0x1, F_CF);
@@ -7093,14 +7091,12 @@ ror_byte(struct x86emu *emu, uint8_t d, uint8_t s)
 		mask = (1 << (8 - cnt)) - 1;
 		res |= (d >> (cnt)) & mask;
 
-		/* set the new carry flag, Note that it is the low order bit
-		 * of the result!!!                               */
-		CONDITIONAL_SET_FLAG(res & 0x80, F_CF);
 		/* OVERFLOW is set *IFF* s==1, then it is the xor of the two
 		 * most significant bits.  Blecck. */
 		CONDITIONAL_SET_FLAG(s == 1 && XOR2(res >> 6), F_OF);
-	} else if (s != 0) {
-		/* set the new carry flag, Note that it is the low order bit
+	}
+	if (s != 0) {
+		/* set the new carry flag, Note that it is the high order bit
 		 * of the result!!!                               */
 		CONDITIONAL_SET_FLAG(res & 0x80, F_CF);
 	}
@@ -7121,10 +7117,10 @@ ror_word(struct x86emu *emu, uint16_t d, uint8_t s)
 		res = (d << (16 - cnt));
 		mask = (1 << (16 - cnt)) - 1;
 		res |= (d >> (cnt)) & mask;
-		CONDITIONAL_SET_FLAG(res & 0x8000, F_CF);
 		CONDITIONAL_SET_FLAG(s == 1 && XOR2(res >> 14), F_OF);
-	} else if (s != 0) {
-		/* set the new carry flag, Note that it is the low order bit
+	}
+	if (s != 0) {
+		/* set the new carry flag, Note that it is the high order bit
 		 * of the result!!!                               */
 		CONDITIONAL_SET_FLAG(res & 0x8000, F_CF);
 	}
@@ -7145,10 +7141,10 @@ ror_long(struct x86emu *emu, uint32_t d, uint8_t s)
 		res = (d << (32 - cnt));
 		mask = (1 << (32 - cnt)) - 1;
 		res |= (d >> (cnt)) & mask;
-		CONDITIONAL_SET_FLAG(res & 0x80000000, F_CF);
 		CONDITIONAL_SET_FLAG(s == 1 && XOR2(res >> 30), F_OF);
-	} else if (s != 0) {
-		/* set the new carry flag, Note that it is the low order bit
+	}
+	if (s != 0) {
+		/* set the new carry flag, Note that it is the high order bit
 		 * of the result!!!                               */
 		CONDITIONAL_SET_FLAG(res & 0x80000000, F_CF);
 	}

@@ -105,8 +105,8 @@ MODULE_VERSION(linux, 1);
  * to syscall 0. This is slightly less bogus than using
  * ldebug(sigreturn).
  */
-#define	LINUX_SYS_linux_rt_sendsig	0
-#define	LINUX_SYS_linux_sendsig		0
+#define	LINUX32_SYS_linux_rt_sendsig	0
+#define	LINUX32_SYS_linux_sendsig	0
 
 const char *linux_kplatform;
 static int linux_szsigcode;
@@ -115,7 +115,7 @@ static char *linux_shared_page_mapping;
 extern char _binary_linux32_locore_o_start;
 extern char _binary_linux32_locore_o_end;
 
-extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
+extern struct sysent linux32_sysent[LINUX32_SYS_MAXSYSCALL];
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
@@ -230,6 +230,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	Elf32_Addr *base;
 	Elf32_Addr *pos;
 	struct linux32_ps_strings *arginfo;
+	int issetugid;
 
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
 
@@ -239,6 +240,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	args = (Elf32_Auxargs *)imgp->auxargs;
 	pos = base + (imgp->args->argc + imgp->args->envc + 2);
 
+	issetugid = imgp->proc->p_flag & P_SUGID ? 1 : 0;
 	AUXARGS_ENTRY_32(pos, LINUX_AT_SYSINFO_EHDR,
 	    imgp->proc->p_sysent->sv_shared_page_base);
 	AUXARGS_ENTRY_32(pos, LINUX_AT_SYSINFO, linux32_vsyscall);
@@ -261,7 +263,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY_32(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY_32(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY_32(pos, AT_BASE, args->base);
-	AUXARGS_ENTRY_32(pos, LINUX_AT_SECURE, 0);
+	AUXARGS_ENTRY_32(pos, LINUX_AT_SECURE, issetugid);
 	AUXARGS_ENTRY_32(pos, AT_UID, imgp->proc->p_ucred->cr_ruid);
 	AUXARGS_ENTRY_32(pos, AT_EUID, imgp->proc->p_ucred->cr_svuid);
 	AUXARGS_ENTRY_32(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
@@ -313,7 +315,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 */
 	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct l_rt_sigframe *)(td->td_sigstk.ss_sp +
+		fp = (struct l_rt_sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct l_rt_sigframe));
 	} else
 		fp = (struct l_rt_sigframe *)regs->tf_rsp - 1;
@@ -458,7 +460,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 */
 	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct l_sigframe *)(td->td_sigstk.ss_sp +
+		fp = (struct l_sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(struct l_sigframe));
 	} else
 		fp = (struct l_sigframe *)regs->tf_rsp - 1;
@@ -741,7 +743,7 @@ linux32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 
 	if (sa->code >= p->p_sysent->sv_size)
 		/* nosys */
-		sa->callp = &p->p_sysent->sv_table[LINUX_SYS_MAXSYSCALL];
+		sa->callp = &p->p_sysent->sv_table[p->p_sysent->sv_size - 1];
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
 	sa->narg = sa->callp->sy_narg;
@@ -1008,11 +1010,9 @@ linux32_fixlimit(struct rlimit *rl, int which)
 }
 
 struct sysentvec elf_linux_sysvec = {
-	.sv_size	= LINUX_SYS_MAXSYSCALL,
-	.sv_table	= linux_sysent,
+	.sv_size	= LINUX32_SYS_MAXSYSCALL,
+	.sv_table	= linux32_sysent,
 	.sv_mask	= 0,
-	.sv_sigsize	= 0,
-	.sv_sigtbl	= NULL,
 	.sv_errsize	= ELAST + 1,
 	.sv_errtbl	= bsd_to_linux_errno,
 	.sv_transtrap	= translate_traps,
@@ -1020,7 +1020,6 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_sendsig	= linux_sendsig,
 	.sv_sigcode	= &_binary_linux32_locore_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
-	.sv_prepsyscall	= NULL,
 	.sv_name	= "Linux ELF32",
 	.sv_coredump	= elf32_coredump,
 	.sv_imgact_try	= exec_linux_imgact_try,
@@ -1043,6 +1042,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
 	.sv_thread_detach = linux_thread_detach,
+	.sv_trap	= NULL,	
 };
 
 static void

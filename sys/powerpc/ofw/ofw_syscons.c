@@ -342,7 +342,7 @@ ofwfb_configure(int flags)
 		if (fb_phys == sc->sc_num_pciaddrs)
 			return (0);
 
-		OF_decode_addr(node, fb_phys, &sc->sc_tag, &sc->sc_addr);
+		OF_decode_addr(node, fb_phys, &sc->sc_tag, &sc->sc_addr, NULL);
 	}
 
 	ofwfb_init(0, &sc->sc_va, 0);

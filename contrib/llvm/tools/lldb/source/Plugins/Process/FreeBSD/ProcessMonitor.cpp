@@ -32,7 +32,7 @@
 #include "lldb/Utility/PseudoTerminal.h"
 
 #include "Plugins/Process/POSIX/CrashReason.h"
-#include "POSIXThread.h"
+#include "FreeBSDThread.h"
 #include "ProcessFreeBSD.h"
 #include "ProcessPOSIXLog.h"
 #include "ProcessMonitor.h"
@@ -317,7 +317,7 @@ ReadRegOperation::Execute(ProcessMonitor *monitor)
         else if (m_size == sizeof(uint64_t))
             m_value = *(uint64_t *)(((caddr_t)&regs) + m_offset);
         else
-            memcpy(&m_value, (((caddr_t)&regs) + m_offset), m_size);
+            memcpy((void *)&m_value, (((caddr_t)&regs) + m_offset), m_size);
         m_result = true;
     }
 }
@@ -393,7 +393,7 @@ ReadDebugRegOperation::Execute(ProcessMonitor *monitor)
         if (m_size == sizeof(uintptr_t))
             m_value = *(uintptr_t *)(((caddr_t)&regs) + m_offset);
         else
-            memcpy(&m_value, (((caddr_t)&regs) + m_offset), m_size);
+            memcpy((void *)&m_value, (((caddr_t)&regs) + m_offset), m_size);
         m_result = true;
     }
 }
@@ -804,7 +804,7 @@ ProcessMonitor::AttachArgs::~AttachArgs()
 /// launching or attaching to the inferior process, and then 2) servicing
 /// operations such as register reads/writes, stepping, etc.  See the comments
 /// on the Operation class for more info as to why this is needed.
-ProcessMonitor::ProcessMonitor(ProcessPOSIX *process,
+ProcessMonitor::ProcessMonitor(ProcessFreeBSD *process,
                                Module *module,
                                const char *argv[],
                                const char *envp[],
@@ -865,7 +865,7 @@ WAIT_AGAIN:
     }
 }
 
-ProcessMonitor::ProcessMonitor(ProcessPOSIX *process,
+ProcessMonitor::ProcessMonitor(ProcessFreeBSD *process,
                                lldb::pid_t pid,
                                lldb_private::Error &error)
     : m_process(static_cast<ProcessFreeBSD *>(process)),

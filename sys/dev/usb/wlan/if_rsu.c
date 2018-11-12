@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/sockio.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -249,6 +250,7 @@ MODULE_DEPEND(rsu, wlan, 1, 1, 1);
 MODULE_DEPEND(rsu, usb, 1, 1, 1);
 MODULE_DEPEND(rsu, firmware, 1, 1, 1);
 MODULE_VERSION(rsu, 1);
+USB_PNP_HOST_INFO(rsu_devs);
 
 static uint8_t rsu_wme_ac_xfer_map[4] = {
 	[WME_AC_BE] = RSU_BULK_TX_BE_BK,
@@ -402,7 +404,8 @@ rsu_attach(device_t self)
 	struct rsu_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 	int error;
-	uint8_t iface_index, bands;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t iface_index;
 	struct usb_interface *iface;
 	const char *rft;
 
@@ -530,12 +533,12 @@ rsu_attach(device_t self)
 	}
 
 	/* Set supported .11b and .11g rates. */
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
 	if (sc->sc_ht)
-		setbit(&bands, IEEE80211_MODE_11NG);
-	ieee80211_init_channels(ic, NULL, &bands);
+		setbit(bands, IEEE80211_MODE_11NG);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = rsu_raw_xmit;
@@ -2793,19 +2796,16 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	/* prevent management frames from being sent if we're not ready */
 	if (!sc->sc_running) {
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return (ENETDOWN);
 	}
 	RSU_LOCK(sc);
 	bf = rsu_getbuf(sc);
 	if (bf == NULL) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		RSU_UNLOCK(sc);
 		return (ENOBUFS);
 	}
 	if (rsu_tx_start(sc, ni, m, bf) != 0) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		rsu_freebuf(sc, bf);
 		RSU_UNLOCK(sc);

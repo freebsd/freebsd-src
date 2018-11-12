@@ -190,16 +190,21 @@ inprocess_cache_get_internal(char **buffer,
 {
   struct cache_entry *entry = apr_hash_get(cache->hash, key, cache->klen);
 
-  *buffer = NULL;
   if (entry)
     {
       SVN_ERR(move_page_to_front(cache, entry->page));
 
       /* duplicate the buffer entry */
       *buffer = apr_palloc(result_pool, entry->size);
-      memcpy(*buffer, entry->value, entry->size);
+      if (entry->size)
+        memcpy(*buffer, entry->value, entry->size);
 
       *size = entry->size;
+    }
+  else
+    {
+      *buffer = NULL;
+      *size = 0;
     }
 
   return SVN_NO_ERROR;
@@ -213,25 +218,64 @@ inprocess_cache_get(void **value_p,
                     apr_pool_t *result_pool)
 {
   inprocess_cache_t *cache = cache_void;
-  char* buffer = NULL;
-  apr_size_t size;
+
+  if (key)
+    {
+      char* buffer;
+      apr_size_t size;
+
+      SVN_MUTEX__WITH_LOCK(cache->mutex,
+                           inprocess_cache_get_internal(&buffer,
+                                                        &size,
+                                                        cache,
+                                                        key,
+                                                        result_pool));
+      /* deserialize the buffer content. Usually, this will directly
+         modify the buffer content directly. */
+      *found = (buffer != NULL);
+      if (!buffer || !size)
+        *value_p = NULL;
+      else
+        return cache->deserialize_func(value_p, buffer, size, result_pool);
+    }
+  else
+    {
+      *value_p = NULL;
+      *found = FALSE;
+    }
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+inprocess_cache_has_key_internal(svn_boolean_t *found,
+                                 inprocess_cache_t *cache,
+                                 const void *key,
+                                 apr_pool_t *scratch_pool)
+{
+  *found = apr_hash_get(cache->hash, key, cache->klen) != NULL;
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+inprocess_cache_has_key(svn_boolean_t *found,
+                        void *cache_void,
+                        const void *key,
+                        apr_pool_t *scratch_pool)
+{
+  inprocess_cache_t *cache = cache_void;
 
   if (key)
     SVN_MUTEX__WITH_LOCK(cache->mutex,
-                         inprocess_cache_get_internal(&buffer,
-                                                      &size,
-                                                      cache,
-                                                      key,
-                                                      result_pool));
+                         inprocess_cache_has_key_internal(found,
+                                                          cache,
+                                                          key,
+                                                          scratch_pool));
+  else
+    *found = FALSE;
 
-  /* deserialize the buffer content. Usually, this will directly
-     modify the buffer content directly.
-   */
-  *value_p = NULL;
-  *found = buffer != NULL;
-  return buffer && size
-    ? cache->deserialize_func(value_p, buffer, size, result_pool)
-    : SVN_NO_ERROR;
+  return SVN_NO_ERROR;
 }
 
 /* Removes PAGE from the LRU list, removes all of its entries from
@@ -592,6 +636,7 @@ inprocess_cache_get_info(void *cache_void,
 
 static svn_cache__vtable_t inprocess_cache_vtable = {
   inprocess_cache_get,
+  inprocess_cache_has_key,
   inprocess_cache_set,
   inprocess_cache_iter,
   inprocess_cache_is_cachable,
@@ -642,6 +687,7 @@ svn_cache__create_inprocess(svn_cache__t **cache_p,
 
   wrapper->vtable = &inprocess_cache_vtable;
   wrapper->cache_internal = cache;
+  wrapper->pretend_empty = !!getenv("SVN_X_DOES_NOT_MARK_THE_SPOT");
 
   *cache_p = wrapper;
   return SVN_NO_ERROR;

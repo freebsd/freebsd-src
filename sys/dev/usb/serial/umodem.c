@@ -298,6 +298,8 @@ DRIVER_MODULE(umodem, uhub, umodem_driver, umodem_devclass, NULL, 0);
 MODULE_DEPEND(umodem, ucom, 1, 1, 1);
 MODULE_DEPEND(umodem, usb, 1, 1, 1);
 MODULE_VERSION(umodem, UMODEM_MODVER);
+USB_PNP_DUAL_INFO(umodem_dual_devs);
+USB_PNP_HOST_INFO(umodem_host_devs);
 
 static int
 umodem_probe(device_t dev)

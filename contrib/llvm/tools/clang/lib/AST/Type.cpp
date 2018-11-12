@@ -22,6 +22,7 @@
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeVisitor.h"
 #include "clang/Basic/Specifiers.h"
+#include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
@@ -509,6 +510,28 @@ bool Type::isObjCClassOrClassKindOfType() const {
   return OPT->isObjCClassType() || OPT->isObjCQualifiedClassType();
 }
 
+/// Was this type written with the special inert-in-MRC __unsafe_unretained
+/// qualifier?
+///
+/// This approximates the answer to the following question: if this
+/// translation unit were compiled in ARC, would this type be qualified
+/// with __unsafe_unretained?
+bool Type::isObjCInertUnsafeUnretainedType() const {
+  const Type *cur = this;
+  while (true) {
+    if (auto attributed = dyn_cast<AttributedType>(cur)) {
+      if (attributed->getAttrKind() ==
+            AttributedType::attr_objc_inert_unsafe_unretained)
+        return true;
+    }
+
+    // Single-step desugar until we run out of sugar.
+    QualType next = cur->getLocallyUnqualifiedSingleStepDesugaredType();
+    if (next.getTypePtr() == cur) return false;
+    cur = next.getTypePtr();
+  }
+}
+
 ObjCObjectType::ObjCObjectType(QualType Canonical, QualType Base,
                                ArrayRef<QualType> typeArgs,
                                ArrayRef<ObjCProtocolDecl *> protocols,
@@ -836,11 +859,8 @@ public:
       }
 
       if (exceptionChanged) {
-        unsigned size = sizeof(QualType) * exceptionTypes.size();
-        void *mem = Ctx.Allocate(size, llvm::alignOf<QualType>());
-        memcpy(mem, exceptionTypes.data(), size);
-        info.ExceptionSpec.Exceptions
-          = llvm::makeArrayRef((QualType *)mem, exceptionTypes.size());
+        info.ExceptionSpec.Exceptions =
+            llvm::makeArrayRef(exceptionTypes).copy(Ctx);
       }
     }
 
@@ -950,7 +970,7 @@ public:
           == T->getDeducedType().getAsOpaquePtr())
       return QualType(T, 0);
 
-    return Ctx.getAutoType(deducedType, T->isDecltypeAuto(),
+    return Ctx.getAutoType(deducedType, T->getKeyword(),
                            T->isDependentType());
   }
 
@@ -1158,11 +1178,8 @@ QualType QualType::substObjCTypeArgs(
         }
 
         if (exceptionChanged) {
-          unsigned size = sizeof(QualType) * exceptionTypes.size();
-          void *mem = ctx.Allocate(size, llvm::alignOf<QualType>());
-          memcpy(mem, exceptionTypes.data(), size);
-          info.ExceptionSpec.Exceptions
-            = llvm::makeArrayRef((QualType *)mem, exceptionTypes.size());
+          info.ExceptionSpec.Exceptions =
+              llvm::makeArrayRef(exceptionTypes).copy(ctx);
         }
       }
 
@@ -1275,7 +1292,7 @@ Optional<ArrayRef<QualType>> Type::getObjCSubstitutions(
     if (!dcTypeParams)
       return None;
   } else {
-    // If we are in neither a class mor a category, there's no
+    // If we are in neither a class nor a category, there's no
     // substitution to perform.
     dcCategoryDecl = dyn_cast<ObjCCategoryDecl>(dc);
     if (!dcCategoryDecl)
@@ -1905,6 +1922,28 @@ bool Type::isIncompleteType(NamedDecl **Def) const {
   case IncompleteArray:
     // An array of unknown size is an incomplete type (C99 6.2.5p22).
     return true;
+  case MemberPointer: {
+    // Member pointers in the MS ABI have special behavior in
+    // RequireCompleteType: they attach a MSInheritanceAttr to the CXXRecordDecl
+    // to indicate which inheritance model to use.
+    auto *MPTy = cast<MemberPointerType>(CanonicalType);
+    const Type *ClassTy = MPTy->getClass();
+    // Member pointers with dependent class types don't get special treatment.
+    if (ClassTy->isDependentType())
+      return false;
+    const CXXRecordDecl *RD = ClassTy->getAsCXXRecordDecl();
+    ASTContext &Context = RD->getASTContext();
+    // Member pointers not in the MS ABI don't get special treatment.
+    if (!Context.getTargetInfo().getCXXABI().isMicrosoft())
+      return false;
+    // The inheritance attribute might only be present on the most recent
+    // CXXRecordDecl, use that one.
+    RD = RD->getMostRecentDecl();
+    // Nothing interesting to do if the inheritance attribute is already set.
+    if (RD->hasAttr<MSInheritanceAttr>())
+      return false;
+    return true;
+  }
   case ObjCObject:
     return cast<ObjCObjectType>(CanonicalType)->getBaseType()
              ->isIncompleteType(Def);
@@ -2260,7 +2299,7 @@ bool QualType::isCXX11PODType(ASTContext &Context) const {
       //   a standard-layout class, and has no non-static data members of type
       //   non-POD struct, non-POD union (or array of such types). [...]
       //
-      // We don't directly query the recursive aspect as the requiremets for
+      // We don't directly query the recursive aspect as the requirements for
       // both standard-layout classes and trivial classes apply recursively
       // already.
     }
@@ -2473,51 +2512,115 @@ const char *Type::getTypeClassName() const {
 
 StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
   switch (getKind()) {
-  case Void:              return "void";
-  case Bool:              return Policy.Bool ? "bool" : "_Bool";
-  case Char_S:            return "char";
-  case Char_U:            return "char";
-  case SChar:             return "signed char";
-  case Short:             return "short";
-  case Int:               return "int";
-  case Long:              return "long";
-  case LongLong:          return "long long";
-  case Int128:            return "__int128";
-  case UChar:             return "unsigned char";
-  case UShort:            return "unsigned short";
-  case UInt:              return "unsigned int";
-  case ULong:             return "unsigned long";
-  case ULongLong:         return "unsigned long long";
-  case UInt128:           return "unsigned __int128";
-  case Half:              return Policy.Half ? "half" : "__fp16";
-  case Float:             return "float";
-  case Double:            return "double";
-  case LongDouble:        return "long double";
+  case Void:
+    return "void";
+  case Bool:
+    return Policy.Bool ? "bool" : "_Bool";
+  case Char_S:
+    return "char";
+  case Char_U:
+    return "char";
+  case SChar:
+    return "signed char";
+  case Short:
+    return "short";
+  case Int:
+    return "int";
+  case Long:
+    return "long";
+  case LongLong:
+    return "long long";
+  case Int128:
+    return "__int128";
+  case UChar:
+    return "unsigned char";
+  case UShort:
+    return "unsigned short";
+  case UInt:
+    return "unsigned int";
+  case ULong:
+    return "unsigned long";
+  case ULongLong:
+    return "unsigned long long";
+  case UInt128:
+    return "unsigned __int128";
+  case Half:
+    return Policy.Half ? "half" : "__fp16";
+  case Float:
+    return "float";
+  case Double:
+    return "double";
+  case LongDouble:
+    return "long double";
   case WChar_S:
-  case WChar_U:           return Policy.MSWChar ? "__wchar_t" : "wchar_t";
-  case Char16:            return "char16_t";
-  case Char32:            return "char32_t";
-  case NullPtr:           return "nullptr_t";
-  case Overload:          return "<overloaded function type>";
-  case BoundMember:       return "<bound member function type>";
-  case PseudoObject:      return "<pseudo-object type>";
-  case Dependent:         return "<dependent type>";
-  case UnknownAny:        return "<unknown type>";
-  case ARCUnbridgedCast:  return "<ARC unbridged cast type>";
-  case BuiltinFn:         return "<builtin fn type>";
-  case ObjCId:            return "id";
-  case ObjCClass:         return "Class";
-  case ObjCSel:           return "SEL";
-  case OCLImage1d:        return "image1d_t";
-  case OCLImage1dArray:   return "image1d_array_t";
-  case OCLImage1dBuffer:  return "image1d_buffer_t";
-  case OCLImage2d:        return "image2d_t";
-  case OCLImage2dArray:   return "image2d_array_t";
-  case OCLImage3d:        return "image3d_t";
-  case OCLSampler:        return "sampler_t";
-  case OCLEvent:          return "event_t";
+  case WChar_U:
+    return Policy.MSWChar ? "__wchar_t" : "wchar_t";
+  case Char16:
+    return "char16_t";
+  case Char32:
+    return "char32_t";
+  case NullPtr:
+    return "nullptr_t";
+  case Overload:
+    return "<overloaded function type>";
+  case BoundMember:
+    return "<bound member function type>";
+  case PseudoObject:
+    return "<pseudo-object type>";
+  case Dependent:
+    return "<dependent type>";
+  case UnknownAny:
+    return "<unknown type>";
+  case ARCUnbridgedCast:
+    return "<ARC unbridged cast type>";
+  case BuiltinFn:
+    return "<builtin fn type>";
+  case ObjCId:
+    return "id";
+  case ObjCClass:
+    return "Class";
+  case ObjCSel:
+    return "SEL";
+  case OCLImage1d:
+    return "image1d_t";
+  case OCLImage1dArray:
+    return "image1d_array_t";
+  case OCLImage1dBuffer:
+    return "image1d_buffer_t";
+  case OCLImage2d:
+    return "image2d_t";
+  case OCLImage2dArray:
+    return "image2d_array_t";
+  case OCLImage2dDepth:
+    return "image2d_depth_t";
+  case OCLImage2dArrayDepth:
+    return "image2d_array_depth_t";
+  case OCLImage2dMSAA:
+    return "image2d_msaa_t";
+  case OCLImage2dArrayMSAA:
+    return "image2d_array_msaa_t";
+  case OCLImage2dMSAADepth:
+    return "image2d_msaa_depth_t";
+  case OCLImage2dArrayMSAADepth:
+    return "image2d_array_msaa_depth_t";
+  case OCLImage3d:
+    return "image3d_t";
+  case OCLSampler:
+    return "sampler_t";
+  case OCLEvent:
+    return "event_t";
+  case OCLClkEvent:
+    return "clk_event_t";
+  case OCLQueue:
+    return "queue_t";
+  case OCLNDRange:
+    return "ndrange_t";
+  case OCLReserveID:
+    return "reserve_id_t";
+  case OMPArraySection:
+    return "<OpenMP array section type>";
   }
-  
+
   llvm_unreachable("Invalid builtin type.");
 }
 
@@ -2863,6 +2966,48 @@ bool TagType::isBeingDefined() const {
   return getDecl()->isBeingDefined();
 }
 
+bool AttributedType::isQualifier() const {
+  switch (getAttrKind()) {
+  // These are type qualifiers in the traditional C sense: they annotate
+  // something about a specific value/variable of a type.  (They aren't
+  // always part of the canonical type, though.)
+  case AttributedType::attr_address_space:
+  case AttributedType::attr_objc_gc:
+  case AttributedType::attr_objc_ownership:
+  case AttributedType::attr_objc_inert_unsafe_unretained:
+  case AttributedType::attr_nonnull:
+  case AttributedType::attr_nullable:
+  case AttributedType::attr_null_unspecified:
+    return true;
+
+  // These aren't qualifiers; they rewrite the modified type to be a
+  // semantically different type.
+  case AttributedType::attr_regparm:
+  case AttributedType::attr_vector_size:
+  case AttributedType::attr_neon_vector_type:
+  case AttributedType::attr_neon_polyvector_type:
+  case AttributedType::attr_pcs:
+  case AttributedType::attr_pcs_vfp:
+  case AttributedType::attr_noreturn:
+  case AttributedType::attr_cdecl:
+  case AttributedType::attr_fastcall:
+  case AttributedType::attr_stdcall:
+  case AttributedType::attr_thiscall:
+  case AttributedType::attr_pascal:
+  case AttributedType::attr_vectorcall:
+  case AttributedType::attr_inteloclbicc:
+  case AttributedType::attr_ms_abi:
+  case AttributedType::attr_sysv_abi:
+  case AttributedType::attr_ptr32:
+  case AttributedType::attr_ptr64:
+  case AttributedType::attr_sptr:
+  case AttributedType::attr_uptr:
+  case AttributedType::attr_objc_kindof:
+    return false;
+  }
+  llvm_unreachable("bad attributed type kind");
+}
+
 bool AttributedType::isMSTypeSpec() const {
   switch (getAttrKind()) {
   default:  return false;
@@ -2888,6 +3033,7 @@ bool AttributedType::isCallingConv() const {
   case attr_neon_polyvector_type:
   case attr_objc_gc:
   case attr_objc_ownership:
+  case attr_objc_inert_unsafe_unretained:
   case attr_noreturn:
   case attr_nonnull:
   case attr_nullable:
@@ -2930,7 +3076,7 @@ SubstTemplateTypeParmPackType(const TemplateTypeParmType *Param,
 }
 
 TemplateArgument SubstTemplateTypeParmPackType::getArgumentPack() const {
-  return TemplateArgument(Arguments, NumArguments);
+  return TemplateArgument(llvm::makeArrayRef(Arguments, NumArguments));
 }
 
 void SubstTemplateTypeParmPackType::Profile(llvm::FoldingSetNodeID &ID) {
@@ -3215,6 +3361,8 @@ static CachedProperties computeCachedProperties(const Type *T) {
     return Cache::get(cast<ObjCObjectPointerType>(T)->getPointeeType());
   case Type::Atomic:
     return Cache::get(cast<AtomicType>(T)->getValueType());
+  case Type::Pipe:
+    return Cache::get(cast<PipeType>(T)->getElementType());
   }
 
   llvm_unreachable("unhandled type class");
@@ -3297,6 +3445,8 @@ static LinkageInfo computeLinkageInfo(const Type *T) {
     return computeLinkageInfo(cast<ObjCObjectPointerType>(T)->getPointeeType());
   case Type::Atomic:
     return computeLinkageInfo(cast<AtomicType>(T)->getValueType());
+  case Type::Pipe:
+    return computeLinkageInfo(cast<PipeType>(T)->getElementType());
   }
 
   llvm_unreachable("unhandled type class");
@@ -3416,11 +3566,22 @@ bool Type::canHaveNullability() const {
     case BuiltinType::OCLImage1dBuffer:
     case BuiltinType::OCLImage2d:
     case BuiltinType::OCLImage2dArray:
+    case BuiltinType::OCLImage2dDepth:
+    case BuiltinType::OCLImage2dArrayDepth:
+    case BuiltinType::OCLImage2dMSAA:
+    case BuiltinType::OCLImage2dArrayMSAA:
+    case BuiltinType::OCLImage2dMSAADepth:
+    case BuiltinType::OCLImage2dArrayMSAADepth:
     case BuiltinType::OCLImage3d:
     case BuiltinType::OCLSampler:
     case BuiltinType::OCLEvent:
+    case BuiltinType::OCLClkEvent:
+    case BuiltinType::OCLQueue:
+    case BuiltinType::OCLNDRange:
+    case BuiltinType::OCLReserveID:
     case BuiltinType::BuiltinFn:
     case BuiltinType::NullPtr:
+    case BuiltinType::OMPArraySection:
       return false;
     }
 
@@ -3444,6 +3605,7 @@ bool Type::canHaveNullability() const {
   case Type::ObjCObject:
   case Type::ObjCInterface:
   case Type::Atomic:
+  case Type::Pipe:
     return false;
   }
   llvm_unreachable("bad type kind!");
@@ -3521,7 +3683,7 @@ bool Type::isObjCARCImplicitlyUnretainedType() const {
 
   if (const ObjCObjectPointerType *opt
         = dyn_cast<ObjCObjectPointerType>(canon)) {
-    // Class and Class<Protocol> don't require retension.
+    // Class and Class<Protocol> don't require retention.
     if (opt->getObjectType()->isObjCClass())
       return true;
   }

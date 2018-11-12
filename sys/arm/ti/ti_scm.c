@@ -170,4 +170,5 @@ static driver_t ti_scm_driver = {
 
 static devclass_t ti_scm_devclass;
 
-DRIVER_MODULE(ti_scm, simplebus, ti_scm_driver, ti_scm_devclass, 0, 0);
+EARLY_DRIVER_MODULE(ti_scm, simplebus, ti_scm_driver, ti_scm_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

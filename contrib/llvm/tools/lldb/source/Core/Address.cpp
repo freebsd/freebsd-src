@@ -179,7 +179,7 @@ ReadCStringFromMemory (ExecutionContextScope *exe_scope, const Address &address,
     buf[k_buf_len] = '\0'; // NULL terminate
 
     // Byte order and address size don't matter for C string dumping..
-    DataExtractor data (buf, sizeof(buf), lldb::endian::InlHostByteOrder(), 4);
+    DataExtractor data (buf, sizeof(buf), endian::InlHostByteOrder(), 4);
     size_t total_len = 0;
     size_t bytes_read;
     Address curr_address(address);
@@ -367,21 +367,29 @@ Address::SetCallableLoadAddress (lldb::addr_t load_addr, Target *target)
 }
 
 addr_t
-Address::GetOpcodeLoadAddress (Target *target) const
+Address::GetOpcodeLoadAddress (Target *target, AddressClass addr_class) const
 {
     addr_t code_addr = GetLoadAddress (target);
     if (code_addr != LLDB_INVALID_ADDRESS)
-        code_addr = target->GetOpcodeLoadAddress (code_addr, GetAddressClass());
+    {
+        if (addr_class == eAddressClassInvalid)
+            addr_class = GetAddressClass();
+        code_addr = target->GetOpcodeLoadAddress (code_addr, addr_class);
+    }
     return code_addr;
 }
 
 bool
-Address::SetOpcodeLoadAddress (lldb::addr_t load_addr, Target *target)
+Address::SetOpcodeLoadAddress (lldb::addr_t load_addr, Target *target, AddressClass addr_class)
 {
     if (SetLoadAddress (load_addr, target))
     {
         if (target)
-            m_offset = target->GetOpcodeLoadAddress (m_offset, GetAddressClass());
+        {
+            if (addr_class == eAddressClassInvalid)
+                addr_class = GetAddressClass();
+            m_offset = target->GetOpcodeLoadAddress (m_offset, addr_class);
+        }
         return true;
     }
     return false;
@@ -455,6 +463,20 @@ Address::Dump (Stream *s, ExecutionContextScope *exe_scope, DumpStyle style, Dum
     case DumpStyleLoadAddress:
         {
             addr_t load_addr = GetLoadAddress (target);
+
+            /*
+             * MIPS:
+             * Display address in compressed form for MIPS16 or microMIPS
+             * if the address belongs to eAddressClassCodeAlternateISA.
+            */
+            if (target)
+            {
+                const llvm::Triple::ArchType llvm_arch = target->GetArchitecture().GetMachine();
+                if (llvm_arch == llvm::Triple::mips || llvm_arch == llvm::Triple::mipsel
+                    || llvm_arch == llvm::Triple::mips64 || llvm_arch == llvm::Triple::mips64el)
+                    load_addr = GetCallableLoadAddress (target);
+            }
+
             if (load_addr == LLDB_INVALID_ADDRESS)
             {
                 if (fallback_style != DumpStyleInvalid)

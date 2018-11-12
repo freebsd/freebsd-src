@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2009
+.Dd December 27, 2015
 .Dt CLOCK_GETTIME 2
 .Os
 .Sh NAME
@@ -134,12 +134,10 @@ The following error codes may be set in
 .It Bq Er EINVAL
 The
 .Fa clock_id
+or
+.Fa timespec
 argument
 was not a valid value.
-.It Bq Er EFAULT
-The
-.Fa *tp
-argument address referenced invalid memory.
 .It Bq Er EPERM
 A user other than the super-user attempted to set the time.
 .El

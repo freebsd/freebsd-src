@@ -12,7 +12,6 @@
 
 // C Includes
 // C++ Includes
-
 #include <memory>
 
 // Other libraries and framework includes
@@ -23,11 +22,10 @@
 class PlatformPOSIX : public lldb_private::Platform
 {
 public:
-    PlatformPOSIX (bool is_host);
-    
-    virtual
-    ~PlatformPOSIX();
-    
+    PlatformPOSIX(bool is_host);
+
+    ~PlatformPOSIX() override;
+
     //------------------------------------------------------------
     // lldb_private::Platform functions
     //------------------------------------------------------------
@@ -37,9 +35,8 @@ public:
                    const lldb_private::ArchSpec& arch,
                    lldb_private::ModuleSpec &module_spec) override;
 
-    lldb_private::OptionGroupOptions
-    *GetConnectionOptions(
-        lldb_private::CommandInterpreter &interpreter) override;
+    lldb_private::OptionGroupOptions*
+    GetConnectionOptions(lldb_private::CommandInterpreter &interpreter) override;
 
     const char *
     GetHostname () override;
@@ -119,11 +116,11 @@ public:
     IsConnected () const override;
 
     lldb_private::Error
-    RunShellCommand(const char *command,                       // Shouldn't be NULL
+    RunShellCommand(const char *command,                       // Shouldn't be nullptr
                     const lldb_private::FileSpec &working_dir, // Pass empty FileSpec to use the current working directory
-                    int *status_ptr,                           // Pass NULL if you don't want the process exit status
-                    int *signo_ptr,                            // Pass NULL if you don't want the signal that caused the process to exit
-                    std::string *command_output,               // Pass NULL if you don't want the command output
+                    int *status_ptr,                           // Pass nullptr if you don't want the process exit status
+                    int *signo_ptr,                            // Pass nullptr if you don't want the signal that caused the process to exit
+                    std::string *command_output,               // Pass nullptr if you don't want the command output
                     uint32_t timeout_sec) override;            // Timeout in seconds to wait for shell program to finish
 
     lldb_private::Error
@@ -150,13 +147,13 @@ public:
     lldb::ProcessSP
     Attach (lldb_private::ProcessAttachInfo &attach_info,
             lldb_private::Debugger &debugger,
-            lldb_private::Target *target,       // Can be NULL, if NULL create a new target, else use existing one
+            lldb_private::Target *target,       // Can be nullptr, if nullptr create a new target, else use existing one
             lldb_private::Error &error) override;
 
     lldb::ProcessSP
     DebugProcess (lldb_private::ProcessLaunchInfo &launch_info,
                   lldb_private::Debugger &debugger,
-                  lldb_private::Target *target,       // Can be NULL, if NULL create a new target, else use existing one
+                  lldb_private::Target *target,       // Can be nullptr, if nullptr create a new target, else use existing one
                   lldb_private::Error &error) override;
 
     std::string
@@ -176,14 +173,39 @@ public:
     lldb_private::Error
     DisconnectRemote () override;
 
+    uint32_t
+    DoLoadImage (lldb_private::Process* process,
+                 const lldb_private::FileSpec& remote_file,
+                 lldb_private::Error& error) override;
+
+    lldb_private::Error
+    UnloadImage (lldb_private::Process* process, uint32_t image_token) override;
+
+    lldb::ProcessSP
+    ConnectProcess (const char* connect_url,
+                    const char* plugin_name,
+                    lldb_private::Debugger &debugger,
+                    lldb_private::Target *target,
+                    lldb_private::Error &error) override;
+                    
+    size_t
+    ConnectToWaitingProcesses(lldb_private::Debugger& debugger, lldb_private::Error& error) override;
+
 protected:
     std::unique_ptr<lldb_private::OptionGroupOptions> m_options;
-        
     lldb::PlatformSP m_remote_platform_sp; // Allow multiple ways to connect to a remote POSIX-compliant OS
-    
+
+    lldb_private::Error
+    EvaluateLibdlExpression(lldb_private::Process* process,
+                            const char *expr_cstr,
+                            const char *expr_prefix,
+                            lldb::ValueObjectSP& result_valobj_sp);
+
+    virtual const char*
+    GetLibdlFunctionDeclarations() const;
+
 private:
     DISALLOW_COPY_AND_ASSIGN (PlatformPOSIX);
-    
 };
 
-#endif  // liblldb_PlatformPOSIX_h_
+#endif // liblldb_PlatformPOSIX_h_

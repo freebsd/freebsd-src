@@ -31,18 +31,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
 #include "efx_impl.h"
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_port_init(
 	__in		efx_nic_t *enp)
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_phy_ops_t *epop = epp->ep_epop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -94,14 +92,14 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	enp->en_mod_flags &= ~EFX_MOD_PORT;
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_port_poll(
 	__in		efx_nic_t *enp,
 	__out_opt	efx_link_mode_t	*link_modep)
@@ -109,7 +107,7 @@ efx_port_poll(
 	efx_port_t *epp = &(enp->en_port);
 	efx_mac_ops_t *emop = epp->ep_emop;
 	efx_link_mode_t ignore_link_mode;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
@@ -126,14 +124,14 @@ efx_port_poll(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 #if EFSYS_OPT_LOOPBACK
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_port_loopback_set(
 	__in		efx_nic_t *enp,
 	__in		efx_link_mode_t link_mode,
@@ -142,7 +140,7 @@ efx_port_loopback_set(
 	efx_port_t *epp = &(enp->en_port);
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mac_ops_t *emop = epp->ep_emop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
@@ -168,7 +166,7 @@ efx_port_loopback_set(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

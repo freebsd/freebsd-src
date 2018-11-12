@@ -523,6 +523,7 @@ e500_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		pe_cpu_mask = ev->pe_code & PMC_PPC_E500V2;
 		break;
 	case FSL_E500mc:
+	case FSL_E5500:
 		pe_cpu_mask = ev->pe_code & PMC_PPC_E500MC;
 		break;
 	}

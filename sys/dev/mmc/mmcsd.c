@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/time.h>
+#include <geom/geom.h>
 #include <geom/geom_disk.h>
 
 #include <dev/mmc/mmcbrvar.h>
@@ -487,7 +488,7 @@ mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
 	if (!length)
 		return (0);
 
-	bzero(&bp, sizeof(struct bio));
+	g_reset_bio(&bp);
 	bp.bio_disk = disk;
 	bp.bio_pblkno = offset / disk->d_sectorsize;
 	bp.bio_bcount = length;

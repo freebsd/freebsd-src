@@ -32,7 +32,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_data.c 3177 2015-03-30 18:19:41Z emaste $");
+ELFTC_VCSID("$Id: elf_data.c 3258 2015-11-20 18:59:43Z emaste $");
 
 Elf_Data *
 elf_getdata(Elf_Scn *s, Elf_Data *ed)
@@ -249,6 +249,12 @@ elf_rawdata(Elf_Scn *s, Elf_Data *ed)
 	}
 
 	if (sh_type == SHT_NULL) {
+		LIBELF_SET_ERROR(SECTION, 0);
+		return (NULL);
+	}
+
+	if (sh_type != SHT_NOBITS &&
+	    sh_offset + sh_size > (uint64_t) e->e_rawsize) {
 		LIBELF_SET_ERROR(SECTION, 0);
 		return (NULL);
 	}

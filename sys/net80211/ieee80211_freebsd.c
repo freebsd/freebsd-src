@@ -32,9 +32,11 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h> 
+#include <sys/eventhandler.h>
+#include <sys/kernel.h>
 #include <sys/linker.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>   
 #include <sys/module.h>
 #include <sys/proc.h>
@@ -529,9 +531,6 @@ ieee80211_get_rx_params(struct mbuf *m, struct ieee80211_rx_stats *rxs)
 
 /*
  * Transmit a frame to the parent interface.
- *
- * TODO: if the transmission fails, make sure the parent node is freed
- *   (the callers will first need modifying.)
  */
 int
 ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
@@ -544,8 +543,16 @@ ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
 	 */
 	IEEE80211_TX_LOCK_ASSERT(ic);
 	error = ic->ic_transmit(ic, m);
-	if (error)
-		m_freem(m);
+	if (error) {
+		struct ieee80211_node *ni;
+
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+
+		/* XXX number of fragments */
+		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+		ieee80211_free_node(ni);
+		ieee80211_free_mbuf(m);
+	}
 	return (error);
 }
 

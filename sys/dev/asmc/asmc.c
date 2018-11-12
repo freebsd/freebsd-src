@@ -963,14 +963,13 @@ asmc_fan_getvalue(device_t dev, const char *key, int fan)
 }
 
 static char*
-asmc_fan_getstring(device_t dev, const char *key, int fan)
+asmc_fan_getstring(device_t dev, const char *key, int fan, uint8_t *buf, uint8_t buflen)
 {
-	uint8_t buf[16];
 	char fankey[5];
 	char* desc;
 
 	snprintf(fankey, sizeof(fankey), key, fan);
-	if (asmc_key_read(dev, fankey, buf, sizeof buf) < 0)
+	if (asmc_key_read(dev, fankey, buf, buflen) < 0)
 		return (NULL);
 	desc = buf+4;
 
@@ -1012,12 +1011,13 @@ asmc_mb_sysctl_fanspeed(SYSCTL_HANDLER_ARGS)
 static int
 asmc_mb_sysctl_fanid(SYSCTL_HANDLER_ARGS)
 {
+	uint8_t buf[16];
 	device_t dev = (device_t) arg1;
 	int fan = arg2;
 	int error = true;
 	char* desc;
 
-	desc = asmc_fan_getstring(dev, ASMC_KEY_FANID, fan);
+	desc = asmc_fan_getstring(dev, ASMC_KEY_FANID, fan, buf, sizeof(buf));
 
 	if (desc != NULL)
 		error = sysctl_handle_string(oidp, desc, 0, req);

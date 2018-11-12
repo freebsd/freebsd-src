@@ -117,7 +117,10 @@ using namespace __sanitizer;  // NOLINT
 // Common defs.
 #define INLINE inline
 #define INTERFACE_ATTRIBUTE SANITIZER_INTERFACE_ATTRIBUTE
-#define WEAK SANITIZER_WEAK_ATTRIBUTE
+#define SANITIZER_WEAK_DEFAULT_IMPL \
+  extern "C" SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE NOINLINE
+#define SANITIZER_WEAK_CXX_DEFAULT_IMPL \
+  extern "C++" SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE NOINLINE
 
 // Platform-specific defs.
 #if defined(_MSC_VER)
@@ -129,7 +132,6 @@ using namespace __sanitizer;  // NOLINT
 # define NOINLINE __declspec(noinline)
 # define NORETURN __declspec(noreturn)
 # define THREADLOCAL   __declspec(thread)
-# define NOTHROW
 # define LIKELY(x) (x)
 # define UNLIKELY(x) (x)
 # define PREFETCH(x) /* _mm_prefetch(x, _MM_HINT_NTA) */
@@ -143,7 +145,6 @@ using namespace __sanitizer;  // NOLINT
 # define NOINLINE __attribute__((noinline))
 # define NORETURN  __attribute__((noreturn))
 # define THREADLOCAL   __thread
-# define NOTHROW throw()
 # define LIKELY(x)     __builtin_expect(!!(x), 1)
 # define UNLIKELY(x)   __builtin_expect(!!(x), 0)
 # if defined(__i386__) || defined(__x86_64__)
@@ -160,6 +161,12 @@ using namespace __sanitizer;  // NOLINT
 #else
 # define UNUSED
 # define USED
+#endif
+
+#if !defined(_MSC_VER) || defined(__clang__) || MSC_PREREQ(1900)
+# define NOEXCEPT noexcept
+#else
+# define NOEXCEPT throw()
 #endif
 
 // Unaligned versions of basic types.

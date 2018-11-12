@@ -163,7 +163,9 @@ arm_get_next_irq(int last_irq)
 		irq = 0;
 
 #ifdef SOC_BCM2836
-	if ((ret = bcm2836_get_next_irq(irq)) >= 0)
+	if ((ret = bcm2836_get_next_irq(irq)) < 0)
+		return (-1);
+	if (ret != BCM2836_GPU_IRQ)
 		return (ret + BANK3_START);
 #endif
 
@@ -238,3 +240,10 @@ arm_unmask_irq(uintptr_t nb)
 	else
 		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
 }
+
+#ifdef SMP
+void
+intr_pic_init_secondary(void)
+{
+}
+#endif

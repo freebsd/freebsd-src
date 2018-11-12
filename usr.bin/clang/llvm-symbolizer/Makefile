@@ -5,10 +5,10 @@
 PROG_CXX=llvm-symbolizer
 
 SRCDIR=	tools/llvm-symbolizer
-SRCS=	llvm-symbolizer.cpp \
-	LLVMSymbolize.cpp
+SRCS=	llvm-symbolizer.cpp
 
-LIBDEPS=llvmdebuginfopdb \
+LIBDEPS=llvmsymbolize \
+	llvmdebuginfopdb \
 	llvmdebuginfodwarf \
 	llvmobject \
 	llvmmcparser \
@@ -17,7 +17,6 @@ LIBDEPS=llvmdebuginfopdb \
 	llvmcore \
 	llvmsupport
 
-.include "../clang.prog.mk"
+LIBADD+=	z
 
-DPADD+= ${LIBZ}
-LDADD+= -lz
+.include "../clang.prog.mk"

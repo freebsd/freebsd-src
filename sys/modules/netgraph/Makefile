@@ -62,6 +62,4 @@ _bluetooth=	bluetooth
 _mppc=		mppc
 .endif
 
-SUBDIR_PARALLEL=
-
 .include <bsd.subdir.mk>

@@ -219,10 +219,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		usfp = (void *)(td->td_sigstk.ss_sp +
-		   td->td_sigstk.ss_size - rndfsize);
+		usfp = (void *)(((uintptr_t)td->td_sigstk.ss_sp +
+		   td->td_sigstk.ss_size - rndfsize) & ~0xFul);
 	} else {
-		usfp = (void *)(tf->fixreg[1] - rndfsize);
+		usfp = (void *)((tf->fixreg[1] - rndfsize) & ~0xFul);
 	}
 
 	/*
@@ -501,9 +501,6 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe	*tf;
 	register_t		argc;
-	#ifdef __powerpc64__
-	register_t		entry_desc[3];
-	#endif
 
 	tf = trapframe(td);
 	bzero(tf, sizeof *tf);
@@ -546,24 +543,13 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->fixreg[7] = 0;				/* termination vector */
 	tf->fixreg[8] = (register_t)imgp->ps_strings;	/* NetBSD extension */
 
+	tf->srr0 = imgp->entry_addr;
 	#ifdef __powerpc64__
-	/*
-	 * For 64-bit, we need to disentangle the function descriptor
-	 * 
-	 * 0. entry point
-	 * 1. TOC value (r2)
-	 * 2. Environment pointer (r11)
-	 */
-
-	(void)copyin((void *)imgp->entry_addr, entry_desc, sizeof(entry_desc));
-	tf->srr0 = entry_desc[0] + imgp->reloc_base;
-	tf->fixreg[2] = entry_desc[1] + imgp->reloc_base;
-	tf->fixreg[11] = entry_desc[2] + imgp->reloc_base;
+	tf->fixreg[12] = imgp->entry_addr;
 	tf->srr1 = PSL_SF | PSL_USERSET | PSL_FE_DFLT;
 	if (mfmsr() & PSL_HV)
 		tf->srr1 |= PSL_HV;
 	#else
-	tf->srr0 = imgp->entry_addr;
 	tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
 	#endif
 	td->td_pcb->pcb_flags = 0;
@@ -622,13 +608,18 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 	struct pcb *pcb;
+	int i;
 
 	pcb = td->td_pcb;
 
 	if ((pcb->pcb_flags & PCB_FPREGS) == 0)
 		memset(fpregs, 0, sizeof(struct fpreg));
-	else
-		memcpy(fpregs, &pcb->pcb_fpu, sizeof(struct fpreg));
+	else {
+		memcpy(&fpregs->fpscr, &pcb->pcb_fpu.fpscr, sizeof(double));
+		for (i = 0; i < 32; i++)
+			memcpy(&fpregs->fpreg[i], &pcb->pcb_fpu.fpr[i].fpr,
+			    sizeof(double));
+	}
 
 	return (0);
 }
@@ -655,10 +646,15 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 	struct pcb *pcb;
+	int i;
 
 	pcb = td->td_pcb;
 	pcb->pcb_flags |= PCB_FPREGS;
-	memcpy(&pcb->pcb_fpu, fpregs, sizeof(struct fpreg));
+	memcpy(&pcb->pcb_fpu.fpscr, &fpregs->fpscr, sizeof(double));
+	for (i = 0; i < 32; i++) {
+		memcpy(&pcb->pcb_fpu.fpr[i].fpr, &fpregs->fpreg[i],
+		    sizeof(double));
+	}
 
 	return (0);
 }
@@ -986,11 +982,12 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	cf->cf_arg1 = (register_t)tf;
 
 	pcb2->pcb_sp = (register_t)cf;
-	#ifdef __powerpc64__
+	#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
 	pcb2->pcb_lr = ((register_t *)fork_trampoline)[0];
 	pcb2->pcb_toc = ((register_t *)fork_trampoline)[1];
 	#else
 	pcb2->pcb_lr = (register_t)fork_trampoline;
+	pcb2->pcb_context[0] = pcb2->pcb_lr;
 	#endif
 	pcb2->pcb_cpu.aim.usr_vsid = 0;
 
@@ -1073,7 +1070,7 @@ ppc_instr_emulate(struct trapframe *frame, struct pcb *pcb)
 		bzero(&pcb->pcb_fpu, sizeof(pcb->pcb_fpu));
 		pcb->pcb_flags |= PCB_FPREGS;
 	}
-	sig = fpu_emulate(frame, (struct fpreg *)&pcb->pcb_fpu);
+	sig = fpu_emulate(frame, &pcb->pcb_fpu);
 #endif
 
 	return (sig);

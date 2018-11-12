@@ -328,7 +328,8 @@ uath_attach(device_t dev)
 	struct uath_softc *sc = device_get_softc(dev);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands, iface_index = UATH_IFACE_INDEX;		/* XXX */
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t iface_index = UATH_IFACE_INDEX;		/* XXX */
 	usb_error_t error;
 
 	sc->sc_dev = dev;
@@ -431,13 +432,13 @@ uath_attach(device_t dev)
 	/* put a regulatory domain to reveal informations.  */
 	uath_regdomain = sc->sc_devcap.regDomain;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
 	if ((sc->sc_devcap.analog5GhzRevision & 0xf0) == 0x30)
-		setbit(&bands, IEEE80211_MODE_11A);
+		setbit(bands, IEEE80211_MODE_11A);
 	/* XXX turbo */
-	ieee80211_init_channels(ic, NULL, &bands);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = uath_raw_xmit;
@@ -1663,22 +1664,6 @@ uath_txfrag_setup(struct uath_softc *sc, uath_datahead *frags,
 	return !STAILQ_EMPTY(frags);
 }
 
-/*
- * Reclaim mbuf resources.  For fragmented frames we need to claim each frag
- * chained with m_nextpkt.
- */
-static void
-uath_freetx(struct mbuf *m)
-{
-	struct mbuf *next;
-
-	do {
-		next = m->m_nextpkt;
-		m->m_nextpkt = NULL;
-		m_freem(m);
-	} while ((m = next) != NULL);
-}
-
 static int
 uath_transmit(struct ieee80211com *ic, struct mbuf *m)   
 {
@@ -1735,7 +1720,7 @@ uath_start(struct uath_softc *sc)
 		    !uath_txfrag_setup(sc, &frags, m, ni)) {
 			DPRINTF(sc, UATH_DEBUG_XMIT,
 			    "%s: out of txfrag buffers\n", __func__);
-			uath_freetx(m);
+			ieee80211_free_mbuf(m);
 			goto bad;
 		}
 		sc->sc_seqnum = 0;
@@ -1770,7 +1755,7 @@ uath_start(struct uath_softc *sc)
 				    "%s: flush fragmented packet, state %s\n",
 				    __func__,
 				    ieee80211_state_name[ni->ni_vap->iv_state]);
-				uath_freetx(next);
+				ieee80211_free_mbuf(next);
 				goto reclaim;
 			}
 			m = next;
@@ -1797,7 +1782,6 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
 	    !(sc->sc_flags & UATH_FLAG_INITDONE)) {
 		m_freem(m);
-		ieee80211_free_node(ni);
 		UATH_UNLOCK(sc);
 		return (ENETDOWN);
 	}
@@ -1805,7 +1789,6 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	/* grab a TX buffer  */
 	bf = uath_getbuf(sc);
 	if (bf == NULL) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		UATH_UNLOCK(sc);
 		return (ENOBUFS);
@@ -1813,7 +1796,6 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	sc->sc_seqnum = 0;
 	if (uath_tx_start(sc, m, ni, bf) != 0) {
-		ieee80211_free_node(ni);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		UATH_STAT_INC(sc, st_tx_inactive);
 		UATH_UNLOCK(sc);
@@ -2813,3 +2795,4 @@ DRIVER_MODULE(uath, uhub, uath_driver, uath_devclass, NULL, 0);
 MODULE_DEPEND(uath, wlan, 1, 1, 1);
 MODULE_DEPEND(uath, usb, 1, 1, 1);
 MODULE_VERSION(uath, 1);
+USB_PNP_HOST_INFO(uath_devs);

@@ -129,7 +129,8 @@ struct ath_hal;
 
 extern	void ar5210Detach(struct ath_hal *ah);
 extern	HAL_BOOL ar5210Reset(struct ath_hal *, HAL_OPMODE,
-		struct ieee80211_channel *, HAL_BOOL bChannelChange, HAL_STATUS *);
+		struct ieee80211_channel *, HAL_BOOL bChannelChange,
+		HAL_RESET_TYPE, HAL_STATUS *);
 extern	void ar5210SetPCUConfig(struct ath_hal *);
 extern	HAL_BOOL ar5210PhyDisable(struct ath_hal *);
 extern	HAL_BOOL ar5210Disable(struct ath_hal *);

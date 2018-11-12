@@ -1,4 +1,4 @@
-/*	$Id: out.c,v 1.59 2015/01/30 04:11:50 schwarze Exp $ */
+/*	$Id: out.c,v 1.62 2015/10/12 00:08:16 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -51,7 +51,7 @@ a2roffsu(const char *src, struct roffsu *dst, enum roffscale def)
 	dst->unit = def == SCALE_MAX ? SCALE_BU : def;
 	dst->scale = strtod(src, &endptr);
 	if (endptr == src)
-		return(0);
+		return 0;
 
 	switch (*endptr++) {
 	case 'c':
@@ -89,12 +89,12 @@ a2roffsu(const char *src, struct roffsu *dst, enum roffscale def)
 		/* FALLTHROUGH */
 	default:
 		if (SCALE_MAX == def)
-			return(0);
+			return 0;
 		dst->unit = def;
 		break;
 	}
 
-	return(*endptr == '\0' ? 2 : 1);
+	return *endptr == '\0' ? 2 : 1;
 }
 
 /*
@@ -240,18 +240,14 @@ tblcalc_data(struct rofftbl *tbl, struct roffcol *col,
 
 	switch (dp->layout->pos) {
 	case TBL_CELL_HORIZ:
-		/* FALLTHROUGH */
 	case TBL_CELL_DHORIZ:
 		sz = (*tbl->len)(1, tbl->arg);
 		if (col->width < sz)
 			col->width = sz;
 		break;
 	case TBL_CELL_LONG:
-		/* FALLTHROUGH */
 	case TBL_CELL_CENTRE:
-		/* FALLTHROUGH */
 	case TBL_CELL_LEFT:
-		/* FALLTHROUGH */
 	case TBL_CELL_RIGHT:
 		tblcalc_literal(tbl, col, dp);
 		break;
@@ -262,7 +258,6 @@ tblcalc_data(struct rofftbl *tbl, struct roffcol *col,
 		break;
 	default:
 		abort();
-		/* NOTREACHED */
 	}
 }
 

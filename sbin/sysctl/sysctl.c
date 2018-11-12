@@ -72,7 +72,7 @@ static const char rcsid[] =
 static const char *conffile;
 
 static int	aflag, bflag, Bflag, dflag, eflag, hflag, iflag;
-static int	Nflag, nflag, oflag, qflag, Tflag, Wflag, xflag;
+static int	Nflag, nflag, oflag, qflag, tflag, Tflag, Wflag, xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static int	parsefile(const char *);
@@ -86,6 +86,9 @@ static int	strIKtoi(const char *, char **, const char *);
 static int ctl_sign[CTLTYPE+1] = {
 	[CTLTYPE_INT] = 1,
 	[CTLTYPE_LONG] = 1,
+	[CTLTYPE_S8] = 1,
+	[CTLTYPE_S16] = 1,
+	[CTLTYPE_S32] = 1,
 	[CTLTYPE_S64] = 1,
 };
 
@@ -94,7 +97,13 @@ static int ctl_size[CTLTYPE+1] = {
 	[CTLTYPE_UINT] = sizeof(u_int),
 	[CTLTYPE_LONG] = sizeof(long),
 	[CTLTYPE_ULONG] = sizeof(u_long),
+	[CTLTYPE_S8] = sizeof(int8_t),
+	[CTLTYPE_S16] = sizeof(int16_t),
+	[CTLTYPE_S32] = sizeof(int32_t),
 	[CTLTYPE_S64] = sizeof(int64_t),
+	[CTLTYPE_U8] = sizeof(uint8_t),
+	[CTLTYPE_U16] = sizeof(uint16_t),
+	[CTLTYPE_U32] = sizeof(uint32_t),
 	[CTLTYPE_U64] = sizeof(uint64_t),
 };
 
@@ -103,8 +112,17 @@ static const char *ctl_typename[CTLTYPE+1] = {
 	[CTLTYPE_UINT] = "unsigned integer",
 	[CTLTYPE_LONG] = "long integer",
 	[CTLTYPE_ULONG] = "unsigned long",
-	[CTLTYPE_S64] = "int64_t",
+	[CTLTYPE_U8] = "uint8_t",
+	[CTLTYPE_U16] = "uint16_t",
+	[CTLTYPE_U32] = "uint16_t",
 	[CTLTYPE_U64] = "uint64_t",
+	[CTLTYPE_S8] = "int8_t",
+	[CTLTYPE_S16] = "int16_t",
+	[CTLTYPE_S32] = "int32_t",
+	[CTLTYPE_S64] = "int64_t",
+	[CTLTYPE_NODE] = "node",
+	[CTLTYPE_STRING] = "string",
+	[CTLTYPE_OPAQUE] = "opaque",
 };
 
 static void
@@ -112,8 +130,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdehiNnoqTWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
-	    "       sysctl [-bdehNnoqTWx] [ -B <bufsize> ] -a");
+	    "usage: sysctl [-bdehiNnoqTtWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
+	    "       sysctl [-bdehNnoqTtWx] [ -B <bufsize> ] -a");
 	exit(1);
 }
 
@@ -127,7 +145,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabB:def:hiNnoqTwWxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabB:def:hiNnoqtTwWxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -168,6 +186,9 @@ main(int argc, char **argv)
 			break;
 		case 'q':
 			qflag = 1;
+			break;
+		case 't':
+			tflag = 1;
 			break;
 		case 'T':
 			Tflag = 1;
@@ -221,6 +242,12 @@ parse(const char *string, int lineno)
 	int len, i, j;
 	const void *newval;
 	const char *newvalstr = NULL;
+	int8_t i8val;
+	uint8_t u8val;
+	int16_t i16val;
+	uint16_t u16val;
+	int32_t i32val;
+	uint32_t u32val;
 	int intval;
 	unsigned int uintval;
 	long longval;
@@ -262,6 +289,12 @@ parse(const char *string, int lineno)
 		newvalstr = cp;
 		newsize = strlen(cp);
 	}
+	/* Trim spaces */
+	cp = bufp + strlen(bufp) - 1;
+	while (cp >= bufp && isspace((int)*cp)) {
+		*cp = '\0';
+		cp--;
+	}
 	len = name2oid(bufp, mib);
 
 	if (len < 0) {
@@ -270,7 +303,11 @@ parse(const char *string, int lineno)
 		if (qflag)
 			return (1);
 		else {
-			warn("unknown oid '%s'%s", bufp, line);
+			if (errno == ENOENT) {
+				warnx("unknown oid '%s'%s", bufp, line);
+			} else {
+				warn("unknown oid '%s'%s", bufp, line);
+			}
 			return (1);
 		}
 	}
@@ -316,7 +353,13 @@ parse(const char *string, int lineno)
 		case CTLTYPE_UINT:
 		case CTLTYPE_LONG:
 		case CTLTYPE_ULONG:
+		case CTLTYPE_S8:
+		case CTLTYPE_S16:
+		case CTLTYPE_S32:
 		case CTLTYPE_S64:
+		case CTLTYPE_U8:
+		case CTLTYPE_U16:
+		case CTLTYPE_U32:
 		case CTLTYPE_U64:
 			if (strlen(newvalstr) == 0) {
 				warnx("empty numeric value");
@@ -362,10 +405,44 @@ parse(const char *string, int lineno)
 			case CTLTYPE_STRING:
 				newval = newvalstr;
 				break;
+			case CTLTYPE_S8:
+				i8val = (int8_t)strtol(newvalstr, &endptr, 0);
+				newval = &i8val;
+				newsize = sizeof(i8val);
+				break;
+			case CTLTYPE_S16:
+				i16val = (int16_t)strtol(newvalstr, &endptr,
+				    0);
+				newval = &i16val;
+				newsize = sizeof(i16val);
+				break;
+			case CTLTYPE_S32:
+				i32val = (int32_t)strtol(newvalstr, &endptr,
+				    0);
+				newval = &i32val;
+				newsize = sizeof(i32val);
+				break;
 			case CTLTYPE_S64:
 				i64val = strtoimax(newvalstr, &endptr, 0);
 				newval = &i64val;
 				newsize = sizeof(i64val);
+				break;
+			case CTLTYPE_U8:
+				u8val = (uint8_t)strtoul(newvalstr, &endptr, 0);
+				newval = &u8val;
+				newsize = sizeof(u8val);
+				break;
+			case CTLTYPE_U16:
+				u16val = (uint16_t)strtoul(newvalstr, &endptr,
+				    0);
+				newval = &u16val;
+				newsize = sizeof(u16val);
+				break;
+			case CTLTYPE_U32:
+				u32val = (uint32_t)strtoul(newvalstr, &endptr,
+				    0);
+				newval = &u32val;
+				newsize = sizeof(u32val);
 				break;
 			case CTLTYPE_U64:
 				u64val = strtoumax(newvalstr, &endptr, 0);
@@ -785,7 +862,7 @@ show_var(int *oid, int nlen)
 {
 	u_char buf[BUFSIZ], *val, *oval, *p;
 	char name[BUFSIZ], fmt[BUFSIZ];
-	const char *sep, *sep1;
+	const char *sep, *sep1, *prntype;
 	int qoid[CTL_MAXNAME+2];
 	uintmax_t umv;
 	intmax_t mv;
@@ -831,12 +908,23 @@ show_var(int *oid, int nlen)
 	else
 		sep = ": ";
 
-	if (dflag) {	/* just print description */
+	ctltype = (kind & CTLTYPE);
+	if (tflag || dflag) {
+		if (!nflag)
+			printf("%s%s", name, sep);
+        	if (ctl_typename[ctltype] != NULL)
+            		prntype = ctl_typename[ctltype];
+        	else
+            		prntype = "unknown";
+		if (tflag && dflag)
+			printf("%s%s", prntype, sep);
+		else if (tflag) {
+			printf("%s", prntype);
+			return (0);
+		}
 		qoid[1] = 5;
 		j = sizeof(buf);
 		i = sysctl(qoid, nlen + 2, buf, &j, 0, 0);
-		if (!nflag)
-			printf("%s%s", name, sep);
 		printf("%s", buf);
 		return (0);
 	}
@@ -854,7 +942,6 @@ show_var(int *oid, int nlen)
 		warnx("malloc failed");
 		return (1);
 	}
-	ctltype = (kind & CTLTYPE);
 	len = j;
 	i = sysctl(oid, nlen, val, &len, 0, 0);
 	if (i != 0 || (len == 0 && ctltype != CTLTYPE_STRING)) {
@@ -884,7 +971,13 @@ show_var(int *oid, int nlen)
 	case CTLTYPE_UINT:
 	case CTLTYPE_LONG:
 	case CTLTYPE_ULONG:
+	case CTLTYPE_S8:
+	case CTLTYPE_S16:
+	case CTLTYPE_S32:
 	case CTLTYPE_S64:
+	case CTLTYPE_U8:
+	case CTLTYPE_U16:
+	case CTLTYPE_U32:
 	case CTLTYPE_U64:
 		if (!nflag)
 			printf("%s%s", name, sep);
@@ -901,6 +994,21 @@ show_var(int *oid, int nlen)
 			case CTLTYPE_ULONG:
 				umv = *(u_long *)p;
 				mv = *(long *)p;
+				break;
+			case CTLTYPE_S8:
+			case CTLTYPE_U8:
+				umv = *(uint8_t *)p;
+				mv = *(int8_t *)p;
+				break;
+			case CTLTYPE_S16:
+			case CTLTYPE_U16:
+				umv = *(uint16_t *)p;
+				mv = *(int16_t *)p;
+				break;
+			case CTLTYPE_S32:
+			case CTLTYPE_U32:
+				umv = *(uint32_t *)p;
+				mv = *(int32_t *)p;
 				break;
 			case CTLTYPE_S64:
 			case CTLTYPE_U64:

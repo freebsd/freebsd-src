@@ -541,6 +541,9 @@ struct kinfo_sigtramp {
 
 /* Flags for kern_proc_filedesc_out. */
 #define	KERN_FILEDESC_PACK_KINFO	0x00000001U
+
+/* Flags for kern_proc_vmmap_out. */
+#define	KERN_VMMAP_PACK_KINFO		0x00000001U
 struct sbuf;
 
 /*
@@ -556,7 +559,8 @@ int	kern_proc_filedesc_out(struct proc *p, struct sbuf *sb, ssize_t maxlen,
 	int flags);
 int	kern_proc_cwd_out(struct proc *p, struct sbuf *sb, ssize_t maxlen);
 int	kern_proc_out(struct proc *p, struct sbuf *sb, int flags);
-int	kern_proc_vmmap_out(struct proc *p, struct sbuf *sb);
+int	kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen,
+	int flags);
 
 int	vntype_to_kinfo(int vtype);
 #endif /* !_KERNEL */

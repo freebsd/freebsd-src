@@ -63,23 +63,15 @@ _Thread_local const _RuneLocale *_ThreadRuneLocale;
 
 extern int __mb_sb_limit;
 
-extern _RuneLocale	*_Read_RuneMagi(FILE *);
+extern _RuneLocale	*_Read_RuneMagi(const char *);
 
 static int		__setrunelocale(struct xlocale_ctype *l, const char *);
-
-#define __collate_substitute_nontrivial (table->__collate_substitute_nontrivial)
-#define __collate_substitute_table_ptr (table->__collate_substitute_table_ptr)
-#define __collate_char_pri_table_ptr (table->__collate_char_pri_table_ptr)
-#define __collate_chain_pri_table (table->__collate_chain_pri_table)
-
 
 static void
 destruct_ctype(void *v)
 {
 	struct xlocale_ctype *l = v;
 
-	if (strcmp(l->runes->__encoding, "EUC") == 0)
-		free(l->runes->__variable);
 	if (&_DefaultRuneLocale != l->runes) 
 		free(l->runes);
 	free(l);
@@ -95,12 +87,7 @@ __getCurrentRuneLocale(void)
 static void
 free_runes(_RuneLocale *rl)
 {
-
-	/* FIXME: The "EUC" check here is a hideous abstraction violation. */
 	if ((rl != &_DefaultRuneLocale) && (rl)) {
-		if (strcmp(rl->__encoding, "EUC") == 0) {
-			free(rl->__variable);
-		}
 		free(rl);
 	}
 }
@@ -108,10 +95,9 @@ free_runes(_RuneLocale *rl)
 static int
 __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 {
-	FILE *fp;
-	char name[PATH_MAX];
 	_RuneLocale *rl;
-	int saverr, ret;
+	int ret;
+	char *path;
 	struct xlocale_ctype saved = *l;
 
 	/*
@@ -124,37 +110,39 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 	}
 
 	/* Range checking not needed, encoding length already checked before */
-	(void) strcpy(name, _PathLocale);
-	(void) strcat(name, "/");
-	(void) strcat(name, encoding);
-	(void) strcat(name, "/LC_CTYPE");
+	asprintf(&path, "%s/%s/LC_CTYPE", _PathLocale, encoding);
+	if (path == NULL)
+		return (0);
 
-	if ((fp = fopen(name, "re")) == NULL)
-		return (errno == 0 ? ENOENT : errno);
-
-	if ((rl = _Read_RuneMagi(fp)) == NULL) {
-		saverr = (errno == 0 ? EFTYPE : errno);
-		(void)fclose(fp);
-		return (saverr);
+	if ((rl = _Read_RuneMagi(path)) == NULL) {
+		free(path);
+		errno = EINVAL;
+		return (errno);
 	}
-	(void)fclose(fp);
+	free(path);
 
 	l->__mbrtowc = NULL;
 	l->__mbsinit = NULL;
-	l->__mbsnrtowcs = __mbsnrtowcs_std;
+	l->__mbsnrtowcs = NULL;
 	l->__wcrtomb = NULL;
-	l->__wcsnrtombs = __wcsnrtombs_std;
+	l->__wcsnrtombs = NULL;
 
 	rl->__sputrune = NULL;
 	rl->__sgetrune = NULL;
-	if (strcmp(rl->__encoding, "NONE") == 0)
-		ret = _none_init(l, rl);
-	else if (strcmp(rl->__encoding, "ASCII") == 0)
+	if (strcmp(rl->__encoding, "NONE:US-ASCII") == 0)
 		ret = _ascii_init(l, rl);
+	else if (strncmp(rl->__encoding, "NONE", 4) == 0)
+		ret = _none_init(l, rl);
 	else if (strcmp(rl->__encoding, "UTF-8") == 0)
 		ret = _UTF8_init(l, rl);
-	else if (strcmp(rl->__encoding, "EUC") == 0)
-		ret = _EUC_init(l, rl);
+	else if (strcmp(rl->__encoding, "EUC-CN") == 0)
+		ret = _EUC_CN_init(l, rl);
+	else if (strcmp(rl->__encoding, "EUC-JP") == 0)
+		ret = _EUC_JP_init(l, rl);
+	else if (strcmp(rl->__encoding, "EUC-KR") == 0)
+		ret = _EUC_KR_init(l, rl);
+	else if (strcmp(rl->__encoding, "EUC-TW") == 0)
+		ret = _EUC_TW_init(l, rl);
 	else if (strcmp(rl->__encoding, "GB18030") == 0)
  		ret = _GB18030_init(l, rl);
 	else if (strcmp(rl->__encoding, "GB2312") == 0)
@@ -211,7 +199,7 @@ __set_thread_rune_locale(locale_t loc)
 #endif
 
 void *
-__ctype_load(const char *locale, locale_t unused)
+__ctype_load(const char *locale, locale_t unused __unused)
 {
 	struct xlocale_ctype *l = calloc(sizeof(struct xlocale_ctype), 1);
 

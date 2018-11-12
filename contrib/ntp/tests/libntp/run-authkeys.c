@@ -22,40 +22,47 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp.h"
+#include "ntp_stdlib.h"
+#include "ntp_calendar.h"
+#include <limits.h>
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_AddTrustedKeys();
-extern void test_AddUntrustedKey();
-extern void test_HaveKeyCorrect();
-extern void test_HaveKeyIncorrect();
-extern void test_AddWithAuthUseKey();
-extern void test_EmptyKey();
+extern void test_AddTrustedKeys(void);
+extern void test_AddUntrustedKey(void);
+extern void test_HaveKeyCorrect(void);
+extern void test_HaveKeyIncorrect(void);
+extern void test_AddWithAuthUseKey(void);
+extern void test_EmptyKey(void);
+extern void test_auth_log2(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "authkeys.c";
   UnityBegin("authkeys.c");
-  RUN_TEST(test_AddTrustedKeys, 71);
-  RUN_TEST(test_AddUntrustedKey, 82);
-  RUN_TEST(test_HaveKeyCorrect, 90);
-  RUN_TEST(test_HaveKeyIncorrect, 99);
-  RUN_TEST(test_AddWithAuthUseKey, 106);
-  RUN_TEST(test_EmptyKey, 113);
+  RUN_TEST(test_AddTrustedKeys, 25);
+  RUN_TEST(test_AddUntrustedKey, 26);
+  RUN_TEST(test_HaveKeyCorrect, 27);
+  RUN_TEST(test_HaveKeyIncorrect, 28);
+  RUN_TEST(test_AddWithAuthUseKey, 29);
+  RUN_TEST(test_EmptyKey, 30);
+  RUN_TEST(test_auth_log2, 31);
 
   return (UnityEnd());
 }

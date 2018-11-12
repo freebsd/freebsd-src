@@ -24,10 +24,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-acplex.o: acplex.c
-acplex.o: y.tab.h
-acplex.po: acplex.c
-acplex.po: y.tab.h
-acpyacc.o: acpyacc.c
-acpyacc.po: acpyacc.c
 .endif

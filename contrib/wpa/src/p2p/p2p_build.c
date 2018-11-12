@@ -10,6 +10,7 @@
 
 #include "common.h"
 #include "common/ieee802_11_defs.h"
+#include "common/qca-vendor.h"
 #include "wps/wps_i.h"
 #include "p2p_i.h"
 
@@ -106,6 +107,44 @@ void p2p_buf_add_operating_channel(struct wpabuf *buf, const char *country,
 	wpabuf_put_u8(buf, channel); /* Channel Number */
 	wpa_printf(MSG_DEBUG, "P2P: * Operating Channel: Regulatory Class %u "
 		   "Channel %u", reg_class, channel);
+}
+
+
+void p2p_buf_add_pref_channel_list(struct wpabuf *buf,
+				   const u32 *preferred_freq_list,
+				   unsigned int size)
+{
+	unsigned int i, count = 0;
+	u8 op_class, op_channel;
+
+	if (!size)
+		return;
+
+	/*
+	 * First, determine the number of P2P supported channels in the
+	 * pref_freq_list returned from driver. This is needed for calculations
+	 * of the vendor IE size.
+	 */
+	for (i = 0; i < size; i++) {
+		if (p2p_freq_to_channel(preferred_freq_list[i], &op_class,
+					&op_channel) == 0)
+			count++;
+	}
+
+	wpabuf_put_u8(buf, WLAN_EID_VENDOR_SPECIFIC);
+	wpabuf_put_u8(buf, 4 + count * sizeof(u16));
+	wpabuf_put_be24(buf, OUI_QCA);
+	wpabuf_put_u8(buf, QCA_VENDOR_ELEM_P2P_PREF_CHAN_LIST);
+	for (i = 0; i < size; i++) {
+		if (p2p_freq_to_channel(preferred_freq_list[i], &op_class,
+					&op_channel) < 0) {
+			wpa_printf(MSG_DEBUG, "Unsupported frequency %u MHz",
+				   preferred_freq_list[i]);
+			continue;
+		}
+		wpabuf_put_u8(buf, op_class);
+		wpabuf_put_u8(buf, op_channel);
+	}
 }
 
 
@@ -353,10 +392,10 @@ void p2p_buf_add_service_hash(struct wpabuf *buf, struct p2p_data *p2p)
 	/* Service Hash */
 	wpabuf_put_u8(buf, P2P_ATTR_SERVICE_HASH);
 	wpabuf_put_le16(buf, p2p->p2ps_seek_count * P2PS_HASH_LEN);
-	wpabuf_put_data(buf, p2p->query_hash,
+	wpabuf_put_data(buf, p2p->p2ps_seek_hash,
 			p2p->p2ps_seek_count * P2PS_HASH_LEN);
 	wpa_hexdump(MSG_DEBUG, "P2P: * Service Hash",
-		    p2p->query_hash, p2p->p2ps_seek_count * P2PS_HASH_LEN);
+		    p2p->p2ps_seek_hash, p2p->p2ps_seek_count * P2PS_HASH_LEN);
 }
 
 
@@ -404,152 +443,221 @@ void p2p_buf_add_advertisement_id(struct wpabuf *buf, u32 id, const u8 *mac)
 }
 
 
+static int p2ps_wildcard_hash(struct p2p_data *p2p,
+			      const u8 *hash, u8 hash_count)
+{
+	u8 i;
+	const u8 *test = hash;
+
+	for (i = 0; i < hash_count; i++) {
+		if (os_memcmp(test, p2p->wild_card_hash, P2PS_HASH_LEN) == 0)
+			return 1;
+		test += P2PS_HASH_LEN;
+	}
+
+	return 0;
+}
+
+
+static int p2p_wfa_service_adv(struct p2p_data *p2p)
+{
+	struct p2ps_advertisement *adv;
+
+	for (adv = p2p->p2ps_adv_list; adv; adv = adv->next) {
+		if (os_strncmp(adv->svc_name, P2PS_WILD_HASH_STR,
+			       os_strlen(P2PS_WILD_HASH_STR)) == 0)
+			return 1;
+	}
+
+	return 0;
+}
+
+
+static int p2p_buf_add_service_info(struct wpabuf *buf, struct p2p_data *p2p,
+				    u32 adv_id, u16 config_methods,
+				    const char *svc_name, u8 **ie_len, u8 **pos,
+				    size_t *total_len, u8 *attr_len)
+{
+	size_t svc_len;
+	size_t remaining;
+	size_t info_len;
+
+	p2p_dbg(p2p, "Add service info for %s (adv_id=%u)", svc_name, adv_id);
+	svc_len = os_strlen(svc_name);
+	info_len = sizeof(adv_id) + sizeof(config_methods) + sizeof(u8) +
+		svc_len;
+
+	if (info_len + *total_len > MAX_SVC_ADV_LEN) {
+		p2p_dbg(p2p,
+			"Unsufficient buffer, failed to add advertised service info");
+		return -1;
+	}
+
+	if (svc_len > 255) {
+		p2p_dbg(p2p,
+			"Invalid service name length (%u bytes), failed to add advertised service info",
+			(unsigned int) svc_len);
+		return -1;
+	}
+
+	if (*ie_len) {
+		int ie_data_len = (*pos - *ie_len) - 1;
+
+		if (ie_data_len < 0 || ie_data_len > 255) {
+			p2p_dbg(p2p,
+				"Invalid IE length, failed to add advertised service info");
+			return -1;
+		}
+		remaining = 255 - ie_data_len;
+	} else {
+		/*
+		 * Adding new P2P IE header takes 6 extra bytes:
+		 * - 2 byte IE header (1 byte IE id and 1 byte length)
+		 * - 4 bytes of IE_VENDOR_TYPE are reduced from 255 below
+		 */
+		*ie_len = p2p_buf_add_ie_hdr(buf);
+		remaining = 255 - 4;
+	}
+
+	if (remaining < sizeof(u32) + sizeof(u16) + sizeof(u8)) {
+		/*
+		 * Split adv_id, config_methods, and svc_name_len between two
+		 * IEs.
+		 */
+		size_t front = remaining;
+		size_t back = sizeof(u32) + sizeof(u16) + sizeof(u8) - front;
+		u8 holder[sizeof(u32) + sizeof(u16) + sizeof(u8)];
+
+		WPA_PUT_LE32(holder, adv_id);
+		WPA_PUT_BE16(&holder[sizeof(u32)], config_methods);
+		holder[sizeof(u32) + sizeof(u16)] = svc_len;
+
+		if (front)
+			wpabuf_put_data(buf, holder, front);
+
+		p2p_buf_update_ie_hdr(buf, *ie_len);
+		*ie_len = p2p_buf_add_ie_hdr(buf);
+
+		wpabuf_put_data(buf, &holder[front], back);
+		remaining = 255 - 4 - (sizeof(u32) + sizeof(u16) + sizeof(u8)) -
+			back;
+	} else {
+		wpabuf_put_le32(buf, adv_id);
+		wpabuf_put_be16(buf, config_methods);
+		wpabuf_put_u8(buf, svc_len);
+		remaining -= sizeof(adv_id) + sizeof(config_methods) +
+			sizeof(u8);
+	}
+
+	if (remaining < svc_len) {
+		/* split svc_name between two or three IEs */
+		size_t front = remaining;
+		size_t back = svc_len - front;
+
+		if (front)
+			wpabuf_put_data(buf, svc_name, front);
+
+		p2p_buf_update_ie_hdr(buf, *ie_len);
+		*ie_len = p2p_buf_add_ie_hdr(buf);
+
+		/* In rare cases, we must split across 3 attributes */
+		if (back > 255 - 4) {
+			wpabuf_put_data(buf, &svc_name[front], 255 - 4);
+			back -= 255 - 4;
+			front += 255 - 4;
+			p2p_buf_update_ie_hdr(buf, *ie_len);
+			*ie_len = p2p_buf_add_ie_hdr(buf);
+		}
+
+		wpabuf_put_data(buf, &svc_name[front], back);
+		remaining = 255 - 4 - back;
+	} else {
+		wpabuf_put_data(buf, svc_name, svc_len);
+		remaining -= svc_len;
+	}
+
+	p2p_buf_update_ie_hdr(buf, *ie_len);
+
+	/* set *ie_len to NULL if a new IE has to be added on the next call */
+	if (!remaining)
+		*ie_len = NULL;
+
+	/* set *pos to point to the next byte to update */
+	*pos = wpabuf_put(buf, 0);
+
+	*total_len += info_len;
+	WPA_PUT_LE16(attr_len, (u16) *total_len);
+	return 0;
+}
+
+
 void p2p_buf_add_service_instance(struct wpabuf *buf, struct p2p_data *p2p,
 				  u8 hash_count, const u8 *hash,
 				  struct p2ps_advertisement *adv_list)
 {
 	struct p2ps_advertisement *adv;
-	struct wpabuf *tmp_buf;
-	u8 *tag_len = NULL, *ie_len = NULL;
-	size_t svc_len = 0, remaining = 0, total_len = 0;
+	int p2ps_wildcard;
+	size_t total_len;
+	struct wpabuf *tmp_buf = NULL;
+	u8 *pos, *attr_len, *ie_len = NULL;
 
-	if (!adv_list || !hash)
+	if (!adv_list || !hash || !hash_count)
 		return;
+
+	wpa_hexdump(MSG_DEBUG, "P2PS: Probe Request service hash values",
+		    hash, hash_count * P2PS_HASH_LEN);
+	p2ps_wildcard = p2ps_wildcard_hash(p2p, hash, hash_count) &&
+		p2p_wfa_service_adv(p2p);
 
 	/* Allocate temp buffer, allowing for overflow of 1 instance */
 	tmp_buf = wpabuf_alloc(MAX_SVC_ADV_IE_LEN + 256 + P2PS_HASH_LEN);
 	if (!tmp_buf)
 		return;
 
+	/*
+	 * Attribute data can be split into a number of IEs. Start with the
+	 * first IE and the attribute headers here.
+	 */
+	ie_len = p2p_buf_add_ie_hdr(tmp_buf);
+
+	total_len = 0;
+
+	wpabuf_put_u8(tmp_buf, P2P_ATTR_ADVERTISED_SERVICE);
+	attr_len = wpabuf_put(tmp_buf, sizeof(u16));
+	WPA_PUT_LE16(attr_len, (u16) total_len);
+	p2p_buf_update_ie_hdr(tmp_buf, ie_len);
+	pos = wpabuf_put(tmp_buf, 0);
+
+	if (p2ps_wildcard) {
+		/* org.wi-fi.wfds match found */
+		p2p_buf_add_service_info(tmp_buf, p2p, 0, 0, P2PS_WILD_HASH_STR,
+					 &ie_len, &pos, &total_len, attr_len);
+	}
+
+	/* add advertised service info of matching services */
 	for (adv = adv_list; adv && total_len <= MAX_SVC_ADV_LEN;
 	     adv = adv->next) {
-		u8 count = hash_count;
 		const u8 *test = hash;
+		u8 i;
 
-		while (count--) {
-			/* Check for wildcard */
-			if (os_memcmp(test, p2p->wild_card_hash,
-				      P2PS_HASH_LEN) == 0) {
-				total_len = MAX_SVC_ADV_LEN + 1;
-				goto wild_hash;
-			}
-
-			if (os_memcmp(test, adv->hash, P2PS_HASH_LEN) == 0)
-				goto hash_match;
+		for (i = 0; i < hash_count; i++) {
+			/* exact name hash match */
+			if (os_memcmp(test, adv->hash, P2PS_HASH_LEN) == 0 &&
+			    p2p_buf_add_service_info(tmp_buf, p2p,
+						     adv->id,
+						     adv->config_methods,
+						     adv->svc_name,
+						     &ie_len, &pos,
+						     &total_len,
+						     attr_len))
+				break;
 
 			test += P2PS_HASH_LEN;
 		}
-
-		/* No matches found - Skip this Adv Instance */
-		continue;
-
-hash_match:
-		if (!tag_len) {
-			tag_len = p2p_buf_add_ie_hdr(tmp_buf);
-			remaining = 255 - 4;
-			if (!ie_len) {
-				wpabuf_put_u8(tmp_buf,
-					      P2P_ATTR_ADVERTISED_SERVICE);
-				ie_len = wpabuf_put(tmp_buf, sizeof(u16));
-				remaining -= (sizeof(u8) + sizeof(u16));
-			}
-		}
-
-		svc_len = os_strlen(adv->svc_name);
-
-		if (7 + svc_len + total_len > MAX_SVC_ADV_LEN) {
-			/* Can't fit... return wildcard */
-			total_len = MAX_SVC_ADV_LEN + 1;
-			break;
-		}
-
-		if (remaining <= (sizeof(adv->id) +
-				  sizeof(adv->config_methods))) {
-			size_t front = remaining;
-			size_t back = (sizeof(adv->id) +
-				       sizeof(adv->config_methods)) - front;
-			u8 holder[sizeof(adv->id) +
-				  sizeof(adv->config_methods)];
-
-			/* This works even if front or back == 0 */
-			WPA_PUT_LE32(holder, adv->id);
-			WPA_PUT_BE16(&holder[sizeof(adv->id)],
-				     adv->config_methods);
-			wpabuf_put_data(tmp_buf, holder, front);
-			p2p_buf_update_ie_hdr(tmp_buf, tag_len);
-			tag_len = p2p_buf_add_ie_hdr(tmp_buf);
-			wpabuf_put_data(tmp_buf, &holder[front], back);
-			remaining = 255 - (sizeof(adv->id) +
-					   sizeof(adv->config_methods)) - back;
-		} else {
-			wpabuf_put_le32(tmp_buf, adv->id);
-			wpabuf_put_be16(tmp_buf, adv->config_methods);
-			remaining -= (sizeof(adv->id) +
-				      sizeof(adv->config_methods));
-		}
-
-		/* We are guaranteed at least one byte for svc_len */
-		wpabuf_put_u8(tmp_buf, svc_len);
-		remaining -= sizeof(u8);
-
-		if (remaining < svc_len) {
-			size_t front = remaining;
-			size_t back = svc_len - front;
-
-			wpabuf_put_data(tmp_buf, adv->svc_name, front);
-			p2p_buf_update_ie_hdr(tmp_buf, tag_len);
-			tag_len = p2p_buf_add_ie_hdr(tmp_buf);
-
-			/* In rare cases, we must split across 3 attributes */
-			if (back > 255 - 4) {
-				wpabuf_put_data(tmp_buf,
-						&adv->svc_name[front], 255 - 4);
-				back -= 255 - 4;
-				front += 255 - 4;
-				p2p_buf_update_ie_hdr(tmp_buf, tag_len);
-				tag_len = p2p_buf_add_ie_hdr(tmp_buf);
-			}
-
-			wpabuf_put_data(tmp_buf, &adv->svc_name[front], back);
-			remaining = 255 - 4 - back;
-		} else {
-			wpabuf_put_data(tmp_buf, adv->svc_name, svc_len);
-			remaining -= svc_len;
-		}
-
-		/*           adv_id      config_methods     svc_string */
-		total_len += sizeof(u32) + sizeof(u16) + sizeof(u8) + svc_len;
 	}
 
-	if (tag_len)
-		p2p_buf_update_ie_hdr(tmp_buf, tag_len);
-
-	if (ie_len)
-		WPA_PUT_LE16(ie_len, (u16) total_len);
-
-wild_hash:
-	/* If all fit, return matching instances, otherwise the wildcard */
-	if (total_len <= MAX_SVC_ADV_LEN) {
+	if (total_len)
 		wpabuf_put_buf(buf, tmp_buf);
-	} else {
-		char *wild_card = P2PS_WILD_HASH_STR;
-		u8 wild_len;
-
-		/* Insert wildcard instance */
-		tag_len = p2p_buf_add_ie_hdr(buf);
-		wpabuf_put_u8(buf, P2P_ATTR_ADVERTISED_SERVICE);
-		ie_len = wpabuf_put(buf, sizeof(u16));
-
-		wild_len = (u8) os_strlen(wild_card);
-		wpabuf_put_le32(buf, 0);
-		wpabuf_put_be16(buf, 0);
-		wpabuf_put_u8(buf, wild_len);
-		wpabuf_put_data(buf, wild_card, wild_len);
-
-		WPA_PUT_LE16(ie_len, 4 + 2 + 1 + wild_len);
-		p2p_buf_update_ie_hdr(buf, tag_len);
-	}
-
 	wpabuf_free(tmp_buf);
 }
 

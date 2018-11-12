@@ -84,6 +84,7 @@ int exec_register(const struct execsw *);
 int exec_unregister(const struct execsw *);
 
 extern int coredump_pack_fileinfo;
+extern int coredump_pack_vmmapinfo;
 
 /*
  * note: name##_mod cannot be const storage because the

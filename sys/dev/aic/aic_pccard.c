@@ -77,8 +77,8 @@ aic_pccard_alloc_resources(device_t dev)
 	sc->sc_port = sc->sc_irq = NULL;
 
 	rid = 0;
-	sc->sc_port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-	    0ul, ~0ul, AIC_PCCARD_PORTSIZE, RF_ACTIVE);
+	sc->sc_port = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+	    AIC_PCCARD_PORTSIZE, RF_ACTIVE);
 	if (!sc->sc_port)
 		return (ENOMEM);
 
@@ -196,3 +196,4 @@ extern devclass_t aic_devclass;
 
 MODULE_DEPEND(aic, cam, 1,1,1);
 DRIVER_MODULE(aic, pccard, aic_pccard_driver, aic_devclass, 0, 0);
+PCCARD_PNP_INFO(aic_pccard_products);

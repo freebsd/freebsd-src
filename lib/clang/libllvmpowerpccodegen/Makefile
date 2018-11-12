@@ -6,6 +6,7 @@ LIB=	llvmpowerpccodegen
 
 SRCDIR=	lib/Target/PowerPC
 SRCS=	PPCAsmPrinter.cpp \
+	PPCBoolRetToInt.cpp \
 	PPCBranchSelector.cpp \
 	PPCCTRLoops.cpp \
 	PPCEarlyReturn.cpp \
@@ -18,6 +19,7 @@ SRCS=	PPCAsmPrinter.cpp \
 	PPCLoopDataPrefetch.cpp \
 	PPCLoopPreIncPrep.cpp \
 	PPCMCInstLower.cpp \
+	PPCMIPeephole.cpp \
 	PPCMachineFunctionInfo.cpp \
 	PPCRegisterInfo.cpp \
 	PPCSubtarget.cpp \
@@ -30,7 +32,8 @@ SRCS=	PPCAsmPrinter.cpp \
 	PPCVSXFMAMutate.cpp \
 	PPCVSXSwapRemoval.cpp
 
-TGHDRS=	Intrinsics \
+TGHDRS=	Attributes \
+	Intrinsics \
 	PPCGenCallingConv \
 	PPCGenCodeEmitter \
 	PPCGenDAGISel \

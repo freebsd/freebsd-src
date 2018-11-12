@@ -375,12 +375,19 @@ extern const struct in6_addr in6addr_linklocal_allv2routers;
 #if __BSD_VISIBLE
 struct route_in6 {
 	struct	rtentry *ro_rt;
-	struct	llentry *ro_lle;
-	struct	in6_addr *ro_ia6;
-	int		ro_flags;
+	char		*ro_prepend;
+	uint16_t	ro_plen;
+	uint16_t	ro_flags;
+	uint16_t	ro_mtu;	/* saved ro_rt mtu */
+	uint16_t	spare;
 	struct	sockaddr_in6 ro_dst;
 };
 #endif
+
+#ifdef _KERNEL
+#define MTAG_ABI_IPV6		1444287380	/* IPv6 ABI */
+#define IPV6_TAG_DIRECT		0		/* direct-dispatch IPv6 */
+#endif /* _KERNEL */
 
 /*
  * Options for use with [gs]etsockopt at the IPV6 level.

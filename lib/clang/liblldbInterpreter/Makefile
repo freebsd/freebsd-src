@@ -47,10 +47,7 @@ SRCS=	Args.cpp \
 	OptionGroupWatchpoint.cpp \
 	Options.cpp \
 	Property.cpp \
-	PythonDataObjects.cpp \
-	ScriptInterpreter.cpp \
-	ScriptInterpreterNone.cpp \
-	ScriptInterpreterPython.cpp
+	ScriptInterpreter.cpp
 
 TGHDRS=	AttrList \
 	Attrs \

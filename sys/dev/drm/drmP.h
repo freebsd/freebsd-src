@@ -75,8 +75,6 @@ struct drm_file;
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 #include <vm/vm_phys.h>
-#include <machine/param.h>
-#include <machine/pmap.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #if defined(__i386__) || defined(__amd64__)

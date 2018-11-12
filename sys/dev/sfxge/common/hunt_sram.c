@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
@@ -40,12 +39,12 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_DIAG
 
-	__checkReturn	int
-hunt_sram_test(
+	__checkReturn	efx_rc_t
+ef10_sram_test(
 	__in		efx_nic_t *enp,
 	__in		efx_sram_pattern_fn_t func)
 {
-	int rc;
+	efx_rc_t rc;
 
 	/* FIXME */
 	_NOTE(ARGUNUSED(enp))
@@ -59,7 +58,7 @@ hunt_sram_test(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

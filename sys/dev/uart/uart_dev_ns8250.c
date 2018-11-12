@@ -25,6 +25,7 @@
  */
 
 #include "opt_platform.h"
+#include "opt_uart.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -50,12 +51,23 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_dev_ns8250.h>
+#include <dev/uart/uart_ppstypes.h>
 
 #include <dev/ic/ns16550.h>
 
 #include "uart_if.h"
 
 #define	DEFAULT_RCLK	1843200
+
+/*
+ * Set the default baudrate tolerance to 3.0%.
+ *
+ * Some embedded boards have odd reference clocks (eg 25MHz)
+ * and we need to handle higher variances in the target baud rate.
+ */
+#ifndef	UART_DEV_TOLERANCE_PCT
+#define	UART_DEV_TOLERANCE_PCT	30
+#endif	/* UART_DEV_TOLERANCE_PCT */
 
 static int broken_txfifo = 0;
 SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RWTUN,
@@ -123,8 +135,8 @@ ns8250_divisor(int rclk, int baudrate)
 	/* 10 times error in percent: */
 	error = ((actual_baud - baudrate) * 2000 / baudrate + 1) >> 1;
 
-	/* 3.0% maximum error tolerance: */
-	if (error < -30 || error > 30)
+	/* enforce maximum error tolerance: */
+	if (error < -UART_DEV_TOLERANCE_PCT || error > UART_DEV_TOLERANCE_PCT)
 		return (0);
 
 	return (divisor);
@@ -385,16 +397,47 @@ struct uart_class uart_ns8250_class = {
 #ifdef FDT
 static struct ofw_compat_data compat_data[] = {
 	{"ns16550",		(uintptr_t)&uart_ns8250_class},
+	{"ns16550a",		(uintptr_t)&uart_ns8250_class},
+	{"snps,dw-apb-uart",	(uintptr_t)&uart_ns8250_class},
 	{NULL,			(uintptr_t)NULL},
 };
 UART_FDT_CLASS_AND_DEVICE(compat_data);
 #endif
 
-#define	SIGCHG(c, i, s, d)				\
-	if (c) {					\
-		i |= (i & s) ? s : s | d;		\
-	} else {					\
-		i = (i & s) ? (i & ~s) | d : i;		\
+/* Use token-pasting to form SER_ and MSR_ named constants. */
+#define	SER(sig)	SER_##sig
+#define	SERD(sig)	SER_D##sig
+#define	MSR(sig)	MSR_##sig
+#define	MSRD(sig)	MSR_D##sig
+
+/*
+ * Detect signal changes using software delta detection.  The previous state of
+ * the signals is in 'var' the new hardware state is in 'msr', and 'sig' is the
+ * short name (DCD, CTS, etc) of the signal bit being processed; 'var' gets the
+ * new state of both the signal and the delta bits.
+ */
+#define SIGCHGSW(var, msr, sig)					\
+	if ((msr) & MSR(sig)) {					\
+		if ((var & SER(sig)) == 0)			\
+			var |= SERD(sig) | SER(sig);		\
+	} else {						\
+		if ((var & SER(sig)) != 0)			\
+			var = SERD(sig) | (var & ~SER(sig));	\
+	}
+
+/*
+ * Detect signal changes using the hardware msr delta bits.  This is currently
+ * used only when PPS timing information is being captured using the "narrow
+ * pulse" option.  With a narrow PPS pulse the signal may not still be asserted
+ * by time the interrupt handler is invoked.  The hardware will latch the fact
+ * that it changed in the delta bits.
+ */
+#define SIGCHGHW(var, msr, sig)					\
+	if ((msr) & MSRD(sig)) {				\
+		if (((msr) & MSR(sig)) != 0)			\
+			var |= SERD(sig) | SER(sig);		\
+		else						\
+			var = SERD(sig) | (var & ~SER(sig));	\
 	}
 
 int
@@ -415,9 +458,12 @@ ns8250_bus_attach(struct uart_softc *sc)
 	 * Check whether uart requires to read USR reg when IIR_BUSY and 
 	 * has broken txfifo. 
 	 */
+	ns8250->busy_detect = ofw_bus_is_compatible(sc->sc_dev, "snps,dw-apb-uart");
 	node = ofw_bus_get_node(sc->sc_dev);
-	if ((OF_getencprop(node, "busy-detect", &cell, sizeof(cell))) > 0)
-		ns8250->busy_detect = cell ? 1 : 0;
+	/* XXX: This is kept for a short time for compatibility with older device trees */
+	if ((OF_getencprop(node, "busy-detect", &cell, sizeof(cell))) > 0
+	    && cell != 0)
+		ns8250->busy_detect = 1;
 	if ((OF_getencprop(node, "broken-txfifo", &cell, sizeof(cell))) > 0)
 		broken_txfifo =  cell ? 1 : 0;
 #endif
@@ -521,21 +567,37 @@ ns8250_bus_flush(struct uart_softc *sc, int what)
 int
 ns8250_bus_getsig(struct uart_softc *sc)
 {
-	uint32_t new, old, sig;
+	uint32_t old, sig;
 	uint8_t msr;
 
+	/*
+	 * The delta bits are reputed to be broken on some hardware, so use
+	 * software delta detection by default.  Use the hardware delta bits
+	 * when capturing PPS pulses which are too narrow for software detection
+	 * to see the edges.  Hardware delta for RI doesn't work like the
+	 * others, so always use software for it.  Other threads may be changing
+	 * other (non-MSR) bits in sc_hwsig, so loop until it can succesfully
+	 * update without other changes happening.  Note that the SIGCHGxx()
+	 * macros carefully preserve the delta bits when we have to loop several
+	 * times and a signal transitions between iterations.
+	 */
 	do {
 		old = sc->sc_hwsig;
 		sig = old;
 		uart_lock(sc->sc_hwmtx);
 		msr = uart_getreg(&sc->sc_bas, REG_MSR);
 		uart_unlock(sc->sc_hwmtx);
-		SIGCHG(msr & MSR_DSR, sig, SER_DSR, SER_DDSR);
-		SIGCHG(msr & MSR_CTS, sig, SER_CTS, SER_DCTS);
-		SIGCHG(msr & MSR_DCD, sig, SER_DCD, SER_DDCD);
-		SIGCHG(msr & MSR_RI,  sig, SER_RI,  SER_DRI);
-		new = sig & ~SER_MASK_DELTA;
-	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
+		if (sc->sc_pps_mode & UART_PPS_NARROW_PULSE) {
+			SIGCHGHW(sig, msr, DSR);
+			SIGCHGHW(sig, msr, CTS);
+			SIGCHGHW(sig, msr, DCD);
+		} else {
+			SIGCHGSW(sig, msr, DSR);
+			SIGCHGSW(sig, msr, CTS);
+			SIGCHGSW(sig, msr, DCD);
+		}
+		SIGCHGSW(sig, msr, RI);
+	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, sig & ~SER_MASK_DELTA));
 	return (sig);
 }
 
@@ -647,6 +709,7 @@ ns8250_bus_ipend(struct uart_softc *sc)
 		if (iir & IIR_TXRDY) {
 			ipend |= SER_INT_TXIDLE;
 			uart_setreg(bas, REG_IER, ns8250->ier);
+			uart_barrier(bas);
 		} else
 			ipend |= SER_INT_SIGCHG;
 	}
@@ -889,12 +952,10 @@ ns8250_bus_setsig(struct uart_softc *sc, int sig)
 		old = sc->sc_hwsig;
 		new = old;
 		if (sig & SER_DDTR) {
-			SIGCHG(sig & SER_DTR, new, SER_DTR,
-			    SER_DDTR);
+			new = (new & ~SER_DTR) | (sig & (SER_DTR | SER_DDTR));
 		}
 		if (sig & SER_DRTS) {
-			SIGCHG(sig & SER_RTS, new, SER_RTS,
-			    SER_DRTS);
+			new = (new & ~SER_RTS) | (sig & (SER_RTS | SER_DRTS));
 		}
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	uart_lock(sc->sc_hwmtx);
@@ -920,12 +981,12 @@ ns8250_bus_transmit(struct uart_softc *sc)
 	uart_lock(sc->sc_hwmtx);
 	while ((uart_getreg(bas, REG_LSR) & LSR_THRE) == 0)
 		;
-	uart_setreg(bas, REG_IER, ns8250->ier | IER_ETXRDY);
-	uart_barrier(bas);
 	for (i = 0; i < sc->sc_txdatasz; i++) {
 		uart_setreg(bas, REG_DATA, sc->sc_txbuf[i]);
 		uart_barrier(bas);
 	}
+	uart_setreg(bas, REG_IER, ns8250->ier | IER_ETXRDY);
+	uart_barrier(bas);
 	if (broken_txfifo)
 		ns8250_drain(bas, UART_DRAIN_TRANSMITTER);
 	else

@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  *
  * Derived from FreeBSD src/sys/sys/endian.h:1.6.
- * $P4: //depot/projects/trustedbsd/openbsm/compat/endian_enc.h#1 $
  */
 
 #ifndef _COMPAT_ENDIAN_ENC_H_

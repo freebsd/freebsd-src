@@ -88,8 +88,8 @@ usage(void)
 	fprintf(stderr, "\t\ttype = {malloc, vnode, swap}\n");
 	fprintf(stderr, "\t\toption = {cluster, compress, reserve}\n");
 	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%db (B),\n");
-	fprintf(stderr, "\t\t       %%dk (kB), %%dm (MB), %%dg (GB) or\n");
-	fprintf(stderr, "\t\t       %%dt (TB)\n");
+	fprintf(stderr, "\t\t       %%dk (kB), %%dm (MB), %%dg (GB), \n");
+	fprintf(stderr, "\t\t       %%dt (TB), or %%dp (PB)\n");
 	exit(1);
 }
 
@@ -217,6 +217,9 @@ main(int argc, char **argv)
 			else if (*p == 't' || *p == 'T') {
 				mdio.md_mediasize <<= 30;
 				mdio.md_mediasize <<= 10;
+			} else if (*p == 'p' || *p == 'P') {
+				mdio.md_mediasize <<= 30;
+				mdio.md_mediasize <<= 20;
 			} else
 				errx(1, "unknown suffix on -s argument");
 			break;

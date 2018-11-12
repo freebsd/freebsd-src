@@ -14,7 +14,6 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libthr \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2015
+.Dd January 27, 2016
 .Dt GGATED 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Op Fl v
 .Op Fl a Ar address
 .Op Fl p Ar port
+.Op Fl F Ar pidfile
 .Op Fl R Ar rcvbuf
 .Op Fl S Ar sndbuf
 .Op Ar "exports file"
@@ -67,6 +68,10 @@ Port on which
 .Nm
 listens for connections.
 Default is 3080.
+.It Fl F Ar pidfile
+PID file that
+.Nm
+uses.
 .It Fl R Ar rcvbuf
 Size of receive buffer to use.
 Default is 131072 (128kB).
@@ -86,6 +91,13 @@ The format of an exports file is as follows:
 1.2.3.0/24	RW	/tmp/test.img
 hostname	WO	/tmp/image
 .Ed
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/ggated.pid" -compact
+.It Pa /var/run/ggated.pid
+The default location of the
+.Nm
+PID file.
+.El
 .Sh EXIT STATUS
 Exit status is 0 on success, or 1 if the command fails.
 To get details about the failure,

@@ -1,4 +1,4 @@
-$Id: INSTALL,v 1.10 2015/03/09 21:00:14 schwarze Exp $
+$Id: INSTALL,v 1.13 2015/11/07 14:01:16 schwarze Exp $
 
 About mdocml, the portable mandoc distribution
 ----------------------------------------------
@@ -42,6 +42,8 @@ generates.  If anything looks wrong or different from what you
 wish, read the file "configure.local.example", create and edit
 a file "configure.local", and re-run "./configure" until the
 result seems right to you.
+On Solaris 10 and earlier, you may have to run "ksh ./configure"
+because the native /bin/sh lacks some POSIX features.
 
 3. Run "make".
 Any POSIX-compatible make, in particular both BSD make and GNU make,
@@ -82,9 +84,10 @@ manual page source.
 
 Understanding mandoc dependencies
 ---------------------------------
-The mandoc(1), man(1), and demandoc(1) utilities have no external
-dependencies, but makewhatis(8) and apropos(1) depend on the
-following software:
+The mandoc(1), man(1), and demandoc(1) utilities only depend
+on the zlib library for decompressing gzipped manual pages,
+but makewhatis(8) and apropos(1) depend on the following
+additional software:
 
 1. The SQLite database system, see <http://sqlite.org/>.
 The recommended version of SQLite is 3.8.4.3 or newer.  The mandoc
@@ -106,6 +109,11 @@ If you run into that problem, set "HAVE_FTS=0" in configure.local.
 3. Marc Espie's ohash(3) library.
 If your system does not have it, the bundled compatibility version
 will be used, so you probably need not worry about it.
+
+One of the chief design goals of the mandoc toolbox is to make
+sure that nothing related to documentation requires C++.
+Consequently, linking mandoc against any kind of C++ program
+would defeat the purpose and is not supported.
 
 
 Checking autoconfiguration quality

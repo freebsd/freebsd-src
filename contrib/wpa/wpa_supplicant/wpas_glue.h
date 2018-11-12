@@ -22,4 +22,7 @@ const char * wpa_supplicant_ctrl_req_to_string(enum wpa_ctrl_req_type field,
 
 enum wpa_ctrl_req_type wpa_supplicant_ctrl_req_from_string(const char *field);
 
+void wpas_send_ctrl_req(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid,
+			const char *field_name, const char *txt);
+
 #endif /* WPAS_GLUE_H */

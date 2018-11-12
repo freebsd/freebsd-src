@@ -37,6 +37,7 @@
 
 #define	AUXARGS_ENTRY(pos, id, val) {suword(pos++, id); suword(pos++, val);}
 
+struct image_params;
 struct thread;
 
 /*

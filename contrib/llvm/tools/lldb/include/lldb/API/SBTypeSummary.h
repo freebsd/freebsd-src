@@ -12,8 +12,6 @@
 
 #include "lldb/API/SBDefines.h"
 
-#ifndef LLDB_DISABLE_PYTHON
-
 namespace lldb {
     class LLDB_API SBTypeSummaryOptions
     {
@@ -71,6 +69,9 @@ namespace lldb {
     public:
         
         SBTypeSummary();
+
+        // Native function summary formatter callback
+        typedef bool (*FormatCallback) (SBValue, SBTypeSummaryOptions, SBStream&);
         
         static SBTypeSummary
         CreateWithSummaryString (const char* data,
@@ -83,6 +84,11 @@ namespace lldb {
         static SBTypeSummary
         CreateWithScriptCode (const char* data,
                               uint32_t options = 0); // see lldb::eTypeOption values
+
+        static SBTypeSummary
+        CreateWithCallback (FormatCallback cb, 
+                            uint32_t options = 0,
+                            const char* description = nullptr);
         
         SBTypeSummary (const lldb::SBTypeSummary &rhs);
         
@@ -126,6 +132,9 @@ namespace lldb {
         operator = (const lldb::SBTypeSummary &rhs);
         
         bool
+        DoesPrintValue (lldb::SBValue value);
+        
+        bool
         IsEqualTo (lldb::SBTypeSummary &rhs);
 
         bool
@@ -159,7 +168,5 @@ namespace lldb {
     
     
 } // namespace lldb
-
-#endif // LLDB_DISABLE_PYTHON
 
 #endif // LLDB_SBTypeSummary_h_

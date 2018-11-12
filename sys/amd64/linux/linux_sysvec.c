@@ -129,6 +129,7 @@ static void	linux_set_syscall_retval(struct thread *td, int error);
 static int	linux_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
 static void	linux_exec_setregs(struct thread *td, struct image_params *imgp,
 		    u_long stack);
+static int	linux_vsyscall(struct thread *td);
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -234,7 +235,7 @@ linux_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 
 	if (sa->code >= p->p_sysent->sv_size)
 		/* nosys */
-		sa->callp = &p->p_sysent->sv_table[LINUX_SYS_MAXSYSCALL];
+		sa->callp = &p->p_sysent->sv_table[p->p_sysent->sv_size - 1];
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
 	sa->narg = sa->callp->sy_narg;
@@ -270,6 +271,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	Elf_Addr *pos;
 	struct ps_strings *arginfo;
 	struct proc *p;
+	int issetugid;
 
 	p = imgp->proc;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
@@ -280,6 +282,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	args = (Elf64_Auxargs *)imgp->auxargs;
 	pos = base + (imgp->args->argc + imgp->args->envc + 2);
 
+	issetugid = p->p_flag & P_SUGID ? 1 : 0;
 	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO_EHDR,
 	    imgp->proc->p_sysent->sv_shared_page_base);
 	AUXARGS_ENTRY(pos, LINUX_AT_HWCAP, cpu_feature);
@@ -295,7 +298,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_EUID, imgp->proc->p_ucred->cr_svuid);
 	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
-	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, 0);
+	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, issetugid);
 	AUXARGS_ENTRY(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
 	AUXARGS_ENTRY(pos, LINUX_AT_RANDOM, imgp->canary);
 	if (imgp->execpathp != 0)
@@ -627,7 +630,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = td->td_sigstk.ss_sp + td->td_sigstk.ss_size -
+		sp = (caddr_t)td->td_sigstk.ss_sp + td->td_sigstk.ss_size -
 		    sizeof(struct l_rt_sigframe);
 	} else
 		sp = (caddr_t)regs->tf_rsp - sizeof(struct l_rt_sigframe) - 128;
@@ -746,12 +749,57 @@ exec_linux_imgact_try(struct image_params *imgp)
 	return(error);
 }
 
+#define	LINUX_VSYSCALL_START		(-10UL << 20)
+#define	LINUX_VSYSCALL_SZ		1024
+
+const unsigned long linux_vsyscall_vector[] = {
+	LINUX_SYS_gettimeofday,
+	LINUX_SYS_linux_time,
+				/* getcpu not implemented */
+};
+
+static int
+linux_vsyscall(struct thread *td)
+{
+	struct trapframe *frame;
+	uint64_t retqaddr;
+	int code, traced;
+	int error; 
+
+	frame = td->td_frame;
+
+	/* Check %rip for vsyscall area */
+	if (__predict_true(frame->tf_rip < LINUX_VSYSCALL_START))
+		return (EINVAL);
+	if ((frame->tf_rip & (LINUX_VSYSCALL_SZ - 1)) != 0)
+		return (EINVAL);
+	code = (frame->tf_rip - LINUX_VSYSCALL_START) / LINUX_VSYSCALL_SZ;
+	if (code >= nitems(linux_vsyscall_vector))
+		return (EINVAL);
+
+	/*
+	 * vsyscall called as callq *(%rax), so we must
+	 * use return address from %rsp and also fixup %rsp
+	 */
+	error = copyin((void *)frame->tf_rsp, &retqaddr, sizeof(retqaddr));
+	if (error)
+		return (error);
+
+	frame->tf_rip = retqaddr;
+	frame->tf_rax = linux_vsyscall_vector[code];
+	frame->tf_rsp += 8;
+
+	traced = (frame->tf_flags & PSL_T);
+
+	amd64_syscall(td, traced);
+
+	return (0);
+}
+
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
 	.sv_mask	= 0,
-	.sv_sigsize	= 0,
-	.sv_sigtbl	= NULL,
 	.sv_errsize	= ELAST + 1,
 	.sv_errtbl	= bsd_to_linux_errno,
 	.sv_transtrap	= translate_traps,
@@ -759,7 +807,6 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_sendsig	= linux_rt_sendsig,
 	.sv_sigcode	= &_binary_linux_locore_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
-	.sv_prepsyscall	= NULL,
 	.sv_name	= "Linux ELF64",
 	.sv_coredump	= elf64_coredump,
 	.sv_imgact_try	= exec_linux_imgact_try,
@@ -781,7 +828,8 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_shared_page_base = SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
-	.sv_thread_detach = linux_thread_detach
+	.sv_thread_detach = linux_thread_detach,
+	.sv_trap	= linux_vsyscall,
 };
 
 static void

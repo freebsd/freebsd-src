@@ -19,6 +19,7 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
+#include "lldb/Core/PluginManager.h"
 #include "lldb/Core/State.h"
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamFile.h"
@@ -409,7 +410,7 @@ SBProcess::GetAsyncProfileData(char *dst, size_t dst_len) const
 
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
     if (log)
-        log->Printf ("SBProcess(%p)::GetProfileData (dst=\"%.*s\", dst_len=%" PRIu64 ") => %" PRIu64,
+        log->Printf ("SBProcess(%p)::GetAsyncProfileData (dst=\"%.*s\", dst_len=%" PRIu64 ") => %" PRIu64,
                      static_cast<void*>(process_sp.get()),
                      static_cast<int>(bytes_read), dst,
                      static_cast<uint64_t>(dst_len),
@@ -994,7 +995,15 @@ SBProcess::GetStateFromEvent (const SBEvent &event)
 bool
 SBProcess::GetRestartedFromEvent (const SBEvent &event)
 {
-    return Process::ProcessEventData::GetRestartedFromEvent (event.get());
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+
+    bool ret_val = Process::ProcessEventData::GetRestartedFromEvent (event.get());
+
+    if (log)
+        log->Printf ("SBProcess::%s (event.sp=%p) => %d", __FUNCTION__,
+                     static_cast<void*>(event.get()), ret_val);
+
+    return ret_val;
 }
 
 size_t
@@ -1287,7 +1296,15 @@ SBProcess::GetNumSupportedHardwareWatchpoints (lldb::SBError &sb_error) const
 }
 
 uint32_t
-SBProcess::LoadImage (lldb::SBFileSpec &sb_image_spec, lldb::SBError &sb_error)
+SBProcess::LoadImage (lldb::SBFileSpec &sb_remote_image_spec, lldb::SBError &sb_error)
+{
+    return LoadImage(SBFileSpec(), sb_remote_image_spec, sb_error);
+}
+
+uint32_t
+SBProcess::LoadImage (const lldb::SBFileSpec &sb_local_image_spec,
+                      const lldb::SBFileSpec &sb_remote_image_spec,
+                      lldb::SBError &sb_error)
 {
     ProcessSP process_sp(GetSP());
     if (process_sp)
@@ -1296,7 +1313,11 @@ SBProcess::LoadImage (lldb::SBFileSpec &sb_image_spec, lldb::SBError &sb_error)
         if (stop_locker.TryLock(&process_sp->GetRunLock()))
         {
             Mutex::Locker api_locker (process_sp->GetTarget().GetAPIMutex());
-            return process_sp->LoadImage (*sb_image_spec, sb_error.ref());
+            PlatformSP platform_sp = process_sp->GetTarget().GetPlatform();
+            return platform_sp->LoadImage (process_sp.get(),
+                                           *sb_local_image_spec,
+                                           *sb_remote_image_spec,
+                                           sb_error.ref());
         }
         else
         {
@@ -1321,7 +1342,8 @@ SBProcess::UnloadImage (uint32_t image_token)
         if (stop_locker.TryLock(&process_sp->GetRunLock()))
         {
             Mutex::Locker api_locker (process_sp->GetTarget().GetAPIMutex());
-            sb_error.SetError (process_sp->UnloadImage (image_token));
+            PlatformSP platform_sp = process_sp->GetTarget().GetPlatform();
+            sb_error.SetError (platform_sp->UnloadImage (process_sp.get(), image_token));
         }
         else
         {
@@ -1424,4 +1446,28 @@ SBProcess::IsInstrumentationRuntimePresent(InstrumentationRuntimeType type)
         return false;
     
     return runtime_sp->IsActive();
+}
+
+lldb::SBError
+SBProcess::SaveCore(const char *file_name)
+{
+    lldb::SBError error;
+    ProcessSP process_sp(GetSP());
+    if (!process_sp)
+    {
+        error.SetErrorString("SBProcess is invalid");
+        return error;
+    }
+
+    Mutex::Locker api_locker(process_sp->GetTarget().GetAPIMutex());
+
+    if (process_sp->GetState() != eStateStopped)
+    {
+        error.SetErrorString("the process is not stopped");
+        return error;
+    }
+
+    FileSpec core_file(file_name, false);
+    error.ref() = PluginManager::SaveCore(process_sp, core_file);
+    return error;
 }

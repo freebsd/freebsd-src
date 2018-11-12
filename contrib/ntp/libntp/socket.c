@@ -78,7 +78,7 @@ move_fd(
 	static SOCKET socket_boundary = -1;
 	SOCKET newfd;
 
-	NTP_REQUIRE((int)fd >= 0);
+	REQUIRE((int)fd >= 0);
 
 	/*
 	 * check whether boundary has be set up
@@ -115,7 +115,7 @@ move_fd(
 			  socket_boundary));
 	} while (socket_boundary > 0);
 #else
-	NTP_REQUIRE((int)fd >= 0);
+	ENSURE((int)fd >= 0);
 #endif /* !defined(SYS_WINNT) && defined(F_DUPFD) */
 	return fd;
 }

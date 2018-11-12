@@ -82,8 +82,6 @@ static int		grackle_enable_config(struct grackle_softc *, u_int,
 static void		grackle_disable_config(struct grackle_softc *);
 static int		badaddr(void *, size_t);
 
-int			setfault(faultbuf);	/* defined in locore.S */
-
 /*
  * Driver methods.
  */
@@ -244,7 +242,7 @@ static int
 badaddr(void *addr, size_t size)
 {
 	struct thread	*td;
-	faultbuf	env, *oldfaultbuf;
+	jmp_buf		env, *oldfaultbuf;
 	int		x;
 
 	/* Get rid of any stale machine checks that have been waiting.  */
@@ -253,7 +251,8 @@ badaddr(void *addr, size_t size)
 	td = curthread;
 
 	oldfaultbuf = td->td_pcb->pcb_onfault;
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = oldfaultbuf;
 		__asm __volatile ("sync");
 		return 1;

@@ -829,6 +829,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	u_int32_t lease;
 	static u_int32_t rev = 0;
 	struct nfsclds *dsp, *ndsp, *tdsp;
+	struct in6_addr a6;
 
 	if (nfsboottime.tv_sec == 0)
 		NFSSETBOOTTIME(nfsboottime);
@@ -889,7 +890,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	*tl = txdr_unsigned(NFS_CALLBCKPROG);
 	callblen = strlen(nfsv4_callbackaddr);
 	if (callblen == 0)
-		cp = nfscl_getmyip(nmp, &isinet6);
+		cp = nfscl_getmyip(nmp, &a6, &isinet6);
 	if (nfscl_enablecallb && nfs_numnfscbd > 0 &&
 	    (callblen > 0 || cp != NULL)) {
 		port = htons(nfsv4_cbport);
@@ -3089,6 +3090,25 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			*eofp = eof;
 	}
 
+	/*
+	 * Add extra empty records to any remaining DIRBLKSIZ chunks.
+	 */
+	while (uio_uio_resid(uiop) > 0 && ((size_t)(uio_uio_resid(uiop))) != tresid) {
+		dp = (struct dirent *) CAST_DOWN(caddr_t, uio_iov_base(uiop));
+		dp->d_type = DT_UNKNOWN;
+		dp->d_fileno = 0;
+		dp->d_namlen = 0;
+		dp->d_name[0] = '\0';
+		tl = (u_int32_t *)&dp->d_name[4];
+		*tl++ = cookie.lval[0];
+		*tl = cookie.lval[1];
+		dp->d_reclen = DIRBLKSIZ;
+		uio_iov_base_add(uiop, DIRBLKSIZ);
+		uio_iov_len_add(uiop, -(DIRBLKSIZ));
+		uio_uio_resid_add(uiop, -(DIRBLKSIZ));
+		uiop->uio_offset += DIRBLKSIZ;
+	}
+
 nfsmout:
 	if (nd->nd_mrep != NULL)
 		mbuf_freem(nd->nd_mrep);
@@ -3561,6 +3581,25 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			*eofp = 0;
 		else
 			*eofp = eof;
+	}
+
+	/*
+	 * Add extra empty records to any remaining DIRBLKSIZ chunks.
+	 */
+	while (uio_uio_resid(uiop) > 0 && uio_uio_resid(uiop) != tresid) {
+		dp = (struct dirent *)uio_iov_base(uiop);
+		dp->d_type = DT_UNKNOWN;
+		dp->d_fileno = 0;
+		dp->d_namlen = 0;
+		dp->d_name[0] = '\0';
+		tl = (u_int32_t *)&dp->d_name[4];
+		*tl++ = cookie.lval[0];
+		*tl = cookie.lval[1];
+		dp->d_reclen = DIRBLKSIZ;
+		uio_iov_base_add(uiop, DIRBLKSIZ);
+		uio_iov_len_add(uiop, -(DIRBLKSIZ));
+		uio_uio_resid_add(uiop, -(DIRBLKSIZ));
+		uiop->uio_offset += DIRBLKSIZ;
 	}
 
 nfsmout:

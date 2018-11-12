@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/fpu.h>	/* For save_fpu() */
 #include <machine/hid.h>
 #include <machine/platformvar.h>
-#include <machine/pmap.h>
 #include <machine/setjmp.h>
 #include <machine/smp.h>
 #include <machine/spr.h>

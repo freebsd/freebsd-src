@@ -35,7 +35,6 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <machine/vmparam.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/cdefs.h>

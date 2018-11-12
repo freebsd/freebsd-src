@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2009-2013, 2016 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -606,18 +606,16 @@ enum c4iw_mmid_state {
 #define MPA_V2_RDMA_READ_RTR            0x4000
 #define MPA_V2_IRD_ORD_MASK             0x3FFF
 
-/* Fixme: Use atomic_read for kref.count as same as Linux */
 #define c4iw_put_ep(ep) { \
 	CTR4(KTR_IW_CXGBE, "put_ep (%s:%u) ep %p, refcnt %d", \
-	     __func__, __LINE__, ep, (ep)->kref.count); \
-	WARN_ON((ep)->kref.count < 1); \
+	     __func__, __LINE__, ep, atomic_read(&(ep)->kref.refcount)); \
+	WARN_ON(atomic_read(&(ep)->kref.refcount) < 1); \
         kref_put(&((ep)->kref), _c4iw_free_ep); \
 }
 
-/* Fixme: Use atomic_read for kref.count as same as Linux */
 #define c4iw_get_ep(ep) { \
 	CTR4(KTR_IW_CXGBE, "get_ep (%s:%u) ep %p, refcnt %d", \
-	      __func__, __LINE__, ep, (ep)->kref.count); \
+	      __func__, __LINE__, ep, atomic_read(&(ep)->kref.refcount)); \
         kref_get(&((ep)->kref));  \
 }
 
@@ -852,8 +850,8 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 int c4iw_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
 		 struct ib_mw_bind *mw_bind);
 int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
-int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog);
-int c4iw_destroy_listen(struct iw_cm_id *cm_id);
+int c4iw_create_listen_ep(struct iw_cm_id *cm_id, int backlog);
+void c4iw_destroy_listen_ep(struct iw_cm_id *cm_id);
 int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 void c4iw_qp_add_ref(struct ib_qp *qp);
@@ -916,6 +914,8 @@ u32 c4iw_get_qpid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx);
 void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qid,
 		struct c4iw_dev_ucontext *uctx);
 void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
+void process_newconn(struct iw_cm_id *parent_cm_id,
+		struct socket *child_so);
 
 extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];

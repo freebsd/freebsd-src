@@ -151,4 +151,5 @@ struct efi_systbl {
 	uint64_t	st_cfgtbl;
 };
 
+extern vm_paddr_t efi_systbl;
 #endif /* _SYS_EFI_H_ */

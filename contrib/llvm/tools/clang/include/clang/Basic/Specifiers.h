@@ -18,6 +18,7 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace clang {
   /// \brief Specifies the width of a type, e.g., short, long, or long long.
@@ -35,6 +36,11 @@ namespace clang {
     TSS_unsigned
   };
   
+  enum TypeSpecifiersPipe {
+    TSP_unspecified,
+    TSP_pipe
+  };
+
   /// \brief Specifies the kind of type.
   enum TypeSpecifierType {
     TST_unspecified,
@@ -64,6 +70,7 @@ namespace clang {
     TST_underlyingType,   // __underlying_type for C++11
     TST_auto,             // C++11 auto
     TST_decltype_auto,    // C++1y decltype(auto)
+    TST_auto_type,        // __auto_type extension
     TST_unknown_anytype,  // __unknown_anytype extension
     TST_atomic,           // C11 _Atomic
     TST_error         // erroneous type
@@ -156,6 +163,24 @@ namespace clang {
     return Kind != TSK_Undeclared && Kind != TSK_ExplicitSpecialization;
   }
 
+  /// \brief True if this template specialization kind is an explicit
+  /// specialization, explicit instantiation declaration, or explicit
+  /// instantiation definition.
+  inline bool isTemplateExplicitInstantiationOrSpecialization(
+      TemplateSpecializationKind Kind) {
+    switch (Kind) {
+    case TSK_ExplicitSpecialization:
+    case TSK_ExplicitInstantiationDeclaration:
+    case TSK_ExplicitInstantiationDefinition:
+      return true;
+
+    case TSK_Undeclared:
+    case TSK_ImplicitInstantiation:
+      return false;
+    }
+    llvm_unreachable("bad template specialization kind");
+  }
+
   /// \brief Thread storage-class-specifier.
   enum ThreadStorageClassSpecifier {
     TSCS_unspecified,
@@ -178,7 +203,6 @@ namespace clang {
     SC_PrivateExtern,
 
     // These are only legal on variables.
-    SC_OpenCLWorkGroupLocal,
     SC_Auto,
     SC_Register
   };

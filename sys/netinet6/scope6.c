@@ -371,7 +371,7 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 			    zoneid != sin6->sin6_scope_id) {
 				log(LOG_NOTICE,
 				    "%s: embedded scope mismatch: %s%%%d. "
-				    "sin6_scope_id was overridden.", __func__,
+				    "sin6_scope_id was overridden\n", __func__,
 				    ip6_sprintf(ip6buf, &sin6->sin6_addr),
 				    sin6->sin6_scope_id);
 			}
@@ -484,6 +484,22 @@ in6_getscopezone(const struct ifnet *ifp, int scope)
 	if (scope >= 0 && scope < IPV6_ADDR_SCOPES_COUNT)
 		return (SID(ifp)->s6id_list[scope]);
 	return (0);
+}
+
+/*
+ * Extracts scope from adddress @dst, stores cleared address
+ * inside @dst and zone inside @scopeid
+ */
+void
+in6_splitscope(const struct in6_addr *src, struct in6_addr *dst,
+    uint32_t *scopeid)
+{
+	uint32_t zoneid;
+
+	*dst = *src;
+	zoneid = ntohs(in6_getscope(dst));
+	in6_clearscope(dst);
+	*scopeid = zoneid;
 }
 
 /*

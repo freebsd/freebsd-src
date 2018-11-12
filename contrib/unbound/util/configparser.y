@@ -106,7 +106,8 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_IGNORE_CD_FLAG VAR_LOG_QUERIES VAR_TCP_UPSTREAM VAR_SSL_UPSTREAM
 %token VAR_SSL_SERVICE_KEY VAR_SSL_SERVICE_PEM VAR_SSL_PORT VAR_FORWARD_FIRST
 %token VAR_STUB_FIRST VAR_MINIMAL_RESPONSES VAR_RRSET_ROUNDROBIN
-%token VAR_MAX_UDP_SIZE VAR_DELAY_CLOSE VAR_UNBLOCK_LAN_ZONES
+%token VAR_MAX_UDP_SIZE VAR_DELAY_CLOSE
+%token VAR_UNBLOCK_LAN_ZONES VAR_INSECURE_LAN_ZONES
 %token VAR_INFRA_CACHE_MIN_RTT
 %token VAR_DNS64_PREFIX VAR_DNS64_SYNTHALL
 %token VAR_DNSTAP VAR_DNSTAP_ENABLE VAR_DNSTAP_SOCKET_PATH
@@ -121,7 +122,8 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_HARDEN_ALGO_DOWNGRADE VAR_IP_TRANSPARENT
 %token VAR_RATELIMIT VAR_RATELIMIT_SLABS VAR_RATELIMIT_SIZE
 %token VAR_RATELIMIT_FOR_DOMAIN VAR_RATELIMIT_BELOW_DOMAIN VAR_RATELIMIT_FACTOR
-%token VAR_CAPS_WHITELIST VAR_CACHE_MAX_NEGATIVE_TTL
+%token VAR_CAPS_WHITELIST VAR_CACHE_MAX_NEGATIVE_TTL VAR_PERMIT_SMALL_HOLDDOWN
+%token VAR_QNAME_MINIMISATION
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -179,13 +181,15 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_log_queries | server_tcp_upstream | server_ssl_upstream |
 	server_ssl_service_key | server_ssl_service_pem | server_ssl_port |
 	server_minimal_responses | server_rrset_roundrobin | server_max_udp_size |
-	server_so_reuseport | server_delay_close | server_unblock_lan_zones |
+	server_so_reuseport | server_delay_close |
+	server_unblock_lan_zones | server_insecure_lan_zones |
 	server_dns64_prefix | server_dns64_synthall |
 	server_infra_cache_min_rtt | server_harden_algo_downgrade |
 	server_ip_transparent | server_ratelimit | server_ratelimit_slabs |
 	server_ratelimit_size | server_ratelimit_for_domain |
 	server_ratelimit_below_domain | server_ratelimit_factor |
-	server_caps_whitelist | server_cache_max_negative_ttl
+	server_caps_whitelist | server_cache_max_negative_ttl |
+	server_permit_small_holddown | server_qname_minimisation
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -720,6 +724,16 @@ server_unblock_lan_zones: VAR_UNBLOCK_LAN_ZONES STRING_ARG
 		free($2);
 	}
 	;
+server_insecure_lan_zones: VAR_INSECURE_LAN_ZONES STRING_ARG
+	{
+		OUTYY(("P(server_insecure_lan_zones:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->insecure_lan_zones = 
+			(strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
 server_rrset_cache_size: VAR_RRSET_CACHE_SIZE STRING_ARG
 	{
 		OUTYY(("P(server_rrset_cache_size:%s)\n", $2));
@@ -1125,6 +1139,15 @@ server_keep_missing: VAR_KEEP_MISSING STRING_ARG
 		free($2);
 	}
 	;
+server_permit_small_holddown: VAR_PERMIT_SMALL_HOLDDOWN STRING_ARG
+	{
+		OUTYY(("P(server_permit_small_holddown:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->permit_small_holddown =
+			(strcmp($2, "yes")==0);
+		free($2);
+	}
 server_key_cache_size: VAR_KEY_CACHE_SIZE STRING_ARG
 	{
 		OUTYY(("P(server_key_cache_size:%s)\n", $2));
@@ -1305,6 +1328,16 @@ server_ratelimit_factor: VAR_RATELIMIT_FACTOR STRING_ARG
 		if(atoi($2) == 0 && strcmp($2, "0") != 0)
 			yyerror("number expected");
 		else cfg_parser->cfg->ratelimit_factor = atoi($2);
+		free($2);
+	}
+	;
+server_qname_minimisation: VAR_QNAME_MINIMISATION STRING_ARG
+	{
+		OUTYY(("P(server_qname_minimisation:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->qname_minimisation = 
+			(strcmp($2, "yes")==0);
 		free($2);
 	}
 	;

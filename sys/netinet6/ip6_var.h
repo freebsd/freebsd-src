@@ -99,6 +99,14 @@ struct	ip6asfrag {
 #define IP6_REASS_MBUF(ip6af) (*(struct mbuf **)&((ip6af)->ip6af_m))
 
 /*
+ * IP6 reinjecting structure.
+ */
+struct ip6_direct_ctx {
+	uint32_t	ip6dc_nxt;	/* next header to process */
+	uint32_t	ip6dc_off;	/* offset to next header */
+};
+
+/*
  * Structure attached to inpcb.in6p_moptions and
  * passed to ip6_output when IPv6 multicast options are in use.
  * This structure is lazy-allocated.
@@ -353,6 +361,7 @@ int	ip6proto_register(short);
 int	ip6proto_unregister(short);
 
 void	ip6_input(struct mbuf *);
+void	ip6_direct_input(struct mbuf *);
 void	ip6_freepcbopts(struct ip6_pktopts *);
 
 int	ip6_unknown_opt(u_int8_t *, struct mbuf *, int);
@@ -373,7 +382,7 @@ int	ip6_sysctl(int *, u_int, void *, size_t *, void *, size_t);
 
 void	ip6_forward(struct mbuf *, int);
 
-void	ip6_mloopback(struct ifnet *, const struct mbuf *);
+void	ip6_mloopback(struct ifnet *, struct mbuf *);
 int	ip6_output(struct mbuf *, struct ip6_pktopts *,
 			struct route_in6 *,
 			int,
@@ -409,9 +418,10 @@ int	rip6_usrreq(struct socket *,
 int	dest6_input(struct mbuf **, int *, int);
 int	none_input(struct mbuf **, int *, int);
 
-int	in6_selectsrc(struct sockaddr_in6 *, struct ip6_pktopts *,
-	struct inpcb *inp, struct route_in6 *, struct ucred *cred,
-	struct ifnet **, struct in6_addr *);
+int	in6_selectsrc_socket(struct sockaddr_in6 *, struct ip6_pktopts *,
+    struct inpcb *, struct ucred *, int, struct in6_addr *, int *);
+int	in6_selectsrc_addr(uint32_t, const struct in6_addr *,
+    uint32_t, struct ifnet *, struct in6_addr *, int *);
 int in6_selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
 	struct rtentry **);

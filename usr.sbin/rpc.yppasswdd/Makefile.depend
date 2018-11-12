@@ -21,28 +21,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-yp_clnt.o: yp.h
-yp_clnt.o: yp_clnt.c
-yp_clnt.po: yp.h
-yp_clnt.po: yp_clnt.c
-yppasswd_private_svc.o: yppasswd_private.h
-yppasswd_private_svc.o: yppasswd_private_svc.c
-yppasswd_private_svc.po: yppasswd_private.h
-yppasswd_private_svc.po: yppasswd_private_svc.c
-yppasswd_private_xdr.o: yppasswd_private.h
-yppasswd_private_xdr.o: yppasswd_private_xdr.c
-yppasswd_private_xdr.po: yppasswd_private.h
-yppasswd_private_xdr.po: yppasswd_private_xdr.c
-yppasswd_svc.o: yppasswd.h
-yppasswd_svc.o: yppasswd_svc.c
-yppasswd_svc.po: yppasswd.h
-yppasswd_svc.po: yppasswd_svc.c
-yppasswdd_main.o: yppasswd.h
-yppasswdd_main.o: yppasswd_private.h
-yppasswdd_main.po: yppasswd.h
-yppasswdd_main.po: yppasswd_private.h
-yppasswdd_server.o: yppasswd.h
-yppasswdd_server.o: yppasswd_private.h
-yppasswdd_server.po: yppasswd.h
-yppasswdd_server.po: yppasswd_private.h
 .endif

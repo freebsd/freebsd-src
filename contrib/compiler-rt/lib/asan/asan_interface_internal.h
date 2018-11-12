@@ -27,9 +27,13 @@ using __sanitizer::uptr;
 extern "C" {
   // This function should be called at the very beginning of the process,
   // before any instrumented code is executed and before any call to malloc.
-  // Please note that __asan_init is a macro that is replaced with
-  // __asan_init_vXXX at compile-time.
   SANITIZER_INTERFACE_ATTRIBUTE void __asan_init();
+
+  // This function exists purely to get a linker/loader error when using
+  // incompatible versions of instrumentation and runtime library. Please note
+  // that __asan_version_mismatch_check is a macro that is replaced with
+  // __asan_version_mismatch_check_vXXX at compile-time.
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_version_mismatch_check();
 
   // This structure is used to describe the source location of a place where
   // global was defined.
@@ -131,8 +135,6 @@ extern "C" {
                            uptr addr, int is_write, uptr access_size, u32 exp);
 
   SANITIZER_INTERFACE_ATTRIBUTE
-  int __asan_set_error_exit_code(int exit_code);
-  SANITIZER_INTERFACE_ATTRIBUTE
   void __asan_set_death_callback(void (*callback)(void));
   SANITIZER_INTERFACE_ATTRIBUTE
   void __asan_set_error_report_callback(void (*callback)(const char*));
@@ -164,6 +166,19 @@ extern "C" {
   SANITIZER_INTERFACE_ATTRIBUTE void __asan_store16(uptr p);
   SANITIZER_INTERFACE_ATTRIBUTE void __asan_loadN(uptr p, uptr size);
   SANITIZER_INTERFACE_ATTRIBUTE void __asan_storeN(uptr p, uptr size);
+
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_load1_noabort(uptr p);
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_load2_noabort(uptr p);
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_load4_noabort(uptr p);
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_load8_noabort(uptr p);
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_load16_noabort(uptr p);
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_store1_noabort(uptr p);
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_store2_noabort(uptr p);
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_store4_noabort(uptr p);
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_store8_noabort(uptr p);
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_store16_noabort(uptr p);
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_loadN_noabort(uptr p, uptr size);
+  SANITIZER_INTERFACE_ATTRIBUTE void __asan_storeN_noabort(uptr p, uptr size);
 
   SANITIZER_INTERFACE_ATTRIBUTE void __asan_exp_load1(uptr p, u32 exp);
   SANITIZER_INTERFACE_ATTRIBUTE void __asan_exp_load2(uptr p, u32 exp);

@@ -269,6 +269,8 @@ struct config_file {
 	unsigned int del_holddown;
 	/** autotrust keep_missing time, in seconds. 0 is forever. */
 	unsigned int keep_missing;
+	/** permit small holddown values, allowing 5011 rollover very fast */
+	int permit_small_holddown;
 
 	/** size of the key cache */
 	size_t key_cache_size;
@@ -281,10 +283,12 @@ struct config_file {
 	struct config_str2list* local_zones;
 	/** local zones nodefault list */
 	struct config_strlist* local_zones_nodefault;
-	/** local data RRs configged */
+	/** local data RRs configured */
 	struct config_strlist* local_data;
-	/** unblock lan zones (reverse lookups for 10/8 and so on) */
+	/** unblock lan zones (reverse lookups for AS112 zones) */
 	int unblock_lan_zones;
+	/** insecure lan zones (don't validate AS112 zones) */
+	int insecure_lan_zones;
 
 	/** remote control section. enable toggle. */
 	int remote_control_enable;
@@ -362,12 +366,16 @@ struct config_file {
 	struct config_str2list* ratelimit_below_domain;
 	/** ratelimit factor, 0 blocks all, 10 allows 1/10 of traffic */
 	int ratelimit_factor;
+	/** minimise outgoing QNAME and hide original QTYPE if possible */
+	int qname_minimisation;
 };
 
 /** from cfg username, after daemonise setup performed */
 extern uid_t cfg_uid;
 /** from cfg username, after daemonise setup performed */
 extern gid_t cfg_gid;
+/** debug and enable small timeouts */
+extern int autr_permit_small_holddown;
 
 /**
  * Stub config options
@@ -735,6 +743,9 @@ void ub_c_error_msg(const char* fmt, ...) ATTR_FORMAT(printf, 1, 2);
  * 	exist on an error (logged with log_err) was encountered.
  */
 char* w_lookup_reg_str(const char* key, const char* name);
+
+/** Modify directory in options for module file name */
+void w_config_adjust_directory(struct config_file* cfg);
 #endif /* UB_ON_WINDOWS */
 
 #endif /* UTIL_CONFIG_FILE_H */

@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2010, 2012 Konstantin Belousov <kib@FreeBSD.org>
+ * Copyright (c) 2015 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/rwlock.h>
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
@@ -127,7 +132,7 @@ SYSINIT(shp, SI_SUB_EXEC, SI_ORDER_FIRST, (sysinit_cfunc_t)shared_page_init,
  * calls us after the timehands are updated).
  */
 static void
-timehands_update(struct sysentvec *sv)
+timehands_update(struct vdso_sv_tk *svtk)
 {
 	struct vdso_timehands th;
 	struct vdso_timekeep *tk;
@@ -135,20 +140,20 @@ timehands_update(struct sysentvec *sv)
 
 	enabled = tc_fill_vdso_timehands(&th);
 	th.th_gen = 0;
-	idx = sv->sv_timekeep_curr;
+	idx = svtk->sv_timekeep_curr;
 	if (++idx >= VDSO_TH_NUM)
 		idx = 0;
-	sv->sv_timekeep_curr = idx;
-	if (++sv->sv_timekeep_gen == 0)
-		sv->sv_timekeep_gen = 1;
+	svtk->sv_timekeep_curr = idx;
+	if (++svtk->sv_timekeep_gen == 0)
+		svtk->sv_timekeep_gen = 1;
 
 	tk = (struct vdso_timekeep *)(shared_page_mapping +
-	    sv->sv_timekeep_off);
+	    svtk->sv_timekeep_off);
 	tk->tk_th[idx].th_gen = 0;
 	atomic_thread_fence_rel();
 	if (enabled)
 		tk->tk_th[idx] = th;
-	atomic_store_rel_32(&tk->tk_th[idx].th_gen, sv->sv_timekeep_gen);
+	atomic_store_rel_32(&tk->tk_th[idx].th_gen, svtk->sv_timekeep_gen);
 	atomic_store_rel_32(&tk->tk_current, idx);
 
 	/*
@@ -160,7 +165,7 @@ timehands_update(struct sysentvec *sv)
 
 #ifdef COMPAT_FREEBSD32
 static void
-timehands_update32(struct sysentvec *sv)
+timehands_update32(struct vdso_sv_tk *svtk)
 {
 	struct vdso_timehands32 th;
 	struct vdso_timekeep32 *tk;
@@ -168,20 +173,20 @@ timehands_update32(struct sysentvec *sv)
 
 	enabled = tc_fill_vdso_timehands32(&th);
 	th.th_gen = 0;
-	idx = sv->sv_timekeep_curr;
+	idx = svtk->sv_timekeep_curr;
 	if (++idx >= VDSO_TH_NUM)
 		idx = 0;
-	sv->sv_timekeep_curr = idx;
-	if (++sv->sv_timekeep_gen == 0)
-		sv->sv_timekeep_gen = 1;
+	svtk->sv_timekeep_curr = idx;
+	if (++svtk->sv_timekeep_gen == 0)
+		svtk->sv_timekeep_gen = 1;
 
 	tk = (struct vdso_timekeep32 *)(shared_page_mapping +
-	    sv->sv_timekeep_off);
+	    svtk->sv_timekeep_off);
 	tk->tk_th[idx].th_gen = 0;
 	atomic_thread_fence_rel();
 	if (enabled)
 		tk->tk_th[idx] = th;
-	atomic_store_rel_32(&tk->tk_th[idx].th_gen, sv->sv_timekeep_gen);
+	atomic_store_rel_32(&tk->tk_th[idx].th_gen, svtk->sv_timekeep_gen);
 	atomic_store_rel_32(&tk->tk_current, idx);
 	tk->tk_enabled = enabled;
 }
@@ -192,33 +197,69 @@ timehands_update32(struct sysentvec *sv)
  * that needs to be iterated over from the hardclock interrupt
  * context.
  */
-static struct sysentvec *host_sysentvec;
+static struct vdso_sv_tk *host_svtk;
 #ifdef COMPAT_FREEBSD32
-static struct sysentvec *compat32_sysentvec;
+static struct vdso_sv_tk *compat32_svtk;
 #endif
 
 void
 timekeep_push_vdso(void)
 {
 
-	if (host_sysentvec != NULL && host_sysentvec->sv_timekeep_base != 0)
-		timehands_update(host_sysentvec);
+	if (host_svtk != NULL)
+		timehands_update(host_svtk);
 #ifdef COMPAT_FREEBSD32
-	if (compat32_sysentvec != NULL &&
-	    compat32_sysentvec->sv_timekeep_base != 0)
-		timehands_update32(compat32_sysentvec);
+	if (compat32_svtk != NULL)
+		timehands_update32(compat32_svtk);
 #endif
 }
+
+struct vdso_sv_tk *
+alloc_sv_tk(void)
+{
+	struct vdso_sv_tk *svtk;
+	int tk_base;
+	uint32_t tk_ver;
+
+	tk_ver = VDSO_TK_VER_CURR;
+	svtk = malloc(sizeof(struct vdso_sv_tk), M_TEMP, M_WAITOK | M_ZERO);
+	tk_base = shared_page_alloc(sizeof(struct vdso_timekeep) +
+	    sizeof(struct vdso_timehands) * VDSO_TH_NUM, 16);
+	KASSERT(tk_base != -1, ("tk_base -1 for native"));
+	shared_page_write(tk_base + offsetof(struct vdso_timekeep, tk_ver),
+	    sizeof(uint32_t), &tk_ver);
+	svtk->sv_timekeep_off = tk_base;
+	timekeep_push_vdso();
+	return (svtk);
+}
+
+#ifdef COMPAT_FREEBSD32
+struct vdso_sv_tk *
+alloc_sv_tk_compat32(void)
+{
+	struct vdso_sv_tk *svtk;
+	int tk_base;
+	uint32_t tk_ver;
+
+	svtk = malloc(sizeof(struct vdso_sv_tk), M_TEMP, M_WAITOK | M_ZERO);
+	tk_ver = VDSO_TK_VER_CURR;
+	tk_base = shared_page_alloc(sizeof(struct vdso_timekeep32) +
+	    sizeof(struct vdso_timehands32) * VDSO_TH_NUM, 16);
+	KASSERT(tk_base != -1, ("tk_base -1 for 32bit"));
+	shared_page_write(tk_base + offsetof(struct vdso_timekeep32,
+	    tk_ver), sizeof(uint32_t), &tk_ver);
+	svtk->sv_timekeep_off = tk_base;
+	timekeep_push_vdso();
+	return (svtk);
+}
+#endif
 
 void
 exec_sysvec_init(void *param)
 {
 	struct sysentvec *sv;
-	int tk_base;
-	uint32_t tk_ver;
 
 	sv = (struct sysentvec *)param;
-
 	if ((sv->sv_flags & SV_SHP) == 0)
 		return;
 	sv->sv_shared_page_obj = shared_page_obj;
@@ -226,30 +267,22 @@ exec_sysvec_init(void *param)
 	    shared_page_fill(*(sv->sv_szsigcode), 16, sv->sv_sigcode);
 	if ((sv->sv_flags & SV_ABI_MASK) != SV_ABI_FREEBSD)
 		return;
-	tk_ver = VDSO_TK_VER_CURR;
+	if ((sv->sv_flags & SV_TIMEKEEP) != 0) {
 #ifdef COMPAT_FREEBSD32
-	if ((sv->sv_flags & SV_ILP32) != 0) {
-		tk_base = shared_page_alloc(sizeof(struct vdso_timekeep32) +
-		    sizeof(struct vdso_timehands32) * VDSO_TH_NUM, 16);
-		KASSERT(tk_base != -1, ("tk_base -1 for 32bit"));
-		shared_page_write(tk_base + offsetof(struct vdso_timekeep32,
-		    tk_ver), sizeof(uint32_t), &tk_ver);
-		KASSERT(compat32_sysentvec == 0,
-		    ("Native compat32 already registered"));
-		compat32_sysentvec = sv;
-	} else {
+		if ((sv->sv_flags & SV_ILP32) != 0) {
+			KASSERT(compat32_svtk == NULL,
+			    ("Compat32 already registered"));
+			compat32_svtk = alloc_sv_tk_compat32();
+			sv->sv_timekeep_base = sv->sv_shared_page_base +
+			    compat32_svtk->sv_timekeep_off;
+		} else {
 #endif
-		tk_base = shared_page_alloc(sizeof(struct vdso_timekeep) +
-		    sizeof(struct vdso_timehands) * VDSO_TH_NUM, 16);
-		KASSERT(tk_base != -1, ("tk_base -1 for native"));
-		shared_page_write(tk_base + offsetof(struct vdso_timekeep,
-		    tk_ver), sizeof(uint32_t), &tk_ver);
-		KASSERT(host_sysentvec == 0, ("Native already registered"));
-		host_sysentvec = sv;
+			KASSERT(host_svtk == NULL, ("Host already registered"));
+			host_svtk = alloc_sv_tk();
+			sv->sv_timekeep_base = sv->sv_shared_page_base +
+			    host_svtk->sv_timekeep_off;
 #ifdef COMPAT_FREEBSD32
+		}
+#endif
 	}
-#endif
-	sv->sv_timekeep_base = sv->sv_shared_page_base + tk_base;
-	sv->sv_timekeep_off = tk_base;
-	timekeep_push_vdso();
 }

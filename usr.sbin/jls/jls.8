@@ -33,6 +33,7 @@
 .Nd "list jails"
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl dhNnqsv
 .Op Fl j Ar jail
 .Op Ar parameter ...
@@ -62,6 +63,13 @@ and path (path).
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl d
 List
 .Va dying
@@ -105,6 +113,8 @@ Without this option, all active jails will be listed.
 .El
 .Sh SEE ALSO
 .Xr jail_get 2 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
 .Xr jail 8 ,
 .Xr jexec 8
 .Sh HISTORY
@@ -114,3 +124,5 @@ utility was added in
 .Fx 5.1 .
 Extensible jail parameters were introduced in
 .Fx 8.0 .
+libxo support was added in
+.Fx 11.0 .

@@ -23,10 +23,10 @@ rctl_start()
 			\#*|'')
 				;;
 			*)
-				rctl -a "${var}"
+				echo "${var}"
 				;;
 			esac
-		done < ${rctl_rules}
+		done < ${rctl_rules} | xargs rctl -a
 	fi
 }
 

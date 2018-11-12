@@ -12,6 +12,7 @@
 #include "utils/eloop.h"
 #include "utils/os.h"
 #include "common/ieee802_11_defs.h"
+#include "common/ieee802_11_common.h"
 #include "crypto/sha256.h"
 #include "crypto/crypto.h"
 #include "crypto/aes_wrap.h"
@@ -1577,9 +1578,7 @@ static int copy_supp_rates(const struct wpa_eapol_ie_parse *kde,
 static int copy_peer_ht_capab(const struct wpa_eapol_ie_parse *kde,
 			      struct wpa_tdls_peer *peer)
 {
-	if (!kde->ht_capabilities ||
-	    kde->ht_capabilities_len <
-	    sizeof(struct ieee80211_ht_capabilities) ) {
+	if (!kde->ht_capabilities) {
 		wpa_printf(MSG_DEBUG, "TDLS: No supported ht capabilities "
 			   "received");
 		return 0;
@@ -1605,9 +1604,7 @@ static int copy_peer_ht_capab(const struct wpa_eapol_ie_parse *kde,
 static int copy_peer_vht_capab(const struct wpa_eapol_ie_parse *kde,
 			      struct wpa_tdls_peer *peer)
 {
-	if (!kde->vht_capabilities ||
-	    kde->vht_capabilities_len <
-	    sizeof(struct ieee80211_vht_capabilities) ) {
+	if (!kde->vht_capabilities) {
 		wpa_printf(MSG_DEBUG, "TDLS: No supported vht capabilities "
 			   "received");
 		return 0;
@@ -2863,14 +2860,14 @@ void wpa_tdls_disassoc(struct wpa_sm *sm)
 }
 
 
-static int wpa_tdls_prohibited(struct wpa_eapol_ie_parse *elems)
+static int wpa_tdls_prohibited(struct ieee802_11_elems *elems)
 {
 	/* bit 38 - TDLS Prohibited */
 	return !!(elems->ext_capab[2 + 4] & 0x40);
 }
 
 
-static int wpa_tdls_chan_switch_prohibited(struct wpa_eapol_ie_parse *elems)
+static int wpa_tdls_chan_switch_prohibited(struct ieee802_11_elems *elems)
 {
 	/* bit 39 - TDLS Channel Switch Prohibited */
 	return !!(elems->ext_capab[2 + 4] & 0x80);
@@ -2879,12 +2876,13 @@ static int wpa_tdls_chan_switch_prohibited(struct wpa_eapol_ie_parse *elems)
 
 void wpa_tdls_ap_ies(struct wpa_sm *sm, const u8 *ies, size_t len)
 {
-	struct wpa_eapol_ie_parse elems;
+	struct ieee802_11_elems elems;
 
 	sm->tdls_prohibited = 0;
 	sm->tdls_chan_switch_prohibited = 0;
 
-	if (ies == NULL || wpa_supplicant_parse_ies(ies, len, &elems) < 0 ||
+	if (ies == NULL ||
+	    ieee802_11_parse_elems(ies, len, &elems, 0) == ParseFailed ||
 	    elems.ext_capab == NULL || elems.ext_capab_len < 2 + 5)
 		return;
 
@@ -2900,9 +2898,10 @@ void wpa_tdls_ap_ies(struct wpa_sm *sm, const u8 *ies, size_t len)
 
 void wpa_tdls_assoc_resp_ies(struct wpa_sm *sm, const u8 *ies, size_t len)
 {
-	struct wpa_eapol_ie_parse elems;
+	struct ieee802_11_elems elems;
 
-	if (ies == NULL || wpa_supplicant_parse_ies(ies, len, &elems) < 0 ||
+	if (ies == NULL ||
+	    ieee802_11_parse_elems(ies, len, &elems, 0) == ParseFailed ||
 	    elems.ext_capab == NULL || elems.ext_capab_len < 2 + 5)
 		return;
 

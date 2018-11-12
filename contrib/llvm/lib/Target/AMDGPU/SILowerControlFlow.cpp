@@ -103,6 +103,10 @@ public:
     return "SI Lower control flow instructions";
   }
 
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.setPreservesCFG();
+    MachineFunctionPass::getAnalysisUsage(AU);
+  }
 };
 
 } // End anonymous namespace
@@ -140,8 +144,7 @@ void SILowerControlFlowPass::Skip(MachineInstr &From, MachineOperand &To) {
 
   DebugLoc DL = From.getDebugLoc();
   BuildMI(*From.getParent(), &From, DL, TII->get(AMDGPU::S_CBRANCH_EXECZ))
-          .addOperand(To)
-          .addReg(AMDGPU::EXEC);
+    .addOperand(To);
 }
 
 void SILowerControlFlowPass::SkipIfDead(MachineInstr &MI) {
@@ -159,8 +162,7 @@ void SILowerControlFlowPass::SkipIfDead(MachineInstr &MI) {
 
   // If the exec mask is non-zero, skip the next two instructions
   BuildMI(MBB, Insert, DL, TII->get(AMDGPU::S_CBRANCH_EXECNZ))
-          .addImm(3)
-          .addReg(AMDGPU::EXEC);
+    .addImm(3);
 
   // Exec mask is zero: Export to NULL target...
   BuildMI(MBB, Insert, DL, TII->get(AMDGPU::EXP))
@@ -269,8 +271,7 @@ void SILowerControlFlowPass::Loop(MachineInstr &MI) {
           .addReg(Src);
 
   BuildMI(MBB, &MI, DL, TII->get(AMDGPU::S_CBRANCH_EXECNZ))
-          .addOperand(MI.getOperand(1))
-          .addReg(AMDGPU::EXEC);
+    .addOperand(MI.getOperand(1));
 
   MI.eraseFromParent();
 }
@@ -316,7 +317,7 @@ void SILowerControlFlowPass::Kill(MachineInstr &MI) {
               .addImm(0);
     }
   } else {
-    BuildMI(MBB, &MI, DL, TII->get(AMDGPU::V_CMPX_LE_F32_e32), AMDGPU::VCC)
+    BuildMI(MBB, &MI, DL, TII->get(AMDGPU::V_CMPX_LE_F32_e32))
            .addImm(0)
            .addOperand(Op);
   }
@@ -362,9 +363,9 @@ void SILowerControlFlowPass::LoadM0(MachineInstr &MI, MachineInstr *MovRel, int 
             .addReg(AMDGPU::VCC_LO);
 
     // Compare the just read M0 value to all possible Idx values
-    BuildMI(MBB, &MI, DL, TII->get(AMDGPU::V_CMP_EQ_U32_e32), AMDGPU::VCC)
-            .addReg(AMDGPU::M0)
-            .addReg(Idx);
+    BuildMI(MBB, &MI, DL, TII->get(AMDGPU::V_CMP_EQ_U32_e32))
+      .addReg(AMDGPU::M0)
+      .addReg(Idx);
 
     // Update EXEC, save the original EXEC value to VCC
     BuildMI(MBB, &MI, DL, TII->get(AMDGPU::S_AND_SAVEEXEC_B64), AMDGPU::VCC)
@@ -385,8 +386,7 @@ void SILowerControlFlowPass::LoadM0(MachineInstr &MI, MachineInstr *MovRel, int 
 
     // Loop back to V_READFIRSTLANE_B32 if there are still variants to cover
     BuildMI(MBB, &MI, DL, TII->get(AMDGPU::S_CBRANCH_EXECNZ))
-            .addImm(-7)
-            .addReg(AMDGPU::EXEC);
+      .addImm(-7);
 
     // Restore EXEC
     BuildMI(MBB, &MI, DL, TII->get(AMDGPU::S_MOV_B64), AMDGPU::EXEC)
@@ -438,7 +438,6 @@ void SILowerControlFlowPass::IndirectSrc(MachineInstr &MI) {
   MachineInstr *MovRel =
     BuildMI(*MBB.getParent(), DL, TII->get(AMDGPU::V_MOVRELS_B32_e32), Dst)
             .addReg(Reg)
-            .addReg(AMDGPU::M0, RegState::Implicit)
             .addReg(Vec, RegState::Implicit);
 
   LoadM0(MI, MovRel, Off);
@@ -460,7 +459,6 @@ void SILowerControlFlowPass::IndirectDst(MachineInstr &MI) {
     BuildMI(*MBB.getParent(), DL, TII->get(AMDGPU::V_MOVRELD_B32_e32))
             .addReg(Reg, RegState::Define)
             .addReg(Val)
-            .addReg(AMDGPU::M0, RegState::Implicit)
             .addReg(Dst, RegState::Implicit);
 
   LoadM0(MI, MovRel, Off);
@@ -486,11 +484,11 @@ bool SILowerControlFlowPass::runOnMachineFunction(MachineFunction &MF) {
       Next = std::next(I);
 
       MachineInstr &MI = *I;
-      if (TII->isWQM(MI.getOpcode()) || TII->isDS(MI.getOpcode()))
+      if (TII->isWQM(MI) || TII->isDS(MI))
         NeedWQM = true;
 
       // Flat uses m0 in case it needs to access LDS.
-      if (TII->isFLAT(MI.getOpcode()))
+      if (TII->isFLAT(MI))
         NeedFlat = true;
 
       switch (MI.getOpcode()) {
@@ -541,7 +539,11 @@ bool SILowerControlFlowPass::runOnMachineFunction(MachineFunction &MF) {
           Branch(MI);
           break;
 
-        case AMDGPU::SI_INDIRECT_SRC:
+        case AMDGPU::SI_INDIRECT_SRC_V1:
+        case AMDGPU::SI_INDIRECT_SRC_V2:
+        case AMDGPU::SI_INDIRECT_SRC_V4:
+        case AMDGPU::SI_INDIRECT_SRC_V8:
+        case AMDGPU::SI_INDIRECT_SRC_V16:
           IndirectSrc(MI);
           break;
 

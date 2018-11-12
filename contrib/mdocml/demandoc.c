@@ -1,4 +1,4 @@
-/*	$Id: demandoc.c,v 1.15 2015/02/10 08:05:30 schwarze Exp $ */
+/*	$Id: demandoc.c,v 1.26 2016/01/08 02:53:13 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -26,14 +26,15 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "roff.h"
 #include "man.h"
 #include "mdoc.h"
 #include "mandoc.h"
 
 static	void	 pline(int, int *, int *, int);
-static	void	 pman(const struct man_node *, int *, int *, int);
+static	void	 pman(const struct roff_node *, int *, int *, int);
 static	void	 pmandoc(struct mparse *, int, const char *, int);
-static	void	 pmdoc(const struct mdoc_node *, int *, int *, int);
+static	void	 pmdoc(const struct roff_node *, int *, int *, int);
 static	void	 pstring(const char *, int, int *, int);
 static	void	 usage(void);
 
@@ -43,7 +44,6 @@ int
 main(int argc, char *argv[])
 {
 	struct mparse	*mp;
-	struct mchars	*mchars;
 	int		 ch, fd, i, list;
 	extern int	 optind;
 
@@ -72,14 +72,14 @@ main(int argc, char *argv[])
 			break;
 		default:
 			usage();
-			return((int)MANDOCLEVEL_BADARG);
+			return (int)MANDOCLEVEL_BADARG;
 		}
 
 	argc -= optind;
 	argv += optind;
 
-	mchars = mchars_alloc();
-	mp = mparse_alloc(MPARSE_SO, MANDOCLEVEL_BADARG, NULL, mchars, NULL);
+	mchars_alloc();
+	mp = mparse_alloc(MPARSE_SO, MANDOCLEVEL_BADARG, NULL, NULL);
 	assert(mp);
 
 	if (argc < 1)
@@ -87,7 +87,7 @@ main(int argc, char *argv[])
 
 	for (i = 0; i < argc; i++) {
 		mparse_reset(mp);
-		if (mparse_open(mp, &fd, argv[i]) != MANDOCLEVEL_OK) {
+		if ((fd = mparse_open(mp, argv[i])) == -1) {
 			perror(argv[i]);
 			continue;
 		}
@@ -95,8 +95,8 @@ main(int argc, char *argv[])
 	}
 
 	mparse_free(mp);
-	mchars_free(mchars);
-	return((int)MANDOCLEVEL_OK);
+	mchars_free();
+	return (int)MANDOCLEVEL_OK;
 }
 
 static void
@@ -109,21 +109,24 @@ usage(void)
 static void
 pmandoc(struct mparse *mp, int fd, const char *fn, int list)
 {
-	struct mdoc	*mdoc;
-	struct man	*man;
+	struct roff_man	*man;
 	int		 line, col;
 
 	mparse_readfd(mp, fd, fn);
-	mparse_result(mp, &mdoc, &man, NULL);
+	close(fd);
+	mparse_result(mp, &man, NULL);
 	line = 1;
 	col = 0;
 
-	if (mdoc)
-		pmdoc(mdoc_node(mdoc), &line, &col, list);
-	else if (man)
-		pman(man_node(man), &line, &col, list);
-	else
+	if (man == NULL)
 		return;
+	if (man->macroset == MACROSET_MDOC) {
+		mdoc_validate(man);
+		pmdoc(man->first->child, &line, &col, list);
+	} else {
+		man_validate(man);
+		pman(man->first->child, &line, &col, list);
+	}
 
 	if ( ! list)
 		putchar('\n');
@@ -233,13 +236,13 @@ pline(int line, int *linep, int *col, int list)
 }
 
 static void
-pmdoc(const struct mdoc_node *p, int *line, int *col, int list)
+pmdoc(const struct roff_node *p, int *line, int *col, int list)
 {
 
 	for ( ; p; p = p->next) {
 		if (MDOC_LINE & p->flags)
 			pline(p->line, line, col, list);
-		if (MDOC_TEXT == p->type)
+		if (ROFFT_TEXT == p->type)
 			pstring(p->string, p->pos, col, list);
 		if (p->child)
 			pmdoc(p->child, line, col, list);
@@ -247,13 +250,13 @@ pmdoc(const struct mdoc_node *p, int *line, int *col, int list)
 }
 
 static void
-pman(const struct man_node *p, int *line, int *col, int list)
+pman(const struct roff_node *p, int *line, int *col, int list)
 {
 
 	for ( ; p; p = p->next) {
 		if (MAN_LINE & p->flags)
 			pline(p->line, line, col, list);
-		if (MAN_TEXT == p->type)
+		if (ROFFT_TEXT == p->type)
 			pstring(p->string, p->pos, col, list);
 		if (p->child)
 			pman(p->child, line, col, list);

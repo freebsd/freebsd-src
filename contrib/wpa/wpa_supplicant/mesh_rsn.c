@@ -190,7 +190,8 @@ static int __mesh_rsn_auth_init(struct mesh_rsn *rsn, const u8 *addr)
 static void mesh_rsn_deinit(struct mesh_rsn *rsn)
 {
 	os_memset(rsn->mgtk, 0, sizeof(rsn->mgtk));
-	wpa_deinit(rsn->auth);
+	if (rsn->auth)
+		wpa_deinit(rsn->auth);
 }
 
 
@@ -209,14 +210,15 @@ struct mesh_rsn *mesh_rsn_auth_init(struct wpa_supplicant *wpa_s,
 
 	if (__mesh_rsn_auth_init(mesh_rsn, wpa_s->own_addr) < 0) {
 		mesh_rsn_deinit(mesh_rsn);
+		os_free(mesh_rsn);
 		return NULL;
 	}
 
 	bss->wpa_auth = mesh_rsn->auth;
 
 	ie = wpa_auth_get_wpa_ie(mesh_rsn->auth, &ie_len);
-	conf->ies = (u8 *) ie;
-	conf->ie_len = ie_len;
+	conf->rsn_ie = (u8 *) ie;
+	conf->rsn_ie_len = ie_len;
 
 	wpa_supplicant_rsn_supp_set_config(wpa_s, wpa_s->current_ssid);
 

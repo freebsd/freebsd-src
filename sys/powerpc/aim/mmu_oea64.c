@@ -434,6 +434,8 @@ moea64_calc_wimg(vm_paddr_t pa, vm_memattr_t ma)
 		switch (ma) {
 		case VM_MEMATTR_UNCACHEABLE:
 			return (LPTE_I | LPTE_G);
+		case VM_MEMATTR_CACHEABLE:
+			return (LPTE_M);
 		case VM_MEMATTR_WRITE_COMBINING:
 		case VM_MEMATTR_WRITE_BACK:
 		case VM_MEMATTR_PREFETCHABLE:
@@ -493,9 +495,9 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 	int		i, j;
 
 	bzero(translations, sz);
-	OF_getprop(OF_finddevice("/"), "#address-cells", &acells,
+	OF_getencprop(OF_finddevice("/"), "#address-cells", &acells,
 	    sizeof(acells));
-	if (OF_getprop(mmu, "translations", trans_cells, sz) == -1)
+	if (OF_getencprop(mmu, "translations", trans_cells, sz) == -1)
 		panic("moea64_bootstrap: can't get ofw translations");
 
 	CTR0(KTR_PMAP, "moea64_add_ofw_mappings: translations");
@@ -856,7 +858,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	 */
 
 	chosen = OF_finddevice("/chosen");
-	if (chosen != -1 && OF_getprop(chosen, "mmu", &mmui, 4) != -1) {
+	if (chosen != -1 && OF_getencprop(chosen, "mmu", &mmui, 4) != -1) {
 		mmu = OF_instance_to_package(mmui);
 		if (mmu == -1 ||
 		    (sz = OF_getproplen(mmu, "translations")) == -1)

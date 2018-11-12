@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
+#include <sys/vdso.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -72,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/metadata.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
 #include <machine/vmparam.h>
@@ -232,7 +234,8 @@ int
 ptrace_single_step(struct thread *td)
 {
 
-	/* TODO; */
+	td->td_frame->tf_spsr |= PSR_SS;
+	td->td_pcb->pcb_flags |= PCB_SINGLE_STEP;
 	return (0);
 }
 
@@ -240,7 +243,8 @@ int
 ptrace_clear_single_step(struct thread *td)
 {
 
-	/* TODO; */
+	td->td_frame->tf_spsr &= ~PSR_SS;
+	td->td_pcb->pcb_flags &= ~PCB_SINGLE_STEP;
 	return (0);
 }
 
@@ -251,7 +255,13 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	memset(tf, 0, sizeof(struct trapframe));
 
-	tf->tf_sp = stack;
+	/*
+	 * We need to set x0 for init as it doesn't call
+	 * cpu_set_syscall_retval to copy the value. We also
+	 * need to set td_retval for the cases where we do.
+	 */
+	tf->tf_x[0] = td->td_retval[0] = stack;
+	tf->tf_sp = STACKALIGN(stack);
 	tf->tf_lr = imgp->entry_addr;
 	tf->tf_elr = imgp->entry_addr;
 }
@@ -499,6 +509,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct trapframe *tf;
 	struct sigframe *fp, frame;
 	struct sigacts *psp;
+	struct sysentvec *sysent;
 	int code, onstack, sig;
 
 	td = curthread;
@@ -519,7 +530,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !onstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct sigframe *)(td->td_sigstk.ss_sp +
+		fp = (struct sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
@@ -557,7 +568,12 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	tf->tf_elr = (register_t)catcher;
 	tf->tf_sp = (register_t)fp;
-	tf->tf_lr = (register_t)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
+	sysent = p->p_sysent;
+	if (sysent->sv_sigcode_base != 0)
+		tf->tf_lr = (register_t)sysent->sv_sigcode_base;
+	else
+		tf->tf_lr = (register_t)(sysent->sv_psstrings -
+		    *(sysent->sv_szsigcode));
 
 	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_elr,
 	    tf->tf_sp);
@@ -652,6 +668,20 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	physmap[insert_idx + 1] = base + length;
 	return (1);
 }
+
+#ifdef FDT
+static void
+add_fdt_mem_regions(struct mem_region *mr, int mrcnt, vm_paddr_t *physmap,
+    u_int *physmap_idxp)
+{
+
+	for (int i = 0; i < mrcnt; i++) {
+		if (!add_physmap_entry(mr[i].mr_start, mr[i].mr_size, physmap,
+		    physmap_idxp))
+			break;
+	}
+}
+#endif
 
 #define efi_next_descriptor(ptr, size) \
 	((struct efi_md *)(((uint8_t *) ptr) + size))
@@ -792,6 +822,10 @@ initarm(struct arm64_bootparams *abp)
 {
 	struct efi_map_header *efihdr;
 	struct pcpu *pcpup;
+#ifdef FDT
+	struct mem_region mem_regions[FDT_MEM_REGIONS];
+	int mem_regions_sz;
+#endif
 	vm_offset_t lastaddr;
 	caddr_t kmdp;
 	vm_paddr_t mem_len;
@@ -806,7 +840,7 @@ initarm(struct arm64_bootparams *abp)
 		kmdp = preload_search_by_type("elf64 kernel");
 
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	init_static_kenv(MD_FETCH(kmdp, MODINFOMD_ENVP, char *), 0);
 
 #ifdef FDT
 	try_load_dtb(kmdp);
@@ -819,7 +853,18 @@ initarm(struct arm64_bootparams *abp)
 	physmap_idx = 0;
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
-	add_efi_map_entries(efihdr, physmap, &physmap_idx);
+	if (efihdr != NULL)
+		add_efi_map_entries(efihdr, physmap, &physmap_idx);
+#ifdef FDT
+	else {
+		/* Grab physical memory regions information from device tree. */
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,
+		    NULL) != 0)
+			panic("Cannot get physical memory regions");
+		add_fdt_mem_regions(mem_regions, mem_regions_sz, physmap,
+		    &physmap_idx);
+	}
+#endif
 
 	/* Print the memory map */
 	mem_len = 0;
@@ -867,6 +912,17 @@ initarm(struct arm64_bootparams *abp)
 	kdb_init();
 
 	early_boot = 0;
+}
+
+uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
+    struct timecounter *);
+
+uint32_t
+cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
+{
+
+	return (arm_cpu_fill_vdso_timehands != NULL ?
+	    arm_cpu_fill_vdso_timehands(vdso_th, tc) : 0);
 }
 
 #ifdef DDB

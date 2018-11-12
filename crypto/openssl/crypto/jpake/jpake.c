@@ -4,6 +4,7 @@
 #include <openssl/sha.h>
 #include <openssl/err.h>
 #include <memory.h>
+#include <string.h>
 
 /*
  * In the definition, (xa, xb, xc, xd) are Alice's (x1, x2, x3, x4) or
@@ -218,6 +219,9 @@ static int verify_zkp(const JPAKE_STEP_PART *p, const BIGNUM *zkpg,
     BIGNUM *t3 = BN_new();
     int ret = 0;
 
+    if (h == NULL || t1 == NULL || t2 == NULL || t3 == NULL)
+        goto end;
+
     zkp_hash(h, zkpg, p, ctx->p.peer_name);
 
     /* t1 = g^b */
@@ -233,6 +237,7 @@ static int verify_zkp(const JPAKE_STEP_PART *p, const BIGNUM *zkpg,
     else
         JPAKEerr(JPAKE_F_VERIFY_ZKP, JPAKE_R_ZKP_VERIFY_FAILED);
 
+end:
     /* cleanup */
     BN_free(t3);
     BN_free(t2);

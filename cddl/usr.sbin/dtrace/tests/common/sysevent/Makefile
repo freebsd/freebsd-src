@@ -16,4 +16,4 @@ CFILES= \
      tst.post_chan.c  \
 
 
-.include "../../Makefile.inc1"
+.include "../../dtrace.test.mk"

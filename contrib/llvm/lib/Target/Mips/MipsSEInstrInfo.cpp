@@ -88,7 +88,7 @@ void MipsSEInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       if (isMicroMips)
         Opc = Mips::MOVE16_MM;
       else
-        Opc = Mips::ADDu, ZeroReg = Mips::ZERO;
+        Opc = Mips::OR, ZeroReg = Mips::ZERO;
     } else if (Mips::CCRRegClass.contains(SrcReg))
       Opc = Mips::CFC1;
     else if (Mips::FGR32RegClass.contains(SrcReg))
@@ -141,7 +141,7 @@ void MipsSEInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     Opc = Mips::FMOV_D64;
   else if (Mips::GPR64RegClass.contains(DestReg)) { // Copy to CPU64 Reg.
     if (Mips::GPR64RegClass.contains(SrcReg))
-      Opc = Mips::DADDu, ZeroReg = Mips::ZERO_64;
+      Opc = Mips::OR64, ZeroReg = Mips::ZERO_64;
     else if (Mips::HI64RegClass.contains(SrcReg))
       Opc = Mips::MFHI64, SrcReg = 0;
     else if (Mips::LO64RegClass.contains(SrcReg))
@@ -182,7 +182,6 @@ storeRegToStack(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                 const TargetRegisterClass *RC, const TargetRegisterInfo *TRI,
                 int64_t Offset) const {
   DebugLoc DL;
-  if (I != MBB.end()) DL = I->getDebugLoc();
   MachineMemOperand *MMO = GetMemOperand(MBB, FI, MachineMemOperand::MOStore);
 
   unsigned Opc = 0;
@@ -213,6 +212,33 @@ storeRegToStack(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     Opc = Mips::ST_W;
   else if (RC->hasType(MVT::v2i64) || RC->hasType(MVT::v2f64))
     Opc = Mips::ST_D;
+  else if (Mips::LO32RegClass.hasSubClassEq(RC))
+    Opc = Mips::SW;
+  else if (Mips::LO64RegClass.hasSubClassEq(RC))
+    Opc = Mips::SD;
+  else if (Mips::HI32RegClass.hasSubClassEq(RC))
+    Opc = Mips::SW;
+  else if (Mips::HI64RegClass.hasSubClassEq(RC))
+    Opc = Mips::SD;
+
+  // Hi, Lo are normally caller save but they are callee save
+  // for interrupt handling.
+  const Function *Func = MBB.getParent()->getFunction();
+  if (Func->hasFnAttribute("interrupt")) {
+    if (Mips::HI32RegClass.hasSubClassEq(RC)) {
+      BuildMI(MBB, I, DL, get(Mips::MFHI), Mips::K0);
+      SrcReg = Mips::K0;
+    } else if (Mips::HI64RegClass.hasSubClassEq(RC)) {
+      BuildMI(MBB, I, DL, get(Mips::MFHI64), Mips::K0_64);
+      SrcReg = Mips::K0_64;
+    } else if (Mips::LO32RegClass.hasSubClassEq(RC)) {
+      BuildMI(MBB, I, DL, get(Mips::MFLO), Mips::K0);
+      SrcReg = Mips::K0;
+    } else if (Mips::LO64RegClass.hasSubClassEq(RC)) {
+      BuildMI(MBB, I, DL, get(Mips::MFLO64), Mips::K0_64);
+      SrcReg = Mips::K0_64;
+    }
+  }
 
   assert(Opc && "Register class not handled!");
   BuildMI(MBB, I, DL, get(Opc)).addReg(SrcReg, getKillRegState(isKill))
@@ -227,6 +253,11 @@ loadRegFromStack(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   if (I != MBB.end()) DL = I->getDebugLoc();
   MachineMemOperand *MMO = GetMemOperand(MBB, FI, MachineMemOperand::MOLoad);
   unsigned Opc = 0;
+
+  const Function *Func = MBB.getParent()->getFunction();
+  bool ReqIndirectLoad = Func->hasFnAttribute("interrupt") &&
+                         (DestReg == Mips::LO0 || DestReg == Mips::LO0_64 ||
+                          DestReg == Mips::HI0 || DestReg == Mips::HI0_64);
 
   if (Mips::GPR32RegClass.hasSubClassEq(RC))
     Opc = Mips::LW;
@@ -254,10 +285,44 @@ loadRegFromStack(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     Opc = Mips::LD_W;
   else if (RC->hasType(MVT::v2i64) || RC->hasType(MVT::v2f64))
     Opc = Mips::LD_D;
+  else if (Mips::HI32RegClass.hasSubClassEq(RC))
+    Opc = Mips::LW;
+  else if (Mips::HI64RegClass.hasSubClassEq(RC))
+    Opc = Mips::LD;
+  else if (Mips::LO32RegClass.hasSubClassEq(RC))
+    Opc = Mips::LW;
+  else if (Mips::LO64RegClass.hasSubClassEq(RC))
+    Opc = Mips::LD;
 
   assert(Opc && "Register class not handled!");
-  BuildMI(MBB, I, DL, get(Opc), DestReg).addFrameIndex(FI).addImm(Offset)
-    .addMemOperand(MMO);
+
+  if (!ReqIndirectLoad)
+    BuildMI(MBB, I, DL, get(Opc), DestReg)
+        .addFrameIndex(FI)
+        .addImm(Offset)
+        .addMemOperand(MMO);
+  else {
+    // Load HI/LO through K0. Notably the DestReg is encoded into the
+    // instruction itself.
+    unsigned Reg = Mips::K0;
+    unsigned LdOp = Mips::MTLO;
+    if (DestReg == Mips::HI0)
+      LdOp = Mips::MTHI;
+
+    if (Subtarget.getABI().ArePtrs64bit()) {
+      Reg = Mips::K0_64;
+      if (DestReg == Mips::HI0_64)
+        LdOp = Mips::MTHI64;
+      else
+        LdOp = Mips::MTLO64;
+    }
+
+    BuildMI(MBB, I, DL, get(Opc), Reg)
+        .addFrameIndex(FI)
+        .addImm(Offset)
+        .addMemOperand(MMO);
+    BuildMI(MBB, I, DL, get(LdOp)).addReg(Reg);
+  }
 }
 
 bool MipsSEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
@@ -270,6 +335,9 @@ bool MipsSEInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
     return false;
   case Mips::RetRA:
     expandRetRA(MBB, MI);
+    break;
+  case Mips::ERet:
+    expandERet(MBB, MI);
     break;
   case Mips::PseudoMFHI:
     Opc = isMicroMips ? Mips::MFHI16_MM : Mips::MFHI;
@@ -360,7 +428,7 @@ void MipsSEInstrInfo::adjustStackPtr(unsigned SP, int64_t Amount,
                                      MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator I) const {
   MipsABIInfo ABI = Subtarget.getABI();
-  DebugLoc DL = I != MBB.end() ? I->getDebugLoc() : DebugLoc();
+  DebugLoc DL;
   unsigned ADDu = ABI.GetPtrAdduOp();
   unsigned ADDiu = ABI.GetPtrAddiuOp();
 
@@ -438,6 +506,11 @@ void MipsSEInstrInfo::expandRetRA(MachineBasicBlock &MBB,
     BuildMI(MBB, I, I->getDebugLoc(), get(Mips::PseudoReturn)).addReg(Mips::RA);
 }
 
+void MipsSEInstrInfo::expandERet(MachineBasicBlock &MBB,
+                                 MachineBasicBlock::iterator I) const {
+  BuildMI(MBB, I, I->getDebugLoc(), get(Mips::ERET));
+}
+
 std::pair<bool, bool>
 MipsSEInstrInfo::compareOpndSize(unsigned Opc,
                                  const MachineFunction &MF) const {
@@ -471,8 +544,6 @@ void MipsSEInstrInfo::expandPseudoMTLoHi(MachineBasicBlock &MBB,
   const MachineOperand &SrcLo = I->getOperand(1), &SrcHi = I->getOperand(2);
   MachineInstrBuilder LoInst = BuildMI(MBB, I, DL, get(LoOpc));
   MachineInstrBuilder HiInst = BuildMI(MBB, I, DL, get(HiOpc));
-  LoInst.addReg(SrcLo.getReg(), getKillRegState(SrcLo.isKill()));
-  HiInst.addReg(SrcHi.getReg(), getKillRegState(SrcHi.isKill()));
 
   // Add lo/hi registers if the mtlo/hi instructions created have explicit
   // def registers.
@@ -483,6 +554,9 @@ void MipsSEInstrInfo::expandPseudoMTLoHi(MachineBasicBlock &MBB,
     LoInst.addReg(DstLo, RegState::Define);
     HiInst.addReg(DstHi, RegState::Define);
   }
+
+  LoInst.addReg(SrcLo.getReg(), getKillRegState(SrcLo.isKill()));
+  HiInst.addReg(SrcHi.getReg(), getKillRegState(SrcHi.isKill()));
 }
 
 void MipsSEInstrInfo::expandCvtFPInt(MachineBasicBlock &MBB,

@@ -13,6 +13,7 @@ SRCS=	BBVectorize.cpp \
 SRCS+=	Vectorize.cpp
 .endif
 
-TGHDRS=	Intrinsics
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

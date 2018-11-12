@@ -293,7 +293,8 @@ iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags)
 	struct iic_msg *buf, *m;
 	void **usrbufs;
 	device_t iicdev, parent;
-	int error, i;
+	int error;
+	uint32_t i;
 
 	iicdev = priv->sc->sc_dev;
 	parent = device_get_parent(iicdev);

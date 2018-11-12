@@ -49,12 +49,12 @@ SECTIONS
 {
 	. = __boot2_base_vaddr__;
 	. += SIZEOF_HEADERS;
-	.text ALIGN(0x8): {
+	.text ALIGN(0x10): {
 		start.o(.text)
 		*(EXCLUDE_FILE (start.o) .text)
 	}
-	.data ALIGN(0x8): { *(.data)}
-	.bss ALIGN(0x8): { *(.bss) }
+	.data ALIGN(0x10): { *(.data)}
+	.bss ALIGN(0x10): { *(.bss) }
 
 	__heap = ALIGN(0x8);	/* 64-bit aligned heap pointer */
 	__data_end = .;

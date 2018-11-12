@@ -7,8 +7,8 @@
 .include <src.opts.mk>
 
 PROG=	m4
-CFLAGS+=-DEXTENDED -I${.CURDIR} -I${.CURDIR}/../../lib/libohash
-LIBADD=	y l m ohash
+CFLAGS+=-DEXTENDED -I${.CURDIR} -I${.CURDIR}/../../lib/libopenbsd
+LIBADD=	y l m openbsd
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 

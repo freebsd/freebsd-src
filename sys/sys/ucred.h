@@ -105,6 +105,7 @@ void	change_svuid(struct ucred *newcred, uid_t svuid);
 void	crcopy(struct ucred *dest, struct ucred *src);
 struct ucred	*crcopysafe(struct proc *p, struct ucred *cr);
 struct ucred	*crdup(struct ucred *cr);
+void	crextend(struct ucred *cr, int n);
 void	proc_set_cred_init(struct proc *p, struct ucred *cr);
 struct ucred	*proc_set_cred(struct proc *p, struct ucred *cr);
 void	crfree(struct ucred *cr);

@@ -13,13 +13,10 @@ PLAIN_TESTS_C+=	newfileops_on_fork_test
 
 PROGS+=		flock_helper
 
-DPADD.closefrom_test=	${LIBUTIL}
-LDADD.closefrom_test=	-lutil
+LIBADD.closefrom_test=	util
 
-DPADD.flock_helper=	${LIBPTHREAD}
-LDADD.flock_helper=	-lpthread
+LIBADD.flock_helper=	pthread
 
-DPADD.newfileops_on_fork_test=	${LIBPTHREAD}
-LDADD.newfileops_on_fork_test=	-lpthread
+LIBADD.newfileops_on_fork_test=	pthread
 
 .include <bsd.test.mk>

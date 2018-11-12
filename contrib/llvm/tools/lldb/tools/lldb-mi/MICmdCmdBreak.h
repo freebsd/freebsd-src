@@ -35,29 +35,26 @@
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "break-insert".
 //          This command does not follow the MI documentation exactly.
-// Gotchas: None.
-// Authors: Illya Rudkin 11/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdBreakInsert : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdBreakInsert(void);
+    /* ctor */ CMICmdCmdBreakInsert();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdBreakInsert(void) override;
+    /* dtor */ ~CMICmdCmdBreakInsert() override;
 
     // Enumerations:
   private:
@@ -98,72 +95,63 @@ class CMICmdCmdBreakInsert : public CMICmdBase
     const CMIUtilString m_constStrArgNamedInoreCnt;
     const CMIUtilString m_constStrArgNamedRestrictBrkPtToThreadId;
     const CMIUtilString m_constStrArgNamedLocation;
-    const CMIUtilString m_constStrArgNamedThreadGroup; // Not specified in MI spec but Eclipse gives this option sometimes
 };
 
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "break-delete".
-// Gotchas: None.
-// Authors: Illya Rudkin 11/03/2014.
-// Changes: None.
 //--
 class CMICmdCmdBreakDelete : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdBreakDelete(void);
+    /* ctor */ CMICmdCmdBreakDelete();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdBreakDelete(void) override;
+    /* dtor */ ~CMICmdCmdBreakDelete() override;
 
     // Attributes:
   private:
     const CMIUtilString m_constStrArgNamedBrkPt;
-    const CMIUtilString m_constStrArgNamedThreadGrp; // Not specified in MI spec but Eclipse gives this option
 };
 
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "break-disable".
-// Gotchas: None.
-// Authors: Illya Rudkin 19/05/2014.
-// Changes: None.
 //--
 class CMICmdCmdBreakDisable : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdBreakDisable(void);
+    /* ctor */ CMICmdCmdBreakDisable();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdBreakDisable(void) override;
+    /* dtor */ ~CMICmdCmdBreakDisable() override;
 
     // Attributes:
   private:
-    const CMIUtilString m_constStrArgNamedThreadGrp; // Not specified in MI spec but Eclipse gives this option
     const CMIUtilString m_constStrArgNamedBrkPt;
     bool m_bBrkPtDisabledOk;
     MIuint m_nBrkPtId;
@@ -172,33 +160,29 @@ class CMICmdCmdBreakDisable : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "break-enable".
-// Gotchas: None.
-// Authors: Illya Rudkin 19/05/2014.
-// Changes: None.
 //--
 class CMICmdCmdBreakEnable : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdBreakEnable(void);
+    /* ctor */ CMICmdCmdBreakEnable();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdBreakEnable(void) override;
+    /* dtor */ ~CMICmdCmdBreakEnable() override;
 
     // Attributes:
   private:
-    const CMIUtilString m_constStrArgNamedThreadGrp; // Not specified in MI spec but Eclipse gives this option
     const CMIUtilString m_constStrArgNamedBrkPt;
     bool m_bBrkPtEnabledOk;
     MIuint m_nBrkPtId;
@@ -207,33 +191,29 @@ class CMICmdCmdBreakEnable : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "break-after".
-// Gotchas: None.
-// Authors: Illya Rudkin 29/05/2014.
-// Changes: None.
 //--
 class CMICmdCmdBreakAfter : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdBreakAfter(void);
+    /* ctor */ CMICmdCmdBreakAfter();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdBreakAfter(void) override;
+    /* dtor */ ~CMICmdCmdBreakAfter() override;
 
     // Attributes:
   private:
-    const CMIUtilString m_constStrArgNamedThreadGrp; // Not specified in MI spec but Eclipse gives this option
     const CMIUtilString m_constStrArgNamedNumber;
     const CMIUtilString m_constStrArgNamedCount;
     MIuint m_nBrkPtId;
@@ -243,37 +223,33 @@ class CMICmdCmdBreakAfter : public CMICmdBase
 //++ ============================================================================
 // Details: MI command class. MI commands derived from the command base class.
 //          *this class implements MI command "break-condition".
-// Gotchas: None.
-// Authors: Illya Rudkin 29/05/2014.
-// Changes: None.
 //--
 class CMICmdCmdBreakCondition : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdBreakCondition(void);
+    /* ctor */ CMICmdCmdBreakCondition();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdBreakCondition(void) override;
+    /* dtor */ ~CMICmdCmdBreakCondition() override;
 
     // Methods:
   private:
-    CMIUtilString GetRestOfExpressionNotSurroundedInQuotes(void);
+    CMIUtilString GetRestOfExpressionNotSurroundedInQuotes();
 
     // Attributes:
   private:
-    const CMIUtilString m_constStrArgNamedThreadGrp; // Not specified in MI spec but Eclipse gives this option
     const CMIUtilString m_constStrArgNamedNumber;
     const CMIUtilString m_constStrArgNamedExpr;
     const CMIUtilString m_constStrArgNamedExprNoQuotes; // Not specified in MI spec, we need to handle expressions not surrounded by quotes

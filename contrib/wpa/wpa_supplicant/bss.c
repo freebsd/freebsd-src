@@ -19,11 +19,6 @@
 #include "bss.h"
 
 
-/**
- * WPA_BSS_EXPIRATION_PERIOD - Period of expiration run in seconds
- */
-#define WPA_BSS_EXPIRATION_PERIOD 10
-
 #define WPA_BSS_FREQ_CHANGED_FLAG	BIT(0)
 #define WPA_BSS_SIGNAL_CHANGED_FLAG	BIT(1)
 #define WPA_BSS_PRIVACY_CHANGED_FLAG	BIT(2)
@@ -311,10 +306,18 @@ static int wpa_bss_known(struct wpa_supplicant *wpa_s, struct wpa_bss *bss)
 
 static int wpa_bss_in_use(struct wpa_supplicant *wpa_s, struct wpa_bss *bss)
 {
-	return bss == wpa_s->current_bss ||
-		(!is_zero_ether_addr(bss->bssid) &&
-		 (os_memcmp(bss->bssid, wpa_s->bssid, ETH_ALEN) == 0 ||
-		  os_memcmp(bss->bssid, wpa_s->pending_bssid, ETH_ALEN) == 0));
+	if (bss == wpa_s->current_bss)
+		return 1;
+
+	if (wpa_s->current_bss &&
+	    (bss->ssid_len != wpa_s->current_bss->ssid_len ||
+	     os_memcmp(bss->ssid, wpa_s->current_bss->ssid,
+		       bss->ssid_len) != 0))
+		return 0; /* SSID has changed */
+
+	return !is_zero_ether_addr(bss->bssid) &&
+		(os_memcmp(bss->bssid, wpa_s->bssid, ETH_ALEN) == 0 ||
+		 os_memcmp(bss->bssid, wpa_s->pending_bssid, ETH_ALEN) == 0);
 }
 
 
@@ -390,15 +393,16 @@ static struct wpa_bss * wpa_bss_add(struct wpa_supplicant *wpa_s,
 	dl_list_add_tail(&wpa_s->bss_id, &bss->list_id);
 	wpa_s->num_bss++;
 	wpa_dbg(wpa_s, MSG_DEBUG, "BSS: Add new id %u BSSID " MACSTR
-		" SSID '%s'",
-		bss->id, MAC2STR(bss->bssid), wpa_ssid_txt(ssid, ssid_len));
+		" SSID '%s' freq %d",
+		bss->id, MAC2STR(bss->bssid), wpa_ssid_txt(ssid, ssid_len),
+		bss->freq);
 	wpas_notify_bss_added(wpa_s, bss->bssid, bss->id);
 	return bss;
 }
 
 
 static int are_ies_equal(const struct wpa_bss *old,
-			 const struct wpa_scan_res *new, u32 ie)
+			 const struct wpa_scan_res *new_res, u32 ie)
 {
 	const u8 *old_ie, *new_ie;
 	struct wpabuf *old_ie_buff = NULL;
@@ -408,19 +412,19 @@ static int are_ies_equal(const struct wpa_bss *old,
 	switch (ie) {
 	case WPA_IE_VENDOR_TYPE:
 		old_ie = wpa_bss_get_vendor_ie(old, ie);
-		new_ie = wpa_scan_get_vendor_ie(new, ie);
+		new_ie = wpa_scan_get_vendor_ie(new_res, ie);
 		is_multi = 0;
 		break;
 	case WPS_IE_VENDOR_TYPE:
 		old_ie_buff = wpa_bss_get_vendor_ie_multi(old, ie);
-		new_ie_buff = wpa_scan_get_vendor_ie_multi(new, ie);
+		new_ie_buff = wpa_scan_get_vendor_ie_multi(new_res, ie);
 		is_multi = 1;
 		break;
 	case WLAN_EID_RSN:
 	case WLAN_EID_SUPP_RATES:
 	case WLAN_EID_EXT_SUPP_RATES:
 		old_ie = wpa_bss_get_ie(old, ie);
-		new_ie = wpa_scan_get_ie(new, ie);
+		new_ie = wpa_scan_get_ie(new_res, ie);
 		is_multi = 0;
 		break;
 	default:
@@ -454,15 +458,15 @@ static int are_ies_equal(const struct wpa_bss *old,
 
 
 static u32 wpa_bss_compare_res(const struct wpa_bss *old,
-			       const struct wpa_scan_res *new)
+			       const struct wpa_scan_res *new_res)
 {
 	u32 changes = 0;
-	int caps_diff = old->caps ^ new->caps;
+	int caps_diff = old->caps ^ new_res->caps;
 
-	if (old->freq != new->freq)
+	if (old->freq != new_res->freq)
 		changes |= WPA_BSS_FREQ_CHANGED_FLAG;
 
-	if (old->level != new->level)
+	if (old->level != new_res->level)
 		changes |= WPA_BSS_SIGNAL_CHANGED_FLAG;
 
 	if (caps_diff & IEEE80211_CAP_PRIVACY)
@@ -471,22 +475,22 @@ static u32 wpa_bss_compare_res(const struct wpa_bss *old,
 	if (caps_diff & IEEE80211_CAP_IBSS)
 		changes |= WPA_BSS_MODE_CHANGED_FLAG;
 
-	if (old->ie_len == new->ie_len &&
-	    os_memcmp(old + 1, new + 1, old->ie_len) == 0)
+	if (old->ie_len == new_res->ie_len &&
+	    os_memcmp(old + 1, new_res + 1, old->ie_len) == 0)
 		return changes;
 	changes |= WPA_BSS_IES_CHANGED_FLAG;
 
-	if (!are_ies_equal(old, new, WPA_IE_VENDOR_TYPE))
+	if (!are_ies_equal(old, new_res, WPA_IE_VENDOR_TYPE))
 		changes |= WPA_BSS_WPAIE_CHANGED_FLAG;
 
-	if (!are_ies_equal(old, new, WLAN_EID_RSN))
+	if (!are_ies_equal(old, new_res, WLAN_EID_RSN))
 		changes |= WPA_BSS_RSNIE_CHANGED_FLAG;
 
-	if (!are_ies_equal(old, new, WPS_IE_VENDOR_TYPE))
+	if (!are_ies_equal(old, new_res, WPS_IE_VENDOR_TYPE))
 		changes |= WPA_BSS_WPS_CHANGED_FLAG;
 
-	if (!are_ies_equal(old, new, WLAN_EID_SUPP_RATES) ||
-	    !are_ies_equal(old, new, WLAN_EID_EXT_SUPP_RATES))
+	if (!are_ies_equal(old, new_res, WLAN_EID_SUPP_RATES) ||
+	    !are_ies_equal(old, new_res, WLAN_EID_EXT_SUPP_RATES))
 		changes |= WPA_BSS_RATES_CHANGED_FLAG;
 
 	return changes;
@@ -534,6 +538,9 @@ wpa_bss_update(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 	u32 changes;
 
 	changes = wpa_bss_compare_res(bss, res);
+	if (changes & WPA_BSS_FREQ_CHANGED_FLAG)
+		wpa_printf(MSG_DEBUG, "BSS: " MACSTR " changed freq %d --> %d",
+			   MAC2STR(bss->bssid), bss->freq, res->freq);
 	bss->scan_miss_count = 0;
 	bss->last_update_idx = wpa_s->bss_update_idx;
 	wpa_bss_copy_res(bss, res, fetch_time);
@@ -652,7 +659,7 @@ void wpa_bss_update_scan_res(struct wpa_supplicant *wpa_s,
 			MACSTR, MAC2STR(res->bssid));
 		return;
 	}
-	if (ssid[1] > 32) {
+	if (ssid[1] > SSID_MAX_LEN) {
 		wpa_dbg(wpa_s, MSG_DEBUG, "BSS: Too long SSID IE included for "
 			MACSTR, MAC2STR(res->bssid));
 		return;
@@ -679,7 +686,7 @@ void wpa_bss_update_scan_res(struct wpa_supplicant *wpa_s,
 	 * (to save memory) */
 
 	mesh = wpa_scan_get_ie(res, WLAN_EID_MESH_ID);
-	if (mesh && mesh[1] <= 32)
+	if (mesh && mesh[1] <= SSID_MAX_LEN)
 		ssid = mesh;
 
 	bss = wpa_bss_get(wpa_s, res->bssid, ssid + 2, ssid[1]);
@@ -828,16 +835,6 @@ void wpa_bss_flush_by_age(struct wpa_supplicant *wpa_s, int age)
 }
 
 
-static void wpa_bss_timeout(void *eloop_ctx, void *timeout_ctx)
-{
-	struct wpa_supplicant *wpa_s = eloop_ctx;
-
-	wpa_bss_flush_by_age(wpa_s, wpa_s->conf->bss_expiration_age);
-	eloop_register_timeout(WPA_BSS_EXPIRATION_PERIOD, 0,
-			       wpa_bss_timeout, wpa_s, NULL);
-}
-
-
 /**
  * wpa_bss_init - Initialize BSS table
  * @wpa_s: Pointer to wpa_supplicant data
@@ -850,8 +847,6 @@ int wpa_bss_init(struct wpa_supplicant *wpa_s)
 {
 	dl_list_init(&wpa_s->bss);
 	dl_list_init(&wpa_s->bss_id);
-	eloop_register_timeout(WPA_BSS_EXPIRATION_PERIOD, 0,
-			       wpa_bss_timeout, wpa_s, NULL);
 	return 0;
 }
 
@@ -883,7 +878,6 @@ void wpa_bss_flush(struct wpa_supplicant *wpa_s)
  */
 void wpa_bss_deinit(struct wpa_supplicant *wpa_s)
 {
-	eloop_cancel_timeout(wpa_bss_timeout, wpa_s, NULL);
 	wpa_bss_flush(wpa_s);
 }
 

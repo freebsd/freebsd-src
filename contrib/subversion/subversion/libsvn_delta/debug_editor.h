@@ -32,14 +32,19 @@ extern "C" {
 /* Return a debug editor that wraps @a wrapped_editor.
  *
  * The debug editor simply prints an indication of what callbacks are being
- * called to @c stderr, and is only intended for use in debugging subversion
+ * called to @c stdout, and is only intended for use in debugging subversion
  * editors.
+ *
+ * @a prefix, if non-null, is printed between "DBG: " and each indication.
+ *
+ * Note: Our test suite generally ignores stdout lines starting with "DBG:".
  */
 svn_error_t *
 svn_delta__get_debug_editor(const svn_delta_editor_t **editor,
                             void **edit_baton,
                             const svn_delta_editor_t *wrapped_editor,
                             void *wrapped_baton,
+                            const char *prefix,
                             apr_pool_t *pool);
 
 #ifdef __cplusplus

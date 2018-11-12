@@ -52,17 +52,20 @@ struct pcb {
 #define	PCB_OWNFPU	0x00000001
 #define PCB_NOALIGNFLT	0x00000002
 	caddr_t	pcb_onfault;			/* On fault handler */
-#ifdef  ARM_NEW_PMAP
-	uint32_t	pcb_pagedir;		/* TTB0 value */
-#else
-	vm_offset_t	pcb_pagedir;		/* PT hooks */
+	vm_offset_t	pcb_pagedir;		/* TTB0 value */
+	/*
+	 * XXX:
+	 * Variables pcb_pl1vec, pcb_l1vec, pcb_dacr are used solely
+	 * by old PMAP. Keep them here for PCB binary compatibility
+	 * between old and new PMAP.
+	 */
 	uint32_t *pcb_pl1vec;			/* PTR to vector_base L1 entry*/
 	uint32_t pcb_l1vec;			/* Value to stuff on ctx sw */
 	u_int	pcb_dacr;			/* Domain Access Control Reg */
-#endif
+
 	struct vfp_state pcb_vfpstate;          /* VP/NEON state */
 	u_int pcb_vfpcpu;                       /* VP/NEON last cpu */
-} __aligned(8); /* 
+} __aligned(8); /*
 		 * We need the PCB to be aligned on 8 bytes, as we may
 		 * access it using ldrd/strd, and ARM ABI require it
 		 * to by aligned on 8 bytes.

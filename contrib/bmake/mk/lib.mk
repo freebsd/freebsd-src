@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.51 2014/05/23 01:30:36 sjg Exp $
+# $Id: lib.mk,v 1.52 2015/11/14 18:09:57 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -254,7 +254,7 @@ DLLIB ?= -ldl
 # is a waste of time, this tells meta.autodep.mk to just pick one 
 # (typically .So)
 # yes, 42 is a random number.
-.if ${MK_META_MODE} == "yes" && ${SRCS:Uno:[\#]} > 42
+.if ${MK_DIRDEPS_BUILD} == "yes" && ${SRCS:Uno:[\#]} > 42
 OPTIMIZE_OBJECT_META_FILES ?= yes
 .endif
 

@@ -555,22 +555,18 @@ intel_dp_aux_native_read(struct intel_dp *intel_dp,
 }
 
 static int
-intel_dp_i2c_aux_ch(device_t idev, int mode, uint8_t write_byte,
-    uint8_t *read_byte)
+intel_dp_i2c_aux_ch(device_t adapter, int mode,
+		    uint8_t write_byte, uint8_t *read_byte)
 {
-	struct iic_dp_aux_data *data;
-	struct intel_dp *intel_dp;
-	uint16_t address;
+	struct iic_dp_aux_data *data = device_get_softc(adapter);
+	struct intel_dp *intel_dp = data->priv;
+	uint16_t address = data->address;
 	uint8_t msg[5];
 	uint8_t reply[2];
 	unsigned retry;
 	int msg_bytes;
 	int reply_bytes;
 	int ret;
-
-	data = device_get_softc(idev);
-	intel_dp = data->priv;
-	address = data->address;
 
 	intel_dp_check_edp(intel_dp);
 	/* Set up the command byte */
@@ -609,7 +605,7 @@ intel_dp_i2c_aux_ch(device_t idev, int mode, uint8_t write_byte,
 				      reply, reply_bytes);
 		if (ret < 0) {
 			DRM_DEBUG_KMS("aux_ch failed %d\n", ret);
-			return (ret);
+			return ret;
 		}
 
 		switch (reply[0] & AUX_NATIVE_REPLY_MASK) {
@@ -620,14 +616,14 @@ intel_dp_i2c_aux_ch(device_t idev, int mode, uint8_t write_byte,
 			break;
 		case AUX_NATIVE_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_ch native nack\n");
-			return (-EREMOTEIO);
+			return -EREMOTEIO;
 		case AUX_NATIVE_REPLY_DEFER:
 			DELAY(100);
 			continue;
 		default:
 			DRM_ERROR("aux_ch invalid native reply 0x%02x\n",
 				  reply[0]);
-			return (-EREMOTEIO);
+			return -EREMOTEIO;
 		}
 
 		switch (reply[0] & AUX_I2C_REPLY_MASK) {
@@ -638,19 +634,19 @@ intel_dp_i2c_aux_ch(device_t idev, int mode, uint8_t write_byte,
 			return (0/*reply_bytes - 1*/);
 		case AUX_I2C_REPLY_NACK:
 			DRM_DEBUG_KMS("aux_i2c nack\n");
-			return (-EREMOTEIO);
+			return -EREMOTEIO;
 		case AUX_I2C_REPLY_DEFER:
 			DRM_DEBUG_KMS("aux_i2c defer\n");
 			DELAY(100);
 			break;
 		default:
 			DRM_ERROR("aux_i2c invalid reply 0x%02x\n", reply[0]);
-			return (-EREMOTEIO);
+			return -EREMOTEIO;
 		}
 	}
 
 	DRM_ERROR("too many retries, giving up\n");
-	return (-EREMOTEIO);
+	return -EREMOTEIO;
 }
 
 static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp);
@@ -660,7 +656,7 @@ static int
 intel_dp_i2c_init(struct intel_dp *intel_dp,
 		  struct intel_connector *intel_connector, const char *name)
 {
-	int ret;
+	int	ret;
 
 	DRM_DEBUG_KMS("i2c_init %s\n", name);
 
@@ -669,7 +665,7 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	    intel_dp_i2c_aux_ch, intel_dp, &intel_dp->dp_iic_bus,
 	    &intel_dp->adapter);
 	ironlake_edp_panel_vdd_off(intel_dp, false);
-	return (ret);
+	return ret;
 }
 
 static bool
@@ -956,8 +952,7 @@ static void ironlake_wait_panel_status(struct intel_dp *intel_dp,
 		      I915_READ(PCH_PP_STATUS),
 		      I915_READ(PCH_PP_CONTROL));
 
-	if (_intel_wait_for(dev,
-	    (I915_READ(PCH_PP_STATUS) & mask) == value, 5000, 10, "915iwp")) {
+	if (_intel_wait_for(dev, (I915_READ(PCH_PP_STATUS) & mask) == value, 5000, 10, "915iwp")) {
 		DRM_ERROR("Panel status timeout: status %08x control %08x\n",
 			  I915_READ(PCH_PP_STATUS),
 			  I915_READ(PCH_PP_CONTROL));

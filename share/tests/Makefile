@@ -4,7 +4,7 @@
 
 TESTSDIR=	${TESTSBASE}/share
 
-.PATH:		${.CURDIR:H:H}/tests
+.PATH:		${SRCTOP}/tests
 KYUAFILE=	yes
 
 .include <bsd.test.mk>

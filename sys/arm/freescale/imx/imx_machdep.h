@@ -30,10 +30,14 @@
 #define	IMX_MACHDEP_H
 
 #include <sys/types.h>
+#include <sys/sysctl.h>
+
+SYSCTL_DECL(_hw_imx);
 
 /* Common functions, implemented in imx_machdep.c. */
 
 void imx_wdog_cpu_reset(vm_offset_t _wdcr_phys)  __attribute__((__noreturn__));
+void imx_wdog_init_last_reset(vm_offset_t _wdsr_phys);
 
 /* From here down, routines are implemented in imxNN_machdep.c. */
 

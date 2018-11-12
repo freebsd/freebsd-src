@@ -13,8 +13,7 @@ GENHDRS=	aicasm_gram.h aicasm_macro_gram.h
 
 SRCS=	${GENHDRS} ${CSRCS} ${YSRCS} ${LSRCS}
 CLEANFILES+= ${GENHDRS} ${YSRCS:R:C/(.*)/\1.output/g}
-DPADD=	${LIBL}
-LDADD=	-ll
+LIBADD=	l
 WARNS?=	0
 
 # Correct path for kernel builds

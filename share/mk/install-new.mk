@@ -32,9 +32,23 @@ CmpCp= CmpCp() { \
 		cp $$src $$target; \
 	fi; }
 
+# Replace the file if they are different and make a backup if desired
+CmpReplace= CmpReplace() { \
+	src=$$1 target=$$2 _bak=$$3; \
+	if ! test -s $$target || ! cmp -s $$target $$src; then \
+		trap "" 1 2 3 15; \
+		if test -s $$target; then \
+			if test "x$$_bak" != x; then \
+				rm -f $$target$$_bak; \
+				cp -f $$target $$target$$_bak; \
+			fi; \
+		fi; \
+		mv -f $$src $$target; \
+	fi; }
+
 # If the .new file is different, we want it.
 # Note: this function will work as is for *.new$RANDOM"
-InstallNew= ${CmpCp}; InstallNew() { \
+InstallNew= ${CmpReplace}; InstallNew() { \
 	_t=-e; _bak=; \
 	while :; do \
 		case "$$1" in \
@@ -46,7 +60,7 @@ InstallNew= ${CmpCp}; InstallNew() { \
 	for new in "$$@"; do \
 		if test $$_t $$new; then \
 			target=`expr $$new : '\(.*\).new'`; \
-			CmpCp $$new $$target $$_bak; \
+			CmpReplace $$new $$target $$_bak; \
 		fi; \
 		rm -f $$new; \
 	done; :; }

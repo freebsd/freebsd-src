@@ -83,10 +83,28 @@ public:
   virtual void invalidateInstructionCache();
 
 private:
+  struct FreeMemBlock {
+    // The actual block of free memory
+    sys::MemoryBlock Free;
+    // If there is a pending allocation from the same reservation right before
+    // this block, store it's index in PendingMem, to be able to update the
+    // pending region if part of this block is allocated, rather than having to
+    // create a new one
+    unsigned PendingPrefixIndex;
+  };
+
   struct MemoryGroup {
-      SmallVector<sys::MemoryBlock, 16> AllocatedMem;
-      SmallVector<sys::MemoryBlock, 16> FreeMem;
-      sys::MemoryBlock Near;
+    // PendingMem contains all blocks of memory (subblocks of AllocatedMem)
+    // which have not yet had their permissions applied, but have been given
+    // out to the user. FreeMem contains all block of memory, which have
+    // neither had their permissions applied, nor been given out to the user.
+    SmallVector<sys::MemoryBlock, 16> PendingMem;
+    SmallVector<FreeMemBlock, 16> FreeMem;
+
+    // All memory blocks that have been requested from the system
+    SmallVector<sys::MemoryBlock, 16> AllocatedMem;
+
+    sys::MemoryBlock Near;
   };
 
   uint8_t *allocateSection(MemoryGroup &MemGroup, uintptr_t Size,
@@ -103,4 +121,3 @@ private:
 }
 
 #endif // LLVM_EXECUTION_ENGINE_SECTION_MEMORY_MANAGER_H
-

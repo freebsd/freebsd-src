@@ -74,8 +74,8 @@ uart_i81342_probe(device_t dev)
 		sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
 		bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
 	}
-	sc->sc_rres = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->sc_rrid,
-            0, ~0, uart_getrange(sc->sc_class), RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+	    &sc->sc_rrid, uart_getrange(sc->sc_class), RF_ACTIVE);
 	
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);

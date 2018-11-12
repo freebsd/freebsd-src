@@ -198,7 +198,6 @@ TASKQUEUE_DECLARE(thread);
  * from a fast interrupt handler context.
  */
 TASKQUEUE_DECLARE(fast);
-int	taskqueue_enqueue_fast(struct taskqueue *queue, struct task *task);
 struct taskqueue *taskqueue_create_fast(const char *name, int mflags,
 				    taskqueue_enqueue_fn enqueue,
 				    void *context);

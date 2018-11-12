@@ -12,9 +12,11 @@
 #define DST_SINGLE
 #include "fp_extend_impl.inc"
 
+ARM_EABI_FNALIAS(h2f, extendhfsf2)
+
 // Use a forwarding definition and noinline to implement a poor man's alias,
 // as there isn't a good cross-platform way of defining one.
-COMPILER_RT_ABI __attribute__((noinline)) float __extendhfsf2(uint16_t a) {
+COMPILER_RT_ABI NOINLINE float __extendhfsf2(uint16_t a) {
     return __extendXfYf2__(a);
 }
 

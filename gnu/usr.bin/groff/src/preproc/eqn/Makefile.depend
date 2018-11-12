@@ -20,8 +20,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-eqn.o: eqn.cpp
-eqn.po: eqn.cpp
-lex.o: eqn_tab.h
-lex.po: eqn_tab.h
 .endif

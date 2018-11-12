@@ -14,9 +14,6 @@ CLEANFILES+=	${FILES}
 .hex.fnt:
 	vtfontcvt ${.IMPSRC} ${.TARGET}
 
-.fnt.uu.fnt:
-	uudecode -p < ${.IMPSRC} > ${.TARGET}
-
 FILESDIR=	${SHAREDIR}/vt/fonts
 
 .include <bsd.prog.mk>

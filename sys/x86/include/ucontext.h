@@ -162,4 +162,9 @@ typedef struct __mcontext {
 } mcontext_t;
 #endif /* __amd64__ */
 
+#ifdef __LINT__
+typedef struct __mcontext {
+} mcontext_t;
+#endif /* __LINT__ */
+
 #endif /* !_X86_UCONTEXT_H_ */

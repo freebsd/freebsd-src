@@ -20,12 +20,14 @@ SCRIPTS=	blocking \
 		nfsclienttime \
 		siftr \
 		tcpconn \
+		tcpdebug \
 		tcpstate \
 		tcptrack \
-		udptrack
+		udptrack \
+		watch_execve \
+		watch_kill \
+		watch_vop_remove
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace
-
-NO_OBJ=
 
 .include <bsd.prog.mk>

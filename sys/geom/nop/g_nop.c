@@ -119,6 +119,24 @@ g_nop_start(struct bio *bp)
 		sc->sc_wrotebytes += bp->bio_length;
 		failprob = sc->sc_wfailprob;
 		break;
+	case BIO_DELETE:
+		sc->sc_deletes++;
+		break;
+	case BIO_GETATTR:
+		sc->sc_getattrs++;
+		break;
+	case BIO_FLUSH:
+		sc->sc_flushes++;
+		break;
+	case BIO_CMD0:
+		sc->sc_cmd0s++;
+		break;
+	case BIO_CMD1:
+		sc->sc_cmd1s++;
+		break;
+	case BIO_CMD2:
+		sc->sc_cmd2s++;
+		break;
 	}
 	mtx_unlock(&sc->sc_lock);
 	if (failprob > 0) {
@@ -238,6 +256,12 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	sc->sc_wfailprob = wfailprob;
 	sc->sc_reads = 0;
 	sc->sc_writes = 0;
+	sc->sc_deletes = 0;
+	sc->sc_getattrs = 0;
+	sc->sc_flushes = 0;
+	sc->sc_cmd0s = 0;
+	sc->sc_cmd1s = 0;
+	sc->sc_cmd2s = 0;
 	sc->sc_readbytes = 0;
 	sc->sc_wrotebytes = 0;
 	mtx_init(&sc->sc_lock, "gnop lock", NULL, MTX_DEF);
@@ -602,6 +626,12 @@ g_nop_ctl_reset(struct gctl_req *req, struct g_class *mp)
 		sc = pp->geom->softc;
 		sc->sc_reads = 0;
 		sc->sc_writes = 0;
+		sc->sc_deletes = 0;
+		sc->sc_getattrs = 0;
+		sc->sc_flushes = 0;
+		sc->sc_cmd0s = 0;
+		sc->sc_cmd1s = 0;
+		sc->sc_cmd2s = 0;
 		sc->sc_readbytes = 0;
 		sc->sc_wrotebytes = 0;
 	}
@@ -659,6 +689,12 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sbuf_printf(sb, "%s<Error>%d</Error>\n", indent, sc->sc_error);
 	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent, sc->sc_reads);
 	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent, sc->sc_writes);
+	sbuf_printf(sb, "%s<Deletes>%ju</Deletes>\n", indent, sc->sc_deletes);
+	sbuf_printf(sb, "%s<Getattrs>%ju</Getattrs>\n", indent, sc->sc_getattrs);
+	sbuf_printf(sb, "%s<Flushes>%ju</Flushes>\n", indent, sc->sc_flushes);
+	sbuf_printf(sb, "%s<Cmd0s>%ju</Cmd0s>\n", indent, sc->sc_cmd0s);
+	sbuf_printf(sb, "%s<Cmd1s>%ju</Cmd1s>\n", indent, sc->sc_cmd1s);
+	sbuf_printf(sb, "%s<Cmd2s>%ju</Cmd2s>\n", indent, sc->sc_cmd2s);
 	sbuf_printf(sb, "%s<ReadBytes>%ju</ReadBytes>\n", indent,
 	    sc->sc_readbytes);
 	sbuf_printf(sb, "%s<WroteBytes>%ju</WroteBytes>\n", indent,

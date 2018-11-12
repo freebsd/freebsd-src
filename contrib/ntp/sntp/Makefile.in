@@ -97,7 +97,7 @@ build_triplet = @build@
 host_triplet = @host@
 EXTRA_PROGRAMS = sntp$(EXEEXT)
 @BUILD_LIBEVENT_TRUE@am__append_1 = libevent
-@BUILD_LIBEVENT_TRUE@am__append_2 = libevent
+@BUILD_LIBEVENT_FALSE@am__append_2 = "--enable-local-libevent"
 @NEED_LIBOPTS_TRUE@am__append_3 = libopts
 @BUILD_SNTP_TRUE@am__append_4 = tests
 subdir = .
@@ -278,6 +278,7 @@ am__define_uniq_tagged_files = \
 ETAGS = etags
 CTAGS = ctags
 CSCOPE = cscope
+DIST_SUBDIRS = include scripts unity libevent libopts tests
 am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/bincheck.mf $(top_srcdir)/check-libntp.mf \
 	$(top_srcdir)/check-libopts.mf $(top_srcdir)/depsver.mf \
@@ -347,6 +348,7 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
+BUILD_THREAD = @BUILD_THREAD@
 CALC_TICKADJ_DB = @CALC_TICKADJ_DB@
 CALC_TICKADJ_DL = @CALC_TICKADJ_DL@
 CALC_TICKADJ_DS = @CALC_TICKADJ_DS@
@@ -355,6 +357,7 @@ CALC_TICKADJ_NI = @CALC_TICKADJ_NI@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CFLAGS_LIBEVENT = @CFLAGS_LIBEVENT@
 CFLAGS_NTP = @CFLAGS_NTP@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
@@ -408,6 +411,7 @@ LIBTOOL_DEPS = @LIBTOOL_DEPS@
 LIB_SYSLOG = @LIB_SYSLOG@
 LIPO = @LIPO@
 LN_S = @LN_S@
+LTHREAD_LIBS = @LTHREAD_LIBS@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
@@ -596,7 +600,7 @@ libexec_PROGRAMS = @SNTP_DL@
 sbin_PROGRAMS = @SNTP_DS@
 SUBDIRS = include scripts unity $(am__append_1) $(am__append_3) \
 	$(am__append_4)
-DIST_SUBDIRS = include scripts unity $(am__append_2) libopts tests
+DIST_FAIL = $(am__append_2)
 @BUILD_SNTP_TRUE@noinst_LIBRARIES = libsntp.a
 libsntp_a_SOURCES = \
 	crypto.c		\
@@ -620,7 +624,6 @@ noinst_HEADERS = \
 	main.h			\
 	networking.h		\
 	sntp-opts.h		\
-	tests_main.h		\
 	utilities.h		\
 	$(NULL)
 
@@ -1206,9 +1209,6 @@ distdir: $(DISTFILES)
 	      || exit 1; \
 	  fi; \
 	done
-	$(MAKE) $(AM_MAKEFLAGS) \
-	  top_distdir="$(top_distdir)" distdir="$(distdir)" \
-	  dist-hook
 	-test -n "$(am__skip_mode_fix)" \
 	|| find "$(distdir)" -type d ! -perm -755 \
 		-exec chmod u+rwx,go+rx {} \; -o \
@@ -1471,9 +1471,9 @@ uninstall-man: uninstall-man1 uninstall-man8
 	am--refresh check check-am clean clean-binPROGRAMS \
 	clean-cscope clean-generic clean-libexecPROGRAMS clean-libtool \
 	clean-noinstLIBRARIES clean-sbinPROGRAMS cscope cscopelist-am \
-	ctags ctags-am dist dist-all dist-bzip2 dist-gzip dist-hook \
-	dist-lzip dist-shar dist-tarZ dist-xz dist-zip distcheck \
-	distclean distclean-compile distclean-generic distclean-hdr \
+	ctags ctags-am dist dist-all dist-bzip2 dist-gzip dist-lzip \
+	dist-shar dist-tarZ dist-xz dist-zip distcheck distclean \
+	distclean-compile distclean-generic distclean-hdr \
 	distclean-libtool distclean-tags distcleancheck distdir \
 	distuninstallcheck dvi dvi-am html html-am info info-am \
 	install install-am install-binPROGRAMS install-data \
@@ -1610,11 +1610,19 @@ $(srcdir)/sntp.html: $(srcdir)/invoke-sntp.menu $(srcdir)/invoke-sntp.texi $(src
 libtool: $(LIBTOOL_DEPS)
 	./config.status --recheck
 
-libevent-dist-hook:
-	if test -n "$(NTP_FORCE_LIBEVENT_DIST)" ; then rm -rf $(distdir)/libevent/autom4te.cache $(distdir)/libevent/config.h.in~ ; find $(distdir)/libevent -type d -name SCCS -print | xargs rm -rf ; fi
+# HMS: libevent/ is a target if it's in EXTRA_DIST via NTP_FORCE_LIBEVENT_DIST.
+# Note that libevent/ is already in DIST_SUBDIRS (implicit in Makefile.am
+# but explicit in Makefile.in).  This check doesn't help with distclean.
+libevent: distdir-pre-check
 
-dist-hook: libevent-dist-hook
-	@: do-nothing action to avoid default SCCS get
+# HMS: Stops the build for gmake or pmake
+distdir-pre-check:
+	case "$(DIST_FAIL)" in	\
+	 '')  ;;		\
+	 *) $(error re-run configure adding $(DIST_FAIL) if you want to make a distribution.);	\
+	    echo "re-run configure adding $(DIST_FAIL) if you want to make a distribution.";	\
+	    exit 1 ;;		\
+	esac
 
 install-exec-hook:
 	@test -z "${bin_PROGRAMS}${bin_SCRIPTS}"		\

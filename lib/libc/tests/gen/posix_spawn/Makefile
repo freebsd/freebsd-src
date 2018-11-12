@@ -1,12 +1,6 @@
 # $FreeBSD$
 
-OBJTOP=		${.OBJDIR:H:H:H:H:H}
-SRCTOP=		${.CURDIR:H:H:H:H:H}
-TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libc/gen/${.CURDIR:T}
-
 .include <bsd.own.mk>
-
-TESTSDIR=	${TESTSBASE}/lib/libc/gen/posix_spawn
 
 BINDIR=		${TESTSDIR}
 
@@ -26,7 +20,7 @@ CLEANFILES+=	h_nonexec
 .include "../../Makefile.netbsd-tests"
 
 h_zero:
-	dd if=/dev/zero of=h_zero bs=1k count=2
+	dd if=/dev/zero of=h_zero bs=1k count=2 status=none
 	chmod a+x h_zero
 
 CLEANFILES+=	h_zero

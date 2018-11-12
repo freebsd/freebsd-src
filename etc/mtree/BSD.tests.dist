@@ -12,6 +12,8 @@
         ..
         date
         ..
+        dd
+        ..
         expr
         ..
         ls
@@ -242,6 +244,8 @@
             test-programs
             ..
         ..
+        libarchive
+        ..
         libc
             c063
             ..
@@ -267,9 +271,15 @@
                     ..
                 ..
             ..
+            nss
+            ..
             regex
                 data
                 ..
+            ..
+            resolv
+            ..
+            rpc
             ..
             ssp
             ..
@@ -309,6 +319,8 @@
             ..
         ..
         libutil
+        ..
+        libxo
         ..
         msun
         ..
@@ -356,17 +368,55 @@
         ..
     ..
     sys
+        acl
+        ..
         aio
         ..
         fifo
         ..
         file
         ..
+        geom
+            class
+                concat
+                ..
+                eli
+                ..
+                gate
+                ..
+                gpt
+                ..
+                mirror
+                ..
+                nop
+                ..
+                raid3
+                ..
+                shsec
+                ..
+                stripe
+                ..
+                uzip
+                    etalon
+                    ..
+                ..
+            ..
+        ..
         kern
+            acct
+            ..
             execve
+            ..
+            pipe
             ..
         ..
         kqueue
+        ..
+        mac
+            bsdextended
+            ..
+            portacl
+            ..
         ..
         mqueue
         ..
@@ -405,6 +455,10 @@
             ..
             unlink
             ..
+        ..
+        posixshm
+        ..
+        vfs
         ..
         vm
         ..
@@ -516,6 +570,8 @@
         ..
         cmp
         ..
+        cpio
+        ..
         col
         ..
         comm
@@ -538,6 +594,8 @@
         ..
         lastcomm
         ..
+        limits
+        ..
         m4
         ..
         mkimg
@@ -554,6 +612,8 @@
         ..
         soelim
         ..
+        tar
+        ..
         timeout
         ..
         tr
@@ -568,6 +628,8 @@
         ..
         xargs
         ..
+        xo
+        ..
         yacc
             yacc
             ..
@@ -578,11 +640,15 @@
         ..
         fstyp
         ..
+        makefs
+        ..
         newsyslog
         ..
         nmtree
         ..
         pw
+        ..
+        rpcbind
         ..
         sa
         ..

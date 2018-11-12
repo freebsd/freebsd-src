@@ -143,6 +143,34 @@ wrap_diff_fns(svn_diff_fns2_t **diff_fns2,
 
 
 /*** From diff_file.c ***/
+
+svn_error_t *
+svn_diff_file_output_unified3(svn_stream_t *output_stream,
+                              svn_diff_t *diff,
+                              const char *original_path,
+                              const char *modified_path,
+                              const char *original_header,
+                              const char *modified_header,
+                              const char *header_encoding,
+                              const char *relative_to_dir,
+                              svn_boolean_t show_c_function,
+                              apr_pool_t *pool)
+{
+  return svn_error_trace(
+              svn_diff_file_output_unified4(output_stream,
+                                            diff,
+                                            original_path,
+                                            modified_path,
+                                            original_header,
+                                            modified_header,
+                                            header_encoding,
+                                            relative_to_dir,
+                                            show_c_function,
+                                            -1 /* context_size */,
+                                            NULL, NULL, /* cancel */
+                                            pool));
+}
+
 svn_error_t *
 svn_diff_file_output_unified2(svn_stream_t *output_stream,
                               svn_diff_t *diff,
@@ -243,6 +271,31 @@ svn_diff_file_output_merge(svn_stream_t *output_stream,
                                      pool);
 }
 
+svn_error_t *
+svn_diff_file_output_merge2(svn_stream_t *output_stream,
+                            svn_diff_t *diff,
+                            const char *original_path,
+                            const char *modified_path,
+                            const char *latest_path,
+                            const char *conflict_original,
+                            const char *conflict_modified,
+                            const char *conflict_latest,
+                            const char *conflict_separator,
+                            svn_diff_conflict_display_style_t conflict_style,
+                            apr_pool_t *pool)
+{
+  return svn_error_trace(svn_diff_file_output_merge3(output_stream,
+                                                     diff, original_path,
+                                                     modified_path,
+                                                     latest_path,
+                                                     conflict_original,
+                                                     conflict_modified,
+                                                     conflict_latest,
+                                                     conflict_separator,
+                                                     conflict_style,
+                                                     NULL, NULL, /* cancel */
+                                                     pool));
+}
 
 /*** From diff.c ***/
 svn_error_t *
@@ -286,4 +339,126 @@ svn_diff_diff4(svn_diff_t **diff,
 
   wrap_diff_fns(&diff_fns2, &fwb, vtable, diff_baton, pool);
   return svn_diff_diff4_2(diff, fwb, diff_fns2, pool);
+}
+
+/*** From util.c ***/
+svn_error_t *
+svn_diff_output(svn_diff_t *diff,
+                void *output_baton,
+                const svn_diff_output_fns_t *output_fns)
+{
+  return svn_error_trace(svn_diff_output2(diff, output_baton, output_fns,
+                                          NULL, NULL /* cancel */));
+}
+
+/*** From diff_memory.c ***/
+svn_error_t *
+svn_diff_mem_string_output_merge(svn_stream_t *output_stream,
+                                 svn_diff_t *diff,
+                                 const svn_string_t *original,
+                                 const svn_string_t *modified,
+                                 const svn_string_t *latest,
+                                 const char *conflict_original,
+                                 const char *conflict_modified,
+                                 const char *conflict_latest,
+                                 const char *conflict_separator,
+                                 svn_boolean_t display_original_in_conflict,
+                                 svn_boolean_t display_resolved_conflicts,
+                                 apr_pool_t *pool)
+{
+  svn_diff_conflict_display_style_t style =
+    svn_diff_conflict_display_modified_latest;
+
+  if (display_resolved_conflicts)
+    style = svn_diff_conflict_display_resolved_modified_latest;
+
+  if (display_original_in_conflict)
+    style = svn_diff_conflict_display_modified_original_latest;
+
+  return svn_diff_mem_string_output_merge2(output_stream,
+                                           diff,
+                                           original,
+                                           modified,
+                                           latest,
+                                           conflict_original,
+                                           conflict_modified,
+                                           conflict_latest,
+                                           conflict_separator,
+                                           style,
+                                           pool);
+}
+
+svn_error_t *
+svn_diff_mem_string_output_merge2(svn_stream_t *output_stream,
+                                  svn_diff_t *diff,
+                                  const svn_string_t *original,
+                                  const svn_string_t *modified,
+                                  const svn_string_t *latest,
+                                  const char *conflict_original,
+                                  const char *conflict_modified,
+                                  const char *conflict_latest,
+                                  const char *conflict_separator,
+                                  svn_diff_conflict_display_style_t style,
+                                  apr_pool_t *pool)
+{
+  return svn_error_trace(svn_diff_mem_string_output_merge3(output_stream, diff,
+                                                           original,
+                                                           modified, latest,
+                                                           conflict_original,
+                                                           conflict_modified,
+                                                           conflict_latest,
+                                                           conflict_separator,
+                                                           style,
+                                                           /* no cancelation */
+                                                           NULL, NULL,
+                                                           pool));
+}
+
+svn_error_t *
+svn_diff_mem_string_output_unified(svn_stream_t *output_stream,
+                                   svn_diff_t *diff,
+                                   const char *original_header,
+                                   const char *modified_header,
+                                   const char *header_encoding,
+                                   const svn_string_t *original,
+                                   const svn_string_t *modified,
+                                   apr_pool_t *pool)
+{
+  return svn_error_trace(svn_diff_mem_string_output_unified2(output_stream,
+                                                             diff,
+                                                             TRUE,
+                                                             NULL,
+                                                             original_header,
+                                                             modified_header,
+                                                             header_encoding,
+                                                             original,
+                                                             modified,
+                                                             pool));
+}
+
+svn_error_t *
+svn_diff_mem_string_output_unified2(svn_stream_t *output_stream,
+                                    svn_diff_t *diff,
+                                    svn_boolean_t with_diff_header,
+                                    const char *hunk_delimiter,
+                                    const char *original_header,
+                                    const char *modified_header,
+                                    const char *header_encoding,
+                                    const svn_string_t *original,
+                                    const svn_string_t *modified,
+                                    apr_pool_t *pool)
+{
+  return svn_error_trace(svn_diff_mem_string_output_unified3(output_stream,
+                                                             diff,
+                                                             with_diff_header,
+                                                             hunk_delimiter,
+                                                             original_header,
+                                                             modified_header,
+                                                             header_encoding,
+                                                             original,
+                                                             modified,
+                                                             -1 /* context */,
+                                                             /* cancel */
+                                                             NULL, NULL,
+                                                             pool));
 }

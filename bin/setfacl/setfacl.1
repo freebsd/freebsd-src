@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2015
+.Dd January 23, 2016
 .Dt SETFACL 1
 .Os
 .Sh NAME
@@ -62,8 +62,9 @@ starting at position
 counting from zero.
 This option is only applicable to NFSv4 ACLs.
 .It Fl b
-Remove all ACL entries except for the three required entries
-(POSIX.1e ACLs) or six "canonical" entries (NFSv4 ACLs).
+Remove all ACL entries except for the ones synthesized
+from the file mode - the three mandatory entries in case
+of POSIX.1e ACL.
 If the POSIX.1e ACL contains a
 .Dq Li mask
 entry, the permissions of the

@@ -17,6 +17,12 @@
 #include <private/android_filesystem_config.h>
 #endif /* ANDROID */
 
+#ifdef __MACH__
+#include <CoreServices/CoreServices.h>
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+#endif /* __MACH__ */
+
 #include "os.h"
 #include "common.h"
 
@@ -36,7 +42,7 @@ struct os_alloc_trace {
 	struct dl_list list;
 	size_t len;
 	WPA_TRACE_INFO
-};
+} __attribute__((aligned(16)));
 
 #endif /* WPA_TRACE */
 
@@ -63,6 +69,7 @@ int os_get_time(struct os_time *t)
 
 int os_get_reltime(struct os_reltime *t)
 {
+#ifndef __MACH__
 #if defined(CLOCK_BOOTTIME)
 	static clockid_t clock_id = CLOCK_BOOTTIME;
 #elif defined(CLOCK_MONOTONIC)
@@ -95,6 +102,23 @@ int os_get_reltime(struct os_reltime *t)
 			return -1;
 		}
 	}
+#else /* __MACH__ */
+	uint64_t abstime, nano;
+	static mach_timebase_info_data_t info = { 0, 0 };
+
+	if (!info.denom) {
+		if (mach_timebase_info(&info) != KERN_SUCCESS)
+			return -1;
+	}
+
+	abstime = mach_absolute_time();
+	nano = (abstime * info.numer) / info.denom;
+
+	t->sec = nano / NSEC_PER_SEC;
+	t->usec = (nano - (((uint64_t) t->sec) * NSEC_PER_SEC)) / NSEC_PER_USEC;
+
+	return 0;
+#endif /* __MACH__ */
 }
 
 
@@ -252,6 +276,9 @@ int os_get_random(unsigned char *buf, size_t len)
 {
 	FILE *f;
 	size_t rc;
+
+	if (TEST_FAIL())
+		return -1;
 
 	f = fopen("/dev/urandom", "rb");
 	if (f == NULL) {
@@ -442,6 +469,25 @@ int os_file_exists(const char *fname)
 }
 
 
+int os_fdatasync(FILE *stream)
+{
+	if (!fflush(stream)) {
+#ifdef __linux__
+		return fdatasync(fileno(stream));
+#else /* !__linux__ */
+#ifdef F_FULLFSYNC
+		/* OS X does not implement fdatasync(). */
+		return fcntl(fileno(stream), F_FULLFSYNC);
+#else /* F_FULLFSYNC */
+		return fsync(fileno(stream));
+#endif /* F_FULLFSYNC */
+#endif /* __linux__ */
+	}
+
+	return -1;
+}
+
+
 #ifndef WPA_TRACE
 void * os_zalloc(size_t size)
 {
@@ -566,6 +612,78 @@ static int testing_fail_alloc(void)
 	if (wpa_trace_fail_after == 0) {
 		wpa_printf(MSG_INFO, "TESTING: fail allocation at %s",
 			   wpa_trace_fail_func);
+		for (i = 0; i < res; i++)
+			wpa_printf(MSG_INFO, "backtrace[%d] = %s",
+				   (int) i, func[i]);
+		return 1;
+	}
+
+	return 0;
+}
+
+
+char wpa_trace_test_fail_func[256] = { 0 };
+unsigned int wpa_trace_test_fail_after;
+
+int testing_test_fail(void)
+{
+	const char *func[WPA_TRACE_LEN];
+	size_t i, res, len;
+	char *pos, *next;
+	int match;
+
+	if (!wpa_trace_test_fail_after)
+		return 0;
+
+	res = wpa_trace_calling_func(func, WPA_TRACE_LEN);
+	i = 0;
+	if (i < res && os_strcmp(func[i], __func__) == 0)
+		i++;
+
+	pos = wpa_trace_test_fail_func;
+
+	match = 0;
+	while (i < res) {
+		int allow_skip = 1;
+		int maybe = 0;
+
+		if (*pos == '=') {
+			allow_skip = 0;
+			pos++;
+		} else if (*pos == '?') {
+			maybe = 1;
+			pos++;
+		}
+		next = os_strchr(pos, ';');
+		if (next)
+			len = next - pos;
+		else
+			len = os_strlen(pos);
+		if (os_memcmp(pos, func[i], len) != 0) {
+			if (maybe && next) {
+				pos = next + 1;
+				continue;
+			}
+			if (allow_skip) {
+				i++;
+				continue;
+			}
+			return 0;
+		}
+		if (!next) {
+			match = 1;
+			break;
+		}
+		pos = next + 1;
+		i++;
+	}
+	if (!match)
+		return 0;
+
+	wpa_trace_test_fail_after--;
+	if (wpa_trace_test_fail_after == 0) {
+		wpa_printf(MSG_INFO, "TESTING: fail at %s",
+			   wpa_trace_test_fail_func);
 		for (i = 0; i < res; i++)
 			wpa_printf(MSG_INFO, "backtrace[%d] = %s",
 				   (int) i, func[i]);

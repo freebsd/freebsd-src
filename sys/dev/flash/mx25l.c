@@ -93,6 +93,7 @@ static int mx25l_open(struct disk *dp);
 static int mx25l_close(struct disk *dp);
 static int mx25l_ioctl(struct disk *, u_long, void *, int, struct thread *);
 static void mx25l_strategy(struct bio *bp);
+static int mx25l_getattr(struct bio *bp);
 static void mx25l_task(void *arg);
 
 struct mx25l_flash_ident flash_devices[] = {
@@ -107,6 +108,7 @@ struct mx25l_flash_ident flash_devices[] = {
 	{ "s25fl032",	0x01, 0x0215, 64 * 1024, 64, FL_NONE },
 	{ "s25fl064",	0x01, 0x0216, 64 * 1024, 128, FL_NONE },
 	{ "s25fl128",	0x01, 0x2018, 64 * 1024, 256, FL_NONE },
+	{ "s25fl256s",	0x01, 0x0219, 64 * 1024, 512, FL_NONE },
 	{ "SST25VF032B", 0xbf, 0x254a, 64 * 1024, 64, FL_ERASE_4K | FL_ERASE_32K },
 
 	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4KiB */
@@ -382,6 +384,7 @@ mx25l_attach(device_t dev)
 	sc->sc_disk->d_open = mx25l_open;
 	sc->sc_disk->d_close = mx25l_close;
 	sc->sc_disk->d_strategy = mx25l_strategy;
+	sc->sc_disk->d_getattr = mx25l_getattr;
 	sc->sc_disk->d_ioctl = mx25l_ioctl;
 	sc->sc_disk->d_name = "flash/spi";
 	sc->sc_disk->d_drv1 = sc;
@@ -445,6 +448,27 @@ mx25l_strategy(struct bio *bp)
 	bioq_disksort(&sc->sc_bio_queue, bp);
 	wakeup(sc);
 	M25PXX_UNLOCK(sc);
+}
+
+static int
+mx25l_getattr(struct bio *bp)
+{
+	struct mx25l_softc *sc;
+	device_t dev;
+
+	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
+		return (ENXIO);
+
+	sc = bp->bio_disk->d_drv1;
+	dev = sc->sc_dev;
+
+	if (strcmp(bp->bio_attribute, "SPI::device") == 0) {
+		if (bp->bio_length != sizeof(dev))
+			return (EFAULT);
+		bcopy(&dev, bp->bio_data, sizeof(dev));
+	} else
+		return (-1);
+	return (0);
 }
 
 static void

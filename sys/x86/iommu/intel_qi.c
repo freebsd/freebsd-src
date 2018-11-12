@@ -325,7 +325,7 @@ dmar_qi_intr(void *arg)
 
 	unit = arg;
 	KASSERT(unit->qi_enabled, ("dmar%d: QI is not enabled", unit->unit));
-	taskqueue_enqueue_fast(unit->qi_taskqueue, &unit->qi_task);
+	taskqueue_enqueue(unit->qi_taskqueue, &unit->qi_task);
 	return (FILTER_HANDLED);
 }
 

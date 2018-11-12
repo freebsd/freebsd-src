@@ -125,16 +125,12 @@ xlr_pci_init_resources(void)
 	    || rman_manage_region(&irq_rman, 0, 255))
 		panic("pci_init_resources irq_rman");
 
-	port_rman.rm_start = 0;
-	port_rman.rm_end = ~0ul;
 	port_rman.rm_type = RMAN_ARRAY;
 	port_rman.rm_descr = "I/O ports";
 	if (rman_init(&port_rman)
 	    || rman_manage_region(&port_rman, 0x10000000, 0x1fffffff))
 		panic("pci_init_resources port_rman");
 
-	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory";
 	if (rman_init(&mem_rman)
@@ -516,7 +512,7 @@ mips_platform_pci_teardown_intr(device_t dev, device_t child,
 
 static struct resource *
 xlr_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-	u_long start, u_long end, u_long count, u_int flags)
+	rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct rman *rm;
 	struct resource *rv;

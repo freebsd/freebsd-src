@@ -70,8 +70,7 @@ mstolfp(
 	 */
 	*bp++ = '.';
 	if ((cpdec - cp) < 3) {
-		register int i = 3 - (cpdec - cp);
-
+		size_t i = 3 - (cpdec - cp);
 		do {
 			*bp++ = '0';
 		} while (--i > 0);

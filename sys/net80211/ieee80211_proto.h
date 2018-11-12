@@ -93,6 +93,7 @@ struct mbuf *ieee80211_mbuf_adjust(struct ieee80211vap *, int,
 		struct ieee80211_key *, struct mbuf *);
 struct mbuf *ieee80211_encap(struct ieee80211vap *, struct ieee80211_node *,
 		struct mbuf *);
+void	ieee80211_free_mbuf(struct mbuf *);
 int	ieee80211_send_mgmt(struct ieee80211_node *, int, int);
 struct ieee80211_appie;
 int	ieee80211_send_probereq(struct ieee80211_node *ni,
@@ -306,6 +307,7 @@ void	ieee80211_stop(struct ieee80211vap *);
 void	ieee80211_stop_all(struct ieee80211com *);
 void	ieee80211_suspend_all(struct ieee80211com *);
 void	ieee80211_resume_all(struct ieee80211com *);
+void	ieee80211_restart_all(struct ieee80211com *);
 void	ieee80211_dturbo_switch(struct ieee80211vap *, int newflags);
 void	ieee80211_swbmiss(void *arg);
 void	ieee80211_beacon_miss(struct ieee80211com *);

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2014
+.Dd February 24, 2016
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -141,16 +141,6 @@ Optimization levels other than
 and
 .Fl O2
 are not supported.
-.Va BDECFLAGS
-is provided as a set of
-.Xr cc 1
-settings suggested by
-.An Bruce Evans Aq Mt bde@FreeBSD.org
-for developing and testing changes.
-They can be used, if set, by:
-.Bd -literal -offset indent
-CFLAGS+=${BDECFLAGS}
-.Ed
 .It Va CPUTYPE
 .Pq Vt str
 Controls which processor should be targeted for generated
@@ -165,13 +155,9 @@ to contain the appropriate optimization directive to
 .Xr cc 1 .
 The automatic setting of
 .Va CFLAGS
-and
-.Va COPTFLAGS
 may be overridden using the
 .Va NO_CPU_CFLAGS
-and
-.Va NO_CPU_COPTFLAGS
-variables, respectively.
+variable.
 Refer to
 .Pa /usr/share/examples/etc/make.conf
 for a list of recognized
@@ -230,12 +216,6 @@ to follow symlinks.
 Setting this variable will prevent CPU specific compiler flags
 from being automatically added to
 .Va CFLAGS
-during compile time.
-.It Va NO_CPU_COPTFLAGS
-.Pq Vt str
-Setting this variable will prevent CPU specific compiler flags
-from being automatically added to
-.Va COPTFLAGS
 during compile time.
 .It Va NO_DOCUPDATE
 .Pq Vt bool

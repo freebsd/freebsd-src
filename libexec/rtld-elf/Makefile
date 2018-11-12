@@ -13,9 +13,8 @@ SRCS=		rtld_start.S \
 		malloc.c xmalloc.c debug.c libmap.c
 MAN=		rtld.1
 CSTD?=		gnu99
-TOPSRCDIR=	${.CURDIR}/../..
-CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
-CFLAGS+=	-I${TOPSRCDIR}/lib/csu/common
+CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD -ffreestanding
+CFLAGS+=	-I${SRCTOP}/lib/csu/common
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 RTLD_ARCH=	${MACHINE_ARCH}
 .else
@@ -23,7 +22,6 @@ RTLD_ARCH=	${MACHINE_CPUARCH}
 .endif
 CFLAGS+=	-I${.CURDIR}/${RTLD_ARCH} -I${.CURDIR}
 .if ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-mcall-aixdesc
 LDFLAGS+=	-nostdlib -e _rtld_start
 .else
 LDFLAGS+=	-nostdlib -e .rtld_start
@@ -32,7 +30,7 @@ WARNS?=		2
 INSTALLFLAGS=	-C -b
 PRECIOUSPROG=
 BINDIR=		/libexec
-SYMLINKS=	${BINDIR}/${PROG} /usr/libexec/${PROG}
+SYMLINKS=	${BINDIR}/${PROG} ${LIBEXECDIR}/${PROG}
 MLINKS=		rtld.1 ld-elf.so.1.1 \
 		rtld.1 ld.so.1
 
@@ -59,8 +57,7 @@ LIBADD+=	compiler_rt
 
 
 .if ${MK_SYMVER} == "yes"
-LIBCDIR=	${TOPSRCDIR}/lib/libc
-VERSION_DEF=	${LIBCDIR}/Versions.def
+VERSION_DEF=	${LIBCSRCDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 VERSION_MAP=	Version.map
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
@@ -87,5 +84,5 @@ beforeinstall:
 SUBDIR+=	tests
 .endif
 
-.include <bsd.symver.mk>
 .include <bsd.prog.mk>
+.include <bsd.symver.mk>

@@ -82,7 +82,7 @@ svn_error_t *svn_fs_base__dag_get_node(dag_node_t **node,
 
 /* Return a new dag_node_t object referring to the same node as NODE,
    allocated in POOL.  */
-dag_node_t *svn_fs_base__dag_dup(dag_node_t *node,
+dag_node_t *svn_fs_base__dag_dup(const dag_node_t *node,
                                  apr_pool_t *pool);
 
 

@@ -1994,8 +1994,8 @@ top:
 	zfs_sa_upgrade_txholds(tx, zp);
 	error = dmu_tx_assign(tx, TXG_NOWAIT);
 	if (error) {
-		mutex_exit(&zp->z_acl_lock);
 		mutex_exit(&zp->z_lock);
+		mutex_exit(&zp->z_acl_lock);
 
 		if (error == ERESTART) {
 			dmu_tx_wait(tx);
@@ -2020,7 +2020,6 @@ top:
 	if (fuidp)
 		zfs_fuid_info_free(fuidp);
 	dmu_tx_commit(tx);
-done:
 	mutex_exit(&zp->z_lock);
 	mutex_exit(&zp->z_acl_lock);
 

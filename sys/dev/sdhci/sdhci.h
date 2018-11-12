@@ -63,6 +63,8 @@
 #define	SDHCI_QUIRK_WAITFOR_RESET_ASSERTED		(1<<14)
 /* Leave controller in standard mode when putting card in HS mode. */
 #define	SDHCI_QUIRK_DONT_SET_HISPD_BIT			(1<<15)
+/* Alternate clock source is required when supplying a 400 KHz clock. */
+#define	SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC		(1<<16)
 
 /*
  * Controller registers

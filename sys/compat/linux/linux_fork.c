@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 int
 linux_fork(struct thread *td, struct linux_fork_args *args)
 {
+	struct fork_req fr;
 	int error;
 	struct proc *p2;
 	struct thread *td2;
@@ -73,8 +74,10 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 		printf(ARGS(fork, ""));
 #endif
 
-	if ((error = fork1(td, RFFDG | RFPROC | RFSTOPPED, 0, &p2, NULL, 0,
-	    NULL)) != 0)
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = RFFDG | RFPROC | RFSTOPPED;
+	fr.fr_procp = &p2;
+	if ((error = fork1(td, &fr)) != 0)
 		return (error);
 
 	td2 = FIRST_THREAD_IN_PROC(p2);
@@ -97,6 +100,7 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 int
 linux_vfork(struct thread *td, struct linux_vfork_args *args)
 {
+	struct fork_req fr;
 	int error;
 	struct proc *p2;
 	struct thread *td2;
@@ -106,19 +110,15 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 		printf(ARGS(vfork, ""));
 #endif
 
-	/* Exclude RFPPWAIT */
-	if ((error = fork1(td, RFFDG | RFPROC | RFMEM | RFSTOPPED, 0, &p2,
-	    NULL, 0, NULL)) != 0)
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = RFFDG | RFPROC | RFMEM | RFPPWAIT | RFSTOPPED;
+	fr.fr_procp = &p2;
+	if ((error = fork1(td, &fr)) != 0)
 		return (error);
-
 
 	td2 = FIRST_THREAD_IN_PROC(p2);
 
 	linux_proc_init(td, td2, 0);
-
-	PROC_LOCK(p2);
-	p2->p_flag |= P_PPWAIT;
-	PROC_UNLOCK(p2);
 
    	td->td_retval[0] = p2->p_pid;
 
@@ -130,18 +130,13 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	sched_add(td2, SRQ_BORING);
 	thread_unlock(td2);
 
-	/* wait for the children to exit, ie. emulate vfork */
-	PROC_LOCK(p2);
-	while (p2->p_flag & P_PPWAIT)
-		cv_wait(&p2->p_pwait, &p2->p_mtx);
-	PROC_UNLOCK(p2);
-
 	return (0);
 }
 
 static int
 linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 {
+	struct fork_req fr;
 	int error, ff = RFPROC | RFSTOPPED;
 	struct proc *p2;
 	struct thread *td2;
@@ -179,7 +174,13 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		if (args->parent_tidptr == NULL)
 			return (EINVAL);
 
-	error = fork1(td, ff, 0, &p2, NULL, 0, NULL);
+	if (args->flags & LINUX_CLONE_VFORK)
+		ff |= RFPPWAIT;
+
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = ff;
+	fr.fr_procp = &p2;
+	error = fork1(td, &fr);
 	if (error)
 		return (error);
 
@@ -228,12 +229,6 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		    exit_signal);
 #endif
 
-	if (args->flags & LINUX_CLONE_VFORK) {
-	   	PROC_LOCK(p2);
-	   	p2->p_flag |= P_PPWAIT;
-	   	PROC_UNLOCK(p2);
-	}
-
 	/*
 	 * Make this runnable after we are finished with it.
 	 */
@@ -243,14 +238,6 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 	thread_unlock(td2);
 
 	td->td_retval[0] = p2->p_pid;
-
-	if (args->flags & LINUX_CLONE_VFORK) {
-		/* wait for the children to exit, ie. emulate vfork */
-		PROC_LOCK(p2);
-		while (p2->p_flag & P_PPWAIT)
-			cv_wait(&p2->p_pwait, &p2->p_mtx);
-		PROC_UNLOCK(p2);
-	}
 
 	return (0);
 }

@@ -2,9 +2,7 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/usr.bin
-
-.PATH:		${.CURDIR:H:H}/tests
+.PATH:		${SRCTOP}/tests
 KYUAFILE=	yes
 
 FILESDIR=	${TESTSDIR}

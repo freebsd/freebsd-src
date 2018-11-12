@@ -258,6 +258,15 @@ single_repos_delete(svn_ra_session_t *ra_session,
                                         editor->abort_edit(edit_baton, pool)));
     }
 
+  if (ctx->notify_func2)
+    {
+      svn_wc_notify_t *notify;
+      notify = svn_wc_create_notify_url(base_uri,
+                                        svn_wc_notify_commit_finalizing,
+                                        pool);
+      ctx->notify_func2(ctx->notify_baton2, notify, pool);
+    }
+
   /* Close the edit. */
   return svn_error_trace(editor->close_edit(edit_baton, pool));
 }
@@ -296,7 +305,7 @@ delete_urls_multi_repos(const apr_array_header_t *uris,
 
       for (hi = apr_hash_first(pool, deletables); hi; hi = apr_hash_next(hi))
         {
-          const char *repos_root = svn__apr_hash_index_key(hi);
+          const char *repos_root = apr_hash_this_key(hi);
 
           repos_relpath = svn_uri_skip_ancestor(repos_root, uri, pool);
           if (repos_relpath)
@@ -304,7 +313,7 @@ delete_urls_multi_repos(const apr_array_header_t *uris,
               /* Great!  We've found another URI underneath this
                  session.  We'll pick out the related RA session for
                  use later, store the new target, and move on.  */
-              repos_deletables = svn__apr_hash_index_val(hi);
+              repos_deletables = apr_hash_this_val(hi);
               APR_ARRAY_PUSH(repos_deletables->target_uris, const char *) =
                 apr_pstrdup(pool, uri);
               break;
@@ -346,14 +355,14 @@ delete_urls_multi_repos(const apr_array_header_t *uris,
          RA error code otherwise for 1.6 compatibility.)  */
       if (!repos_relpath || !*repos_relpath)
         return svn_error_createf(SVN_ERR_RA_ILLEGAL_URL, NULL,
-                                 "URL '%s' not within a repository", uri);
+                                 _("URL '%s' not within a repository"), uri);
 
       /* Now, test to see if the thing actually exists in HEAD. */
       SVN_ERR(svn_ra_check_path(repos_deletables->ra_session, repos_relpath,
                                 SVN_INVALID_REVNUM, &kind, pool));
       if (kind == svn_node_none)
         return svn_error_createf(SVN_ERR_FS_NOT_FOUND, NULL,
-                                 "URL '%s' does not exist", uri);
+                                 _("URL '%s' does not exist"), uri);
     }
 
   /* Now we iterate over the DELETABLES hash, issuing a commit for
@@ -361,7 +370,7 @@ delete_urls_multi_repos(const apr_array_header_t *uris,
   iterpool = svn_pool_create(pool);
   for (hi = apr_hash_first(pool, deletables); hi; hi = apr_hash_next(hi))
     {
-      struct repos_deletables_t *repos_deletables = svn__apr_hash_index_val(hi);
+      struct repos_deletables_t *repos_deletables = apr_hash_this_val(hi);
       const char *base_uri;
       apr_array_header_t *target_relpaths;
 
@@ -573,7 +582,7 @@ svn_client_delete4(const apr_array_header_t *paths,
       for (hi = apr_hash_first(pool, wcroots); hi; hi = apr_hash_next(hi))
         {
           const char *root_abspath;
-          const apr_array_header_t *targets = svn__apr_hash_index_val(hi);
+          const apr_array_header_t *targets = apr_hash_this_val(hi);
 
           svn_pool_clear(iterpool);
 

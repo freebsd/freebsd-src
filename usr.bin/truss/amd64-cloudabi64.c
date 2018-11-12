@@ -31,10 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/psl.h>
 
-#include <errno.h>
 #include <stdio.h>
+#include <sysdecode.h>
 
-#include "cloudabi64_syscalls.h"
 #include "truss.h"
 
 static int
@@ -66,21 +65,6 @@ amd64_cloudabi64_fetch_args(struct trussinfo *trussinfo, unsigned int narg)
 	return (0);
 }
 
-static const int cloudabi_errno_table[] = {
-	0, E2BIG, EACCES, EADDRINUSE, EADDRNOTAVAIL, EAFNOSUPPORT,
-	EAGAIN, EALREADY, EBADF, EBADMSG, EBUSY, ECANCELED, ECHILD,
-	ECONNABORTED, ECONNREFUSED, ECONNRESET, EDEADLK, EDESTADDRREQ,
-	EDOM, EDQUOT, EEXIST, EFAULT, EFBIG, EHOSTUNREACH, EIDRM,
-	EILSEQ, EINPROGRESS, EINTR, EINVAL, EIO, EISCONN, EISDIR, ELOOP,
-	EMFILE, EMLINK, EMSGSIZE, EMULTIHOP, ENAMETOOLONG, ENETDOWN,
-	ENETRESET, ENETUNREACH, ENFILE, ENOBUFS, ENODEV, ENOENT,
-	ENOEXEC, ENOLCK, ENOLINK, ENOMEM, ENOMSG, ENOPROTOOPT, ENOSPC,
-	ENOSYS, ENOTCONN, ENOTDIR, ENOTEMPTY, ENOTRECOVERABLE, ENOTSOCK,
-	ENOTSUP, ENOTTY, ENXIO, EOVERFLOW, EOWNERDEAD, EPERM, EPIPE,
-	EPROTO, EPROTONOSUPPORT, EPROTOTYPE, ERANGE, EROFS, ESPIPE,
-	ESRCH, ESTALE, ETIMEDOUT, ETXTBSY, EXDEV, ENOTCAPABLE,
-};
-
 static int
 amd64_cloudabi64_fetch_retval(struct trussinfo *trussinfo, long *retval,
     int *errorp)
@@ -97,15 +81,12 @@ amd64_cloudabi64_fetch_retval(struct trussinfo *trussinfo, long *retval,
 	retval[0] = regs.r_rax;
 	retval[1] = regs.r_rdx;
 	*errorp = (regs.r_rflags & PSL_C) != 0;
-	if (*errorp && *retval >= 0 && *retval < nitems(cloudabi_errno_table))
-		*retval = cloudabi_errno_table[*retval];
 	return (0);
 }
 
 static struct procabi amd64_cloudabi64 = {
 	"CloudABI ELF64",
-	cloudabi64_syscallnames,
-	nitems(cloudabi64_syscallnames),
+	SYSDECODE_ABI_CLOUDABI64,
 	amd64_cloudabi64_fetch_args,
 	amd64_cloudabi64_fetch_retval
 };

@@ -377,17 +377,6 @@ static int16_t clamped_precision(int rawprec);
  * local / static stuff
  */
 
-/* The logon string is actually the ?WATCH command of GPSD, using JSON
- * data and selecting the GPS device name we created from our unit
- * number. We have an old a newer version that request PPS (and TOFF)
- * transmission.
- * Note: These are actually format strings!
- */
-static const char * const s_req_watch[2] = {
-	"?WATCH={\"device\":\"%s\",\"enable\":true,\"json\":true};\r\n",
-	"?WATCH={\"device\":\"%s\",\"enable\":true,\"json\":true,\"pps\":true};\r\n"
-};
-
 static const char * const s_req_version =
     "?VERSION;\r\n";
 
@@ -1113,9 +1102,9 @@ strtojint(
 	/* Now try to convert a sequence of digits. */
 	hold = cp;
 	accu = 0;
-	while (isdigit(*(const unsigned char*)cp)) {
+	while (isdigit(*(const u_char*)cp)) {
 		flags |= (accu > limit_lo);
-		accu = accu * 10 + (*(const unsigned char*)cp++ - '0');
+		accu = accu * 10 + (*(const u_char*)cp++ - '0');
 		flags |= (accu > limit_hi);
 	}
 	/* Check for empty conversion (no digits seen). */
@@ -1147,7 +1136,7 @@ json_token_skip(
 	const json_ctx * ctx,
 	tok_ref          tid)
 {
-	if (tid >= 0 && tid < ctx->ntok) {
+	if (tid >= 0 && (u_int)tid < ctx->ntok) {
 		int len = ctx->tok[tid].size;
 		/* For arrays and objects, the size is the number of
 		 * ITEMS in the compound. Thats the number of objects in
@@ -1172,7 +1161,10 @@ json_token_skip(
 			++tid;
 			break;
 		}
-		if (tid > ctx->ntok) /* Impossible? Paranoia rulez. */
+		/* The next condition should never be true, but paranoia
+		 * prevails...
+		 */
+		if (tid < 0 || (u_int)tid > ctx->ntok)
 			tid = ctx->ntok;
 	}
 	return tid;
@@ -1200,7 +1192,7 @@ json_object_lookup(
 			tid = json_token_skip(ctx, tid); /* skip val */
 		} else if (strcmp(key, ctx->buf + ctx->tok[tid].start)) {
 			tid = json_token_skip(ctx, tid+1); /* skip key+val */
-		} else if (what < 0 || what == ctx->tok[tid+1].type) {
+		} else if (what < 0 || (u_int)what == ctx->tok[tid+1].type) {
 			return tid + 1;
 		} else {
 			break;
@@ -1513,8 +1505,14 @@ process_version(
 	if (up->fl_watch)
 		return;
 
+	/* The logon string is actually the ?WATCH command of GPSD,
+	 * using JSON data and selecting the GPS device name we created
+	 * from our unit number. We have an old a newer version that
+	 * request PPS (and TOFF) transmission.
+	 */
 	snprintf(up->buffer, sizeof(up->buffer),
-		 s_req_watch[up->pf_toff != 0], up->device);
+		 "?WATCH={\"device\":\"%s\",\"enable\":true,\"json\":true%s};\r\n",
+		 up->device, (up->pf_toff ? ",\"pps\":true" : ""));
 	buf = up->buffer;
 	len = strlen(buf);
 	log_data(peer, "send", buf, len);
@@ -2086,8 +2084,8 @@ convert_ascii_time(
 		return FALSE; /* could not parse the mandatory stuff! */
 	if (*ep == '.') {
 		dw = 100000000u;
-		while (isdigit(*(unsigned char*)++ep)) {
-			ts.tv_nsec += (*(unsigned char*)ep - '0') * dw;
+		while (isdigit(*(u_char*)++ep)) {
+			ts.tv_nsec += (*(u_char*)ep - '0') * dw;
 			dw /= 10u;
 		}
 	}
@@ -2189,16 +2187,16 @@ log_data(
 		char       *dtop = s_lbuf + sizeof(s_lbuf) - 1; /* for NUL */
 
 		while (sptr != stop && dptr != dtop) {
-			if (*sptr == '\\') {
+			u_char uch = (u_char)*sptr++;
+			if (uch == '\\') {
 				dptr = add_string(dptr, dtop, "\\\\");
-			} else if (isprint(*sptr)) {
-				*dptr++ = *sptr;
+			} else if (isprint(uch)) {
+				*dptr++ = (char)uch;
 			} else {
 				char fbuf[6];
-				snprintf(fbuf, sizeof(fbuf), "\\%03o", *(const u_char*)sptr);
+				snprintf(fbuf, sizeof(fbuf), "\\%03o", uch);
 				dptr = add_string(dptr, dtop, fbuf);
 			}
-			sptr++;
 		}
 		*dptr = '\0';
 		mprintf("%s[%s]: '%s'\n", up->logname, what, s_lbuf);

@@ -27,6 +27,7 @@
 #include "private/svn_cache.h"
 
 #include "svn_pools.h"
+#include "svn_sorts.h"
 
 /* The cache settings as a process-wide singleton.
  */
@@ -80,7 +81,13 @@ initialize_cache(void *baton, apr_pool_t *unused_pool)
   svn_membuffer_t **cache_p = baton;
   svn_membuffer_t *cache = NULL;
 
-  apr_uint64_t cache_size = cache_settings.cache_size;
+  /* Limit the cache size to about half the available address space
+   * (typ. 1G under 32 bits).
+   */
+  apr_uint64_t cache_size = MIN(cache_settings.cache_size,
+                                (apr_uint64_t)SVN_MAX_OBJECT_SIZE / 2);
+
+  /* Create caches at all? */
   if (cache_size)
     {
       svn_error_t *err;
@@ -116,7 +123,7 @@ initialize_cache(void *baton, apr_pool_t *unused_pool)
       err = svn_cache__membuffer_cache_create(
           &cache,
           (apr_size_t)cache_size,
-          (apr_size_t)(cache_size / 10),
+          (apr_size_t)(cache_size / 5),
           0,
           ! svn_cache_config_get()->single_threaded,
           FALSE,

@@ -1,6 +1,7 @@
 /*-
  * Copyright (C) 2008-2009 Semihalf, Michal Hajduk
  * Copyright (c) 2012, 2013 The FreeBSD Foundation
+ * Copyright (c) 2015 Ian Lepore <ian@FreeBSD.org>
  * All rights reserved.
  *
  * Portions of this software were developed by Oleksandr Rybalko
@@ -28,6 +29,19 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * I2C driver for Freescale i.MX hardware.
+ *
+ * Note that the hardware is capable of running as both a master and a slave.
+ * This driver currently implements only master-mode operations.
+ *
+ * This driver supports multi-master i2c busses, by detecting bus arbitration
+ * loss and returning IIC_EBUSBSY status.  Notably, it does not do any kind of
+ * retries if some other master jumps onto the bus and interrupts one of our
+ * transfer cycles resulting in arbitration loss in mid-transfer.  The caller
+ * must handle retries in a way that makes sense for the slave being addressed.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -42,9 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
-
-#include <sys/lock.h>
-#include <sys/mutex.h>
 
 #include <arm/freescale/imx/imx_ccmvar.h>
 
@@ -108,13 +119,6 @@ static struct clkdiv clkdiv_table[] = {
         { 2560, 0x1d }, { 3072, 0x1e }, { 3840, 0x1f }, {UINT_MAX, 0x1f} 
 };
 
-#ifdef  DEBUG
-#define debugf(fmt, args...) do { printf("%s(): ", __func__);		\
-		printf(fmt,##args); } while (0)
-#else
-#define debugf(fmt, args...)
-#endif
-
 static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx6q-i2c",  1},
 	{"fsl,imx-i2c",	   1},
@@ -125,10 +129,8 @@ struct i2c_softc {
 	device_t		dev;
 	device_t		iicbus;
 	struct resource		*res;
-	struct mtx		mutex;
 	int			rid;
-	bus_space_handle_t	bsh;
-	bus_space_tag_t		bst;
+	sbintime_t		byte_time_sbt;
 };
 
 static phandle_t i2c_get_node(device_t, device_t);
@@ -158,7 +160,7 @@ static device_method_t i2c_methods[] = {
 	DEVMETHOD(iicbus_write,			i2c_write),
 	DEVMETHOD(iicbus_transfer,		iicbus_transfer_gen),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t i2c_driver = {
@@ -184,14 +186,14 @@ static __inline void
 i2c_write_reg(struct i2c_softc *sc, bus_size_t off, uint8_t val)
 {
 
-	bus_space_write_1(sc->bst, sc->bsh, off, val);
+	bus_write_1(sc->res, off, val);
 }
 
 static __inline uint8_t
 i2c_read_reg(struct i2c_softc *sc, bus_size_t off)
 {
 
-	return (bus_space_read_1(sc->bst, sc->bsh, off));
+	return (bus_read_1(sc->res, off));
 }
 
 static __inline void
@@ -204,60 +206,77 @@ i2c_flag_set(struct i2c_softc *sc, bus_size_t off, uint8_t mask)
 	i2c_write_reg(sc, off, status);
 }
 
-/* Wait for transfer interrupt flag */
+/* Wait for bus to become busy or not-busy. */
 static int
-wait_for_iif(struct i2c_softc *sc)
+wait_for_busbusy(struct i2c_softc *sc, int wantbusy)
 {
-	int retry;
+	int retry, srb;
 
 	retry = 1000;
 	while (retry --) {
-		if (i2c_read_reg(sc, I2C_STATUS_REG) & I2CSR_MIF)
+		srb = i2c_read_reg(sc, I2C_STATUS_REG) & I2CSR_MBB;
+		if ((srb && wantbusy) || (!srb && !wantbusy))
 			return (IIC_NOERR);
-		DELAY(10);
+		DELAY(1);
 	}
-
 	return (IIC_ETIMEOUT);
 }
 
-/* Wait for free bus */
+/* Wait for transfer to complete, optionally check RXAK. */
 static int
-wait_for_nibb(struct i2c_softc *sc)
+wait_for_xfer(struct i2c_softc *sc, int checkack)
 {
-	int retry;
+	int retry, sr;
 
-	retry = 1000;
+	/*
+	 * Sleep for about the time it takes to transfer a byte (with precision
+	 * set to tolerate 5% oversleep).  We calculate the approximate byte
+	 * transfer time when we set the bus speed divisor.  Slaves are allowed
+	 * to do clock-stretching so the actual transfer time can be larger, but
+	 * this gets the bulk of the waiting out of the way without tying up the
+	 * processor the whole time.
+	 */
+	pause_sbt("imxi2c", sc->byte_time_sbt, sc->byte_time_sbt / 20, 0);
+
+	retry = 10000;
 	while (retry --) {
-		if ((i2c_read_reg(sc, I2C_STATUS_REG) & I2CSR_MBB) == 0)
-			return (IIC_NOERR);
-		DELAY(10);
+		sr = i2c_read_reg(sc, I2C_STATUS_REG);
+		if (sr & I2CSR_MIF) {
+                        if (sr & I2CSR_MAL) 
+				return (IIC_EBUSERR);
+			else if (checkack && (sr & I2CSR_RXAK))
+				return (IIC_ENOACK);
+			else
+				return (IIC_NOERR);
+		}
+		DELAY(1);
 	}
-
 	return (IIC_ETIMEOUT);
 }
 
-/* Wait for transfer complete+interrupt flag */
+/*
+ * Implement the error handling shown in the state diagram of the imx6 reference
+ * manual.  If there was an error, then:
+ *  - Clear master mode (MSTA and MTX).
+ *  - Wait for the bus to become free or for a timeout to happen.
+ *  - Disable the controller.
+ */
 static int
-wait_for_icf(struct i2c_softc *sc)
+i2c_error_handler(struct i2c_softc *sc, int error)
 {
-	int retry;
 
-	retry = 1000;
-	while (retry --) {
-
-		if ((i2c_read_reg(sc, I2C_STATUS_REG) &
-		    (I2CSR_MCF|I2CSR_MIF)) == (I2CSR_MCF|I2CSR_MIF))
-			return (IIC_NOERR);
-		DELAY(10);
+	if (error != 0) {
+		i2c_write_reg(sc, I2C_STATUS_REG, 0);
+		i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN);
+		wait_for_busbusy(sc, false);
+		i2c_write_reg(sc, I2C_CONTROL_REG, 0);
 	}
-
-	return (IIC_ETIMEOUT);
+	return (error);
 }
 
 static int
 i2c_probe(device_t dev)
 {
-	struct i2c_softc *sc;
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
@@ -265,23 +284,7 @@ i2c_probe(device_t dev)
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	sc = device_get_softc(dev);
-	sc->rid = 0;
-
-	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
-	    RF_ACTIVE);
-	if (sc->res == NULL) {
-		device_printf(dev, "could not allocate resources\n");
-		return (ENXIO);
-	}
-
-	sc->bst = rman_get_bustag(sc->res);
-	sc->bsh = rman_get_bushandle(sc->res);
-
-	/* Enable I2C */
-	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN);
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->rid, sc->res);
-	device_set_desc(dev, "Freescale i.MX I2C bus controller");
+	device_set_desc(dev, "Freescale i.MX I2C");
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -295,28 +298,21 @@ i2c_attach(device_t dev)
 	sc->dev = dev;
 	sc->rid = 0;
 
-	mtx_init(&sc->mutex, device_get_nameunit(dev), "I2C", MTX_DEF);
-
 	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
 	    RF_ACTIVE);
 	if (sc->res == NULL) {
 		device_printf(dev, "could not allocate resources");
-		mtx_destroy(&sc->mutex);
 		return (ENXIO);
 	}
-
-	sc->bst = rman_get_bustag(sc->res);
-	sc->bsh = rman_get_bushandle(sc->res);
 
 	sc->iicbus = device_add_child(dev, "iicbus", -1);
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "could not add iicbus child");
-		mtx_destroy(&sc->mutex);
 		return (ENXIO);
 	}
 
 	bus_generic_attach(dev);
-	return (IIC_NOERR);
+	return (0);
 }
 
 static int
@@ -327,34 +323,20 @@ i2c_repeated_start(device_t dev, u_char slave, int timeout)
 
 	sc = device_get_softc(dev);
 
-	mtx_lock(&sc->mutex);
-
-	i2c_write_reg(sc, I2C_ADDR_REG, slave);
 	if ((i2c_read_reg(sc, I2C_STATUS_REG) & I2CSR_MBB) == 0) {
-		mtx_unlock(&sc->mutex);
-		return (IIC_EBUSBSY);
+		return (IIC_EBUSERR);
 	}
 
-	/* Set repeated start condition */
-	DELAY(10);
+	/*
+	 * Set repeated start condition, delay (per reference manual, min 156nS)
+	 * before writing slave address, wait for ack after write.
+	 */
 	i2c_flag_set(sc, I2C_CONTROL_REG, I2CCR_RSTA);
-	DELAY(10);
-	/* Clear status */
+	DELAY(1);
 	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
-	/* Write target address - LSB is R/W bit */
 	i2c_write_reg(sc, I2C_DATA_REG, slave);
-
-	error = wait_for_iif(sc);
-
-	/* Clear status */
-	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
-
-	mtx_unlock(&sc->mutex);
-
-	if (error)
-		return (error);
-
-	return (IIC_NOERR);
+	error = wait_for_xfer(sc, true);
+	return (i2c_error_handler(sc, error));
 }
 
 static int
@@ -365,33 +347,19 @@ i2c_start(device_t dev, u_char slave, int timeout)
 
 	sc = device_get_softc(dev);
 
-	mtx_lock(&sc->mutex);
-	i2c_write_reg(sc, I2C_ADDR_REG, slave);
+	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN);
+	DELAY(10); /* Delay for controller to sample bus state. */
 	if (i2c_read_reg(sc, I2C_STATUS_REG) & I2CSR_MBB) {
-		mtx_unlock(&sc->mutex);
-		return (IIC_EBUSBSY);
+		return (i2c_error_handler(sc, IIC_EBUSERR));
 	}
-
-	/* Set start condition */
-	i2c_write_reg(sc, I2C_CONTROL_REG,
-	    I2CCR_MEN | I2CCR_MSTA | I2CCR_TXAK);
-	DELAY(100);
-	i2c_write_reg(sc, I2C_CONTROL_REG,
-	    I2CCR_MEN | I2CCR_MSTA | I2CCR_MTX | I2CCR_TXAK);
-	/* Clear status */
-	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
-	/* Write target address - LSB is R/W bit */
+	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_MSTA | I2CCR_MTX);
+	if ((error = wait_for_busbusy(sc, true)) != IIC_NOERR)
+		return (i2c_error_handler(sc, error));
+	i2c_write_reg(sc, I2C_STATUS_REG, 0);
 	i2c_write_reg(sc, I2C_DATA_REG, slave);
-
-	error = wait_for_iif(sc);
-
-	mtx_unlock(&sc->mutex);
-	if (error)
-		return (error);
-
-	return (IIC_NOERR);
+	error = wait_for_xfer(sc, true);
+	return (i2c_error_handler(sc, error));
 }
-
 
 static int
 i2c_stop(device_t dev)
@@ -399,19 +367,10 @@ i2c_stop(device_t dev)
 	struct i2c_softc *sc;
 
 	sc = device_get_softc(dev);
-	mtx_lock(&sc->mutex);
-	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_TXAK);
-	DELAY(100);
-	/* Reset controller if bus still busy after STOP */
-	if (wait_for_nibb(sc) == IIC_ETIMEOUT) {
-		i2c_write_reg(sc, I2C_CONTROL_REG, 0);
-		DELAY(1000);
-		i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_TXAK);
 
-		i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
-	}
-	mtx_unlock(&sc->mutex);
-
+	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN);
+	wait_for_busbusy(sc, false);
+	i2c_write_reg(sc, I2C_CONTROL_REG, 0);
 	return (IIC_NOERR);
 }
 
@@ -434,19 +393,23 @@ i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldadr)
 		if (clkdiv_table[i].divisor >= div)
 			break;
 	}
-	div = clkdiv_table[i].regcode;
 
-	mtx_lock(&sc->mutex);
+	/*
+	 * Calculate roughly how long it will take to transfer a byte (which
+	 * requires 9 clock cycles) at the new bus speed.  This value is used to
+	 * pause() while waiting for transfer-complete.  With a 66MHz IPG clock
+	 * and the actual i2c bus speeds that leads to, for nominal 100KHz and
+	 * 400KHz bus speeds the transfer times are roughly 104uS and 22uS.
+	 */
+	busfreq = ipgfreq / clkdiv_table[i].divisor;
+	sc->byte_time_sbt = SBT_1US * (9000000 / busfreq);
+
+	/*
+	 * Disable the controller (do the reset), and set the new clock divisor.
+	 */
+	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 	i2c_write_reg(sc, I2C_CONTROL_REG, 0x0);
-	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
-	DELAY(1000);
-
-	i2c_write_reg(sc, I2C_FDR_REG, (uint8_t)div);
-	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN);
-	DELAY(1000);
-	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
-	mtx_unlock(&sc->mutex);
-
+	i2c_write_reg(sc, I2C_FDR_REG, (uint8_t)clkdiv_table[i].regcode);
 	return (IIC_NOERR);
 }
 
@@ -459,48 +422,42 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 	sc = device_get_softc(dev);
 	*read = 0;
 
-	mtx_lock(&sc->mutex);
-
 	if (len) {
 		if (len == 1)
 			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
 			    I2CCR_MSTA | I2CCR_TXAK);
-
 		else
 			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
 			    I2CCR_MSTA);
-
-		/* dummy read */
+                /* Dummy read to prime the receiver. */
+		i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 		i2c_read_reg(sc, I2C_DATA_REG);
-		DELAY(1000);
 	}
 
+	error = 0;
+	*read = 0;
 	while (*read < len) {
-		error = wait_for_icf(sc);
-		if (error) {
-			mtx_unlock(&sc->mutex);
-			return (error);
-		}
+		if ((error = wait_for_xfer(sc, false)) != IIC_NOERR)
+			break;
 		i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
-		if ((*read == len - 2) && last) {
-			/* NO ACK on last byte */
-			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
-			    I2CCR_MSTA | I2CCR_TXAK);
+		if (last) {
+			if (*read == len - 2) {
+				/* NO ACK on last byte */
+				i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
+				    I2CCR_MSTA | I2CCR_TXAK);
+			} else if (*read == len - 1) {
+				/* Transfer done, signal stop. */
+				i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
+				    I2CCR_TXAK);
+				wait_for_busbusy(sc, false);
+			}
 		}
-
-		if ((*read == len - 1) && last) {
-			/* Transfer done, remove master bit */
-			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
-			    I2CCR_TXAK);
-		}
-
 		reg = i2c_read_reg(sc, I2C_DATA_REG);
 		*buf++ = reg;
 		(*read)++;
 	}
-	mtx_unlock(&sc->mutex);
 
-	return (IIC_NOERR);
+	return (i2c_error_handler(sc, error));
 }
 
 static int
@@ -510,22 +467,16 @@ i2c_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 	int error;
 
 	sc = device_get_softc(dev);
-	*sent = 0;
 
-	mtx_lock(&sc->mutex);
+	error = 0;
+	*sent = 0;
 	while (*sent < len) {
 		i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 		i2c_write_reg(sc, I2C_DATA_REG, *buf++);
-
-		error = wait_for_iif(sc);
-		if (error) {
-			mtx_unlock(&sc->mutex);
-			return (error);
-		}
-
+		if ((error = wait_for_xfer(sc, true)) != IIC_NOERR)
+			break;
 		(*sent)++;
 	}
-	mtx_unlock(&sc->mutex);
 
-	return (IIC_NOERR);
+	return (i2c_error_handler(sc, error));
 }

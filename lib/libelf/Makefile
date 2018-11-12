@@ -1,4 +1,7 @@
 # $FreeBSD$
+
+SHLIBDIR?= /lib
+
 .include <bsd.own.mk>
 
 TOP=	${.CURDIR}/../../contrib/elftoolchain
@@ -65,7 +68,7 @@ SRCS=	elf.c							\
 
 INCS=		libelf.h gelf.h
 
-#
+# This same hack is in lib/libdwarf/Makefile and usr.bin/readelf/Makefile
 # We need to link against the correct version of these files. One
 # solution is to include ../../sys in the include path. This causes
 # problems when a header file in sys depends on a file in another
@@ -78,9 +81,9 @@ CLEANFILES=	${GENSRCS}
 CLEANDIRS=	sys
 CFLAGS+=	-I. -I${SRCDIR} -I${TOP}/common
 
-sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET}
+sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET} .NOMETA
 	mkdir -p ${.OBJDIR}/sys
-	ln -sf ${.CURDIR}/../../sys/${.TARGET} ${.TARGET}
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 SHLIB_MAJOR=	2
 

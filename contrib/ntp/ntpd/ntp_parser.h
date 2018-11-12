@@ -217,26 +217,29 @@ extern int yydebug;
      T_Ttl = 426,
      T_Type = 427,
      T_U_int = 428,
-     T_Unconfig = 429,
-     T_Unpeer = 430,
-     T_Version = 431,
-     T_WanderThreshold = 432,
-     T_Week = 433,
-     T_Wildcard = 434,
-     T_Xleave = 435,
-     T_Year = 436,
-     T_Flag = 437,
-     T_EOC = 438,
-     T_Simulate = 439,
-     T_Beep_Delay = 440,
-     T_Sim_Duration = 441,
-     T_Server_Offset = 442,
-     T_Duration = 443,
-     T_Freq_Offset = 444,
-     T_Wander = 445,
-     T_Jitter = 446,
-     T_Prop_Delay = 447,
-     T_Proc_Delay = 448
+     T_UEcrypto = 429,
+     T_UEcryptonak = 430,
+     T_UEdigest = 431,
+     T_Unconfig = 432,
+     T_Unpeer = 433,
+     T_Version = 434,
+     T_WanderThreshold = 435,
+     T_Week = 436,
+     T_Wildcard = 437,
+     T_Xleave = 438,
+     T_Year = 439,
+     T_Flag = 440,
+     T_EOC = 441,
+     T_Simulate = 442,
+     T_Beep_Delay = 443,
+     T_Sim_Duration = 444,
+     T_Server_Offset = 445,
+     T_Duration = 446,
+     T_Freq_Offset = 447,
+     T_Wander = 448,
+     T_Jitter = 449,
+     T_Prop_Delay = 450,
+     T_Proc_Delay = 451
    };
 #endif
 /* Tokens.  */
@@ -411,26 +414,29 @@ extern int yydebug;
 #define T_Ttl 426
 #define T_Type 427
 #define T_U_int 428
-#define T_Unconfig 429
-#define T_Unpeer 430
-#define T_Version 431
-#define T_WanderThreshold 432
-#define T_Week 433
-#define T_Wildcard 434
-#define T_Xleave 435
-#define T_Year 436
-#define T_Flag 437
-#define T_EOC 438
-#define T_Simulate 439
-#define T_Beep_Delay 440
-#define T_Sim_Duration 441
-#define T_Server_Offset 442
-#define T_Duration 443
-#define T_Freq_Offset 444
-#define T_Wander 445
-#define T_Jitter 446
-#define T_Prop_Delay 447
-#define T_Proc_Delay 448
+#define T_UEcrypto 429
+#define T_UEcryptonak 430
+#define T_UEdigest 431
+#define T_Unconfig 432
+#define T_Unpeer 433
+#define T_Version 434
+#define T_WanderThreshold 435
+#define T_Week 436
+#define T_Wildcard 437
+#define T_Xleave 438
+#define T_Year 439
+#define T_Flag 440
+#define T_EOC 441
+#define T_Simulate 442
+#define T_Beep_Delay 443
+#define T_Sim_Duration 444
+#define T_Server_Offset 445
+#define T_Duration 446
+#define T_Freq_Offset 447
+#define T_Wander 448
+#define T_Jitter 449
+#define T_Prop_Delay 450
+#define T_Proc_Delay 451
 
 
 
@@ -459,7 +465,7 @@ typedef union YYSTYPE
 
 
 /* Line 2053 of yacc.c  */
-#line 463 "ntp_parser.h"
+#line 469 "ntp_parser.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

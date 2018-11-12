@@ -1,5 +1,41 @@
 ChangeLog for hostapd
 
+2015-09-27 - v2.5
+	* fixed WPS UPnP vulnerability with HTTP chunked transfer encoding
+	  [http://w1.fi/security/2015-2/] (CVE-2015-4141)
+	* fixed WMM Action frame parser
+	  [http://w1.fi/security/2015-3/] (CVE-2015-4142)
+	* fixed EAP-pwd server missing payload length validation
+	  [http://w1.fi/security/2015-4/]
+	  (CVE-2015-4143, CVE-2015-4144, CVE-2015-4145)
+	* fixed validation of WPS and P2P NFC NDEF record payload length
+	  [http://w1.fi/security/2015-5/]
+	* nl80211:
+	  - fixed vendor command handling to check OUI properly
+	* fixed hlr_auc_gw build with OpenSSL
+	* hlr_auc_gw: allow Milenage RES length to be reduced
+	* disable HT for a station that does not support WMM/QoS
+	* added support for hashed password (NtHash) in EAP-pwd server
+	* fixed and extended dynamic VLAN cases
+	* added EAP-EKE server support for deriving Session-Id
+	* set Acct-Session-Id to a random value to make it more likely to be
+	  unique even if the device does not have a proper clock
+	* added more 2.4 GHz channels for 20/40 MHz HT co-ex scan
+	* modified SAE routines to be more robust and PWE generation to be
+	  stronger against timing attacks
+	* added support for Brainpool Elliptic Curves with SAE
+	* increases maximum value accepted for cwmin/cwmax
+	* added support for CCMP-256 and GCMP-256 as group ciphers with FT
+	* added Fast Session Transfer (FST) module
+	* removed optional fields from RSNE when using FT with PMF
+	  (workaround for interoperability issues with iOS 8.4)
+	* added EAP server support for TLS session resumption
+	* fixed key derivation for Suite B 192-bit AKM (this breaks
+	  compatibility with the earlier version)
+	* added mechanism to track unconnected stations and do minimal band
+	  steering
+	* number of small fixes
+
 2015-03-15 - v2.4
 	* allow OpenSSL cipher configuration to be set for internal EAP server
 	  (openssl_ciphers parameter)

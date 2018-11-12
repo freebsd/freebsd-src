@@ -145,15 +145,19 @@ enum ucl_character_type {
 
 struct ucl_macro {
 	char *name;
-	ucl_macro_handler handler;
+	union {
+		ucl_macro_handler handler;
+		ucl_context_macro_handler context_handler;
+	} h;
 	void* ud;
+	bool is_context;
 	UT_hash_handle hh;
 };
 
 struct ucl_stack {
 	ucl_object_t *obj;
 	struct ucl_stack *next;
-	int level;
+	uint64_t level;
 };
 
 struct ucl_chunk {
@@ -164,6 +168,8 @@ struct ucl_chunk {
 	unsigned int line;
 	unsigned int column;
 	unsigned priority;
+	enum ucl_duplicate_strategy strategy;
+	enum ucl_parse_type parse_type;
 	struct ucl_chunk *next;
 };
 
@@ -191,8 +197,12 @@ struct ucl_parser {
 	enum ucl_parser_state prev_state;
 	unsigned int recursion;
 	int flags;
+	unsigned default_priority;
+	int err_code;
 	ucl_object_t *top_obj;
 	ucl_object_t *cur_obj;
+	ucl_object_t *trash_objs;
+	ucl_object_t *includepaths;
 	char *cur_file;
 	struct ucl_macro *macroes;
 	struct ucl_stack *stack;
@@ -220,13 +230,21 @@ size_t ucl_unescape_json_string (char *str, size_t len);
  * Handle include macro
  * @param data include data
  * @param len length of data
+ * @param args UCL object representing arguments to the macro
  * @param ud user data
- * @param err error ptr
  * @return
  */
 bool ucl_include_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud);
 
+/**
+ * Handle tryinclude macro
+ * @param data include data
+ * @param len length of data
+ * @param args UCL object representing arguments to the macro
+ * @param ud user data
+ * @return
+ */
 bool ucl_try_include_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud);
 
@@ -234,17 +252,52 @@ bool ucl_try_include_handler (const unsigned char *data, size_t len,
  * Handle includes macro
  * @param data include data
  * @param len length of data
+ * @param args UCL object representing arguments to the macro
  * @param ud user data
- * @param err error ptr
  * @return
  */
 bool ucl_includes_handler (const unsigned char *data, size_t len,
 		const ucl_object_t *args, void* ud);
 
+/**
+ * Handle priority macro
+ * @param data include data
+ * @param len length of data
+ * @param args UCL object representing arguments to the macro
+ * @param ud user data
+ * @return
+ */
+bool ucl_priority_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud);
+
+/**
+ * Handle load macro
+ * @param data include data
+ * @param len length of data
+ * @param args UCL object representing arguments to the macro
+ * @param ud user data
+ * @return
+ */
+bool ucl_load_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud);
+/**
+ * Handle inherit macro
+ * @param data include data
+ * @param len length of data
+ * @param args UCL object representing arguments to the macro
+ * @param ctx the current context object
+ * @param ud user data
+ * @return
+ */
+bool ucl_inherit_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, const ucl_object_t *ctx, void* ud);
+
 size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_unsafe (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_tolower (char *dst, const char *src, size_t siz);
 
+char *ucl_strnstr (const char *s, const char *find, int len);
+char *ucl_strncasestr (const char *s, const char *find, int len);
 
 #ifdef __GNUC__
 static inline void
@@ -252,9 +305,10 @@ ucl_create_err (UT_string **err, const char *fmt, ...)
 __attribute__ (( format( printf, 2, 3) ));
 #endif
 
+#undef UCL_FATAL_ERRORS
+
 static inline void
 ucl_create_err (UT_string **err, const char *fmt, ...)
-
 {
 	if (*err == NULL) {
 		utstring_new (*err);
@@ -263,6 +317,10 @@ ucl_create_err (UT_string **err, const char *fmt, ...)
 		utstring_printf_va (*err, fmt, ap);
 		va_end (ap);
 	}
+
+#ifdef UCL_FATAL_ERRORS
+	assert (0);
+#endif
 }
 
 /**
@@ -311,7 +369,7 @@ ucl_maybe_parse_boolean (ucl_object_t *obj, const unsigned char *start, size_t l
 		}
 	}
 
-	if (ret) {
+	if (ret && obj != NULL) {
 		obj->type = UCL_BOOLEAN;
 		obj->value.iv = val;
 	}
@@ -395,5 +453,90 @@ unsigned char * ucl_object_emit_single_json (const ucl_object_t *obj);
  * @return
  */
 bool ucl_maybe_long_string (const ucl_object_t *obj);
+
+/**
+ * Print integer to the msgpack output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_int_msgpack (struct ucl_emitter_context *ctx,
+		int64_t val);
+/**
+ * Print integer to the msgpack output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_double_msgpack (struct ucl_emitter_context *ctx,
+		double val);
+/**
+ * Print double to the msgpack output
+ * @param ctx
+ * @param val
+ */
+void ucl_emitter_print_bool_msgpack (struct ucl_emitter_context *ctx,
+		bool val);
+/**
+ * Print string to the msgpack output
+ * @param ctx
+ * @param s
+ * @param len
+ */
+void ucl_emitter_print_string_msgpack (struct ucl_emitter_context *ctx,
+		const char *s, size_t len);
+
+/**
+ * Print binary string to the msgpack output
+ * @param ctx
+ * @param s
+ * @param len
+ */
+void ucl_emitter_print_binary_string_msgpack (struct ucl_emitter_context *ctx,
+		const char *s, size_t len);
+
+/**
+ * Print array preamble for msgpack
+ * @param ctx
+ * @param len
+ */
+void ucl_emitter_print_array_msgpack (struct ucl_emitter_context *ctx,
+		size_t len);
+
+/**
+ * Print object preamble for msgpack
+ * @param ctx
+ * @param len
+ */
+void ucl_emitter_print_object_msgpack (struct ucl_emitter_context *ctx,
+		size_t len);
+/**
+ * Print NULL to the msgpack output
+ * @param ctx
+ */
+void ucl_emitter_print_null_msgpack (struct ucl_emitter_context *ctx);
+/**
+ * Print object's key if needed to the msgpack output
+ * @param print_key
+ * @param ctx
+ * @param obj
+ */
+void ucl_emitter_print_key_msgpack (bool print_key,
+		struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj);
+
+/**
+ * Add new element to an object using the current merge strategy and priority
+ * @param parser
+ * @param nobj
+ * @return
+ */
+bool ucl_parser_process_object_element (struct ucl_parser *parser,
+		ucl_object_t *nobj);
+
+/**
+ * Parse msgpack chunk
+ * @param parser
+ * @return
+ */
+bool ucl_parse_msgpack (struct ucl_parser *parser);
 
 #endif /* UCL_INTERNAL_H_ */

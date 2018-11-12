@@ -1274,8 +1274,8 @@ export_file(const char *from_path_or_url,
    * with information. */
   for (hi = apr_hash_first(scratch_pool, props); hi; hi = apr_hash_next(hi))
     {
-      const char *propname = svn__apr_hash_index_key(hi);
-      const svn_string_t *propval = svn__apr_hash_index_val(hi);
+      const char *propname = apr_hash_this_key(hi);
+      const svn_string_t *propval = apr_hash_this_val(hi);
 
       SVN_ERR(change_file_prop(fb, propname, propval, scratch_pool));
     }
@@ -1542,7 +1542,7 @@ svn_client_export5(svn_revnum_t *result_rev,
                hi;
                hi = apr_hash_next(hi))
             {
-              const char *external_abspath = svn__apr_hash_index_key(hi);
+              const char *external_abspath = apr_hash_this_key(hi);
               const char *relpath;
               const char *target_abspath;
 
@@ -1581,7 +1581,7 @@ svn_client_export5(svn_revnum_t *result_rev,
         = svn_wc_create_notify(to_path,
                                svn_wc_notify_update_completed, pool);
       notify->revision = edit_revision;
-      (*ctx->notify_func2)(ctx->notify_baton2, notify, pool);
+      ctx->notify_func2(ctx->notify_baton2, notify, pool);
     }
 
   if (result_rev)

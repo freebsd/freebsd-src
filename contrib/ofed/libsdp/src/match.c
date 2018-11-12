@@ -38,6 +38,13 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/types.h>
+#ifdef __linux__
+#include <linux/types.h>
+#elif defined(__FreeBSD__)
+#define s6_addr32 __u6_addr.__u6_addr32
+#define __be32 uint32_t
+#endif
 
 /*
  * SDP specific includes
@@ -62,11 +69,14 @@ get_rule_str(
 
 	/* TODO: handle IPv6 in rule */
 	if ( rule->match_by_addr ) {
-		if ( rule->prefixlen != 32 )
-			sprintf( addr_buf, "%s/%d", inet_ntoa( rule->ipv4 ),
-						rule->prefixlen );
-		else
-			sprintf( addr_buf, "%s", inet_ntoa( rule->ipv4 ) );
+		char tmp[INET6_ADDRSTRLEN] = "BAD ADDRESS";
+
+		if (rule->ip.ss_family == AF_INET)
+			inet_ntop(AF_INET, &((struct sockaddr_in *)&rule->ip)->sin_addr, tmp, sizeof(tmp));
+		else if (rule->ip.ss_family == AF_INET6)
+			inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&rule->ip)->sin6_addr, tmp, sizeof(tmp));
+
+		sprintf( addr_buf, "%s/%d", tmp, rule->prefixlen);
 	} else {
 		strcpy( addr_buf, "*" );
 	}
@@ -82,15 +92,57 @@ get_rule_str(
 	snprintf( buf, len, "use %s %s %s:%s", target, prog, addr_buf, ports_buf );
 }
 
+static inline int __ipv6_prefix_equal(const __be32 *a1, const __be32 *a2,
+				      unsigned int prefixlen)
+{
+	unsigned pdw, pbi;
+
+	/* check complete u32 in prefix */
+	pdw = prefixlen >> 5;
+	if (pdw && memcmp(a1, a2, pdw << 2))
+		return 0;
+
+	/* check incomplete u32 in prefix */
+	pbi = prefixlen & 0x1f;
+	if (pbi && ((a1[pdw] ^ a2[pdw]) & htonl((0xffffffff) << (32 - pbi))))
+		return 0;
+
+	return 1;
+}
+
+static inline int ipv6_prefix_equal(const struct in6_addr *a1,
+				    const struct in6_addr *a2,
+				    unsigned int prefixlen)
+{
+	return __ipv6_prefix_equal(a1->s6_addr32, a2->s6_addr32,
+				   prefixlen);
+}
+
 /* return 0 if the addresses match */
 static inline int
-match_ipv4_addr(
+match_addr(
 	struct use_family_rule *rule,
-	const struct sockaddr_in *sin )
+	const struct sockaddr *addr_in )
 {
-	return ( rule->ipv4.s_addr !=
-				( sin->sin_addr.
-				  s_addr & htonl( SDP_NETMASK( rule->prefixlen ) ) ) );
+	const struct sockaddr_in *sin = ( const struct sockaddr_in * )addr_in;
+	const struct sockaddr_in6 *sin6 = ( const struct sockaddr_in6 * )addr_in;
+	const struct sockaddr_in *rule_sin = ( const struct sockaddr_in * )(&rule->ip);
+	const struct sockaddr_in6 *rule_sin6 = ( const struct sockaddr_in6 * )(&rule->ip);
+
+	if (rule_sin->sin_family == AF_INET && !rule_sin->sin_addr.s_addr)
+		return 0;
+
+	if (addr_in->sa_family != rule->ip.ss_family)
+		return -1;
+
+	if (addr_in->sa_family == AF_INET) {
+		return ( rule_sin->sin_addr.s_addr !=
+				( sin->sin_addr.s_addr &
+				 htonl( SDP_NETMASK( rule->prefixlen ) ) ) );
+	}
+
+	/* IPv6 */
+	return !ipv6_prefix_equal(&sin6->sin6_addr, &rule_sin6->sin6_addr, rule->prefixlen);
 }
 
 static int
@@ -101,7 +153,6 @@ match_ip_addr_and_port(
 {
 	const struct sockaddr_in *sin = ( const struct sockaddr_in * )addr_in;
 	const struct sockaddr_in6 *sin6 = ( const struct sockaddr_in6 * )addr_in;
-	struct sockaddr_in tmp_sin;
 	unsigned short port;
 	int match = 1;
 	char addr_buf[MAX_ADDR_STR_LEN];
@@ -110,14 +161,12 @@ match_ip_addr_and_port(
 
 	if ( __sdp_log_get_level(  ) <= 3 ) {
 		if ( sin6->sin6_family == AF_INET6 ) {
-			addr_str =
-				inet_ntop( AF_INET6, ( void * )&( sin6->sin6_addr ), addr_buf,
-							  MAX_ADDR_STR_LEN );
+			addr_str = inet_ntop( AF_INET6, ( void * )&( sin6->sin6_addr ),
+					addr_buf, MAX_ADDR_STR_LEN );
 			port = ntohs( sin6->sin6_port );
 		} else {
-			addr_str =
-				inet_ntop( AF_INET, ( void * )&( sin->sin_addr ), addr_buf,
-							  MAX_ADDR_STR_LEN );
+			addr_str = inet_ntop( AF_INET, ( void * )&( sin->sin_addr ),
+					addr_buf, MAX_ADDR_STR_LEN );
 			port = ntohs( sin->sin_port );
 		}
 		if ( addr_str == NULL )
@@ -129,12 +178,8 @@ match_ip_addr_and_port(
 					  rule_str );
 	}
 
-	/* We currently only support IPv4 and IPv4 embedded in IPv6 */
 	if ( rule->match_by_port ) {
-		if ( sin6->sin6_family == AF_INET6 )
-			port = ntohs( sin6->sin6_port );
-		else
-			port = ntohs( sin->sin_port );
+		port = ntohs( sin->sin_port );
 
 		if ( ( port < rule->sport ) || ( port > rule->eport ) ) {
 			__sdp_log( 3, "NEGATIVE by port range\n" );
@@ -143,8 +188,7 @@ match_ip_addr_and_port(
 	}
 
 	if ( match && rule->match_by_addr ) {
-		if ( __sdp_sockaddr_to_sdp( addr_in, addrlen, &tmp_sin, NULL ) ||
-			  match_ipv4_addr( rule, &tmp_sin ) ) {
+		if ( match_addr( rule, addr_in ) ) {
 			__sdp_log( 3, "NEGATIVE by address\n" );
 			match = 0;
 		}

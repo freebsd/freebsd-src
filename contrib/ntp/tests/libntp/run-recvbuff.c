@@ -22,6 +22,8 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "recvbuff.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
@@ -32,24 +34,24 @@ extern void test_GetAndFill(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "recvbuff.c";
   UnityBegin("recvbuff.c");
-  RUN_TEST(test_Initialization, 15);
-  RUN_TEST(test_GetAndFree, 23);
-  RUN_TEST(test_GetAndFill, 34);
+  RUN_TEST(test_Initialization, 8);
+  RUN_TEST(test_GetAndFree, 9);
+  RUN_TEST(test_GetAndFill, 10);
 
   return (UnityEnd());
 }

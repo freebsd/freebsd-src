@@ -46,11 +46,17 @@ DBusMessage *wpas_dbus_handler_p2p_connect(
 		DBusMessage *message,
 		struct wpa_supplicant *wpa_s);
 
+DBusMessage * wpas_dbus_handler_p2p_cancel(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s);
+
 DBusMessage *wpas_dbus_handler_p2p_invite(
 		DBusMessage *message,
 		struct wpa_supplicant *wpa_s);
 
 DBusMessage *wpas_dbus_handler_p2p_disconnect(
+	DBusMessage *message, struct wpa_supplicant *wpa_s);
+
+DBusMessage * wpas_dbus_handler_p2p_remove_client(
 	DBusMessage *message, struct wpa_supplicant *wpa_s);
 
 DBusMessage *wpas_dbus_handler_p2p_flush(
@@ -111,6 +117,22 @@ dbus_bool_t wpas_dbus_getter_p2p_peergo(DBusMessageIter *iter,
 dbus_bool_t wpas_dbus_getter_p2p_peer_device_name(DBusMessageIter *iter,
 						  DBusError *error,
 						  void *user_data);
+
+dbus_bool_t wpas_dbus_getter_p2p_peer_manufacturer(DBusMessageIter *iter,
+						   DBusError *error,
+						   void *user_data);
+
+dbus_bool_t wpas_dbus_getter_p2p_peer_modelname(DBusMessageIter *iter,
+						DBusError *error,
+						void *user_data);
+
+dbus_bool_t wpas_dbus_getter_p2p_peer_modelnumber(DBusMessageIter *iter,
+						  DBusError *error,
+						  void *user_data);
+
+dbus_bool_t wpas_dbus_getter_p2p_peer_serialnumber(DBusMessageIter *iter,
+						   DBusError *error,
+						   void *user_data);
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_primary_device_type(
 	DBusMessageIter *iter, DBusError *error, void *user_data);

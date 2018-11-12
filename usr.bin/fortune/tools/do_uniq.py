@@ -3,7 +3,7 @@
 # $FreeBSD$
 #
 # an aggressive little script for trimming duplicate cookies
-
+from __future__ import print_function
 import argparse
 import re
 

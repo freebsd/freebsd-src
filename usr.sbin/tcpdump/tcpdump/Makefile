@@ -177,8 +177,9 @@ CFLAGS+=	-DLBL_ALIGN
 
 LIBADD=	l pcap
 .if ${MK_CASPER} != "no"
-LIBADD+=	capsicum
-CFLAGS+=-DHAVE_CAPSICUM
+LIBADD+=	casper
+LIBADD+=	cap_dns
+CFLAGS+=-DHAVE_CASPER
 .endif
 .if ${MK_OPENSSL} != "no"
 LIBADD+=	crypto

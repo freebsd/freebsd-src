@@ -18,7 +18,8 @@ SRCS=	DelaySlotFiller.cpp \
 	SparcTargetMachine.cpp \
 	SparcTargetObjectFile.cpp
 
-TGHDRS=	Intrinsics \
+TGHDRS=	Attributes \
+	Intrinsics \
 	SparcGenAsmWriter \
 	SparcGenCallingConv \
 	SparcGenCodeEmitter \

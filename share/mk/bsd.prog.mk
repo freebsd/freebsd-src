@@ -56,13 +56,15 @@ PROG_FULL=${PROG}.full
 # Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
 .if defined(BINDIR) && (\
     ${BINDIR} == "/bin" ||\
-    ${BINDIR} == "/libexec" ||\
+    ${BINDIR:C%/libexec(/.*)?%/libexec%} == "/libexec" ||\
     ${BINDIR} == "/sbin" ||\
-    ${BINDIR:C%/usr/(bin|bsdinstall|libexec|lpr|sendmail|sm.bin|sbin)(/.*)?%/usr/bin%} == "/usr/bin"\
+    ${BINDIR:C%/usr/(bin|bsdinstall|libexec|lpr|sendmail|sm.bin|sbin|tests)(/.*)?%/usr/bin%} == "/usr/bin"\
      )
 DEBUGFILEDIR=	${DEBUGDIR}${BINDIR}
 .else
 DEBUGFILEDIR?=	${BINDIR}/.debug
+.endif
+.if !exists(${DESTDIR}${DEBUGFILEDIR})
 DEBUGMKDIR=
 .endif
 .else
@@ -82,9 +84,11 @@ ${PROG_FULL}: beforelinking
 .endif
 ${PROG_FULL}: ${OBJS}
 .if defined(PROG_CXX)
-	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+	${CXX:N${CCACHE_BIN}} ${CXXFLAGS:N-M*} ${LDFLAGS} -o ${.TARGET} \
+	    ${OBJS} ${LDADD}
 .else
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+	${CC:N${CCACHE_BIN}} ${CFLAGS:N-M*} ${LDFLAGS} -o ${.TARGET} ${OBJS} \
+	    ${LDADD}
 .endif
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
@@ -112,9 +116,11 @@ ${PROG_FULL}: beforelinking
 .endif
 ${PROG_FULL}: ${OBJS}
 .if defined(PROG_CXX)
-	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+	${CXX:N${CCACHE_BIN}} ${CXXFLAGS:N-M*} ${LDFLAGS} -o ${.TARGET} \
+	    ${OBJS} ${LDADD}
 .else
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+	${CC:N${CCACHE_BIN}} ${CFLAGS:N-M*} ${LDFLAGS} -o ${.TARGET} ${OBJS} \
+	    ${LDADD}
 .endif
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
@@ -144,10 +150,9 @@ MAN1=	${MAN}
 .if defined(_SKIP_BUILD)
 all:
 .else
-all: beforebuild .WAIT ${PROG} ${SCRIPTS}
-beforebuild: objwarn
+all: ${PROG} ${SCRIPTS}
 .if ${MK_MAN} != "no"
-all: _manpages
+all: all-man
 .endif
 .endif
 
@@ -205,7 +210,7 @@ _proginstall:
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}/${PROGNAME}
 .if ${MK_DEBUG_FILES} != "no"
 .if defined(DEBUGMKDIR)
-	${INSTALL} -T debug -d ${DESTDIR}${DEBUGFILEDIR}
+	${INSTALL} -T debug -d ${DESTDIR}${DEBUGFILEDIR}/
 .endif
 	${INSTALL} -T debug -o ${BINOWN} -g ${BINGRP} -m ${DEBUGMODE} \
 	    ${PROGNAME}.debug ${DESTDIR}${DEBUGFILEDIR}/${PROGNAME}.debug
@@ -249,13 +254,14 @@ _SCRIPTSINS_${script:T}: ${script}
 NLSNAME?=	${PROG}
 .include <bsd.nls.mk>
 
+.include <bsd.confs.mk>
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no"
-realinstall: _maninstall
-.ORDER: beforeinstall _maninstall
+realinstall: maninstall
+.ORDER: beforeinstall maninstall
 .endif
 
 .endif	# !target(install)
@@ -271,12 +277,18 @@ lint: ${SRCS:M*.c}
 .include <bsd.man.mk>
 .endif
 
-.include <bsd.dep.mk>
-
-.if defined(PROG) && !exists(${.OBJDIR}/${DEPENDFILE})
-${OBJS}: ${SRCS:M*.h}
+.if defined(PROG)
+OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
 .endif
 
-.include <bsd.obj.mk>
+.include <bsd.dep.mk>
 
+.if defined(PROG)
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${OBJS}: ${OBJS_DEPEND_GUESS}
+.endif
+.endif
+
+.include <bsd.clang-analyze.mk>
+.include <bsd.obj.mk>
 .include <bsd.sys.mk>

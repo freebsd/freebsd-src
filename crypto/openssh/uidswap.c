@@ -1,4 +1,4 @@
-/* $OpenBSD: uidswap.c,v 1.36 2013/11/08 11:15:19 dtucker Exp $ */
+/* $OpenBSD: uidswap.c,v 1.39 2015/06/24 01:49:19 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -14,11 +14,11 @@
 
 #include "includes.h"
 
-#include <sys/param.h>
 #include <errno.h>
 #include <pwd.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
 
@@ -86,7 +86,7 @@ temporarily_use_uid(struct passwd *pw)
 	if (saved_egroupslen < 0)
 		fatal("getgroups: %.100s", strerror(errno));
 	if (saved_egroupslen > 0) {
-		saved_egroups = xrealloc(saved_egroups,
+		saved_egroups = xreallocarray(saved_egroups,
 		    saved_egroupslen, sizeof(gid_t));
 		if (getgroups(saved_egroupslen, saved_egroups) < 0)
 			fatal("getgroups: %.100s", strerror(errno));
@@ -104,7 +104,7 @@ temporarily_use_uid(struct passwd *pw)
 		if (user_groupslen < 0)
 			fatal("getgroups: %.100s", strerror(errno));
 		if (user_groupslen > 0) {
-			user_groups = xrealloc(user_groups,
+			user_groups = xreallocarray(user_groups,
 			    user_groupslen, sizeof(gid_t));
 			if (getgroups(user_groupslen, user_groups) < 0)
 				fatal("getgroups: %.100s", strerror(errno));

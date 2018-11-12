@@ -104,7 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_options.h>
 
 #include <crypto/sha1.h>
-#include <crypto/sha2/sha2.h>
+#include <crypto/sha2/sha256.h>
 
 #ifndef in6pcb
 #define in6pcb		inpcb

@@ -16,13 +16,17 @@
 #ifndef LLVM_TRANSFORMS_UTILS_LOOPVERSIONING_H
 #define LLVM_TRANSFORMS_UTILS_LOOPVERSIONING_H
 
+#include "llvm/Analysis/LoopAccessAnalysis.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm/Transforms/Utils/LoopUtils.h"
 
 namespace llvm {
 
 class Loop;
 class LoopAccessInfo;
 class LoopInfo;
+class ScalarEvolution;
 
 /// \brief This class emits a version of the loop where run-time checks ensure
 /// that may-alias pointers can't overlap.
@@ -31,13 +35,13 @@ class LoopInfo;
 /// already has a preheader.
 class LoopVersioning {
 public:
+  /// \brief Expects LoopAccessInfo, Loop, LoopInfo, DominatorTree as input.
+  /// It uses runtime check provided by the user. If \p UseLAIChecks is true,
+  /// we will retain the default checks made by LAI. Otherwise, construct an
+  /// object having no checks and we expect the user to add them.
   LoopVersioning(const LoopAccessInfo &LAI, Loop *L, LoopInfo *LI,
-                 DominatorTree *DT,
-                 const SmallVector<int, 8> *PtrToPartition = nullptr);
-
-  /// \brief Returns true if we need memchecks to disambiguate may-aliasing
-  /// accesses.
-  bool needsRuntimeChecks() const;
+                 DominatorTree *DT, ScalarEvolution *SE,
+                 bool UseLAIChecks = true);
 
   /// \brief Performs the CFG manipulation part of versioning the loop including
   /// the DominatorTree and LoopInfo updates.
@@ -52,15 +56,11 @@ public:
   ///        analyze L
   ///        if versioning is necessary version L
   ///        transform L
-  void versionLoop(Pass *P);
+  void versionLoop() { versionLoop(findDefsUsedOutsideOfLoop(VersionedLoop)); }
 
-  /// \brief Adds the necessary PHI nodes for the versioned loops based on the
-  /// loop-defined values used outside of the loop.
-  ///
-  /// This needs to be called after versionLoop if there are defs in the loop
-  /// that are used outside the loop.  FIXME: this should be invoked internally
-  /// by versionLoop and made private.
-  void addPHINodes(const SmallVectorImpl<Instruction *> &DefsUsedOutside);
+  /// \brief Same but if the client has already precomputed the set of values
+  /// used outside the loop, this API will allows passing that.
+  void versionLoop(const SmallVectorImpl<Instruction *> &DefsUsedOutside);
 
   /// \brief Returns the versioned loop.  Control flows here if pointers in the
   /// loop don't alias (i.e. all memchecks passed).  (This loop is actually the
@@ -71,7 +71,21 @@ public:
   /// loop may alias (i.e. one of the memchecks failed).
   Loop *getNonVersionedLoop() { return NonVersionedLoop; }
 
+  /// \brief Sets the runtime alias checks for versioning the loop.
+  void setAliasChecks(
+      const SmallVector<RuntimePointerChecking::PointerCheck, 4> Checks);
+
+  /// \brief Sets the runtime SCEV checks for versioning the loop.
+  void setSCEVChecks(SCEVUnionPredicate Check);
+
 private:
+  /// \brief Adds the necessary PHI nodes for the versioned loops based on the
+  /// loop-defined values used outside of the loop.
+  ///
+  /// This needs to be called after versionLoop if there are defs in the loop
+  /// that are used outside the loop.
+  void addPHINodes(const SmallVectorImpl<Instruction *> &DefsUsedOutside);
+
   /// \brief The original loop.  This becomes the "versioned" one.  I.e.,
   /// control flows here if pointers in the loop don't alias.
   Loop *VersionedLoop;
@@ -79,21 +93,21 @@ private:
   /// loop may alias (memchecks failed).
   Loop *NonVersionedLoop;
 
-  /// \brief For each memory pointer it contains the partitionId it is used in.
-  /// If nullptr, no partitioning is used.
-  ///
-  /// The I-th entry corresponds to I-th entry in LAI.getRuntimePointerCheck().
-  /// If the pointer is used in multiple partitions the entry is set to -1.
-  const SmallVector<int, 8> *PtrToPartition;
-
   /// \brief This maps the instructions from VersionedLoop to their counterpart
   /// in NonVersionedLoop.
   ValueToValueMapTy VMap;
+
+  /// \brief The set of alias checks that we are versioning for.
+  SmallVector<RuntimePointerChecking::PointerCheck, 4> AliasChecks;
+
+  /// \brief The set of SCEV checks that we are versioning for.
+  SCEVUnionPredicate Preds;
 
   /// \brief Analyses used.
   const LoopAccessInfo &LAI;
   LoopInfo *LI;
   DominatorTree *DT;
+  ScalarEvolution *SE;
 };
 }
 

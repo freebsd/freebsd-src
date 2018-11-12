@@ -291,7 +291,8 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 		from_page = vm_page_grab(obj, i, VM_ALLOC_NORMAL);
 		if (from_page->valid != VM_PAGE_BITS_ALL) {
 			if (vm_pager_has_page(obj, i, NULL, NULL)) {
-				rv = vm_pager_get_pages(obj, &from_page, 1, 0);
+				rv = vm_pager_get_pages(obj, &from_page, 1,
+				    NULL, NULL);
 				if (rv != VM_PAGER_OK) {
 					vm_page_lock(from_page);
 					vm_page_free(from_page);

@@ -1175,13 +1175,13 @@ again:
 			*zpp = zp;
 			err = 0;
 		}
-		sa_buf_rele(db, NULL);
 
 		/* Don't let the vnode disappear after ZFS_OBJ_HOLD_EXIT. */
 		if (err == 0)
 			VN_HOLD(vp);
 
 		mutex_exit(&zp->z_lock);
+		sa_buf_rele(db, NULL);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 
 		if (err == 0) {

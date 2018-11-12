@@ -156,6 +156,20 @@ struct pcicfg_vf {
        int index;
 };
 
+struct pci_ea_entry {
+    int		eae_bei;
+    uint32_t	eae_flags;
+    uint64_t	eae_base;
+    uint64_t	eae_max_offset;
+    uint32_t	eae_cfg_offset;
+    STAILQ_ENTRY(pci_ea_entry) eae_link;
+};
+
+struct pcicfg_ea {
+    int ea_location;	/* Structure offset in Configuration Header */
+    STAILQ_HEAD(, pci_ea_entry) ea_entries;	/* EA entries */
+};
+
 #define	PCICFG_VF	0x0001 /* Device is an SR-IOV Virtual Function */
 
 /* config header information common to all header types */
@@ -207,14 +221,10 @@ typedef struct pcicfg {
     struct pcicfg_pcix pcix;	/* PCI-X */
     struct pcicfg_iov *iov;	/* SR-IOV */
     struct pcicfg_vf vf;	/* SR-IOV Virtual Function */
+    struct pcicfg_ea ea;	/* Enhanced Allocation */
 } pcicfgregs;
 
 /* additional type 1 device config header information (PCI to PCI bridge) */
-
-#define	PCI_PPBMEMBASE(h,l)  ((((pci_addr_t)(h) << 32) + ((l)<<16)) & ~0xfffff)
-#define	PCI_PPBMEMLIMIT(h,l) ((((pci_addr_t)(h) << 32) + ((l)<<16)) | 0xfffff)
-#define	PCI_PPBIOBASE(h,l)   ((((h)<<16) + ((l)<<8)) & ~0xfff)
-#define	PCI_PPBIOLIMIT(h,l)  ((((h)<<16) + ((l)<<8)) | 0xfff)
 
 typedef struct {
     pci_addr_t	pmembase;	/* base address of prefetchable memory */
@@ -402,7 +412,7 @@ pci_get_vpd_readonly(device_t dev, const char *kw, const char **vptr)
  * Check if the address range falls within the VGA defined address range(s)
  */
 static __inline int
-pci_is_vga_ioport_range(u_long start, u_long end)
+pci_is_vga_ioport_range(rman_res_t start, rman_res_t end)
 {
  
 	return (((start >= 0x3b0 && end <= 0x3bb) ||
@@ -410,7 +420,7 @@ pci_is_vga_ioport_range(u_long start, u_long end)
 }
 
 static __inline int
-pci_is_vga_memory_range(u_long start, u_long end)
+pci_is_vga_memory_range(rman_res_t start, rman_res_t end)
 {
 
 	return ((start >= 0xa0000 && end <= 0xbffff) ? 1 : 0);
@@ -521,6 +531,18 @@ pci_msix_count(device_t dev)
     return (PCI_MSIX_COUNT(device_get_parent(dev), dev));
 }
 
+static __inline int
+pci_msix_pba_bar(device_t dev)
+{
+    return (PCI_MSIX_PBA_BAR(device_get_parent(dev), dev));
+}
+
+static __inline int
+pci_msix_table_bar(device_t dev)
+{
+    return (PCI_MSIX_TABLE_BAR(device_get_parent(dev), dev));
+}
+
 static __inline uint16_t
 pci_get_rid(device_t dev)
 {
@@ -547,10 +569,15 @@ int	pci_msix_device_blacklisted(device_t dev);
 
 void	pci_ht_map_msi(device_t dev, uint64_t addr);
 
+device_t pci_find_pcie_root_port(device_t dev);
 int	pci_get_max_read_req(device_t dev);
 void	pci_restore_state(device_t dev);
 void	pci_save_state(device_t dev);
 int	pci_set_max_read_req(device_t dev, int size);
+uint32_t pcie_read_config(device_t dev, int reg, int width);
+void	pcie_write_config(device_t dev, int reg, uint32_t value, int width);
+uint32_t pcie_adjust_config(device_t dev, int reg, uint32_t mask,
+	    uint32_t value, int width);
 
 
 #ifdef BUS_SPACE_MAXADDR

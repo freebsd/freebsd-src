@@ -1,4 +1,4 @@
-#	$OpenBSD: forward-control.sh,v 1.2 2013/11/18 05:09:32 naddy Exp $
+#	$OpenBSD: forward-control.sh,v 1.3 2015/03/03 22:35:19 markus Exp $
 #	Placed in the Public Domain.
 
 tid="sshd control of local and remote forwarding"
@@ -99,7 +99,7 @@ cp ${OBJ}/sshd_proxy ${OBJ}/sshd_proxy.bak
 cp ${OBJ}/authorized_keys_${USER} ${OBJ}/authorized_keys_${USER}.bak
 
 # Sanity check: ensure the default config allows forwarding
-for p in 1 2 ; do
+for p in ${SSH_PROTOCOLS} ; do
 	check_lfwd $p Y "proto $p, default configuration"
 	check_rfwd $p Y "proto $p, default configuration"
 done
@@ -115,7 +115,7 @@ all_tests() {
 	_permit_rfwd=$7
 	_badfwd=127.0.0.1:22
 	_goodfwd=127.0.0.1:${PORT}
-	for _proto in 1 2 ; do
+	for _proto in ${SSH_PROTOCOLS} ; do
 		cp ${OBJ}/authorized_keys_${USER}.bak \
 		    ${OBJ}/authorized_keys_${USER}
 		_prefix="proto $_proto, AllowTcpForwarding=$_tcpfwd"

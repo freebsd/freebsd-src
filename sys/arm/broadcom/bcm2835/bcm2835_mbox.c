@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/rman.h>
-#include <sys/sema.h>
 #include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -83,7 +83,8 @@ struct bcm_mbox_softc {
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 	int			msg[BCM2835_MBOX_CHANS];
-	struct sema		sema[BCM2835_MBOX_CHANS];
+	int			have_message[BCM2835_MBOX_CHANS];
+	struct sx		property_chan_lock;
 };
 
 #define	mbox_read_4(sc, reg)		\
@@ -121,9 +122,13 @@ bcm_mbox_intr(void *arg)
 	struct bcm_mbox_softc *sc = arg;
 	int chan;
 
+	MBOX_LOCK(sc);
 	while (!(mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY))
-		if (bcm_mbox_read_msg(sc, &chan) == 0)
-			sema_post(&sc->sema[chan]);
+		if (bcm_mbox_read_msg(sc, &chan) == 0) {
+			sc->have_message[chan] = 1;
+			wakeup(&sc->have_message[chan]);
+		}
+	MBOX_UNLOCK(sc);
 }
 
 static int
@@ -175,8 +180,10 @@ bcm_mbox_attach(device_t dev)
 	mtx_init(&sc->lock, "vcio mbox", NULL, MTX_DEF);
 	for (i = 0; i < BCM2835_MBOX_CHANS; i++) {
 		sc->msg[i] = 0;
-		sema_init(&sc->sema[i], 0, "mbox");
+		sc->have_message[i] = 0;
 	}
+
+	sx_init(&sc->property_chan_lock, "mboxprop");
 
 	/* Read all pending messages */
 	while ((mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY) == 0)
@@ -198,6 +205,7 @@ bcm_mbox_write(device_t dev, int chan, uint32_t data)
 
 	dprintf("bcm_mbox_write: chan %d, data %08x\n", chan, data);
 	MBOX_LOCK(sc);
+	sc->have_message[chan] = 0;
 	while ((mbox_read_4(sc, REG_STATUS) & STATUS_FULL) && --limit)
 		DELAY(5);
 	if (limit == 0) {
@@ -222,11 +230,12 @@ bcm_mbox_read(device_t dev, int chan, uint32_t *data)
 	err = 0;
 	MBOX_LOCK(sc);
 	if (!cold) {
-		while (sema_trywait(&sc->sema[chan]) == 0) {
-			/* do not unlock sc while waiting for the mbox */
-			if (sema_timedwait(&sc->sema[chan], 10*hz) == 0)
-				break;
-			printf("timeout sema for chan %d\n", chan);
+		if (sc->have_message[chan] == 0) {
+			if (mtx_sleep(&sc->have_message[chan], &sc->lock, 0,
+			    "mbox", 10*hz) != 0) {
+				device_printf(dev, "timeout waiting for message on chan %d\n", chan);
+				err = ETIMEDOUT;
+			}
 		}
 	} else {
 		do {
@@ -246,6 +255,7 @@ bcm_mbox_read(device_t dev, int chan, uint32_t *data)
 	 */
 	*data = MBOX_DATA(sc->msg[chan]);
 	sc->msg[chan] = 0;
+	sc->have_message[chan] = 0;
 out:
 	MBOX_UNLOCK(sc);
 	dprintf("bcm_mbox_read: chan %d, data %08x\n", chan, *data);
@@ -360,230 +370,169 @@ bcm2835_mbox_err(device_t dev, bus_addr_t msg_phys, uint32_t resp_phys,
 }
 
 int
-bcm2835_mbox_set_power_state(device_t dev, uint32_t device_id, boolean_t on)
+bcm2835_mbox_property(void *msg, size_t msg_size)
 {
-	struct msg_set_power_state *msg;
+	struct bcm_mbox_softc *sc;
+	struct msg_set_power_state *buf;
 	bus_dma_tag_t msg_tag;
 	bus_dmamap_t msg_map;
 	bus_addr_t msg_phys;
 	uint32_t reg;
-	device_t mbox;
-
-	/* get mbox device */
-	mbox = devclass_get_device(devclass_find("mbox"), 0);
-	if (mbox == NULL) {
-		device_printf(dev, "can't find mbox\n");
-		return (ENXIO);
-	}
-
-	/* Allocate memory for the message */
-	msg = bcm2835_mbox_init_dma(dev, sizeof(*msg), &msg_tag, &msg_map,
-	    &msg_phys);
-	if (msg == NULL)
-		return (ENOMEM);
-
-	memset(msg, 0, sizeof(*msg));
-	msg->hdr.buf_size = sizeof(*msg);
-	msg->hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg->tag_hdr.tag = BCM2835_MBOX_TAG_SET_POWER_STATE;
-	msg->tag_hdr.val_buf_size = sizeof(msg->body);
-	msg->tag_hdr.val_len = sizeof(msg->body.req);
-	msg->body.req.device_id = device_id;
-	msg->body.req.state = (on ? BCM2835_MBOX_POWER_ON : 0) |
-	    BCM2835_MBOX_POWER_WAIT;
-	msg->end_tag = 0;
-
-	bus_dmamap_sync(msg_tag, msg_map,
-	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
-
-	MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_PROP, (uint32_t)msg_phys);
-	MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
-
-	bus_dmamap_unload(msg_tag, msg_map);
-	bus_dmamem_free(msg_tag, msg, msg_map);
-	bus_dma_tag_destroy(msg_tag);
-
-	return (0);
-}
-
-int
-bcm2835_mbox_get_clock_rate(device_t dev, uint32_t clock_id, uint32_t *hz)
-{
-	struct msg_get_clock_rate *msg;
-	bus_dma_tag_t msg_tag;
-	bus_dmamap_t msg_map;
-	bus_addr_t msg_phys;
-	uint32_t reg;
-	device_t mbox;
-
-	/* get mbox device */
-	mbox = devclass_get_device(devclass_find("mbox"), 0);
-	if (mbox == NULL) {
-		device_printf(dev, "can't find mbox\n");
-		return (ENXIO);
-	}
-
-	/* Allocate memory for the message */
-	msg = bcm2835_mbox_init_dma(dev, sizeof(*msg), &msg_tag, &msg_map,
-	    &msg_phys);
-	if (msg == NULL)
-		return (ENOMEM);
-
-	memset(msg, 0, sizeof(*msg));
-	msg->hdr.buf_size = sizeof(*msg);
-	msg->hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg->tag_hdr.tag = BCM2835_MBOX_TAG_GET_CLOCK_RATE;
-	msg->tag_hdr.val_buf_size = sizeof(msg->body);
-	msg->tag_hdr.val_len = sizeof(msg->body.req);
-	msg->body.req.clock_id = clock_id;
-	msg->end_tag = 0;
-
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_PREWRITE);
-	MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_PROP, (uint32_t)msg_phys);
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_POSTWRITE);
-
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_PREREAD);
-	MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_POSTREAD);
-
-	*hz = msg->body.resp.rate_hz;
-
-	bus_dmamap_unload(msg_tag, msg_map);
-	bus_dmamem_free(msg_tag, msg, msg_map);
-	bus_dma_tag_destroy(msg_tag);
-
-	return (0);
-}
-
-int
-bcm2835_mbox_fb_get_w_h(device_t dev, struct bcm2835_fb_config *fb)
-{
 	device_t mbox;
 	int err;
-	bus_dma_tag_t msg_tag;
-	bus_dmamap_t msg_map;
-	bus_addr_t msg_phys;
-	struct msg_fb_get_w_h *msg;
-	uint32_t reg;
 
 	/* get mbox device */
 	mbox = devclass_get_device(devclass_find("mbox"), 0);
-	if (mbox == NULL) {
-		device_printf(dev, "can't find mbox\n");
+	if (mbox == NULL)
 		return (ENXIO);
-	}
+
+	sc = device_get_softc(mbox);
+	sx_xlock(&sc->property_chan_lock);
 
 	/* Allocate memory for the message */
-	msg = bcm2835_mbox_init_dma(dev, sizeof(*msg), &msg_tag, &msg_map,
+	buf = bcm2835_mbox_init_dma(mbox, msg_size, &msg_tag, &msg_map,
 	    &msg_phys);
-	if (msg == NULL)
-		return (ENOMEM);
-
-	memset(msg, 0, sizeof(*msg));
-	msg->hdr.buf_size = sizeof(*msg);
-	msg->hdr.code = BCM2835_MBOX_CODE_REQ;
-	BCM2835_MBOX_INIT_TAG(&msg->physical_w_h, GET_PHYSICAL_W_H);
-	msg->physical_w_h.tag_hdr.val_len = 0;
-	BCM2835_MBOX_INIT_TAG(&msg->virtual_w_h, GET_VIRTUAL_W_H);
-	msg->virtual_w_h.tag_hdr.val_len = 0;
-	BCM2835_MBOX_INIT_TAG(&msg->offset, GET_VIRTUAL_OFFSET);
-	msg->offset.tag_hdr.val_len = 0;
-	msg->end_tag = 0;
-
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_PREWRITE);
-	MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_PROP, (uint32_t)msg_phys);
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_POSTWRITE);
-
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_PREREAD);
-	MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_POSTREAD);
-
-	err = bcm2835_mbox_err(dev, msg_phys, reg, &msg->hdr, sizeof(*msg));
-	if (err == 0) {
-		fb->xres = msg->physical_w_h.body.resp.width;
-		fb->yres = msg->physical_w_h.body.resp.height;
-		fb->vxres = msg->virtual_w_h.body.resp.width;
-		fb->vyres = msg->virtual_w_h.body.resp.height;
-		fb->xoffset = msg->offset.body.resp.x;
-		fb->yoffset = msg->offset.body.resp.y;
+	if (buf == NULL) {
+		err = ENOMEM;
+		goto out;
 	}
 
+	memcpy(buf, msg, msg_size);
+
+	bus_dmamap_sync(msg_tag, msg_map,
+	    BUS_DMASYNC_PREWRITE);
+
+	MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_PROP, (uint32_t)msg_phys);
+	MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
+
+	bus_dmamap_sync(msg_tag, msg_map,
+	    BUS_DMASYNC_PREREAD);
+
+	memcpy(msg, buf, msg_size);
+
+	err = bcm2835_mbox_err(mbox, msg_phys, reg,
+	    (struct bcm2835_mbox_hdr *)msg, msg_size);
+
 	bus_dmamap_unload(msg_tag, msg_map);
-	bus_dmamem_free(msg_tag, msg, msg_map);
+	bus_dmamem_free(msg_tag, buf, msg_map);
 	bus_dma_tag_destroy(msg_tag);
+out:
+	sx_xunlock(&sc->property_chan_lock);
+	return (err);
+}
+
+int
+bcm2835_mbox_set_power_state(uint32_t device_id, boolean_t on)
+{
+	struct msg_set_power_state msg;
+	int err;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.hdr.buf_size = sizeof(msg);
+	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
+	msg.tag_hdr.tag = BCM2835_MBOX_TAG_SET_POWER_STATE;
+	msg.tag_hdr.val_buf_size = sizeof(msg.body);
+	msg.tag_hdr.val_len = sizeof(msg.body.req);
+	msg.body.req.device_id = device_id;
+	msg.body.req.state = (on ? BCM2835_MBOX_POWER_ON : 0) |
+	    BCM2835_MBOX_POWER_WAIT;
+	msg.end_tag = 0;
+
+	err = bcm2835_mbox_property(&msg, sizeof(msg));
 
 	return (err);
 }
 
 int
-bcm2835_mbox_fb_init(device_t dev, struct bcm2835_fb_config *fb)
+bcm2835_mbox_get_clock_rate(uint32_t clock_id, uint32_t *hz)
 {
-	device_t mbox;
+	struct msg_get_clock_rate msg;
 	int err;
-	bus_dma_tag_t msg_tag;
-	bus_dmamap_t msg_map;
-	bus_addr_t msg_phys;
-	struct msg_fb_setup *msg;
-	uint32_t reg;
 
-	/* get mbox device */
-	mbox = devclass_get_device(devclass_find("mbox"), 0);
-	if (mbox == NULL) {
-		device_printf(dev, "can't find mbox\n");
-		return (ENXIO);
-	}
+	memset(&msg, 0, sizeof(msg));
+	msg.hdr.buf_size = sizeof(msg);
+	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
+	msg.tag_hdr.tag = BCM2835_MBOX_TAG_GET_CLOCK_RATE;
+	msg.tag_hdr.val_buf_size = sizeof(msg.body);
+	msg.tag_hdr.val_len = sizeof(msg.body.req);
+	msg.body.req.clock_id = clock_id;
+	msg.end_tag = 0;
 
-	/* Allocate memory for the message */
-	msg = bcm2835_mbox_init_dma(dev, sizeof(*msg), &msg_tag, &msg_map,
-	    &msg_phys);
-	if (msg == NULL)
-		return (ENOMEM);
+	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	*hz = msg.body.resp.rate_hz;
 
-	memset(msg, 0, sizeof(*msg));
-	msg->hdr.buf_size = sizeof(*msg);
-	msg->hdr.code = BCM2835_MBOX_CODE_REQ;
-	BCM2835_MBOX_INIT_TAG(&msg->physical_w_h, SET_PHYSICAL_W_H);
-	msg->physical_w_h.body.req.width = fb->xres;
-	msg->physical_w_h.body.req.height = fb->yres;
-	BCM2835_MBOX_INIT_TAG(&msg->virtual_w_h, SET_VIRTUAL_W_H);
-	msg->virtual_w_h.body.req.width = fb->vxres;
-	msg->virtual_w_h.body.req.height = fb->vyres;
-	BCM2835_MBOX_INIT_TAG(&msg->offset, GET_VIRTUAL_OFFSET);
-	msg->offset.body.req.x = fb->xoffset;
-	msg->offset.body.req.y = fb->yoffset;
-	BCM2835_MBOX_INIT_TAG(&msg->depth, SET_DEPTH);
-	msg->depth.body.req.bpp = fb->bpp;
-	BCM2835_MBOX_INIT_TAG(&msg->alpha, SET_ALPHA_MODE);
-	msg->alpha.body.req.alpha = BCM2835_MBOX_ALPHA_MODE_IGNORED;
-	BCM2835_MBOX_INIT_TAG(&msg->buffer, ALLOCATE_BUFFER);
-	msg->buffer.body.req.alignment = PAGE_SIZE;
-	BCM2835_MBOX_INIT_TAG(&msg->pitch, GET_PITCH);
-	msg->end_tag = 0;
+	return (err);
+}
 
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_PREWRITE);
-	MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_PROP, (uint32_t)msg_phys);
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_POSTWRITE);
+int
+bcm2835_mbox_fb_get_w_h(struct bcm2835_fb_config *fb)
+{
+	int err;
+	struct msg_fb_get_w_h msg;
 
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_PREREAD);
-	MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
-	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_POSTREAD);
+	memset(&msg, 0, sizeof(msg));
+	msg.hdr.buf_size = sizeof(msg);
+	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
+	BCM2835_MBOX_INIT_TAG(&msg.physical_w_h, GET_PHYSICAL_W_H);
+	msg.physical_w_h.tag_hdr.val_len = 0;
+	BCM2835_MBOX_INIT_TAG(&msg.virtual_w_h, GET_VIRTUAL_W_H);
+	msg.virtual_w_h.tag_hdr.val_len = 0;
+	BCM2835_MBOX_INIT_TAG(&msg.offset, GET_VIRTUAL_OFFSET);
+	msg.offset.tag_hdr.val_len = 0;
+	msg.end_tag = 0;
 
-	err = bcm2835_mbox_err(dev, msg_phys, reg, &msg->hdr, sizeof(*msg));
+	err = bcm2835_mbox_property(&msg, sizeof(msg));
 	if (err == 0) {
-		fb->xres = msg->physical_w_h.body.resp.width;
-		fb->yres = msg->physical_w_h.body.resp.height;
-		fb->vxres = msg->virtual_w_h.body.resp.width;
-		fb->vyres = msg->virtual_w_h.body.resp.height;
-		fb->xoffset = msg->offset.body.resp.x;
-		fb->yoffset = msg->offset.body.resp.y;
-		fb->pitch = msg->pitch.body.resp.pitch;
-		fb->base = msg->buffer.body.resp.fb_address;
-		fb->size = msg->buffer.body.resp.fb_size;
+		fb->xres = msg.physical_w_h.body.resp.width;
+		fb->yres = msg.physical_w_h.body.resp.height;
+		fb->vxres = msg.virtual_w_h.body.resp.width;
+		fb->vyres = msg.virtual_w_h.body.resp.height;
+		fb->xoffset = msg.offset.body.resp.x;
+		fb->yoffset = msg.offset.body.resp.y;
 	}
 
-	bus_dmamap_unload(msg_tag, msg_map);
-	bus_dmamem_free(msg_tag, msg, msg_map);
-	bus_dma_tag_destroy(msg_tag);
+	return (err);
+}
+
+int
+bcm2835_mbox_fb_init(struct bcm2835_fb_config *fb)
+{
+	int err;
+	struct msg_fb_setup msg;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.hdr.buf_size = sizeof(msg);
+	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
+	BCM2835_MBOX_INIT_TAG(&msg.physical_w_h, SET_PHYSICAL_W_H);
+	msg.physical_w_h.body.req.width = fb->xres;
+	msg.physical_w_h.body.req.height = fb->yres;
+	BCM2835_MBOX_INIT_TAG(&msg.virtual_w_h, SET_VIRTUAL_W_H);
+	msg.virtual_w_h.body.req.width = fb->vxres;
+	msg.virtual_w_h.body.req.height = fb->vyres;
+	BCM2835_MBOX_INIT_TAG(&msg.offset, GET_VIRTUAL_OFFSET);
+	msg.offset.body.req.x = fb->xoffset;
+	msg.offset.body.req.y = fb->yoffset;
+	BCM2835_MBOX_INIT_TAG(&msg.depth, SET_DEPTH);
+	msg.depth.body.req.bpp = fb->bpp;
+	BCM2835_MBOX_INIT_TAG(&msg.alpha, SET_ALPHA_MODE);
+	msg.alpha.body.req.alpha = BCM2835_MBOX_ALPHA_MODE_IGNORED;
+	BCM2835_MBOX_INIT_TAG(&msg.buffer, ALLOCATE_BUFFER);
+	msg.buffer.body.req.alignment = PAGE_SIZE;
+	BCM2835_MBOX_INIT_TAG(&msg.pitch, GET_PITCH);
+	msg.end_tag = 0;
+
+	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	if (err == 0) {
+		fb->xres = msg.physical_w_h.body.resp.width;
+		fb->yres = msg.physical_w_h.body.resp.height;
+		fb->vxres = msg.virtual_w_h.body.resp.width;
+		fb->vyres = msg.virtual_w_h.body.resp.height;
+		fb->xoffset = msg.offset.body.resp.x;
+		fb->yoffset = msg.offset.body.resp.y;
+		fb->pitch = msg.pitch.body.resp.pitch;
+		fb->base = VCBUS_TO_PHYS(msg.buffer.body.resp.fb_address);
+		fb->size = msg.buffer.body.resp.fb_size;
+	}
 
 	return (err);
 }

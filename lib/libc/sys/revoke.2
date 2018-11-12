@@ -31,7 +31,7 @@
 .\"     @(#)revoke.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd Jan 25, 2016
 .Dt REVOKE 2
 .Os
 .Sh NAME
@@ -59,7 +59,8 @@ and a
 system call will succeed.
 If the file is a special file for a device which is open,
 the device close function
-is called as if all open references to the file had been closed.
+is called as if all open references to the file had been closed
+using a special close method which does not block.
 .Pp
 Access to a file may be revoked only by its owner or the super user.
 The
@@ -104,3 +105,6 @@ The
 .Fn revoke
 system call first appeared in
 .Bx 4.3 Reno .
+.Sh BUGS
+The non-blocking close method is only correctly implemented for
+terminal devices.

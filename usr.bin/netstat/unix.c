@@ -271,7 +271,7 @@ unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
 	struct unpcb *unp;
 	struct sockaddr_un *sa;
 	static int first = 1;
-	char buf1[15];
+	char buf1[33];
 	static const char *titles[2] = {
 	    "{T:/%-8.8s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%8.8s} "
 	    "{T:/%8.8s} {T:/%8.8s} {T:/%8.8s} {T:Addr}\n",
@@ -310,10 +310,10 @@ unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
 		return;
 
 	if (Lflag) {
-		snprintf(buf1, 15, "%d/%d/%d", so->so_qlen,
+		snprintf(buf1, sizeof buf1, "%u/%u/%u", so->so_qlen,
 		    so->so_incqlen, so->so_qlimit);
-		xo_emit("unix  {d:socket/%-14.14s}{e:queue-length/%d}"
-		    "{e:incomplete-queue-length/%d}{e:queue-limit/%d}",
+		xo_emit("unix  {d:socket/%-32.32s}{e:queue-length/%u}"
+		    "{e:incomplete-queue-length/%u}{e:queue-limit/%u}",
 		    buf1, so->so_qlen, so->so_incqlen, so->so_qlimit);
 	} else {
 		xo_emit(format[fmt],

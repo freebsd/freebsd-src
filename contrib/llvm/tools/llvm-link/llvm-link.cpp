@@ -18,10 +18,12 @@
 #include "llvm/IR/AutoUpgrade.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
+#include "llvm/IR/FunctionInfo.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
+#include "llvm/Object/FunctionIndexObjectFile.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -43,9 +45,32 @@ static cl::list<std::string> OverridingInputs(
     cl::desc(
         "input bitcode file which can override previously defined symbol(s)"));
 
+// Option to simulate function importing for testing. This enables using
+// llvm-link to simulate ThinLTO backend processes.
+static cl::list<std::string> Imports(
+    "import", cl::ZeroOrMore, cl::value_desc("function:filename"),
+    cl::desc("Pair of function name and filename, where function should be "
+             "imported from bitcode in filename"));
+
+// Option to support testing of function importing. The function index
+// must be specified in the case were we request imports via the -import
+// option, as well as when compiling any module with functions that may be
+// exported (imported by a different llvm-link -import invocation), to ensure
+// consistent promotion and renaming of locals.
+static cl::opt<std::string> FunctionIndex("functionindex",
+                                          cl::desc("Function index filename"),
+                                          cl::init(""),
+                                          cl::value_desc("filename"));
+
 static cl::opt<std::string>
 OutputFilename("o", cl::desc("Override output filename"), cl::init("-"),
                cl::value_desc("filename"));
+
+static cl::opt<bool>
+Internalize("internalize", cl::desc("Internalize linked symbols"));
+
+static cl::opt<bool>
+OnlyNeeded("only-needed", cl::desc("Link only needed symbols"));
 
 static cl::opt<bool>
 Force("f", cl::desc("Enable binary output on terminals"));
@@ -64,6 +89,10 @@ static cl::opt<bool>
 SuppressWarnings("suppress-warnings", cl::desc("Suppress all linking warnings"),
                  cl::init(false));
 
+static cl::opt<bool>
+    PreserveModules("preserve-modules",
+                    cl::desc("Preserve linked modules for testing"));
+
 static cl::opt<bool> PreserveBitcodeUseListOrder(
     "preserve-bc-uselistorder",
     cl::desc("Preserve use-list order when writing LLVM bitcode."),
@@ -77,16 +106,21 @@ static cl::opt<bool> PreserveAssemblyUseListOrder(
 // Read the specified bitcode file in and return it. This routine searches the
 // link path for the specified file to try to find it...
 //
-static std::unique_ptr<Module>
-loadFile(const char *argv0, const std::string &FN, LLVMContext &Context) {
+static std::unique_ptr<Module> loadFile(const char *argv0,
+                                        const std::string &FN,
+                                        LLVMContext &Context,
+                                        bool MaterializeMetadata = true) {
   SMDiagnostic Err;
   if (Verbose) errs() << "Loading '" << FN << "'\n";
-  std::unique_ptr<Module> Result = getLazyIRFileModule(FN, Err, Context);
+  std::unique_ptr<Module> Result =
+      getLazyIRFileModule(FN, Err, Context, !MaterializeMetadata);
   if (!Result)
     Err.print(argv0, errs());
 
-  Result->materializeMetadata();
-  UpgradeDebugInfo(*Result);
+  if (MaterializeMetadata) {
+    Result->materializeMetadata();
+    UpgradeDebugInfo(*Result);
+  }
 
   return Result;
 }
@@ -112,9 +146,111 @@ static void diagnosticHandler(const DiagnosticInfo &DI) {
   errs() << '\n';
 }
 
+static void diagnosticHandlerWithContext(const DiagnosticInfo &DI, void *C) {
+  diagnosticHandler(DI);
+}
+
+/// Import any functions requested via the -import option.
+static bool importFunctions(const char *argv0, LLVMContext &Context,
+                            Linker &L) {
+  StringMap<std::unique_ptr<DenseMap<unsigned, MDNode *>>>
+      ModuleToTempMDValsMap;
+  for (const auto &Import : Imports) {
+    // Identify the requested function and its bitcode source file.
+    size_t Idx = Import.find(':');
+    if (Idx == std::string::npos) {
+      errs() << "Import parameter bad format: " << Import << "\n";
+      return false;
+    }
+    std::string FunctionName = Import.substr(0, Idx);
+    std::string FileName = Import.substr(Idx + 1, std::string::npos);
+
+    // Load the specified source module.
+    std::unique_ptr<Module> M = loadFile(argv0, FileName, Context, false);
+    if (!M.get()) {
+      errs() << argv0 << ": error loading file '" << FileName << "'\n";
+      return false;
+    }
+
+    if (verifyModule(*M, &errs())) {
+      errs() << argv0 << ": " << FileName
+             << ": error: input module is broken!\n";
+      return false;
+    }
+
+    Function *F = M->getFunction(FunctionName);
+    if (!F) {
+      errs() << "Ignoring import request for non-existent function "
+             << FunctionName << " from " << FileName << "\n";
+      continue;
+    }
+    // We cannot import weak_any functions without possibly affecting the
+    // order they are seen and selected by the linker, changing program
+    // semantics.
+    if (F->hasWeakAnyLinkage()) {
+      errs() << "Ignoring import request for weak-any function " << FunctionName
+             << " from " << FileName << "\n";
+      continue;
+    }
+
+    if (Verbose)
+      errs() << "Importing " << FunctionName << " from " << FileName << "\n";
+
+    std::unique_ptr<FunctionInfoIndex> Index;
+    if (!FunctionIndex.empty()) {
+      ErrorOr<std::unique_ptr<FunctionInfoIndex>> IndexOrErr =
+          llvm::getFunctionIndexForFile(FunctionIndex, diagnosticHandler);
+      std::error_code EC = IndexOrErr.getError();
+      if (EC) {
+        errs() << EC.message() << '\n';
+        return false;
+      }
+      Index = std::move(IndexOrErr.get());
+    }
+
+    // Save the mapping of value ids to temporary metadata created when
+    // importing this function. If we have already imported from this module,
+    // add new temporary metadata to the existing mapping.
+    auto &TempMDVals = ModuleToTempMDValsMap[FileName];
+    if (!TempMDVals)
+      TempMDVals = llvm::make_unique<DenseMap<unsigned, MDNode *>>();
+
+    // Link in the specified function.
+    DenseSet<const GlobalValue *> FunctionsToImport;
+    FunctionsToImport.insert(F);
+    if (L.linkInModule(std::move(M), Linker::Flags::None, Index.get(),
+                       &FunctionsToImport, TempMDVals.get()))
+      return false;
+  }
+
+  // Now link in metadata for all modules from which we imported functions.
+  for (StringMapEntry<std::unique_ptr<DenseMap<unsigned, MDNode *>>> &SME :
+       ModuleToTempMDValsMap) {
+    // Load the specified source module.
+    std::unique_ptr<Module> M = loadFile(argv0, SME.getKey(), Context, true);
+    if (!M.get()) {
+      errs() << argv0 << ": error loading file '" << SME.getKey() << "'\n";
+      return false;
+    }
+
+    if (verifyModule(*M, &errs())) {
+      errs() << argv0 << ": " << SME.getKey()
+             << ": error: input module is broken!\n";
+      return false;
+    }
+
+    // Link in all necessary metadata from this module.
+    if (L.linkInMetadata(*M, SME.getValue().get()))
+      return false;
+  }
+  return true;
+}
+
 static bool linkFiles(const char *argv0, LLVMContext &Context, Linker &L,
                       const cl::list<std::string> &Files,
-                      bool OverrideDuplicateSymbols) {
+                      unsigned Flags) {
+  // Filter out flags that don't apply to the first file we load.
+  unsigned ApplicableFlags = Flags & Linker::Flags::OverrideFromSrc;
   for (const auto &File : Files) {
     std::unique_ptr<Module> M = loadFile(argv0, File, Context);
     if (!M.get()) {
@@ -127,11 +263,36 @@ static bool linkFiles(const char *argv0, LLVMContext &Context, Linker &L,
       return false;
     }
 
+    // If a function index is supplied, load it so linkInModule can treat
+    // local functions/variables as exported and promote if necessary.
+    std::unique_ptr<FunctionInfoIndex> Index;
+    if (!FunctionIndex.empty()) {
+      ErrorOr<std::unique_ptr<FunctionInfoIndex>> IndexOrErr =
+          llvm::getFunctionIndexForFile(FunctionIndex, diagnosticHandler);
+      std::error_code EC = IndexOrErr.getError();
+      if (EC) {
+        errs() << EC.message() << '\n';
+        return false;
+      }
+      Index = std::move(IndexOrErr.get());
+    }
+
     if (Verbose)
       errs() << "Linking in '" << File << "'\n";
 
-    if (L.linkInModule(M.get(), OverrideDuplicateSymbols))
+    if (L.linkInModule(std::move(M), ApplicableFlags, Index.get()))
       return false;
+    // All linker flags apply to linking of subsequent files.
+    ApplicableFlags = Flags;
+
+    // If requested for testing, preserve modules by releasing them from
+    // the unique_ptr before the are freed. This can help catch any
+    // cross-module references from e.g. unneeded metadata references
+    // that aren't properly set to null but instead mapped to the source
+    // module version. The bitcode writer will assert if it finds any such
+    // cross-module references.
+    if (PreserveModules)
+      M.release();
   }
 
   return true;
@@ -143,18 +304,31 @@ int main(int argc, char **argv) {
   PrettyStackTraceProgram X(argc, argv);
 
   LLVMContext &Context = getGlobalContext();
+  Context.setDiagnosticHandler(diagnosticHandlerWithContext, nullptr, true);
+
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   cl::ParseCommandLineOptions(argc, argv, "llvm linker\n");
 
   auto Composite = make_unique<Module>("llvm-link", Context);
-  Linker L(Composite.get(), diagnosticHandler);
+  Linker L(*Composite);
+
+  unsigned Flags = Linker::Flags::None;
+  if (Internalize)
+    Flags |= Linker::Flags::InternalizeLinkedSymbols;
+  if (OnlyNeeded)
+    Flags |= Linker::Flags::LinkOnlyNeeded;
 
   // First add all the regular input files
-  if (!linkFiles(argv[0], Context, L, InputFilenames, false))
+  if (!linkFiles(argv[0], Context, L, InputFilenames, Flags))
     return 1;
 
   // Next the -override ones.
-  if (!linkFiles(argv[0], Context, L, OverridingInputs, true))
+  if (!linkFiles(argv[0], Context, L, OverridingInputs,
+                 Flags | Linker::Flags::OverrideFromSrc))
+    return 1;
+
+  // Import any functions requested via -import
+  if (!importFunctions(argv[0], Context, L))
     return 1;
 
   if (DumpAsm) errs() << "Here's the assembly:\n" << *Composite;

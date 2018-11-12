@@ -101,7 +101,6 @@ extern void vm_waitpfault(void);
 
 #ifdef _KERNEL
 int vm_pageout_flush(vm_page_t *, int, int, int, int *, boolean_t *);
-void vm_pageout_grow_cache(int, vm_paddr_t, vm_paddr_t);
 void vm_pageout_oom(int shortage);
 #endif
 #endif	/* _VM_VM_PAGEOUT_H_ */

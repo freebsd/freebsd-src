@@ -349,7 +349,7 @@ create_ctrls(struct rcfile *f, struct sim_ctrl **ctrls, int *cnt)
 		/*
 		 * ECC layout have to end up with 0xffff, so
 		 * we're filling buffer with 0xff. If ecc_layout is
-		 * defined in config file, values will be overriden.
+		 * defined in config file, values will be overridden.
 		 */
 		memset((void *)&ctrl_conf.ecc_layout, 0xff,
 		    sizeof(ctrl_conf.ecc_layout));
@@ -411,7 +411,7 @@ create_chips(struct rcfile *f, struct sim_chip **chips, int *cnt)
 		/*
 		 * Bad block map have to end up with 0xffff, so
 		 * we're filling array with 0xff. If bad block map is
-		 * defined in config file, values will be overriden.
+		 * defined in config file, values will be overridden.
 		 */
 		memset((void *)&chip_conf.bad_block_map, 0xff,
 		    sizeof(chip_conf.bad_block_map));

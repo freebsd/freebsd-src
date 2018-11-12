@@ -35,8 +35,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -63,14 +64,14 @@ __FBSDID("$FreeBSD$");
 
 const char *ieee80211_mgt_subtype_name[] = {
 	"assoc_req",	"assoc_resp",	"reassoc_req",	"reassoc_resp",
-	"probe_req",	"probe_resp",	"reserved#6",	"reserved#7",
+	"probe_req",	"probe_resp",	"timing_adv",	"reserved#7",
 	"beacon",	"atim",		"disassoc",	"auth",
 	"deauth",	"action",	"action_noack",	"reserved#15"
 };
 const char *ieee80211_ctl_subtype_name[] = {
 	"reserved#0",	"reserved#1",	"reserved#2",	"reserved#3",
-	"reserved#3",	"reserved#5",	"reserved#6",	"reserved#7",
-	"reserved#8",	"reserved#9",	"ps_poll",	"rts",
+	"reserved#4",	"reserved#5",	"reserved#6",	"control_wrap",
+	"bar",		"ba",		"ps_poll",	"rts",
 	"cts",		"ack",		"cf_end",	"cf_end_ack"
 };
 const char *ieee80211_opmode_name[IEEE80211_OPMODE_MAX] = {
@@ -108,6 +109,7 @@ static void update_promisc(void *, int);
 static void update_channel(void *, int);
 static void update_chw(void *, int);
 static void update_wme(void *, int);
+static void restart_vaps(void *, int);
 static void ieee80211_newstate_cb(void *, int);
 
 static int
@@ -146,6 +148,7 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	TASK_INIT(&ic->ic_bmiss_task, 0, beacon_miss, ic);
 	TASK_INIT(&ic->ic_chw_task, 0, update_chw, ic);
 	TASK_INIT(&ic->ic_wme_task, 0, update_wme, ic);
+	TASK_INIT(&ic->ic_restart_task, 0, restart_vaps, ic);
 
 	ic->ic_wme.wme_hipri_switch_hysteresis =
 		AGGRESSIVE_MODE_SWITCH_HYSTERESIS;
@@ -1212,6 +1215,15 @@ update_wme(void *arg, int npending)
 	ic->ic_wme.wme_update(ic);
 }
 
+static void
+restart_vaps(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+
+	ieee80211_suspend_all(ic);
+	ieee80211_resume_all(ic);
+}
+
 /*
  * Block until the parent is in a known state.  This is
  * used after any operations that dispatch a task (e.g.
@@ -1484,6 +1496,19 @@ ieee80211_resume_all(struct ieee80211com *ic)
 		}
 	}
 	IEEE80211_UNLOCK(ic);
+}
+
+/*
+ * Restart all vap's running on a device.
+ */
+void
+ieee80211_restart_all(struct ieee80211com *ic)
+{
+	/*
+	 * NB: do not use ieee80211_runtask here, we will
+	 * block & drain net80211 taskqueue.
+	 */
+	taskqueue_enqueue(taskqueue_thread, &ic->ic_restart_task);
 }
 
 void
@@ -1775,13 +1800,19 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		 * We have been requested to drop back to the INIT before
 		 * proceeding to the new state.
 		 */
+		/* Deny any state changes while we are here. */
+		vap->iv_nstate = IEEE80211_S_INIT;
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
 		    "%s: %s -> %s arg %d\n", __func__,
 		    ieee80211_state_name[vap->iv_state],
-		    ieee80211_state_name[IEEE80211_S_INIT], arg);
-		vap->iv_newstate(vap, IEEE80211_S_INIT, arg);
+		    ieee80211_state_name[vap->iv_nstate], arg);
+		vap->iv_newstate(vap, vap->iv_nstate, 0);
 		IEEE80211_LOCK_ASSERT(ic);
-		vap->iv_flags_ext &= ~IEEE80211_FEXT_REINIT;
+		vap->iv_flags_ext &= ~(IEEE80211_FEXT_REINIT |
+		    IEEE80211_FEXT_STATEWAIT);
+		/* enqueue new state transition after cancel_scan() task */
+		ieee80211_new_state_locked(vap, nstate, arg);
+		goto done;
 	}
 
 	ostate = vap->iv_state;
@@ -1892,11 +1923,22 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 	IEEE80211_LOCK_ASSERT(ic);
 
 	if (vap->iv_flags_ext & IEEE80211_FEXT_STATEWAIT) {
-		if (vap->iv_nstate == IEEE80211_S_INIT) {
+		if (vap->iv_nstate == IEEE80211_S_INIT ||
+		    ((vap->iv_state == IEEE80211_S_INIT ||
+		    (vap->iv_flags_ext & IEEE80211_FEXT_REINIT)) &&
+		    vap->iv_nstate == IEEE80211_S_SCAN &&
+		    nstate > IEEE80211_S_SCAN)) {
 			/*
-			 * XXX The vap is being stopped, do no allow any other
-			 * state changes until this is completed.
+			 * XXX The vap is being stopped/started,
+			 * do not allow any other state changes
+			 * until this is completed.
 			 */
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
+			    "%s: %s -> %s (%s) transition discarded\n",
+			    __func__,
+			    ieee80211_state_name[vap->iv_state],
+			    ieee80211_state_name[nstate],
+			    ieee80211_state_name[vap->iv_nstate]);
 			return -1;
 		} else if (vap->iv_state != vap->iv_nstate) {
 #if 0

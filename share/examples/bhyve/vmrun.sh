@@ -48,8 +48,8 @@ usage() {
 
 	echo "Usage: vmrun.sh [-ahi] [-c <CPUs>] [-C <console>] [-d <disk file>]"
 	echo "                [-e <name=value>] [-g <gdbport> ] [-H <directory>]"
-	echo "                [-I <location of installation iso>] [-m <memsize>]"
-	echo "                [-t <tapdev>] <vmname>"
+	echo "                [-I <location of installation iso>] [-l <loader>]"
+	echo "                [-m <memsize>] [-t <tapdev>] <vmname>"
 	echo ""
 	echo "       -h: display this help message"
 	echo "       -a: force memory mapped local APIC access"
@@ -61,6 +61,7 @@ usage() {
 	echo "       -H: host filesystem to export to the loader"
 	echo "       -i: force boot of the Installation CDROM image"
 	echo "       -I: Installation CDROM image location (default is ${DEFAULT_ISOFILE})"
+	echo "       -l: the OS loader to use (default is /boot/userboot.so)"
 	echo "       -m: memory size (default is ${DEFAULT_MEMSIZE})"
 	echo "       -p: pass-through a host PCI device at bus/slot/func (e.g. 10/0/0)"
 	echo "       -t: tap device for virtio-net (default is $DEFAULT_TAPDEV)"
@@ -92,7 +93,7 @@ loader_opt=""
 bhyverun_opt="-H -A -P"
 pass_total=0
 
-while getopts ac:C:d:e:g:hH:iI:m:p:t: c ; do
+while getopts ac:C:d:e:g:hH:iI:l:m:p:t: c ; do
 	case $c in
 	a)
 		bhyverun_opt="${bhyverun_opt} -a"
@@ -124,6 +125,9 @@ while getopts ac:C:d:e:g:hH:iI:m:p:t: c ; do
 		;;
 	I)
 		isofile=${OPTARG}
+		;;
+	l)
+		loader_opt="${loader_opt} -l ${OPTARG}"
 		;;
 	m)
 		memsize=${OPTARG}

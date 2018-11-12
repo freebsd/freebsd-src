@@ -89,7 +89,6 @@ static struct str *nodestr[MAXTYPES];	/* type of structure used by the node */
 static int nstr;			/* number of structures */
 static struct str str[MAXTYPES];	/* the structures */
 static struct str *curstr;		/* current structure */
-static FILE *infp;
 static char line[1024];
 static int linno;
 static char *linep;
@@ -102,7 +101,7 @@ static void outfunc(FILE *, int);
 static void indent(int, FILE *);
 static int nextfield(char *);
 static void skipbl(void);
-static int readline(void);
+static int readline(FILE *);
 static void error(const char *, ...) __printf0like(1, 2) __dead2;
 static char *savestr(const char *);
 
@@ -110,17 +109,19 @@ static char *savestr(const char *);
 int
 main(int argc, char *argv[])
 {
+	FILE *infp;
+
 	if (argc != 3)
 		error("usage: mknodes file");
-	infp = stdin;
 	if ((infp = fopen(argv[1], "r")) == NULL)
 		error("Can't open %s: %s", argv[1], strerror(errno));
-	while (readline()) {
+	while (readline(infp)) {
 		if (line[0] == ' ' || line[0] == '\t')
 			parsefield();
 		else if (line[0] != '\0')
 			parsenode();
 	}
+	fclose(infp);
 	output(argv[2]);
 	exit(0);
 }
@@ -253,6 +254,10 @@ output(char *file)
 	fputs("union node *getfuncnode(struct funcdef *);\n", hfile);
 	fputs("void reffunc(struct funcdef *);\n", hfile);
 	fputs("void unreffunc(struct funcdef *);\n", hfile);
+	if (ferror(hfile))
+		error("Can't write to nodes.h");
+	if (fclose(hfile))
+		error("Can't close nodes.h");
 
 	fputs(writer, cfile);
 	while (fgets(line, sizeof line, patfile) != NULL) {
@@ -266,6 +271,11 @@ output(char *file)
 		else
 			fputs(line, cfile);
 	}
+	fclose(patfile);
+	if (ferror(cfile))
+		error("Can't write to nodes.c");
+	if (fclose(cfile))
+		error("Can't close nodes.c");
 }
 
 
@@ -296,10 +306,10 @@ outfunc(FILE *cfile, int calcsize)
 	else
 		fputs("	    return NULL;\n", cfile);
 	if (calcsize)
-		fputs("      funcblocksize += nodesize[n->type];\n", cfile);
+		fputs("      result->blocksize += nodesize[n->type];\n", cfile);
 	else {
-		fputs("      new = funcblock;\n", cfile);
-		fputs("      funcblock = (char *)funcblock + nodesize[n->type];\n", cfile);
+		fputs("      new = state->block;\n", cfile);
+		fputs("      state->block = (char *)state->block + nodesize[n->type];\n", cfile);
 	}
 	fputs("      switch (n->type) {\n", cfile);
 	for (sp = str ; sp < &str[nstr] ; sp++) {
@@ -313,33 +323,33 @@ outfunc(FILE *cfile, int calcsize)
 			case T_NODE:
 				if (calcsize) {
 					indent(12, cfile);
-					fprintf(cfile, "calcsize(n->%s.%s);\n",
+					fprintf(cfile, "calcsize(n->%s.%s, result);\n",
 						sp->tag, fp->name);
 				} else {
 					indent(12, cfile);
-					fprintf(cfile, "new->%s.%s = copynode(n->%s.%s);\n",
+					fprintf(cfile, "new->%s.%s = copynode(n->%s.%s, state);\n",
 						sp->tag, fp->name, sp->tag, fp->name);
 				}
 				break;
 			case T_NODELIST:
 				if (calcsize) {
 					indent(12, cfile);
-					fprintf(cfile, "sizenodelist(n->%s.%s);\n",
+					fprintf(cfile, "sizenodelist(n->%s.%s, result);\n",
 						sp->tag, fp->name);
 				} else {
 					indent(12, cfile);
-					fprintf(cfile, "new->%s.%s = copynodelist(n->%s.%s);\n",
+					fprintf(cfile, "new->%s.%s = copynodelist(n->%s.%s, state);\n",
 						sp->tag, fp->name, sp->tag, fp->name);
 				}
 				break;
 			case T_STRING:
 				if (calcsize) {
 					indent(12, cfile);
-					fprintf(cfile, "funcstringsize += strlen(n->%s.%s) + 1;\n",
+					fprintf(cfile, "result->stringsize += strlen(n->%s.%s) + 1;\n",
 						sp->tag, fp->name);
 				} else {
 					indent(12, cfile);
-					fprintf(cfile, "new->%s.%s = nodesavestr(n->%s.%s);\n",
+					fprintf(cfile, "new->%s.%s = nodesavestr(n->%s.%s, state);\n",
 						sp->tag, fp->name, sp->tag, fp->name);
 				}
 				break;
@@ -401,7 +411,7 @@ skipbl(void)
 
 
 static int
-readline(void)
+readline(FILE *infp)
 {
 	char *p;
 

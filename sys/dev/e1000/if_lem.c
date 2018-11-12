@@ -1675,9 +1675,9 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	if (error == EFBIG) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_NOWAIT);
+		m = m_collapse(*m_headp, M_NOWAIT, EM_MAX_SCATTER);
 		if (m == NULL) {
-			adapter->mbuf_alloc_failed++;
+			adapter->mbuf_defrag_failed++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (ENOBUFS);
@@ -4526,12 +4526,12 @@ lem_add_hw_stats(struct adapter *adapter)
 	struct sysctl_oid_list *stat_list;
 
 	/* Driver Statistics */
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_alloc_fail", 
-			 CTLFLAG_RD, &adapter->mbuf_alloc_failed,
-			 "Std mbuf failed");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "cluster_alloc_fail", 
 			 CTLFLAG_RD, &adapter->mbuf_cluster_failed,
 			 "Std mbuf cluster failed");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_defrag_fail", 
+			 CTLFLAG_RD, &adapter->mbuf_defrag_failed,
+			 "Defragmenting mbuf chain failed");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "dropped", 
 			CTLFLAG_RD, &adapter->dropped_pkts,
 			"Driver dropped packets");

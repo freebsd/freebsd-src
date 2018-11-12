@@ -147,7 +147,7 @@ uart_phyp_probe_node(struct uart_phyp_softc *sc)
 		return (ENXIO);
 
 	reg = -1;
-	OF_getprop(node, "reg", &reg, sizeof(reg));
+	OF_getencprop(node, "reg", &reg, sizeof(reg));
 	if (reg == -1)
 		return (ENXIO);
 	sc->vtermid = reg;
@@ -200,7 +200,7 @@ uart_phyp_cnprobe(struct consdev *cp)
 
 	/* Check if OF has an active stdin/stdout */
 	input = -1;
-	if (OF_getprop(chosen, "stdout", &stdout,
+	if (OF_getencprop(chosen, "stdout", &stdout,
 	    sizeof(stdout)) == sizeof(stdout) && stdout != 0)
 		input = OF_instance_to_package(stdout);
 	if (input == -1)

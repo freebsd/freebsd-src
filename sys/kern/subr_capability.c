@@ -157,7 +157,6 @@ __cap_rights_init(int version, cap_rights_t *rights, ...)
 
 	n = version + 2;
 	assert(n >= CAPARSIZE_MIN && n <= CAPARSIZE_MAX);
-	memset(rights->cr_rights, 0, sizeof(rights->cr_rights[0]) * n);
 	CAP_NONE(rights);
 	va_start(ap, rights);
 	cap_rights_vset(rights, ap);

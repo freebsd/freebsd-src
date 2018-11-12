@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.c,v 1.55 2014/01/31 16:39:19 tedu Exp $ */
+/* $OpenBSD: hostfile.c,v 1.66 2015/05/04 06:10:48 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -39,21 +39,26 @@
 #include "includes.h"
 
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include <netinet/in.h>
 
+#include <errno.h>
 #include <resolv.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
+#include <unistd.h>
 
 #include "xmalloc.h"
 #include "match.h"
-#include "key.h"
+#include "sshkey.h"
 #include "hostfile.h"
 #include "log.h"
 #include "misc.h"
+#include "ssherr.h"
 #include "digest.h"
 #include "hmac.h"
 
@@ -61,6 +66,8 @@ struct hostkeys {
 	struct hostkey_entry *entries;
 	u_int num_entries;
 };
+
+/* XXX hmac is too easy to dictionary attack; use bcrypt? */
 
 static int
 extract_salt(const char *s, u_int l, u_char *salt, size_t salt_len)
@@ -154,15 +161,16 @@ host_hash(const char *host, const char *name_from_hostfile, u_int src_len)
  */
 
 int
-hostfile_read_key(char **cpp, int *bitsp, Key *ret)
+hostfile_read_key(char **cpp, u_int *bitsp, struct sshkey *ret)
 {
 	char *cp;
+	int r;
 
 	/* Skip leading whitespace. */
 	for (cp = *cpp; *cp == ' ' || *cp == '\t'; cp++)
 		;
 
-	if (key_read(ret, &cp) != 1)
+	if ((r = sshkey_read(ret, &cp)) != 0)
 		return 0;
 
 	/* Skip trailing whitespace. */
@@ -171,26 +179,8 @@ hostfile_read_key(char **cpp, int *bitsp, Key *ret)
 
 	/* Return results. */
 	*cpp = cp;
-	if (bitsp != NULL) {
-		if ((*bitsp = key_size(ret)) <= 0)
-			return 0;
-	}
-	return 1;
-}
-
-static int
-hostfile_check_key(int bits, const Key *key, const char *host,
-    const char *filename, u_long linenum)
-{
-	if (key == NULL || key->type != KEY_RSA1 || key->rsa == NULL)
-		return 1;
-	if (bits != BN_num_bits(key->rsa->n)) {
-		logit("Warning: %s, line %lu: keysize mismatch for host %s: "
-		    "actual %d vs. announced %d.",
-		    filename, linenum, host, BN_num_bits(key->rsa->n), bits);
-		logit("Warning: replace %d with %d in %s, line %lu.",
-		    bits, BN_num_bits(key->rsa->n), filename, linenum);
-	}
+	if (bitsp != NULL)
+		*bitsp = sshkey_size(ret);
 	return 1;
 }
 
@@ -238,91 +228,66 @@ init_hostkeys(void)
 	return ret;
 }
 
+struct load_callback_ctx {
+	const char *host;
+	u_long num_loaded;
+	struct hostkeys *hostkeys;
+};
+
+static int
+record_hostkey(struct hostkey_foreach_line *l, void *_ctx)
+{
+	struct load_callback_ctx *ctx = (struct load_callback_ctx *)_ctx;
+	struct hostkeys *hostkeys = ctx->hostkeys;
+	struct hostkey_entry *tmp;
+
+	if (l->status == HKF_STATUS_INVALID) {
+		/* XXX make this verbose() in the future */
+		debug("%s:%ld: parse error in hostkeys file",
+		    l->path, l->linenum);
+		return 0;
+	}
+
+	debug3("%s: found %skey type %s in file %s:%lu", __func__,
+	    l->marker == MRK_NONE ? "" :
+	    (l->marker == MRK_CA ? "ca " : "revoked "),
+	    sshkey_type(l->key), l->path, l->linenum);
+	if ((tmp = reallocarray(hostkeys->entries,
+	    hostkeys->num_entries + 1, sizeof(*hostkeys->entries))) == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+	hostkeys->entries = tmp;
+	hostkeys->entries[hostkeys->num_entries].host = xstrdup(ctx->host);
+	hostkeys->entries[hostkeys->num_entries].file = xstrdup(l->path);
+	hostkeys->entries[hostkeys->num_entries].line = l->linenum;
+	hostkeys->entries[hostkeys->num_entries].key = l->key;
+	l->key = NULL; /* steal it */
+	hostkeys->entries[hostkeys->num_entries].marker = l->marker;
+	hostkeys->num_entries++;
+	ctx->num_loaded++;
+
+	return 0;
+}
+
 void
 load_hostkeys(struct hostkeys *hostkeys, const char *host, const char *path)
 {
-	FILE *f;
-	char line[8192];
-	u_long linenum = 0, num_loaded = 0;
-	char *cp, *cp2, *hashed_host;
-	HostkeyMarker marker;
-	Key *key;
-	int kbits;
+	int r;
+	struct load_callback_ctx ctx;
 
-	if ((f = fopen(path, "r")) == NULL)
-		return;
-	debug3("%s: loading entries for host \"%.100s\" from file \"%s\"",
-	    __func__, host, path);
-	while (read_keyfile_line(f, path, line, sizeof(line), &linenum) == 0) {
-		cp = line;
+	ctx.host = host;
+	ctx.num_loaded = 0;
+	ctx.hostkeys = hostkeys;
 
-		/* Skip any leading whitespace, comments and empty lines. */
-		for (; *cp == ' ' || *cp == '\t'; cp++)
-			;
-		if (!*cp || *cp == '#' || *cp == '\n')
-			continue;
-
-		if ((marker = check_markers(&cp)) == MRK_ERROR) {
-			verbose("%s: invalid marker at %s:%lu",
-			    __func__, path, linenum);
-			continue;
-		}
-
-		/* Find the end of the host name portion. */
-		for (cp2 = cp; *cp2 && *cp2 != ' ' && *cp2 != '\t'; cp2++)
-			;
-
-		/* Check if the host name matches. */
-		if (match_hostname(host, cp, (u_int) (cp2 - cp)) != 1) {
-			if (*cp != HASH_DELIM)
-				continue;
-			hashed_host = host_hash(host, cp, (u_int) (cp2 - cp));
-			if (hashed_host == NULL) {
-				debug("Invalid hashed host line %lu of %s",
-				    linenum, path);
-				continue;
-			}
-			if (strncmp(hashed_host, cp, (u_int) (cp2 - cp)) != 0)
-				continue;
-		}
-
-		/* Got a match.  Skip host name. */
-		cp = cp2;
-
-		/*
-		 * Extract the key from the line.  This will skip any leading
-		 * whitespace.  Ignore badly formatted lines.
-		 */
-		key = key_new(KEY_UNSPEC);
-		if (!hostfile_read_key(&cp, &kbits, key)) {
-			key_free(key);
-			key = key_new(KEY_RSA1);
-			if (!hostfile_read_key(&cp, &kbits, key)) {
-				key_free(key);
-				continue;
-			}
-		}
-		if (!hostfile_check_key(kbits, key, host, path, linenum))
-			continue;
-
-		debug3("%s: found %skey type %s in file %s:%lu", __func__,
-		    marker == MRK_NONE ? "" :
-		    (marker == MRK_CA ? "ca " : "revoked "),
-		    key_type(key), path, linenum);
-		hostkeys->entries = xrealloc(hostkeys->entries,
-		    hostkeys->num_entries + 1, sizeof(*hostkeys->entries));
-		hostkeys->entries[hostkeys->num_entries].host = xstrdup(host);
-		hostkeys->entries[hostkeys->num_entries].file = xstrdup(path);
-		hostkeys->entries[hostkeys->num_entries].line = linenum;
-		hostkeys->entries[hostkeys->num_entries].key = key;
-		hostkeys->entries[hostkeys->num_entries].marker = marker;
-		hostkeys->num_entries++;
-		num_loaded++;
+	if ((r = hostkeys_foreach(path, record_hostkey, &ctx, host, NULL,
+	    HKF_WANT_MATCH|HKF_WANT_PARSE_KEY)) != 0) {
+		if (r != SSH_ERR_SYSTEM_ERROR && errno != ENOENT)
+			debug("%s: hostkeys_foreach failed for %s: %s",
+			    __func__, path, ssh_err(r));
 	}
-	debug3("%s: loaded %lu keys", __func__, num_loaded);
-	fclose(f);
-	return;
-}	
+	if (ctx.num_loaded != 0)
+		debug3("%s: loaded %lu keys from %s", __func__,
+		    ctx.num_loaded, host);
+}
 
 void
 free_hostkeys(struct hostkeys *hostkeys)
@@ -332,7 +297,7 @@ free_hostkeys(struct hostkeys *hostkeys)
 	for (i = 0; i < hostkeys->num_entries; i++) {
 		free(hostkeys->entries[i].host);
 		free(hostkeys->entries[i].file);
-		key_free(hostkeys->entries[i].key);
+		sshkey_free(hostkeys->entries[i].key);
 		explicit_bzero(hostkeys->entries + i, sizeof(*hostkeys->entries));
 	}
 	free(hostkeys->entries);
@@ -341,18 +306,18 @@ free_hostkeys(struct hostkeys *hostkeys)
 }
 
 static int
-check_key_not_revoked(struct hostkeys *hostkeys, Key *k)
+check_key_not_revoked(struct hostkeys *hostkeys, struct sshkey *k)
 {
-	int is_cert = key_is_cert(k);
+	int is_cert = sshkey_is_cert(k);
 	u_int i;
 
 	for (i = 0; i < hostkeys->num_entries; i++) {
 		if (hostkeys->entries[i].marker != MRK_REVOKE)
 			continue;
-		if (key_equal_public(k, hostkeys->entries[i].key))
+		if (sshkey_equal_public(k, hostkeys->entries[i].key))
 			return -1;
 		if (is_cert &&
-		    key_equal_public(k->cert->signature_key,
+		    sshkey_equal_public(k->cert->signature_key,
 		    hostkeys->entries[i].key))
 			return -1;
 	}
@@ -376,11 +341,11 @@ check_key_not_revoked(struct hostkeys *hostkeys, Key *k)
  */
 static HostStatus
 check_hostkeys_by_key_or_type(struct hostkeys *hostkeys,
-    Key *k, int keytype, const struct hostkey_entry **found)
+    struct sshkey *k, int keytype, const struct hostkey_entry **found)
 {
 	u_int i;
 	HostStatus end_return = HOST_NEW;
-	int want_cert = key_is_cert(k);
+	int want_cert = sshkey_is_cert(k);
 	HostkeyMarker want_marker = want_cert ? MRK_CA : MRK_NONE;
 	int proto = (k ? k->type : keytype) == KEY_RSA1 ? 1 : 2;
 
@@ -404,7 +369,7 @@ check_hostkeys_by_key_or_type(struct hostkeys *hostkeys,
 			break;
 		}
 		if (want_cert) {
-			if (key_equal_public(k->cert->signature_key,
+			if (sshkey_equal_public(k->cert->signature_key,
 			    hostkeys->entries[i].key)) {
 				/* A matching CA exists */
 				end_return = HOST_OK;
@@ -413,7 +378,7 @@ check_hostkeys_by_key_or_type(struct hostkeys *hostkeys,
 				break;
 			}
 		} else {
-			if (key_equal(k, hostkeys->entries[i].key)) {
+			if (sshkey_equal(k, hostkeys->entries[i].key)) {
 				end_return = HOST_OK;
 				if (found != NULL)
 					*found = hostkeys->entries + i;
@@ -432,9 +397,9 @@ check_hostkeys_by_key_or_type(struct hostkeys *hostkeys,
 	}
 	return end_return;
 }
-	
+
 HostStatus
-check_key_in_hostkeys(struct hostkeys *hostkeys, Key *key,
+check_key_in_hostkeys(struct hostkeys *hostkeys, struct sshkey *key,
     const struct hostkey_entry **found)
 {
 	if (key == NULL)
@@ -450,40 +415,438 @@ lookup_key_in_hostkeys_by_type(struct hostkeys *hostkeys, int keytype,
 	    found) == HOST_FOUND);
 }
 
+static int
+write_host_entry(FILE *f, const char *host, const char *ip,
+    const struct sshkey *key, int store_hash)
+{
+	int r, success = 0;
+	char *hashed_host = NULL;
+
+	if (store_hash) {
+		if ((hashed_host = host_hash(host, NULL, 0)) == NULL) {
+			error("%s: host_hash failed", __func__);
+			return 0;
+		}
+		fprintf(f, "%s ", hashed_host);
+	} else if (ip != NULL)
+		fprintf(f, "%s,%s ", host, ip);
+	else
+		fprintf(f, "%s ", host);
+
+	if ((r = sshkey_write(key, f)) == 0)
+		success = 1;
+	else
+		error("%s: sshkey_write failed: %s", __func__, ssh_err(r));
+	fputc('\n', f);
+	return success;
+}
+
 /*
  * Appends an entry to the host file.  Returns false if the entry could not
  * be appended.
  */
-
 int
-add_host_to_hostfile(const char *filename, const char *host, const Key *key,
-    int store_hash)
+add_host_to_hostfile(const char *filename, const char *host,
+    const struct sshkey *key, int store_hash)
 {
 	FILE *f;
-	int success = 0;
-	char *hashed_host = NULL;
+	int success;
 
 	if (key == NULL)
 		return 1;	/* XXX ? */
 	f = fopen(filename, "a");
 	if (!f)
 		return 0;
-
-	if (store_hash) {
-		if ((hashed_host = host_hash(host, NULL, 0)) == NULL) {
-			error("add_host_to_hostfile: host_hash failed");
-			fclose(f);
-			return 0;
-		}
-	}
-	fprintf(f, "%s ", store_hash ? hashed_host : host);
-
-	if (key_write(key, f)) {
-		success = 1;
-	} else {
-		error("add_host_to_hostfile: saving key in %s failed", filename);
-	}
-	fprintf(f, "\n");
+	success = write_host_entry(f, host, NULL, key, store_hash);
 	fclose(f);
 	return success;
+}
+
+struct host_delete_ctx {
+	FILE *out;
+	int quiet;
+	const char *host;
+	int *skip_keys; /* XXX split for host/ip? might want to ensure both */
+	struct sshkey * const *keys;
+	size_t nkeys;
+	int modified;
+};
+
+static int
+host_delete(struct hostkey_foreach_line *l, void *_ctx)
+{
+	struct host_delete_ctx *ctx = (struct host_delete_ctx *)_ctx;
+	int loglevel = ctx->quiet ? SYSLOG_LEVEL_DEBUG1 : SYSLOG_LEVEL_VERBOSE;
+	size_t i;
+
+	if (l->status == HKF_STATUS_MATCHED) {
+		if (l->marker != MRK_NONE) {
+			/* Don't remove CA and revocation lines */
+			fprintf(ctx->out, "%s\n", l->line);
+			return 0;
+		}
+
+		/* XXX might need a knob for this later */
+		/* Don't remove RSA1 keys */
+		if (l->key->type == KEY_RSA1) {
+			fprintf(ctx->out, "%s\n", l->line);
+			return 0;
+		}
+
+		/*
+		 * If this line contains one of the keys that we will be
+		 * adding later, then don't change it and mark the key for
+		 * skipping.
+		 */
+		for (i = 0; i < ctx->nkeys; i++) {
+			if (sshkey_equal(ctx->keys[i], l->key)) {
+				ctx->skip_keys[i] = 1;
+				fprintf(ctx->out, "%s\n", l->line);
+				debug3("%s: %s key already at %s:%ld", __func__,
+				    sshkey_type(l->key), l->path, l->linenum);
+				return 0;
+			}
+		}
+
+		/*
+		 * Hostname matches and has no CA/revoke marker, delete it
+		 * by *not* writing the line to ctx->out.
+		 */
+		do_log2(loglevel, "%s%s%s:%ld: Removed %s key for host %s",
+		    ctx->quiet ? __func__ : "", ctx->quiet ? ": " : "",
+		    l->path, l->linenum, sshkey_type(l->key), ctx->host);
+		ctx->modified = 1;
+		return 0;
+	}
+	/* Retain non-matching hosts and invalid lines when deleting */
+	if (l->status == HKF_STATUS_INVALID) {
+		do_log2(loglevel, "%s%s%s:%ld: invalid known_hosts entry",
+		    ctx->quiet ? __func__ : "", ctx->quiet ? ": " : "",
+		    l->path, l->linenum);
+	}
+	fprintf(ctx->out, "%s\n", l->line);
+	return 0;
+}
+
+int
+hostfile_replace_entries(const char *filename, const char *host, const char *ip,
+    struct sshkey **keys, size_t nkeys, int store_hash, int quiet, int hash_alg)
+{
+	int r, fd, oerrno = 0;
+	int loglevel = quiet ? SYSLOG_LEVEL_DEBUG1 : SYSLOG_LEVEL_VERBOSE;
+	struct host_delete_ctx ctx;
+	char *fp, *temp = NULL, *back = NULL;
+	mode_t omask;
+	size_t i;
+
+	omask = umask(077);
+
+	memset(&ctx, 0, sizeof(ctx));
+	ctx.host = host;
+	ctx.quiet = quiet;
+	if ((ctx.skip_keys = calloc(nkeys, sizeof(*ctx.skip_keys))) == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+	ctx.keys = keys;
+	ctx.nkeys = nkeys;
+	ctx.modified = 0;
+
+	/*
+	 * Prepare temporary file for in-place deletion.
+	 */
+	if ((r = asprintf(&temp, "%s.XXXXXXXXXXX", filename)) < 0 ||
+	    (r = asprintf(&back, "%s.old", filename)) < 0) {
+		r = SSH_ERR_ALLOC_FAIL;
+		goto fail;
+	}
+
+	if ((fd = mkstemp(temp)) == -1) {
+		oerrno = errno;
+		error("%s: mkstemp: %s", __func__, strerror(oerrno));
+		r = SSH_ERR_SYSTEM_ERROR;
+		goto fail;
+	}
+	if ((ctx.out = fdopen(fd, "w")) == NULL) {
+		oerrno = errno;
+		close(fd);
+		error("%s: fdopen: %s", __func__, strerror(oerrno));
+		r = SSH_ERR_SYSTEM_ERROR;
+		goto fail;
+	}
+
+	/* Remove all entries for the specified host from the file */
+	if ((r = hostkeys_foreach(filename, host_delete, &ctx, host, ip,
+	    HKF_WANT_PARSE_KEY)) != 0) {
+		error("%s: hostkeys_foreach failed: %s", __func__, ssh_err(r));
+		goto fail;
+	}
+
+	/* Add the requested keys */
+	for (i = 0; i < nkeys; i++) {
+		if (ctx.skip_keys[i])
+			continue;
+		if ((fp = sshkey_fingerprint(keys[i], hash_alg,
+		    SSH_FP_DEFAULT)) == NULL) {
+			r = SSH_ERR_ALLOC_FAIL;
+			goto fail;
+		}
+		do_log2(loglevel, "%s%sAdding new key for %s to %s: %s %s",
+		    quiet ? __func__ : "", quiet ? ": " : "", host, filename,
+		    sshkey_ssh_name(keys[i]), fp);
+		free(fp);
+		if (!write_host_entry(ctx.out, host, ip, keys[i], store_hash)) {
+			r = SSH_ERR_INTERNAL_ERROR;
+			goto fail;
+		}
+		ctx.modified = 1;
+	}
+	fclose(ctx.out);
+	ctx.out = NULL;
+
+	if (ctx.modified) {
+		/* Backup the original file and replace it with the temporary */
+		if (unlink(back) == -1 && errno != ENOENT) {
+			oerrno = errno;
+			error("%s: unlink %.100s: %s", __func__,
+			    back, strerror(errno));
+			r = SSH_ERR_SYSTEM_ERROR;
+			goto fail;
+		}
+		if (link(filename, back) == -1) {
+			oerrno = errno;
+			error("%s: link %.100s to %.100s: %s", __func__,
+			    filename, back, strerror(errno));
+			r = SSH_ERR_SYSTEM_ERROR;
+			goto fail;
+		}
+		if (rename(temp, filename) == -1) {
+			oerrno = errno;
+			error("%s: rename \"%s\" to \"%s\": %s", __func__,
+			    temp, filename, strerror(errno));
+			r = SSH_ERR_SYSTEM_ERROR;
+			goto fail;
+		}
+	} else {
+		/* No changes made; just delete the temporary file */
+		if (unlink(temp) != 0)
+			error("%s: unlink \"%s\": %s", __func__,
+			    temp, strerror(errno));
+	}
+
+	/* success */
+	r = 0;
+ fail:
+	if (temp != NULL && r != 0)
+		unlink(temp);
+	free(temp);
+	free(back);
+	if (ctx.out != NULL)
+		fclose(ctx.out);
+	free(ctx.skip_keys);
+	umask(omask);
+	if (r == SSH_ERR_SYSTEM_ERROR)
+		errno = oerrno;
+	return r;
+}
+
+static int
+match_maybe_hashed(const char *host, const char *names, int *was_hashed)
+{
+	int hashed = *names == HASH_DELIM;
+	const char *hashed_host;
+	size_t nlen = strlen(names);
+
+	if (was_hashed != NULL)
+		*was_hashed = hashed;
+	if (hashed) {
+		if ((hashed_host = host_hash(host, names, nlen)) == NULL)
+			return -1;
+		return nlen == strlen(hashed_host) &&
+		    strncmp(hashed_host, names, nlen) == 0;
+	}
+	return match_hostname(host, names) == 1;
+}
+
+int
+hostkeys_foreach(const char *path, hostkeys_foreach_fn *callback, void *ctx,
+    const char *host, const char *ip, u_int options)
+{
+	FILE *f;
+	char line[8192], oline[8192], ktype[128];
+	u_long linenum = 0;
+	char *cp, *cp2;
+	u_int kbits;
+	int hashed;
+	int s, r = 0;
+	struct hostkey_foreach_line lineinfo;
+	size_t l;
+
+	memset(&lineinfo, 0, sizeof(lineinfo));
+	if (host == NULL && (options & HKF_WANT_MATCH) != 0)
+		return SSH_ERR_INVALID_ARGUMENT;
+	if ((f = fopen(path, "r")) == NULL)
+		return SSH_ERR_SYSTEM_ERROR;
+
+	debug3("%s: reading file \"%s\"", __func__, path);
+	while (read_keyfile_line(f, path, line, sizeof(line), &linenum) == 0) {
+		line[strcspn(line, "\n")] = '\0';
+		strlcpy(oline, line, sizeof(oline));
+
+		sshkey_free(lineinfo.key);
+		memset(&lineinfo, 0, sizeof(lineinfo));
+		lineinfo.path = path;
+		lineinfo.linenum = linenum;
+		lineinfo.line = oline;
+		lineinfo.marker = MRK_NONE;
+		lineinfo.status = HKF_STATUS_OK;
+		lineinfo.keytype = KEY_UNSPEC;
+
+		/* Skip any leading whitespace, comments and empty lines. */
+		for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
+			;
+		if (!*cp || *cp == '#' || *cp == '\n') {
+			if ((options & HKF_WANT_MATCH) == 0) {
+				lineinfo.status = HKF_STATUS_COMMENT;
+				if ((r = callback(&lineinfo, ctx)) != 0)
+					break;
+			}
+			continue;
+		}
+
+		if ((lineinfo.marker = check_markers(&cp)) == MRK_ERROR) {
+			verbose("%s: invalid marker at %s:%lu",
+			    __func__, path, linenum);
+			if ((options & HKF_WANT_MATCH) == 0)
+				goto bad;
+			continue;
+		}
+
+		/* Find the end of the host name portion. */
+		for (cp2 = cp; *cp2 && *cp2 != ' ' && *cp2 != '\t'; cp2++)
+			;
+		lineinfo.hosts = cp;
+		*cp2++ = '\0';
+
+		/* Check if the host name matches. */
+		if (host != NULL) {
+			if ((s = match_maybe_hashed(host, lineinfo.hosts,
+			    &hashed)) == -1) {
+				debug2("%s: %s:%ld: bad host hash \"%.32s\"",
+				    __func__, path, linenum, lineinfo.hosts);
+				goto bad;
+			}
+			if (s == 1) {
+				lineinfo.status = HKF_STATUS_MATCHED;
+				lineinfo.match |= HKF_MATCH_HOST |
+				    (hashed ? HKF_MATCH_HOST_HASHED : 0);
+			}
+			/* Try matching IP address if supplied */
+			if (ip != NULL) {
+				if ((s = match_maybe_hashed(ip, lineinfo.hosts,
+				    &hashed)) == -1) {
+					debug2("%s: %s:%ld: bad ip hash "
+					    "\"%.32s\"", __func__, path,
+					    linenum, lineinfo.hosts);
+					goto bad;
+				}
+				if (s == 1) {
+					lineinfo.status = HKF_STATUS_MATCHED;
+					lineinfo.match |= HKF_MATCH_IP |
+					    (hashed ? HKF_MATCH_IP_HASHED : 0);
+				}
+			}
+			/*
+			 * Skip this line if host matching requested and
+			 * neither host nor address matched.
+			 */
+			if ((options & HKF_WANT_MATCH) != 0 &&
+			    lineinfo.status != HKF_STATUS_MATCHED)
+				continue;
+		}
+
+		/* Got a match.  Skip host name and any following whitespace */
+		for (; *cp2 == ' ' || *cp2 == '\t'; cp2++)
+			;
+		if (*cp2 == '\0' || *cp2 == '#') {
+			debug2("%s:%ld: truncated before key type",
+			    path, linenum);
+			goto bad;
+		}
+		lineinfo.rawkey = cp = cp2;
+
+		if ((options & HKF_WANT_PARSE_KEY) != 0) {
+			/*
+			 * Extract the key from the line.  This will skip
+			 * any leading whitespace.  Ignore badly formatted
+			 * lines.
+			 */
+			if ((lineinfo.key = sshkey_new(KEY_UNSPEC)) == NULL) {
+				error("%s: sshkey_new failed", __func__);
+				r = SSH_ERR_ALLOC_FAIL;
+				break;
+			}
+			if (!hostfile_read_key(&cp, &kbits, lineinfo.key)) {
+#ifdef WITH_SSH1
+				sshkey_free(lineinfo.key);
+				lineinfo.key = sshkey_new(KEY_RSA1);
+				if (lineinfo.key  == NULL) {
+					error("%s: sshkey_new fail", __func__);
+					r = SSH_ERR_ALLOC_FAIL;
+					break;
+				}
+				if (!hostfile_read_key(&cp, &kbits,
+				    lineinfo.key))
+					goto bad;
+#else
+				goto bad;
+#endif
+			}
+			lineinfo.keytype = lineinfo.key->type;
+			lineinfo.comment = cp;
+		} else {
+			/* Extract and parse key type */
+			l = strcspn(lineinfo.rawkey, " \t");
+			if (l <= 1 || l >= sizeof(ktype) ||
+			    lineinfo.rawkey[l] == '\0')
+				goto bad;
+			memcpy(ktype, lineinfo.rawkey, l);
+			ktype[l] = '\0';
+			lineinfo.keytype = sshkey_type_from_name(ktype);
+
+			/*
+			 * Assume RSA1 if the first component is a short
+			 * decimal number.
+			 */
+			if (lineinfo.keytype == KEY_UNSPEC && l < 8 &&
+			    strspn(ktype, "0123456789") == l)
+				lineinfo.keytype = KEY_RSA1;
+
+			/*
+			 * Check that something other than whitespace follows
+			 * the key type. This won't catch all corruption, but
+			 * it does catch trivial truncation.
+			 */
+			cp2 += l; /* Skip past key type */
+			for (; *cp2 == ' ' || *cp2 == '\t'; cp2++)
+				;
+			if (*cp2 == '\0' || *cp2 == '#') {
+				debug2("%s:%ld: truncated after key type",
+				    path, linenum);
+				lineinfo.keytype = KEY_UNSPEC;
+			}
+			if (lineinfo.keytype == KEY_UNSPEC) {
+ bad:
+				sshkey_free(lineinfo.key);
+				lineinfo.key = NULL;
+				lineinfo.status = HKF_STATUS_INVALID;
+				if ((r = callback(&lineinfo, ctx)) != 0)
+					break;
+				continue;
+			}
+		}
+		if ((r = callback(&lineinfo, ctx)) != 0)
+			break;
+	}
+	sshkey_free(lineinfo.key);
+	fclose(f);
+	return r;
 }

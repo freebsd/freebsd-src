@@ -1,4 +1,4 @@
-/* $OpenBSD: bcrypt_pbkdf.c,v 1.4 2013/07/29 00:55:53 tedu Exp $ */
+/* $OpenBSD: bcrypt_pbkdf.c,v 1.13 2015/01/12 03:20:04 tedu Exp $ */
 /*
  * Copyright (c) 2013 Ted Unangst <tedu@openbsd.org>
  *
@@ -32,7 +32,12 @@
 #endif
 
 #include "crypto_api.h"
+#ifdef SHA512_DIGEST_LENGTH
+# undef SHA512_DIGEST_LENGTH
+#endif
 #define SHA512_DIGEST_LENGTH crypto_hash_sha512_BYTES
+
+#define	MINIMUM(a,b) (((a) < (b)) ? (a) : (b))
 
 /*
  * pkcs #5 pbkdf2 implementation using the "bcrypt" hash
@@ -51,15 +56,15 @@
  *
  * One modification from official pbkdf2. Instead of outputting key material
  * linearly, we mix it. pbkdf2 has a known weakness where if one uses it to
- * generate (i.e.) 512 bits of key material for use as two 256 bit keys, an
- * attacker can merely run once through the outer loop below, but the user
+ * generate (e.g.) 512 bits of key material for use as two 256 bit keys, an
+ * attacker can merely run once through the outer loop, but the user
  * always runs it twice. Shuffling output bytes requires computing the
  * entirety of the key material to assemble any subkey. This is something a
  * wise caller could do; we just do it for you.
  */
 
-#define BCRYPT_BLOCKS 8
-#define BCRYPT_HASHSIZE (BCRYPT_BLOCKS * 4)
+#define BCRYPT_WORDS 8
+#define BCRYPT_HASHSIZE (BCRYPT_WORDS * 4)
 
 static void
 bcrypt_hash(u_int8_t *sha2pass, u_int8_t *sha2salt, u_int8_t *out)
@@ -67,7 +72,7 @@ bcrypt_hash(u_int8_t *sha2pass, u_int8_t *sha2salt, u_int8_t *out)
 	blf_ctx state;
 	u_int8_t ciphertext[BCRYPT_HASHSIZE] =
 	    "OxychromaticBlowfishSwatDynamite";
-	uint32_t cdata[BCRYPT_BLOCKS];
+	uint32_t cdata[BCRYPT_WORDS];
 	int i;
 	uint16_t j;
 	size_t shalen = SHA512_DIGEST_LENGTH;
@@ -82,14 +87,14 @@ bcrypt_hash(u_int8_t *sha2pass, u_int8_t *sha2salt, u_int8_t *out)
 
 	/* encryption */
 	j = 0;
-	for (i = 0; i < BCRYPT_BLOCKS; i++)
+	for (i = 0; i < BCRYPT_WORDS; i++)
 		cdata[i] = Blowfish_stream2word(ciphertext, sizeof(ciphertext),
 		    &j);
 	for (i = 0; i < 64; i++)
 		blf_enc(&state, cdata, sizeof(cdata) / sizeof(uint64_t));
 
 	/* copy out */
-	for (i = 0; i < BCRYPT_BLOCKS; i++) {
+	for (i = 0; i < BCRYPT_WORDS; i++) {
 		out[4 * i + 3] = (cdata[i] >> 24) & 0xff;
 		out[4 * i + 2] = (cdata[i] >> 16) & 0xff;
 		out[4 * i + 1] = (cdata[i] >> 8) & 0xff;
@@ -97,9 +102,9 @@ bcrypt_hash(u_int8_t *sha2pass, u_int8_t *sha2salt, u_int8_t *out)
 	}
 
 	/* zap */
-	memset(ciphertext, 0, sizeof(ciphertext));
-	memset(cdata, 0, sizeof(cdata));
-	memset(&state, 0, sizeof(state));
+	explicit_bzero(ciphertext, sizeof(ciphertext));
+	explicit_bzero(cdata, sizeof(cdata));
+	explicit_bzero(&state, sizeof(state));
 }
 
 int
@@ -113,6 +118,7 @@ bcrypt_pbkdf(const char *pass, size_t passlen, const u_int8_t *salt, size_t salt
 	u_int8_t *countsalt;
 	size_t i, j, amt, stride;
 	uint32_t count;
+	size_t origkeylen = keylen;
 
 	/* nothing crazy */
 	if (rounds < 1)
@@ -152,17 +158,20 @@ bcrypt_pbkdf(const char *pass, size_t passlen, const u_int8_t *salt, size_t salt
 		}
 
 		/*
-		 * pbkdf2 deviation: ouput the key material non-linearly.
+		 * pbkdf2 deviation: output the key material non-linearly.
 		 */
-		amt = MIN(amt, keylen);
-		for (i = 0; i < amt; i++)
-			key[i * stride + (count - 1)] = out[i];
-		keylen -= amt;
+		amt = MINIMUM(amt, keylen);
+		for (i = 0; i < amt; i++) {
+			size_t dest = i * stride + (count - 1);
+			if (dest >= origkeylen)
+				break;
+			key[dest] = out[i];
+		}
+		keylen -= i;
 	}
 
 	/* zap */
-	memset(out, 0, sizeof(out));
-	memset(countsalt, 0, saltlen + 4);
+	explicit_bzero(out, sizeof(out));
 	free(countsalt);
 
 	return 0;

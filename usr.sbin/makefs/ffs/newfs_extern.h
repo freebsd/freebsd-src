@@ -1,4 +1,4 @@
-/*	$NetBSD: newfs_extern.h,v 1.2 2004/06/24 22:30:13 lukem Exp $	*/
+/*	$NetBSD: newfs_extern.h,v 1.3 2009/10/21 01:07:47 snj Exp $	*/
 /* From: NetBSD: extern.h,v 1.3 2000/12/01 12:03:27 simonb Exp $ */
 
 /*
@@ -12,11 +12,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Christos Zoulas.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES

@@ -330,7 +330,7 @@ setvareq(char *s, int flags)
 		if (vp->flags & VREADONLY) {
 			if ((flags & (VTEXTFIXED|VSTACK)) == 0)
 				ckfree(s);
-			error("%.*s: is read only", vp->name_len, s);
+			error("%.*s: is read only", vp->name_len, vp->text);
 		}
 		if (flags & VNOSET) {
 			if ((flags & (VTEXTFIXED|VSTACK)) == 0)
@@ -403,14 +403,13 @@ setvareq_const(const char *s, int flags)
  */
 
 void
-listsetvar(struct strlist *list, int flags)
+listsetvar(struct arglist *list, int flags)
 {
-	struct strlist *lp;
+	int i;
 
 	INTOFF;
-	for (lp = list ; lp ; lp = lp->next) {
-		setvareq(savestr(lp->text), flags);
-	}
+	for (i = 0; i < list->count; i++)
+		setvareq(savestr(list->args[i]), flags);
 	INTON;
 }
 
@@ -442,14 +441,14 @@ lookupvar(const char *name)
 char *
 bltinlookup(const char *name, int doall)
 {
-	struct strlist *sp;
 	struct var *v;
 	char *result;
+	int i;
 
 	result = NULL;
-	for (sp = cmdenviron ; sp ; sp = sp->next) {
-		if (varequal(sp->text, name))
-			result = strchr(sp->text, '=') + 1;
+	if (cmdenviron) for (i = 0; i < cmdenviron->count; i++) {
+		if (varequal(cmdenviron->args[i], name))
+			result = strchr(cmdenviron->args[i], '=') + 1;
 	}
 	if (result != NULL)
 		return result;
@@ -468,13 +467,12 @@ bltinlookup(const char *name, int doall)
 void
 bltinsetlocale(void)
 {
-	struct strlist *lp;
 	int act = 0;
 	char *loc, *locdef;
 	int i;
 
-	for (lp = cmdenviron ; lp ; lp = lp->next) {
-		if (localevar(lp->text)) {
+	if (cmdenviron) for (i = 0; i < cmdenviron->count; i++) {
+		if (localevar(cmdenviron->args[i])) {
 			act = 1;
 			break;
 		}
@@ -507,11 +505,11 @@ bltinsetlocale(void)
 void
 bltinunsetlocale(void)
 {
-	struct strlist *lp;
+	int i;
 
 	INTOFF;
-	for (lp = cmdenviron ; lp ; lp = lp->next) {
-		if (localevar(lp->text)) {
+	if (cmdenviron) for (i = 0; i < cmdenviron->count; i++) {
+		if (localevar(cmdenviron->args[i])) {
 			setlocale(LC_ALL, "");
 			updatecharset();
 			return;
@@ -756,8 +754,8 @@ mklocal(char *name)
 	INTOFF;
 	lvp = ckmalloc(sizeof (struct localvar));
 	if (name[0] == '-' && name[1] == '\0') {
-		lvp->text = ckmalloc(sizeof optlist);
-		memcpy(lvp->text, optlist, sizeof optlist);
+		lvp->text = ckmalloc(sizeof optval);
+		memcpy(lvp->text, optval, sizeof optval);
 		vp = NULL;
 	} else {
 		vp = find_var(name, &vpp, NULL);
@@ -793,22 +791,34 @@ poplocalvars(void)
 {
 	struct localvar *lvp;
 	struct var *vp;
+	int islocalevar;
 
 	INTOFF;
 	while ((lvp = localvars) != NULL) {
 		localvars = lvp->next;
 		vp = lvp->vp;
 		if (vp == NULL) {	/* $- saved */
-			memcpy(optlist, lvp->text, sizeof optlist);
+			memcpy(optval, lvp->text, sizeof optval);
 			ckfree(lvp->text);
 			optschanged();
 		} else if ((lvp->flags & (VUNSET|VSTRFIXED)) == VUNSET) {
+			vp->flags &= ~VREADONLY;
 			(void)unsetvar(vp->text);
 		} else {
+			islocalevar = (vp->flags | lvp->flags) & VEXPORT &&
+			    localevar(lvp->text);
 			if ((vp->flags & VTEXTFIXED) == 0)
 				ckfree(vp->text);
 			vp->flags = lvp->flags;
 			vp->text = lvp->text;
+			if (vp->func)
+				(*vp->func)(vp->text + vp->name_len + 1);
+			if (islocalevar) {
+				change_env(vp->text, vp->flags & VEXPORT &&
+				    (vp->flags & VUNSET) == 0);
+				setlocale(LC_ALL, "");
+				updatecharset();
+			}
 		}
 		ckfree(lvp);
 	}

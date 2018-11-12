@@ -351,4 +351,68 @@ also menu-namespace also menu-command-helpers
 	2 goto_menu
 ;
 
+\ 
+\ Set boot environment defaults
+\ 
+
+: init_bootenv ( -- )
+	s" set menu_caption[1]=${bemenu_current}${vfs.root.mountfrom}" evaluate
+	s" set ansi_caption[1]=${beansi_current}${vfs.root.mountfrom}" evaluate
+	s" set menu_caption[2]=${bemenu_bootfs}${zfs_be_active}" evaluate
+	s" set ansi_caption[2]=${beansi_bootfs}${zfs_be_active}" evaluate
+	s" set menu_caption[3]=${bemenu_page}${zfs_be_currpage}${bemenu_pageof}${zfs_be_pages}" evaluate
+	s" set ansi_caption[3]=${beansi_page}${zfs_be_currpage}${bemenu_pageof}${zfs_be_pages}" evaluate
+;
+
+\
+\ Redraw the entire screen. A long BE name can corrupt the menu
+\ 
+
+: be_draw_screen
+	clear		\ Clear the screen (in screen.4th)
+	print_version	\ print version string (bottom-right; see version.4th)
+	draw-beastie	\ Draw FreeBSD logo at right (in beastie.4th)
+	draw-brand	\ Draw brand.4th logo at top (in brand.4th)
+	menu-init	\ Initialize menu and draw bounding box (in menu.4th)
+;
+
+\
+\ Select a boot environment
+\ 
+
+: set_bootenv ( N -- N TRUE )
+	dup s" set vfs.root.mountfrom=${bootenv_root[E]}" 38 +c! evaluate
+	s" set currdev=${vfs.root.mountfrom}:" evaluate
+	s" unload" evaluate
+	free-module-options
+	s" /boot/defaults/loader.conf" read-conf
+	s" /boot/loader.conf" read-conf
+	s" /boot/loader.conf.local" read-conf
+	init_bootenv
+	be_draw_screen
+	menu-redraw
+	TRUE
+;
+
+\
+\ Switch to the next page of boot environments
+\
+
+: set_be_page ( N -- N TRUE )
+	s" zfs_be_currpage" getenv dup -1 = if
+		drop s" 1"
+	else
+		0 s>d 2swap
+		>number ( ud caddr/u -- ud' caddr'/u' )	\ convert string to numbers
+		2drop					\ drop the string
+		1 um/mod ( ud u1 -- u2 u3 ) 		\ convert double ud' to single u3' and remainder u2
+		swap drop ( ud2 u3 -- u3 )		\ drop the remainder u2
+		1+					\ increment the page number
+		s>d <# #s #>				\ convert back to a string
+	then
+	s" zfs_be_currpage" setenv
+	s" reloadbe" evaluate
+	3 goto_menu
+;
+
 only forth definitions

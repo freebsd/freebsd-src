@@ -30,7 +30,7 @@ md5_block_asm_data_order:
 
 
 	cmpq	%rdi,%rsi
-	je	.Lend				
+	je	.Lend
 
 
 .Lloop:
@@ -494,14 +494,14 @@ md5_block_asm_data_order:
 	movl	%ecx,%r11d
 	addl	%ecx,%ebx
 	movl	0(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	xorl	%edx,%r11d
 	leal	-198630844(%rax,%r10,1),%eax
 	orl	%ebx,%r11d
 	xorl	%ecx,%r11d
 	addl	%r11d,%eax
 	movl	28(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$6,%eax
 	xorl	%ecx,%r11d
 	addl	%ebx,%eax
@@ -510,7 +510,7 @@ md5_block_asm_data_order:
 	xorl	%ebx,%r11d
 	addl	%r11d,%edx
 	movl	56(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$10,%edx
 	xorl	%ebx,%r11d
 	addl	%eax,%edx
@@ -519,7 +519,7 @@ md5_block_asm_data_order:
 	xorl	%eax,%r11d
 	addl	%r11d,%ecx
 	movl	20(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$15,%ecx
 	xorl	%eax,%r11d
 	addl	%edx,%ecx
@@ -528,7 +528,7 @@ md5_block_asm_data_order:
 	xorl	%edx,%r11d
 	addl	%r11d,%ebx
 	movl	48(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$21,%ebx
 	xorl	%edx,%r11d
 	addl	%ecx,%ebx
@@ -537,7 +537,7 @@ md5_block_asm_data_order:
 	xorl	%ecx,%r11d
 	addl	%r11d,%eax
 	movl	12(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$6,%eax
 	xorl	%ecx,%r11d
 	addl	%ebx,%eax
@@ -546,7 +546,7 @@ md5_block_asm_data_order:
 	xorl	%ebx,%r11d
 	addl	%r11d,%edx
 	movl	40(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$10,%edx
 	xorl	%ebx,%r11d
 	addl	%eax,%edx
@@ -555,7 +555,7 @@ md5_block_asm_data_order:
 	xorl	%eax,%r11d
 	addl	%r11d,%ecx
 	movl	4(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$15,%ecx
 	xorl	%eax,%r11d
 	addl	%edx,%ecx
@@ -564,7 +564,7 @@ md5_block_asm_data_order:
 	xorl	%edx,%r11d
 	addl	%r11d,%ebx
 	movl	32(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$21,%ebx
 	xorl	%edx,%r11d
 	addl	%ecx,%ebx
@@ -573,7 +573,7 @@ md5_block_asm_data_order:
 	xorl	%ecx,%r11d
 	addl	%r11d,%eax
 	movl	60(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$6,%eax
 	xorl	%ecx,%r11d
 	addl	%ebx,%eax
@@ -582,7 +582,7 @@ md5_block_asm_data_order:
 	xorl	%ebx,%r11d
 	addl	%r11d,%edx
 	movl	24(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$10,%edx
 	xorl	%ebx,%r11d
 	addl	%eax,%edx
@@ -591,7 +591,7 @@ md5_block_asm_data_order:
 	xorl	%eax,%r11d
 	addl	%r11d,%ecx
 	movl	52(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$15,%ecx
 	xorl	%eax,%r11d
 	addl	%edx,%ecx
@@ -600,7 +600,7 @@ md5_block_asm_data_order:
 	xorl	%edx,%r11d
 	addl	%r11d,%ebx
 	movl	16(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$21,%ebx
 	xorl	%edx,%r11d
 	addl	%ecx,%ebx
@@ -609,7 +609,7 @@ md5_block_asm_data_order:
 	xorl	%ecx,%r11d
 	addl	%r11d,%eax
 	movl	44(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$6,%eax
 	xorl	%ecx,%r11d
 	addl	%ebx,%eax
@@ -618,7 +618,7 @@ md5_block_asm_data_order:
 	xorl	%ebx,%r11d
 	addl	%r11d,%edx
 	movl	8(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$10,%edx
 	xorl	%ebx,%r11d
 	addl	%eax,%edx
@@ -627,7 +627,7 @@ md5_block_asm_data_order:
 	xorl	%eax,%r11d
 	addl	%r11d,%ecx
 	movl	36(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$15,%ecx
 	xorl	%eax,%r11d
 	addl	%edx,%ecx
@@ -636,7 +636,7 @@ md5_block_asm_data_order:
 	xorl	%edx,%r11d
 	addl	%r11d,%ebx
 	movl	0(%rsi),%r10d
-	movl	$4294967295,%r11d
+	movl	$0xffffffff,%r11d
 	roll	$21,%ebx
 	xorl	%edx,%r11d
 	addl	%ecx,%ebx
@@ -649,7 +649,7 @@ md5_block_asm_data_order:
 
 	addq	$64,%rsi
 	cmpq	%rdi,%rsi
-	jb	.Lloop				
+	jb	.Lloop
 
 
 .Lend:

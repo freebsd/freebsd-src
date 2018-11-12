@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.bin/lastcomm
-
 TAP_TESTS_SH=	legacy_test
 
 FILESDIR=	${TESTSDIR}

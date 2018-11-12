@@ -169,6 +169,8 @@ struct wpa_group {
 	u8 IGTK[2][WPA_IGTK_MAX_LEN];
 	int GN_igtk, GM_igtk;
 #endif /* CONFIG_IEEE80211W */
+	/* Number of references except those in struct wpa_group->next */
+	unsigned int references;
 };
 
 

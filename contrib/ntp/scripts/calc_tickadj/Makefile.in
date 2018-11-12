@@ -118,6 +118,7 @@ am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/m4/ntp_locinfo.m4 \
 	$(top_srcdir)/sntp/m4/ntp_openssl.m4 \
 	$(top_srcdir)/sntp/m4/ntp_pkg_config.m4 \
+	$(top_srcdir)/sntp/m4/ntp_problemtests.m4 \
 	$(top_srcdir)/sntp/m4/ntp_prog_cc.m4 \
 	$(top_srcdir)/sntp/m4/ntp_rlimit.m4 \
 	$(top_srcdir)/sntp/m4/ntp_sntp.m4 \
@@ -203,6 +204,7 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
+BUILD_THREAD = @BUILD_THREAD@
 CALC_TICKADJ_DB = @CALC_TICKADJ_DB@
 CALC_TICKADJ_DL = @CALC_TICKADJ_DL@
 CALC_TICKADJ_DS = @CALC_TICKADJ_DS@
@@ -211,6 +213,7 @@ CALC_TICKADJ_NI = @CALC_TICKADJ_NI@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CFLAGS_LIBEVENT = @CFLAGS_LIBEVENT@
 CFLAGS_NTP = @CFLAGS_NTP@
 CHUTEST = @CHUTEST@
 CONFIG_SHELL = @CONFIG_SHELL@
@@ -272,6 +275,7 @@ LIBTOOL_DEPS = @LIBTOOL_DEPS@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LSCF = @LSCF@
+LTHREAD_LIBS = @LTHREAD_LIBS@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MAKE_ADJTIMED = @MAKE_ADJTIMED@
@@ -512,7 +516,9 @@ noinst_DATA = \
 	$(manpage_HACK)			\
 	$(NULL)
 
-all: all-am
+BUILT_SOURCES = $(noinst_DATA)
+all: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
 $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
@@ -781,13 +787,15 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
-check: check-am
+check: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) check-am
 all-am: Makefile $(SCRIPTS) $(MANS) $(DATA)
 installdirs:
 	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
-install: install-am
+install: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) install-am
 install-exec: install-exec-am
 install-data: install-data-am
 uninstall: uninstall-am
@@ -818,6 +826,7 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-am
 
 clean-am: clean-generic clean-libtool mostlyclean-am
@@ -888,7 +897,7 @@ uninstall-am: uninstall-binSCRIPTS uninstall-libexecSCRIPTS \
 
 uninstall-man: uninstall-man1 uninstall-man8
 
-.MAKE: install-am install-strip
+.MAKE: all check install install-am install-strip
 
 .PHONY: all all-am check check-am clean clean-generic clean-libtool \
 	cscopelist-am ctags-am distclean distclean-generic \

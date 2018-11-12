@@ -16,7 +16,7 @@
 #include "ikev2_common.h"
 
 
-static struct ikev2_integ_alg ikev2_integ_algs[] = {
+static const struct ikev2_integ_alg ikev2_integ_algs[] = {
 	{ AUTH_HMAC_SHA1_96, 20, 12 },
 	{ AUTH_HMAC_MD5_96, 16, 12 }
 };
@@ -24,7 +24,7 @@ static struct ikev2_integ_alg ikev2_integ_algs[] = {
 #define NUM_INTEG_ALGS ARRAY_SIZE(ikev2_integ_algs)
 
 
-static struct ikev2_prf_alg ikev2_prf_algs[] = {
+static const struct ikev2_prf_alg ikev2_prf_algs[] = {
 	{ PRF_HMAC_SHA1, 20, 20 },
 	{ PRF_HMAC_MD5, 16, 16 }
 };
@@ -32,7 +32,7 @@ static struct ikev2_prf_alg ikev2_prf_algs[] = {
 #define NUM_PRF_ALGS ARRAY_SIZE(ikev2_prf_algs)
 
 
-static struct ikev2_encr_alg ikev2_encr_algs[] = {
+static const struct ikev2_encr_alg ikev2_encr_algs[] = {
 	{ ENCR_AES_CBC, 16, 16 }, /* only 128-bit keys supported for now */
 	{ ENCR_3DES, 24, 8 }
 };

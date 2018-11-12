@@ -351,25 +351,31 @@ ObjectFile::GetAddressClass (addr_t file_addr)
                     case eSectionTypeZeroFill:
                     case eSectionTypeDataObjCMessageRefs:
                     case eSectionTypeDataObjCCFStrings:
+                    case eSectionTypeGoSymtab:
                         return eAddressClassData;
                     case eSectionTypeDebug:
                     case eSectionTypeDWARFDebugAbbrev:
+                    case eSectionTypeDWARFDebugAddr:
                     case eSectionTypeDWARFDebugAranges:
                     case eSectionTypeDWARFDebugFrame:
                     case eSectionTypeDWARFDebugInfo:
                     case eSectionTypeDWARFDebugLine:
                     case eSectionTypeDWARFDebugLoc:
                     case eSectionTypeDWARFDebugMacInfo:
+                    case eSectionTypeDWARFDebugMacro:
                     case eSectionTypeDWARFDebugPubNames:
                     case eSectionTypeDWARFDebugPubTypes:
                     case eSectionTypeDWARFDebugRanges:
                     case eSectionTypeDWARFDebugStr:
+                    case eSectionTypeDWARFDebugStrOffsets:
                     case eSectionTypeDWARFAppleNames:
                     case eSectionTypeDWARFAppleTypes:
                     case eSectionTypeDWARFAppleNamespaces:
                     case eSectionTypeDWARFAppleObjC:
                         return eAddressClassDebug;
                     case eSectionTypeEHFrame:
+                    case eSectionTypeARMexidx:
+                    case eSectionTypeARMextab:
                     case eSectionTypeCompactUnwind:
                         return eAddressClassRuntime;
                     case eSectionTypeELFSymbolTable:
@@ -532,6 +538,7 @@ ObjectFile::ReadSectionData (const Section *section, DataExtractor& section_data
                 }
             }
         }
+        return GetData(section->GetFileOffset(), section->GetFileSize(), section_data);
     }
     else
     {
@@ -600,16 +607,49 @@ ObjectFile::ClearSymtab ()
 }
 
 SectionList *
-ObjectFile::GetSectionList()
+ObjectFile::GetSectionList(bool update_module_section_list)
 {
     if (m_sections_ap.get() == nullptr)
     {
-        ModuleSP module_sp(GetModule());
-        if (module_sp)
+        if (update_module_section_list)
         {
-            lldb_private::Mutex::Locker locker(module_sp->GetMutex());
-            CreateSections(*module_sp->GetUnifiedSectionList());
+            ModuleSP module_sp(GetModule());
+            if (module_sp)
+            {
+                lldb_private::Mutex::Locker locker(module_sp->GetMutex());
+                CreateSections(*module_sp->GetUnifiedSectionList());
+            }
+        }
+        else
+        {
+            SectionList unified_section_list;
+            CreateSections(unified_section_list);
         }
     }
     return m_sections_ap.get();
+}
+
+lldb::SymbolType
+ObjectFile::GetSymbolTypeFromName (llvm::StringRef name,
+                                   lldb::SymbolType symbol_type_hint)
+{
+    if (!name.empty())
+    {
+        if (name.startswith("_OBJC_"))
+        {
+            // ObjC
+            if (name.startswith("_OBJC_CLASS_$_"))
+                return lldb::eSymbolTypeObjCClass;
+            if (name.startswith("_OBJC_METACLASS_$_"))
+                return lldb::eSymbolTypeObjCMetaClass;
+            if (name.startswith("_OBJC_IVAR_$_"))
+                return lldb::eSymbolTypeObjCIVar;
+        }
+        else if (name.startswith(".objc_class_name_"))
+        {
+            // ObjC v1
+            return lldb::eSymbolTypeObjCClass;
+        }
+    }
+    return symbol_type_hint;
 }

@@ -11,8 +11,9 @@ SYS?=	${.CURDIR}/..
 # better solution would be for ctags to generate "struct vmmeter" tags.
 
 COMM=	${SYS}/dev/advansys/*.[ch] \
+	${SYS}/sys/vnode.h \
 	${SYS}/dev/aha/*.[ch] \
-	${SYS}/dev/aic7xxx/*.[ch] \
+	${SYS}/dev/alc/*.[ch] \
 	${SYS}/dev/buslogic/*.[ch] \
 	${SYS}/dev/dpt/*.[ch] \
 	${SYS}/dev/en/*.[ch] \
@@ -22,15 +23,25 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/dev/ppbus/*.[ch] \
 	${SYS}/dev/smbus/*.[ch] \
 	${SYS}/dev/vx/*.[ch] \
+	${SYS}/fs/autofs/*.[ch] \
 	${SYS}/fs/cd9660/*.[ch] \
+	${SYS}/fs/cuse/*.[ch] \
 	${SYS}/fs/deadfs/*.[ch] \
 	${SYS}/fs/devfs/*.[ch] \
+	${SYS}/fs/ext2fs/*.[ch] \
 	${SYS}/fs/fdescfs/*.[ch] \
 	${SYS}/fs/fifofs/*.[ch] \
+	${SYS}/fs/fuse/*.[ch] \
 	${SYS}/fs/msdosfs/*.[ch] \
+	${SYS}/fs/nandfs/*.[ch] \
+	${SYS}/fs/nfs/*.[ch] \
+	${SYS}/fs/nfsclient/*.[ch] \
+	${SYS}/fs/nfsserver/*.[ch] \
 	${SYS}/fs/nullfs/*.[ch] \
 	${SYS}/fs/procfs/*.[ch] \
+	${SYS}/fs/pseudofs/*.[ch] \
 	${SYS}/fs/smbfs/*.[ch] \
+	${SYS}/fs/tmpfs/*.[ch] \
 	${SYS}/fs/udf/*.[ch] \
 	${SYS}/fs/unionfs/*.[ch] \
 	${SYS}/geom/*.[ch] \
@@ -40,10 +51,7 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/netinet6/*.[ch] \
 	${SYS}/netipsec/*.[ch] \
 	${SYS}/netnatm/*.[ch] \
-	${SYS}/nfs/*.[ch] \
-	${SYS}/nfsclient/*.[ch] \
-	${SYS}/nfsserver/*.[ch] \
-	${SYS}/pci/*.[ch] \
+	${SYS}/ddb/*.[ch] \
 	${SYS}/ufs/ffs/*.[ch] \
 	${SYS}/ufs/ufs/*.[ch] \
 	${SYS}/vm/*.[ch] \
@@ -57,37 +65,43 @@ COMMDIR1= ${SYS}/conf \
 	${SYS}/netinet6 \
 	${SYS}/netipsec \
 	${SYS}/netnatm \
-	${SYS}/nfs \
-	${SYS}/pci \
+	${SYS}/ddb \
 	${SYS}/vm \
 	${SYS}/sys
 
 COMMDIR2= ${SYS}/dev/advansys \
 	${SYS}/dev/aha \
-	${SYS}/dev/aic7xxx \
+	${SYS}/dev/alc \
 	${SYS}/dev/buslogic \
-	${SYS}/dev/ccd \
-	${SYS}/dev/dec \
 	${SYS}/dev/dpt \
 	${SYS}/dev/en \
-	${SYS}/dev/hea \
-	${SYS}/dev/hfa \
 	${SYS}/dev/iicbus \
 	${SYS}/dev/isp \
+	${SYS}/dev/md \
 	${SYS}/dev/pdq \
 	${SYS}/dev/ppbus \
 	${SYS}/dev/smbus \
-	${SYS}/dev/vn \
 	${SYS}/dev/vx \
+	${SYS}/fs/autofs \
+	${SYS}/fs/cd9660 \
+	${SYS}/fs/cuse \
 	${SYS}/fs/deadfs \
 	${SYS}/fs/devfs \
+	${SYS}/fs/ext2fs \
 	${SYS}/fs/fdescfs \
 	${SYS}/fs/fifofs \
+	${SYS}/fs/fuse \
 	${SYS}/fs/msdosfs \
+	${SYS}/fs/nandfs \
+	${SYS}/fs/nfs \
+	${SYS}/fs/nfsclient \
+	${SYS}/fs/nfsserver \
 	${SYS}/fs/nullfs \
 	${SYS}/fs/procfs \
-	${SYS}/fs/specfs \
+	${SYS}/fs/pseudofs \
+	${SYS}/fs/smbfs \
+	${SYS}/fs/tmpfs \
+	${SYS}/fs/udf \
 	${SYS}/fs/unionfs \
-	${SYS}/fs/cd9660 \
 	${SYS}/ufs/ffs \
 	${SYS}/ufs/ufs

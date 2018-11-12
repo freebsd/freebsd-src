@@ -42,9 +42,6 @@ public:
     //------------------------------------------------------------------
     GDBRemoteCommunicationServerLLGS(const lldb::PlatformSP& platform_sp, MainLoop &mainloop);
 
-    virtual
-    ~GDBRemoteCommunicationServerLLGS();
-
     //------------------------------------------------------------------
     /// Specify the program to launch and its arguments.
     ///
@@ -119,12 +116,15 @@ public:
 protected:
     lldb::PlatformSP m_platform_sp;
     MainLoop &m_mainloop;
-    MainLoop::ReadHandleUP m_read_handle_up;
+    MainLoop::ReadHandleUP m_network_handle_up;
     lldb::tid_t m_current_tid;
     lldb::tid_t m_continue_tid;
     Mutex m_debugged_process_mutex;
     NativeProcessProtocolSP m_debugged_process_sp;
+
     Communication m_stdio_communication;
+    MainLoop::ReadHandleUP m_stdio_handle_up;
+
     lldb::StateType m_inferior_prev_state;
     lldb::DataBufferSP m_active_auxv_buffer_sp;
     Mutex m_saved_registers_mutex;
@@ -142,7 +142,7 @@ protected:
     SendStopReplyPacketForThread (lldb::tid_t tid);
 
     PacketResult
-    SendStopReasonForState (lldb::StateType process_state, bool flush_on_exit);
+    SendStopReasonForState (lldb::StateType process_state);
 
     PacketResult
     Handle_k (StringExtractorGDBRemote &packet);
@@ -201,8 +201,9 @@ protected:
     PacketResult
     Handle_interrupt (StringExtractorGDBRemote &packet);
 
+    // Handles $m and $x packets.
     PacketResult
-    Handle_m (StringExtractorGDBRemote &packet);
+    Handle_memory_read (StringExtractorGDBRemote &packet);
 
     PacketResult
     Handle_M (StringExtractorGDBRemote &packet);
@@ -241,6 +242,9 @@ protected:
     Handle_qThreadStopInfo (StringExtractorGDBRemote &packet);
 
     PacketResult
+    Handle_jThreadsInfo (StringExtractorGDBRemote &packet);
+
+    PacketResult
     Handle_qWatchpointSupportInfo (StringExtractorGDBRemote &packet);
 
     PacketResult
@@ -261,31 +265,15 @@ protected:
     Error
     SetSTDIOFileDescriptor (int fd);
 
-    static void
-    STDIOReadThreadBytesReceived (void *baton, const void *src, size_t src_len);
-
     FileSpec
     FindModuleFile (const std::string& module_path, const ArchSpec& arch) override;
 
 private:
-    bool
-    DebuggedProcessReaped (lldb::pid_t pid);
-
-    static bool
-    ReapDebuggedProcess (void *callback_baton,
-                         lldb::pid_t pid,
-                         bool exited,
-                         int signal,
-                         int status);
-
     void
     HandleInferiorState_Exited (NativeProcessProtocol *process);
 
     void
     HandleInferiorState_Stopped (NativeProcessProtocol *process);
-
-    void
-    FlushInferiorOutput ();
 
     NativeThreadProtocolSP
     GetThreadFromSuffix (StringExtractorGDBRemote &packet);
@@ -304,6 +292,15 @@ private:
 
     void
     DataAvailableCallback ();
+
+    void
+    SendProcessOutput ();
+
+    void
+    StartSTDIOForwarding();
+
+    void
+    StopSTDIOForwarding();
 
     //------------------------------------------------------------------
     // For GDBRemoteCommunicationServerLLGS only

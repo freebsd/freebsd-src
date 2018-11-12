@@ -69,7 +69,7 @@ _dtbinstall:
 	test -d ${DESTDIR}${DTBDIR} || ${INSTALL} -d -o ${DTBOWN} -g ${DTBGRP} ${DESTDIR}${DTBDIR}
 .for _dtb in ${DTB}
 	${INSTALL} -o ${DTBOWN} -g ${DTBGRP} -m ${DTBMODE} \
-	    ${_INSTALLFLAGS} ${_dtb} ${DESTDIR}${DTBDIR}
+	    ${_INSTALLFLAGS} ${_dtb} ${DESTDIR}${DTBDIR}/
 .endfor
 .endif # !target(realinstall)
 .endif # !target(install)

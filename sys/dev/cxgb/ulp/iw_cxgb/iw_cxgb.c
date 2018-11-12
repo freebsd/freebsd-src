@@ -296,5 +296,5 @@ MODULE_DEPEND(t3_tom, cxgbc, 1, 1, 1);
 MODULE_DEPEND(iw_cxgb, toecore, 1, 1, 1);
 MODULE_DEPEND(iw_cxgb, t3_tom, 1, 1, 1);
 MODULE_DEPEND(iw_cxgb, ibcore, 1, 1, 1);
-MODULE_DEPEND(iw_cxgb, linuxapi, 1, 1, 1);
+MODULE_DEPEND(iw_cxgb, linuxkpi, 1, 1, 1);
 

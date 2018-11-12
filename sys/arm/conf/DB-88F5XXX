@@ -65,6 +65,7 @@ device		uart
 device		ether
 device		mge			# Marvell Gigabit Ethernet controller
 device		mii
+device		mdio
 device		e1000phy
 device		bpf
 options 	DEVICE_POLLING
@@ -73,6 +74,7 @@ options 	HZ=1000
 # I2C (TWSI)
 device		iic
 device		iicbus
+device		twsi
 device		ds133x
 
 # USB
@@ -86,6 +88,9 @@ device		da
 
 # SATA
 device		mvs
+
+# GPIO
+device		gpio
 
 # Flattened Device Tree
 options 	FDT

@@ -878,3 +878,4 @@ static driver_t uhid_driver = {
 DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, NULL, 0);
 MODULE_DEPEND(uhid, usb, 1, 1, 1);
 MODULE_VERSION(uhid, 1);
+USB_PNP_HOST_INFO(uhid_devs);

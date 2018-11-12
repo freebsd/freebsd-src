@@ -76,7 +76,7 @@ svn_cache__get(void **value_p,
      out with FOUND set to false. */
   *found = FALSE;
 #ifdef SVN_DEBUG
-  if (getenv("SVN_X_DOES_NOT_MARK_THE_SPOT"))
+  if (cache->pretend_empty)
     return SVN_NO_ERROR;
 #endif
 
@@ -93,6 +93,26 @@ svn_cache__get(void **value_p,
     cache->hits++;
 
   return err;
+}
+
+svn_error_t *
+svn_cache__has_key(svn_boolean_t *found,
+                   svn_cache__t *cache,
+                   const void *key,
+                   apr_pool_t *scratch_pool)
+{
+  *found = FALSE;
+#ifdef SVN_DEBUG
+  if (cache->pretend_empty)
+    return SVN_NO_ERROR;
+#endif
+
+  return handle_error(cache,
+                      (cache->vtable->has_key)(found,
+                                               cache->cache_internal,
+                                               key,
+                                               scratch_pool),
+                      scratch_pool);
 }
 
 svn_error_t *
@@ -119,7 +139,7 @@ svn_cache__iter(svn_boolean_t *completed,
                 apr_pool_t *scratch_pool)
 {
 #ifdef SVN_DEBUG
-  if (getenv("SVN_X_DOES_NOT_MARK_THE_SPOT"))
+  if (cache->pretend_empty)
     /* Pretend CACHE is empty. */
     return SVN_NO_ERROR;
 #endif
@@ -146,7 +166,7 @@ svn_cache__get_partial(void **value,
   out with FOUND set to false. */
   *found = FALSE;
 #ifdef SVN_DEBUG
-  if (getenv("SVN_X_DOES_NOT_MARK_THE_SPOT"))
+  if (cache->pretend_empty)
     return SVN_NO_ERROR;
 #endif
 
@@ -192,6 +212,7 @@ svn_cache__get_info(svn_cache__t *cache,
 {
   /* write general statistics */
 
+  memset(info, 0, sizeof(*info));
   info->gets = cache->reads;
   info->hits = cache->hits;
   info->sets = cache->writes;
@@ -221,6 +242,7 @@ svn_cache__get_info(svn_cache__t *cache,
 
 svn_string_t *
 svn_cache__format_info(const svn_cache__info_t *info,
+                       svn_boolean_t access_only,
                        apr_pool_t *result_pool)
 {
   enum { _1MB = 1024 * 1024 };
@@ -235,9 +257,40 @@ svn_cache__format_info(const svn_cache__info_t *info,
   double data_entry_rate = (100.0 * (double)info->used_entries)
                  / (double)(info->total_entries ? info->total_entries : 1);
 
-  return svn_string_createf(result_pool,
+  const char *histogram = "";
+  if (!access_only)
+    {
+      svn_stringbuf_t *text = svn_stringbuf_create_empty(result_pool);
 
-                            "prefix  : %s\n"
+      int i;
+      int count = sizeof(info->histogram) / sizeof(info->histogram[0]);
+      for (i = count - 1; i >= 0; --i)
+        if (info->histogram[i] > 0 || text->len > 0)
+          text = svn_stringbuf_createf(result_pool,
+                                       i == count - 1
+                                         ? "%s%12" APR_UINT64_T_FMT
+                                           " buckets with >%d entries\n"
+                                         : "%s%12" APR_UINT64_T_FMT
+                                           " buckets with %d entries\n",
+                                       text->data, info->histogram[i], i);
+
+      histogram = text->data;
+    }
+
+  return access_only
+       ? svn_string_createf(result_pool,
+                            "%s\n"
+                            "gets    : %" APR_UINT64_T_FMT
+                            ", %" APR_UINT64_T_FMT " hits (%5.2f%%)\n"
+                            "sets    : %" APR_UINT64_T_FMT
+                            " (%5.2f%% of misses)\n",
+                            info->id,
+                            info->gets,
+                            info->hits, hit_rate,
+                            info->sets, write_rate)
+       : svn_string_createf(result_pool,
+
+                            "%s\n"
                             "gets    : %" APR_UINT64_T_FMT
                             ", %" APR_UINT64_T_FMT " hits (%5.2f%%)\n"
                             "sets    : %" APR_UINT64_T_FMT
@@ -247,7 +300,7 @@ svn_cache__format_info(const svn_cache__info_t *info,
                             " of %" APR_UINT64_T_FMT " MB data cache"
                             " / %" APR_UINT64_T_FMT " MB total cache memory\n"
                             "          %" APR_UINT64_T_FMT " entries (%5.2f%%)"
-                            " of %" APR_UINT64_T_FMT " total\n",
+                            " of %" APR_UINT64_T_FMT " total\n%s",
 
                             info->id,
 
@@ -261,5 +314,6 @@ svn_cache__format_info(const svn_cache__info_t *info,
                             info->total_size / _1MB,
 
                             info->used_entries, data_entry_rate,
-                            info->total_entries);
+                            info->total_entries,
+                            histogram);
 }

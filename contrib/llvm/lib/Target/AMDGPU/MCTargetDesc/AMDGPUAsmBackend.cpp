@@ -71,12 +71,26 @@ void AMDGPUMCObjectWriter::writeObject(MCAssembler &Asm,
   }
 }
 
+static unsigned getFixupKindNumBytes(unsigned Kind) {
+  switch (Kind) {
+  case FK_Data_1:
+    return 1;
+  case FK_Data_2:
+    return 2;
+  case FK_Data_4:
+    return 4;
+  case FK_Data_8:
+    return 8;
+  default:
+    llvm_unreachable("Unknown fixup kind!");
+  }
+}
+
 void AMDGPUAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
                                   unsigned DataSize, uint64_t Value,
                                   bool IsPCRel) const {
 
   switch ((unsigned)Fixup.getKind()) {
-    default: llvm_unreachable("Unknown fixup kind");
     case AMDGPU::fixup_si_sopp_br: {
       uint16_t *Dst = (uint16_t*)(Data + Fixup.getOffset());
       *Dst = (Value - 4) / 4;
@@ -85,16 +99,42 @@ void AMDGPUAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
 
     case AMDGPU::fixup_si_rodata: {
       uint32_t *Dst = (uint32_t*)(Data + Fixup.getOffset());
-      *Dst = Value;
-      break;
-    }
-
-    case AMDGPU::fixup_si_end_of_text: {
-      uint32_t *Dst = (uint32_t*)(Data + Fixup.getOffset());
-      // The value points to the last instruction in the text section, so we
-      // need to add 4 bytes to get to the start of the constants.
+      // We emit constant data at the end of the text section and generate its
+      // address using the following code sequence:
+      // s_getpc_b64 s[0:1]
+      // s_add_u32 s0, s0, $symbol
+      // s_addc_u32 s1, s1, 0
+      //
+      // s_getpc_b64 returns the address of the s_add_u32 instruction and then
+      // the fixup replaces $symbol with a literal constant, which is a
+      // pc-relative  offset from the encoding of the $symbol operand to the
+      // constant data.
+      //
+      // What we want here is an offset from the start of the s_add_u32
+      // instruction to the constant data, but since the encoding of $symbol
+      // starts 4 bytes after the start of the add instruction, we end up
+      // with an offset that is 4 bytes too small.  This requires us to
+      // add 4 to the fixup value before applying it.
       *Dst = Value + 4;
       break;
+    }
+    default: {
+      // FIXME: Copied from AArch64
+      unsigned NumBytes = getFixupKindNumBytes(Fixup.getKind());
+      if (!Value)
+        return; // Doesn't change encoding.
+      MCFixupKindInfo Info = getFixupKindInfo(Fixup.getKind());
+
+      // Shift the value into position.
+      Value <<= Info.TargetOffset;
+
+      unsigned Offset = Fixup.getOffset();
+      assert(Offset + NumBytes <= DataSize && "Invalid fixup offset!");
+
+      // For each byte of the fragment that the fixup touches, mask in the
+      // bits from the fixup value.
+      for (unsigned i = 0; i != NumBytes; ++i)
+        Data[Offset + i] |= uint8_t((Value >> (i * 8)) & 0xff);
     }
   }
 }
@@ -104,8 +144,7 @@ const MCFixupKindInfo &AMDGPUAsmBackend::getFixupKindInfo(
   const static MCFixupKindInfo Infos[AMDGPU::NumTargetFixupKinds] = {
     // name                   offset bits  flags
     { "fixup_si_sopp_br",     0,     16,   MCFixupKindInfo::FKF_IsPCRel },
-    { "fixup_si_rodata",      0,     32,   0 },
-    { "fixup_si_end_of_text", 0,     32,   MCFixupKindInfo::FKF_IsPCRel }
+    { "fixup_si_rodata",      0,     32,   MCFixupKindInfo::FKF_IsPCRel }
   };
 
   if (Kind < FirstTargetFixupKind)

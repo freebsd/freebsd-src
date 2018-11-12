@@ -15,32 +15,61 @@
 #ifndef LLVM_LIB_TARGET_WEBASSEMBLY_MCTARGETDESC_WEBASSEMBLYMCTARGETDESC_H
 #define LLVM_LIB_TARGET_WEBASSEMBLY_MCTARGETDESC_WEBASSEMBLYMCTARGETDESC_H
 
+#include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Support/DataTypes.h"
-#include <string>
 
 namespace llvm {
 
-class formatted_raw_ostream;
 class MCAsmBackend;
 class MCCodeEmitter;
 class MCContext;
 class MCInstrInfo;
-class MCRegisterInfo;
 class MCObjectWriter;
-class MCStreamer;
 class MCSubtargetInfo;
-class MCTargetStreamer;
-class StringRef;
 class Target;
 class Triple;
-class raw_ostream;
+class raw_pwrite_stream;
 
 extern Target TheWebAssemblyTarget32;
 extern Target TheWebAssemblyTarget64;
 
-MCAsmBackend *createWebAssemblyAsmBackend(const Target &T,
-                                          const MCRegisterInfo &MRI,
-                                          StringRef TT, StringRef CPU);
+MCCodeEmitter *createWebAssemblyMCCodeEmitter(const MCInstrInfo &MCII,
+                                              MCContext &Ctx);
+
+MCAsmBackend *createWebAssemblyAsmBackend(const Triple &TT);
+
+MCObjectWriter *createWebAssemblyELFObjectWriter(raw_pwrite_stream &OS,
+                                                 bool Is64Bit, uint8_t OSABI);
+
+namespace WebAssembly {
+enum OperandType {
+  /// Basic block label in a branch construct.
+  OPERAND_BASIC_BLOCK = MCOI::OPERAND_FIRST_TARGET,
+  /// Floating-point immediate.
+  OPERAND_FPIMM
+};
+
+/// WebAssembly-specific directive identifiers.
+enum Directive {
+  // FIXME: This is not the real binary encoding.
+  DotParam = UINT64_MAX - 0,   ///< .param
+  DotResult = UINT64_MAX - 1,  ///< .result
+  DotLocal = UINT64_MAX - 2,   ///< .local
+  DotEndFunc = UINT64_MAX - 3, ///< .endfunc
+};
+
+} // end namespace WebAssembly
+
+namespace WebAssemblyII {
+enum {
+  // For variadic instructions, this flag indicates whether an operand
+  // in the variable_ops range is an immediate value.
+  VariableOpIsImmediate = (1 << 0),
+  // For immediate values in the variable_ops range, this flag indicates
+  // whether the value represents a control-flow label.
+  VariableOpImmediateIsLabel = (1 << 1),
+};
+} // end namespace WebAssemblyII
 
 } // end namespace llvm
 
@@ -49,6 +78,11 @@ MCAsmBackend *createWebAssemblyAsmBackend(const Target &T,
 //
 #define GET_REGINFO_ENUM
 #include "WebAssemblyGenRegisterInfo.inc"
+
+// Defines symbolic names for the WebAssembly instructions.
+//
+#define GET_INSTRINFO_ENUM
+#include "WebAssemblyGenInstrInfo.inc"
 
 #define GET_SUBTARGETINFO_ENUM
 #include "WebAssemblyGenSubtargetInfo.inc"

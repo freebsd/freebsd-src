@@ -434,7 +434,7 @@ mbg_input(
 {
 	unsigned int rtc;
 
-	parseprintf(DD_PARSE, ("mbg_input(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
+	parseprintf(DD_PARSE, ("mbg_input(0x%p, 0x%x, ...)\n", (void*)parseio, ch));
 
 	switch (ch)
 	{
@@ -602,7 +602,7 @@ gps_input(
 
   msg_buf = (struct msg_buf *)parseio->parse_pdata;
 
-  parseprintf(DD_PARSE, ("gps_input(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
+  parseprintf(DD_PARSE, ("gps_input(0x%p, 0x%x, ...)\n", (void*)parseio, ch));
 
   if (!msg_buf)
     return PARSE_INP_SKIP;

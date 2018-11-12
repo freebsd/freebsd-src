@@ -69,11 +69,13 @@ static const svn_token_map_t map_conflict_kind_xml[] =
 /* Return a localised string representation of the local part of a conflict;
    NULL for non-localised odd cases. */
 static const char *
-local_reason_str(svn_node_kind_t kind, svn_wc_conflict_reason_t reason)
+local_reason_str(svn_node_kind_t kind, svn_wc_conflict_reason_t reason,
+                 svn_wc_operation_t operation)
 {
   switch (kind)
     {
       case svn_node_file:
+      case svn_node_symlink:
         switch (reason)
           {
           case svn_wc_conflict_reason_edited:
@@ -83,7 +85,10 @@ local_reason_str(svn_node_kind_t kind, svn_wc_conflict_reason_t reason)
           case svn_wc_conflict_reason_deleted:
             return _("local file delete");
           case svn_wc_conflict_reason_missing:
-            return _("local file missing");
+            if (operation == svn_wc_operation_merge)
+              return _("local file missing or deleted or moved away");
+            else
+              return _("local file missing");
           case svn_wc_conflict_reason_unversioned:
             return _("local file unversioned");
           case svn_wc_conflict_reason_added:
@@ -106,7 +111,10 @@ local_reason_str(svn_node_kind_t kind, svn_wc_conflict_reason_t reason)
           case svn_wc_conflict_reason_deleted:
             return _("local dir delete");
           case svn_wc_conflict_reason_missing:
-            return _("local dir missing");
+            if (operation == svn_wc_operation_merge)
+              return _("local dir missing or deleted or moved away");
+            else
+              return _("local dir missing");
           case svn_wc_conflict_reason_unversioned:
             return _("local dir unversioned");
           case svn_wc_conflict_reason_added:
@@ -119,9 +127,32 @@ local_reason_str(svn_node_kind_t kind, svn_wc_conflict_reason_t reason)
             return _("local dir moved here");
           }
         break;
-      case svn_node_symlink:
       case svn_node_none:
       case svn_node_unknown:
+        switch (reason)
+          {
+          case svn_wc_conflict_reason_edited:
+            return _("local edit");
+          case svn_wc_conflict_reason_obstructed:
+            return _("local obstruction");
+          case svn_wc_conflict_reason_deleted:
+            return _("local delete");
+          case svn_wc_conflict_reason_missing:
+            if (operation == svn_wc_operation_merge)
+              return _("local missing or deleted or moved away");
+            else
+              return _("local missing");
+          case svn_wc_conflict_reason_unversioned:
+            return _("local unversioned");
+          case svn_wc_conflict_reason_added:
+            return _("local add");
+          case svn_wc_conflict_reason_replaced:
+            return _("local replace");
+          case svn_wc_conflict_reason_moved_away:
+            return _("local moved away");
+          case svn_wc_conflict_reason_moved_here:
+            return _("local moved here");
+          }
         break;
     }
   return NULL;
@@ -135,6 +166,7 @@ incoming_action_str(svn_node_kind_t kind, svn_wc_conflict_action_t action)
   switch (kind)
     {
       case svn_node_file:
+      case svn_node_symlink:
         switch (action)
           {
             case svn_wc_conflict_action_edit:
@@ -142,9 +174,9 @@ incoming_action_str(svn_node_kind_t kind, svn_wc_conflict_action_t action)
             case svn_wc_conflict_action_add:
               return _("incoming file add");
             case svn_wc_conflict_action_delete:
-              return _("incoming file delete");
+              return _("incoming file delete or move");
             case svn_wc_conflict_action_replace:
-              return _("incoming file replace");
+              return _("incoming replace with file");
           }
         break;
       case svn_node_dir:
@@ -155,14 +187,24 @@ incoming_action_str(svn_node_kind_t kind, svn_wc_conflict_action_t action)
             case svn_wc_conflict_action_add:
               return _("incoming dir add");
             case svn_wc_conflict_action_delete:
-              return _("incoming dir delete");
+              return _("incoming dir delete or move");
             case svn_wc_conflict_action_replace:
-              return _("incoming dir replace");
+              return _("incoming replace with dir");
           }
         break;
-      case svn_node_symlink:
       case svn_node_none:
       case svn_node_unknown:
+        switch (action)
+          {
+            case svn_wc_conflict_action_edit:
+              return _("incoming edit");
+            case svn_wc_conflict_action_add:
+              return _("incoming add");
+            case svn_wc_conflict_action_delete:
+              return _("incoming delete or move");
+            case svn_wc_conflict_action_replace:
+              return _("incoming replace");
+          }
         break;
     }
   return NULL;
@@ -267,7 +309,8 @@ svn_cl__get_human_readable_tree_conflict_description(
         incoming_kind = conflict->src_right_version->node_kind;
     }
 
-  reason = local_reason_str(conflict->node_kind, conflict->reason);
+  reason = local_reason_str(conflict->node_kind, conflict->reason,
+                            conflict->operation);
   action = incoming_action_str(incoming_kind, conflict->action);
   operation = operation_str(conflict->operation);
   SVN_ERR_ASSERT(operation);
@@ -291,6 +334,27 @@ svn_cl__get_human_readable_tree_conflict_description(
                                               conflict->action),
                            operation);
     }
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_cl__get_human_readable_action_description(
+        const char **desc,
+        svn_wc_conflict_action_t action,
+        svn_wc_operation_t operation,
+        svn_node_kind_t kind,
+        apr_pool_t *pool)
+{
+  const char *action_s, *operation_s;
+
+  action_s = incoming_action_str(kind, action);
+  operation_s = operation_str(operation);
+
+  SVN_ERR_ASSERT(operation_s);
+
+  *desc = apr_psprintf(pool, _("%s %s"),
+                       action_s, operation_s);
+
   return SVN_NO_ERROR;
 }
 

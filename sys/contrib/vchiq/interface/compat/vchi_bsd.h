@@ -36,6 +36,7 @@
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/sema.h>
 #include <sys/malloc.h>
@@ -146,51 +147,46 @@ typedef struct mtx spinlock_t;
  * Mutex API
  */
 struct mutex {
-	struct mtx	mtx;
+	struct sx	mtx;
 };
 
-#define	lmutex_init(lock)	mtx_init(&(lock)->mtx, #lock, NULL, MTX_DEF)
-#define lmutex_lock(lock)	mtx_lock(&(lock)->mtx)
-#define	lmutex_unlock(lock)	mtx_unlock(&(lock)->mtx)
-#define	lmutex_destroy(lock)	mtx_destroy(&(lock)->mtx)
+#define	lmutex_init(lock)	sx_init(&(lock)->mtx, #lock)
+#define lmutex_lock(lock)	sx_xlock(&(lock)->mtx)
+#define	lmutex_unlock(lock)	sx_unlock(&(lock)->mtx)
+#define	lmutex_destroy(lock)	sx_destroy(&(lock)->mtx)
 
-static __inline int 
-lmutex_lock_interruptible(struct mutex *lock)
-{
-	mtx_lock(&(lock)->mtx);
-	return 0;
-}
+#define lmutex_lock_interruptible(lock)	sx_xlock_sig(&(lock)->mtx)
 
 /*
  * Rwlock API
  */
-typedef struct sx rwlock_t;
+typedef struct rwlock rwlock_t;
 
 #if defined(SX_ADAPTIVESPIN) && !defined(SX_NOADAPTIVE)
 #define SX_NOADAPTIVE SX_ADAPTIVESPIN
 #endif
 
 #define DEFINE_RWLOCK(name)				\
-	struct sx name;					\
+	struct rwlock name;					\
 	SX_SYSINIT(name, &name, #name)
-#define rwlock_init(rwlock)	sx_init_flags(rwlock, "VCHI rwlock", SX_NOADAPTIVE)
-#define read_lock(rwlock)	sx_slock(rwlock)
-#define read_unlock(rwlock)	sx_sunlock(rwlock)
+#define rwlock_init(rwlock)	rw_init(rwlock, "VCHI rwlock")
+#define read_lock(rwlock)	rw_rlock(rwlock)
+#define read_unlock(rwlock)	rw_unlock(rwlock)
 
-#define write_lock(rwlock)	sx_xlock(rwlock)
-#define write_unlock(rwlock)	sx_xunlock(rwlock)
+#define write_lock(rwlock)	rw_wlock(rwlock)
+#define write_unlock(rwlock)	rw_unlock(rwlock)
 #define write_lock_irqsave(rwlock, flags)		\
 	do {						\
-		sx_xlock(rwlock);			\
+		rw_wlock(rwlock);			\
 		(void) &(flags);			\
 	} while (0)
 #define write_unlock_irqrestore(rwlock, flags)		\
-	sx_xunlock(rwlock)
+	rw_unlock(rwlock)
 
-#define read_lock_bh(rwlock)	sx_slock(rwlock)
-#define read_unlock_bh(rwlock)	sx_sunlock(rwlock)
-#define write_lock_bh(rwlock)	sx_xlock(rwlock)
-#define write_unlock_bh(rwlock)	sx_xunlock(rwlock)
+#define read_lock_bh(rwlock)	rw_rlock(rwlock)
+#define read_unlock_bh(rwlock)	rw_unlock(rwlock)
+#define write_lock_bh(rwlock)	rw_wlock(rwlock)
+#define write_unlock_bh(rwlock)	rw_unlock(rwlock)
 
 /*
  * Timer API

@@ -271,7 +271,7 @@ first_non_fsm_start_char(const char *data, apr_size_t max_len)
       max_len -= len;
 
       for (; len > 0; ++data, --len)
-        if (*data < 0 || *data >= 0x80)
+        if ((unsigned char)*data >= 0x80)
           return data;
     }
 
@@ -285,7 +285,7 @@ first_non_fsm_start_char(const char *data, apr_size_t max_len)
 
   /* The remaining odd bytes will be examined the naive way: */
   for (; max_len > 0; ++data, --max_len)
-    if (*data < 0 || *data >= 0x80)
+    if ((unsigned char)*data >= 0x80)
       break;
 
   return data;
@@ -304,12 +304,12 @@ first_non_fsm_start_char_cstring(const char *data)
    * segfault.
    */
   for (; (apr_uintptr_t)data & (sizeof(apr_uintptr_t)-1); ++data)
-    if (*data <= 0 || *data >= 0x80)
+    if (*data == 0 || (unsigned char)*data >= 0x80)
       return data;
 
   /* Scan the input one machine word at a time. */
 #ifndef SVN_UTF_NO_UNINITIALISED_ACCESS
-  /* This may read allocated but initialised bytes beyond the
+  /* This may read allocated but uninitialised bytes beyond the
      terminating null.  Any such bytes are always readable and this
      code operates correctly whatever the uninitialised values happen
      to be.  However memory checking tools such as valgrind and GCC
@@ -331,7 +331,7 @@ first_non_fsm_start_char_cstring(const char *data)
 
   /* The remaining odd bytes will be examined the naive way: */
   for (; ; ++data)
-    if (*data <= 0 || *data >= 0x80)
+    if (*data == 0 || (unsigned char)*data >= 0x80)
       break;
 
   return data;

@@ -2797,11 +2797,9 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	uint8_t *request, *response;
 	MPI2_SMP_PASSTHROUGH_REQUEST *req;
 	struct mps_softc *sc;
-	struct sglist *sg;
 	int error;
 
 	sc = sassc->sc;
-	sg = NULL;
 	error = 0;
 
 	/*

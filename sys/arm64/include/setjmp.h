@@ -43,13 +43,12 @@
  *  - 11 general purpose registers
  *  - 8 floating point registers
  *  - The signal mask (128 bits)
- * i.e. 24 64-bit words, this can be rounded up to 32 to give us some
- * space to expand into without affecting the ABI.
- * XXX: Is this enough space for expansion?
+ * i.e. 24 64-bit words, round this up to 31(+1) 128-bit words to allow for
+ * CPU extensions with larger registers and stronger alignment requirements.
  *
  * The registers to save are: r19 to r29, and d8 to d15.
  */
-#define	_JBLEN		32
+#define	_JBLEN		31
 #define	_JB_SIGMASK	21
 
 /* This should only be needed in libc and may change */
@@ -65,10 +64,10 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
-typedef struct _sigjmp_buf { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+typedef struct _sigjmp_buf { __int128_t _sjb[_JBLEN + 1]; } sigjmp_buf[1];
 #endif
 
-typedef struct _jmp_buf { long _jb[_JBLEN + 1]; } jmp_buf[1];
+typedef struct _jmp_buf { __int128_t _jb[_JBLEN + 1]; } jmp_buf[1];
 #endif /* __ASSEMBLER__ */
 
 #endif /* !_MACHINE_SETJMP_H_ */

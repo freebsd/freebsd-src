@@ -571,12 +571,6 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 	prsyminfo_t sip;
 	dof_helper_t dh;
 	GElf_Half e_type;
-#ifdef __FreeBSD__
-	dof_hdr_t hdr;
-	size_t sz;
-	uint64_t dofmax;
-	void *dof;
-#endif
 	const char *mname;
 	const char *syms[] = { "___SUNW_dof", "__SUNW_dof" };
 	int i, fd = -1;
@@ -606,61 +600,25 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 			continue;
 		}
 
-#ifdef __FreeBSD__
-		dh.dofhp_addr = (e_type == ET_EXEC) ? 0 : pmp->pr_vaddr;
-		if (Pread(P, &hdr, sizeof (hdr), sym.st_value) !=
-		    sizeof (hdr)) {
-			dt_dprintf("read of DOF header failed\n");
-			continue;
-		}
-
-		sz = sizeof(dofmax);
-		if (sysctlbyname("kern.dtrace.dof_maxsize", &dofmax, &sz,
-		    NULL, 0) != 0) {
-			dt_dprintf("failed to read dof_maxsize: %s\n",
-			    strerror(errno));
-			continue;
-		}
-		if (dofmax < hdr.dofh_loadsz) {
-			dt_dprintf("DOF load size exceeds maximum\n");
-			continue;
-		}
-
-		if ((dof = malloc(hdr.dofh_loadsz)) == NULL)
-			return (-1);
-
-		if (Pread(P, dof, hdr.dofh_loadsz, sym.st_value) !=
-		    hdr.dofh_loadsz) {
-			free(dof);
-			dt_dprintf("read of DOF section failed\n");
-			continue;
-		}
-
-		dh.dofhp_dof = (uintptr_t)dof;
-		dh.dofhp_pid = proc_getpid(P);
-
-		dt_pid_objname(dh.dofhp_mod, sizeof (dh.dofhp_mod),
-		    sip.prs_lmid, mname);
-
-		if (fd == -1 &&
-		    (fd = open("/dev/dtrace/helper", O_RDWR, 0)) < 0) {
-			dt_dprintf("open of helper device failed: %s\n",
-			    strerror(errno));
-			free(dof);
-			return (-1); /* errno is set for us */
-		}
-
-		if (ioctl(fd, DTRACEHIOC_ADDDOF, &dh, sizeof (dh)) < 0)
-			dt_dprintf("DOF was rejected for %s\n", dh.dofhp_mod);
-
-		free(dof);
-#else
 		dh.dofhp_dof = sym.st_value;
 		dh.dofhp_addr = (e_type == ET_EXEC) ? 0 : pmp->pr_vaddr;
 
 		dt_pid_objname(dh.dofhp_mod, sizeof (dh.dofhp_mod),
 		    sip.prs_lmid, mname);
 
+#ifdef __FreeBSD__
+		dh.dofhp_pid = proc_getpid(P);
+
+		if (fd == -1 &&
+		    (fd = open("/dev/dtrace/helper", O_RDWR, 0)) < 0) {
+			dt_dprintf("open of helper device failed: %s\n",
+			    strerror(errno));
+			return (-1); /* errno is set for us */
+		}
+
+		if (ioctl(fd, DTRACEHIOC_ADDDOF, &dh, sizeof (dh)) < 0)
+			dt_dprintf("DOF was rejected for %s\n", dh.dofhp_mod);
+#else
 		if (fd == -1 &&
 		    (fd = pr_open(P, "/dev/dtrace/helper", O_RDWR, 0)) < 0) {
 			dt_dprintf("pr_open of helper device failed: %s\n",

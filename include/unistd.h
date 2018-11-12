@@ -112,7 +112,7 @@ typedef	__useconds_t	useconds_t;
 #define	_POSIX_THREAD_PRIO_INHERIT	200112L
 #define	_POSIX_THREAD_PRIO_PROTECT	200112L
 #define	_POSIX_THREAD_PRIORITY_SCHEDULING 200112L
-#define	_POSIX_THREAD_PROCESS_SHARED	-1
+#define	_POSIX_THREAD_PROCESS_SHARED	200112L
 #define	_POSIX_THREAD_SAFE_FUNCTIONS	-1
 #define	_POSIX_THREAD_SPORADIC_SERVER	-1
 #define	_POSIX_THREADS			200112L
@@ -327,9 +327,9 @@ int	 close(int);
 void	 closefrom(int);
 int	 dup(int);
 int	 dup2(int, int);
-int	 execl(const char *, const char *, ...) __sentinel;
+int	 execl(const char *, const char *, ...) __null_sentinel;
 int	 execle(const char *, const char *, ...);
-int	 execlp(const char *, const char *, ...) __sentinel;
+int	 execlp(const char *, const char *, ...) __null_sentinel;
 int	 execv(const char *, char * const *);
 int	 execve(const char *, char * const *, char * const *);
 int	 execvp(const char *, char * const *);

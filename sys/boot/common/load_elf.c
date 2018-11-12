@@ -353,7 +353,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 #endif
 	} else
 	    off = 0;
-#elif defined(__arm__)
+#elif defined(__arm__) && !defined(EFI)
 	/*
 	 * The elf headers in arm kernels specify virtual addresses in all
 	 * header fields, even the ones that should be physical addresses.
@@ -364,6 +364,11 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	 * translates it to a physical address.  We do the va->pa conversion on
 	 * the entry point address in the header now, so that later we can
 	 * launch the kernel by just jumping to that address.
+	 *
+	 * When booting from UEFI the copyin and copyout functions handle
+	 * adjusting the location relative to the first virtual address.
+	 * Because of this there is no need to adjust the offset or entry
+	 * point address as these will both be handled by the efi code.
 	 */
 	off -= ehdr->e_entry & ~PAGE_MASK;
 	ehdr->e_entry += off;
@@ -886,7 +891,7 @@ __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef,
 	error = __elfN(reloc_ptr)(fp, ef, v, &md, sizeof(md));
 	if (error == EOPNOTSUPP) {
 	    md.md_cval += ef->off;
-	    md.md_data += ef->off;
+	    md.md_data = (void *)((uintptr_t)md.md_data + (uintptr_t)ef->off);
 	} else if (error != 0)
 	    return (error);
 #endif

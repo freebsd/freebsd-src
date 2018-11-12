@@ -5,7 +5,7 @@
 
 SRCTOP?= ${.CURDIR:H:H:H}
 
-# $Id: Makefile.in,v 1.47 2015/05/05 21:58:06 sjg Exp $
+# $Id: Makefile.in,v 1.48 2015/12/07 04:06:29 sjg Exp $
 #
 # $NetBSD: Makefile,v 1.52 2015/05/05 21:51:09 sjg Exp $
 #
@@ -135,7 +135,7 @@ SED_CMDS.varshell = -e 's,^[a-z]*sh: ,,' \
 test:	${OUTFILES} .PHONY
 	@failed= ; \
 	for test in ${TESTNAMES}; do \
-	  ${TOOL_DIFF} -u ${UNIT_TESTS}/$${test}.exp $${test}.out \
+	  ${TOOL_DIFF} ${DIFF_FLAGS} ${UNIT_TESTS}/$${test}.exp $${test}.out \
 	  || failed="$${failed}$${failed:+ }$${test}" ; \
 	done ; \
 	if [ -n "$${failed}" ]; then \

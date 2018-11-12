@@ -69,7 +69,7 @@
 #define	PTHREAD_EXPLICIT_SCHED		0
 
 /*
- * Flags for read/write lock attributes
+ * Values for process shared/private attributes.
  */
 #define	PTHREAD_PROCESS_PRIVATE		0
 #define	PTHREAD_PROCESS_SHARED		1

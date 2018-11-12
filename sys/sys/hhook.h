@@ -65,6 +65,8 @@
 /* Helper hook types. */
 #define	HHOOK_TYPE_TCP		1
 #define	HHOOK_TYPE_SOCKET	2
+#define	HHOOK_TYPE_IPSEC_IN	3
+#define	HHOOK_TYPE_IPSEC_OUT	4
 
 struct helper;
 struct osd;

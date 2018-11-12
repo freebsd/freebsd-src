@@ -32,8 +32,9 @@
 #include "openbsd-compat/sys-queue.h"
 #include "log.h"
 #include "misc.h"
-#include "buffer.h"
+#include "sshbuf.h"
 #include "channels.h"
+#include "ssherr.h"
 
 /*
  * This is the portable version of the SSH tunnel forwarding, it
@@ -210,6 +211,7 @@ sys_tun_infilter(struct Channel *c, char *buf, int len)
 #endif
 	u_int32_t *af;
 	char *ptr = buf;
+	int r;
 
 #if defined(SSH_TUN_PREPEND_AF)
 	if (len <= 0 || len > (int)(sizeof(rbuf) - sizeof(*af)))
@@ -242,7 +244,8 @@ sys_tun_infilter(struct Channel *c, char *buf, int len)
 		*af = htonl(OPENBSD_AF_INET);
 #endif
 
-	buffer_put_string(&c->input, ptr, len);
+	if ((r = sshbuf_put_string(&c->input, ptr, len)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	return (0);
 }
 
@@ -251,8 +254,14 @@ sys_tun_outfilter(struct Channel *c, u_char **data, u_int *dlen)
 {
 	u_char *buf;
 	u_int32_t *af;
+	int r;
+	size_t xxx_dlen;
 
-	*data = buffer_get_string(&c->output, dlen);
+	/* XXX new API is incompatible with this signature. */
+	if ((r = sshbuf_get_string(&c->output, data, &xxx_dlen)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	if (dlen != NULL)
+		*dlen = xxx_dlen;
 	if (*dlen < sizeof(*af))
 		return (NULL);
 	buf = *data;

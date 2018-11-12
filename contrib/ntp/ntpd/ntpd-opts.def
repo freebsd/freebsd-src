@@ -236,6 +236,8 @@ when you have permission to do so from the owner of the target host.
 Finally,
 in the past many startup scripts would run
 .Xr ntpdate 1ntpdatemdoc
+or
+.Xr sntp 1sntpmdoc
 to get the system clock close to correct before starting
 .Xr ntpd 1ntpdmdoc ,
 but this was never more than a mediocre hack and is no longer needed.
@@ -245,7 +247,9 @@ and you still need to set the system time before starting
 .Nm ,
 please open a bug report and document what is going on,
 and then look at using
-.Xr sntp 1sntpmdoc .
+.Xr sntp 1sntpmdoc
+if you really need to set the clock before starting
+.Nm .
 .Pp
 There is a way to start
 .Xr ntpd 1ntpdmdoc

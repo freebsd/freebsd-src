@@ -110,7 +110,6 @@
 #define	PAGE_SHIFT	12
 #define	PAGE_SIZE	(1 << PAGE_SHIFT)	/* Page size */
 #define	PAGE_MASK	(PAGE_SIZE - 1)
-#define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
 #define PDR_SHIFT	20 /* log2(NBPDR) */
 #define NBPDR		(1 << PDR_SHIFT)
@@ -148,9 +147,5 @@
 #define	arm32_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
-
-#ifdef _KERNEL
-#define	NO_FUEWORD	1
-#endif
 
 #endif /* !_ARM_INCLUDE_PARAM_H_ */

@@ -77,6 +77,10 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	uart_bus_space_io = NULL;
 	uart_bus_space_mem = mips_bus_space_generic;
+#ifdef RT305X_USE_UART
+	di->bas.bsh = MIPS_PHYS_TO_KSEG1(UART_BASE);
+#else
 	di->bas.bsh = MIPS_PHYS_TO_KSEG1(UARTLITE_BASE);
+#endif
 	return (0);
 }

@@ -284,7 +284,7 @@ i2c_start(device_t dev, u_char slave, int timeout)
 		debugf("bus busy");
 		mtx_unlock(&sc->mutex);
 		i2c_stop(dev);
-		return (IIC_EBUSBSY);
+		return (IIC_EBUSERR);
 	}
 
 	/* Set start condition */

@@ -55,7 +55,7 @@ public:
                     // display any breakpoint opcodes.
     };
 
-    virtual ~BreakpointSite ();
+    ~BreakpointSite() override;
 
     //----------------------------------------------------------------------
     // This section manages the breakpoint traps
@@ -139,8 +139,8 @@ public:
     /// @return
     ///    \b true if we should stop, \b false otherwise.
     //------------------------------------------------------------------
-    virtual bool
-    ShouldStop (StoppointCallbackContext *context);
+    bool
+    ShouldStop(StoppointCallbackContext *context) override;
 
     //------------------------------------------------------------------
     /// Standard Dump method
@@ -149,7 +149,7 @@ public:
     ///    The stream to dump this output.
     //------------------------------------------------------------------
     void
-    Dump (Stream *s) const;
+    Dump(Stream *s) const override;
 
     //------------------------------------------------------------------
     /// The "Owners" are the breakpoint locations that share this
@@ -187,6 +187,20 @@ public:
     GetOwnerAtIndex (size_t idx);
     
     //------------------------------------------------------------------
+    /// This method copies the breakpoint site's owners into a new collection.
+    /// It does this while the owners mutex is locked.
+    ///
+    /// @param[out] out_collection
+    ///    The BreakpointLocationCollection into which to put the owners
+    ///    of this breakpoint site.
+    ///
+    /// @return
+    ///    The number of elements copied into out_collection.
+    //------------------------------------------------------------------
+    size_t
+    CopyOwnersList (BreakpointLocationCollection &out_collection);
+    
+    //------------------------------------------------------------------
     /// Check whether the owners of this breakpoint site have any
     /// thread specifiers, and if yes, is \a thread contained in any
     /// of these specifiers.
@@ -200,7 +214,6 @@ public:
     //------------------------------------------------------------------
     bool 
     ValidForThisThread (Thread *thread);
-
 
     //------------------------------------------------------------------
     /// Print a description of this breakpoint site to the stream \a s.
@@ -301,4 +314,4 @@ private:
 
 } // namespace lldb_private
 
-#endif  // liblldb_BreakpointSite_h_
+#endif // liblldb_BreakpointSite_h_

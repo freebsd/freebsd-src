@@ -21,7 +21,6 @@ ident		CRB
 
 include 	"std.arm"
 options 	PHYSADDR=0x00000000
-options 	KERNPHYSADDR=0x00200000
 options 	KERNVIRTADDR=0xc0200000	# Used in ldscript.arm
 
 options 	COUNTS_PER_SEC=400000000
@@ -76,7 +75,6 @@ device		uart
 device		pci
 
 device		ata
-options 	ATA_STATIC_ID		# Static device numbering
 
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		cd			# CD

@@ -74,6 +74,9 @@ zcmd_ioctl(int fd, int request, zfs_cmd_t *zc)
 
 	if (zfs_ioctl_version >= ZFS_IOCVER_DEADMAN) {
 		switch (zfs_ioctl_version) {
+		case ZFS_IOCVER_EDBP:
+			cflag = ZFS_CMD_COMPAT_EDBP;
+			break;
 		case ZFS_IOCVER_ZCMD:
 			cflag = ZFS_CMD_COMPAT_ZCMD;
 			break;

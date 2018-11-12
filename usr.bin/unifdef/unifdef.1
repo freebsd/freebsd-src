@@ -1,6 +1,6 @@
 .\" Copyright (c) 1985, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
-.\" Copyright (c) 2002 - 2013 Tony Finch <dot@dotat.at>.  All rights reserved.
+.\" Copyright (c) 2002 - 2015 Tony Finch <dot@dotat.at>.  All rights reserved.
 .\"
 .\" This code is derived from software contributed to Berkeley by
 .\" Dave Yost. It was rewritten to support ANSI C by Tony Finch.
@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2014
+.Dd December 3, 2015
 .Dt UNIFDEF 1 PRM
 .Os " "
 .Sh NAME
@@ -122,10 +122,13 @@ the
 .Fn defined
 operator,
 the operators
-.Ic \&! , < , > ,
-.Ic <= , >= , == , != ,
+.Ic \&! , ~ , -
+(unary),
+.Ic * , / , % , + , - ,
+.Ic < , <= , > , >= , == , != , & , ^ , \&| ,
 .Ic && , || ,
 and parenthesized expressions.
+Division by zero is treated as an unknown value.
 A kind of
 .Dq "short circuit"
 evaluation is used for the
@@ -253,6 +256,11 @@ are set to the given value.
 Function-like macro definitions (with arguments)
 are treated as if they are set to 1.
 .Pp
+.Em Warning:
+string literals and character constants are not parsed correctly in
+.Fl f
+files.
+.Pp
 .It Fl b
 Replace removed lines with blank lines
 instead of deleting them.
@@ -325,12 +333,19 @@ It would be rude to strip them out, just as it would be for normal comments.
 .Pp
 .It Fl m
 Modify one or more input files in place.
+If an input file is not modified,
+the original is preserved instead of being overwritten with an identical copy.
 .Pp
 .It Fl M Ar backext
 Modify input files in place, and keep backups of the original files by
 appending the
 .Ar backext
 to the input filenames.
+A zero length
+.Ar backext
+behaves the same as the
+.Fl m
+option.
 .Pp
 .It Fl n
 Add
@@ -433,23 +448,29 @@ command line options are given.
 .Sh DIAGNOSTICS
 .Bl -item
 .It
-Too many levels of nesting.
+.Tn EOF
+in comment
 .It
 Inappropriate
 .Ic #elif ,
 .Ic #else
 or
-.Ic #endif .
+.Ic #endif
 .It
-Obfuscated preprocessor control line.
+Missing macro name in #define or #undef
+.It
+Obfuscated preprocessor control line
 .It
 Premature
 .Tn EOF
 (with the line number of the most recent unterminated
-.Ic #if ) .
+.Ic #if )
 .It
-.Tn EOF
-in comment.
+Too many levels of nesting
+.It
+Unrecognized preprocessor directive
+.It
+Unterminated char or string literal
 .El
 .Sh SEE ALSO
 .Xr cpp 1 ,
@@ -474,6 +495,12 @@ rewrote it to support
 .Tn ANSI\~C .
 .Sh BUGS
 Expression evaluation is very limited.
+.Pp
+Character constants are not evaluated.
+String literals and character constants in
+.Fl f
+definition files are ignored rather than parsed as
+part of a macro's replacement tokens.
 .Pp
 Handling one line at a time means
 preprocessor directives split across more than one physical line

@@ -10,7 +10,6 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libkvm \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

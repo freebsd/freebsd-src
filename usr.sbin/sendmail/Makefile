@@ -7,7 +7,7 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 SMDIR=	${SENDMAIL_DIR}/src
 .PATH: ${SMDIR}
 
-BINDIR=	/usr/libexec/sendmail
+BINDIR=	${LIBEXECDIR}/sendmail
 
 PROG=	sendmail
 MAN=	mailq.1 newaliases.1 aliases.5 sendmail.8 
@@ -62,7 +62,7 @@ DPADD+=${SENDMAIL_DPADD}
 LDADD+=${SENDMAIL_LDADD}
 LDFLAGS+=${SENDMAIL_LDFLAGS}
 
-sm_os.h:
-	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h
+sm_os.h: ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

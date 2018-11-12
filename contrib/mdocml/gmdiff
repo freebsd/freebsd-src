@@ -40,7 +40,8 @@ while [ -n "$1" ]; do
   shift
   echo " ========== $file ========== "
   tbl $file | $EQN | $ROFF -mandoc 2> /tmp/roff.err > /tmp/roff.out
-  mandoc -Ios='OpenBSD ports' $MOPT $file 2> /tmp/mandoc.err > /tmp/mandoc.out
+  ${MANDOC:=mandoc} -Ios='OpenBSD ports' $MOPT $file \
+    2> /tmp/mandoc.err > /tmp/mandoc.out
   for i in roff mandoc; do
     [[ -s /tmp/$i.err ]] && echo "$i errors:" && cat /tmp/$i.err
   done

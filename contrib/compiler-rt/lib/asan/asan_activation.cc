@@ -38,7 +38,7 @@ static struct AsanDeactivatedFlags {
 #undef ASAN_ACTIVATION_FLAG
 #undef COMMON_ACTIVATION_FLAG
 
-    RegisterIncludeFlag(parser, cf);
+    RegisterIncludeFlags(parser, cf);
   }
 
   void OverrideFromActivationFlags() {
@@ -60,11 +60,6 @@ static struct AsanDeactivatedFlags {
     if (const char *env = GetEnv("ASAN_ACTIVATION_OPTIONS")) {
       parser.ParseString(env);
     }
-
-    // Override from getprop asan.options.
-    char buf[100];
-    GetExtraActivationFlags(buf, sizeof(buf));
-    parser.ParseString(buf);
 
     SetVerbosity(cf.verbosity);
 
@@ -123,6 +118,8 @@ void AsanDeactivate() {
 void AsanActivate() {
   if (!asan_is_deactivated) return;
   VReport(1, "Activating ASan\n");
+
+  UpdateProcessName();
 
   asan_deactivated_flags.OverrideFromActivationFlags();
 

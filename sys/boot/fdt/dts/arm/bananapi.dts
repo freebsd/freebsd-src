@@ -28,7 +28,7 @@
 
 /dts-v1/;
 
-/include/ "sun7i-a20.dtsi"
+#include "sun7i-a20.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 
@@ -65,8 +65,10 @@
 		};
 
 		gmac@01c50000 {
-			phy-type = "rgmii-bpi";
+			phy-mode = "rgmii-bpi";
 			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&gmac_pins_rgmii>;
 		};
 
 		ahci: sata@01c18000 {

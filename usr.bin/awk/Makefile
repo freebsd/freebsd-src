@@ -17,7 +17,7 @@ MLINKS=	awk.1 nawk.1
 
 CLEANFILES= maketab proctab.c ytab.h
 
-ytab.h: awkgram.h
+ytab.h: awkgram.h .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 proctab.c: maketab

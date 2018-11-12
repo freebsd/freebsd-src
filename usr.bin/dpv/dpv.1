@@ -1,4 +1,4 @@
-.\" Copyright (c) 2013-2014 Devin Teske
+.\" Copyright (c) 2013-2016 Devin Teske
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 7, 2014
+.Dd Jan 26, 2016
 .Dt DPV 1
 .Os
 .Sh NAME
@@ -138,6 +138,11 @@ Default value
 is
 .Dq Li %'10lli bytes read @ %'9.1f bytes/sec. [%i/%i busy/wait] .
 This format is used when handling more than one file.
+.It Fl k
+Keep tite.
+Prevent visually distracting initialization/exit routines for scripts running
+.Xr dialog 1
+several times.
 .It Fl l
 Line mode. Read lines from input instead of bytes.
 .It Fl L Ar size
@@ -366,7 +371,7 @@ dpv -o /dev/md42 < /dev/zero
 A
 .Nm
 utility first appeared in
-.Fx 11.0 .
+.Fx 10.2 .
 .Sh AUTHORS
 .An Devin Teske Aq dteske@FreeBSD.org
 .Sh BUGS

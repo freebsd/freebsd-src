@@ -158,6 +158,7 @@ update_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 
 	pval = da->pval;
 	ptv->pval = &pval[ptv->no.kidx];
+	ptv->no.name = (char *)&pval[ptv->no.kidx];
 
 }
 

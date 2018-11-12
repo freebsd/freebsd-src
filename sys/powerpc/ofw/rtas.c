@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
-#include <machine/pmap.h>
 #include <machine/rtas.h>
 #include <machine/stdarg.h>
 
@@ -61,8 +60,6 @@ static phandle_t	rtas;
 int rtascall(vm_offset_t callbuffer, uintptr_t rtas_privdat);
 extern uintptr_t	rtas_entry;
 extern register_t	rtasmsr;
-
-int setfault(faultbuf);             /* defined in locore.S */
 
 /*
  * After the VM is up, allocate RTAS memory and instantiate it
@@ -203,7 +200,7 @@ int
 rtas_call_method(cell_t token, int nargs, int nreturns, ...)
 {
 	vm_offset_t argsptr;
-	faultbuf env, *oldfaultbuf;
+	jmp_buf env, *oldfaultbuf;
 	va_list ap;
 	struct {
 		cell_t token;
@@ -233,7 +230,8 @@ rtas_call_method(cell_t token, int nargs, int nreturns, ...)
 	/* Get rid of any stale machine checks that have been waiting.  */
 	__asm __volatile ("sync; isync");
 	oldfaultbuf = curthread->td_pcb->pcb_onfault;
-        if (!setfault(env)) {
+	curthread->td_pcb->pcb_onfault = &env;
+	if (!setjmp(env)) {
 		__asm __volatile ("sync");
 		result = rtascall(argsptr, rtas_private_data);
 		__asm __volatile ("sync; isync");

@@ -481,7 +481,6 @@ void CommentASTToHTMLConverter::visitFullComment(const FullComment *C) {
     Result << "</div>";
   }
 
-  Result.flush();
 }
 
 void CommentASTToHTMLConverter::visitNonStandaloneParagraphComment(
@@ -895,7 +894,7 @@ void CommentASTToXMLConverter::visitFullComment(const FullComment *C) {
       FileID FID = LocInfo.first;
       unsigned FileOffset = LocInfo.second;
 
-      if (!FID.isInvalid()) {
+      if (FID.isValid()) {
         if (const FileEntry *FE = SM.getFileEntryForID(FID)) {
           Result << " file=\"";
           appendToResultWithXMLEscaping(FE->getName());
@@ -1078,8 +1077,6 @@ void CommentASTToXMLConverter::visitFullComment(const FullComment *C) {
   }
 
   Result << RootEndTag;
-
-  Result.flush();
 }
 
 void CommentASTToXMLConverter::appendToResultWithXMLEscaping(StringRef S) {

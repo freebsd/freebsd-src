@@ -75,13 +75,18 @@ ata_op_string(struct ata_cmd *cmd)
 	if (cmd->control & 0x04)
 		return ("SOFT_RESET");
 	switch (cmd->command) {
-	case 0x00: return ("NOP");
+	case 0x00:
+		switch (cmd->features) {
+		case 0x00: return ("NOP FLUSHQUEUE");
+		case 0x01: return ("NOP AUTOPOLL");
+		}
+		return ("NOP");
 	case 0x03: return ("CFA_REQUEST_EXTENDED_ERROR");
 	case 0x06:
 		switch (cmd->features) {
-	        case 0x01: return ("DSM TRIM");
-	        }
-	        return "DSM";
+		case 0x01: return ("DSM TRIM");
+		}
+		return "DSM";
 	case 0x08: return ("DEVICE_RESET");
 	case 0x20: return ("READ");
 	case 0x24: return ("READ48");
@@ -105,6 +110,12 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x3f: return ("WRITE_LOG_EXT");
 	case 0x40: return ("READ_VERIFY");
 	case 0x42: return ("READ_VERIFY48");
+	case 0x45:
+		switch (cmd->features) {
+		case 0x55: return ("WRITE_UNCORRECTABLE48 PSEUDO");
+		case 0xaa: return ("WRITE_UNCORRECTABLE48 FLAGGED");
+		}
+		return "WRITE_UNCORRECTABLE48";
 	case 0x51: return ("CONFIGURE_STREAM");
 	case 0x60: return ("READ_FPDMA_QUEUED");
 	case 0x61: return ("WRITE_FPDMA_QUEUED");
@@ -128,7 +139,18 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0xa0: return ("PACKET");
 	case 0xa1: return ("ATAPI_IDENTIFY");
 	case 0xa2: return ("SERVICE");
-	case 0xb0: return ("SMART");
+	case 0xb0:
+		switch(cmd->features) {
+		case 0xd0: return ("SMART READ ATTR VALUES");
+		case 0xd1: return ("SMART READ ATTR THRESHOLDS");
+		case 0xd3: return ("SMART SAVE ATTR VALUES");
+		case 0xd4: return ("SMART EXECUTE OFFLINE IMMEDIATE");
+		case 0xd5: return ("SMART READ LOG DATA");
+		case 0xd8: return ("SMART ENABLE OPERATION");
+		case 0xd9: return ("SMART DISABLE OPERATION");
+		case 0xda: return ("SMART RETURN STATUS");
+		}
+		return ("SMART");
 	case 0xb1: return ("DEVICE CONFIGURATION");
 	case 0xc0: return ("CFA_ERASE");
 	case 0xc4: return ("READ_MUL");
@@ -158,18 +180,22 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0xed: return ("MEDIA_EJECT");
 	case 0xef:
 		switch (cmd->features) {
-	        case 0x03: return ("SETFEATURES SET TRANSFER MODE");
-	        case 0x02: return ("SETFEATURES ENABLE WCACHE");
-	        case 0x82: return ("SETFEATURES DISABLE WCACHE");
-	        case 0x06: return ("SETFEATURES ENABLE PUIS");
-	        case 0x86: return ("SETFEATURES DISABLE PUIS");
-	        case 0x07: return ("SETFEATURES SPIN-UP");
-	        case 0x10: return ("SETFEATURES ENABLE SATA FEATURE");
-	        case 0x90: return ("SETFEATURES DISABLE SATA FEATURE");
-	        case 0xaa: return ("SETFEATURES ENABLE RCACHE");
-	        case 0x55: return ("SETFEATURES DISABLE RCACHE");
-	        }
-	        return "SETFEATURES";
+		case 0x03: return ("SETFEATURES SET TRANSFER MODE");
+		case 0x02: return ("SETFEATURES ENABLE WCACHE");
+		case 0x82: return ("SETFEATURES DISABLE WCACHE");
+		case 0x06: return ("SETFEATURES ENABLE PUIS");
+		case 0x86: return ("SETFEATURES DISABLE PUIS");
+		case 0x07: return ("SETFEATURES SPIN-UP");
+		case 0x10: return ("SETFEATURES ENABLE SATA FEATURE");
+		case 0x90: return ("SETFEATURES DISABLE SATA FEATURE");
+		case 0xaa: return ("SETFEATURES ENABLE RCACHE");
+		case 0x55: return ("SETFEATURES DISABLE RCACHE");
+		case 0x5d: return ("SETFEATURES ENABLE RELIRQ");
+		case 0xdd: return ("SETFEATURES DISABLE RELIRQ");
+		case 0x5e: return ("SETFEATURES ENABLE SRVIRQ");
+		case 0xde: return ("SETFEATURES DISABLE SRVIRQ");
+		}
+		return "SETFEATURES";
 	case 0xf1: return ("SECURITY_SET_PASSWORD");
 	case 0xf2: return ("SECURITY_UNLOCK");
 	case 0xf3: return ("SECURITY_ERASE_PREPARE");

@@ -5,6 +5,7 @@
 # to preserve historical (and useful) behavior. Changes here need to
 # be reflected there so SRCCONF isn't included multiple times.
 
+.if !defined(_WITHOUT_SRCCONF)
 # Allow user to configure things that only effect src tree builds.
 SRCCONF?=	/etc/src.conf
 .if (exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf") && !target(_srcconf_included_)
@@ -29,6 +30,7 @@ __postrcconf_${var}:=	${MK_${var}:U-}${WITHOUT_${var}:Uno:Dyes}${WITH_${var}:Uno
 .endfor
 
 .endif # SRCCONF
+.endif
 
 # tempting, but bsd.compiler.mk causes problems this early
 # probably need to remove dependence on bsd.own.mk 

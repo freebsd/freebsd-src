@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "lldb/DataFormatters/TypeFormat.h"
+
 // C Includes
 
 // C++ Includes
@@ -17,15 +19,11 @@
 #include "lldb/lldb-public.h"
 #include "lldb/lldb-enumerations.h"
 
-#include "lldb/Core/Debugger.h"
 #include "lldb/Core/StreamString.h"
-#include "lldb/Core/Timer.h"
 #include "lldb/DataFormatters/FormatManager.h"
-#include "lldb/DataFormatters/TypeFormat.h"
-#include "lldb/Interpreter/CommandInterpreter.h"
-#include "lldb/Symbol/ClangASTType.h"
+#include "lldb/Symbol/CompilerType.h"
+#include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/TypeList.h"
-#include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
 
 using namespace lldb;
@@ -91,13 +89,13 @@ TypeFormatImpl_Format::FormatObject (ValueObject *valobj,
         }
         else
         {
-            ClangASTType clang_type = value.GetClangType ();
-            if (clang_type)
+            CompilerType compiler_type = value.GetCompilerType ();
+            if (compiler_type)
             {
                 // put custom bytes to display in the DataExtractor to override the default value logic
                 if (GetFormat() == eFormatCString)
                 {
-                    lldb_private::Flags type_flags(clang_type.GetTypeInfo(NULL)); // disambiguate w.r.t. TypeFormatImpl::Flags
+                    lldb_private::Flags type_flags(compiler_type.GetTypeInfo(NULL)); // disambiguate w.r.t. TypeFormatImpl::Flags
                     if (type_flags.Test(eTypeIsPointer) && !type_flags.Test(eTypeIsObjC))
                     {
                         // if we are dumping a pointer as a c-string, get the pointee data as a string
@@ -122,7 +120,7 @@ TypeFormatImpl_Format::FormatObject (ValueObject *valobj,
                 }
                 
                 StreamString sstr;
-                clang_type.DumpTypeValue (&sstr,                         // The stream to use for display
+                compiler_type.DumpTypeValue (&sstr,                         // The stream to use for display
                                           GetFormat(),                  // Format to display this type with
                                           data,                         // Data to extract from
                                           0,                             // Byte offset into "m_data"
@@ -134,7 +132,7 @@ TypeFormatImpl_Format::FormatObject (ValueObject *valobj,
                 // for a formatting error (or else we wouldn't be able to reformat
                 // until a next update), an empty string is treated as a "false"
                 // return from here, but that's about as severe as we get
-                // ClangASTType::DumpTypeValue() should always return
+                // CompilerType::DumpTypeValue() should always return
                 // something, even if that something is an error message
                 if (sstr.GetString().empty())
                     dest.clear();
@@ -192,7 +190,7 @@ TypeFormatImpl_EnumType::FormatObject (ValueObject *valobj,
         return false;
     auto iter = m_types.find(valobj_key),
     end = m_types.end();
-    ClangASTType valobj_enum_type;
+    CompilerType valobj_enum_type;
     if (iter == end)
     {
         // probably a redundant check
@@ -208,9 +206,9 @@ TypeFormatImpl_EnumType::FormatObject (ValueObject *valobj,
         {
             if (!type_sp)
                 continue;
-            if ( (type_sp->GetClangForwardType().GetTypeInfo() & eTypeIsEnumeration) == eTypeIsEnumeration)
+            if ( (type_sp->GetForwardCompilerType().GetTypeInfo() & eTypeIsEnumeration) == eTypeIsEnumeration)
             {
-                valobj_enum_type = type_sp->GetClangFullType();
+                valobj_enum_type = type_sp->GetFullCompilerType ();
                 m_types.emplace(valobj_key,valobj_enum_type);
                 break;
             }

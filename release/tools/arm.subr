@@ -110,7 +110,7 @@ arm_install_base() {
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	echo "/dev/msdosfs/MSDOSBOOT /boot/msdos msdosfs rw,noatime 0 0" \
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-	echo "md /tmp mfs rw,noatime,-s30m 0 0" \
+	echo "tmpfs /tmp tmpfs rw,mode=1777,size=30m 0 0" \
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 
 	local hostname

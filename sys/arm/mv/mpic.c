@@ -361,6 +361,11 @@ mv_msi_data(int irq, uint64_t *addr, uint32_t *data)
 
 #if defined(SMP)
 void
+intr_pic_init_secondary(void)
+{
+}
+
+void
 pic_ipi_send(cpuset_t cpus, u_int ipi)
 {
 	uint32_t val, i;

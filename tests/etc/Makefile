@@ -4,7 +4,7 @@
 
 TESTSDIR=	${TESTSBASE}/etc
 
-.PATH:		${.CURDIR:H}
+.PATH:		${SRCTOP}/tests
 KYUAFILE=	yes
 
 SUBDIR+=	rc.d

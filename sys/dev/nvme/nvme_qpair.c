@@ -479,8 +479,9 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 		 *  the queue's vector to get the corresponding rid to use.
 		 */
 		qpair->rid = vector + 1;
-		qpair->res = ctrlr->msi_res[vector];
 
+		qpair->res = bus_alloc_resource_any(ctrlr->dev, SYS_RES_IRQ,
+		    &qpair->rid, RF_ACTIVE);
 		bus_setup_intr(ctrlr->dev, qpair->res,
 		    INTR_TYPE_MISC | INTR_MPSAFE, NULL,
 		    nvme_qpair_msix_handler, qpair, &qpair->tag);

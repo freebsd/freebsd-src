@@ -9,7 +9,7 @@
 
 machine		mips mips
 ident		AR71XX_BASE
-cpu		CPU_MIPS4KC
+cpu		CPU_MIPS24K
 makeoptions	KERNLOADADDR=0x80050000
 options 	HZ=1000
 options 	HWPMC_HOOKS

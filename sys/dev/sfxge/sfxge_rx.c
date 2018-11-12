@@ -34,7 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
@@ -205,25 +206,6 @@ sfxge_rx_schedule_refill(struct sfxge_rxq *rxq, boolean_t retrying)
 			     sfxge_rx_post_refill, rxq);
 }
 
-static struct mbuf *sfxge_rx_alloc_mbuf(struct sfxge_softc *sc)
-{
-	struct mb_args args;
-	struct mbuf *m;
-
-	/* Allocate mbuf structure */
-	args.flags = M_PKTHDR;
-	args.type = MT_DATA;
-	m = (struct mbuf *)uma_zalloc_arg(zone_mbuf, &args, M_NOWAIT);
-
-	/* Allocate (and attach) packet buffer */
-	if (m != NULL && !uma_zalloc_arg(sc->rx_buffer_zone, m, M_NOWAIT)) {
-		uma_zfree(zone_mbuf, m);
-		m = NULL;
-	}
-
-	return (m);
-}
-
 #define	SFXGE_REFILL_BATCH  64
 
 static void
@@ -273,7 +255,8 @@ sfxge_rx_qfill(struct sfxge_rxq *rxq, unsigned int target, boolean_t retrying)
 		KASSERT(rx_desc->mbuf == NULL, ("rx_desc->mbuf != NULL"));
 
 		rx_desc->flags = EFX_DISCARD;
-		m = rx_desc->mbuf = sfxge_rx_alloc_mbuf(sc);
+		m = rx_desc->mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
+		    sc->rx_cluster_size);
 		if (m == NULL)
 			break;
 
@@ -1125,13 +1108,13 @@ sfxge_rx_start(struct sfxge_softc *sc)
 
 	/* Select zone for packet buffers */
 	if (reserved <= MCLBYTES)
-		sc->rx_buffer_zone = zone_clust;
+		sc->rx_cluster_size = MCLBYTES;
 	else if (reserved <= MJUMPAGESIZE)
-		sc->rx_buffer_zone = zone_jumbop;
+		sc->rx_cluster_size = MJUMPAGESIZE;
 	else if (reserved <= MJUM9BYTES)
-		sc->rx_buffer_zone = zone_jumbo9;
+		sc->rx_cluster_size = MJUM9BYTES;
 	else
-		sc->rx_buffer_zone = zone_jumbo16;
+		sc->rx_cluster_size = MJUM16BYTES;
 
 	/*
 	 * Set up the scale table.  Enable all hash types and hash insertion.

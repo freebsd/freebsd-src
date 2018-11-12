@@ -28,6 +28,9 @@
 #
 # KMODUNLOAD	Command to unload a kernel module [/sbin/kldunload]
 #
+# KMODISLOADED	Command to check whether a kernel module is
+#		loaded [/sbin/kldstat -q -n]
+#
 # PROG		The name of the kernel module to build.
 #		If not supplied, ${KMOD}.ko is used.
 #
@@ -56,10 +59,14 @@
 # 	unload:
 #		Unload a module.
 #
+#	reload:
+#		Unload if loaded, then load.
+#
 
 AWK?=		awk
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
+KMODISLOADED?=	/sbin/kldstat -q -n
 OBJCOPY?=	objcopy
 
 .include <bsd.init.mk>
@@ -113,10 +120,18 @@ CFLAGS+=	${DEBUG_FLAGS}
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64"
+CFLAGS+=	-fPIC
+.endif
+
 # Temporary workaround for PR 196407, which contains the fascinating details.
 # Don't allow clang to use fpu instructions or registers in kernel modules.
 .if ${MACHINE_CPUARCH} == arm
+.if ${COMPILER_VERSION} < 30800
 CFLAGS.clang+=	-mllvm -arm-use-movt=0
+.else
+CFLAGS.clang+=	-mno-movt
+.endif
 CFLAGS.clang+=	-mfpu=none
 CFLAGS+=	-funwind-tables
 .endif
@@ -182,7 +197,17 @@ ${PROG}.debug: ${FULLPROG}
 
 .if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
+.if ${MACHINE_CPUARCH} != "aarch64"
 	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${KMOD}.kld
+.else
+#XXXKIB Relocatable linking in aarch64 ld from binutils 2.25.1 does
+#       not work.  The linker corrupts the references to the external
+#       symbols which are defined by other object in the linking set
+#       and should therefore loose the GOT entry.  The problem seems
+#       to be fixed in the binutils-gdb git HEAD as of 2015-10-04.  Hack
+#       below allows to get partially functioning modules for now.
+	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${OBJS}
+.endif
 .if !defined(DEBUG_FLAGS)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
@@ -211,7 +236,7 @@ ${FULLPROG}: ${OBJS}
 .else
 	grep -v '^#' < ${EXPORT_SYMS} > export_syms
 .endif
-	awk -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
+	${AWK} -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
 .endif
@@ -220,7 +245,7 @@ ${FULLPROG}: ${OBJS}
 .endif
 
 _ILINKS=machine
-.if ${MACHINE} != ${MACHINE_CPUARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
 _ILINKS+=${MACHINE_CPUARCH}
 .endif
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
@@ -228,9 +253,10 @@ _ILINKS+=x86
 .endif
 CLEANFILES+=${_ILINKS}
 
-all: objwarn ${PROG}
+all: ${PROG}
 
 beforedepend: ${_ILINKS}
+beforebuild: ${_ILINKS}
 
 # Ensure that the links exist without depending on it when it exists which
 # causes all the modules to be rebuilt when the directory pointed to changes.
@@ -282,10 +308,10 @@ realinstall: _kmodinstall
 .ORDER: beforeinstall _kmodinstall
 _kmodinstall:
 	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
+	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}/
 .if defined(DEBUG_FLAGS) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
 	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${PROG}.debug ${DESTDIR}${KERN_DEBUGDIR}${KMODDIR}
+	    ${_INSTALLFLAGS} ${PROG}.debug ${DESTDIR}${KERN_DEBUGDIR}${KMODDIR}/
 .endif
 
 .include <bsd.links.mk>
@@ -311,7 +337,11 @@ load: ${PROG}
 
 .if !target(unload)
 unload:
-	${KMODUNLOAD} -v ${PROG}
+	if ${KMODISLOADED} ${PROG} ; then ${KMODUNLOAD} -v ${PROG} ; fi
+.endif
+
+.if !target(reload)
+reload: unload load
 .endif
 
 .if defined(KERNBUILDDIR)
@@ -356,14 +386,20 @@ vnode_if_typedef.h:
 .endif
 
 # Build _if.[ch] from _if.m, and clean them when we're done.
-.if !defined(_MPATH)
+# This is duplicated in sys/modules/Makefile.
+.if !defined(__MPATH)
 __MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
-_MPATH=${__MPATH:H:O:u}
+.export __MPATH
 .endif
+_MFILES=${__MPATH:T:O}
+_MPATH=${__MPATH:H:O:u}
 .PATH.m: ${_MPATH}
 .for _i in ${SRCS:M*_if.[ch]}
-#removes too much, comment out until it's more constrained.
-#CLEANFILES+=	${_i}
+_MATCH=M${_i:R:S/$/.m/}
+_MATCHES=${_MFILES:${_MATCH}}
+.if !empty(_MATCHES)
+CLEANFILES+=	${_i}
+.endif
 .endfor # _i
 .m.c:	${SYSDIR}/tools/makeobjops.awk
 	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -c
@@ -418,16 +454,19 @@ lint: ${SRCS}
 ${OBJS}: opt_global.h
 .endif
 
-.include <bsd.dep.mk>
-
-cleandepend: cleanilinks
+CLEANDEPENDFILES+=	${_ILINKS}
 # .depend needs include links so we remove them only together.
 cleanilinks:
 	rm -f ${_ILINKS}
 
-.if !exists(${.OBJDIR}/${DEPENDFILE})
-${OBJS}: ${SRCS:M*.h}
+OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
+
+.include <bsd.dep.mk>
+
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${OBJS}: ${OBJS_DEPEND_GUESS}
 .endif
 
+.include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
 .include "kern.mk"

@@ -69,6 +69,7 @@
 #define	NFSSVC_SUSPENDNFSD	0x04000000
 #define	NFSSVC_RESUMENFSD	0x08000000
 #define	NFSSVC_DUMPMNTOPTS	0x10000000
+#define	NFSSVC_NEWSTRUCT	0x20000000
 
 /* Argument structure for NFSSVC_DUMPMNTOPTS. */
 struct nfscl_dumpmntopts {

@@ -39,6 +39,7 @@
 
 #include "svnrdump.h"
 
+#include "private/svn_repos_private.h"
 #include "private/svn_cmdline_private.h"
 #include "private/svn_ra_private.h"
 
@@ -80,9 +81,11 @@ enum svn_svnrdump__longopt_t
     opt_auth_password,
     opt_auth_nocache,
     opt_non_interactive,
+    opt_skip_revprop,
     opt_force_interactive,
     opt_incremental,
     opt_trust_server_cert,
+    opt_trust_server_cert_failures,
     opt_version
   };
 
@@ -92,6 +95,7 @@ enum svn_svnrdump__longopt_t
                                    opt_auth_password, \
                                    opt_auth_nocache, \
                                    opt_trust_server_cert, \
+                                   opt_trust_server_cert_failures, \
                                    opt_non_interactive, \
                                    opt_force_interactive
 
@@ -106,7 +110,7 @@ static const svn_opt_subcommand_desc2_t svnrdump__cmd_table[] =
   { "load", load_cmd, { 0 },
     N_("usage: svnrdump load URL\n\n"
        "Load a 'dumpfile' given on stdin to a repository at remote URL.\n"),
-    { 'q', SVN_SVNRDUMP__BASE_OPTIONS } },
+    { 'q', opt_skip_revprop, SVN_SVNRDUMP__BASE_OPTIONS } },
   { "help", 0, { "?", "h" },
     N_("usage: svnrdump help [SUBCOMMAND...]\n\n"
        "Describe the usage of this program or its subcommands.\n"),
@@ -122,6 +126,8 @@ static const apr_getopt_option_t svnrdump__options[] =
                       N_("no progress (only errors) to stderr")},
     {"incremental",   opt_incremental, 0,
                       N_("dump incrementally")},
+    {"skip-revprop",  opt_skip_revprop, 1,
+                      N_("skip revision property ARG (e.g., \"svn:author\")")},
     {"config-dir",    opt_config_dir, 1,
                       N_("read user configuration files from directory ARG")},
     {"username",      opt_auth_username, 1,
@@ -150,12 +156,24 @@ static const apr_getopt_option_t svnrdump__options[] =
                          "For example:\n"
                          "                             "
                          "    servers:global:http-library=serf")},
-    {"trust-server-cert", opt_trust_server_cert, 0,
-                      N_("accept SSL server certificates from unknown\n"
-                         "                             "
-                         "certificate authorities without prompting (but only\n"
-                         "                             "
-                         "with '--non-interactive')") },
+  {"trust-server-cert", opt_trust_server_cert, 0,
+                    N_("deprecated; same as\n"
+                       "                             "
+                       "--trust-server-cert-failures=unknown-ca")},
+  {"trust-server-cert-failures", opt_trust_server_cert_failures, 1,
+                    N_("with --non-interactive, accept SSL server\n"
+                       "                             "
+                       "certificates with failures; ARG is comma-separated\n"
+                       "                             "
+                       "list of 'unknown-ca' (Unknown Authority),\n"
+                       "                             "
+                       "'cn-mismatch' (Hostname mismatch), 'expired'\n"
+                       "                             "
+                       "(Expired certificate), 'not-yet-valid' (Not yet\n"
+                       "                             "
+                       "valid certificate) and 'other' (all other not\n"
+                       "                             "
+                       "separately classified certificate errors).")},
     {0, 0, 0, 0}
   };
 
@@ -182,6 +200,7 @@ typedef struct opt_baton_t {
   svn_opt_revision_t end_revision;
   svn_boolean_t quiet;
   svn_boolean_t incremental;
+  apr_hash_t *skip_revprops;
 } opt_baton_t;
 
 /* Print dumpstream-formatted information about REVISION.
@@ -197,38 +216,13 @@ replay_revstart(svn_revnum_t revision,
 {
   struct replay_baton *rb = replay_baton;
   apr_hash_t *normal_props;
-  svn_stringbuf_t *propstring;
-  svn_stream_t *stdout_stream;
-  svn_stream_t *revprop_stream;
 
-  SVN_ERR(svn_stream_for_stdout(&stdout_stream, pool));
-
-  /* Revision-number: 19 */
-  SVN_ERR(svn_stream_printf(stdout_stream, pool,
-                            SVN_REPOS_DUMPFILE_REVISION_NUMBER
-                            ": %ld\n", revision));
+  /* Normalize and dump the revprops */
   SVN_ERR(svn_rdump__normalize_props(&normal_props, rev_props, pool));
-  propstring = svn_stringbuf_create_ensure(0, pool);
-  revprop_stream = svn_stream_from_stringbuf(propstring, pool);
-  SVN_ERR(svn_hash_write2(normal_props, revprop_stream, "PROPS-END", pool));
-  SVN_ERR(svn_stream_close(revprop_stream));
-
-  /* Prop-content-length: 13 */
-  SVN_ERR(svn_stream_printf(stdout_stream, pool,
-                            SVN_REPOS_DUMPFILE_PROP_CONTENT_LENGTH
-                            ": %" APR_SIZE_T_FMT "\n", propstring->len));
-
-  /* Content-length: 29 */
-  SVN_ERR(svn_stream_printf(stdout_stream, pool,
-                            SVN_REPOS_DUMPFILE_CONTENT_LENGTH
-                            ": %" APR_SIZE_T_FMT "\n\n", propstring->len));
-
-  /* Property data. */
-  SVN_ERR(svn_stream_write(stdout_stream, propstring->data,
-                           &(propstring->len)));
-
-  SVN_ERR(svn_stream_puts(stdout_stream, "\n"));
-  SVN_ERR(svn_stream_close(stdout_stream));
+  SVN_ERR(svn_repos__dump_revision_record(rb->stdout_stream, revision, NULL,
+                                          normal_props,
+                                          TRUE /*props_section_always*/,
+                                          pool));
 
   SVN_ERR(svn_rdump__get_dump_editor(editor, edit_baton, revision,
                                      rb->stdout_stream, rb->extra_ra_session,
@@ -271,38 +265,13 @@ replay_revstart_v2(svn_revnum_t revision,
 {
   struct replay_baton *rb = replay_baton;
   apr_hash_t *normal_props;
-  svn_stringbuf_t *propstring;
-  svn_stream_t *stdout_stream;
-  svn_stream_t *revprop_stream;
 
-  SVN_ERR(svn_stream_for_stdout(&stdout_stream, pool));
-
-  /* Revision-number: 19 */
-  SVN_ERR(svn_stream_printf(stdout_stream, pool,
-                            SVN_REPOS_DUMPFILE_REVISION_NUMBER
-                            ": %ld\n", revision));
+  /* Normalize and dump the revprops */
   SVN_ERR(svn_rdump__normalize_props(&normal_props, rev_props, pool));
-  propstring = svn_stringbuf_create_ensure(0, pool);
-  revprop_stream = svn_stream_from_stringbuf(propstring, pool);
-  SVN_ERR(svn_hash_write2(normal_props, revprop_stream, "PROPS-END", pool));
-  SVN_ERR(svn_stream_close(revprop_stream));
-
-  /* Prop-content-length: 13 */
-  SVN_ERR(svn_stream_printf(stdout_stream, pool,
-                            SVN_REPOS_DUMPFILE_PROP_CONTENT_LENGTH
-                            ": %" APR_SIZE_T_FMT "\n", propstring->len));
-
-  /* Content-length: 29 */
-  SVN_ERR(svn_stream_printf(stdout_stream, pool,
-                            SVN_REPOS_DUMPFILE_CONTENT_LENGTH
-                            ": %" APR_SIZE_T_FMT "\n\n", propstring->len));
-
-  /* Property data. */
-  SVN_ERR(svn_stream_write(stdout_stream, propstring->data,
-                           &(propstring->len)));
-
-  SVN_ERR(svn_stream_puts(stdout_stream, "\n"));
-  SVN_ERR(svn_stream_close(stdout_stream));
+  SVN_ERR(svn_repos__dump_revision_record(rb->stdout_stream, revision,
+                                          normal_props,
+                                          TRUE /*props_section_always*/,
+                                          pool));
 
   SVN_ERR(svn_rdump__get_dump_editor_v2(editor, revision,
                                         rb->stdout_stream,
@@ -348,7 +317,11 @@ init_client_context(svn_client_ctx_t **ctx_p,
                     const char *config_dir,
                     const char *repos_url,
                     svn_boolean_t no_auth_cache,
-                    svn_boolean_t trust_server_cert,
+                    svn_boolean_t trust_unknown_ca,
+                    svn_boolean_t trust_cn_mismatch,
+                    svn_boolean_t trust_expired,
+                    svn_boolean_t trust_not_yet_valid,
+                    svn_boolean_t trust_other_failure,
                     apr_array_header_t *config_options,
                     apr_pool_t *pool)
 {
@@ -412,11 +385,14 @@ init_client_context(svn_client_ctx_t **ctx_p,
   ctx->cancel_func = check_cancel;
 
   /* Default authentication providers for non-interactive use */
-  SVN_ERR(svn_cmdline_create_auth_baton(&(ctx->auth_baton), non_interactive,
-                                        username, password, config_dir,
-                                        no_auth_cache, trust_server_cert,
-                                        cfg_config, ctx->cancel_func,
-                                        ctx->cancel_baton, pool));
+  SVN_ERR(svn_cmdline_create_auth_baton2(&(ctx->auth_baton), non_interactive,
+                                         username, password, config_dir,
+                                         no_auth_cache, trust_unknown_ca,
+                                         trust_cn_mismatch, trust_expired,
+                                         trust_not_yet_valid,
+                                         trust_other_failure,
+                                         cfg_config, ctx->cancel_func,
+                                         ctx->cancel_baton, pool));
   *ctx_p = ctx;
   return SVN_NO_ERROR;
 }
@@ -432,35 +408,12 @@ dump_revision_header(svn_ra_session_t *session,
                      apr_pool_t *pool)
 {
   apr_hash_t *prophash;
-  svn_stringbuf_t *propstring;
-  svn_stream_t *propstream;
 
-  SVN_ERR(svn_stream_printf(stdout_stream, pool,
-                            SVN_REPOS_DUMPFILE_REVISION_NUMBER
-                            ": %ld\n", revision));
-
-  prophash = apr_hash_make(pool);
-  propstring = svn_stringbuf_create_empty(pool);
   SVN_ERR(svn_ra_rev_proplist(session, revision, &prophash, pool));
-
-  propstream = svn_stream_from_stringbuf(propstring, pool);
-  SVN_ERR(svn_hash_write2(prophash, propstream, "PROPS-END", pool));
-  SVN_ERR(svn_stream_close(propstream));
-
-  /* Property-content-length: 14; Content-length: 14 */
-  SVN_ERR(svn_stream_printf(stdout_stream, pool,
-                            SVN_REPOS_DUMPFILE_PROP_CONTENT_LENGTH
-                            ": %" APR_SIZE_T_FMT "\n",
-                            propstring->len));
-  SVN_ERR(svn_stream_printf(stdout_stream, pool,
-                            SVN_REPOS_DUMPFILE_CONTENT_LENGTH
-                            ": %" APR_SIZE_T_FMT "\n\n",
-                            propstring->len));
-  /* The properties */
-  SVN_ERR(svn_stream_write(stdout_stream, propstring->data,
-                           &(propstring->len)));
-  SVN_ERR(svn_stream_puts(stdout_stream, "\n"));
-
+  SVN_ERR(svn_repos__dump_revision_record(stdout_stream, revision, NULL,
+                                          prophash,
+                                          TRUE /*props_section_always*/,
+                                          pool));
   return SVN_NO_ERROR;
 }
 
@@ -608,6 +561,7 @@ load_revisions(svn_ra_session_t *session,
                svn_ra_session_t *aux_session,
                const char *url,
                svn_boolean_t quiet,
+               apr_hash_t *skip_revprops,
                apr_pool_t *pool)
 {
   apr_file_t *stdin_file;
@@ -617,7 +571,8 @@ load_revisions(svn_ra_session_t *session,
   stdin_stream = svn_stream_from_aprfile2(stdin_file, FALSE, pool);
 
   SVN_ERR(svn_rdump__load_dumpstream(stdin_stream, session, aux_session,
-                                     quiet, check_cancel, NULL, pool));
+                                     quiet, skip_revprops,
+                                     check_cancel, NULL, pool));
 
   SVN_ERR(svn_stream_close(stdin_stream));
 
@@ -667,23 +622,6 @@ version(const char *progname,
 }
 
 
-/* A statement macro, similar to @c SVN_ERR, but returns an integer.
- * Evaluate @a expr. If it yields an error, handle that error and
- * return @c EXIT_FAILURE.
- */
-#define SVNRDUMP_ERR(expr)                                               \
-  do                                                                     \
-    {                                                                    \
-      svn_error_t *svn_err__temp = (expr);                               \
-      if (svn_err__temp)                                                 \
-        {                                                                \
-          svn_handle_error2(svn_err__temp, stderr, FALSE, "svnrdump: "); \
-          svn_error_clear(svn_err__temp);                                \
-          return EXIT_FAILURE;                                           \
-        }                                                                \
-    }                                                                    \
-  while (0)
-
 /* Handle the "dump" subcommand.  Implements `svn_opt_subcommand_t'.  */
 static svn_error_t *
 dump_cmd(apr_getopt_t *os,
@@ -718,7 +656,7 @@ load_cmd(apr_getopt_t *os,
   SVN_ERR(svn_client_open_ra_session2(&aux_session, opt_baton->url, NULL,
                                       opt_baton->ctx, pool, pool));
   return load_revisions(opt_baton->session, aux_session, opt_baton->url,
-                        opt_baton->quiet, pool);
+                        opt_baton->quiet, opt_baton->skip_revprops, pool);
 }
 
 /* Handle the "help" subcommand.  Implements `svn_opt_subcommand_t'.  */
@@ -729,6 +667,7 @@ help_cmd(apr_getopt_t *os,
 {
   const char *header =
     _("general usage: svnrdump SUBCOMMAND URL [-r LOWER[:UPPER]]\n"
+      "Subversion remote repository dump and load tool.\n"
       "Type 'svnrdump help <subcommand>' for help on a specific subcommand.\n"
       "Type 'svnrdump --version' to see the program version and RA modules.\n"
       "\n"
@@ -831,19 +770,27 @@ validate_and_resolve_revisions(opt_baton_t *opt_baton,
   return SVN_NO_ERROR;
 }
 
-int
-main(int argc, const char **argv)
+/*
+ * On success, leave *EXIT_CODE untouched and return SVN_NO_ERROR. On error,
+ * either return an error to be displayed, or set *EXIT_CODE to non-zero and
+ * return SVN_NO_ERROR.
+ */
+static svn_error_t *
+sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
 {
   svn_error_t *err = SVN_NO_ERROR;
   const svn_opt_subcommand_desc2_t *subcommand = NULL;
   opt_baton_t *opt_baton;
   svn_revnum_t latest_revision = SVN_INVALID_REVNUM;
-  apr_pool_t *pool = NULL;
   const char *config_dir = NULL;
   const char *username = NULL;
   const char *password = NULL;
   svn_boolean_t no_auth_cache = FALSE;
-  svn_boolean_t trust_server_cert = FALSE;
+  svn_boolean_t trust_unknown_ca = FALSE;
+  svn_boolean_t trust_cn_mismatch = FALSE;
+  svn_boolean_t trust_expired = FALSE;
+  svn_boolean_t trust_not_yet_valid = FALSE;
+  svn_boolean_t trust_other_failure = FALSE;
   svn_boolean_t non_interactive = FALSE;
   svn_boolean_t force_interactive = FALSE;
   apr_array_header_t *config_options = NULL;
@@ -852,20 +799,13 @@ main(int argc, const char **argv)
   apr_array_header_t *received_opts;
   int i;
 
-  if (svn_cmdline_init ("svnrdump", stderr) != EXIT_SUCCESS)
-    return EXIT_FAILURE;
-
-  /* Create our top-level pool.  Use a separate mutexless allocator,
-   * given this application is single threaded.
-   */
-  pool = apr_allocator_owner_get(svn_pool_create_allocator(FALSE));
-
   opt_baton = apr_pcalloc(pool, sizeof(*opt_baton));
   opt_baton->start_revision.kind = svn_opt_revision_unspecified;
   opt_baton->end_revision.kind = svn_opt_revision_unspecified;
   opt_baton->url = NULL;
+  opt_baton->skip_revprops = apr_hash_make(pool);
 
-  SVNRDUMP_ERR(svn_cmdline__getopt_init(&os, argc, argv, pool));
+  SVN_ERR(svn_cmdline__getopt_init(&os, argc, argv, pool));
 
   os->interleave = TRUE; /* Options and arguments can be interleaved */
 
@@ -905,8 +845,9 @@ main(int argc, const char **argv)
         break;
       if (status != APR_SUCCESS)
         {
-          SVNRDUMP_ERR(usage(argv[0], pool));
-          exit(EXIT_FAILURE);
+          SVN_ERR(usage(argv[0], pool));
+          *exit_code = EXIT_FAILURE;
+          return SVN_NO_ERROR;
         }
 
       /* Stash the option code in an array before parsing it. */
@@ -919,11 +860,10 @@ main(int argc, const char **argv)
             /* Make sure we've not seen -r already. */
             if (opt_baton->start_revision.kind != svn_opt_revision_unspecified)
               {
-                err = svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
-                                       _("Multiple revision arguments "
-                                         "encountered; try '-r N:M' instead "
-                                         "of '-r N -r M'"));
-                return svn_cmdline_handle_exit_error(err, pool, "svnrdump: ");
+                return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                        _("Multiple revision arguments "
+                                          "encountered; try '-r N:M' instead "
+                                          "of '-r N -r M'"));
               }
             /* Parse the -r argument. */
             if (svn_opt_parse_revision(&(opt_baton->start_revision),
@@ -931,12 +871,10 @@ main(int argc, const char **argv)
                                        opt_arg, pool) != 0)
               {
                 const char *utf8_opt_arg;
-                err = svn_utf_cstring_to_utf8(&utf8_opt_arg, opt_arg, pool);
-                if (! err)
-                  err = svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
-                                          _("Syntax error in revision "
-                                            "argument '%s'"), utf8_opt_arg);
-                return svn_cmdline_handle_exit_error(err, pool, "svnrdump: ");
+                SVN_ERR(svn_utf_cstring_to_utf8(&utf8_opt_arg, opt_arg, pool));
+                return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                         _("Syntax error in revision "
+                                           "argument '%s'"), utf8_opt_arg);
               }
           }
           break;
@@ -953,10 +891,10 @@ main(int argc, const char **argv)
           opt_baton->help = TRUE;
           break;
         case opt_auth_username:
-          SVNRDUMP_ERR(svn_utf_cstring_to_utf8(&username, opt_arg, pool));
+          SVN_ERR(svn_utf_cstring_to_utf8(&username, opt_arg, pool));
           break;
         case opt_auth_password:
-          SVNRDUMP_ERR(svn_utf_cstring_to_utf8(&password, opt_arg, pool));
+          SVN_ERR(svn_utf_cstring_to_utf8(&password, opt_arg, pool));
           break;
         case opt_auth_nocache:
           no_auth_cache = TRUE;
@@ -970,8 +908,22 @@ main(int argc, const char **argv)
         case opt_incremental:
           opt_baton->incremental = TRUE;
           break;
-        case opt_trust_server_cert:
-          trust_server_cert = TRUE;
+        case opt_skip_revprop:
+          SVN_ERR(svn_utf_cstring_to_utf8(&opt_arg, opt_arg, pool));
+          svn_hash_sets(opt_baton->skip_revprops, opt_arg, opt_arg);
+          break;
+        case opt_trust_server_cert: /* backward compat */
+          trust_unknown_ca = TRUE;
+          break;
+        case opt_trust_server_cert_failures:
+          SVN_ERR(svn_utf_cstring_to_utf8(&opt_arg, opt_arg, pool));
+          SVN_ERR(svn_cmdline__parse_trust_options(
+                      &trust_unknown_ca,
+                      &trust_cn_mismatch,
+                      &trust_expired,
+                      &trust_not_yet_valid,
+                      &trust_other_failure,
+                      opt_arg, pool));
           break;
         case opt_config_option:
           if (!config_options)
@@ -979,9 +931,11 @@ main(int argc, const char **argv)
                     apr_array_make(pool, 1,
                                    sizeof(svn_cmdline__config_argument_t*));
 
-            SVNRDUMP_ERR(svn_utf_cstring_to_utf8(&opt_arg, opt_arg, pool));
-            SVNRDUMP_ERR(svn_cmdline__parse_config_option(config_options,
-                                                          opt_arg, pool));
+            SVN_ERR(svn_utf_cstring_to_utf8(&opt_arg, opt_arg, pool));
+            SVN_ERR(svn_cmdline__parse_config_option(config_options,
+                                                     opt_arg, 
+                                                     "svnrdump: ",
+                                                     pool));
         }
     }
 
@@ -989,10 +943,9 @@ main(int argc, const char **argv)
    * exclusive. */
   if (non_interactive && force_interactive)
     {
-      err = svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
-                             _("--non-interactive and --force-interactive "
-                               "are mutually exclusive"));
-      return svn_cmdline_handle_exit_error(err, pool, "svnrdump: ");
+      return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                              _("--non-interactive and --force-interactive "
+                                "are mutually exclusive"));
     }
 
   if (opt_baton->help)
@@ -1017,9 +970,9 @@ main(int argc, const char **argv)
 
           else
             {
-              SVNRDUMP_ERR(help_cmd(NULL, NULL, pool));
-              svn_pool_destroy(pool);
-              exit(EXIT_FAILURE);
+              SVN_ERR(help_cmd(NULL, NULL, pool));
+              *exit_code = EXIT_FAILURE;
+              return SVN_NO_ERROR;
             }
         }
       else
@@ -1031,16 +984,15 @@ main(int argc, const char **argv)
           if (subcommand == NULL)
             {
               const char *first_arg_utf8;
-              err = svn_utf_cstring_to_utf8(&first_arg_utf8, first_arg, pool);
-              if (err)
-                return svn_cmdline_handle_exit_error(err, pool, "svnrdump: ");
+              SVN_ERR(svn_utf_cstring_to_utf8(&first_arg_utf8, first_arg,
+                                              pool));
               svn_error_clear(
                 svn_cmdline_fprintf(stderr, pool,
                                     _("Unknown subcommand: '%s'\n"),
                                     first_arg_utf8));
-              SVNRDUMP_ERR(help_cmd(NULL, NULL, pool));
-              svn_pool_destroy(pool);
-              exit(EXIT_FAILURE);
+              SVN_ERR(help_cmd(NULL, NULL, pool));
+              *exit_code = EXIT_FAILURE;
+              return SVN_NO_ERROR;
             }
         }
     }
@@ -1065,69 +1017,64 @@ main(int argc, const char **argv)
                                           subcommand, pool);
           svn_opt_format_option(&optstr, badopt, FALSE, pool);
           if (subcommand->name[0] == '-')
-            SVN_INT_ERR(help_cmd(NULL, NULL, pool));
+            SVN_ERR(help_cmd(NULL, NULL, pool));
           else
             svn_error_clear(svn_cmdline_fprintf(
                                 stderr, pool,
                                 _("Subcommand '%s' doesn't accept option '%s'\n"
                                   "Type 'svnrdump help %s' for usage.\n"),
                                 subcommand->name, optstr, subcommand->name));
-          svn_pool_destroy(pool);
-          return EXIT_FAILURE;
+          *exit_code = EXIT_FAILURE;
+          return SVN_NO_ERROR;
         }
     }
 
-  if (subcommand && strcmp(subcommand->name, "--version") == 0)
+  if (strcmp(subcommand->name, "--version") == 0)
     {
-      SVNRDUMP_ERR(version(argv[0], opt_baton->quiet, pool));
-      svn_pool_destroy(pool);
-      exit(EXIT_SUCCESS);
+      SVN_ERR(version(argv[0], opt_baton->quiet, pool));
+      return SVN_NO_ERROR;
     }
 
-  if (subcommand && strcmp(subcommand->name, "help") == 0)
+  if (strcmp(subcommand->name, "help") == 0)
     {
-      SVNRDUMP_ERR(help_cmd(os, opt_baton, pool));
-      svn_pool_destroy(pool);
-      exit(EXIT_SUCCESS);
+      SVN_ERR(help_cmd(os, opt_baton, pool));
+      return SVN_NO_ERROR;
     }
 
-  /* --trust-server-cert can only be used with --non-interactive */
-  if (trust_server_cert && !non_interactive)
+  /* --trust-* can only be used with --non-interactive */
+  if (!non_interactive)
     {
-      err = svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
-                             _("--trust-server-cert requires "
-                               "--non-interactive"));
-      return svn_cmdline_handle_exit_error(err, pool, "svnrdump: ");
+      if (trust_unknown_ca || trust_cn_mismatch || trust_expired
+          || trust_not_yet_valid || trust_other_failure)
+        return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                _("--trust-server-cert-failures requires "
+                                  "--non-interactive"));
     }
 
   /* Expect one more non-option argument:  the repository URL. */
   if (os->ind != os->argc - 1)
     {
-      SVNRDUMP_ERR(usage(argv[0], pool));
-      svn_pool_destroy(pool);
-      exit(EXIT_FAILURE);
+      SVN_ERR(usage(argv[0], pool));
+      *exit_code = EXIT_FAILURE;
+      return SVN_NO_ERROR;
     }
   else
     {
       const char *repos_url;
 
-      SVNRDUMP_ERR(svn_utf_cstring_to_utf8(&repos_url,
-                                           os->argv[os->ind], pool));
+      SVN_ERR(svn_utf_cstring_to_utf8(&repos_url, os->argv[os->ind], pool));
       if (! svn_path_is_url(repos_url))
         {
-          err = svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, 0,
-                                  "Target '%s' is not a URL",
-                                  repos_url);
-          SVNRDUMP_ERR(err);
-          svn_pool_destroy(pool);
-          exit(EXIT_FAILURE);
+          return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, 0,
+                                   "Target '%s' is not a URL",
+                                   repos_url);
         }
       opt_baton->url = svn_uri_canonicalize(repos_url, pool);
     }
 
   if (strcmp(subcommand->name, "load") == 0)
     {
-      /* 
+      /*
        * By default (no --*-interactive options given), the 'load' subcommand
        * is interactive unless username and password were provided on the
        * command line. This allows prompting for auth creds to work without
@@ -1141,16 +1088,20 @@ main(int argc, const char **argv)
   non_interactive = !svn_cmdline__be_interactive(non_interactive,
                                                  force_interactive);
 
-  SVNRDUMP_ERR(init_client_context(&(opt_baton->ctx),
-                                   non_interactive,
-                                   username,
-                                   password,
-                                   config_dir,
-                                   opt_baton->url,
-                                   no_auth_cache,
-                                   trust_server_cert,
-                                   config_options,
-                                   pool));
+  SVN_ERR(init_client_context(&(opt_baton->ctx),
+                              non_interactive,
+                              username,
+                              password,
+                              config_dir,
+                              opt_baton->url,
+                              no_auth_cache,
+                              trust_unknown_ca,
+                              trust_cn_mismatch,
+                              trust_expired,
+                              trust_not_yet_valid,
+                              trust_other_failure,
+                              config_options,
+                              pool));
 
   err = svn_client_open_ra_session2(&(opt_baton->session),
                                     opt_baton->url, NULL,
@@ -1171,15 +1122,45 @@ main(int argc, const char **argv)
 
   if (err && err->apr_err == SVN_ERR_AUTHN_FAILED && non_interactive)
     {
-      err = svn_error_quick_wrap(err,
-                                 _("Authentication failed and interactive"
-                                   " prompting is disabled; see the"
-                                   " --force-interactive option"));
+      return svn_error_quick_wrap(err,
+                                  _("Authentication failed and interactive"
+                                    " prompting is disabled; see the"
+                                    " --force-interactive option"));
+    }
+  else if (err)
+    return err;
+  else
+    return SVN_NO_ERROR;
+}
+
+int
+main(int argc, const char *argv[])
+{
+  apr_pool_t *pool;
+  int exit_code = EXIT_SUCCESS;
+  svn_error_t *err;
+
+  /* Initialize the app. */
+  if (svn_cmdline_init("svnrdump", stderr) != EXIT_SUCCESS)
+    return EXIT_FAILURE;
+
+  /* Create our top-level pool.  Use a separate mutexless allocator,
+   * given this application is single threaded.
+   */
+  pool = apr_allocator_owner_get(svn_pool_create_allocator(FALSE));
+
+  err = sub_main(&exit_code, argc, argv, pool);
+
+  /* Flush stdout and report if it fails. It would be flushed on exit anyway
+     but this makes sure that output is not silently lost if it fails. */
+  err = svn_error_compose_create(err, svn_cmdline_fflush(stdout));
+
+  if (err)
+    {
+      exit_code = EXIT_FAILURE;
+      svn_cmdline_handle_exit_error(err, NULL, "svnrdump: ");
     }
 
-  SVNRDUMP_ERR(err);
-
   svn_pool_destroy(pool);
-
-  return EXIT_SUCCESS;
+  return exit_code;
 }

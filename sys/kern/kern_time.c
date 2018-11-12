@@ -398,7 +398,8 @@ kern_clock_settime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		return (error);
 	if (clock_id != CLOCK_REALTIME)
 		return (EINVAL);
-	if (ats->tv_nsec < 0 || ats->tv_nsec >= 1000000000)
+	if (ats->tv_nsec < 0 || ats->tv_nsec >= 1000000000 ||
+	    ats->tv_sec < 0)
 		return (EINVAL);
 	/* XXX Don't convert nsec->usec and back */
 	TIMESPEC_TO_TIMEVAL(&atv, ats);
@@ -618,7 +619,8 @@ kern_settimeofday(struct thread *td, struct timeval *tv, struct timezone *tzp)
 		return (error);
 	/* Verify all parameters before changing time. */
 	if (tv) {
-		if (tv->tv_usec < 0 || tv->tv_usec >= 1000000)
+		if (tv->tv_usec < 0 || tv->tv_usec >= 1000000 ||
+		    tv->tv_sec < 0)
 			return (EINVAL);
 		error = settime(td, tv);
 	}

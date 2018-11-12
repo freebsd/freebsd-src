@@ -46,6 +46,8 @@ TESTFILES= \
      tst.onlyenabled.ksh  \
      tst.reap.ksh  \
      tst.reeval.ksh  \
+     tst.sameprovmulti.ksh  \
+     tst.sameprovmulti.ksh.out  \
      tst.static.ksh  \
      tst.static.ksh.out  \
      tst.static2.ksh  \
@@ -62,4 +64,4 @@ CFILES= \
      tst.forker.c  \
 
 
-.include "../../Makefile.inc1"
+.include "../../dtrace.test.mk"

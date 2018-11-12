@@ -221,17 +221,15 @@ mp_label(struct gctl_req *req)
 	/*
 	 * Allocate a sector to write as metadata.
 	 */
-	sector = malloc(secsize);
+	sector = calloc(1, secsize);
 	if (sector == NULL) {
 		gctl_error(req, "unable to allocate metadata buffer");
 		return;
 	}
-	memset(sector, 0, secsize);
 	rsector = malloc(secsize);
 	if (rsector == NULL) {
-		free(sector);
 		gctl_error(req, "unable to allocate metadata buffer");
-		return;
+		goto done;
 	}
 
 	/*
@@ -246,7 +244,7 @@ mp_label(struct gctl_req *req)
 	error = g_metadata_store(name, sector, secsize);
 	if (error != 0) {
 		gctl_error(req, "cannot store metadata on %s: %s.", name, strerror(error));
-		return;
+		goto done;
 	}
 
 	/*
@@ -274,6 +272,9 @@ mp_label(struct gctl_req *req)
 			    name2, name);
 		}
 	}
+done:
+	free(rsector);
+	free(sector);
 }
 
 

@@ -225,7 +225,7 @@ add_prog_path(char * buf, int b_sz, char const * fname, char const * prg_path)
     if (strchr(prg_path, DIRCH) != NULL)
         path = prg_path;
     else {
-        path = pathfind(getenv("PATH"), (char *)prg_path, "rx");
+        path = pathfind(getenv("PATH"), prg_path, "rx");
 
         if (path == NULL)
             return false;

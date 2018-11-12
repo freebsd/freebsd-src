@@ -103,7 +103,7 @@ param_l	:
 
 /*
  * Parameters have a name and an optional list of value strings,
- * which may have "+=" or "=" preceeding them.
+ * which may have "+=" or "=" preceding them.
  */
 param	: name
 	{

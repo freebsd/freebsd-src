@@ -33,10 +33,10 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: elftc_demangle.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: elftc_demangle.c 3296 2016-01-09 14:17:28Z jkoshy $");
 
-static int
-is_mangled(const char *s, int style)
+static unsigned int
+is_mangled(const char *s, unsigned int style)
 {
 
 	switch (style) {
@@ -58,7 +58,7 @@ is_mangled(const char *s, int style)
 }
 
 static char *
-demangle(const char *s, int style, int rc)
+demangle(const char *s, unsigned int style, unsigned int rc)
 {
 
 	(void) rc;			/* XXX */
@@ -76,7 +76,7 @@ int
 elftc_demangle(const char *mangledname, char *buffer, size_t bufsize,
     unsigned int flags)
 {
-	int style, rc;
+	unsigned int style, rc;
 	char *rlt;
 
 	style = flags & 0xFFFF;

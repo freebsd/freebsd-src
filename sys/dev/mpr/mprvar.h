@@ -265,9 +265,7 @@ struct mpr_softc {
 	int				chain_free_lowwater;
 	u_int				enable_ssu;
 	int				spinup_wait_time;
-#if __FreeBSD_version >= 900030
 	uint64_t			chain_alloc_fail;
-#endif
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct sysctl_oid		*sysctl_tree;
 	char                            fw_version[16];
@@ -451,11 +449,8 @@ mpr_alloc_chain(struct mpr_softc *sc)
 		sc->chain_free--;
 		if (sc->chain_free < sc->chain_free_lowwater)
 			sc->chain_free_lowwater = sc->chain_free;
-	}
-#if __FreeBSD_version >= 900030
-	else
+	} else
 		sc->chain_alloc_fail++;
-#endif
 	return (chain);
 }
 

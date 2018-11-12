@@ -16,6 +16,7 @@
 
 #include "HexagonInstrInfo.h"
 #include "HexagonSubtarget.h"
+#include "HexagonTargetObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
@@ -24,7 +25,7 @@ class Module;
 
 class HexagonTargetMachine : public LLVMTargetMachine {
   std::unique_ptr<TargetLoweringObjectFile> TLOF;
-  HexagonSubtarget Subtarget;
+  mutable StringMap<std::unique_ptr<HexagonSubtarget>> SubtargetMap;
 
 public:
   HexagonTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
@@ -32,19 +33,17 @@ public:
                        Reloc::Model RM, CodeModel::Model CM,
                        CodeGenOpt::Level OL);
   ~HexagonTargetMachine() override;
-  const HexagonSubtarget *getSubtargetImpl(const Function &) const override {
-    return &Subtarget;
-  }
+  const HexagonSubtarget *getSubtargetImpl(const Function &F) const override;
+
   static unsigned getModuleMatchQuality(const Module &M);
 
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+  TargetIRAnalysis getTargetIRAnalysis() override;
 
-  TargetLoweringObjectFile *getObjFileLowering() const override {
-    return TLOF.get();
+  HexagonTargetObjectFile *getObjFileLowering() const override {
+    return static_cast<HexagonTargetObjectFile*>(TLOF.get());
   }
 };
-
-extern bool flag_aligned_memcpy;
 
 } // end namespace llvm
 

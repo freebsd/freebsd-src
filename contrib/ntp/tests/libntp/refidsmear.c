@@ -28,7 +28,21 @@
  * 254.255.255.255
  */
 
+
+void setUp(void);
 void rtol(uint32_t r, char *es);
+void rtoltor(uint32_t er, char *es);
+void ltor(l_fp l, char *er);
+void test_refidsmear(void);
+
+
+void
+setUp(void)
+{
+	init_lib();
+
+	return;
+}
 
 void
 rtol(uint32_t r, char *es)
@@ -43,7 +57,7 @@ rtol(uint32_t r, char *es)
 
 	l = convertRefIDToLFP(htonl(r));
 	as = lfptoa(&l, 8);
-	
+
 	//printf("refid %#x, smear %s\n", r, as);
 
 	TEST_ASSERT_NOT_NULL_MESSAGE(as, msg);
@@ -52,8 +66,6 @@ rtol(uint32_t r, char *es)
 	return;
 }
 
-
-void rtoltor(uint32_t er, char *es);
 
 void
 rtoltor(uint32_t er, char *es)
@@ -81,8 +93,6 @@ rtoltor(uint32_t er, char *es)
 	return;
 }
 
-
-void ltor(l_fp l, char *er);
 
 void
 ltor(l_fp l, char *er)

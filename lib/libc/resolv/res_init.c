@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 
 #include <netinet/in.h>
@@ -115,7 +116,9 @@ __FBSDID("$FreeBSD$");
 
 /*% Options.  Should all be left alone. */
 #define RESOLVSORT
-#define DEBUG
+#ifndef	DEBUG
+#define	DEBUG
+#endif
 
 #ifdef SOLARIS2
 #include <sys/systeminfo.h>
@@ -236,6 +239,7 @@ __res_vinit(res_state statp, int preinit) {
 		statp->_u._ext.ext->nsaddrs[0].sin = statp->nsaddr;
 		strcpy(statp->_u._ext.ext->nsuffix, "ip6.arpa");
 		strcpy(statp->_u._ext.ext->nsuffix2, "ip6.int");
+		statp->_u._ext.ext->reload_period = 2;
 	} else {
 		/*
 		 * Historically res_init() rarely, if at all, failed.
@@ -321,6 +325,18 @@ __res_vinit(res_state statp, int preinit) {
 
 	nserv = 0;
 	if ((fp = fopen(_PATH_RESCONF, "re")) != NULL) {
+	    struct stat sb;
+	    struct timespec now;
+
+	    if (statp->_u._ext.ext != NULL) {
+		if (_fstat(fileno(fp), &sb) == 0) {
+		    statp->_u._ext.ext->conf_mtim = sb.st_mtim;
+		    if (clock_gettime(CLOCK_MONOTONIC_FAST, &now) == 0) {
+			statp->_u._ext.ext->conf_stat = now.tv_sec;
+		    }
+		}
+	    }
+
 	    /* read the config file */
 	    while (fgets(buf, sizeof(buf), fp) != NULL) {
 		/* skip comments */
@@ -581,9 +597,7 @@ res_setoptions(res_state statp, const char *options, const char *source)
 {
 	const char *cp = options;
 	int i;
-#ifndef _LIBC
 	struct __res_state_ext *ext = statp->_u._ext.ext;
-#endif
 
 #ifdef DEBUG
 	if (statp->options & RES_DEBUG)
@@ -666,6 +680,12 @@ res_setoptions(res_state statp, const char *options, const char *source)
 		} else if (!strncmp(cp, "no-check-names",
 				    sizeof("no-check-names") - 1)) {
 			statp->options |= RES_NOCHECKNAME;
+		} else if (!strncmp(cp, "reload-period:",
+				    sizeof("reload-period:") - 1)) {
+			if (ext != NULL) {
+				ext->reload_period = (u_short)
+				    atoi(cp + sizeof("reload-period:") - 1);
+			}
 		}
 #ifdef RES_USE_EDNS0
 		else if (!strncmp(cp, "edns0", sizeof("edns0") - 1)) {

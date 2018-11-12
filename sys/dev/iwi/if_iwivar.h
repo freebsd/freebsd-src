@@ -192,7 +192,6 @@ struct iwi_softc {
 	struct task		sc_radiofftask;	/* radio off processing */
 	struct task		sc_restarttask;	/* restart adapter processing */
 	struct task		sc_disassoctask;
-	struct task		sc_wmetask;	/* set wme parameters */
 	struct task		sc_monitortask;
 
 	unsigned int		sc_running : 1,	/* initialized */

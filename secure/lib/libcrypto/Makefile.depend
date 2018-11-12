@@ -11,14 +11,10 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/msun \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-cversion.So: buildinf.h
-cversion.o: buildinf.h
-cversion.po: buildinf.h
 .endif

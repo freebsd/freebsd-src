@@ -53,16 +53,6 @@ static inline unsigned int bswap_32(unsigned int v)
 }
 #endif /* __APPLE__ */
 
-#ifdef CONFIG_TI_COMPILER
-#define __BIG_ENDIAN 4321
-#define __LITTLE_ENDIAN 1234
-#ifdef __big_endian__
-#define __BYTE_ORDER __BIG_ENDIAN
-#else
-#define __BYTE_ORDER __LITTLE_ENDIAN
-#endif
-#endif /* CONFIG_TI_COMPILER */
-
 #ifdef CONFIG_NATIVE_WINDOWS
 #include <winsock.h>
 
@@ -109,22 +99,6 @@ typedef INT16 s16;
 typedef INT8 s8;
 #define WPA_TYPES_DEFINED
 #endif /* __vxworks */
-
-#ifdef CONFIG_TI_COMPILER
-#ifdef _LLONG_AVAILABLE
-typedef unsigned long long u64;
-#else
-/*
- * TODO: 64-bit variable not available. Using long as a workaround to test the
- * build, but this will likely not work for all operations.
- */
-typedef unsigned long u64;
-#endif
-typedef unsigned int u32;
-typedef unsigned short u16;
-typedef unsigned char u8;
-#define WPA_TYPES_DEFINED
-#endif /* CONFIG_TI_COMPILER */
 
 #ifndef WPA_TYPES_DEFINED
 #ifdef CONFIG_USE_INTTYPES_H
@@ -262,7 +236,7 @@ static inline void WPA_PUT_BE24(u8 *a, u32 val)
 
 static inline u32 WPA_GET_BE32(const u8 *a)
 {
-	return (a[0] << 24) | (a[1] << 16) | (a[2] << 8) | a[3];
+	return ((u32) a[0] << 24) | (a[1] << 16) | (a[2] << 8) | a[3];
 }
 
 static inline void WPA_PUT_BE32(u8 *a, u32 val)
@@ -275,7 +249,7 @@ static inline void WPA_PUT_BE32(u8 *a, u32 val)
 
 static inline u32 WPA_GET_LE32(const u8 *a)
 {
-	return (a[3] << 24) | (a[2] << 16) | (a[1] << 8) | a[0];
+	return ((u32) a[3] << 24) | (a[2] << 16) | (a[1] << 8) | a[0];
 }
 
 static inline void WPA_PUT_LE32(u8 *a, u32 val)
@@ -433,7 +407,7 @@ void perror(const char *s);
 #endif
 
 #ifndef BIT
-#define BIT(x) (1 << (x))
+#define BIT(x) (1U << (x))
 #endif
 
 /*
@@ -480,6 +454,8 @@ int hexstr2bin(const char *hex, u8 *buf, size_t len);
 void inc_byte_array(u8 *counter, size_t len);
 void wpa_get_ntp_timestamp(u8 *buf);
 int wpa_scnprintf(char *buf, size_t size, const char *fmt, ...);
+int wpa_snprintf_hex_sep(char *buf, size_t buf_size, const u8 *data, size_t len,
+			 char sep);
 int wpa_snprintf_hex(char *buf, size_t buf_size, const u8 *data, size_t len);
 int wpa_snprintf_hex_uppercase(char *buf, size_t buf_size, const u8 *data,
 			       size_t len);
@@ -516,6 +492,11 @@ static inline int is_broadcast_ether_addr(const u8 *a)
 	return (a[0] & a[1] & a[2] & a[3] & a[4] & a[5]) == 0xff;
 }
 
+static inline int is_multicast_ether_addr(const u8 *a)
+{
+	return a[0] & 0x01;
+}
+
 #define broadcast_ether_addr (const u8 *) "\xff\xff\xff\xff\xff\xff"
 
 #include "wpa_debug.h"
@@ -547,11 +528,13 @@ void bin_clear_free(void *bin, size_t len);
 int random_mac_addr(u8 *addr);
 int random_mac_addr_keep_oui(u8 *addr);
 
+const char * cstr_token(const char *str, const char *delim, const char **last);
 char * str_token(char *str, const char *delim, char **context);
 size_t utf8_escape(const char *inp, size_t in_size,
 		   char *outp, size_t out_size);
 size_t utf8_unescape(const char *inp, size_t in_size,
 		     char *outp, size_t out_size);
+int is_ctrl_char(char c);
 
 
 /*

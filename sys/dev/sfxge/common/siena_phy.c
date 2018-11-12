@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
@@ -167,12 +166,12 @@ siena_phy_link_ev(
 	*link_modep = link_mode;
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_phy_power(
 	__in		efx_nic_t *enp,
 	__in		boolean_t power)
 {
-	int rc;
+	efx_rc_t rc;
 
 	if (!power)
 		return (0);
@@ -186,12 +185,12 @@ siena_phy_power(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_phy_get_link(
 	__in		efx_nic_t *enp,
 	__out		siena_link_state_t *slsp)
@@ -199,7 +198,7 @@ siena_phy_get_link(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_LINK_IN_LEN,
 			    MC_CMD_GET_LINK_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_LINK;
@@ -261,12 +260,12 @@ siena_phy_get_link(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_phy_reconfigure(
 	__in		efx_nic_t *enp)
 {
@@ -279,7 +278,7 @@ siena_phy_reconfigure(
 	uint32_t cap_mask;
 	unsigned int led_mode;
 	unsigned int speed;
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_LINK;
@@ -377,12 +376,12 @@ siena_phy_reconfigure(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_phy_verify(
 	__in		efx_nic_t *enp)
 {
@@ -390,7 +389,7 @@ siena_phy_verify(
 	uint8_t payload[MAX(MC_CMD_GET_PHY_STATE_IN_LEN,
 			    MC_CMD_GET_PHY_STATE_OUT_LEN)];
 	uint32_t state;
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_PHY_STATE;
@@ -426,12 +425,12 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_phy_oui_get(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *ouip)
@@ -466,7 +465,7 @@ siena_phy_decode_stats(
 	__in					uint32_t vmask,
 	__in_opt				efsys_mem_t *esmp,
 	__out_opt				uint64_t *smaskp,
-	__out_ecount_opt(EFX_PHY_NSTATS)	uint32_t *stat)
+	__inout_ecount_opt(EFX_PHY_NSTATS)	uint32_t *stat)
 {
 	uint64_t smask = 0;
 
@@ -546,11 +545,11 @@ siena_phy_decode_stats(
 		*smaskp = smask;
 }
 
-	__checkReturn				int
+	__checkReturn				efx_rc_t
 siena_phy_stats_update(
 	__in					efx_nic_t *enp,
 	__in					efsys_mem_t *esmp,
-	__out_ecount(EFX_PHY_NSTATS)		uint32_t *stat)
+	__inout_ecount(EFX_PHY_NSTATS)		uint32_t *stat)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t vmask = encp->enc_mcdi_phy_stat_mask;
@@ -558,7 +557,7 @@ siena_phy_stats_update(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_PHY_STATS_IN_LEN,
 			    MC_CMD_PHY_STATS_OUT_DMA_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_PHY_STATS;
@@ -586,7 +585,7 @@ siena_phy_stats_update(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (0);
 }
@@ -609,7 +608,7 @@ siena_phy_prop_name(
 
 #endif	/* EFSYS_OPT_NAMES */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 siena_phy_prop_get(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
@@ -621,7 +620,7 @@ siena_phy_prop_get(
 	return (ENOTSUP);
 }
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 siena_phy_prop_set(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
@@ -636,12 +635,12 @@ siena_phy_prop_set(
 
 #if EFSYS_OPT_BIST
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 siena_phy_bist_start(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type)
 {
-	int rc;
+	efx_rc_t rc;
 
 	if ((rc = efx_mcdi_bist_start(enp, type)) != 0)
 		goto fail1;
@@ -649,7 +648,7 @@ siena_phy_bist_start(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -674,7 +673,7 @@ siena_phy_sft9001_bist_status(
 	}
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 siena_phy_bist_poll(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type,
@@ -691,7 +690,7 @@ siena_phy_bist_poll(
 	uint32_t value_mask = 0;
 	efx_mcdi_req_t req;
 	uint32_t result;
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_POLL_BIST;
@@ -823,7 +822,7 @@ siena_phy_bist_poll(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

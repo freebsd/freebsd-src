@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2013
+.Dd March 2, 2016
 .Dt DAEMON 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Op Fl cfr
 .Op Fl p Ar child_pidfile
 .Op Fl P Ar supervisor_pidfile
+.Op Fl t Ar title
 .Op Fl u Ar user
 .Ar command arguments ...
 .Sh DESCRIPTION
@@ -94,6 +95,8 @@ regardless of whether the
 option is used or not.
 .It Fl r
 Supervise and restart the program if it has been terminated.
+.It Fl t Ar title
+Process title for the daemon to make it easily identifiable.
 .It Fl u Ar user
 Login name of the user to execute the program under.
 Requires adequate superuser privileges.
@@ -123,7 +126,8 @@ option is useful combined with the
 option as
 .Ar supervisor_pidfile
 contains the ID of the supervisor
-not the child. This is especially important if you use
+not the child.
+This is especially important if you use
 .Fl r
 in an rc script as the
 .Fl p

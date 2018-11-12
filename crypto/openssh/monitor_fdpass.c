@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_fdpass.c,v 1.19 2010/01/12 00:58:25 djm Exp $ */
+/* $OpenBSD: monitor_fdpass.c,v 1.20 2015/02/25 23:05:47 djm Exp $ */
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -34,11 +34,16 @@
 #endif
 
 #include <errno.h>
-#ifdef HAVE_POLL_H
-#include <poll.h>
-#endif
 #include <string.h>
 #include <stdarg.h>
+
+#ifdef HAVE_POLL_H
+# include <poll.h>
+#else
+# ifdef HAVE_SYS_POLL_H
+#  include <sys/poll.h>
+# endif
+#endif
 
 #include "log.h"
 #include "monitor_fdpass.h"
@@ -65,6 +70,7 @@ mm_send_fd(int sock, int fd)
 	msg.msg_accrights = (caddr_t)&fd;
 	msg.msg_accrightslen = sizeof(fd);
 #else
+	memset(&cmsgbuf, 0, sizeof(cmsgbuf));
 	msg.msg_control = (caddr_t)&cmsgbuf.buf;
 	msg.msg_controllen = sizeof(cmsgbuf.buf);
 	cmsg = CMSG_FIRSTHDR(&msg);
@@ -131,6 +137,7 @@ mm_receive_fd(int sock)
 	msg.msg_accrights = (caddr_t)&fd;
 	msg.msg_accrightslen = sizeof(fd);
 #else
+	memset(&cmsgbuf, 0, sizeof(cmsgbuf));
 	msg.msg_control = &cmsgbuf.buf;
 	msg.msg_controllen = sizeof(cmsgbuf.buf);
 #endif

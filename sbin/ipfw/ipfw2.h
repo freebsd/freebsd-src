@@ -227,6 +227,7 @@ enum tokens {
 	TOK_LOCK,
 	TOK_UNLOCK,
 	TOK_VLIST,
+	TOK_OLIST,
 };
 
 /*

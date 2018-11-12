@@ -85,13 +85,13 @@ void AArch64MCExpr::visitUsedExpr(MCStreamer &Streamer) const {
   Streamer.visitUsedExpr(*getSubExpr());
 }
 
-MCSection *AArch64MCExpr::findAssociatedSection() const {
+MCFragment *AArch64MCExpr::findAssociatedFragment() const {
   llvm_unreachable("FIXME: what goes here?");
 }
 
 bool AArch64MCExpr::evaluateAsRelocatableImpl(MCValue &Res,
-                                            const MCAsmLayout *Layout,
-					    const MCFixup *Fixup) const {
+                                              const MCAsmLayout *Layout,
+                                              const MCFixup *Fixup) const {
   if (!getSubExpr()->evaluateAsRelocatable(Res, Layout, Fixup))
     return false;
 

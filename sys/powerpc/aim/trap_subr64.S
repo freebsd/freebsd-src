@@ -39,9 +39,12 @@
  *	#include <powerpc/aim/trap_subr.S>
  */
 
-/*
- * Save/restore segment registers
- */
+/* Locate the per-CPU data structure */
+#define GET_CPUINFO(r)  \
+        mfsprg0  r
+#define GET_TOCBASE(r)  \
+	li	r,TRAP_TOCBASE;	/* Magic address for TOC */ \
+	ld	r,0(r)
 
 /*
  * Restore SRs for a pmap

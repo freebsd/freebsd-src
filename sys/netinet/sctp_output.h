@@ -80,7 +80,8 @@ sctp_send_initiate(struct sctp_inpcb *, struct sctp_tcb *, int
 );
 
 void
-sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *, struct mbuf *,
+sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *,
+    struct sctp_nets *, struct mbuf *,
     int, int,
     struct sockaddr *, struct sockaddr *,
     struct sctphdr *, struct sctp_init_chunk *,

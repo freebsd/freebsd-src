@@ -40,7 +40,7 @@ extern "C" {
 /**
    Given an apache request @a r, a @a uri, and a @a root_path to the svn
    location block, process @a uri and return many things, allocated in
-   @a r->pool:
+   @a pool:
 
    - @a cleaned_uri:    The uri with duplicate and trailing slashes removed.
 
@@ -74,7 +74,25 @@ extern "C" {
      - @a relative_path:  /!svn/blah/13/A/B/alpha
      - @a repos_path:     A/B/alpha
      - @a trailing_slash: FALSE
+
+   NOTE: The returned dav_error will be also allocated in @a pool, not
+         in @a r->pool.
+
+   @since New in 1.9
 */
+AP_MODULE_DECLARE(dav_error *) dav_svn_split_uri2(request_rec *r,
+                                                  const char *uri_to_split,
+                                                  const char *root_path,
+                                                  const char **cleaned_uri,
+                                                  int *trailing_slash,
+                                                  const char **repos_basename,
+                                                  const char **relative_path,
+                                                  const char **repos_path,
+                                                  apr_pool_t *pool);
+
+/**
+ * Same as dav_svn_split_uri2() but allocates the result in @a r->pool.
+ */
 AP_MODULE_DECLARE(dav_error *) dav_svn_split_uri(request_rec *r,
                                                  const char *uri,
                                                  const char *root_path,
@@ -87,7 +105,22 @@ AP_MODULE_DECLARE(dav_error *) dav_svn_split_uri(request_rec *r,
 
 /**
  * Given an apache request @a r and a @a root_path to the svn location
- * block, set @a *repos_path to the path of the repository on disk.  */
+ * block, set @a *repos_path to the path of the repository on disk.
+ * Perform all allocations in @a pool.
+ *
+ * NOTE: The returned dav_error will be also allocated in @a pool, not
+ *       in @a r->pool.
+ *
+ * @since New in 1.9
+ */
+AP_MODULE_DECLARE(dav_error *) dav_svn_get_repos_path2(request_rec *r,
+                                                       const char *root_path,
+                                                       const char **repos_path,
+                                                       apr_pool_t *pool);
+
+/**
+ * Same as dav_svn_get_repos_path2() but allocates the result in@a r->pool.
+ */
 AP_MODULE_DECLARE(dav_error *) dav_svn_get_repos_path(request_rec *r,
                                                       const char *root_path,
                                                       const char **repos_path);

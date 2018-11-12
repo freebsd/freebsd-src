@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/videomode/videomode.h>
 #include <dev/videomode/edidvar.h>
-#include <arm/ti/am335x/hdmi.h>
 
 #include "iicbus_if.h"
 #include "hdmi_if.h"
@@ -636,7 +635,7 @@ tda19988_read_edid(struct tda19988_softc *sc)
 		}
 	}
 
-	EVENTHANDLER_INVOKE(hdmi_event, 0);
+	EVENTHANDLER_INVOKE(hdmi_event, sc->sc_dev, HDMI_EVENT_CONNECTED);
 done:
 	if (sc->sc_version == TDA19988)
 		tda19988_reg_set(sc, TDA_TX4, TX4_PD_RAM);
@@ -731,7 +730,7 @@ tda19988_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->sc_dev = dev;
-	sc->sc_addr = iicbus_get_addr(dev) << 1;
+	sc->sc_addr = iicbus_get_addr(dev);
 	sc->sc_cec_addr = (0x34 << 1); /* hardcoded */
 	sc->sc_edid = malloc(EDID_LENGTH, M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->sc_edid_len = EDID_LENGTH;

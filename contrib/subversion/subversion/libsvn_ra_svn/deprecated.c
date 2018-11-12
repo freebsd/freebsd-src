@@ -21,6 +21,10 @@
  * ====================================================================
  */
 
+/* We define this here to remove any further warnings about the usage of
+   deprecated functions in this file. */
+#define SVN_DEPRECATED
+
 #include "svn_ra_svn.h"
 
 #include "private/svn_ra_svn_private.h"
@@ -231,4 +235,49 @@ svn_ra_svn_write_cmd_failure(svn_ra_svn_conn_t *conn,
                              svn_error_t *err)
 {
   return svn_error_trace(svn_ra_svn__write_cmd_failure(conn, pool, err));
+}
+
+/* From marshal.c */
+svn_ra_svn_conn_t *
+svn_ra_svn_create_conn3(apr_socket_t *sock,
+                        apr_file_t *in_file,
+                        apr_file_t *out_file,
+                        int compression_level,
+                        apr_size_t zero_copy_limit,
+                        apr_size_t error_check_interval,
+                        apr_pool_t *pool)
+{
+  svn_stream_t *in_stream = NULL;
+  svn_stream_t *out_stream = NULL;
+
+  if (in_file)
+    in_stream = svn_stream_from_aprfile2(in_file, FALSE, pool);
+  if (out_file)
+    out_stream = svn_stream_from_aprfile2(out_file, FALSE, pool);
+
+  return svn_ra_svn_create_conn4(sock, in_stream, out_stream,
+                                 compression_level, 0, 0, pool);
+}
+
+svn_ra_svn_conn_t *
+svn_ra_svn_create_conn2(apr_socket_t *sock,
+                        apr_file_t *in_file,
+                        apr_file_t *out_file,
+                        int compression_level,
+                        apr_pool_t *pool)
+{
+  return svn_ra_svn_create_conn3(sock, in_file, out_file,
+                                 compression_level, 0, 0, pool);
+}
+
+/* backward-compatible implementation using the default compression level */
+svn_ra_svn_conn_t *
+svn_ra_svn_create_conn(apr_socket_t *sock,
+                       apr_file_t *in_file,
+                       apr_file_t *out_file,
+                       apr_pool_t *pool)
+{
+  return svn_ra_svn_create_conn3(sock, in_file, out_file,
+                                 SVN_DELTA_COMPRESSION_LEVEL_DEFAULT, 0, 0,
+                                 pool);
 }

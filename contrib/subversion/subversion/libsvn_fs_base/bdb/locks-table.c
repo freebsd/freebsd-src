@@ -257,7 +257,7 @@ svn_fs_bdb__locks_get(svn_fs_t *fs,
                            DB_SET_RANGE);
 
   if (!svn_fspath__is_root(path, strlen(path)))
-    lookup_path = apr_pstrcat(pool, path, "/", (char *)NULL);
+    lookup_path = apr_pstrcat(pool, path, "/", SVN_VA_NULL);
   lookup_len = strlen(lookup_path);
 
   /* As long as the prefix of the returned KEY matches LOOKUP_PATH we

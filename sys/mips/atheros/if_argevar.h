@@ -37,7 +37,10 @@
 #define	ARGE_TX_DMA_SIZE	ARGE_TX_RING_COUNT * sizeof(struct arge_desc)
 #define	ARGE_MAXFRAGS		8
 #define ARGE_RING_ALIGN		sizeof(struct arge_desc)
-#define ARGE_RX_ALIGN		sizeof(uint32_t)
+#define ARGE_RX_ALIGN_4BYTE	sizeof(uint32_t)
+#define ARGE_RX_ALIGN_1BYTE	sizeof(char)
+#define ARGE_TX_ALIGN_4BYTE	sizeof(uint32_t)
+#define ARGE_TX_ALIGN_1BYTE	sizeof(char)
 #define ARGE_MAXFRAGS		8
 #define	ARGE_TX_RING_ADDR(sc, i)	\
     ((sc)->arge_rdata.arge_tx_ring_paddr + sizeof(struct arge_desc) * (i))
@@ -65,6 +68,7 @@
 #define ARGE_WRITE(sc, reg, val)	do {	\
 		bus_write_4(sc->arge_res, (reg), (val)); \
 		ARGE_BARRIER_WRITE((sc)); \
+		ARGE_READ((sc), (reg)); \
 	} while (0)
 #define ARGE_READ(sc, reg)	 bus_read_4(sc->arge_res, (reg))
 
@@ -84,15 +88,12 @@
  * FIFO(s) before we continue issuing MDIO bus updates.
  */
 #define ARGE_MDIO_WRITE(_sc, _reg, _val) \
-	do { \
-		ARGE_WRITE((_sc), (_reg), (_val)); \
-		ARGE_READ((_sc), (_reg)); \
-	} while (0)
+	ARGE_WRITE((_sc), (_reg), (_val))
 #define ARGE_MDIO_READ(_sc, _reg)	\
 	ARGE_READ((_sc), (_reg))
 #define	ARGE_MDIO_BARRIER_READ(_sc)	ARGE_BARRIER_READ(_sc)
 #define	ARGE_MDIO_BARRIER_WRITE(_sc)	ARGE_BARRIER_WRITE(_sc)
-#define	ARGE_MDIO_BARRIER_RW(_sc)	ARGE_BARRIER_READ_RW(_sc)
+#define	ARGE_MDIO_BARRIER_RW(_sc)	ARGE_BARRIER_RW(_sc)
 
 #define ARGE_DESC_EMPTY		(1U << 31)
 #define ARGE_DESC_MORE		(1 << 24)
@@ -149,6 +150,22 @@ struct arge_pll_data {
 	uint32_t pll_1000;
 };
 
+/*
+ * Hardware specific behaviours.
+ */
+
+/*
+ * Older chips support 4 byte only transmit and receive
+ * addresses.
+ *
+ * Later chips support arbitrary TX and later later,
+ * arbitrary RX addresses.
+ */
+#define	ARGE_HW_FLG_TX_DESC_ALIGN_4BYTE	0x00000001
+#define	ARGE_HW_FLG_RX_DESC_ALIGN_4BYTE	0x00000002
+#define	ARGE_HW_FLG_TX_DESC_ALIGN_1BYTE	0x00000004
+#define	ARGE_HW_FLG_RX_DESC_ALIGN_1BYTE	0x00000008
+
 struct arge_softc {
 	struct ifnet		*arge_ifp;	/* interface info */
 	device_t		arge_dev;
@@ -180,14 +197,24 @@ struct arge_softc {
 	uint32_t		arge_intr_status;
 	int			arge_mac_unit;
 	int			arge_if_flags;
+	uint32_t		arge_hw_flags;
 	uint32_t		arge_debug;
 	uint32_t		arge_mdiofreq;
 	struct {
 		uint32_t	tx_pkts_unaligned;
+		uint32_t	tx_pkts_unaligned_start;
+		uint32_t	tx_pkts_unaligned_len;
+		uint32_t	tx_pkts_nosegs;
 		uint32_t	tx_pkts_aligned;
 		uint32_t	rx_overflow;
 		uint32_t	tx_underflow;
+		uint32_t	intr_stray;
+		uint32_t	intr_stray2;
+		uint32_t	intr_ok;
 	} stats;
+	struct {
+		uint32_t	count[32];
+	} intr_stats;
 };
 
 #endif /* __IF_ARGEVAR_H__ */

@@ -42,11 +42,13 @@ typedef uint8_t		(usb_test_quirk_t)(const struct usbd_lookup_info *info,
 typedef int		(usb_quirk_ioctl_t)(unsigned long cmd, caddr_t data,
 			    int fflag, struct thread *td);
 typedef void		(usb_temp_unsetup_t)(struct usb_device *udev);
+typedef void		(usb_linux_free_device_t)(struct usb_device *udev);
 
 /* global function pointers */
 
 extern usb_handle_req_t *usb_temp_get_desc_p;
 extern usb_temp_setup_by_index_t *usb_temp_setup_by_index_p;
+extern usb_linux_free_device_t *usb_linux_free_device_p;
 extern usb_temp_unsetup_t *usb_temp_unsetup_p;
 extern usb_test_quirk_t *usb_test_quirk_p;
 extern usb_quirk_ioctl_t *usb_quirk_ioctl_p;
@@ -54,6 +56,7 @@ extern devclass_t usb_devclass_ptr;
 
 /* function prototypes */
 
+void	usb_linux_unload(void *);
 void	usb_temp_unload(void *);
 void	usb_quirk_unload(void *);
 void	usb_bus_unload(void *);

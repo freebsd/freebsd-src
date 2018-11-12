@@ -22,44 +22,48 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_calendar.h"
+#include "ntp_stdlib.h"
+#include "test-libntp.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_CurrentYear();
-extern void test_CurrentYearFuzz();
-extern void test_TimeZoneOffset();
-extern void test_WrongYearStart();
-extern void test_PreviousYear();
-extern void test_NextYear();
-extern void test_NoReasonableConversion();
-extern void test_AlwaysInLimit();
+extern void test_CurrentYear(void);
+extern void test_CurrentYearFuzz(void);
+extern void test_TimeZoneOffset(void);
+extern void test_WrongYearStart(void);
+extern void test_PreviousYear(void);
+extern void test_NextYear(void);
+extern void test_NoReasonableConversion(void);
+extern void test_AlwaysInLimit(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "clocktime.c";
   UnityBegin("clocktime.c");
-  RUN_TEST(test_CurrentYear, 32);
-  RUN_TEST(test_CurrentYearFuzz, 47);
-  RUN_TEST(test_TimeZoneOffset, 69);
-  RUN_TEST(test_WrongYearStart, 89);
-  RUN_TEST(test_PreviousYear, 108);
-  RUN_TEST(test_NextYear, 127);
-  RUN_TEST(test_NoReasonableConversion, 145);
-  RUN_TEST(test_AlwaysInLimit, 167);
+  RUN_TEST(test_CurrentYear, 11);
+  RUN_TEST(test_CurrentYearFuzz, 12);
+  RUN_TEST(test_TimeZoneOffset, 13);
+  RUN_TEST(test_WrongYearStart, 14);
+  RUN_TEST(test_PreviousYear, 15);
+  RUN_TEST(test_NextYear, 16);
+  RUN_TEST(test_NoReasonableConversion, 17);
+  RUN_TEST(test_AlwaysInLimit, 19);
 
   return (UnityEnd());
 }

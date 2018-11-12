@@ -310,6 +310,7 @@ ctl_port_online(struct ctl_port *port)
 {
 	struct ctl_softc *softc = port->ctl_softc;
 	struct ctl_lun *lun;
+	const char *value;
 	uint32_t l;
 
 	if (port->lun_enable != NULL) {
@@ -328,6 +329,13 @@ ctl_port_online(struct ctl_port *port)
 	if (port->port_online != NULL)
 		port->port_online(port->onoff_arg);
 	mtx_lock(&softc->ctl_lock);
+	if (softc->is_single == 0) {
+		value = ctl_get_opt(&port->options, "ha_shared");
+		if (value != NULL && strcmp(value, "on") == 0)
+			port->status |= CTL_PORT_STATUS_HA_SHARED;
+		else
+			port->status &= ~CTL_PORT_STATUS_HA_SHARED;
+	}
 	port->status |= CTL_PORT_STATUS_ONLINE;
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
 		if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)

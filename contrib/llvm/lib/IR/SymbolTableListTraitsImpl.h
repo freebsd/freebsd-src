@@ -24,77 +24,73 @@ namespace llvm {
 /// setSymTabObject - This is called when (f.e.) the parent of a basic block
 /// changes.  This requires us to remove all the instruction symtab entries from
 /// the current function and reinsert them into the new function.
-template<typename ValueSubClass, typename ItemParentClass>
-template<typename TPtr>
-void SymbolTableListTraits<ValueSubClass,ItemParentClass>
-::setSymTabObject(TPtr *Dest, TPtr Src) {
+template <typename ValueSubClass>
+template <typename TPtr>
+void SymbolTableListTraits<ValueSubClass>::setSymTabObject(TPtr *Dest,
+                                                           TPtr Src) {
   // Get the old symtab and value list before doing the assignment.
-  ValueSymbolTable *OldST = TraitsClass::getSymTab(getListOwner());
+  ValueSymbolTable *OldST = getSymTab(getListOwner());
 
   // Do it.
   *Dest = Src;
   
   // Get the new SymTab object.
-  ValueSymbolTable *NewST = TraitsClass::getSymTab(getListOwner());
+  ValueSymbolTable *NewST = getSymTab(getListOwner());
   
   // If there is nothing to do, quick exit.
   if (OldST == NewST) return;
   
   // Move all the elements from the old symtab to the new one.
-  iplist<ValueSubClass> &ItemList = TraitsClass::getList(getListOwner());
+  ListTy &ItemList = getList(getListOwner());
   if (ItemList.empty()) return;
   
   if (OldST) {
     // Remove all entries from the previous symtab.
-    for (typename iplist<ValueSubClass>::iterator I = ItemList.begin();
-         I != ItemList.end(); ++I)
+    for (auto I = ItemList.begin(); I != ItemList.end(); ++I)
       if (I->hasName())
         OldST->removeValueName(I->getValueName());
   }
 
   if (NewST) {
     // Add all of the items to the new symtab.
-    for (typename iplist<ValueSubClass>::iterator I = ItemList.begin();
-         I != ItemList.end(); ++I)
+    for (auto I = ItemList.begin(); I != ItemList.end(); ++I)
       if (I->hasName())
-        NewST->reinsertValue(I);
+        NewST->reinsertValue(&*I);
   }
   
 }
 
-template<typename ValueSubClass, typename ItemParentClass>
-void SymbolTableListTraits<ValueSubClass,ItemParentClass>
-::addNodeToList(ValueSubClass *V) {
+template <typename ValueSubClass>
+void SymbolTableListTraits<ValueSubClass>::addNodeToList(ValueSubClass *V) {
   assert(!V->getParent() && "Value already in a container!!");
   ItemParentClass *Owner = getListOwner();
   V->setParent(Owner);
   if (V->hasName())
-    if (ValueSymbolTable *ST = TraitsClass::getSymTab(Owner))
+    if (ValueSymbolTable *ST = getSymTab(Owner))
       ST->reinsertValue(V);
 }
 
-template<typename ValueSubClass, typename ItemParentClass>
-void SymbolTableListTraits<ValueSubClass,ItemParentClass>
-::removeNodeFromList(ValueSubClass *V) {
+template <typename ValueSubClass>
+void SymbolTableListTraits<ValueSubClass>::removeNodeFromList(
+    ValueSubClass *V) {
   V->setParent(nullptr);
   if (V->hasName())
-    if (ValueSymbolTable *ST = TraitsClass::getSymTab(getListOwner()))
+    if (ValueSymbolTable *ST = getSymTab(getListOwner()))
       ST->removeValueName(V->getValueName());
 }
 
-template<typename ValueSubClass, typename ItemParentClass>
-void SymbolTableListTraits<ValueSubClass,ItemParentClass>
-::transferNodesFromList(ilist_traits<ValueSubClass> &L2,
-                        ilist_iterator<ValueSubClass> first,
-                        ilist_iterator<ValueSubClass> last) {
+template <typename ValueSubClass>
+void SymbolTableListTraits<ValueSubClass>::transferNodesFromList(
+    SymbolTableListTraits &L2, ilist_iterator<ValueSubClass> first,
+    ilist_iterator<ValueSubClass> last) {
   // We only have to do work here if transferring instructions between BBs
   ItemParentClass *NewIP = getListOwner(), *OldIP = L2.getListOwner();
   if (NewIP == OldIP) return;  // No work to do at all...
 
   // We only have to update symbol table entries if we are transferring the
   // instructions to a different symtab object...
-  ValueSymbolTable *NewST = TraitsClass::getSymTab(NewIP);
-  ValueSymbolTable *OldST = TraitsClass::getSymTab(OldIP);
+  ValueSymbolTable *NewST = getSymTab(NewIP);
+  ValueSymbolTable *OldST = getSymTab(OldIP);
   if (NewST != OldST) {
     for (; first != last; ++first) {
       ValueSubClass &V = *first;

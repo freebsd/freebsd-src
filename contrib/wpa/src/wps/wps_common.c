@@ -528,7 +528,7 @@ u16 wps_config_methods_str2bin(const char *str)
 {
 	u16 methods = 0;
 
-	if (str == NULL) {
+	if (str == NULL || str[0] == '\0') {
 		/* Default to enabling methods based on build configuration */
 		methods |= WPS_CONFIG_DISPLAY | WPS_CONFIG_KEYPAD;
 		methods |= WPS_CONFIG_VIRT_DISPLAY;
@@ -764,6 +764,8 @@ static int wps_build_ap_freq(struct wpabuf *msg, int freq)
 		rf_band = WPS_RF_24GHZ;
 	else if (mode == HOSTAPD_MODE_IEEE80211A)
 		rf_band = WPS_RF_50GHZ;
+	else if (mode == HOSTAPD_MODE_IEEE80211AD)
+		rf_band = WPS_RF_60GHZ;
 	else
 		return 0; /* Unknown band */
 	ap_channel = channel;

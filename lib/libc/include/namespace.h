@@ -208,6 +208,7 @@
 #define		readv				_readv
 #define		recvfrom			_recvfrom
 #define		recvmsg				_recvmsg
+#define		recvmmsg			_recvmmsg
 #define		select				_select
 #define		sem_close			_sem_close
 #define		sem_destroy			_sem_destroy
@@ -220,6 +221,7 @@
 #define		sem_unlink			_sem_unlink
 #define		sem_wait			_sem_wait
 #define		sendmsg				_sendmsg
+#define		sendmmsg			_sendmmsg
 #define		sendto				_sendto
 #define		setsockopt			_setsockopt
 /*#define		sigaction			_sigaction*/

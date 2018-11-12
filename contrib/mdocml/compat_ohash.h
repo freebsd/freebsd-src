@@ -49,7 +49,6 @@ struct ohash {
  * a hashing table index (opaque) to be used in find/insert/remove.
  * The keys are stored at a known position in the client data.
  */
-__BEGIN_DECLS
 void ohash_init(struct ohash *, unsigned, struct ohash_info *);
 void ohash_delete(struct ohash *);
 
@@ -69,5 +68,5 @@ uint32_t ohash_interval(const char *, const char **);
 
 unsigned int ohash_qlookupi(struct ohash *, const char *, const char **);
 unsigned int ohash_qlookup(struct ohash *, const char *);
-__END_DECLS
+
 #endif

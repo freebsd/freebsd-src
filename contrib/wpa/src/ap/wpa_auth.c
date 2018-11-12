@@ -45,6 +45,12 @@ static int wpa_group_config_group_keys(struct wpa_authenticator *wpa_auth,
 				       struct wpa_group *group);
 static int wpa_derive_ptk(struct wpa_state_machine *sm, const u8 *snonce,
 			  const u8 *pmk, struct wpa_ptk *ptk);
+static void wpa_group_free(struct wpa_authenticator *wpa_auth,
+			   struct wpa_group *group);
+static void wpa_group_get(struct wpa_authenticator *wpa_auth,
+			  struct wpa_group *group);
+static void wpa_group_put(struct wpa_authenticator *wpa_auth,
+			  struct wpa_group *group);
 
 static const u32 dot11RSNAConfigGroupUpdateCount = 4;
 static const u32 dot11RSNAConfigPairwiseUpdateCount = 4;
@@ -64,6 +70,14 @@ static inline int wpa_auth_mic_failure_report(
 	if (wpa_auth->cb.mic_failure_report)
 		return wpa_auth->cb.mic_failure_report(wpa_auth->cb.ctx, addr);
 	return 0;
+}
+
+
+static inline void wpa_auth_psk_failure_report(
+	struct wpa_authenticator *wpa_auth, const u8 *addr)
+{
+	if (wpa_auth->cb.psk_failure_report)
+		wpa_auth->cb.psk_failure_report(wpa_auth->cb.ctx, addr);
 }
 
 
@@ -254,15 +268,22 @@ static void wpa_rekey_gmk(void *eloop_ctx, void *timeout_ctx)
 static void wpa_rekey_gtk(void *eloop_ctx, void *timeout_ctx)
 {
 	struct wpa_authenticator *wpa_auth = eloop_ctx;
-	struct wpa_group *group;
+	struct wpa_group *group, *next;
 
 	wpa_auth_logger(wpa_auth, NULL, LOGGER_DEBUG, "rekeying GTK");
-	for (group = wpa_auth->group; group; group = group->next) {
+	group = wpa_auth->group;
+	while (group) {
+		wpa_group_get(wpa_auth, group);
+
 		group->GTKReKey = TRUE;
 		do {
 			group->changed = FALSE;
 			wpa_group_sm_step(wpa_auth, group);
 		} while (group->changed);
+
+		next = group->next;
+		wpa_group_put(wpa_auth, group);
+		group = next;
 	}
 
 	if (wpa_auth->conf.wpa_group_rekey) {
@@ -565,6 +586,7 @@ wpa_auth_sta_init(struct wpa_authenticator *wpa_auth, const u8 *addr,
 
 	sm->wpa_auth = wpa_auth;
 	sm->group = wpa_auth->group;
+	wpa_group_get(sm->wpa_auth, sm->group);
 
 	return sm;
 }
@@ -643,6 +665,7 @@ static void wpa_free_sta_sm(struct wpa_state_machine *sm)
 #endif /* CONFIG_IEEE80211R */
 	os_free(sm->last_rx_eapol_key);
 	os_free(sm->wpa_ie);
+	wpa_group_put(sm->wpa_auth, sm->group);
 	os_free(sm);
 }
 
@@ -1517,6 +1540,7 @@ void __wpa_send_eapol(struct wpa_authenticator *wpa_auth,
 			else
 				WPA_PUT_BE16(key->key_data_length,
 					     key_data_len);
+#ifndef CONFIG_NO_RC4
 		} else if (sm->PTK.kek_len == 16) {
 			u8 ek[32];
 			os_memcpy(key->key_iv,
@@ -1532,6 +1556,7 @@ void __wpa_send_eapol(struct wpa_authenticator *wpa_auth,
 			else
 				WPA_PUT_BE16(key->key_data_length,
 					     key_data_len);
+#endif /* CONFIG_NO_RC4 */
 		} else {
 			os_free(hdr);
 			os_free(buf);
@@ -1646,7 +1671,7 @@ void wpa_remove_ptk(struct wpa_state_machine *sm)
 }
 
 
-int wpa_auth_sm_event(struct wpa_state_machine *sm, wpa_event event)
+int wpa_auth_sm_event(struct wpa_state_machine *sm, enum wpa_event event)
 {
 	int remove_ptk = 1;
 
@@ -1734,6 +1759,14 @@ int wpa_auth_sm_event(struct wpa_state_machine *sm, wpa_event event)
 			wpa_remove_ptk(sm);
 	}
 
+	if (sm->in_step_loop) {
+		/*
+		 * wpa_sm_step() is already running - avoid recursive call to
+		 * it by making the existing loop process the new update.
+		 */
+		sm->changed = TRUE;
+		return 0;
+	}
 	return wpa_sm_step(sm);
 }
 
@@ -1818,9 +1851,13 @@ static void wpa_group_ensure_init(struct wpa_authenticator *wpa_auth,
 		group->reject_4way_hs_for_entropy = FALSE;
 	}
 
-	wpa_group_init_gmk_and_counter(wpa_auth, group);
-	wpa_gtk_update(wpa_auth, group);
-	wpa_group_config_group_keys(wpa_auth, group);
+	if (wpa_group_init_gmk_and_counter(wpa_auth, group) < 0 ||
+	    wpa_gtk_update(wpa_auth, group) < 0 ||
+	    wpa_group_config_group_keys(wpa_auth, group) < 0) {
+		wpa_printf(MSG_INFO, "WPA: GMK/GTK setup failed");
+		group->first_sta_seen = FALSE;
+		group->reject_4way_hs_for_entropy = TRUE;
+	}
 }
 
 
@@ -1985,7 +2022,7 @@ static int wpa_derive_ptk(struct wpa_state_machine *sm, const u8 *snonce,
 SM_STATE(WPA_PTK, PTKCALCNEGOTIATING)
 {
 	struct wpa_ptk PTK;
-	int ok = 0;
+	int ok = 0, psk_found = 0;
 	const u8 *pmk = NULL;
 
 	SM_ENTRY_MA(WPA_PTK, PTKCALCNEGOTIATING, wpa_ptk);
@@ -2001,6 +2038,7 @@ SM_STATE(WPA_PTK, PTKCALCNEGOTIATING)
 					       sm->p2p_dev_addr, pmk);
 			if (pmk == NULL)
 				break;
+			psk_found = 1;
 		} else
 			pmk = sm->PMK;
 
@@ -2020,6 +2058,8 @@ SM_STATE(WPA_PTK, PTKCALCNEGOTIATING)
 	if (!ok) {
 		wpa_auth_logger(sm->wpa_auth, sm->addr, LOGGER_DEBUG,
 				"invalid MIC in msg 2/4 of 4-Way Handshake");
+		if (psk_found)
+			wpa_auth_psk_failure_report(sm->wpa_auth, sm->addr);
 		return;
 	}
 
@@ -2983,9 +3023,9 @@ void wpa_gtk_rekey(struct wpa_authenticator *wpa_auth)
 }
 
 
-static const char * wpa_bool_txt(int bool)
+static const char * wpa_bool_txt(int val)
 {
-	return bool ? "TRUE" : "FALSE";
+	return val ? "TRUE" : "FALSE";
 }
 
 
@@ -3270,6 +3310,63 @@ void wpa_auth_pmksa_remove(struct wpa_authenticator *wpa_auth,
 }
 
 
+/*
+ * Remove and free the group from wpa_authenticator. This is triggered by a
+ * callback to make sure nobody is currently iterating the group list while it
+ * gets modified.
+ */
+static void wpa_group_free(struct wpa_authenticator *wpa_auth,
+			   struct wpa_group *group)
+{
+	struct wpa_group *prev = wpa_auth->group;
+
+	wpa_printf(MSG_DEBUG, "WPA: Remove group state machine for VLAN-ID %d",
+		   group->vlan_id);
+
+	while (prev) {
+		if (prev->next == group) {
+			/* This never frees the special first group as needed */
+			prev->next = group->next;
+			os_free(group);
+			break;
+		}
+		prev = prev->next;
+	}
+
+}
+
+
+/* Increase the reference counter for group */
+static void wpa_group_get(struct wpa_authenticator *wpa_auth,
+			  struct wpa_group *group)
+{
+	/* Skip the special first group */
+	if (wpa_auth->group == group)
+		return;
+
+	group->references++;
+}
+
+
+/* Decrease the reference counter and maybe free the group */
+static void wpa_group_put(struct wpa_authenticator *wpa_auth,
+			  struct wpa_group *group)
+{
+	/* Skip the special first group */
+	if (wpa_auth->group == group)
+		return;
+
+	group->references--;
+	if (group->references)
+		return;
+	wpa_group_free(wpa_auth, group);
+}
+
+
+/*
+ * Add a group that has its references counter set to zero. Caller needs to
+ * call wpa_group_get() on the return value to mark the entry in use.
+ */
 static struct wpa_group *
 wpa_auth_add_group(struct wpa_authenticator *wpa_auth, int vlan_id)
 {
@@ -3320,7 +3417,10 @@ int wpa_auth_sta_set_vlan(struct wpa_state_machine *sm, int vlan_id)
 	wpa_printf(MSG_DEBUG, "WPA: Moving STA " MACSTR " to use group state "
 		   "machine for VLAN ID %d", MAC2STR(sm->addr), vlan_id);
 
+	wpa_group_get(sm->wpa_auth, group);
+	wpa_group_put(sm->wpa_auth, sm->group);
 	sm->group = group;
+
 	return 0;
 }
 

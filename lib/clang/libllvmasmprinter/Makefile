@@ -12,8 +12,8 @@ SRCS=	ARMException.cpp \
 	AsmPrinterInlineAsm.cpp \
 	DIE.cpp \
 	DIEHash.cpp \
-	DebugLocStream.cpp \
 	DbgValueHistoryCalculator.cpp \
+	DebugLocStream.cpp \
 	DwarfAccelTable.cpp \
 	DwarfCFIException.cpp \
 	DwarfCompileUnit.cpp \
@@ -28,6 +28,7 @@ SRCS=	ARMException.cpp \
 	WinCodeViewLineTables.cpp \
 	WinException.cpp
 
-TGHDRS=	Intrinsics
+TGHDRS=	Attributes \
+	Intrinsics
 
 .include "../clang.lib.mk"

@@ -26,17 +26,18 @@
 #ifdef SVN_SQLITE_INLINE
 #  define SQLITE_OMIT_DEPRECATED 1
 #  define SQLITE_API static
-#  if __GNUC__ > 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ >= 6 || __APPLE_CC__))
-#    if !__APPLE_CC__ || __GNUC_MINOR__ >= 6
-#      pragma GCC diagnostic push
-#    endif
+#  if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 2)
 #    pragma GCC diagnostic ignored "-Wunreachable-code"
 #    pragma GCC diagnostic ignored "-Wunused-function"
 #    pragma GCC diagnostic ignored "-Wcast-qual"
 #    pragma GCC diagnostic ignored "-Wunused"
 #    pragma GCC diagnostic ignored "-Wshadow"
-#    if __APPLE_CC__
+#    if defined(__APPLE_CC__) || defined(__clang__)
 #      pragma GCC diagnostic ignored "-Wshorten-64-to-32"
+#    endif
+#    if defined(__clang__)
+#      pragma clang diagnostic ignored "-Wincompatible-pointer-types-discards-qualifiers"
+#      pragma clang diagnostic ignored "-Wmissing-variable-declarations"
 #    endif
 #  endif
 #  ifdef __APPLE__
@@ -52,9 +53,6 @@
 #  endif
 #  define SQLITE_DEFAULT_FILE_PERMISSIONS 0666
 #  include <sqlite3.c>
-#  if __GNUC__ > 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ >= 6))
-#    pragma GCC diagnostic pop
-#  endif
 
 /* Expose the sqlite API vtable and the two missing functions */
 const sqlite3_api_routines *const svn_sqlite3__api_funcs = &sqlite3Apis;

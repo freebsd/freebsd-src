@@ -22,29 +22,6 @@ ATF_TESTS_C?=
 ATF_TESTS_CXX?=
 ATF_TESTS_SH?=
 
-# Path to the prefix of the installed ATF tools, if any.
-#
-# If atf-run and atf-report are installed from ports, we automatically define a
-# realregress target below to run the tests using these tools.  The tools are
-# searched for in the hierarchy specified by this variable.
-ATF_PREFIX?= /usr/local
-
-# C compiler passed to ATF tests that need to build code.
-ATF_BUILD_CC?= ${DESTDIR}/usr/bin/cc
-TESTS_ENV+= ATF_BUILD_CC=${ATF_BUILD_CC}
-
-# C preprocessor passed to ATF tests that need to build code.
-ATF_BUILD_CPP?= ${DESTDIR}/usr/bin/cpp
-TESTS_ENV+= ATF_BUILD_CPP=${ATF_BUILD_CPP}
-
-# C++ compiler passed to ATF tests that need to build code.
-ATF_BUILD_CXX?= ${DESTDIR}/usr/bin/c++
-TESTS_ENV+= ATF_BUILD_CXX=${ATF_BUILD_CXX}
-
-# Shell interpreter used to run atf-sh(1) based tests.
-ATF_SHELL?= ${DESTDIR}/bin/sh
-TESTS_ENV+= ATF_SHELL=${ATF_SHELL}
-
 .if !empty(ATF_TESTS_C)
 PROGS+= ${ATF_TESTS_C}
 _TESTS+= ${ATF_TESTS_C}

@@ -96,7 +96,8 @@ static struct wpabuf * eap_sm_buildInitiateReauthStart(struct eap_sm *sm,
 		plen += 2 + domain_len;
 	}
 
-	msg = eap_msg_alloc(EAP_VENDOR_IETF, EAP_ERP_TYPE_REAUTH_START, plen,
+	msg = eap_msg_alloc(EAP_VENDOR_IETF,
+			    (EapType) EAP_ERP_TYPE_REAUTH_START, plen,
 			    EAP_CODE_INITIATE, id);
 	if (msg == NULL)
 		return NULL;
@@ -714,8 +715,8 @@ static void erp_send_finish_reauth(struct eap_sm *sm,
 	plen = 1 + 2 + 2 + os_strlen(nai);
 	if (hash_len)
 		plen += 1 + hash_len;
-	msg = eap_msg_alloc(EAP_VENDOR_IETF, EAP_ERP_TYPE_REAUTH, plen,
-			    EAP_CODE_FINISH, id);
+	msg = eap_msg_alloc(EAP_VENDOR_IETF, (EapType) EAP_ERP_TYPE_REAUTH,
+			    plen, EAP_CODE_FINISH, id);
 	if (msg == NULL)
 		return;
 	wpabuf_put_u8(msg, flags);
@@ -745,7 +746,7 @@ static void erp_send_finish_reauth(struct eap_sm *sm,
 	wpabuf_free(sm->lastReqData);
 	sm->lastReqData = NULL;
 
-	if (flags & 0x80) {
+	if ((flags & 0x80) || !erp) {
 		sm->eap_if.eapFail = TRUE;
 		wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_FAILURE
 			MACSTR, MAC2STR(sm->peer_addr));
@@ -799,7 +800,7 @@ SM_STATE(EAP, INITIATE_RECEIVED)
 
 	sm->rxInitiate = FALSE;
 
-	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_ERP_TYPE_REAUTH,
+	pos = eap_hdr_validate(EAP_VENDOR_IETF, (EapType) EAP_ERP_TYPE_REAUTH,
 			       sm->eap_if.eapRespData, &len);
 	if (pos == NULL) {
 		wpa_printf(MSG_INFO, "EAP-Initiate: Invalid frame");
@@ -1246,6 +1247,17 @@ SM_STEP(EAP)
 			break;
 		}
 		SM_ENTER(EAP, SEND_REQUEST);
+		if (sm->eap_if.eapNoReq && !sm->eap_if.eapReq) {
+			/*
+			 * This transition is not mentioned in RFC 4137, but it
+			 * is needed to handle cleanly a case where EAP method
+			 * buildReq fails.
+			 */
+			wpa_printf(MSG_DEBUG,
+				   "EAP: Method did not return a request");
+			SM_ENTER(EAP, FAILURE);
+			break;
+		}
 		break;
 	case EAP_METHOD_RESPONSE:
 		/*
@@ -1802,7 +1814,7 @@ static void eap_user_free(struct eap_user *user)
  * This function allocates and initializes an EAP state machine.
  */
 struct eap_sm * eap_server_sm_init(void *eapol_ctx,
-				   struct eapol_callbacks *eapol_cb,
+				   const struct eapol_callbacks *eapol_cb,
 				   struct eap_config *conf)
 {
 	struct eap_sm *sm;
@@ -1853,6 +1865,7 @@ struct eap_sm * eap_server_sm_init(void *eapol_ctx,
 	sm->server_id = conf->server_id;
 	sm->server_id_len = conf->server_id_len;
 	sm->erp = conf->erp;
+	sm->tls_session_lifetime = conf->tls_session_lifetime;
 
 #ifdef CONFIG_TESTING_OPTIONS
 	sm->tls_test_flags = conf->tls_test_flags;
@@ -1979,3 +1992,25 @@ void eap_server_clear_identity(struct eap_sm *sm)
 	os_free(sm->identity);
 	sm->identity = NULL;
 }
+
+
+#ifdef CONFIG_TESTING_OPTIONS
+void eap_server_mschap_rx_callback(struct eap_sm *sm, const char *source,
+				   const u8 *username, size_t username_len,
+				   const u8 *challenge, const u8 *response)
+{
+	char hex_challenge[30], hex_response[90], user[100];
+
+	/* Print out Challenge and Response in format supported by asleap. */
+	if (username)
+		printf_encode(user, sizeof(user), username, username_len);
+	else
+		user[0] = '\0';
+	wpa_snprintf_hex_sep(hex_challenge, sizeof(hex_challenge),
+			     challenge, sizeof(challenge), ':');
+	wpa_snprintf_hex_sep(hex_response, sizeof(hex_response), response, 24,
+			     ':');
+	wpa_printf(MSG_DEBUG, "[%s/user=%s] asleap -C %s -R %s",
+		   source, user, hex_challenge, hex_response);
+}
+#endif /* CONFIG_TESTING_OPTIONS */

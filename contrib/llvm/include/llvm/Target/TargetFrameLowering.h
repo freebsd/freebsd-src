@@ -70,6 +70,18 @@ public:
   ///
   unsigned getStackAlignment() const { return StackAlignment; }
 
+  /// alignSPAdjust - This method aligns the stack adjustment to the correct
+  /// alignment.
+  ///
+  int alignSPAdjust(int SPAdj) const {
+    if (SPAdj < 0) {
+      SPAdj = -RoundUpToAlignment(-SPAdj, StackAlignment);
+    } else {
+      SPAdj = RoundUpToAlignment(SPAdj, StackAlignment);
+    }
+    return SPAdj;
+  }
+
   /// getTransientStackAlignment - This method returns the number of bytes to
   /// which the stack pointer must be aligned at all times, even between
   /// calls.
@@ -83,6 +95,11 @@ public:
   bool isStackRealignable() const {
     return StackRealignable;
   }
+
+  /// Return the skew that has to be applied to stack alignment under
+  /// certain conditions (e.g. stack was adjusted before function \p MF
+  /// was called).
+  virtual unsigned getStackAlignmentSkew(const MachineFunction &MF) const;
 
   /// getOffsetOfLocalArea - This method returns the offset of the local area
   /// from the stack pointer on entrance to a function.
@@ -129,12 +146,21 @@ public:
     return false;
   }
 
+  /// Returns true if the target will correctly handle shrink wrapping.
+  virtual bool enableShrinkWrapping(const MachineFunction &MF) const {
+    return false;
+  }
+
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
   virtual void emitPrologue(MachineFunction &MF,
                             MachineBasicBlock &MBB) const = 0;
   virtual void emitEpilogue(MachineFunction &MF,
                             MachineBasicBlock &MBB) const = 0;
+
+  /// Replace a StackProbe stub (if any) with the actual probe code inline
+  virtual void inlineStackProbe(MachineFunction &MF,
+                                MachineBasicBlock &PrologueMBB) const {}
 
   /// Adjust the prologue to have the function use segmented stacks. This works
   /// by adding a check even before the "normal" function prologue.
@@ -207,10 +233,6 @@ public:
   // has any stack objects. However, targets may want to override this.
   virtual bool needsFrameIndexResolution(const MachineFunction &MF) const;
 
-  /// getFrameIndexOffset - Returns the displacement from the frame register to
-  /// the stack frame of the specified index.
-  virtual int getFrameIndexOffset(const MachineFunction &MF, int FI) const;
-
   /// getFrameIndexReference - This method should return the base register
   /// and offset used to reference a frame index location. The offset is
   /// returned directly, and the base register is returned via FrameReg.
@@ -218,10 +240,11 @@ public:
                                      unsigned &FrameReg) const;
 
   /// Same as above, except that the 'base register' will always be RSP, not
-  /// RBP on x86.  This is used exclusively for lowering STATEPOINT nodes.
+  /// RBP on x86. This is generally used for emitting statepoint or EH tables
+  /// that use offsets from RSP.
   /// TODO: This should really be a parameterizable choice.
   virtual int getFrameIndexReferenceFromSP(const MachineFunction &MF, int FI,
-                                          unsigned &FrameReg) const {
+                                           unsigned &FrameReg) const {
     // default to calling normal version, we override this on x86 only
     llvm_unreachable("unimplemented for non-x86");
     return 0;
@@ -244,6 +267,10 @@ public:
   ///
   virtual void processFunctionBeforeFrameFinalized(MachineFunction &MF,
                                              RegScavenger *RS = nullptr) const {
+  }
+
+  virtual unsigned getWinEHParentFrameOffset(const MachineFunction &MF) const {
+    report_fatal_error("WinEH not implemented for this target");
   }
 
   /// eliminateCallFramePseudoInstr - This method is called during prolog/epilog

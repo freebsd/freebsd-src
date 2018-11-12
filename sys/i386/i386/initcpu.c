@@ -81,39 +81,7 @@ SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
  */
 static int	hw_clflush_disable = -1;
 
-int	cpu;			/* Are we 386, 386sx, 486, etc? */
-u_int	cpu_feature;		/* Feature flags */
-u_int	cpu_feature2;		/* Feature flags */
-u_int	amd_feature;		/* AMD feature flags */
-u_int	amd_feature2;		/* AMD feature flags */
-u_int	amd_pminfo;		/* AMD advanced power management info */
-u_int	via_feature_rng;	/* VIA RNG features */
-u_int	via_feature_xcrypt;	/* VIA ACE features */
-u_int	cpu_high;		/* Highest arg to CPUID */
-u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
-u_int	cpu_id;			/* Stepping ID */
-u_int	cpu_procinfo;		/* HyperThreading Info / Brand Index / CLFUSH */
-u_int	cpu_procinfo2;		/* Multicore info */
-char	cpu_vendor[20];		/* CPU Origin code */
-u_int	cpu_vendor_id;		/* CPU vendor ID */
-#ifdef CPU_ENABLE_SSE
-u_int	cpu_fxsr;		/* SSE enabled */
-u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
-#endif
-u_int	cpu_clflush_line_size = 32;
-u_int	cpu_stdext_feature;
-u_int	cpu_stdext_feature2;
-u_int	cpu_max_ext_state_size;
-u_int	cpu_mon_mwait_flags;	/* MONITOR/MWAIT flags (CPUID.05H.ECX) */
-u_int	cpu_mon_min_size;	/* MONITOR minimum range size, bytes */
-u_int	cpu_mon_max_size;	/* MONITOR minimum range size, bytes */
 u_int	cyrix_did;		/* Device ID of Cyrix CPU */
-u_int	cpu_maxphyaddr;		/* Max phys addr width in bits */
-
-SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
-	&via_feature_rng, 0, "VIA RNG feature available in CPU");
-SYSCTL_UINT(_hw, OID_AUTO, via_feature_xcrypt, CTLFLAG_RD,
-	&via_feature_xcrypt, 0, "VIA xcrypt feature available in CPU");
 
 #ifdef I486_CPU
 /*
@@ -826,14 +794,18 @@ initializecpucache(void)
 	 * CPUID_SS feature even though the native CPU supports it.
 	 */
 	TUNABLE_INT_FETCH("hw.clflush_disable", &hw_clflush_disable);
-	if (vm_guest != VM_GUEST_NO && hw_clflush_disable == -1)
+	if (vm_guest != VM_GUEST_NO && hw_clflush_disable == -1) {
 		cpu_feature &= ~CPUID_CLFSH;
+		cpu_stdext_feature &= ~CPUID_STDEXT_CLFLUSHOPT;
+	}
 	/*
-	 * Allow to disable CLFLUSH feature manually by
-	 * hw.clflush_disable tunable.
+	 * The kernel's use of CLFLUSH{,OPT} can be disabled manually
+	 * by setting the hw.clflush_disable tunable.
 	 */
-	if (hw_clflush_disable == 1)
+	if (hw_clflush_disable == 1) {
 		cpu_feature &= ~CPUID_CLFSH;
+		cpu_stdext_feature &= ~CPUID_STDEXT_CLFLUSHOPT;
+	}
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	/*

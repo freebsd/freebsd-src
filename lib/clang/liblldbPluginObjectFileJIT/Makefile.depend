@@ -13,16 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ObjectFileJIT.o: AttrList.inc.h
-ObjectFileJIT.o: Attrs.inc.h
-ObjectFileJIT.o: CommentCommandList.inc.h
-ObjectFileJIT.o: DeclNodes.inc.h
-ObjectFileJIT.o: DiagnosticCommonKinds.inc.h
-ObjectFileJIT.o: StmtNodes.inc.h
-ObjectFileJIT.po: AttrList.inc.h
-ObjectFileJIT.po: Attrs.inc.h
-ObjectFileJIT.po: CommentCommandList.inc.h
-ObjectFileJIT.po: DeclNodes.inc.h
-ObjectFileJIT.po: DiagnosticCommonKinds.inc.h
-ObjectFileJIT.po: StmtNodes.inc.h
 .endif

@@ -13,6 +13,10 @@
 #include <stddef.h>
 #include <unistd.h>
 #include <fcntl.h>
+#ifdef __linux__
+#include <sys/ioctl.h>
+#include <linux/sockios.h>
+#endif /* __linux__ */
 #ifdef ANDROID
 #include <cutils/sockets.h>
 #endif /* ANDROID */
@@ -70,6 +74,32 @@ static int wpas_ctrl_iface_reinit(struct wpa_supplicant *wpa_s,
 				  struct ctrl_iface_priv *priv);
 static int wpas_ctrl_iface_global_reinit(struct wpa_global *global,
 					 struct ctrl_iface_global_priv *priv);
+
+
+static void wpas_ctrl_sock_debug(const char *title, int sock, const char *buf,
+				 size_t len)
+{
+#ifdef __linux__
+	socklen_t optlen;
+	int sndbuf, outq;
+	int level = MSG_MSGDUMP;
+
+	if (len >= 5 && os_strncmp(buf, "PONG\n", 5) == 0)
+		level = MSG_EXCESSIVE;
+
+	optlen = sizeof(sndbuf);
+	sndbuf = 0;
+	if (getsockopt(sock, SOL_SOCKET, SO_SNDBUF, &sndbuf, &optlen) < 0)
+		sndbuf = -1;
+
+	if (ioctl(sock, SIOCOUTQ, &outq) < 0)
+		outq = -1;
+
+	wpa_printf(level,
+		   "CTRL-DEBUG: %s: sock=%d sndbuf=%d outq=%d send_len=%d",
+		   title, sock, sndbuf, outq, (int) len);
+#endif /* __linux__ */
+}
 
 
 static int wpa_supplicant_ctrl_iface_attach(struct dl_list *ctrl_dst,
@@ -197,6 +227,13 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 		reply_buf = wpa_supplicant_ctrl_iface_process(wpa_s, buf,
 							      &reply_len);
 		reply = reply_buf;
+
+		/*
+		 * There could be some password/key material in the command, so
+		 * clear the buffer explicitly now that it is not needed
+		 * anymore.
+		 */
+		os_memset(buf, 0, res);
 	}
 
 	if (!reply && reply_len == 1) {
@@ -208,6 +245,8 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 	}
 
 	if (reply) {
+		wpas_ctrl_sock_debug("ctrl_sock-sendto", sock, reply,
+				     reply_len);
 		if (sendto(sock, reply, reply_len, 0, (struct sockaddr *) &from,
 			   fromlen) < 0) {
 			int _errno = errno;
@@ -295,7 +334,8 @@ static char * wpa_supplicant_ctrl_iface_path(struct wpa_supplicant *wpa_s)
 }
 
 
-static void wpa_supplicant_ctrl_iface_msg_cb(void *ctx, int level, int global,
+static void wpa_supplicant_ctrl_iface_msg_cb(void *ctx, int level,
+					     enum wpa_msg_type type,
 					     const char *txt, size_t len)
 {
 	struct wpa_supplicant *wpa_s = ctx;
@@ -303,19 +343,19 @@ static void wpa_supplicant_ctrl_iface_msg_cb(void *ctx, int level, int global,
 	if (wpa_s == NULL)
 		return;
 
-	if (global != 2 && wpa_s->global->ctrl_iface) {
+	if (type != WPA_MSG_NO_GLOBAL && wpa_s->global->ctrl_iface) {
 		struct ctrl_iface_global_priv *priv = wpa_s->global->ctrl_iface;
 		if (!dl_list_empty(&priv->ctrl_dst)) {
-			wpa_supplicant_ctrl_iface_send(wpa_s, global ? NULL :
-						       wpa_s->ifname,
-						       priv->sock,
-						       &priv->ctrl_dst,
-						       level, txt, len, NULL,
-						       priv);
+			wpa_supplicant_ctrl_iface_send(
+				wpa_s,
+				type != WPA_MSG_PER_INTERFACE ?
+				NULL : wpa_s->ifname,
+				priv->sock, &priv->ctrl_dst, level, txt, len,
+				NULL, priv);
 		}
 	}
 
-	if (wpa_s->ctrl_iface == NULL)
+	if (type == WPA_MSG_ONLY_GLOBAL || wpa_s->ctrl_iface == NULL)
 		return;
 	wpa_supplicant_ctrl_iface_send(wpa_s, NULL, wpa_s->ctrl_iface->sock,
 				       &wpa_s->ctrl_iface->ctrl_dst,
@@ -544,6 +584,53 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 	if (wpa_s->conf->ctrl_interface == NULL)
 		return priv;
 
+#ifdef ANDROID
+	if (wpa_s->global->params.ctrl_interface) {
+		int same = 0;
+
+		if (wpa_s->global->params.ctrl_interface[0] == '/') {
+			if (os_strcmp(wpa_s->global->params.ctrl_interface,
+				      wpa_s->conf->ctrl_interface) == 0)
+				same = 1;
+		} else if (os_strncmp(wpa_s->global->params.ctrl_interface,
+				      "@android:", 9) == 0 ||
+			   os_strncmp(wpa_s->global->params.ctrl_interface,
+				      "@abstract:", 10) == 0) {
+			char *pos;
+
+			/*
+			 * Currently, Android uses @android:wpa_* as the naming
+			 * convention for the global ctrl interface. This logic
+			 * needs to be revisited if the above naming convention
+			 * is modified.
+			 */
+			pos = os_strchr(wpa_s->global->params.ctrl_interface,
+					'_');
+			if (pos &&
+			    os_strcmp(pos + 1,
+				      wpa_s->conf->ctrl_interface) == 0)
+				same = 1;
+		}
+
+		if (same) {
+			/*
+			 * The invalid configuration combination might be
+			 * possible to hit in an Android OTA upgrade case, so
+			 * instead of refusing to start the wpa_supplicant
+			 * process, do not open the per-interface ctrl_iface
+			 * and continue with the global control interface that
+			 * was set from the command line since the Wi-Fi
+			 * framework will use it for operations.
+			 */
+			wpa_printf(MSG_ERROR,
+				   "global ctrl interface %s matches ctrl interface %s - do not open per-interface ctrl interface",
+				   wpa_s->global->params.ctrl_interface,
+				   wpa_s->conf->ctrl_interface);
+			return priv;
+		}
+	}
+#endif /* ANDROID */
+
 	if (wpas_ctrl_iface_open_sock(wpa_s, priv) < 0) {
 		os_free(priv);
 		return NULL;
@@ -708,8 +795,10 @@ static void wpa_supplicant_ctrl_iface_send(struct wpa_supplicant *wpa_s,
 			      offsetof(struct sockaddr_un, sun_path));
 		msg.msg_name = (void *) &dst->addr;
 		msg.msg_namelen = dst->addrlen;
+		wpas_ctrl_sock_debug("ctrl_sock-sendmsg", sock, buf, len);
 		if (sendmsg(sock, &msg, MSG_DONTWAIT) >= 0) {
-			wpa_printf(MSG_DEBUG, "CTRL_IFACE monitor sent successfully to %s",
+			wpa_printf(MSG_MSGDUMP,
+				   "CTRL_IFACE monitor sent successfully to %s",
 				   addr_txt);
 			dst->errors = 0;
 			continue;
@@ -846,6 +935,13 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 		reply_buf = wpa_supplicant_global_ctrl_iface_process(
 			global, buf, &reply_len);
 		reply = reply_buf;
+
+		/*
+		 * There could be some password/key material in the command, so
+		 * clear the buffer explicitly now that it is not needed
+		 * anymore.
+		 */
+		os_memset(buf, 0, res);
 	}
 
 	if (!reply && reply_len == 1) {
@@ -857,6 +953,8 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 	}
 
 	if (reply) {
+		wpas_ctrl_sock_debug("global_ctrl_sock-sendto",
+				     sock, reply, reply_len);
 		if (sendto(sock, reply, reply_len, 0, (struct sockaddr *) &from,
 			   fromlen) < 0) {
 			wpa_printf(MSG_DEBUG, "ctrl_iface sendto failed: %s",

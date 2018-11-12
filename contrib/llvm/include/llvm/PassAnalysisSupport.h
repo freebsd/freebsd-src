@@ -36,11 +36,17 @@ namespace llvm {
 ///
 class AnalysisUsage {
 public:
-  typedef SmallVector<AnalysisID, 32> VectorType;
+  typedef SmallVectorImpl<AnalysisID> VectorType;
 
 private:
   /// Sets of analyses required and preserved by a pass
-  VectorType Required, RequiredTransitive, Preserved;
+  // TODO: It's not clear that SmallVector is an appropriate data structure for
+  // this usecase.  The sizes were picked to minimize wasted space, but are
+  // otherwise fairly meaningless.
+  SmallVector<AnalysisID, 8> Required;
+  SmallVector<AnalysisID, 2> RequiredTransitive;
+  SmallVector<AnalysisID, 2> Preserved;
+  SmallVector<AnalysisID, 0> Used;
   bool PreservesAll;
 
 public:
@@ -72,14 +78,32 @@ public:
     Preserved.push_back(&ID);
     return *this;
   }
-  ///@}
-
   /// Add the specified Pass class to the set of analyses preserved by this pass.
   template<class PassClass>
   AnalysisUsage &addPreserved() {
     Preserved.push_back(&PassClass::ID);
     return *this;
   }
+  ///@}
+
+  ///@{
+  /// Add the specified ID to the set of analyses used by this pass if they are
+  /// available..
+  AnalysisUsage &addUsedIfAvailableID(const void *ID) {
+    Used.push_back(ID);
+    return *this;
+  }
+  AnalysisUsage &addUsedIfAvailableID(char &ID) {
+    Used.push_back(&ID);
+    return *this;
+  }
+  /// Add the specified Pass class to the set of analyses used by this pass.
+  template<class PassClass>
+  AnalysisUsage &addUsedIfAvailable() {
+    Used.push_back(&PassClass::ID);
+    return *this;
+  }
+  ///@}
 
   /// Add the Pass with the specified argument string to the set of analyses
   /// preserved by this pass. If no such Pass exists, do nothing. This can be
@@ -108,6 +132,7 @@ public:
     return RequiredTransitive;
   }
   const VectorType &getPreservedSet() const { return Preserved; }
+  const VectorType &getUsedSet() const { return Used; }
 };
 
 //===----------------------------------------------------------------------===//

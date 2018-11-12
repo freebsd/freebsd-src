@@ -27,6 +27,7 @@
 # code.  It will push 200000 packets, then report back what the min and max
 # periods it saw for different IDs were.
 
+from __future__ import print_function
 import os
 import signal
 import subprocess

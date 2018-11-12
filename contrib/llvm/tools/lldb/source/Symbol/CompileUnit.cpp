@@ -9,15 +9,15 @@
 
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Core/Module.h"
-#include "lldb/Core/Language.h"
 #include "lldb/Symbol/LineTable.h"
 #include "lldb/Symbol/SymbolVendor.h"
 #include "lldb/Symbol/VariableList.h"
+#include "lldb/Target/Language.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-CompileUnit::CompileUnit (const lldb::ModuleSP &module_sp, void *user_data, const char *pathname, const lldb::user_id_t cu_sym_id, lldb::LanguageType language) :
+CompileUnit::CompileUnit (const lldb::ModuleSP &module_sp, void *user_data, const char *pathname, const lldb::user_id_t cu_sym_id, lldb::LanguageType language, bool is_optimized) :
     ModuleChild(module_sp),
     FileSpec (pathname, false),
     UserID(cu_sym_id),
@@ -27,14 +27,15 @@ CompileUnit::CompileUnit (const lldb::ModuleSP &module_sp, void *user_data, cons
     m_functions (),
     m_support_files (),
     m_line_table_ap (),
-    m_variables()
+    m_variables(),
+    m_is_optimized (is_optimized)
 {
     if (language != eLanguageTypeUnknown)
         m_flags.Set(flagsParsedLanguage);
     assert(module_sp);
 }
 
-CompileUnit::CompileUnit (const lldb::ModuleSP &module_sp, void *user_data, const FileSpec &fspec, const lldb::user_id_t cu_sym_id, lldb::LanguageType language) :
+CompileUnit::CompileUnit (const lldb::ModuleSP &module_sp, void *user_data, const FileSpec &fspec, const lldb::user_id_t cu_sym_id, lldb::LanguageType language, bool is_optimized) :
     ModuleChild(module_sp),
     FileSpec (fspec),
     UserID(cu_sym_id),
@@ -44,7 +45,8 @@ CompileUnit::CompileUnit (const lldb::ModuleSP &module_sp, void *user_data, cons
     m_functions (),
     m_support_files (),
     m_line_table_ap (),
-    m_variables()
+    m_variables(),
+    m_is_optimized (is_optimized)
 {
     if (language != eLanguageTypeUnknown)
         m_flags.Set(flagsParsedLanguage);
@@ -85,7 +87,7 @@ CompileUnit::DumpSymbolContext(Stream *s)
 void
 CompileUnit::GetDescription(Stream *s, lldb::DescriptionLevel level) const
 {
-    Language language(m_language);
+    const char* language = Language::GetNameForLanguageType(m_language);
     *s << "id = " << (const UserID&)*this << ", file = \"" << (const FileSpec&)*this << "\", language = \"" << language << '"';
 }
 
@@ -99,10 +101,12 @@ CompileUnit::GetDescription(Stream *s, lldb::DescriptionLevel level) const
 void
 CompileUnit::Dump(Stream *s, bool show_context) const
 {
+    const char* language = Language::GetNameForLanguageType(m_language);
+    
     s->Printf("%p: ", static_cast<const void*>(this));
     s->Indent();
     *s << "CompileUnit" << static_cast<const UserID&>(*this)
-       << ", language = \"" << reinterpret_cast<const Language&>(*this)
+       << ", language = \"" << language
        << "\", file = '" << static_cast<const FileSpec&>(*this) << "'\n";
 
 //  m_types.Dump(s);
@@ -262,6 +266,37 @@ CompileUnit::SetLineTable(LineTable* line_table)
     else
         m_flags.Set(flagsParsedLineTable);
     m_line_table_ap.reset(line_table);
+}
+
+DebugMacros*
+CompileUnit::GetDebugMacros()
+{
+    if (m_debug_macros_sp.get() == nullptr)
+    {
+        if (m_flags.IsClear(flagsParsedDebugMacros))
+        {
+            m_flags.Set(flagsParsedDebugMacros);
+            SymbolVendor* symbol_vendor = GetModule()->GetSymbolVendor();
+            if (symbol_vendor)
+            {
+                SymbolContext sc;
+                CalculateSymbolContext(&sc);
+                symbol_vendor->ParseCompileUnitDebugMacros(sc);
+            }
+        }
+    }
+
+    return m_debug_macros_sp.get();
+}
+
+void
+CompileUnit::SetDebugMacros(const DebugMacrosSP &debug_macros_sp)
+{
+    if (debug_macros_sp.get() == nullptr)
+        m_flags.Clear(flagsParsedDebugMacros);
+    else
+        m_flags.Set(flagsParsedDebugMacros);
+    m_debug_macros_sp = debug_macros_sp;
 }
 
 VariableListSP
@@ -428,6 +463,12 @@ CompileUnit::ResolveSymbolContext
         sc_list.Append(sc);
     }
     return sc_list.GetSize() - prev_size;
+}
+
+bool
+CompileUnit::GetIsOptimized ()
+{
+    return m_is_optimized;
 }
 
 void

@@ -17,11 +17,14 @@ rcvar="local_unbound_enable"
 command="/usr/sbin/unbound"
 extra_commands="anchor configtest reload setup"
 start_precmd="local_unbound_prestart"
+start_postcmd="local_unbound_poststart"
 reload_precmd="local_unbound_configtest"
 anchor_cmd="local_unbound_anchor"
 configtest_cmd="local_unbound_configtest"
 setup_cmd="local_unbound_setup"
 pidfile="/var/run/${name}.pid"
+
+load_rc_config $name
 
 : ${local_unbound_workdir:=/var/unbound}
 : ${local_unbound_config:=${local_unbound_workdir}/unbound.conf}
@@ -30,8 +33,6 @@ pidfile="/var/run/${name}.pid"
 : ${local_unbound_controlconf:=${local_unbound_workdir}/control.conf}
 : ${local_unbound_anchor:=${local_unbound_workdir}/root.key}
 : ${local_unbound_forwarders:=}
-
-load_rc_config $name
 
 do_as_unbound()
 {
@@ -88,6 +89,26 @@ local_unbound_prestart()
 	if [ ! -f ${local_unbound_anchor} ] ; then
 		run_rc_command anchor
 	fi
+}
+
+#
+# After starting, wait for Unbound to report that it is ready to avoid
+# race conditions with services which require functioning DNS.
+#
+local_unbound_poststart()
+{
+	local retry=5
+
+	echo -n "Waiting for nameserver to start..."
+	until "${command}-control" status | grep -q "is running" ; do
+		if [ $((retry -= 1)) -eq 0 ] ; then
+			echo " giving up"
+			return 1
+		fi
+		echo -n "."
+		sleep 1
+	done
+	echo " good"
 }
 
 load_rc_config $name

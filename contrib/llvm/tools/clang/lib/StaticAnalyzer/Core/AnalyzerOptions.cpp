@@ -65,7 +65,7 @@ IPAKind AnalyzerOptions::getIPAMode() {
     // Set the member variable.
     IPAMode = IPAConfig;
   }
-  
+
   return IPAMode;
 }
 
@@ -295,6 +295,13 @@ unsigned AnalyzerOptions::getMaxTimesInlineLarge() {
   return MaxTimesInlineLarge.getValue();
 }
 
+unsigned AnalyzerOptions::getMinCFGSizeTreatFunctionsAsLarge() {
+  if (!MinCFGSizeTreatFunctionsAsLarge.hasValue())
+    MinCFGSizeTreatFunctionsAsLarge = getOptionAsInteger(
+      "min-cfg-size-treat-functions-as-large", 14);
+  return MinCFGSizeTreatFunctionsAsLarge.getValue();
+}
+
 unsigned AnalyzerOptions::getMaxNodesPerTopLevelFunction() {
   if (!MaxNodesPerTopLevelFunction.hasValue()) {
     int DefaultValue = 0;
@@ -324,4 +331,16 @@ bool AnalyzerOptions::shouldPrunePaths() {
 
 bool AnalyzerOptions::shouldConditionalizeStaticInitializers() {
   return getBooleanOption("cfg-conditional-static-initializers", true);
+}
+
+bool AnalyzerOptions::shouldInlineLambdas() {
+  if (!InlineLambdas.hasValue())
+    InlineLambdas = getBooleanOption("inline-lambdas", /*Default=*/true);
+  return InlineLambdas.getValue();
+}
+
+bool AnalyzerOptions::shouldWidenLoops() {
+  if (!WidenLoops.hasValue())
+    WidenLoops = getBooleanOption("widen-loops", /*Default=*/false);
+  return WidenLoops.getValue();
 }

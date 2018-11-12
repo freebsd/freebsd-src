@@ -18,12 +18,8 @@ struct reg {
 	register_t pc;
 };
 
-/* Must match pcb.pcb_fpu */
 struct fpreg {
-	union {
-		double fpr;
-		uint64_t vsr[2];
-	} fpreg[32];
+	double fpreg[32];
 	double fpscr;
 };
 

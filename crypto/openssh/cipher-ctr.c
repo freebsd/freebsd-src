@@ -16,7 +16,7 @@
  */
 #include "includes.h"
 
-#ifndef OPENSSL_HAVE_EVPCTR
+#if defined(WITH_OPENSSL) && !defined(OPENSSL_HAVE_EVPCTR)
 #include <sys/types.h>
 
 #include <stdarg.h>
@@ -143,4 +143,4 @@ evp_aes_128_ctr(void)
 	return (&aes_ctr);
 }
 
-#endif /* OPENSSL_HAVE_EVPCTR */
+#endif /* defined(WITH_OPENSSL) && !defined(OPENSSL_HAVE_EVPCTR) */

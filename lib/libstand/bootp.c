@@ -354,6 +354,7 @@ vend_rfc1048(cp, len)
 	u_char *ep;
 	int size;
 	u_char tag;
+	const char *val;
 
 #ifdef BOOTP_DEBUG
 	if (debug)
@@ -380,15 +381,17 @@ vend_rfc1048(cp, len)
 		}
 		if (tag == TAG_SWAPSERVER) {
 			/* let it override bp_siaddr */
-			bcopy(cp, &rootip.s_addr, sizeof(swapip.s_addr));
+			bcopy(cp, &rootip.s_addr, sizeof(rootip.s_addr));
 		}
 		if (tag == TAG_ROOTPATH) {
-			strncpy(rootpath, (char *)cp, sizeof(rootpath));
-			rootpath[size] = '\0';
+			if ((val = getenv("dhcp.root-path")) == NULL)
+				val = (const char *)cp;
+			strlcpy(rootpath, val, sizeof(rootpath));
 		}
 		if (tag == TAG_HOSTNAME) {
-			strncpy(hostname, (char *)cp, sizeof(hostname));
-			hostname[size] = '\0';
+			if ((val = getenv("dhcp.host-name")) == NULL)
+				val = (const char *)cp;
+			strlcpy(hostname, val, sizeof(hostname));
 		}
 #ifdef SUPPORT_DHCP
 		if (tag == TAG_DHCP_MSGTYPE) {
@@ -730,7 +733,11 @@ setenv_(u_char *cp,  u_char *ep, struct dhcp_opt *opts)
 		sprintf(env, op->desc, opts[0].desc, tag);
 	    else
 		sprintf(env, "%s%s", opts[0].desc, op->desc);
-	    setenv(env, buf, 1);
+	    /*
+	     * Do not replace existing values in the environment, so that
+	     * locally-obtained values can override server-provided values.
+	     */
+	    setenv(env, buf, 0);
 	}
     }
     if (tp != tags) {

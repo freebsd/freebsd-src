@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
@@ -54,44 +53,33 @@ __FBSDID("$FreeBSD$");
 
 
 			void
-siena_mcdi_request_copyin(
+siena_mcdi_send_request(
 	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp,
-	__in		unsigned int seq,
-	__in		boolean_t ev_cpl,
-	__in		boolean_t new_epoch)
+	__in		void *hdrp,
+	__in		size_t hdr_len,
+	__in		void *sdup,
+	__in		size_t sdu_len)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_dword_t dword;
-	unsigned int xflags;
 	unsigned int pdur;
 	unsigned int dbr;
 	unsigned int pos;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
-	_NOTE(ARGUNUSED(new_epoch))
 
 	EFSYS_ASSERT(emip->emi_port == 1 || emip->emi_port == 2);
 	pdur = SIENA_MCDI_PDU(emip);
 	dbr = SIENA_MCDI_DOORBELL(emip);
 
-	xflags = 0;
-	if (ev_cpl)
-		xflags |= MCDI_HEADER_XFLAGS_EVREQ;
-
-	/* Construct the header in shared memory */
-	EFX_POPULATE_DWORD_6(dword,
-			    MCDI_HEADER_CODE, emrp->emr_cmd,
-			    MCDI_HEADER_RESYNC, 1,
-			    MCDI_HEADER_DATALEN, emrp->emr_in_length,
-			    MCDI_HEADER_SEQ, seq,
-			    MCDI_HEADER_RESPONSE, 0,
-			    MCDI_HEADER_XFLAGS, xflags);
+	/* Write the header */
+	EFSYS_ASSERT3U(hdr_len, ==, sizeof (efx_dword_t));
+	dword = *(efx_dword_t *)hdrp;
 	EFX_BAR_TBL_WRITED(enp, FR_CZ_MC_TREG_SMEM, pdur, &dword, B_TRUE);
 
-	for (pos = 0; pos < emrp->emr_in_length; pos += sizeof (efx_dword_t)) {
-		memcpy(&dword, MCDI_IN(*emrp, efx_dword_t, pos),
-		    MIN(sizeof (dword), emrp->emr_in_length - pos));
+	/* Write the payload */
+	for (pos = 0; pos < sdu_len; pos += sizeof (efx_dword_t)) {
+		dword = *(efx_dword_t *)((uint8_t *)sdup + pos);
 		EFX_BAR_TBL_WRITED(enp, FR_CZ_MC_TREG_SMEM,
 		    pdur + 1 + (pos >> 2), &dword, B_FALSE);
 	}
@@ -101,32 +89,7 @@ siena_mcdi_request_copyin(
 	EFX_BAR_TBL_WRITED(enp, FR_CZ_MC_TREG_SMEM, dbr, &dword, B_FALSE);
 }
 
-			void
-siena_mcdi_request_copyout(
-	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp)
-{
-	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	unsigned int pos;
-	unsigned int pdur;
-	efx_dword_t data;
-
-	pdur = SIENA_MCDI_PDU(emip);
-
-	/* Copy payload out if caller supplied buffer */
-	if (emrp->emr_out_buf != NULL) {
-		size_t bytes = MIN(emrp->emr_out_length_used,
-				    emrp->emr_out_length);
-		for (pos = 0; pos < bytes; pos += sizeof (efx_dword_t)) {
-			EFX_BAR_TBL_READD(enp, FR_CZ_MC_TREG_SMEM,
-			    pdur + 1 + (pos >> 2), &data, B_FALSE);
-			memcpy(MCDI_OUT(*emrp, efx_dword_t, pos), &data,
-			    MIN(sizeof (data), bytes - pos));
-		}
-	}
-}
-
-			int
+			efx_rc_t
 siena_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
@@ -163,124 +126,45 @@ siena_mcdi_poll_reboot(
 #endif
 }
 
-	__checkReturn	boolean_t
-siena_mcdi_request_poll(
+extern	__checkReturn	boolean_t
+siena_mcdi_poll_response(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	efx_mcdi_req_t *emrp;
-	efx_dword_t dword;
+	efx_dword_t hdr;
 	unsigned int pdur;
-	unsigned int seq;
-	unsigned int length;
-	int state;
-	int rc;
-
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
-
-	/* Serialise against post-watchdog efx_mcdi_ev* */
-	EFSYS_LOCK(enp->en_eslp, state);
-
-	EFSYS_ASSERT(emip->emi_pending_req != NULL);
-	EFSYS_ASSERT(!emip->emi_ev_cpl);
-	emrp = emip->emi_pending_req;
-
-	/* Check for reboot atomically w.r.t efx_mcdi_request_start */
-	if (emip->emi_poll_cnt++ == 0) {
-		if ((rc = siena_mcdi_poll_reboot(enp)) != 0) {
-			emip->emi_pending_req = NULL;
-			EFSYS_UNLOCK(enp->en_eslp, state);
-
-			goto fail1;
-		}
-	}
 
 	EFSYS_ASSERT(emip->emi_port == 1 || emip->emi_port == 2);
 	pdur = SIENA_MCDI_PDU(emip);
 
-	/* Read the command header */
-	EFX_BAR_TBL_READD(enp, FR_CZ_MC_TREG_SMEM, pdur, &dword, B_FALSE);
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_RESPONSE) == 0) {
-		EFSYS_UNLOCK(enp->en_eslp, state);
-		return (B_FALSE);
-	}
-
-	/* Request complete */
-	emip->emi_pending_req = NULL;
-	seq = (emip->emi_seq - 1) & EFX_MASK32(MCDI_HEADER_SEQ);
-
-	/* Check for synchronous reboot */
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_ERROR) != 0 &&
-	    EFX_DWORD_FIELD(dword, MCDI_HEADER_DATALEN) == 0) {
-		/* Consume status word */
-		EFSYS_SPIN(EFX_MCDI_STATUS_SLEEP_US);
-		siena_mcdi_poll_reboot(enp);
-		EFSYS_UNLOCK(enp->en_eslp, state);
-		rc = EIO;
-		goto fail2;
-	}
-
-	EFSYS_UNLOCK(enp->en_eslp, state);
-
-	/* Check that the returned data is consistent */
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_CODE) != emrp->emr_cmd ||
-	    EFX_DWORD_FIELD(dword, MCDI_HEADER_SEQ) != seq) {
-		/* Response is for a different request */
-		rc = EIO;
-		goto fail3;
-	}
-
-	length = EFX_DWORD_FIELD(dword, MCDI_HEADER_DATALEN);
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_ERROR)) {
-		efx_dword_t errdword;
-		int errcode;
-
-		EFSYS_ASSERT3U(length, ==, 4);
-		EFX_BAR_TBL_READD(enp, FR_CZ_MC_TREG_SMEM,
-		    pdur + 1 + (MC_CMD_ERR_CODE_OFST >> 2),
-		    &errdword, B_FALSE);
-		errcode = EFX_DWORD_FIELD(errdword, EFX_DWORD_0);
-		rc = efx_mcdi_request_errcode(errcode);
-		if (!emrp->emr_quiet) {
-			EFSYS_PROBE2(mcdi_err, int, emrp->emr_cmd,
-			    int, errcode);
-		}
-		goto fail4;
-
-	} else {
-		emrp->emr_out_length_used = length;
-		emrp->emr_rc = 0;
-		siena_mcdi_request_copyout(enp, emrp);
-	}
-
-	goto out;
-
-fail4:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail4);
-fail3:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail3);
-fail2:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail2);
-fail1:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE1(fail1, int, rc);
-
-	/* Fill out error state */
-	emrp->emr_rc = rc;
-	emrp->emr_out_length_used = 0;
-
-	/* Reboot/Assertion */
-	if (rc == EIO || rc == EINTR)
-		efx_mcdi_raise_exception(enp, emrp, rc);
-
-out:
-	return (B_TRUE);
+	EFX_BAR_TBL_READD(enp, FR_CZ_MC_TREG_SMEM, pdur, &hdr, B_FALSE);
+	return (EFX_DWORD_FIELD(hdr, MCDI_HEADER_RESPONSE) ? B_TRUE : B_FALSE);
 }
 
-	__checkReturn	int
+			void
+siena_mcdi_read_response(
+	__in			efx_nic_t *enp,
+	__out_bcount(length)	void *bufferp,
+	__in			size_t offset,
+	__in			size_t length)
+{
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	unsigned int pdur;
+	unsigned int pos;
+	efx_dword_t data;
+
+	EFSYS_ASSERT(emip->emi_port == 1 || emip->emi_port == 2);
+	pdur = SIENA_MCDI_PDU(emip);
+
+	for (pos = 0; pos < length; pos += sizeof (efx_dword_t)) {
+		EFX_BAR_TBL_READD(enp, FR_CZ_MC_TREG_SMEM,
+		    pdur + ((offset + pos) >> 2), &data, B_FALSE);
+		memcpy((uint8_t *)bufferp + pos, &data,
+		    MIN(sizeof (data), length - pos));
+	}
+}
+
+	__checkReturn	efx_rc_t
 siena_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *mtp)
@@ -288,7 +172,7 @@ siena_mcdi_init(
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_oword_t oword;
 	unsigned int portnum;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
 
@@ -306,6 +190,9 @@ siena_mcdi_init(
 		goto fail1;
 	}
 
+	/* Siena BootROM and firmware only support MCDIv1 */
+	emip->emi_max_version = 1;
+
 	/*
 	 * Wipe the atomic reboot status so subsequent MCDI requests succeed.
 	 * BOOT_STATUS is preserved so eno_nic_probe() can boot out of the
@@ -316,7 +203,7 @@ siena_mcdi_init(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -327,28 +214,35 @@ siena_mcdi_fini(
 {
 }
 
-	__checkReturn	int
-siena_mcdi_fw_update_supported(
+	__checkReturn	efx_rc_t
+siena_mcdi_feature_supported(
 	__in		efx_nic_t *enp,
+	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp)
 {
+	efx_rc_t rc;
+
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
 
-	*supportedp = B_TRUE;
+	switch (id) {
+	case EFX_MCDI_FEATURE_FW_UPDATE:
+	case EFX_MCDI_FEATURE_LINK_CONTROL:
+	case EFX_MCDI_FEATURE_MACADDR_CHANGE:
+	case EFX_MCDI_FEATURE_MAC_SPOOFING:
+		*supportedp = B_TRUE;
+		break;
+	default:
+		rc = ENOTSUP;
+		goto fail1;
+		break;
+	}
 
 	return (0);
-}
 
-	__checkReturn	int
-siena_mcdi_macaddr_change_supported(
-	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp)
-{
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
-	*supportedp = B_TRUE;
-
-	return (0);
+	return (rc);
 }
 
 #endif	/* EFSYS_OPT_SIENA && EFSYS_OPT_MCDI */

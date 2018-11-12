@@ -18,7 +18,7 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdInterpreter::CMICmdInterpreter(void)
+CMICmdInterpreter::CMICmdInterpreter()
     : m_rCmdFactory(CMICmdFactory::Instance())
 {
 }
@@ -30,7 +30,7 @@ CMICmdInterpreter::CMICmdInterpreter(void)
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdInterpreter::~CMICmdInterpreter(void)
+CMICmdInterpreter::~CMICmdInterpreter()
 {
     Shutdown();
 }
@@ -44,7 +44,7 @@ CMICmdInterpreter::~CMICmdInterpreter(void)
 // Throws:  None.
 //--
 bool
-CMICmdInterpreter::Initialize(void)
+CMICmdInterpreter::Initialize()
 {
     m_clientUsageRefCnt++;
 
@@ -65,7 +65,7 @@ CMICmdInterpreter::Initialize(void)
 // Throws:  None.
 //--
 bool
-CMICmdInterpreter::Shutdown(void)
+CMICmdInterpreter::Shutdown()
 {
     if (--m_clientUsageRefCnt > 0)
         return MIstatus::success;
@@ -160,10 +160,10 @@ CMICmdInterpreter::MiHasCmdTokenEndingHyphen(const CMIUtilString &vTextLine)
     if (MiHasCmdTokenPresent(vTextLine))
     {
         const std::string strNum = vTextLine.substr(0, nPos);
-        if (!CMIUtilString(strNum.c_str()).IsNumber())
+        if (!CMIUtilString(strNum).IsNumber())
             return false;
 
-        m_miCmdData.strMiCmdToken = strNum.c_str();
+        m_miCmdData.strMiCmdToken = strNum;
     }
 
     m_miCmdData.bMIOldStyle = false;
@@ -256,20 +256,20 @@ CMICmdInterpreter::MiHasCmd(const CMIUtilString &vTextLine)
     {
         if (nPos2 == nLen)
             return false;
-        const CMIUtilString cmd = CMIUtilString(vTextLine.substr(nPos + 1, nPos2 - nPos - 1).c_str());
+        const CMIUtilString cmd = CMIUtilString(vTextLine.substr(nPos + 1, nPos2 - nPos - 1));
         if (cmd.empty())
             return false;
 
         m_miCmdData.strMiCmd = cmd;
 
         if (nPos2 < nLen)
-            m_miCmdData.strMiCmdOption = CMIUtilString(vTextLine.substr(nPos2 + 1, nLen - nPos2 - 1).c_str());
+            m_miCmdData.strMiCmdOption = CMIUtilString(vTextLine.substr(nPos2 + 1, nLen - nPos2 - 1));
 
         bFoundCmd = true;
     }
     else
     {
-        const CMIUtilString cmd = CMIUtilString(vTextLine.substr(nPos + 1, nLen - nPos - 1).c_str());
+        const CMIUtilString cmd = CMIUtilString(vTextLine.substr(nPos + 1, nLen - nPos - 1));
         if (cmd.empty())
             return false;
         m_miCmdData.strMiCmd = cmd;
@@ -291,7 +291,7 @@ CMICmdInterpreter::MiHasCmd(const CMIUtilString &vTextLine)
 // Throws:  None.
 //--
 const SMICmdData &
-CMICmdInterpreter::MiGetCmdData(void) const
+CMICmdInterpreter::MiGetCmdData() const
 {
     return m_miCmdData;
 }

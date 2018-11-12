@@ -73,7 +73,6 @@ typedef STAILQ_HEAD(, rum_tx_data) rum_txdhead;
 
 union sec_param {
 	struct ieee80211_key		key;
-	struct wmeParams		wme_params[WME_NUM_AC];
 	uint8_t				macaddr[IEEE80211_ADDR_LEN];
 	struct ieee80211vap		*vap;
 };

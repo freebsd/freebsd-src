@@ -1,6 +1,6 @@
 /*
  * hostapd / Configuration definitions and helpers functions
- * Copyright (c) 2003-2012, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -12,8 +12,10 @@
 #include "common/defs.h"
 #include "ip_addr.h"
 #include "common/wpa_common.h"
+#include "common/ieee802_11_defs.h"
 #include "common/ieee802_11_common.h"
 #include "wps/wps.h"
+#include "fst/fst.h"
 
 /**
  * mesh_conf - local MBSS state and settings
@@ -31,8 +33,8 @@ struct mesh_conf {
 	u8 mesh_sp_id;
 	/* Authentication Protocol Identifier */
 	u8 mesh_auth_id;
-	u8 *ies;
-	int ie_len;
+	u8 *rsn_ie;
+	int rsn_ie_len;
 #define MESH_CONF_SEC_NONE BIT(0)
 #define MESH_CONF_SEC_AUTH BIT(1)
 #define MESH_CONF_SEC_AMPE BIT(2)
@@ -57,8 +59,6 @@ struct hostapd_radius_servers;
 struct ft_remote_r0kh;
 struct ft_remote_r1kh;
 
-#define HOSTAPD_MAX_SSID_LEN 32
-
 #define NUM_WEP_KEYS 4
 struct hostapd_wep_keys {
 	u8 idx;
@@ -78,7 +78,7 @@ typedef enum hostap_security_policy {
 } secpolicy;
 
 struct hostapd_ssid {
-	u8 ssid[HOSTAPD_MAX_SSID_LEN];
+	u8 ssid[SSID_MAX_LEN];
 	size_t ssid_len;
 	unsigned int ssid_set:1;
 	unsigned int utf8_ssid:1;
@@ -114,12 +114,10 @@ struct hostapd_vlan {
 	struct hostapd_vlan *next;
 	int vlan_id; /* VLAN ID or -1 (VLAN_ID_WILDCARD) for wildcard entry */
 	char ifname[IFNAMSIZ + 1];
+	int configured;
 	int dynamic_vlan;
 #ifdef CONFIG_FULL_DYNAMIC_VLAN
 
-#define DVLAN_CLEAN_BR 	0x1
-#define DVLAN_CLEAN_VLAN	0x2
-#define DVLAN_CLEAN_VLAN_PORT	0x4
 #define DVLAN_CLEAN_WLAN_PORT	0x8
 	int clean;
 #endif /* CONFIG_FULL_DYNAMIC_VLAN */
@@ -332,6 +330,7 @@ struct hostapd_bss_config {
 	char *private_key;
 	char *private_key_passwd;
 	int check_crl;
+	unsigned int tls_session_lifetime;
 	char *ocsp_stapling_response;
 	char *dh_file;
 	char *openssl_ciphers;
@@ -490,6 +489,7 @@ struct hostapd_bss_config {
 
 	int osen;
 	int proxy_arp;
+	int na_mcast_to_ucast;
 #ifdef CONFIG_HS20
 	int hs20;
 	int disable_dgaf;
@@ -510,7 +510,7 @@ struct hostapd_bss_config {
 		char file[256];
 	} *hs20_icons;
 	size_t hs20_icons_count;
-	u8 osu_ssid[HOSTAPD_MAX_SSID_LEN];
+	u8 osu_ssid[SSID_MAX_LEN];
 	size_t osu_ssid_len;
 	struct hs20_osu_provider {
 		unsigned int friendly_name_count;
@@ -545,6 +545,7 @@ struct hostapd_bss_config {
 #ifdef CONFIG_TESTING_OPTIONS
 	u8 bss_load_test[5];
 	u8 bss_load_test_set;
+	struct wpabuf *own_ie_override;
 #endif /* CONFIG_TESTING_OPTIONS */
 
 #define MESH_ENABLED BIT(0)
@@ -553,6 +554,9 @@ struct hostapd_bss_config {
 	int radio_measurements;
 
 	int vendor_vht;
+
+	char *no_probe_resp_if_seen_on;
+	char *no_auth_if_seen_on;
 };
 
 
@@ -568,7 +572,8 @@ struct hostapd_config {
 	int fragm_threshold;
 	u8 send_probe_response;
 	u8 channel;
-	int *chanlist;
+	u8 acs;
+	struct wpa_freq_range_list acs_ch_list;
 	enum hostapd_hw_mode hw_mode; /* HOSTAPD_MODE_IEEE80211A, .. */
 	enum {
 		LONG_PREAMBLE = 0,
@@ -583,6 +588,9 @@ struct hostapd_config {
 
 	int ap_table_max_size;
 	int ap_table_expiration_time;
+
+	unsigned int track_sta_max_num;
+	unsigned int track_sta_max_age;
 
 	char country[3]; /* first two octets: country code as described in
 			  * ISO/IEC 3166-1. Third octet:
@@ -620,6 +628,7 @@ struct hostapd_config {
 	u16 ht_capab;
 	int ieee80211n;
 	int secondary_channel;
+	int no_pri_sec_switch;
 	int require_ht;
 	int obss_interval;
 	u32 vht_capab;
@@ -628,6 +637,10 @@ struct hostapd_config {
 	u8 vht_oper_chwidth;
 	u8 vht_oper_centr_freq_seg0_idx;
 	u8 vht_oper_centr_freq_seg1_idx;
+
+#ifdef CONFIG_FST
+	struct fst_iface_cfg fst_cfg;
+#endif /* CONFIG_FST */
 
 #ifdef CONFIG_P2P
 	u8 p2p_go_ctwindow;

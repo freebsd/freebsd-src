@@ -446,47 +446,47 @@ do_show_info_header(uint32_t mode)
 {
 	uint32_t i;
 
-	printf ("%4s %8s", "Idx", "Hits");
+	printf("%4s %8s", "Idx", "Hits");
 	for (i = T4_FILTER_FCoE; i <= T4_FILTER_IP_FRAGMENT; i <<= 1) {
 		switch (mode & i) {
 		case T4_FILTER_FCoE:
-			printf (" FCoE");
+			printf(" FCoE");
 			break;
 
 		case T4_FILTER_PORT:
-			printf (" Port");
+			printf(" Port");
 			break;
 
 		case T4_FILTER_VNIC:
-			printf ("      vld:VNIC");
+			printf("      vld:VNIC");
 			break;
 
 		case T4_FILTER_VLAN:
-			printf ("      vld:VLAN");
+			printf("      vld:VLAN");
 			break;
 
 		case T4_FILTER_IP_TOS:
-			printf ("   TOS");
+			printf("   TOS");
 			break;
 
 		case T4_FILTER_IP_PROTO:
-			printf ("  Prot");
+			printf("  Prot");
 			break;
 
 		case T4_FILTER_ETH_TYPE:
-			printf ("   EthType");
+			printf("   EthType");
 			break;
 
 		case T4_FILTER_MAC_IDX:
-			printf ("  MACIdx");
+			printf("  MACIdx");
 			break;
 
 		case T4_FILTER_MPS_HIT_TYPE:
-			printf (" MPS");
+			printf(" MPS");
 			break;
 
 		case T4_FILTER_IP_FRAGMENT:
-			printf (" Frag");
+			printf(" Frag");
 			break;
 
 		default:
@@ -866,7 +866,7 @@ get_filter_mode(void)
 
 	if (mode & T4_FILTER_IP_SADDR)
 		printf("sip ");
-	
+
 	if (mode & T4_FILTER_IP_DADDR)
 		printf("dip ");
 

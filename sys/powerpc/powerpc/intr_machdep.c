@@ -352,6 +352,9 @@ powerpc_register_pic(device_t dev, uint32_t node, u_int irqs, u_int ipis,
 		npics++;
 	}
 
+	KASSERT(npics < MAX_PICS,
+	    ("Number of PICs exceeds maximum (%d)", MAX_PICS));
+
 	mtx_unlock(&intr_table_lock);
 }
 
@@ -384,6 +387,9 @@ powerpc_get_irq(uint32_t node, u_int pin)
 	piclist[idx].base = nirqs;
 	nirqs += 128;
 	npics++;
+
+	KASSERT(npics < MAX_PICS,
+	    ("Number of PICs exceeds maximum (%d)", MAX_PICS));
 
 	mtx_unlock(&intr_table_lock);
 
@@ -608,4 +614,28 @@ stray:
 	}
 	if (i != NULL)
 		PIC_MASK(i->pic, i->intline);
+}
+
+void
+powerpc_intr_mask(u_int irq)
+{
+	struct powerpc_intr *i;
+
+	i = intr_lookup(irq);
+	if (i == NULL || i->pic == NULL)
+		return;
+
+	PIC_MASK(i->pic, i->intline);
+}
+
+void
+powerpc_intr_unmask(u_int irq)
+{
+	struct powerpc_intr *i;
+
+	i = intr_lookup(irq);
+	if (i == NULL || i->pic == NULL)
+		return;
+
+	PIC_UNMASK(i->pic, i->intline);
 }

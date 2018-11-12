@@ -22,11 +22,19 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_debug.h"
+#include "ntp_stdlib.h"
+#include "ntp_types.h"
+#include "sntptest.h"
+#include "kod_management.h"
+#include "main.h"
+#include "networking.h"
+#include "ntp.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-void resetTest(void);
 extern void test_GenerateUnauthenticatedPacket(void);
 extern void test_GenerateAuthenticatedPacket(void);
 extern void test_OffsetCalculationPositiveOffset(void);
@@ -40,31 +48,31 @@ extern void test_HandleCorrectPacket(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "packetHandling.c";
   UnityBegin("packetHandling.c");
-  RUN_TEST(test_GenerateUnauthenticatedPacket, 35);
-  RUN_TEST(test_GenerateAuthenticatedPacket, 58);
-  RUN_TEST(test_OffsetCalculationPositiveOffset, 97);
-  RUN_TEST(test_OffsetCalculationNegativeOffset, 141);
-  RUN_TEST(test_HandleUnusableServer, 184);
-  RUN_TEST(test_HandleUnusablePacket, 195);
-  RUN_TEST(test_HandleServerAuthenticationFailure, 206);
-  RUN_TEST(test_HandleKodDemobilize, 217);
-  RUN_TEST(test_HandleKodRate, 241);
-  RUN_TEST(test_HandleCorrectPacket, 252);
+  RUN_TEST(test_GenerateUnauthenticatedPacket, 17);
+  RUN_TEST(test_GenerateAuthenticatedPacket, 18);
+  RUN_TEST(test_OffsetCalculationPositiveOffset, 19);
+  RUN_TEST(test_OffsetCalculationNegativeOffset, 20);
+  RUN_TEST(test_HandleUnusableServer, 21);
+  RUN_TEST(test_HandleUnusablePacket, 22);
+  RUN_TEST(test_HandleServerAuthenticationFailure, 23);
+  RUN_TEST(test_HandleKodDemobilize, 24);
+  RUN_TEST(test_HandleKodRate, 25);
+  RUN_TEST(test_HandleCorrectPacket, 26);
 
   return (UnityEnd());
 }

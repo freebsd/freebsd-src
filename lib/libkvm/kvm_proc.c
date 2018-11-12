@@ -269,7 +269,7 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 				return (-1);
 			}
 			kp->ki_ppid = pproc.p_pid;
-		} else 
+		} else
 			kp->ki_ppid = 0;
 		if (proc.p_pgrp == NULL)
 			goto nopgrp;
@@ -345,7 +345,7 @@ nopgrp:
 		 * this field.
 		 */
 #define		pmap_resident_count(pm) ((pm)->pm_stats.resident_count)
-		kp->ki_rssize = pmap_resident_count(&vmspace.vm_pmap); 
+		kp->ki_rssize = pmap_resident_count(&vmspace.vm_pmap);
 		kp->ki_swrss = vmspace.vm_swrss;
 		kp->ki_tsize = vmspace.vm_tsize;
 		kp->ki_dsize = vmspace.vm_dsize;
@@ -400,12 +400,12 @@ nopgrp:
 			kp->ki_sflag = 0;
 			kp->ki_nice = proc.p_nice;
 			kp->ki_traceflag = proc.p_traceflag;
-			if (proc.p_state == PRS_NORMAL) { 
+			if (proc.p_state == PRS_NORMAL) {
 				if (TD_ON_RUNQ(&mtd) ||
 				    TD_CAN_RUN(&mtd) ||
 				    TD_IS_RUNNING(&mtd)) {
 					kp->ki_stat = SRUN;
-				} else if (mtd.td_state == 
+				} else if (mtd.td_state ==
 				    TDS_INHIBITED) {
 					if (P_SHOULDSTOP(&proc)) {
 						kp->ki_stat = SSTOP;
@@ -581,6 +581,12 @@ liveout:
 		nl[4].n_name = "_hz";
 		nl[5].n_name = "_cpu_tick_frequency";
 		nl[6].n_name = 0;
+
+		if (!kd->arch->ka_native(kd)) {
+			_kvm_err(kd, kd->program,
+			    "cannot read procs from non-native core");
+			return (0);
+		}
 
 		if (kvm_nlist(kd, nl) != 0) {
 			for (p = nl; p->n_type != 0; ++p)

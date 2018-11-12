@@ -67,7 +67,7 @@ ata_cbus_probe(device_t dev)
 {
     struct resource *io;
     int rid;
-    u_long tmp;
+    rman_res_t tmp;
 
     /* dont probe PnP devices */
     if (isa_get_vendorid(dev))
@@ -75,8 +75,8 @@ ata_cbus_probe(device_t dev)
 
     /* allocate the ioport range */
     rid = ATA_IOADDR_RID;
-    if (!(io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-				  ATA_PC98_IOSIZE, RF_ACTIVE)))
+    if (!(io = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+					   ATA_PC98_IOSIZE, RF_ACTIVE)))
 	return ENOMEM;
 
     /* calculate & set the altport range */
@@ -106,8 +106,8 @@ ata_cbus_attach(device_t dev)
 
     /* allocate resources */
     rid = ATA_IOADDR_RID;
-    if (!(ctlr->io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-					ATA_PC98_IOSIZE, RF_ACTIVE)))
+    if (!(ctlr->io = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+						 ATA_PC98_IOSIZE, RF_ACTIVE)))
        return ENOMEM;
 
     rid = ATA_PC98_CTLADDR_RID;
@@ -168,7 +168,8 @@ ata_cbus_attach(device_t dev)
 
 static struct resource *
 ata_cbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
-			u_long start, u_long end, u_long count, u_int flags)
+			rman_res_t start, rman_res_t end, rman_res_t count,
+			u_int flags)
 {
     struct ata_cbus_controller *ctlr = device_get_softc(dev);
 

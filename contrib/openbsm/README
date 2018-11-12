@@ -1,4 +1,4 @@
-OpenBSM 1.2a2
+OpenBSM
 
   Introduction
 
@@ -10,7 +10,7 @@ of several organizations.
 OpenBSM includes several command line tools, including auditreduce(8) and
 praudit(8) for reducing and printing audit trails, as well as the libbsm(3)
 library to manage configuration files, generate audit records, and parse and
-print audit trils.
+print audit trails.
 
 Coupled with a kernel audit implementation, OpenBSM can be used to maintain
 system audit streams, and is a foundation for a full audit-enabled system.
@@ -64,5 +64,3 @@ Information on OpenBSM may be found on the OpenBSM home page:
 Information on TrustedBSD may be found on the TrustedBSD home page:
 
     http://www.TrustedBSD.org/
-
-$P4: //depot/projects/trustedbsd/openbsm/README#41 $

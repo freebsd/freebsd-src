@@ -12,7 +12,7 @@
 
 machine         mips mips
 ident		AR933X_BASE
-cpu		CPU_MIPS4KC
+cpu		CPU_MIPS24K
 makeoptions	KERNLOADADDR=0x80050000
 options 	HZ=1000
 
@@ -39,6 +39,9 @@ options 	SCSI_NO_OP_STRINGS
 
 # .. And no sysctl strings
 options 	NO_SYSCTL_DESCR
+
+# For small memory footprints
+options		VM_KMEM_SIZE_SCALE=1
 
 # Limit IO size
 options 	NBUF=128

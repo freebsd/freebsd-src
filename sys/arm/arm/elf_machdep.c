@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
+#include <machine/acle-compat.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
@@ -52,8 +53,6 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
 	.sv_mask	= 0,
-	.sv_sigsize	= 0,
-	.sv_sigtbl	= NULL,
 	.sv_errsize	= 0,
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
@@ -61,7 +60,6 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_sendsig	= sendsig,
 	.sv_sigcode	= sigcode,
 	.sv_szsigcode	= &szsigcode,
-	.sv_prepsyscall	= NULL,
 	.sv_name	= "FreeBSD ELF32",
 	.sv_coredump	= __elfN(coredump),
 	.sv_imgact_try	= NULL,
@@ -76,13 +74,21 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32,
+	.sv_flags	=
+#if __ARM_ARCH >= 6
+			  SV_SHP | SV_TIMEKEEP |
+#endif
+			  SV_ABI_FREEBSD | SV_ILP32,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
+	.sv_shared_page_base = SHAREDPAGE,
+	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
+	.sv_trap	= NULL,
 };
+INIT_SYSENTVEC(elf32_sysvec, &elf32_freebsd_sysvec);
 
 static Elf32_Brandinfo freebsd_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
@@ -250,7 +256,7 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
 }
 
 int
-elf_cpu_load_file(linker_file_t lf __unused)
+elf_cpu_load_file(linker_file_t lf)
 {
 
 	/*
@@ -259,13 +265,25 @@ elf_cpu_load_file(linker_file_t lf __unused)
 	 * that kernel memory allocations always have EXECUTABLE protection even
 	 * when the memory isn't going to hold executable code.  The only time
 	 * kernel memory holding instructions does need a sync is after loading
-	 * a kernel module, and that's when this function gets called.  Normal
-	 * data cache maintenance has already been done by the IO code, and TLB
-	 * maintenance has been done by the pmap code, so all we have to do here
-	 * is invalidate the instruction cache (which also invalidates the
-	 * branch predictor cache on platforms that have one).
+	 * a kernel module, and that's when this function gets called.
+	 *
+	 * This syncs data and instruction caches after loading a module.  We
+	 * don't worry about the kernel itself (lf->id is 1) as locore.S did
+	 * that on entry.  Even if data cache maintenance was done by IO code,
+	 * the relocation fixup process creates dirty cache entries that we must
+	 * write back before doing icache sync. The instruction cache sync also
+	 * invalidates the branch predictor cache on platforms that have one.
 	 */
-	cpu_icache_sync_all();
+	if (lf->id == 1)
+		return (0);
+#if __ARM_ARCH >= 6
+	dcache_wb_pou((vm_offset_t)lf->address, (vm_size_t)lf->size);
+	icache_inv_all();
+#else
+	cpu_dcache_wb_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
+	cpu_l2cache_wb_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
+	cpu_icache_sync_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
+#endif
 	return (0);
 }
 

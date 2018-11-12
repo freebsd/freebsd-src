@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/rman.h>
 
+#include <machine/_inttypes.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 
@@ -235,7 +236,7 @@ sec_probe(device_t dev)
 		sc->sc_version = 3;
 		break;
 	default:
-		device_printf(dev, "unknown SEC ID 0x%016llx!\n", id);
+		device_printf(dev, "unknown SEC ID 0x%016"PRIx64"!\n", id);
 		return (ENXIO);
 	}
 

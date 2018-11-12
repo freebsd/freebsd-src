@@ -283,9 +283,7 @@ struct mps_softc {
 	int				chain_free_lowwater;
 	u_int				enable_ssu;
 	int				spinup_wait_time;
-#if __FreeBSD_version >= 900030
 	uint64_t			chain_alloc_fail;
-#endif
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct sysctl_oid		*sysctl_tree;
 	char                            fw_version[16];
@@ -483,11 +481,8 @@ mps_alloc_chain(struct mps_softc *sc)
 		sc->chain_free--;
 		if (sc->chain_free < sc->chain_free_lowwater)
 			sc->chain_free_lowwater = sc->chain_free;
-	}
-#if __FreeBSD_version >= 900030
-	else
+	} else
 		sc->chain_alloc_fail++;
-#endif
 	return (chain);
 }
 
@@ -761,6 +756,8 @@ void mps_mapping_enclosure_dev_status_change_event(struct mps_softc *,
     Mpi2EventDataSasEnclDevStatusChange_t *event_data);
 void mps_mapping_ir_config_change_event(struct mps_softc *sc,
     Mpi2EventDataIrConfigChangeList_t *event_data);
+int mps_mapping_dump(SYSCTL_HANDLER_ARGS);
+int mps_mapping_encl_dump(SYSCTL_HANDLER_ARGS);
 
 void mpssas_evt_handler(struct mps_softc *sc, uintptr_t data,
     MPI2_EVENT_NOTIFICATION_REPLY *event);

@@ -186,11 +186,11 @@ class binary_writer : public output_writer
 	 *  The binary format does not support labels, so this method
 	 * does nothing.
 	 */
-	virtual void write_label(string name) {}
+	virtual void write_label(string) {}
 	/**
 	 * Comments are ignored by the binary writer.
 	 */
-	virtual void write_comment(string name) {}
+	virtual void write_comment(string) {}
 	virtual void write_string(string name);
 	virtual void write_data(uint8_t v);
 	virtual void write_data(uint32_t v);
@@ -224,7 +224,7 @@ class asm_writer : public output_writer
 	uint32_t bytes_written;
 
 	/**
-	 * Writes a C string directly to the ouput as-is.  This is mainly used
+	 * Writes a C string directly to the output as-is.  This is mainly used
 	 * for writing directives.
 	 */
 	void write_string(const char *c);

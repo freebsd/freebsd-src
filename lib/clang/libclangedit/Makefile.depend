@@ -13,14 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-Commit.o: DiagnosticCommonKinds.inc.h
-Commit.po: DiagnosticCommonKinds.inc.h
-RewriteObjCFoundationAPI.o: CommentCommandList.inc.h
-RewriteObjCFoundationAPI.o: DeclNodes.inc.h
-RewriteObjCFoundationAPI.o: DiagnosticCommonKinds.inc.h
-RewriteObjCFoundationAPI.o: StmtNodes.inc.h
-RewriteObjCFoundationAPI.po: CommentCommandList.inc.h
-RewriteObjCFoundationAPI.po: DeclNodes.inc.h
-RewriteObjCFoundationAPI.po: DiagnosticCommonKinds.inc.h
-RewriteObjCFoundationAPI.po: StmtNodes.inc.h
 .endif

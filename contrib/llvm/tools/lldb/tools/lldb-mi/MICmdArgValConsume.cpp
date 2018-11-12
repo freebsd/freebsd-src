@@ -1,4 +1,4 @@
-//===-- MICmdArgValConsume.cpp -------------------------------------*- C++ -*-===//
+//===-- MICmdArgValConsume.cpp ----------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,7 +18,7 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdArgValConsume::CMICmdArgValConsume(void)
+CMICmdArgValConsume::CMICmdArgValConsume()
 {
 }
 
@@ -42,7 +42,7 @@ CMICmdArgValConsume::CMICmdArgValConsume(const CMIUtilString &vrArgName, const b
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdArgValConsume::~CMICmdArgValConsume(void)
+CMICmdArgValConsume::~CMICmdArgValConsume()
 {
 }
 
@@ -72,12 +72,10 @@ CMICmdArgValConsume::Validate(CMICmdArgContext &vwArgContext)
         {
             m_bFound = true;
             m_bValid = true;
+            if ( !vwArgContext.RemoveArg( rTxt ) )
+                return MIstatus::failure;
             return MIstatus::success;
         }
-	
-        if ( !vwArgContext.RemoveArg( rTxt ) )
-            return MIstatus::failure;
-
         // Next
         ++it;
     }
@@ -94,7 +92,7 @@ CMICmdArgValConsume::Validate(CMICmdArgContext &vwArgContext)
 // Throws:  None.
 //--
 bool
-CMICmdArgValConsume::IsOk(void) const
+CMICmdArgValConsume::IsOk() const
 {
     return true;
 }

@@ -33,6 +33,7 @@ hcomp		Compress header files by removing comments and whitespace.
 html-mv         Rename HTML generated filenames to human readable filenames.
 ifinfo		Uses the interface MIB to print out all the information
 		an interface exports in an ugly form.
+indent_wrapper	Tool for style(9) checking SVN/GIT patches.
 iso             Tool to compare the iso3166 and iso639 files in
 		/usr/share/misc with the data from the master sites.
 iwi		Tools specific to the Intel PRO/Wireless 2200BG/2225BG/2915ABG

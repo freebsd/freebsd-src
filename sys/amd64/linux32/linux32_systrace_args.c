@@ -2122,7 +2122,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 312: {
 		struct linux_get_robust_list_args *p = params;
 		iarg[0] = p->pid; /* l_int */
-		uarg[1] = (intptr_t) p->head; /* struct linux_robust_list_head * */
+		uarg[1] = (intptr_t) p->head; /* struct linux_robust_list_head ** */
 		uarg[2] = (intptr_t) p->len; /* l_size_t * */
 		*n_args = 3;
 		break;
@@ -5551,7 +5551,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 1:
-			p = "struct linux_robust_list_head *";
+			p = "struct linux_robust_list_head **";
 			break;
 		case 2:
 			p = "l_size_t *";

@@ -485,7 +485,6 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 	int hdrspace, need_tap = 1;	/* mbuf need to be tapped. */
 	uint8_t dir, type, subtype, qos;
 	uint8_t *bssid;
-	uint16_t rxseq;
 
 	if (m->m_flags & M_AMPDU_MPDU) {
 		/*
@@ -573,24 +572,8 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
 				ic->ic_wme.wme_hipri_traffic++;
-			rxseq = le16toh(*(uint16_t *)wh->i_seq);
-			if (! ieee80211_check_rxseq(ni, wh)) {
-				/* duplicate, discard */
-				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
-				    bssid, "duplicate",
-				    "seqno <%u,%u> fragno <%u,%u> tid %u",
-				    rxseq >> IEEE80211_SEQ_SEQ_SHIFT,
-				    ni->ni_rxseqs[tid] >>
-					IEEE80211_SEQ_SEQ_SHIFT,
-				    rxseq & IEEE80211_SEQ_FRAG_MASK,
-				    ni->ni_rxseqs[tid] &
-					IEEE80211_SEQ_FRAG_MASK,
-				    tid);
-				vap->iv_stats.is_rx_dup++;
-				IEEE80211_NODE_STAT(ni, rx_dup);
+			if (! ieee80211_check_rxseq(ni, wh, bssid))
 				goto out;
-			}
-			ni->ni_rxseqs[tid] = rxseq;
 		}
 	}
 
@@ -2226,6 +2209,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 
 	case IEEE80211_FC0_SUBTYPE_ASSOC_RESP:
 	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
+	case IEEE80211_FC0_SUBTYPE_TIMING_ADV:
 	case IEEE80211_FC0_SUBTYPE_ATIM:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
 		    wh, NULL, "%s", "not handled");
@@ -2327,12 +2311,11 @@ ieee80211_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m0)
 
 	/*
 	 * Do the right thing; if it's an encap'ed frame then
-	 * call ieee80211_parent_xmitpkt() (and free the ref) else
+	 * call ieee80211_parent_xmitpkt() else
 	 * call ieee80211_vap_xmitpkt().
 	 */
 	if (m->m_flags & M_ENCAP) {
-		if (ieee80211_parent_xmitpkt(ic, m) != 0)
-			ieee80211_free_node(ni);
+		(void) ieee80211_parent_xmitpkt(ic, m);
 	} else {
 		(void) ieee80211_vap_xmitpkt(vap, m);
 	}

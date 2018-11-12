@@ -67,8 +67,14 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 		dst = (char *)addr;
 		cnt = size;
 
-		while (cnt-- > 0)
-			*dst++ = *data++;
+		if (size == 4 && (addr & 3) == 0 && ((uintptr_t)data & 3) == 0)
+			*((int*)dst) = *((int*)data);
+		else
+		if (size == 2 && (addr & 1) == 0 && ((uintptr_t)data & 1) == 0)
+			*((short*)dst) = *((short*)data);
+		else
+			while (cnt-- > 0)
+				*dst++ = *data++;
 		kdb_cpu_sync_icache((void *)addr, size);
 	}
 	(void)kdb_jmpbuf(prev_jb);

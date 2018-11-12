@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 #if EFSYS_OPT_MON_STATS
 #include "mcdi_mon.h"
@@ -54,42 +51,42 @@ __FBSDID("$FreeBSD$");
 
 
 static	__checkReturn	boolean_t
-hunt_ev_rx(
+ef10_ev_rx(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
 static	__checkReturn	boolean_t
-hunt_ev_tx(
+ef10_ev_tx(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
 static	__checkReturn	boolean_t
-hunt_ev_driver(
+ef10_ev_driver(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
 static	__checkReturn	boolean_t
-hunt_ev_drv_gen(
+ef10_ev_drv_gen(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
 static	__checkReturn	boolean_t
-hunt_ev_mcdi(
+ef10_ev_mcdi(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_init_evq(
 	__in		efx_nic_t *enp,
 	__in		unsigned int instance,
@@ -107,7 +104,7 @@ efx_mcdi_init_evq(
 	int npages;
 	int i;
 	int supports_rx_batching;
-	int rc;
+	efx_rc_t rc;
 
 	npages = EFX_EVQ_NBUFS(nevs);
 	if (MC_CMD_INIT_EVQ_IN_LEN(npages) > MC_CMD_INIT_EVQ_IN_LENMAX) {
@@ -188,12 +185,12 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_fini_evq(
 	__in		efx_nic_t *enp,
 	__in		uint32_t instance)
@@ -201,7 +198,7 @@ efx_mcdi_fini_evq(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_FINI_EVQ_IN_LEN,
 			    MC_CMD_FINI_EVQ_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FINI_EVQ;
@@ -222,15 +219,15 @@ efx_mcdi_fini_evq(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
 
-	__checkReturn	int
-hunt_ev_init(
+	__checkReturn	efx_rc_t
+ef10_ev_init(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
@@ -238,14 +235,14 @@ hunt_ev_init(
 }
 
 			void
-hunt_ev_fini(
+ef10_ev_fini(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
 }
 
-	__checkReturn	int
-hunt_ev_qcreate(
+	__checkReturn	efx_rc_t
+ef10_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		efsys_mem_t *esmp,
@@ -255,7 +252,7 @@ hunt_ev_qcreate(
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t irq;
-	int rc;
+	efx_rc_t rc;
 
 	_NOTE(ARGUNUSED(id))	/* buftbl id managed by MC */
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MAXNEVS));
@@ -272,11 +269,11 @@ hunt_ev_qcreate(
 	}
 
 	/* Set up the handler table */
-	eep->ee_rx	= hunt_ev_rx;
-	eep->ee_tx	= hunt_ev_tx;
-	eep->ee_driver	= hunt_ev_driver;
-	eep->ee_drv_gen	= hunt_ev_drv_gen;
-	eep->ee_mcdi	= hunt_ev_mcdi;
+	eep->ee_rx	= ef10_ev_rx;
+	eep->ee_tx	= ef10_ev_tx;
+	eep->ee_driver	= ef10_ev_driver;
+	eep->ee_drv_gen	= ef10_ev_drv_gen;
+	eep->ee_mcdi	= ef10_ev_mcdi;
 
 	/*
 	 * Set up the event queue
@@ -293,24 +290,25 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 			void
-hunt_ev_qdestroy(
+ef10_ev_qdestroy(
 	__in		efx_evq_t *eep)
 {
 	efx_nic_t *enp = eep->ee_enp;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+	    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) efx_mcdi_fini_evq(eep->ee_enp, eep->ee_index);
 }
 
-	__checkReturn	int
-hunt_ev_qprime(
+	__checkReturn	efx_rc_t
+ef10_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count)
 {
@@ -350,7 +348,7 @@ hunt_ev_qprime(
 	return (0);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_driver_event(
 	__in		efx_nic_t *enp,
 	__in		uint32_t evq,
@@ -359,7 +357,7 @@ efx_mcdi_driver_event(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_DRIVER_EVENT_IN_LEN,
 			    MC_CMD_DRIVER_EVENT_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	req.emr_cmd = MC_CMD_DRIVER_EVENT;
 	req.emr_in_buf = payload;
@@ -384,13 +382,13 @@ efx_mcdi_driver_event(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 			void
-hunt_ev_qpost(
+ef10_ev_qpost(
 	__in	efx_evq_t *eep,
 	__in	uint16_t data)
 {
@@ -405,8 +403,8 @@ hunt_ev_qpost(
 	(void) efx_mcdi_driver_event(enp, eep->ee_index, event);
 }
 
-	__checkReturn	int
-hunt_ev_qmoderate(
+	__checkReturn	efx_rc_t
+ef10_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us)
 {
@@ -414,7 +412,7 @@ hunt_ev_qmoderate(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_dword_t dword;
 	uint32_t timer_val, mode;
-	int rc;
+	efx_rc_t rc;
 
 	if (us > encp->enc_evq_timer_max_us) {
 		rc = EINVAL;
@@ -446,16 +444,16 @@ hunt_ev_qmoderate(
 		    eep->ee_index, &dword, 0);
 	} else {
 		EFX_POPULATE_DWORD_2(dword,
-		    FRF_CZ_TC_TIMER_MODE, mode,
-		    FRF_CZ_TC_TIMER_VAL, timer_val);
-		EFX_BAR_TBL_WRITED(enp, FR_BZ_TIMER_COMMAND_REGP0,
+		    ERF_DZ_TC_TIMER_MODE, mode,
+		    ERF_DZ_TC_TIMER_VAL, timer_val);
+		EFX_BAR_TBL_WRITED(enp, ER_DZ_EVQ_TMR_REG,
 		    eep->ee_index, &dword, 0);
 	}
 
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -463,14 +461,10 @@ fail1:
 
 #if EFSYS_OPT_QSTATS
 			void
-hunt_ev_qstats_update(
+ef10_ev_qstats_update(
 	__in				efx_evq_t *eep,
 	__inout_ecount(EV_NQSTATS)	efsys_stat_t *stat)
 {
-	/*
-	 * TBD: Consider a common Siena/Huntington function.  The code is
-	 * essentially identical.
-	 */
 	unsigned int id;
 
 	for (id = 0; id < EV_NQSTATS; id++) {
@@ -484,7 +478,7 @@ hunt_ev_qstats_update(
 
 
 static	__checkReturn	boolean_t
-hunt_ev_rx(
+ef10_ev_rx(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -492,16 +486,14 @@ hunt_ev_rx(
 {
 	efx_nic_t *enp = eep->ee_enp;
 	uint32_t size;
-	boolean_t parse_err;
 	uint32_t label;
-	uint32_t mcast;
-	uint32_t eth_base_class;
+	uint32_t mac_class;
 	uint32_t eth_tag_class;
 	uint32_t l3_class;
 	uint32_t l4_class;
 	uint32_t next_read_lbits;
-	boolean_t soft1, soft2;
 	uint16_t flags;
+	boolean_t cont;
 	boolean_t should_abort;
 	efx_evq_rxq_state_t *eersp;
 	unsigned int desc_count;
@@ -513,10 +505,15 @@ hunt_ev_rx(
 	if (enp->en_reset_flags & (EFX_RESET_RXQ_ERR | EFX_RESET_TXQ_ERR))
 		return (B_FALSE);
 
-	/*
-	 * FIXME: likely to be incomplete, incorrect and inefficient.
-	 * Improvements in all three areas are required.
-	 */
+	/* Basic packet information */
+	size = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_BYTES);
+	next_read_lbits = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DSC_PTR_LBITS);
+	label = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_QLABEL);
+	eth_tag_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ETH_TAG_CLASS);
+	mac_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_MAC_CLASS);
+	l3_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L3_CLASS);
+	l4_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L4_CLASS);
+	cont = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CONT);
 
 	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DROP_EVENT) != 0) {
 		/* Drop this event */
@@ -524,52 +521,21 @@ hunt_ev_rx(
 	}
 	flags = 0;
 
-	size = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_BYTES);
-
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CONT) != 0) {
+	if (cont != 0) {
 		/*
+		 * This may be part of a scattered frame, or it may be a
+		 * truncated frame if scatter is disabled on this RXQ.
+		 * Overlength frames can be received if e.g. a VF is configured
+		 * for 1500 MTU but connected to a port set to 9000 MTU
+		 * (see bug56567).
 		 * FIXME: There is not yet any driver that supports scatter on
 		 * Huntington.  Scatter support is required for OSX.
 		 */
-		EFSYS_ASSERT(0);
 		flags |= EFX_PKT_CONT;
 	}
 
-	parse_err = (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_PARSE_INCOMPLETE) != 0);
-	label = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_QLABEL);
-
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECRC_ERR) != 0) {
-		/* Ethernet frame CRC bad */
-		flags |= EFX_DISCARD;
-	}
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CRC0_ERR) != 0) {
-		/* IP+TCP, bad CRC in iSCSI header */
-		flags |= EFX_DISCARD;
-	}
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CRC1_ERR) != 0) {
-		/* IP+TCP, bad CRC in iSCSI payload or FCoE or FCoIP */
-		flags |= EFX_DISCARD;
-	}
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECC_ERR) != 0) {
-		/* ECC memory error */
-		flags |= EFX_DISCARD;
-	}
-
-	/* FIXME: do we need soft bits from RXDP firmware ? */
-	soft1 = (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_EV_SOFT1) != 0);
-	soft2 = (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_EV_SOFT2) != 0);
-
-	mcast = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_MAC_CLASS);
-	if (mcast == ESE_DZ_MAC_CLASS_UCAST)
+	if (mac_class == ESE_DZ_MAC_CLASS_UCAST)
 		flags |= EFX_PKT_UNICAST;
-
-	eth_base_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ETH_BASE_CLASS);
-	eth_tag_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ETH_TAG_CLASS);
-	l3_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L3_CLASS);
-	l4_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L4_CLASS);
-
-	/* bottom 4 bits of incremented index (not last desc consumed) */
-	next_read_lbits = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DSC_PTR_LBITS);
 
 	/* Increment the count of descriptors read */
 	eersp = &eep->ee_rxq_state[label];
@@ -589,86 +555,84 @@ hunt_ev_rx(
 	/* Calculate the index of the the last descriptor consumed */
 	last_used_id = (eersp->eers_rx_read_ptr - 1) & eersp->eers_rx_mask;
 
-	/* EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_OVERRIDE_HOLDOFF); */
-
-	switch (eth_base_class) {
-	case ESE_DZ_ETH_BASE_CLASS_LLC_SNAP:
-	case ESE_DZ_ETH_BASE_CLASS_LLC:
-	case ESE_DZ_ETH_BASE_CLASS_ETH2:
-	default:
-		break;
+	/* Check for errors that invalidate checksum and L3/L4 fields */
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECC_ERR) != 0) {
+		/* RX frame truncated (error flag is misnamed) */
+		EFX_EV_QSTAT_INCR(eep, EV_RX_FRM_TRUNC);
+		flags |= EFX_DISCARD;
+		goto deliver;
+	}
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECRC_ERR) != 0) {
+		/* Bad Ethernet frame CRC */
+		EFX_EV_QSTAT_INCR(eep, EV_RX_ETH_CRC_ERR);
+		flags |= EFX_DISCARD;
+		goto deliver;
+	}
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_PARSE_INCOMPLETE)) {
+		/*
+		 * Hardware parse failed, due to malformed headers
+		 * or headers that are too long for the parser.
+		 * Headers and checksums must be validated by the host.
+		 */
+		// TODO: EFX_EV_QSTAT_INCR(eep, EV_RX_PARSE_INCOMPLETE);
+		goto deliver;
 	}
 
-	switch (eth_tag_class) {
-	case ESE_DZ_ETH_TAG_CLASS_RSVD7:
-	case ESE_DZ_ETH_TAG_CLASS_RSVD6:
-	case ESE_DZ_ETH_TAG_CLASS_RSVD5:
-	case ESE_DZ_ETH_TAG_CLASS_RSVD4:
-		break;
-
-	case ESE_DZ_ETH_TAG_CLASS_RSVD3: /* Triple tagged */
-	case ESE_DZ_ETH_TAG_CLASS_VLAN2: /* Double tagged */
-	case ESE_DZ_ETH_TAG_CLASS_VLAN1: /* VLAN tagged */
+	if ((eth_tag_class == ESE_DZ_ETH_TAG_CLASS_VLAN1) ||
+	    (eth_tag_class == ESE_DZ_ETH_TAG_CLASS_VLAN2)) {
 		flags |= EFX_PKT_VLAN_TAGGED;
-		break;
-
-	case ESE_DZ_ETH_TAG_CLASS_NONE:
-	default:
-		break;
 	}
 
 	switch (l3_class) {
-	case ESE_DZ_L3_CLASS_RSVD7: /* Used by firmware for packet overrun */
-		parse_err = B_TRUE;
-		flags |= EFX_DISCARD;
-		break;
-
-	case ESE_DZ_L3_CLASS_ARP:
-	case ESE_DZ_L3_CLASS_FCOE:
-		break;
-
-	case ESE_DZ_L3_CLASS_IP6_FRAG:
-	case ESE_DZ_L3_CLASS_IP6:
-		flags |= EFX_PKT_IPV6;
-		break;
-
-	case ESE_DZ_L3_CLASS_IP4_FRAG:
 	case ESE_DZ_L3_CLASS_IP4:
+	case ESE_DZ_L3_CLASS_IP4_FRAG:
 		flags |= EFX_PKT_IPV4;
-		if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_IPCKSUM_ERR) == 0)
+		if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_IPCKSUM_ERR)) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_IPV4_HDR_CHKSUM_ERR);
+		} else {
 			flags |= EFX_CKSUM_IPV4;
+		}
+
+		if (l4_class == ESE_DZ_L4_CLASS_TCP) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_TCP_IPV4);
+			flags |= EFX_PKT_TCP;
+		} else if (l4_class == ESE_DZ_L4_CLASS_UDP) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_UDP_IPV4);
+			flags |= EFX_PKT_UDP;
+		} else {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_OTHER_IPV4);
+		}
 		break;
 
-	case ESE_DZ_L3_CLASS_UNKNOWN:
+	case ESE_DZ_L3_CLASS_IP6:
+	case ESE_DZ_L3_CLASS_IP6_FRAG:
+		flags |= EFX_PKT_IPV6;
+
+		if (l4_class == ESE_DZ_L4_CLASS_TCP) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_TCP_IPV6);
+			flags |= EFX_PKT_TCP;
+		} else if (l4_class == ESE_DZ_L4_CLASS_UDP) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_UDP_IPV6);
+			flags |= EFX_PKT_UDP;
+		} else {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_OTHER_IPV6);
+		}
+		break;
+
 	default:
+		EFX_EV_QSTAT_INCR(eep, EV_RX_NON_IP);
 		break;
 	}
 
-	switch (l4_class) {
-	case ESE_DZ_L4_CLASS_RSVD7:
-	case ESE_DZ_L4_CLASS_RSVD6:
-	case ESE_DZ_L4_CLASS_RSVD5:
-	case ESE_DZ_L4_CLASS_RSVD4:
-	case ESE_DZ_L4_CLASS_RSVD3:
-		break;
-
-	case ESE_DZ_L4_CLASS_UDP:
-		flags |= EFX_PKT_UDP;
-		if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_TCPUDP_CKSUM_ERR) == 0)
+	if (flags & (EFX_PKT_TCP | EFX_PKT_UDP)) {
+		if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_TCPUDP_CKSUM_ERR)) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_TCP_UDP_CHKSUM_ERR);
+		} else {
 			flags |= EFX_CKSUM_TCPUDP;
-		break;
-
-	case ESE_DZ_L4_CLASS_TCP:
-		flags |= EFX_PKT_TCP;
-		if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_TCPUDP_CKSUM_ERR) == 0)
-			flags |= EFX_CKSUM_TCPUDP;
-		break;
-
-	case ESE_DZ_L4_CLASS_UNKNOWN:
-	default:
-		break;
+		}
 	}
 
+deliver:
 	/* If we're not discarding the packet then it is ok */
 	if (~flags & EFX_DISCARD)
 		EFX_EV_QSTAT_INCR(eep, EV_RX_OK);
@@ -680,7 +644,7 @@ hunt_ev_rx(
 }
 
 static	__checkReturn	boolean_t
-hunt_ev_tx(
+ef10_ev_tx(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -715,7 +679,7 @@ hunt_ev_tx(
 }
 
 static	__checkReturn	boolean_t
-hunt_ev_driver(
+ef10_ev_driver(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -765,7 +729,7 @@ hunt_ev_driver(
 }
 
 static	__checkReturn	boolean_t
-hunt_ev_drv_gen(
+ef10_ev_drv_gen(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -793,7 +757,7 @@ hunt_ev_drv_gen(
 }
 
 static	__checkReturn	boolean_t
-hunt_ev_mcdi(
+ef10_ev_mcdi(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -818,10 +782,24 @@ hunt_ev_mcdi(
 		    MCDI_EV_FIELD(eqp, CMDDONE_ERRNO));
 		break;
 
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+	case MCDI_EVENT_CODE_PROXY_RESPONSE:
+		/*
+		 * This event notifies a function that an authorization request
+		 * has been processed. If the request was authorized then the
+		 * function can now re-send the original MCDI request.
+		 * See SF-113652-SW "SR-IOV Proxied Network Access Control".
+		 */
+		efx_mcdi_ev_proxy_response(enp,
+		    MCDI_EV_FIELD(eqp, PROXY_RESPONSE_HANDLE),
+		    MCDI_EV_FIELD(eqp, PROXY_RESPONSE_RC));
+		break;
+#endif /* EFSYS_OPT_MCDI_PROXY_AUTH */
+
 	case MCDI_EVENT_CODE_LINKCHANGE: {
 		efx_link_mode_t link_mode;
 
-		hunt_phy_link_ev(enp, eqp, &link_mode);
+		ef10_phy_link_ev(enp, eqp, &link_mode);
 		should_abort = eecp->eec_link_change(arg, link_mode);
 		break;
 	}
@@ -830,7 +808,7 @@ hunt_ev_mcdi(
 #if EFSYS_OPT_MON_STATS
 		efx_mon_stat_t id;
 		efx_mon_stat_value_t value;
-		int rc;
+		efx_rc_t rc;
 
 		/* Decode monitor stat for MCDI sensor (if supported) */
 		if ((rc = mcdi_mon_ev(enp, eqp, &id, &value)) == 0) {
@@ -975,7 +953,7 @@ hunt_ev_mcdi(
 }
 
 		void
-hunt_ev_rxlabel_init(
+ef10_ev_rxlabel_init(
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp,
 	__in		unsigned int label)
@@ -992,7 +970,7 @@ hunt_ev_rxlabel_init(
 }
 
 		void
-hunt_ev_rxlabel_fini(
+ef10_ev_rxlabel_fini(
 	__in		efx_evq_t *eep,
 	__in		unsigned int label)
 {

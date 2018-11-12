@@ -54,9 +54,9 @@ main (int argc, char **argv)
 		name = argv[1];
 	}
 
-	printf ("static const unsigned int %s[255] = {\n", name);
+	printf ("static const unsigned int %s[256] = {\n", name);
 
-	for (i = 0; i < 255; i ++) {
+	for (i = 0; i < 256; i ++) {
 		need_or = false;
 		r = 0;
 		/* UCL_CHARACTER_VALUE_END */
@@ -110,7 +110,7 @@ main (int argc, char **argv)
 		if (isprint (i)) {
 			r += sprintf (valbuf + r, " /* %c */", i);
 		}
-		if (i != 254) {
+		if (i != 255) {
 			r += sprintf (valbuf + r, ", ");
 		}
 		col += r;

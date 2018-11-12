@@ -91,7 +91,7 @@ static int gusc_attach(device_t dev);
 static int gusisa_probe(device_t dev);
 static void gusc_intr(void *);
 static struct resource *gusc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-					      u_long start, u_long end, u_long count, u_int flags);
+					    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 static int gusc_release_resource(device_t bus, device_t child, int type, int rid,
 				   struct resource *r);
 
@@ -350,7 +350,7 @@ gusc_intr(void *arg)
 
 static struct resource *
 gusc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		      u_long start, u_long end, u_long count, u_int flags)
+		    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	sc_p scp;
 	int *alloced, rid_max, alloced_max;
@@ -495,8 +495,12 @@ alloc_resource(sc_p scp)
 			if (scp->io[i] == NULL) {
 				scp->io_rid[i] = i;
 				if (base == 0)
-					scp->io[i] = bus_alloc_resource(scp->dev, SYS_RES_IOPORT, &scp->io_rid[i],
-									0, ~0, io_range[i], RF_ACTIVE);
+					scp->io[i] =
+					    bus_alloc_resource_anywhere(scp->dev,
+					    	    			SYS_RES_IOPORT,
+					    	    			&scp->io_rid[i],
+									io_range[i],
+									RF_ACTIVE);
 				else
 					scp->io[i] = bus_alloc_resource(scp->dev, SYS_RES_IOPORT, &scp->io_rid[i],
 									base + io_offset[i],
@@ -540,8 +544,11 @@ alloc_resource(sc_p scp)
 	case LOGICALID_OPL:
 		if (scp->io[0] == NULL) {
 			scp->io_rid[0] = 0;
-			scp->io[0] = bus_alloc_resource(scp->dev, SYS_RES_IOPORT, &scp->io_rid[0],
-							0, ~0, io_range[0], RF_ACTIVE);
+			scp->io[0] = bus_alloc_resource_anywhere(scp->dev,
+								 SYS_RES_IOPORT,
+								 &scp->io_rid[0],
+								 io_range[0],
+								 RF_ACTIVE);
 			if (scp->io[0] == NULL)
 				return (1);
 			scp->io_alloced[0] = 0;
@@ -550,8 +557,11 @@ alloc_resource(sc_p scp)
 	case LOGICALID_MIDI:
 		if (scp->io[0] == NULL) {
 			scp->io_rid[0] = 0;
-			scp->io[0] = bus_alloc_resource(scp->dev, SYS_RES_IOPORT, &scp->io_rid[0],
-							0, ~0, io_range[0], RF_ACTIVE);
+			scp->io[0] = bus_alloc_resource_anywhere(scp->dev,
+								 SYS_RES_IOPORT,
+								 &scp->io_rid[0],
+								 io_range[0],
+								 RF_ACTIVE);
 			if (scp->io[0] == NULL)
 				return (1);
 			scp->io_alloced[0] = 0;

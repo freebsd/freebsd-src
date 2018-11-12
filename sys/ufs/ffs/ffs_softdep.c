@@ -6835,6 +6835,13 @@ softdep_setup_freeblocks(ip, length, flags)
 	    ip->i_number, length);
 	KASSERT(length == 0, ("softdep_setup_freeblocks: non-zero length"));
 	fs = ip->i_fs;
+	if ((error = bread(ip->i_devvp,
+	    fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+	    (int)fs->fs_bsize, NOCRED, &bp)) != 0) {
+		brelse(bp);
+		softdep_error("softdep_setup_freeblocks", error);
+		return;
+	}
 	freeblks = newfreeblks(mp, ip);
 	extblocks = 0;
 	datablocks = 0;
@@ -6871,12 +6878,6 @@ softdep_setup_freeblocks(ip, length, flags)
 	 * to delete its dependencies below. Once the dependencies are gone
 	 * the buffer can be safely released.
 	 */
-	if ((error = bread(ip->i_devvp,
-	    fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-	    (int)fs->fs_bsize, NOCRED, &bp)) != 0) {
-		brelse(bp);
-		softdep_error("softdep_setup_freeblocks", error);
-	}
 	if (ump->um_fstype == UFS1) {
 		dp1 = ((struct ufs1_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number));
@@ -13300,43 +13301,43 @@ softdep_ast_cleanup_proc(void)
 	bool req;
 
 	td = curthread;
-	mp = td->td_su;
-	if (mp == NULL)
-		return;
-	td->td_su = NULL;
-	error = vfs_busy(mp, MBF_NOWAIT);
-	vfs_rel(mp);
-	if (error != 0)
-		return;
-	if (ffs_own_mount(mp) && MOUNTEDSOFTDEP(mp)) {
-		ump = VFSTOUFS(mp);
-		for (;;) {
-			req = false;
-			ACQUIRE_LOCK(ump);
-			if (softdep_excess_items(ump, D_INODEDEP)) {
-				req = true;
-				request_cleanup(mp, FLUSH_INODES);
-			}
-			if (softdep_excess_items(ump, D_DIRREM)) {
-				req = true;
-				request_cleanup(mp, FLUSH_BLOCKS);
-			}
-			FREE_LOCK(ump);
-			if (softdep_excess_items(ump, D_NEWBLK) ||
-			    softdep_excess_items(ump, D_ALLOCDIRECT) ||
-			    softdep_excess_items(ump, D_ALLOCINDIR)) {
-				error = vn_start_write(NULL, &mp, V_WAIT);
-				if (error == 0) {
+	while ((mp = td->td_su) != NULL) {
+		td->td_su = NULL;
+		error = vfs_busy(mp, MBF_NOWAIT);
+		vfs_rel(mp);
+		if (error != 0)
+			return;
+		if (ffs_own_mount(mp) && MOUNTEDSOFTDEP(mp)) {
+			ump = VFSTOUFS(mp);
+			for (;;) {
+				req = false;
+				ACQUIRE_LOCK(ump);
+				if (softdep_excess_items(ump, D_INODEDEP)) {
 					req = true;
-					VFS_SYNC(mp, MNT_WAIT);
-					vn_finished_write(mp);
+					request_cleanup(mp, FLUSH_INODES);
 				}
+				if (softdep_excess_items(ump, D_DIRREM)) {
+					req = true;
+					request_cleanup(mp, FLUSH_BLOCKS);
+				}
+				FREE_LOCK(ump);
+				if (softdep_excess_items(ump, D_NEWBLK) ||
+				    softdep_excess_items(ump, D_ALLOCDIRECT) ||
+				    softdep_excess_items(ump, D_ALLOCINDIR)) {
+					error = vn_start_write(NULL, &mp,
+					    V_WAIT);
+					if (error == 0) {
+						req = true;
+						VFS_SYNC(mp, MNT_WAIT);
+						vn_finished_write(mp);
+					}
+				}
+				if ((td->td_pflags & TDP_KTHREAD) != 0 || !req)
+					break;
 			}
-			if ((td->td_pflags & TDP_KTHREAD) != 0 || !req)
-				break;
 		}
+		vfs_unbusy(mp);
 	}
-	vfs_unbusy(mp);
 }
 
 /*

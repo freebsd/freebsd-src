@@ -20,13 +20,13 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/ValueHandle.h"
 #include <vector>
 
 namespace llvm {
 
-class AliasAnalysis;
 class LoadInst;
 class StoreInst;
 class VAArgInst;
@@ -42,13 +42,14 @@ class AliasSet : public ilist_node<AliasSet> {
     AliasSet *AS;
     uint64_t Size;
     AAMDNodes AAInfo;
+
   public:
     PointerRec(Value *V)
       : Val(V), PrevInList(nullptr), NextInList(nullptr), AS(nullptr), Size(0),
         AAInfo(DenseMapInfo<AAMDNodes>::getEmptyKey()) {}
 
     Value *getValue() const { return Val; }
-    
+
     PointerRec *getNext() const { return NextInList; }
     bool hasAliasSet() const { return AS != nullptr; }
 
@@ -156,7 +157,7 @@ class AliasSet : public ilist_node<AliasSet> {
     assert(i < UnknownInsts.size());
     return UnknownInsts[i];
   }
-  
+
 public:
   /// Accessors...
   bool isRef() const { return Access & RefAccess; }
@@ -190,6 +191,7 @@ public:
   class iterator : public std::iterator<std::forward_iterator_tag,
                                         PointerRec, ptrdiff_t> {
     PointerRec *CurNode;
+
   public:
     explicit iterator(PointerRec *CN = nullptr) : CurNode(CN) {}
 
@@ -282,14 +284,14 @@ inline raw_ostream& operator<<(raw_ostream &OS, const AliasSet &AS) {
   return OS;
 }
 
-
 class AliasSetTracker {
   /// CallbackVH - A CallbackVH to arrange for AliasSetTracker to be
   /// notified whenever a Value is deleted.
-  class ASTCallbackVH : public CallbackVH {
+  class ASTCallbackVH final : public CallbackVH {
     AliasSetTracker *AST;
     void deleted() override;
     void allUsesReplacedWith(Value *) override;
+
   public:
     ASTCallbackVH(Value *V, AliasSetTracker *AST = nullptr);
     ASTCallbackVH &operator=(Value *V);
@@ -347,7 +349,7 @@ public:
   bool remove(Instruction *I);
   void remove(AliasSet &AS);
   bool removeUnknown(Instruction *I);
-  
+
   void clear();
 
   /// getAliasSets - Return the alias sets that are active.
@@ -397,7 +399,6 @@ public:
   /// request.
   ///
   void copyValue(Value *From, Value *To);
-
 
   typedef ilist<AliasSet>::iterator iterator;
   typedef ilist<AliasSet>::const_iterator const_iterator;

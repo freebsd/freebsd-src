@@ -113,9 +113,8 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	error = 0;
 #if defined(INET) || defined(INET6)
-	if (ro != NULL && ro->ro_rt != NULL &&
-	    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
-		is_gw = 1;
+	if (ro != NULL)
+		is_gw = (ro->ro_flags & RT_HAS_GW) != 0;
 #endif
 
 	switch (dst->sa_family) {
@@ -550,15 +549,11 @@ arc_input(struct ifnet *ifp, struct mbuf *m)
 #ifdef INET
 	case ARCTYPE_IP:
 		m_adj(m, ARC_HDRNEWLEN);
-		if ((m = ip_fastforward(m)) == NULL)
-			return;
 		isr = NETISR_IP;
 		break;
 
 	case ARCTYPE_IP_OLD:
 		m_adj(m, ARC_HDRLEN);
-		if ((m = ip_fastforward(m)) == NULL)
-			return;
 		isr = NETISR_IP;
 		break;
 

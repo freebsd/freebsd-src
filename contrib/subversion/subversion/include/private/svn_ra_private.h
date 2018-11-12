@@ -39,6 +39,33 @@
 extern "C" {
 #endif /* __cplusplus */
 
+
+
+/**
+ * Open a new ra session @a *new_session to the same repository as an existing
+ * ra session @a old_session, copying the callbacks, auth baton, etc. from the
+ * old session. This essentially limits the lifetime of the new, duplicated
+ * session to the lifetime of the old session. If the new session should
+ * outlive the new session, creating a new session using svn_ra_open4() is
+ * recommended.
+ *
+ * If @a session_url is not NULL, parent the new session at session_url. Note
+ * that @a session_url MUST BE in the same repository as @a old_session or an
+ * error will be returned. When @a session_url NULL the same session root
+ * will be used.
+ *
+ * Allocate @a new_session in @a result_pool. Perform temporary allocations
+ * in @a scratch_pool.
+ *
+ * @since New in 1.9.
+ */
+svn_error_t *
+svn_ra__dup_session(svn_ra_session_t **new_session,
+                    svn_ra_session_t *old_session,
+                    const char *session_url,
+                    apr_pool_t *result_pool,
+                    apr_pool_t *scratch_pool);
+
 /* Equivalent to svn_ra__assert_capable_server()
    for SVN_RA_CAPABILITY_MERGEINFO. */
 svn_error_t *

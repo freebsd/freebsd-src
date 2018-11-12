@@ -46,6 +46,8 @@
         ..
         ipf             mode=0700
         ..
+        ntp             mode=0700
+        ..
         pkg
         ..
         ports

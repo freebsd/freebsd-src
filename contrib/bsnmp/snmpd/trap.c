@@ -60,15 +60,15 @@
 struct trapsink_list trapsink_list = TAILQ_HEAD_INITIALIZER(trapsink_list);
 
 /* List of target addresses */
-struct target_addresslist target_addresslist =
+static struct target_addresslist target_addresslist =
     SLIST_HEAD_INITIALIZER(target_addresslist);
 
 /* List of target parameters */
-struct target_paramlist target_paramlist =
+static struct target_paramlist target_paramlist =
     SLIST_HEAD_INITIALIZER(target_paramlist);
 
 /* List of notification targets */
-struct target_notifylist target_notifylist =
+static struct target_notifylist target_notifylist =
     SLIST_HEAD_INITIALIZER(target_notifylist);
 
 static const struct asn_oid oid_begemotTrapSinkTable =

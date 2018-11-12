@@ -67,7 +67,7 @@ cpu_flush_dcache(const void *ptr, size_t len)
 	cl_size = get_dcache_line_size();
 
 	/* Calculate end address to clean */
-	end = (vm_offset_t)(ptr + len);
+	end = (vm_offset_t)ptr + (vm_offset_t)len;
 	/* Align start address to cache line */
 	addr = (vm_offset_t)ptr;
 	addr = rounddown2(addr, cl_size);

@@ -32,4 +32,6 @@ _08.sendmailop=	08.sendmailop
 _07.lpd=	07.lpd
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

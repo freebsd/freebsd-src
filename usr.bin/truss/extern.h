@@ -31,6 +31,7 @@
  * $FreeBSD$
  */
 
+extern int print_line_prefix(struct trussinfo *);
 extern void setup_and_wait(struct trussinfo *, char **);
 extern void start_tracing(struct trussinfo *, pid_t);
 extern void restore_proc(int);

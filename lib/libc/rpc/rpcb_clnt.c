@@ -179,8 +179,7 @@ delete_cache(struct netbuf *addr)
 			free(cptr->ac_netid);
 			free(cptr->ac_taddr->buf);
 			free(cptr->ac_taddr);
-			if (cptr->ac_uaddr)
-				free(cptr->ac_uaddr);
+			free(cptr->ac_uaddr);
 			if (prevptr)
 				prevptr->ac_next = cptr->ac_next;
 			else
@@ -216,14 +215,10 @@ add_cache(const char *host, const char *netid, struct netbuf *taddr,
 	ad_cache->ac_taddr->buf = (char *) malloc(taddr->len);
 	if (ad_cache->ac_taddr->buf == NULL) {
 out:
-		if (ad_cache->ac_host)
-			free(ad_cache->ac_host);
-		if (ad_cache->ac_netid)
-			free(ad_cache->ac_netid);
-		if (ad_cache->ac_uaddr)
-			free(ad_cache->ac_uaddr);
-		if (ad_cache->ac_taddr)
-			free(ad_cache->ac_taddr);
+		free(ad_cache->ac_host);
+		free(ad_cache->ac_netid);
+		free(ad_cache->ac_uaddr);
+		free(ad_cache->ac_taddr);
 		free(ad_cache);
 		return;
 	}
@@ -256,8 +251,7 @@ out:
 		free(cptr->ac_netid);
 		free(cptr->ac_taddr->buf);
 		free(cptr->ac_taddr);
-		if (cptr->ac_uaddr)
-			free(cptr->ac_uaddr);
+		free(cptr->ac_uaddr);
 
 		if (prevptr) {
 			prevptr->ac_next = NULL;
@@ -667,10 +661,10 @@ __rpcbind_is_up(void)
 		    strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0)
 			 break;
 	}
+	endnetconfig(localhandle);
+
 	if (nconf == NULL)
 		return (FALSE);
-
-	endnetconfig(localhandle);
 
 	memset(&sun, 0, sizeof sun);
 	sock = _socket(AF_LOCAL, SOCK_STREAM, 0);
@@ -798,10 +792,8 @@ __rpcb_findaddr_timed(rpcprog_t program, rpcvers_t version,
 			malloc(remote.len)) == NULL)) {
 			rpc_createerr.cf_stat = RPC_SYSTEMERROR;
 			clnt_geterr(client, &rpc_createerr.cf_error);
-			if (address) {
-				free(address);
-				address = NULL;
-			}
+			free(address);
+			address = NULL;
 			goto error;
 		}
 		memcpy(address->buf, remote.buf, remote.len);

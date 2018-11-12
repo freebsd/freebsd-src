@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd Aug 12, 2015
+.Dd November 6, 2015
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2400,6 +2400,21 @@ which are shifted by the number of this parameter.
 Enable lacp fast-timeout on the interface.
 .It Cm -lacp_fast_timeout
 Disable lacp fast-timeout on the interface.
+.It Cm lacp_strict
+Enable lacp strict compliance on the interface.
+The default value can be set via the
+.Va net.link.lagg.lacp.default_strict_mode
+.Xr sysctl 8
+variable.
+.Li 0
+means
+.Dq disabled
+and
+.Li 1
+means
+.Dq enabled .
+.It Cm -lacp_strict
+Disable lacp strict compliance on the interface.
 .El
 .Pp
 The following parameters are specific to IP tunnel interfaces,

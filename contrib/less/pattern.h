@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -49,6 +49,7 @@ extern char *__loc1;
 
 #if HAVE_V8_REGCOMP
 #include "regexp.h"
+extern int reg_show_error;
 #define DEFINE_PATTERN(name)  struct regexp *name
 #define CLEAR_PATTERN(name)   name = NULL
 #endif

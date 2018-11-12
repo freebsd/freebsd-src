@@ -3657,7 +3657,8 @@ main(int argc, char **argv)
 
 	kernel_init(FREAD);
 	g_zfs = libzfs_init();
-	ASSERT(g_zfs != NULL);
+	if (g_zfs == NULL)
+		fatal("Fail to initialize zfs");
 
 	if (dump_all)
 		verbose = MAX(verbose, 1);

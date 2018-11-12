@@ -1,8 +1,0 @@
-# $FreeBSD$
-
-files	"../samsung/s3c2xx0/files.s3c2xx0"
-cpu	CPU_ARM9
-machine 	arm
-
-makeoptions	CONF_CFLAGS=-mcpu=arm920t
-options		NO_EVENTTIMERS

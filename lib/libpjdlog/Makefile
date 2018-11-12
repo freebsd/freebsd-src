@@ -15,6 +15,4 @@ CFLAGS+=-I${.CURDIR}
 
 LIBADD=	util
 
-WARNS?=	6
-
 .include <bsd.lib.mk>

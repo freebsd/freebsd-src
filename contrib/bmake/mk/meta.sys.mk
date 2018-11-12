@@ -1,4 +1,4 @@
-# $Id: meta.sys.mk,v 1.21 2015/06/01 22:43:49 sjg Exp $
+# $Id: meta.sys.mk,v 1.26 2015/11/14 21:16:13 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -20,6 +20,10 @@
 .if ${MAKE_VERSION:U0} > 20100901
 .if !target(.ERROR)
 
+.-include "local.meta.sys.mk"
+
+# absoulte path to what we are reading.
+_PARSEDIR = ${.PARSEDIR:tA}
 
 META_MODE += meta verbose
 .MAKE.MODE ?= ${META_MODE}
@@ -47,17 +51,6 @@ META_MODE += silent=yes
 .endif
 .endif
 
-# make defaults .MAKE.DEPENDFILE to .depend
-# that won't work for us.
-.if ${.MAKE.DEPENDFILE} == ".depend"
-.undef .MAKE.DEPENDFILE
-.endif
-
-# if you don't cross build for multiple MACHINEs concurrently, then
-# .MAKE.DEPENDFILE = Makefile.depend
-# probably makes sense - you can set that in local.sys.mk 
-.MAKE.DEPENDFILE ?= Makefile.depend.${MACHINE}
-
 # we use the pseudo machine "host" for the build host.
 # this should be taken care of before we get here
 .if ${OBJTOP:Ua} == ${HOST_OBJTOP:Ub}
@@ -69,6 +62,7 @@ MACHINE = host
 # for example, if using Makefild.depend for multiple machines,
 # allowing only MACHINE0 to update can keep things simple.
 MACHINE0 := ${MACHINE}
+.export MACHINE0
 
 .if defined(PYTHON) && exists(${PYTHON})
 # we prefer the python version of this - it is much faster
@@ -104,10 +98,27 @@ _metaError: .NOMETA .NOTMAIN
 
 .endif
 
+META_COOKIE_TOUCH=
+# some targets need to be .PHONY in non-meta mode
+META_NOPHONY= .PHONY
 # Are we, after all, in meta mode?
 .if ${.MAKE.MODE:Mmeta*} != ""
 MKDEP_MK = meta.autodep.mk
 
+.if ${.MAKE.MAKEFILES:M*sys.dependfile.mk} == ""
+# this does all the smarts of setting .MAKE.DEPENDFILE
+.-include <sys.dependfile.mk>
+# check if we got anything sane
+.if ${.MAKE.DEPENDFILE} == ".depend"
+.undef .MAKE.DEPENDFILE
+.endif
+.MAKE.DEPENDFILE ?= Makefile.depend
+.endif
+
+# we can afford to use cookies to prevent some targets
+# re-running needlessly
+META_COOKIE_TOUCH= touch ${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET}}
+META_NOPHONY=
 .if ${UPDATE_DEPENDFILE:Uyes:tl} != "no"
 .if ${.MAKEFLAGS:Uno:M-k} != ""
 # make this more obvious

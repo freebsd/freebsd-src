@@ -37,6 +37,25 @@
 
 #include <rdma/ib_mad.h>
 
+#define MAX_U32 0xffffffffULL
+#define MAX_U16 0xffffUL
+
+/* Counters should be saturate once they reach their maximum value */
+#define ASSIGN_32BIT_COUNTER(counter, value) do {	\
+	if ((value) > MAX_U32)				\
+		counter = cpu_to_be32(MAX_U32);		\
+	else						\
+		counter = cpu_to_be32(value);		\
+} while (0)
+
+/* Counters should be saturate once they reach their maximum value */
+#define ASSIGN_16BIT_COUNTER(counter, value) do {	\
+	if ((value) > MAX_U16)				\
+		counter = cpu_to_be16(MAX_U16);		\
+	else						\
+		counter = cpu_to_be16(value);		\
+} while (0)
+
 /*
  * PMA class portinfo capability mask bits
  */

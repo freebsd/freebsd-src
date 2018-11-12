@@ -36,8 +36,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/firmware.h>
@@ -2684,29 +2685,26 @@ bwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ieee80211com *ic = ni->ni_ic;
 	struct bwn_softc *sc = ic->ic_softc;
 	struct bwn_mac *mac = sc->sc_curmac;
+	int error;
 
 	if ((sc->sc_flags & BWN_FLAG_RUNNING) == 0 ||
 	    mac->mac_status < BWN_MAC_STATUS_STARTED) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		return (ENETDOWN);
 	}
 
 	BWN_LOCK(sc);
 	if (bwn_tx_isfull(sc, m)) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		BWN_UNLOCK(sc);
 		return (ENOBUFS);
 	}
 
-	if (bwn_tx_start(sc, ni, m) != 0) {
-		if (ni != NULL)
-			ieee80211_free_node(ni);
-	}
-	sc->sc_watchdog_timer = 5;
+	error = bwn_tx_start(sc, ni, m);
+	if (error == 0)
+		sc->sc_watchdog_timer = 5;
 	BWN_UNLOCK(sc);
-	return (0);
+	return (error);
 }
 
 /*
@@ -2724,8 +2722,7 @@ bwn_updateslot(struct ieee80211com *ic)
 	BWN_LOCK(sc);
 	if (sc->sc_flags & BWN_FLAG_RUNNING) {
 		mac = (struct bwn_mac *)sc->sc_curmac;
-		bwn_set_slot_time(mac,
-		    (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20);
+		bwn_set_slot_time(mac, IEEE80211_GET_SLOTTIME(ic));
 	}
 	BWN_UNLOCK(sc);
 }
@@ -8331,7 +8328,7 @@ bwn_intr(void *arg)
 	BWN_BARRIER(mac, BUS_SPACE_BARRIER_READ);
 	BWN_BARRIER(mac, BUS_SPACE_BARRIER_WRITE);
 
-	taskqueue_enqueue_fast(sc->sc_tq, &mac->mac_intrtask);
+	taskqueue_enqueue(sc->sc_tq, &mac->mac_intrtask);
 	return (FILTER_HANDLED);
 }
 

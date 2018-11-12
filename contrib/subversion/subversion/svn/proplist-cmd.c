@@ -83,7 +83,7 @@ proplist_receiver_xml(void *baton,
             name_local = svn_dirent_local_style(iprop->path_or_url, iterpool);
 
           svn_xml_make_open_tag(&sb, iterpool, svn_xml_normal, "target",
-                            "path", name_local, NULL);
+                            "path", name_local, SVN_VA_NULL);
           SVN_ERR(svn_cmdline__print_xml_prop_hash(&sb, iprop->prop_hash,
                                                    (! opt_state->verbose),
                                                    TRUE, iterpool));
@@ -105,7 +105,7 @@ proplist_receiver_xml(void *baton,
     {
       /* "<target ...>" */
         svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "target",
-                              "path", name_local, NULL);
+                              "path", name_local, SVN_VA_NULL);
 
         SVN_ERR(svn_cmdline__print_xml_prop_hash(&sb, prop_hash,
                                                  (! opt_state->verbose),
@@ -230,7 +230,7 @@ svn_cl__proplist(apr_getopt_t *os,
 
           svn_xml_make_open_tag(&sb, scratch_pool, svn_xml_normal,
                                 "revprops",
-                                "rev", revstr, NULL);
+                                "rev", revstr, SVN_VA_NULL);
           SVN_ERR(svn_cmdline__print_xml_prop_hash(&sb, proplist,
                                                    (! opt_state->verbose),
                                                    FALSE, scratch_pool));
@@ -299,7 +299,7 @@ svn_cl__proplist(apr_getopt_t *os,
                    errors, opt_state->quiet,
                    SVN_ERR_UNVERSIONED_RESOURCE,
                    SVN_ERR_ENTRY_NOT_FOUND,
-                   SVN_NO_ERROR));
+                   0));
         }
       svn_pool_destroy(iterpool);
 

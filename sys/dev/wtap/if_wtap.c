@@ -527,15 +527,9 @@ wtap_rx_proc(void *arg, int npending)
 			/*
 			 * Sending station is known, dispatch directly.
 			 */
-#if 0
-			ieee80211_radiotap_rx(ni->ni_vap, m);
-#endif
 			type = ieee80211_input(ni, m, 1<<7, 10);
 			ieee80211_free_node(ni);
 		} else {
-#if 0
-			ieee80211_radiotap_rx_all(ic, m);
-#endif
 			type = ieee80211_input_all(ic, m, 1<<7, 10);
 		}
 		

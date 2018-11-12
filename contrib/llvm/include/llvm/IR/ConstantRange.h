@@ -82,6 +82,17 @@ public:
   static ConstantRange makeSatisfyingICmpRegion(CmpInst::Predicate Pred,
                                                 const ConstantRange &Other);
 
+  /// Return the largest range containing all X such that "X BinOpC C" does not
+  /// wrap (overflow).
+  ///
+  /// Example:
+  ///  typedef OverflowingBinaryOperator OBO;
+  ///  makeNoWrapRegion(Add, i8 1, OBO::NoSignedWrap) == [-128, 127)
+  ///  makeNoWrapRegion(Add, i8 1, OBO::NoUnsignedWrap) == [0, -1)
+  ///  makeNoWrapRegion(Add, i8 0, OBO::NoUnsignedWrap) == Full Set
+  static ConstantRange makeNoWrapRegion(Instruction::BinaryOps BinOp,
+                                        const APInt &C, unsigned NoWrapKind);
+
   /// Return the lower value for this range.
   ///
   const APInt &getLower() const { return Lower; }
@@ -207,7 +218,7 @@ public:
   /// Make this range have the bit width given by \p BitWidth. The
   /// value is zero extended, truncated, or left alone to make it that width.
   ConstantRange zextOrTrunc(uint32_t BitWidth) const;
-  
+
   /// Make this range have the bit width given by \p BitWidth. The
   /// value is sign extended, truncated, or left alone to make it that width.
   ConstantRange sextOrTrunc(uint32_t BitWidth) const;
@@ -258,7 +269,7 @@ public:
   /// Return a new range that is the logical not of the current set.
   ///
   ConstantRange inverse() const;
-  
+
   /// Print out the bounds to a stream.
   ///
   void print(raw_ostream &OS) const;

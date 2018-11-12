@@ -6,6 +6,13 @@
  * This file is in the Public Domain.
  */
 
+#ifdef __FreeBSD__
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#include "freebsd_test_suite/macros.h"
+#endif
+
 #include <atf-c.h>
 
 #include <stdio.h>
@@ -111,16 +118,28 @@ ATF_TC_BODY(mqueue, tc)
 	char template[32];
 	char mq_name[64];
 
+#ifdef __FreeBSD__
+	ATF_REQUIRE_KERNEL_MODULE("mqueuefs");
+#endif
+
 	strlcpy(template, "./t_mqueue.XXXXXX", sizeof(template));
 	tmpdir = mkdtemp(template);
 	ATF_REQUIRE_MSG(tmpdir != NULL, "mkdtemp failed: %d", errno);
+#ifdef __FreeBSD__
+	snprintf(mq_name, sizeof(mq_name), "/t_mqueue");
+#else
 	snprintf(mq_name, sizeof(mq_name), "%s/mq", tmpdir);
+#endif
 
 	mqd_t mqfd;
 
 	mqfd = mq_open(mq_name, O_RDWR | O_CREAT,
 	    S_IRUSR | S_IRWXG | S_IROTH, NULL);
+#ifdef __FreeBSD__
+	ATF_REQUIRE_MSG(mqfd != (mqd_t)-1, "mq_open failed: %d", errno);
+#else
 	ATF_REQUIRE_MSG(mqfd != -1, "mq_open failed: %d", errno);
+#endif
 
 	send_msgs(mqfd);
 	receive_msgs(mqfd);

@@ -568,14 +568,16 @@ static int
 null_remove(struct vop_remove_args *ap)
 {
 	int retval, vreleit;
-	struct vnode *lvp;
+	struct vnode *lvp, *vp;
 
-	if (vrefcnt(ap->a_vp) > 1) {
-		lvp = NULLVPTOLOWERVP(ap->a_vp);
+	vp = ap->a_vp;
+	if (vrefcnt(vp) > 1) {
+		lvp = NULLVPTOLOWERVP(vp);
 		VREF(lvp);
 		vreleit = 1;
 	} else
 		vreleit = 0;
+	VTONULL(vp)->null_flags |= NULLV_DROP;
 	retval = null_bypass(&ap->a_gen);
 	if (vreleit != 0)
 		vrele(lvp);
@@ -615,6 +617,14 @@ null_rename(struct vop_rename_args *ap)
 		tnn->null_flags |= NULLV_DROP;
 	}
 	return (null_bypass((struct vop_generic_args *)ap));
+}
+
+static int
+null_rmdir(struct vop_rmdir_args *ap)
+{
+
+	VTONULL(ap->a_vp)->null_flags |= NULLV_DROP;
+	return (null_bypass(&ap->a_gen));
 }
 
 /*
@@ -918,6 +928,7 @@ struct vop_vector null_vnodeops = {
 	.vop_reclaim =		null_reclaim,
 	.vop_remove =		null_remove,
 	.vop_rename =		null_rename,
+	.vop_rmdir =		null_rmdir,
 	.vop_setattr =		null_setattr,
 	.vop_strategy =		VOP_EOPNOTSUPP,
 	.vop_unlock =		null_unlock,

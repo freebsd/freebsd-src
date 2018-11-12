@@ -59,13 +59,6 @@
 #define elf_info_to_howto               0
 #define elf_info_to_howto_rel           elf32_arm_info_to_howto
 
-#define ARM_ELF_ABI_VERSION		0
-#ifdef __FreeBSD__
-#define ARM_ELF_OS_ABI_VERSION		ELFOSABI_FREEBSD
-#else
-#define ARM_ELF_OS_ABI_VERSION		ELFOSABI_ARM
-#endif
-
 static struct elf_backend_data elf32_arm_vxworks_bed;
 
 /* Note: code such as elf32_arm_reloc_type_lookup expect to use e.g.
@@ -5800,7 +5793,7 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
 	if (globals->use_rel)
 	  {
 	    addend = ((insn >> 4) & 0xf000) | (insn & 0xfff);
-	    signed_addend = (addend ^ 0x10000) - 0x10000;
+	    signed_addend = (addend ^ 0x8000) - 0x8000;
 	  }
 
 	value += signed_addend;
@@ -7720,12 +7713,26 @@ elf32_arm_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		   refers to is in a different object.  We can't tell for
 		   sure yet, because something later might force the
 		   symbol local.  */
-		if (r_type != R_ARM_ABS32
-                    && r_type != R_ARM_REL32
-                    && r_type != R_ARM_ABS32_NOI
-                    && r_type != R_ARM_REL32_NOI
-                    && r_type != R_ARM_ABS12)
-		  h->needs_plt = 1;
+		switch (r_type)
+		  {
+		    case R_ARM_ABS12:
+		    case R_ARM_ABS32:
+		    case R_ARM_ABS32_NOI:
+		    case R_ARM_REL32:
+		    case R_ARM_REL32_NOI:
+		    case R_ARM_MOVW_ABS_NC:
+		    case R_ARM_MOVT_ABS:
+		    case R_ARM_MOVW_PREL_NC:
+		    case R_ARM_MOVT_PREL:
+		    case R_ARM_THM_MOVW_ABS_NC:
+		    case R_ARM_THM_MOVT_ABS:
+		    case R_ARM_THM_MOVW_PREL_NC:
+		    case R_ARM_THM_MOVT_PREL:
+		      break;
+		    default:
+		      h->needs_plt = 1;
+		      break;
+		  }
 
 		/* If we create a PLT entry, this relocation will reference
 		   it, even if it's an ABS32 relocation.  */
@@ -9363,11 +9370,8 @@ elf32_arm_post_process_headers (bfd * abfd, struct bfd_link_info * link_info ATT
 
   i_ehdrp = elf_elfheader (abfd);
 
-  if (EF_ARM_EABI_VERSION (i_ehdrp->e_flags) == EF_ARM_EABI_UNKNOWN)
-    i_ehdrp->e_ident[EI_OSABI] = ARM_ELF_OS_ABI_VERSION;
-  else
-    i_ehdrp->e_ident[EI_OSABI] = 0;
-  i_ehdrp->e_ident[EI_ABIVERSION] = ARM_ELF_ABI_VERSION;
+  i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
+  i_ehdrp->e_ident[EI_ABIVERSION] = 0;
 
   if (link_info)
     {

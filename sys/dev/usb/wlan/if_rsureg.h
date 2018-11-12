@@ -793,12 +793,10 @@ struct rsu_softc {
 		uint8_t	pad[64];
 	}				sc_rxtapu;
 #define sc_rxtap	sc_rxtapu.th
-	int				sc_rxtap_len;
 
 	union {
 		struct rsu_tx_radiotap_header th;
 		uint8_t	pad[64];
 	}				sc_txtapu;
 #define sc_txtap	sc_txtapu.th
-	int				sc_txtap_len;
 };

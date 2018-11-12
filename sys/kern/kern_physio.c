@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 int
 physio(struct cdev *dev, struct uio *uio, int ioflag)
 {
+	struct cdevsw *csw;
 	struct buf *pbuf;
 	struct bio *bp;
 	struct vm_page **pages;
@@ -45,6 +46,11 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	u_int iolen, poff;
 	int error, i, npages, maxpages;
 	vm_prot_t prot;
+
+	csw = dev->si_devsw;
+	/* check if character device is being destroyed */
+	if (csw == NULL)
+		return (ENXIO);
 
 	/* XXX: sanity check */
 	if(dev->si_iosize_max < PAGE_SIZE) {
@@ -104,7 +110,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	error = 0;
 	for (i = 0; i < uio->uio_iovcnt; i++) {
 		while (uio->uio_iov[i].iov_len) {
-			bzero(bp, sizeof(*bp));
+			g_reset_bio(bp);
 			if (uio->uio_rw == UIO_READ) {
 				bp->bio_cmd = BIO_READ;
 				curthread->td_ru.ru_inblock++;
@@ -165,7 +171,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 				}
 			}
 
-			dev->si_devsw->d_strategy(bp);
+			csw->d_strategy(bp);
 			if (uio->uio_rw == UIO_READ)
 				biowait(bp, "physrd");
 			else

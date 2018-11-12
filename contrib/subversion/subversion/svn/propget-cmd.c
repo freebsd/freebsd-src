@@ -44,7 +44,8 @@
 #include "cl.h"
 
 #include "private/svn_cmdline_private.h"
-
+#include "private/svn_opt_private.h"
+#include "private/svn_sorts_private.h"
 #include "svn_private_config.h"
 
 
@@ -88,7 +89,7 @@ print_properties_xml(const char *pname,
           const char *name_local;
           svn_prop_inherited_item_t *iprop =
            APR_ARRAY_IDX(inherited_props, i, svn_prop_inherited_item_t *);
-          svn_string_t *propval = svn__apr_hash_index_val(
+          svn_string_t *propval = apr_hash_this_val(
             apr_hash_first(pool, iprop->prop_hash));
 
           sb = NULL;
@@ -100,7 +101,7 @@ print_properties_xml(const char *pname,
             name_local = svn_dirent_local_style(iprop->path_or_url, iterpool);
 
           svn_xml_make_open_tag(&sb, iterpool, svn_xml_normal, "target",
-                            "path", name_local, NULL);
+                            "path", name_local, SVN_VA_NULL);
 
           svn_cmdline__print_xml_prop(&sb, pname, propval, TRUE, iterpool);
           svn_xml_make_close_tag(&sb, iterpool, "target");
@@ -123,7 +124,7 @@ print_properties_xml(const char *pname,
       svn_pool_clear(iterpool);
 
       svn_xml_make_open_tag(&sb, iterpool, svn_xml_normal, "target",
-                        "path", filename, NULL);
+                        "path", filename, SVN_VA_NULL);
       svn_cmdline__print_xml_prop(&sb, pname, propval, FALSE, iterpool);
       svn_xml_make_close_tag(&sb, iterpool, "target");
 
@@ -277,7 +278,7 @@ print_properties(svn_stream_t *out,
         {
           svn_prop_inherited_item_t *iprop =
             APR_ARRAY_IDX(inherited_props, i, svn_prop_inherited_item_t *);
-          svn_string_t *propval = svn__apr_hash_index_val(apr_hash_first(pool,
+          svn_string_t *propval = apr_hash_this_val(apr_hash_first(pool,
                                                           iprop->prop_hash));
           SVN_ERR(print_single_prop(propval, target_abspath_or_url,
                                     iprop->path_or_url,
@@ -319,12 +320,13 @@ svn_cl__propget(apr_getopt_t *os,
   const char *pname, *pname_utf8;
   apr_array_header_t *args, *targets;
   svn_stream_t *out;
+  svn_boolean_t warned = FALSE;
 
-  if (opt_state->verbose && (opt_state->revprop || opt_state->strict
+  if (opt_state->verbose && (opt_state->revprop || opt_state->no_newline
                              || opt_state->xml))
     return svn_error_create(SVN_ERR_CL_MUTUALLY_EXCLUSIVE_ARGS, NULL,
                             _("--verbose cannot be used with --revprop or "
-                              "--strict or --xml"));
+                              "--no-newline or --xml"));
 
   /* PNAME is first argument (and PNAME_UTF8 will be a UTF-8 version
      thereof) */
@@ -365,7 +367,17 @@ svn_cl__propget(apr_getopt_t *os,
                                      URL, &(opt_state->start_revision),
                                      &rev, ctx, pool));
 
-      if (propval != NULL)
+      if (propval == NULL)
+        {
+          return svn_error_createf(SVN_ERR_PROPERTY_NOT_FOUND, NULL,
+                                   _("Property '%s' not found on "
+                                     "revision %s"),
+                                   pname_utf8,
+                                   svn_opt__revision_to_string(
+                                     &opt_state->start_revision,
+                                     pool));
+        }
+      else
         {
           if (opt_state->xml)
             {
@@ -376,7 +388,7 @@ svn_cl__propget(apr_getopt_t *os,
 
               svn_xml_make_open_tag(&sb, pool, svn_xml_normal,
                                     "revprops",
-                                    "rev", revstr, NULL);
+                                    "rev", revstr, SVN_VA_NULL);
 
               svn_cmdline__print_xml_prop(&sb, pname_utf8, propval, FALSE,
                                           pool);
@@ -399,7 +411,7 @@ svn_cl__propget(apr_getopt_t *os,
 
               SVN_ERR(stream_write(out, printable_val->data,
                                    printable_val->len));
-              if (! opt_state->strict)
+              if (! opt_state->no_newline)
                 SVN_ERR(stream_write(out, APR_EOL_STR, strlen(APR_EOL_STR)));
             }
         }
@@ -415,15 +427,16 @@ svn_cl__propget(apr_getopt_t *os,
       if (opt_state->depth == svn_depth_unknown)
         opt_state->depth = svn_depth_empty;
 
-      /* Strict mode only makes sense for a single target.  So make
+      /* No-newline mode only makes sense for a single target.  So make
          sure we have only a single target, and that we're not being
          asked to recurse on that target. */
-      if (opt_state->strict
-          && ((targets->nelts > 1) || (opt_state->depth != svn_depth_empty)))
+      if (opt_state->no_newline
+          && ((targets->nelts > 1) || (opt_state->depth != svn_depth_empty)
+              || (opt_state->show_inherited_props)))
         return svn_error_create
           (SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
-           _("Strict output of property values only available for single-"
-             "target, non-recursive propget operations"));
+           _("--no-newline is only available for single-target,"
+             " non-recursive propget operations"));
 
       for (i = 0; i < targets->nelts; i++)
         {
@@ -459,15 +472,30 @@ svn_cl__propget(apr_getopt_t *os,
           /* Any time there is more than one thing to print, or where
              the path associated with a printed thing is not obvious,
              we'll print filenames.  That is, unless we've been told
-             not to do so with the --strict option. */
+             not to do so with the --no-newline option. */
           print_filenames = ((opt_state->depth > svn_depth_empty
                               || targets->nelts > 1
                               || apr_hash_count(props) > 1
                               || opt_state->verbose
                               || opt_state->show_inherited_props)
-                             && (! opt_state->strict));
-          omit_newline = opt_state->strict;
-          like_proplist = opt_state->verbose && !opt_state->strict;
+                             && (! opt_state->no_newline));
+          omit_newline = opt_state->no_newline;
+          like_proplist = opt_state->verbose && !opt_state->no_newline;
+
+          /* If there are no properties, and exactly one node was queried,
+             then warn. */
+          if (opt_state->depth == svn_depth_empty
+              && !opt_state->show_inherited_props
+              && apr_hash_count(props) == 0)
+            {
+              svn_error_t *err;
+              err = svn_error_createf(SVN_ERR_PROPERTY_NOT_FOUND, NULL,
+                                      _("Property '%s' not found on '%s'"),
+                                      pname_utf8, target);
+              svn_handle_warning2(stderr, err, "svn: ");
+              svn_error_clear(err);
+              warned = TRUE;
+            }
 
           if (opt_state->xml)
             SVN_ERR(print_properties_xml(
@@ -488,6 +516,9 @@ svn_cl__propget(apr_getopt_t *os,
 
       svn_pool_destroy(subpool);
     }
+
+  if (warned)
+    return svn_error_create(SVN_ERR_BASE, NULL, NULL);
 
   return SVN_NO_ERROR;
 }

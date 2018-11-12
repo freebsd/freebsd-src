@@ -535,7 +535,7 @@ void ata_pci_write_config(device_t dev, device_t child, int reg,
 int ata_pci_print_child(device_t dev, device_t child);
 int ata_pci_child_location_str(device_t dev, device_t child, char *buf,
     size_t buflen);
-struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
+struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, struct resource *r);
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_filter_t *filter, driver_intr_t *function, void *argument, void **cookiep);
  int ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq, void *cookie);

@@ -181,6 +181,7 @@ int random_get_bytes(void *buf, size_t len)
 
 #ifdef CONFIG_FIPS
 	/* Mix in additional entropy from the crypto module */
+	bytes = buf;
 	left = len;
 	while (left) {
 		size_t siz, i;

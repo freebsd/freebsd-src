@@ -14,9 +14,6 @@ SRCS=	proc_bkpt.c		\
 INCS=	libproc.h
 
 CFLAGS+=	-I${.CURDIR}
-# avoid cyclic dependency
-CFLAGS+=	-I${.CURDIR:H}/librtld_db
-GENDIRDEPS_FILTER+= Nlib/librtld_db
 
 .if ${MK_CXX} == "no"
 CFLAGS+=	-DNO_CXA_DEMANGLE

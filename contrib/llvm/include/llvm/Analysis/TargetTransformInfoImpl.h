@@ -19,8 +19,10 @@
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/IR/Type.h"
+#include "llvm/Analysis/VectorUtils.h"
 
 namespace llvm {
 
@@ -100,7 +102,8 @@ public:
     }
   }
 
-  unsigned getGEPCost(const Value *Ptr, ArrayRef<const Value *> Operands) {
+  unsigned getGEPCost(Type *PointeeType, const Value *Ptr,
+                      ArrayRef<const Value *> Operands) {
     // In the basic model, we just assume that all-constant GEPs will be folded
     // into their uses via addressing modes.
     for (unsigned Idx = 0, Size = Operands.size(); Idx != Size; ++Idx)
@@ -145,9 +148,6 @@ public:
     case Intrinsic::objectsize:
     case Intrinsic::ptr_annotation:
     case Intrinsic::var_annotation:
-    case Intrinsic::experimental_gc_result_int:
-    case Intrinsic::experimental_gc_result_float:
-    case Intrinsic::experimental_gc_result_ptr:
     case Intrinsic::experimental_gc_result:
     case Intrinsic::experimental_gc_relocate:
       // These intrinsics don't actually represent code after lowering.
@@ -207,9 +207,13 @@ public:
     return !BaseGV && BaseOffset == 0 && (Scale == 0 || Scale == 1);
   }
 
-  bool isLegalMaskedStore(Type *DataType, int Consecutive) { return false; }
+  bool isLegalMaskedStore(Type *DataType) { return false; }
 
-  bool isLegalMaskedLoad(Type *DataType, int Consecutive) { return false; }
+  bool isLegalMaskedLoad(Type *DataType) { return false; }
+
+  bool isLegalMaskedScatter(Type *DataType) { return false; }
+
+  bool isLegalMaskedGather(Type *DataType) { return false; }
 
   int getScalingFactorCost(Type *Ty, GlobalValue *BaseGV, int64_t BaseOffset,
                            bool HasBaseReg, int64_t Scale, unsigned AddrSpace) {
@@ -233,6 +237,8 @@ public:
   bool shouldBuildLookupTables() { return true; }
 
   bool enableAggressiveInterleaving(bool LoopHasReductions) { return false; }
+
+  bool enableInterleavedAccessVectorization() { return false; }
 
   TTI::PopcntSupportKind getPopcntSupport(unsigned IntTyWidthInBit) {
     return TTI::PSK_Software;
@@ -295,6 +301,12 @@ public:
     return 1;
   }
 
+  unsigned getGatherScatterOpCost(unsigned Opcode, Type *DataTy, Value *Ptr,
+                                  bool VariableMask,
+                                  unsigned Alignment) {
+    return 1;
+  }
+
   unsigned getInterleavedMemoryOpCost(unsigned Opcode, Type *VecTy,
                                       unsigned Factor,
                                       ArrayRef<unsigned> Indices,
@@ -305,6 +317,10 @@ public:
 
   unsigned getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
                                  ArrayRef<Type *> Tys) {
+    return 1;
+  }
+  unsigned getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
+                                 ArrayRef<Value *> Args) {
     return 1;
   }
 
@@ -329,8 +345,8 @@ public:
     return nullptr;
   }
 
-  bool hasCompatibleFunctionAttributes(const Function *Caller,
-                                       const Function *Callee) const {
+  bool areInlineCompatible(const Function *Caller,
+                           const Function *Callee) const {
     return (Caller->getFnAttribute("target-cpu") ==
             Callee->getFnAttribute("target-cpu")) &&
            (Caller->getFnAttribute("target-features") ==
@@ -386,6 +402,61 @@ public:
     return static_cast<T *>(this)->getCallCost(F, Arguments.size());
   }
 
+  using BaseT::getGEPCost;
+
+  unsigned getGEPCost(Type *PointeeType, const Value *Ptr,
+                      ArrayRef<const Value *> Operands) {
+    const GlobalValue *BaseGV = nullptr;
+    if (Ptr != nullptr) {
+      // TODO: will remove this when pointers have an opaque type.
+      assert(Ptr->getType()->getScalarType()->getPointerElementType() ==
+                 PointeeType &&
+             "explicit pointee type doesn't match operand's pointee type");
+      BaseGV = dyn_cast<GlobalValue>(Ptr->stripPointerCasts());
+    }
+    bool HasBaseReg = (BaseGV == nullptr);
+    int64_t BaseOffset = 0;
+    int64_t Scale = 0;
+
+    // Assumes the address space is 0 when Ptr is nullptr.
+    unsigned AS =
+        (Ptr == nullptr ? 0 : Ptr->getType()->getPointerAddressSpace());
+    auto GTI = gep_type_begin(PointerType::get(PointeeType, AS), Operands);
+    for (auto I = Operands.begin(); I != Operands.end(); ++I, ++GTI) {
+      // We assume that the cost of Scalar GEP with constant index and the
+      // cost of Vector GEP with splat constant index are the same.
+      const ConstantInt *ConstIdx = dyn_cast<ConstantInt>(*I);
+      if (!ConstIdx)
+        if (auto Splat = getSplatValue(*I))
+          ConstIdx = dyn_cast<ConstantInt>(Splat);
+      if (isa<SequentialType>(*GTI)) {
+        int64_t ElementSize = DL.getTypeAllocSize(GTI.getIndexedType());
+        if (ConstIdx)
+          BaseOffset += ConstIdx->getSExtValue() * ElementSize;
+        else {
+          // Needs scale register.
+          if (Scale != 0)
+            // No addressing mode takes two scale registers.
+            return TTI::TCC_Basic;
+          Scale = ElementSize;
+        }
+      } else {
+        StructType *STy = cast<StructType>(*GTI);
+        // For structures the index is always splat or scalar constant
+        assert(ConstIdx && "Unexpected GEP index");
+        uint64_t Field = ConstIdx->getZExtValue();
+        BaseOffset += DL.getStructLayout(STy)->getElementOffset(Field);
+      }
+    }
+
+    if (static_cast<T *>(this)->isLegalAddressingMode(
+            PointerType::get(*GTI, AS), const_cast<GlobalValue *>(BaseGV),
+            BaseOffset, HasBaseReg, Scale, AS)) {
+      return TTI::TCC_Free;
+    }
+    return TTI::TCC_Basic;
+  }
+
   using BaseT::getIntrinsicCost;
 
   unsigned getIntrinsicCost(Intrinsic::ID IID, Type *RetTy,
@@ -405,9 +476,9 @@ public:
       return TTI::TCC_Free; // Model all PHI nodes as free.
 
     if (const GEPOperator *GEP = dyn_cast<GEPOperator>(U)) {
-      SmallVector<const Value *, 4> Indices(GEP->idx_begin(), GEP->idx_end());
-      return static_cast<T *>(this)
-          ->getGEPCost(GEP->getPointerOperand(), Indices);
+      SmallVector<Value *, 4> Indices(GEP->idx_begin(), GEP->idx_end());
+      return static_cast<T *>(this)->getGEPCost(
+          GEP->getSourceElementType(), GEP->getPointerOperand(), Indices);
     }
 
     if (auto CS = ImmutableCallSite(U)) {

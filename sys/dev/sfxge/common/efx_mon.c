@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_MON_NULL
@@ -62,6 +59,7 @@ static const char	*__efx_mon_name[] = {
 	"max6647",
 	"sfx90x0",
 	"sfx91x0"
+	"sfx92x0"
 };
 
 		const char *
@@ -119,43 +117,15 @@ static efx_mon_ops_t	__efx_mon_mcdi_ops = {
 };
 #endif
 
-static efx_mon_ops_t	*__efx_mon_ops[] = {
-	NULL,
-#if EFSYS_OPT_MON_NULL
-	&__efx_mon_null_ops,
-#else
-	NULL,
-#endif
-#if EFSYS_OPT_MON_LM87
-	&__efx_mon_lm87_ops,
-#else
-	NULL,
-#endif
-#if EFSYS_OPT_MON_MAX6647
-	&__efx_mon_max6647_ops,
-#else
-	NULL,
-#endif
-#if EFSYS_OPT_MON_MCDI
-	&__efx_mon_mcdi_ops,
-#else
-	NULL,
-#endif
-#if EFSYS_OPT_MON_MCDI
-	&__efx_mon_mcdi_ops
-#else
-	NULL
-#endif
-};
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_mon_init(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mon_t *emp = &(enp->en_mon);
 	efx_mon_ops_t *emop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -170,8 +140,30 @@ efx_mon_init(
 	emp->em_type = encp->enc_mon_type;
 
 	EFSYS_ASSERT(encp->enc_mon_type != EFX_MON_INVALID);
-	EFSYS_ASSERT3U(emp->em_type, <, EFX_MON_NTYPES);
-	if ((emop = (efx_mon_ops_t *)__efx_mon_ops[emp->em_type]) == NULL) {
+	switch (emp->em_type) {
+#if EFSYS_OPT_MON_NULL
+	case EFX_MON_NULL:
+		emop = &__efx_mon_null_ops;
+		break;
+#endif
+#if EFSYS_OPT_MON_LM87
+	case EFX_MON_LM87:
+		emop = &__efx_mon_lm87_ops;
+		break;
+#endif
+#if EFSYS_OPT_MON_MAX6647
+	case EFX_MON_MAX6647:
+		emop = &__efx_mon_max6647_ops;
+		break;
+#endif
+#if EFSYS_OPT_MON_MCDI
+	case EFX_MON_SFC90X0:
+	case EFX_MON_SFC91X0:
+	case EFX_MON_SFC92X0:
+		emop = &__efx_mon_mcdi_ops;
+		break;
+#endif
+	default:
 		rc = ENOTSUP;
 		goto fail2;
 	}
@@ -205,7 +197,7 @@ fail2:
 	enp->en_mod_flags &= ~EFX_MOD_MON;
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -214,7 +206,7 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED MonitorStatNamesBlock b9328f15438c4d01 */
+/* START MKCONFIG GENERATED MonitorStatNamesBlock 01ee3ea01f23a0c4 */
 static const char 	*__mon_stat_name[] = {
 	"value_2_5v",
 	"value_vccp1",
@@ -285,6 +277,12 @@ static const char 	*__mon_stat_name[] = {
 	"controller_slave_internal_temp",
 	"controller_slave_vptat_ext_adc",
 	"controller_slave_internal_temp_ext_adc",
+	"sodimm_vout",
+	"sodimm_0_temp",
+	"sodimm_1_temp",
+	"phy0_vcc",
+	"phy1_vcc",
+	"controller_tdiode_temp",
 };
 
 /* END MKCONFIG GENERATED MonitorStatNamesBlock */
@@ -303,11 +301,11 @@ efx_mon_stat_name(
 
 #endif	/* EFSYS_OPT_NAMES */
 
-	__checkReturn			int
+	__checkReturn			efx_rc_t
 efx_mon_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
+	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
 {
 	efx_mon_t *emp = &(enp->en_mon);
 	efx_mon_ops_t *emop = emp->em_emop;
@@ -326,7 +324,7 @@ efx_mon_fini(
 {
 	efx_mon_t *emp = &(enp->en_mon);
 	efx_mon_ops_t *emop = emp->em_emop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -337,7 +335,7 @@ efx_mon_fini(
 	if (emop->emo_reset != NULL) {
 		rc = emop->emo_reset(enp);
 		if (rc != 0)
-			EFSYS_PROBE1(fail1, int, rc);
+			EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	}
 
 	emp->em_type = EFX_MON_INVALID;

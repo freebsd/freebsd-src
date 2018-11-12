@@ -574,6 +574,10 @@ svn_fs_base__set_txn_prop(svn_fs_t *fs,
     txn->proplist = apr_hash_make(pool);
 
   /* Set the property. */
+  if (svn_hash_gets(txn->proplist, SVN_FS__PROP_TXN_CLIENT_DATE)
+      && !strcmp(name, SVN_PROP_REVISION_DATE))
+    svn_hash_sets(txn->proplist, SVN_FS__PROP_TXN_CLIENT_DATE,
+                  svn_string_create("1", pool));
   svn_hash_sets(txn->proplist, name, value);
 
   /* Now overwrite the transaction. */
@@ -707,6 +711,34 @@ txn_body_begin_txn(void *baton, trail_t *trail)
       SVN_ERR(txn_body_change_txn_prop(&cpargs, trail));
     }
 
+  /* Put a datestamp on the newly created txn, so we always know
+     exactly how old it is.  (This will help sysadmins identify
+     long-abandoned txns that may need to be manually removed.) Do
+     this before setting CLIENT_DATE so that it is not recorded as an
+     explicit setting. */
+  {
+    struct change_txn_prop_args cpargs;
+    svn_string_t date;
+    cpargs.fs = trail->fs;
+    cpargs.id = txn_id;
+    cpargs.name = SVN_PROP_REVISION_DATE;
+    date.data  = svn_time_to_cstring(apr_time_now(), trail->pool);
+    date.len = strlen(date.data);
+    cpargs.value = &date;
+    SVN_ERR(txn_body_change_txn_prop(&cpargs, trail));
+  }
+
+  if (args->flags & SVN_FS_TXN_CLIENT_DATE)
+    {
+      struct change_txn_prop_args cpargs;
+      cpargs.fs = trail->fs;
+      cpargs.id = txn_id;
+      cpargs.name = SVN_FS__PROP_TXN_CLIENT_DATE;
+      cpargs.value = svn_string_create("0", trail->pool);
+
+      SVN_ERR(txn_body_change_txn_prop(&cpargs, trail));
+    }
+
   *args->txn_p = make_txn(trail->fs, txn_id, args->base_rev, trail->pool);
   return SVN_NO_ERROR;
 }
@@ -722,7 +754,6 @@ svn_fs_base__begin_txn(svn_fs_txn_t **txn_p,
 {
   svn_fs_txn_t *txn;
   struct begin_txn_args args;
-  svn_string_t date;
 
   SVN_ERR(svn_fs__check_fs(fs, TRUE));
 
@@ -733,15 +764,7 @@ svn_fs_base__begin_txn(svn_fs_txn_t **txn_p,
 
   *txn_p = txn;
 
-  /* Put a datestamp on the newly created txn, so we always know
-     exactly how old it is.  (This will help sysadmins identify
-     long-abandoned txns that may need to be manually removed.)  When
-     a txn is promoted to a revision, this property will be
-     automatically overwritten with a revision datestamp. */
-  date.data = svn_time_to_cstring(apr_time_now(), pool);
-  date.len = strlen(date.data);
-  return svn_fs_base__change_txn_prop(txn, SVN_PROP_REVISION_DATE,
-                                       &date, pool);
+  return SVN_NO_ERROR;
 }
 
 
@@ -897,7 +920,7 @@ delete_txn_tree(svn_fs_t *fs,
   svn_error_t *err;
 
   /* If this sucker isn't mutable, there's nothing to do. */
-  if (svn_fs_base__key_compare(svn_fs_base__id_txn_id(id), txn_id) != 0)
+  if (strcmp(svn_fs_base__id_txn_id(id), txn_id) != 0)
     return SVN_NO_ERROR;
 
   /* See if the thing has dirents that need to be recursed upon.  If

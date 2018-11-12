@@ -154,7 +154,7 @@ u_long	asn2ntp		(ASN1_TIME *);
  * Program variables
  */
 extern char *optarg;		/* command line argument */
-char	*progname;
+char	const *progname;
 u_int	lifetime = DAYSPERYEAR;	/* certificate lifetime (days) */
 int	nkeys;			/* MV keys */
 time_t	epoch;			/* Unix epoch (seconds) since 1970 */
@@ -187,7 +187,7 @@ readlink(
 	int	len
 	)
 {
-	return strlen(file);
+	return (int)strlen(file); /* assume no overflow possible */
 }
 
 /*
@@ -355,8 +355,8 @@ main(
 	fstamp = (u_int)(epoch + JAN_1970);
 
 	optct = ntpOptionProcess(&ntp_keygenOptions, argc, argv);
-	argc -= optct;
-	argv += optct;
+	argc -= optct;	// Just in case we care later.
+	argv += optct;	// Just in case we care later.
 
 #ifdef OPENSSL
 	if (SSLeay() == SSLEAY_VERSION_NUMBER)
@@ -1957,10 +1957,10 @@ x509	(
 	X509_time_adj(X509_get_notAfter(cert), lifetime * SECSPERDAY, &epoch);
 	subj = X509_get_subject_name(cert);
 	X509_NAME_add_entry_by_txt(subj, "commonName", MBSTRING_ASC,
-	    (u_char *)name, strlen(name), -1, 0);
+	    (u_char *)name, -1, -1, 0);
 	subj = X509_get_issuer_name(cert);
 	X509_NAME_add_entry_by_txt(subj, "commonName", MBSTRING_ASC,
-	    (u_char *)name, strlen(name), -1, 0);
+	    (u_char *)name, -1, -1, 0);
 	if (!X509_set_pubkey(cert, pkey)) {
 		fprintf(stderr, "Assign certificate signing key fails\n%s\n",
 		    ERR_error_string(ERR_get_error(), NULL));

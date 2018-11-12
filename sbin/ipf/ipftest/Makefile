@@ -22,7 +22,6 @@ CFLAGS+=	-DIPFILTER_LOG -DIPFILTER_COMPILED -DIPFILTER_LOOKUP \
 .PATH:		${.CURDIR}/../../../sys/contrib/ipfilter/netinet
 
 GENHDRS=	ipnat_l.h ipnat_y.h ippool_l.h ippool_y.h ipf_l.h ipf_y.h
-DPSRCS+=	${GENHDRS}
 
 CLEANFILES+=	${GENHDRS} 
 CLEANFILES+=	ipf_y.c ipf_l.c

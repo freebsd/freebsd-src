@@ -34,11 +34,11 @@
 #include "svn_diff.h"
 #include "svn_types.h"
 #include "svn_ctype.h"
-#include "svn_sorts.h"
 #include "svn_utf.h"
 #include "svn_version.h"
 
 #include "private/svn_diff_private.h"
+#include "private/svn_sorts_private.h"
 #include "diff.h"
 
 #include "svn_private_config.h"
@@ -77,9 +77,11 @@ svn_diff_contains_diffs(svn_diff_t *diff)
 }
 
 svn_error_t *
-svn_diff_output(svn_diff_t *diff,
-                void *output_baton,
-                const svn_diff_output_fns_t *vtable)
+svn_diff_output2(svn_diff_t *diff,
+                 void *output_baton,
+                 const svn_diff_output_fns_t *vtable,
+                 svn_cancel_func_t cancel_func,
+                 void *cancel_baton)
 {
   svn_error_t *(*output_fn)(void *,
                             apr_off_t, apr_off_t,
@@ -88,6 +90,9 @@ svn_diff_output(svn_diff_t *diff,
 
   while (diff != NULL)
     {
+      if (cancel_func)
+        SVN_ERR(cancel_func(cancel_baton));
+
       switch (diff->type)
         {
         case svn_diff__type_common:
@@ -449,11 +454,19 @@ display_mergeinfo_diff(const char *old_mergeinfo_val,
                               new_mergeinfo_hash,
                               TRUE, pool, pool));
 
+  /* Print a hint for 'svn patch' or smilar tools, indicating the
+   * number of reverse-merges and forward-merges. */
+  SVN_ERR(svn_stream_printf_from_utf8(outstream, encoding, pool,
+                                      "## -0,%u +0,%u ##%s",
+                                      apr_hash_count(deleted),
+                                      apr_hash_count(added),
+                                      APR_EOL_STR));
+
   for (hi = apr_hash_first(pool, deleted);
        hi; hi = apr_hash_next(hi))
     {
-      const char *from_path = svn__apr_hash_index_key(hi);
-      svn_rangelist_t *merge_revarray = svn__apr_hash_index_val(hi);
+      const char *from_path = apr_hash_this_key(hi);
+      svn_rangelist_t *merge_revarray = apr_hash_this_val(hi);
       svn_string_t *merge_revstr;
 
       svn_pool_clear(iterpool);
@@ -469,8 +482,8 @@ display_mergeinfo_diff(const char *old_mergeinfo_val,
   for (hi = apr_hash_first(pool, added);
        hi; hi = apr_hash_next(hi))
     {
-      const char *from_path = svn__apr_hash_index_key(hi);
-      svn_rangelist_t *merge_revarray = svn__apr_hash_index_val(hi);
+      const char *from_path = apr_hash_this_key(hi);
+      svn_rangelist_t *merge_revarray = apr_hash_this_val(hi);
       svn_string_t *merge_revstr;
 
       svn_pool_clear(iterpool);
@@ -487,7 +500,7 @@ display_mergeinfo_diff(const char *old_mergeinfo_val,
   return SVN_NO_ERROR;
 }
 
-/* qsort callback handling svn_prop_t by name */
+/* svn_sort__array callback handling svn_prop_t by name */
 static int
 propchange_sort(const void *k1, const void *k2)
 {
@@ -503,6 +516,9 @@ svn_diff__display_prop_diffs(svn_stream_t *outstream,
                              const apr_array_header_t *propchanges,
                              apr_hash_t *original_props,
                              svn_boolean_t pretty_print_mergeinfo,
+                             int context_size,
+                             svn_cancel_func_t cancel_func,
+                             void *cancel_baton,
                              apr_pool_t *scratch_pool)
 {
   apr_pool_t *pool = scratch_pool;
@@ -510,7 +526,7 @@ svn_diff__display_prop_diffs(svn_stream_t *outstream,
   apr_array_header_t *changes = apr_array_copy(scratch_pool, propchanges);
   int i;
 
-  qsort(changes->elts, changes->nelts, changes->elt_size, propchange_sort);
+  svn_sort__array(changes, propchange_sort);
 
   for (i = 0; i < changes->nelts; i++)
     {
@@ -586,10 +602,11 @@ svn_diff__display_prop_diffs(svn_stream_t *outstream,
          * from the diff header. But there usually are no files which
          * UNIX patch could apply the property diff to, so we use "##"
          * instead of "@@" as the default hunk delimiter for property diffs.
-         * We also supress the diff header. */
-        SVN_ERR(svn_diff_mem_string_output_unified2(
+         * We also suppress the diff header. */
+        SVN_ERR(svn_diff_mem_string_output_unified3(
                   outstream, diff, FALSE /* no header */, "##", NULL, NULL,
-                  encoding, orig, val, iterpool));
+                  encoding, orig, val, context_size,
+                  cancel_func, cancel_baton, iterpool));
       }
     }
   svn_pool_destroy(iterpool);

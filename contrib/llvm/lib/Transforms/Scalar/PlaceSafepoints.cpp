@@ -27,7 +27,7 @@
 // well defined state for inspection by the collector.  In the current
 // implementation, this is done via the insertion of poll sites at method entry
 // and the backedge of most loops.  We try to avoid inserting more polls than
-// are neccessary to ensure a finite period between poll sites.  This is not
+// are necessary to ensure a finite period between poll sites.  This is not
 // because the poll itself is expensive in the generated code; it's not.  Polls
 // do tend to impact the optimizer itself in negative ways; we'd like to avoid
 // perturbing the optimization of the method as much as we can.
@@ -91,13 +91,15 @@ STATISTIC(FiniteExecution, "Number of loops w/o safepoints finite execution");
 
 using namespace llvm;
 
-// Ignore oppurtunities to avoid placing safepoints on backedges, useful for
+// Ignore opportunities to avoid placing safepoints on backedges, useful for
 // validation
 static cl::opt<bool> AllBackedges("spp-all-backedges", cl::Hidden,
                                   cl::init(false));
 
-/// If true, do not place backedge safepoints in counted loops.
-static cl::opt<bool> SkipCounted("spp-counted", cl::Hidden, cl::init(true));
+/// How narrow does the trip count of a loop have to be to have to be considered
+/// "counted"?  Counted loops do not get safepoints at backedges.
+static cl::opt<int> CountedLoopTripWidth("spp-counted-loop-trip-width",
+                                         cl::Hidden, cl::init(32));
 
 // If true, split the backedge of a loop when placing the safepoint, otherwise
 // split the latch block itself.  Both are useful to support for
@@ -121,7 +123,7 @@ struct PlaceBackedgeSafepointsImpl : public FunctionPass {
   std::vector<TerminatorInst *> PollLocations;
 
   /// True unless we're running spp-no-calls in which case we need to disable
-  /// the call dependend placement opts.
+  /// the call-dependent placement opts.
   bool CallSafepointsEnabled;
 
   ScalarEvolution *SE = nullptr;
@@ -142,7 +144,7 @@ struct PlaceBackedgeSafepointsImpl : public FunctionPass {
   }
 
   bool runOnFunction(Function &F) override {
-    SE = &getAnalysis<ScalarEvolution>();
+    SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
     DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
     LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
     for (auto I = LI->begin(), E = LI->end(); I != E; I++) {
@@ -153,7 +155,7 @@ struct PlaceBackedgeSafepointsImpl : public FunctionPass {
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<DominatorTreeWrapperPass>();
-    AU.addRequired<ScalarEvolution>();
+    AU.addRequired<ScalarEvolutionWrapperPass>();
     AU.addRequired<LoopInfoWrapperPass>();
     // We no longer modify the IR at all in this pass.  Thus all
     // analysis are preserved.
@@ -190,10 +192,8 @@ static void
 InsertSafepointPoll(Instruction *InsertBefore,
                     std::vector<CallSite> &ParsePointsNeeded /*rval*/);
 
-static bool isGCLeafFunction(const CallSite &CS);
-
 static bool needsStatepoint(const CallSite &CS) {
-  if (isGCLeafFunction(CS))
+  if (callsGCLeafFunction(CS))
     return false;
   if (CS.isCall()) {
     CallInst *call = cast<CallInst>(CS.getInstruction());
@@ -206,7 +206,7 @@ static bool needsStatepoint(const CallSite &CS) {
   return true;
 }
 
-static Value *ReplaceWithStatepoint(const CallSite &CS, Pass *P);
+static Value *ReplaceWithStatepoint(const CallSite &CS);
 
 /// Returns true if this loop is known to contain a call safepoint which
 /// must unconditionally execute on any iteration of the loop which returns
@@ -220,7 +220,7 @@ static bool containsUnconditionalCallSafepoint(Loop *L, BasicBlock *Header,
   // For the moment, we look only for the 'cuts' that consist of a single call
   // instruction in a block which is dominated by the Header and dominates the
   // loop latch (Pred) block.  Somewhat surprisingly, walking the entire chain
-  // of such dominating blocks gets substaintially more occurences than just
+  // of such dominating blocks gets substantially more occurrences than just
   // checking the Pred and Header blocks themselves.  This may be due to the
   // density of loop exit conditions caused by range and null checks.
   // TODO: structure this as an analysis pass, cache the result for subloops,
@@ -255,18 +255,12 @@ static bool containsUnconditionalCallSafepoint(Loop *L, BasicBlock *Header,
 /// conservatism in the analysis.
 static bool mustBeFiniteCountedLoop(Loop *L, ScalarEvolution *SE,
                                     BasicBlock *Pred) {
-  // Only used when SkipCounted is off
-  const unsigned upperTripBound = 8192;
-
   // A conservative bound on the loop as a whole.
   const SCEV *MaxTrips = SE->getMaxBackedgeTakenCount(L);
-  if (MaxTrips != SE->getCouldNotCompute()) {
-    if (SE->getUnsignedRange(MaxTrips).getUnsignedMax().ult(upperTripBound))
-      return true;
-    if (SkipCounted &&
-        SE->getUnsignedRange(MaxTrips).getUnsignedMax().isIntN(32))
-      return true;
-  }
+  if (MaxTrips != SE->getCouldNotCompute() &&
+      SE->getUnsignedRange(MaxTrips).getUnsignedMax().isIntN(
+          CountedLoopTripWidth))
+    return true;
 
   // If this is a conditional branch to the header with the alternate path
   // being outside the loop, we can ask questions about the execution frequency
@@ -275,13 +269,10 @@ static bool mustBeFiniteCountedLoop(Loop *L, ScalarEvolution *SE,
     // This returns an exact expression only.  TODO: We really only need an
     // upper bound here, but SE doesn't expose that.
     const SCEV *MaxExec = SE->getExitCount(L, Pred);
-    if (MaxExec != SE->getCouldNotCompute()) {
-      if (SE->getUnsignedRange(MaxExec).getUnsignedMax().ult(upperTripBound))
+    if (MaxExec != SE->getCouldNotCompute() &&
+        SE->getUnsignedRange(MaxExec).getUnsignedMax().isIntN(
+            CountedLoopTripWidth))
         return true;
-      if (SkipCounted &&
-          SE->getUnsignedRange(MaxExec).getUnsignedMax().isIntN(32))
-        return true;
-    }
   }
 
   return /* not finite */ false;
@@ -432,14 +423,14 @@ static Instruction *findLocationForEntrySafepoint(Function &F,
     assert(hasNextInstruction(I) &&
            "first check if there is a next instruction!");
     if (I->isTerminator()) {
-      return I->getParent()->getUniqueSuccessor()->begin();
+      return &I->getParent()->getUniqueSuccessor()->front();
     } else {
-      return std::next(BasicBlock::iterator(I));
+      return &*++I->getIterator();
     }
   };
 
   Instruction *cursor = nullptr;
-  for (cursor = F.getEntryBlock().begin(); hasNextInstruction(cursor);
+  for (cursor = &F.getEntryBlock().front(); hasNextInstruction(cursor);
        cursor = nextInstruction(cursor)) {
 
     // We need to ensure a safepoint poll occurs before any 'real' call.  The
@@ -466,7 +457,7 @@ static Instruction *findLocationForEntrySafepoint(Function &F,
 static void findCallSafepoints(Function &F,
                                std::vector<CallSite> &Found /*rval*/) {
   assert(Found.empty() && "must be empty!");
-  for (Instruction &I : inst_range(F)) {
+  for (Instruction &I : instructions(F)) {
     Instruction *inst = &I;
     if (isa<CallInst>(inst) || isa<InvokeInst>(inst)) {
       CallSite CS(inst);
@@ -508,7 +499,7 @@ static bool isGCSafepointPoll(Function &F) {
 static bool shouldRewriteFunction(Function &F) {
   // TODO: This should check the GCStrategy
   if (F.hasGC()) {
-    const char *FunctionGCName = F.getGC();
+    const auto &FunctionGCName = F.getGC();
     const StringRef StatepointExampleName("statepoint-example");
     const StringRef CoreCLRName("coreclr");
     return (StatepointExampleName == FunctionGCName) ||
@@ -713,7 +704,7 @@ bool PlaceSafepoints::runOnFunction(Function &F) {
                                   Invoke->getParent());
     }
 
-    Value *GCResult = ReplaceWithStatepoint(CS, nullptr);
+    Value *GCResult = ReplaceWithStatepoint(CS);
     Results.push_back(GCResult);
   }
   assert(Results.size() == ParsePointNeeded.size());
@@ -747,7 +738,7 @@ FunctionPass *llvm::createPlaceSafepointsPass() {
 INITIALIZE_PASS_BEGIN(PlaceBackedgeSafepointsImpl,
                       "place-backedge-safepoints-impl",
                       "Place Backedge Safepoints", false, false)
-INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
+INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
 INITIALIZE_PASS_END(PlaceBackedgeSafepointsImpl,
@@ -758,31 +749,6 @@ INITIALIZE_PASS_BEGIN(PlaceSafepoints, "place-safepoints", "Place Safepoints",
                       false, false)
 INITIALIZE_PASS_END(PlaceSafepoints, "place-safepoints", "Place Safepoints",
                     false, false)
-
-static bool isGCLeafFunction(const CallSite &CS) {
-  Instruction *inst = CS.getInstruction();
-  if (isa<IntrinsicInst>(inst)) {
-    // Most LLVM intrinsics are things which can never take a safepoint.
-    // As a result, we don't need to have the stack parsable at the
-    // callsite.  This is a highly useful optimization since intrinsic
-    // calls are fairly prevelent, particularly in debug builds.
-    return true;
-  }
-
-  // If this function is marked explicitly as a leaf call, we don't need to
-  // place a safepoint of it.  In fact, for correctness we *can't* in many
-  // cases.  Note: Indirect calls return Null for the called function,
-  // these obviously aren't runtime functions with attributes
-  // TODO: Support attributes on the call site as well.
-  const Function *F = CS.getCalledFunction();
-  bool isLeaf =
-      F &&
-      F->getFnAttribute("gc-leaf-function").getValueAsString().equals("true");
-  if (isLeaf) {
-    return true;
-  }
-  return false;
-}
 
 static void
 InsertSafepointPoll(Instruction *InsertBefore,
@@ -796,6 +762,7 @@ InsertSafepointPoll(Instruction *InsertBefore,
   // path call - where we need to insert a safepoint (parsepoint).
 
   auto *F = M->getFunction(GCSafepointPollName);
+  assert(F && "gc.safepoint_poll function is missing");
   assert(F->getType()->getElementType() ==
          FunctionType::get(Type::getVoidTy(M->getContext()), false) &&
          "gc.safepoint_poll declared with wrong type");
@@ -864,10 +831,8 @@ InsertSafepointPoll(Instruction *InsertBefore,
 /// Replaces the given call site (Call or Invoke) with a gc.statepoint
 /// intrinsic with an empty deoptimization arguments list.  This does
 /// NOT do explicit relocation for GC support.
-static Value *ReplaceWithStatepoint(const CallSite &CS, /* to replace */
-                                    Pass *P) {
-  assert(CS.getInstruction()->getParent()->getParent()->getParent() &&
-         "must be set");
+static Value *ReplaceWithStatepoint(const CallSite &CS /* to replace */) {
+  assert(CS.getInstruction()->getModule() && "must be set");
 
   // TODO: technically, a pass is not allowed to get functions from within a
   // function pass since it might trigger a new function addition.  Refactor
@@ -917,15 +882,10 @@ static Value *ReplaceWithStatepoint(const CallSite &CS, /* to replace */
       CS.getInstruction()->getContext(), AttributeSet::FunctionIndex,
       AttrsToRemove);
 
-  Value *StatepointTarget = NumPatchBytes == 0
-                                ? CS.getCalledValue()
-                                : ConstantPointerNull::get(cast<PointerType>(
-                                      CS.getCalledValue()->getType()));
-
   if (CS.isCall()) {
     CallInst *ToReplace = cast<CallInst>(CS.getInstruction());
     CallInst *Call = Builder.CreateGCStatepointCall(
-        ID, NumPatchBytes, StatepointTarget,
+        ID, NumPatchBytes, CS.getCalledValue(),
         makeArrayRef(CS.arg_begin(), CS.arg_end()), None, None,
         "safepoint_token");
     Call->setTailCall(ToReplace->isTailCall());
@@ -938,7 +898,7 @@ static Value *ReplaceWithStatepoint(const CallSite &CS, /* to replace */
 
     Token = Call;
 
-    // Put the following gc_result and gc_relocate calls immediately after the
+    // Put the following gc_result and gc_relocate calls immediately after
     // the old call (which we're about to delete).
     assert(ToReplace->getNextNode() && "not a terminator, must have next");
     Builder.SetInsertPoint(ToReplace->getNextNode());
@@ -951,7 +911,7 @@ static Value *ReplaceWithStatepoint(const CallSite &CS, /* to replace */
     // original block.
     Builder.SetInsertPoint(ToReplace->getParent());
     InvokeInst *Invoke = Builder.CreateGCStatepointInvoke(
-        ID, NumPatchBytes, StatepointTarget, ToReplace->getNormalDest(),
+        ID, NumPatchBytes, CS.getCalledValue(), ToReplace->getNormalDest(),
         ToReplace->getUnwindDest(), makeArrayRef(CS.arg_begin(), CS.arg_end()),
         None, None, "safepoint_token");
 
@@ -967,7 +927,7 @@ static Value *ReplaceWithStatepoint(const CallSite &CS, /* to replace */
     // We'll insert the gc.result into the normal block
     BasicBlock *NormalDest = ToReplace->getNormalDest();
     // Can not insert gc.result in case of phi nodes preset.
-    // Should have removed this cases prior to runnning this function
+    // Should have removed this cases prior to running this function
     assert(!isa<PHINode>(NormalDest->begin()));
     Instruction *IP = &*(NormalDest->getFirstInsertionPt());
     Builder.SetInsertPoint(IP);

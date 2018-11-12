@@ -328,7 +328,7 @@ struct eap_sm {
 	/* not defined in RFC 4137 */
 	Boolean changed;
 	void *eapol_ctx;
-	struct eapol_callbacks *eapol_cb;
+	const struct eapol_callbacks *eapol_cb;
 	void *eap_method_priv;
 	int init_phase2;
 	int fast_reauth;
@@ -338,9 +338,9 @@ struct eap_sm {
 	Boolean rxResp /* LEAP only */;
 	Boolean leap_done;
 	Boolean peap_done;
-	u8 req_md5[16]; /* MD5() of the current EAP packet */
-	u8 last_md5[16]; /* MD5() of the previously received EAP packet; used
-			  * in duplicate request detection. */
+	u8 req_sha1[20]; /* SHA1() of the current EAP packet */
+	u8 last_sha1[20]; /* SHA1() of the previously received EAP packet; used
+			   * in duplicate request detection. */
 
 	void *msg_ctx;
 	void *scard_ctx;

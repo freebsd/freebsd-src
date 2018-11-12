@@ -1,11 +1,5 @@
 # $FreeBSD$
 
-OBJTOP=		${.OBJDIR}/../../..
-SRCTOP=		${.CURDIR}/../../..
-TESTSRC=	${SRCTOP}/contrib/netbsd-tests/bin/expr
-
-TESTSDIR=	${TESTSBASE}/bin/expr
-
 NETBSD_ATF_TESTS_SH=	expr_test
 
 ATF_TESTS_SH_SED_expr_test+=	-e 's/eval expr/eval expr --/g'

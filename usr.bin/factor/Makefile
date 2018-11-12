@@ -9,8 +9,7 @@ CFLAGS+=-I${.CURDIR}/../primes
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=-DHAVE_OPENSSL
-DPADD=	${LIBCRYPTO}
-LDADD=	-lcrypto
+LIBADD+=crypto
 .endif
 
 MAN=	factor.6

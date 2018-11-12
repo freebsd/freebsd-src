@@ -13,6 +13,8 @@
             ..
         ..
         lib
+            casper
+            ..
             geom
             ..
         ..
@@ -25,7 +27,7 @@
             ..
             lib
                 clang
-                    3.7.0
+                    3.8.0
                         lib
                             freebsd
                             ..
@@ -34,12 +36,6 @@
                 ..
                 engines
                 ..
-                i18n
-                ..
-                private
-                ..
-            ..
-            lib32
                 i18n
                 ..
                 private
@@ -58,6 +54,8 @@
                 ..
             ..
             sbin
+            ..
+            tests
             ..
         ..
     ..

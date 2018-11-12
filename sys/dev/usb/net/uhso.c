@@ -497,6 +497,7 @@ DRIVER_MODULE(uhso, uhub, uhso_driver, uhso_devclass, uhso_driver_loaded, 0);
 MODULE_DEPEND(uhso, ucom, 1, 1, 1);
 MODULE_DEPEND(uhso, usb, 1, 1, 1);
 MODULE_VERSION(uhso, 1);
+USB_PNP_HOST_INFO(uhso_devs);
 
 static struct ucom_callback uhso_ucom_callback = {
 	.ucom_cfg_get_status = &uhso_ucom_cfg_get_status,
@@ -1665,7 +1666,7 @@ uhso_if_rxflush(void *arg)
 	struct ip6_hdr *ip6;
 #endif
 	uint16_t iplen;
-	int len, isr;
+	int isr;
 
 	m = NULL;
 	mwait = sc->sc_mwait;
@@ -1685,13 +1686,8 @@ uhso_if_rxflush(void *arg)
 
 			UHSO_DPRINTF(3, "partial m0=%p(%d), concat w/ m=%p(%d)\n",
 			    m0, m0->m_len, m, m->m_len);
-			len = m->m_len + m0->m_len;
 
-			/* Concat mbufs and fix headers */
-			m_cat(m0, m);
-			m0->m_pkthdr.len = len;
-			m->m_flags &= ~M_PKTHDR;
-
+			m_catpkt(m0, m);
 			m = m_pullup(m0, sizeof(struct ip));
 			if (m == NULL) {
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);

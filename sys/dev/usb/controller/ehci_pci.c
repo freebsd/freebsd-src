@@ -172,7 +172,7 @@ ehci_pci_match(device_t self)
 		return ("Intel Lynx Point LP USB 2.0 controller USB");
 
 	case 0x00e01033:
-		return ("NEC uPD 720100 USB 2.0 controller");
+		return ("NEC uPD 72010x USB 2.0 controller");
 
 	case 0x006810de:
 		return "NVIDIA nForce2 USB 2.0 controller";

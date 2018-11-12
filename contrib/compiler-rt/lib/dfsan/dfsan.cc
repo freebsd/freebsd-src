@@ -42,6 +42,8 @@ Flags __dfsan::flags_data;
 SANITIZER_INTERFACE_ATTRIBUTE THREADLOCAL dfsan_label __dfsan_retval_tls;
 SANITIZER_INTERFACE_ATTRIBUTE THREADLOCAL dfsan_label __dfsan_arg_tls[64];
 
+SANITIZER_INTERFACE_ATTRIBUTE uptr __dfsan_shadow_ptr_mask;
+
 // On Linux/x86_64, memory is laid out as follows:
 //
 // +--------------------+ 0x800000000000 (top of memory)
@@ -80,24 +82,52 @@ SANITIZER_INTERFACE_ATTRIBUTE THREADLOCAL dfsan_label __dfsan_arg_tls[64];
 // | reserved by kernel |
 // +--------------------+ 0x0000000000
 
+// On Linux/AArch64 (39-bit VMA), memory is laid out as follow:
+//
+// +--------------------+ 0x8000000000 (top of memory)
+// | application memory |
+// +--------------------+ 0x7000008000 (kAppAddr)
+// |                    |
+// |       unused       |
+// |                    |
+// +--------------------+ 0x1200000000 (kUnusedAddr)
+// |    union table     |
+// +--------------------+ 0x1000000000 (kUnionTableAddr)
+// |   shadow memory    |
+// +--------------------+ 0x0000010000 (kShadowAddr)
+// | reserved by kernel |
+// +--------------------+ 0x0000000000
+
+// On Linux/AArch64 (42-bit VMA), memory is laid out as follow:
+//
+// +--------------------+ 0x40000000000 (top of memory)
+// | application memory |
+// +--------------------+ 0x3ff00008000 (kAppAddr)
+// |                    |
+// |       unused       |
+// |                    |
+// +--------------------+ 0x1200000000 (kUnusedAddr)
+// |    union table     |
+// +--------------------+ 0x8000000000 (kUnionTableAddr)
+// |   shadow memory    |
+// +--------------------+ 0x0000010000 (kShadowAddr)
+// | reserved by kernel |
+// +--------------------+ 0x0000000000
+
 typedef atomic_dfsan_label dfsan_union_table_t[kNumLabels][kNumLabels];
 
-#if defined(__x86_64__)
-static const uptr kShadowAddr = 0x10000;
-static const uptr kUnionTableAddr = 0x200000000000;
-static const uptr kUnusedAddr = kUnionTableAddr + sizeof(dfsan_union_table_t);
-static const uptr kAppAddr = 0x700000008000;
-#elif defined(__mips64)
-static const uptr kShadowAddr = 0x10000;
-static const uptr kUnionTableAddr = 0x2000000000;
-static const uptr kUnusedAddr = kUnionTableAddr + sizeof(dfsan_union_table_t);
-static const uptr kAppAddr = 0xF000008000;
-#else
-# error "DFSan not supported for this platform!"
+#ifdef DFSAN_RUNTIME_VMA
+// Runtime detected VMA size.
+int __dfsan::vmaSize;
 #endif
 
+static uptr UnusedAddr() {
+  return MappingArchImpl<MAPPING_UNION_TABLE_ADDR>()
+         + sizeof(dfsan_union_table_t);
+}
+
 static atomic_dfsan_label *union_table(dfsan_label l1, dfsan_label l2) {
-  return &(*(dfsan_union_table_t *) kUnionTableAddr)[l1][l2];
+  return &(*(dfsan_union_table_t *) UnionTableAddr())[l1][l2];
 }
 
 // Checks we do not run out of labels.
@@ -325,10 +355,30 @@ static void RegisterDfsanFlags(FlagParser *parser, Flags *f) {
 }
 
 static void InitializeFlags() {
-  FlagParser parser;
-  RegisterDfsanFlags(&parser, &flags());
+  SetCommonFlagsDefaults();
   flags().SetDefaults();
+
+  FlagParser parser;
+  RegisterCommonFlags(&parser);
+  RegisterDfsanFlags(&parser, &flags());
   parser.ParseString(GetEnv("DFSAN_OPTIONS"));
+  SetVerbosity(common_flags()->verbosity);
+  if (Verbosity()) ReportUnrecognizedFlags();
+  if (common_flags()->help) parser.PrintFlagDescriptions();
+}
+
+static void InitializePlatformEarly() {
+#ifdef DFSAN_RUNTIME_VMA
+  __dfsan::vmaSize =
+    (MostSignificantSetBitIndex(GET_CURRENT_FRAME()) + 1);
+  if (__dfsan::vmaSize == 39 || __dfsan::vmaSize == 42) {
+    __dfsan_shadow_ptr_mask = ShadowMask();
+  } else {
+    Printf("FATAL: DataFlowSanitizer: unsupported VMA range\n");
+    Printf("FATAL: Found %d - Supported 39 and 42\n", __dfsan::vmaSize);
+    Die();
+  }
+#endif
 }
 
 static void dfsan_fini() {
@@ -347,12 +397,12 @@ static void dfsan_fini() {
   }
 }
 
-#ifdef DFSAN_NOLIBC
-extern "C" void dfsan_init() {
-#else
 static void dfsan_init(int argc, char **argv, char **envp) {
-#endif
-  MmapFixedNoReserve(kShadowAddr, kUnusedAddr - kShadowAddr);
+  InitializeFlags();
+
+  InitializePlatformEarly();
+
+  MmapFixedNoReserve(ShadowAddr(), UnusedAddr() - ShadowAddr());
 
   // Protect the region of memory we don't use, to preserve the one-to-one
   // mapping from application to shadow memory. But if ASLR is disabled, Linux
@@ -360,21 +410,20 @@ static void dfsan_init(int argc, char **argv, char **envp) {
   // works so long as the program doesn't use too much memory. We support this
   // case by disabling memory protection when ASLR is disabled.
   uptr init_addr = (uptr)&dfsan_init;
-  if (!(init_addr >= kUnusedAddr && init_addr < kAppAddr))
-    MmapNoAccess(kUnusedAddr, kAppAddr - kUnusedAddr);
+  if (!(init_addr >= UnusedAddr() && init_addr < AppAddr()))
+    MmapNoAccess(UnusedAddr(), AppAddr() - UnusedAddr());
 
-  InitializeFlags();
   InitializeInterceptors();
 
   // Register the fini callback to run when the program terminates successfully
   // or it is killed by the runtime.
   Atexit(dfsan_fini);
-  SetDieCallback(dfsan_fini);
+  AddDieCallback(dfsan_fini);
 
   __dfsan_label_info[kInitializingLabel].desc = "<init label>";
 }
 
-#if !defined(DFSAN_NOLIBC) && SANITIZER_CAN_USE_PREINIT_ARRAY
+#if SANITIZER_CAN_USE_PREINIT_ARRAY
 __attribute__((section(".preinit_array"), used))
 static void (*dfsan_init_ptr)(int, char **, char **) = dfsan_init;
 #endif

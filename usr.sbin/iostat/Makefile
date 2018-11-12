@@ -6,6 +6,4 @@ MAN=	iostat.8
 
 LIBADD=	devstat kvm m
 
-WARNS?=	1
-
 .include <bsd.prog.mk>

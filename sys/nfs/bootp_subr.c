@@ -65,6 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
+#ifdef BOOTP_DEBUG
+#include <net/route_var.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -369,15 +372,15 @@ bootpboot_p_tree(struct radix_node *rn)
 void
 bootpboot_p_rtlist(void)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rnh;
 
 	printf("Routing table:\n");
 	rnh = rt_tables_get_rnh(0, AF_INET);
 	if (rnh == NULL)
 		return;
-	RADIX_NODE_HEAD_RLOCK(rnh);	/* could sleep XXX */
+	RIB_RLOCK(rnh);	/* could sleep XXX */
 	bootpboot_p_tree(rnh->rnh_treetop);
-	RADIX_NODE_HEAD_RUNLOCK(rnh);
+	RIB_RUNLOCK(rnh);
 }
 
 void

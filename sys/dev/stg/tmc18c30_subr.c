@@ -65,7 +65,7 @@ int
 stg_alloc_resource(device_t dev)
 {
 	struct stg_softc *	sc = device_get_softc(dev);
-	u_long			maddr, msize;
+	rman_res_t		maddr, msize;
 	int			error;
 
 	mtx_init(&sc->sc_sclow.sl_lock, "stg", NULL, MTX_DEF);

@@ -72,8 +72,6 @@ create_test_inputs()
 	atf_check -e empty -s exit:0 touch 0b00001101
 	atf_check -e empty -s exit:0 touch 0b00001110
 	atf_check -e empty -s exit:0 touch 0b00001111
-
-	atf_check -e empty -s exit:0 sync
 }
 
 KB=1024
@@ -100,8 +98,6 @@ create_test_inputs2()
 		    count=1 oseek=$(( $filesize / $MB )) conv=sparse
 		files="${files} ${filesize}.file"
 	done
-
-	atf_check -e empty -s exit:0 sync
 }
 
 atf_test_case A_flag
@@ -174,8 +170,6 @@ B_flag_head()
 
 B_flag_body()
 {
-	atf_skip "kyua report-jenkins doesn't properly escape non-printable chars: https://github.com/jmmv/kyua/issues/136"
-
 	atf_check -e empty -o empty -s exit:0 touch "$(printf "y\013z")"
 	atf_check -e empty -o match:'y\\013z' -s exit:0 ls -B
 }
@@ -422,10 +416,10 @@ T_flag_body()
 
 	atf_check -e empty -o empty -s exit:0 touch a.file
 
-	birthtime_in_secs=$(stat -f %B -t %s a.file)
-	birthtime=$(date -j -f %s $birthtime_in_secs +"[[:space:]]+%b[[:space:]]+%e[[:space:]]+%H:%M:%S[[:space:]]+%Y")
+	mtime_in_secs=$(stat -f %m -t %s a.file)
+	mtime=$(date -j -f %s $mtime_in_secs +"[[:space:]]+%b[[:space:]]+%e[[:space:]]+%H:%M:%S[[:space:]]+%Y")
 
-	atf_check -e empty -o match:"$birthtime"'[[:space:]]+a\.file' \
+	atf_check -e empty -o match:"$mtime"'[[:space:]]+a\.file' \
 	    -s exit:0 ls -lT a.file
 }
 
@@ -471,8 +465,6 @@ b_flag_head()
 
 b_flag_body()
 {
-	atf_skip "kyua report-jenkins doesn't properly escape non-printable chars: https://github.com/jmmv/kyua/issues/136"
-
 	atf_check -e empty -o empty -s exit:0 touch "$(printf "y\013z")"
 	atf_check -e empty -o match:'y\\vz' -s exit:0 ls -b
 }
@@ -630,10 +622,10 @@ l_flag_body()
 
 	atf_check -e empty -o empty -s exit:0 touch a.file
 
-	birthtime_in_secs=$(stat -f "%B" -t "%s" a.file)
-	birthtime=$(date -j -f "%s" $birthtime_in_secs +"%b[[:space:]]+%e[[:space:]]+%H:%M")
+	mtime_in_secs=$(stat -f "%m" -t "%s" a.file)
+	mtime=$(date -j -f "%s" $mtime_in_secs +"%b[[:space:]]+%e[[:space:]]+%H:%M")
 
-	expected_output=$(stat -f "%Sp[[:space:]]+%l[[:space:]]+%Su[[:space:]]+%Sg[[:space:]]+%z[[:space:]]+$birthtime[[:space:]]+a\\.file" a.file)
+	expected_output=$(stat -f "%Sp[[:space:]]+%l[[:space:]]+%Su[[:space:]]+%Sg[[:space:]]+%z[[:space:]]+$mtime[[:space:]]+a\\.file" a.file)
 
 	atf_check -e empty -o match:"$expected_output" -s exit:0 ls -l a.file
 }
@@ -751,8 +743,6 @@ q_flag_and_w_flag_head()
 
 q_flag_and_w_flag_body()
 {
-	atf_skip "kyua report-jenkins doesn't properly escape non-printable chars: https://github.com/jmmv/kyua/issues/136"
-
 	create_test_dir
 
 	test_file="$(printf "y\01z")"
@@ -815,15 +805,11 @@ t_flag_body()
 	atf_check -e empty -o empty -s exit:0 touch a.file
 	atf_check -e empty -o empty -s exit:0 touch b.file
 
-	atf_check -e empty -s exit:0 sync
-
 	atf_check -e empty -o match:'a\.file' -s exit:0 sh -c 'ls -lt | tail -n 1'
 	atf_check -e empty -o match:'b\.file.*a\.file' -s exit:0 ls -Ct
 
 	atf_check -e empty -o empty -s exit:0 rm a.file
 	atf_check -e empty -o empty -s exit:0 sh -c 'echo "i am a" > a.file'
-
-	atf_check -e empty -s exit:0 sync
 
 	atf_check -e empty -o match:'b\.file' -s exit:0 sh -c 'ls -lt | tail -n 1'
 	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Ct
@@ -841,14 +827,12 @@ u_flag_body()
 
 	atf_check -e empty -o empty -s exit:0 touch a.file
 	atf_check -e empty -o empty -s exit:0 touch b.file
-	atf_check -e empty -s exit:0 sync
 
 	atf_check -e empty -o match:'b\.file' -s exit:0 sh -c 'ls -lu | tail -n 1'
 	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Cu
 
 	atf_check -e empty -o empty -s exit:0 sh -c 'echo "i am a" > a.file'
 	atf_check -e empty -o match:'i am a' -s exit:0 cat a.file
-	atf_check -e empty -s exit:0 sync
 
 	atf_check -e empty -o match:'b\.file' -s exit:0 sh -c 'ls -lu | tail -n 1'
 	atf_check -e empty -o match:'a\.file.*b\.file' -s exit:0 ls -Cu

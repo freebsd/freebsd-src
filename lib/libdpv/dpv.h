@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Devin Teske <dteske@FreeBSD.org>
+ * Copyright (c) 2013-2016 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,9 @@
 #ifndef FALSE
 #define FALSE 0
 #endif
+
+/* localeconv(3) */
+#define LC_NUMERIC_DEFAULT	"en_US.ISO8859-1"
 
 /* Data to process */
 extern long long dpv_overall_read;
@@ -94,6 +97,7 @@ struct dpv_file_node {
  * Anatomy of config option to pass as dpv() config argument
  */
 struct dpv_config {
+	uint8_t	keep_tite;		/* Prevent visually distracting exit */
 	enum dpv_display display_type;	/* Display (default TYPE_LIBDIALOG) */
 	enum dpv_output  output_type;	/* Output (default TYPE_NONE) */
 	int	debug;			/* Enable debugging output on stderr */

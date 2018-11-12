@@ -16,4 +16,4 @@ CFILES= \
      tst.call3.c  \
 
 
-.include "../../Makefile.inc1"
+.include "../../dtrace.test.mk"

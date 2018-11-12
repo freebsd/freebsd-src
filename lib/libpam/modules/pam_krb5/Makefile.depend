@@ -13,7 +13,6 @@ DIRDEPS = \
 	lib/libcom_err \
 	lib/libcompiler_rt \
 	lib/libpam/libpam \
-	lib/libthr \
 
 
 .include <dirdeps.mk>

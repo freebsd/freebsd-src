@@ -53,12 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #include <machine/cpu.h>
-#include <machine/vm.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
 #include <x86/psl.h>
 #include <x86/apicreg.h>
-#include <machine/vmparam.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
@@ -123,7 +121,7 @@ struct mem_seg {
 	bool	sysmem;
 	struct vm_object *object;
 };
-#define	VM_MAX_MEMSEGS	2
+#define	VM_MAX_MEMSEGS	3
 
 struct mem_map {
 	vm_paddr_t	gpa;

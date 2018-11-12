@@ -58,8 +58,6 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
 	.sv_mask	= 0,
-	.sv_sigsize	= 0,
-	.sv_sigtbl	= NULL,
 	.sv_errsize	= 0,
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
@@ -67,7 +65,6 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_sendsig	= sendsig,
 	.sv_sigcode	= NULL,
 	.sv_szsigcode	= NULL,
-	.sv_prepsyscall	= NULL,
 	.sv_name	= "FreeBSD ELF64",
 	.sv_coredump	= __elfN(coredump),
 	.sv_imgact_try	= NULL,
@@ -88,6 +85,7 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_syscallnames = syscallnames,
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
+	.sv_trap	= NULL,
 };
 
 static Elf64_Brandinfo freebsd_brand_info = {

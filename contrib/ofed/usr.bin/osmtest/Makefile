@@ -16,13 +16,7 @@ SRCS=	main.c \
 	osmt_slvl_vl_arb.c \
 	osmtest.c
 
-LDADD=	-libcommon \
-	-libmad \
-	-libumad \
-	-losmvendor \
-	-losmcomp \
-	-lopensm \
-	-lpthread
+LIBADD= ibcommon ibmad ibumad osmvendor osmcomp opensm pthread
 
 CFLAGS=	-DVENDOR_RMPP_SUPPORT -DDUAL_SIDED_RMPP \
 	-I${OPENSM}/osmtest/include

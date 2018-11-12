@@ -254,6 +254,9 @@ ar9300_otp_read(struct ath_hal *ah, u_int off, u_int32_t *data, HAL_BOOL is_wifi
     int status = 0;
     u_int32_t addr;
 
+    if (AR_SREV_HONEYBEE(ah)){ /* no OTP for Honeybee */
+        return false;
+    }
     addr = (AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah))?
         OTP_MEM_START_ADDRESS_WASP : OTP_MEM_START_ADDRESS;
 	if (!is_wifi) {
@@ -354,7 +357,7 @@ ar9300_eeprom_attach(struct ath_hal *ah)
     ar9300_flash_map(ah);
     /*
      * ###### This function always return NO SPUR.
-     * This is not AH_TRUE for many board designs.
+     * This is not true for many board designs.
      * Does anyone use this?
      */
     AH_PRIVATE(ah)->ah_getSpurChan = ar9300_eeprom_get_spur_chan;
@@ -438,8 +441,13 @@ ar9300_eeprom_attach(struct ath_hal *ah)
         return HAL_OK;
     }
 #endif
-    if (AR_SREV_HORNET(ah) || AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)) {
+    if (AR_SREV_HORNET(ah) || AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)
+        || AR_SREV_HONEYBEE(ah)) {
         ahp->try_eeprom = 0;
+    }
+
+    if (AR_SREV_HONEYBEE(ah)) {
+        ahp->try_otp = 0;
     }
 
     if (!ar9300_eeprom_restore(ah)) {
@@ -1652,6 +1660,8 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
 #define AR_SWITCH_TABLE_COM_JUPITER_ALL_S (0)
 #define AR_SWITCH_TABLE_COM_SCORPION_ALL (0xffffff)
 #define AR_SWITCH_TABLE_COM_SCORPION_ALL_S (0)
+#define AR_SWITCH_TABLE_COM_HONEYBEE_ALL (0xffffff)
+#define AR_SWITCH_TABLE_COM_HONEYBEE_ALL_S (0)
 #define AR_SWITCH_TABLE_COM_SPDT (0x00f00000)
     value = ar9300_ant_ctrl_common_get(ah, is_2ghz);
     if (AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah)) {
@@ -1666,6 +1676,10 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
     else if (AR_SREV_SCORPION(ah)) {
         OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM, 
             AR_SWITCH_TABLE_COM_SCORPION_ALL, value);
+    }
+    else if (AR_SREV_HONEYBEE(ah)) {
+        OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM, 
+            AR_SWITCH_TABLE_COM_HONEYBEE_ALL, value);
     }
     else {
         OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM, 
@@ -1713,7 +1727,7 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
         value = ar9300_ant_ctrl_chain_get(ah, 1, is_2ghz);
         OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_1, AR_SWITCH_TABLE_ALL, value);
 
-        if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)) {
+        if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah) && !AR_SREV_HONEYBEE(ah)) {
             value = ar9300_ant_ctrl_chain_get(ah, 2, is_2ghz);
             OS_REG_RMW_FIELD(ah,
                 AR_PHY_SWITCH_CHAIN_2, AR_SWITCH_TABLE_ALL, value);
@@ -1899,7 +1913,7 @@ HAL_BOOL ar9300_attenuation_apply(struct ath_hal *ah, u_int16_t channel)
         OS_REG_RMW_FIELD(ah,
             AR_PHY_EXT_ATTEN_CTL_1, AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN,
             value);
-        if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)) {
+        if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)&& !AR_SREV_HONEYBEE(ah) ) {
             value = ar9300_attenuation_chain_get(ah, 2, channel);
             OS_REG_RMW_FIELD(ah,
                 AR_PHY_EXT_ATTEN_CTL_2, AR_PHY_EXT_ATTEN_CTL_XATTEN1_DB, value);
@@ -2270,7 +2284,7 @@ ar9300_power_control_override(struct ath_hal *ah, int frequency,
         OS_REG_RMW(ah, AR_PHY_TPC_11_B1,
             (correction[1] << AR_PHY_TPC_OLPC_GAIN_DELTA_S),
             AR_PHY_TPC_OLPC_GAIN_DELTA);
-        if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)) {
+        if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah) && !AR_SREV_HONEYBEE(ah) ) {
             OS_REG_RMW(ah, AR_PHY_TPC_11_B2, 
                 (correction[2] << AR_PHY_TPC_OLPC_GAIN_DELTA_S),
                 AR_PHY_TPC_OLPC_GAIN_DELTA);
@@ -2284,7 +2298,7 @@ ar9300_power_control_override(struct ath_hal *ah, int frequency,
     if (!AR_SREV_POSEIDON(ah)) {
         OS_REG_RMW(ah, AR_PHY_TPC_6_B1, 
             (3 << AR_PHY_TPC_6_ERROR_EST_MODE_S), AR_PHY_TPC_6_ERROR_EST_MODE);
-        if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)) {
+        if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah) && !AR_SREV_HONEYBEE(ah)  ) {
             OS_REG_RMW(ah, AR_PHY_TPC_6_B2, 
                 (3 << AR_PHY_TPC_6_ERROR_EST_MODE_S),
                 AR_PHY_TPC_6_ERROR_EST_MODE);
@@ -2344,42 +2358,60 @@ ar9300_power_control_override(struct ath_hal *ah, int frequency,
 	 }
   }
 
-    if (!AR_SREV_SCORPION(ah)) {
+    if (!AR_SREV_SCORPION(ah) && !AR_SREV_HONEYBEE(ah)) {
         OS_REG_RMW_FIELD(ah,
             AR_PHY_TPC_19, AR_PHY_TPC_19_ALPHA_THERM, temp_slope);
     } else {
-        /*Scorpion has tempSlope register for each chain*/
+        /*Scorpion and Honeybee has tempSlope register for each chain*/
         /*Check whether temp_compensation feature is enabled or not*/
         if (eep->base_eep_header.feature_enable & 0x1){
 	    if(frequency < 4000) {
+		if (((eep->base_eep_header.txrx_mask & 0xf0) >> 4) & 0x1) {
 		    OS_REG_RMW_FIELD(ah,
 				    AR_PHY_TPC_19, AR_PHY_TPC_19_ALPHA_THERM, 
 				    eep->base_ext2.temp_slope_low);
+		    } 
+		if (((eep->base_eep_header.txrx_mask & 0xf0) >> 4) & 0x2) {
 		    OS_REG_RMW_FIELD(ah,
 				    AR_SCORPION_PHY_TPC_19_B1, AR_PHY_TPC_19_ALPHA_THERM, 
 				    temp_slope);
+		    } 
+		if (((eep->base_eep_header.txrx_mask & 0xf0) >> 4) & 0x4) {
 		    OS_REG_RMW_FIELD(ah,
 				    AR_SCORPION_PHY_TPC_19_B2, AR_PHY_TPC_19_ALPHA_THERM, 
 				    eep->base_ext2.temp_slope_high);
+		     } 	
 	    } else {
+		if (((eep->base_eep_header.txrx_mask & 0xf0) >> 4) & 0x1) {
 		    OS_REG_RMW_FIELD(ah,
 				    AR_PHY_TPC_19, AR_PHY_TPC_19_ALPHA_THERM, 
 				    temp_slope);
+			}
+		if (((eep->base_eep_header.txrx_mask & 0xf0) >> 4) & 0x2) {
 		    OS_REG_RMW_FIELD(ah,
 				    AR_SCORPION_PHY_TPC_19_B1, AR_PHY_TPC_19_ALPHA_THERM, 
 				    temp_slope_1);
+		}
+		if (((eep->base_eep_header.txrx_mask & 0xf0) >> 4) & 0x4) {
 		    OS_REG_RMW_FIELD(ah,
 				    AR_SCORPION_PHY_TPC_19_B2, AR_PHY_TPC_19_ALPHA_THERM, 
 				    temp_slope_2);
+			} 
 	    }
         }else {
         	/* If temp compensation is not enabled, set all registers to 0*/
+		if (((eep->base_eep_header.txrx_mask & 0xf0) >> 4) & 0x1) {
             OS_REG_RMW_FIELD(ah,
                 AR_PHY_TPC_19, AR_PHY_TPC_19_ALPHA_THERM, 0);
+		    }
+		if (((eep->base_eep_header.txrx_mask & 0xf0) >> 4) & 0x2) {
             OS_REG_RMW_FIELD(ah,
                 AR_SCORPION_PHY_TPC_19_B1, AR_PHY_TPC_19_ALPHA_THERM, 0);
+		    }  
+		if (((eep->base_eep_header.txrx_mask & 0xf0) >> 4) & 0x4) {
             OS_REG_RMW_FIELD(ah,
                 AR_SCORPION_PHY_TPC_19_B2, AR_PHY_TPC_19_ALPHA_THERM, 0);
+		} 
         }
     }
     OS_REG_RMW_FIELD(ah,
@@ -4392,7 +4424,7 @@ HAL_BOOL ar9300_thermometer_apply(struct ath_hal *ah)
         if (!AR_SREV_HORNET(ah) && !AR_SREV_POSEIDON(ah)) {
             OS_REG_RMW_FIELD(ah,
                 AR_PHY_65NM_CH1_RXTX4, AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, 0);
-            if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)) {
+            if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah) && !AR_SREV_HONEYBEE(ah)  ) {
                 OS_REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
                     AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, 0);
             }
@@ -4402,7 +4434,7 @@ HAL_BOOL ar9300_thermometer_apply(struct ath_hal *ah)
         if (!AR_SREV_HORNET(ah) && !AR_SREV_POSEIDON(ah)) {
             OS_REG_RMW_FIELD(ah,
                 AR_PHY_65NM_CH1_RXTX4, AR_PHY_65NM_CH0_RXTX4_THERM_ON, 0);
-            if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)) {
+            if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah) && !AR_SREV_HONEYBEE(ah) ) {
                 OS_REG_RMW_FIELD(ah,
                     AR_PHY_65NM_CH2_RXTX4, AR_PHY_65NM_CH0_RXTX4_THERM_ON, 0);
             }
@@ -4413,7 +4445,7 @@ HAL_BOOL ar9300_thermometer_apply(struct ath_hal *ah)
         if (!AR_SREV_HORNET(ah) && !AR_SREV_POSEIDON(ah)) {
             OS_REG_RMW_FIELD(ah,
                 AR_PHY_65NM_CH1_RXTX4, AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, 1);
-            if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)) {
+            if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah) && !AR_SREV_HONEYBEE(ah)  ) {
                 OS_REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
                     AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, 1);
             }
@@ -4424,7 +4456,7 @@ HAL_BOOL ar9300_thermometer_apply(struct ath_hal *ah)
             if (!AR_SREV_HORNET(ah) && !AR_SREV_POSEIDON(ah)) {
                 OS_REG_RMW_FIELD(ah,
                     AR_PHY_65NM_CH1_RXTX4, AR_PHY_65NM_CH0_RXTX4_THERM_ON, 0);
-                if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)) {
+                if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah) && !AR_SREV_HONEYBEE(ah) ) {
                     OS_REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
                         AR_PHY_65NM_CH0_RXTX4_THERM_ON, 0);
                 }
@@ -4435,7 +4467,7 @@ HAL_BOOL ar9300_thermometer_apply(struct ath_hal *ah)
             if (!AR_SREV_HORNET(ah) && !AR_SREV_POSEIDON(ah)) {
                 OS_REG_RMW_FIELD(ah,
                     AR_PHY_65NM_CH1_RXTX4, AR_PHY_65NM_CH0_RXTX4_THERM_ON, 1);
-                if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)) {
+                if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah) && !AR_SREV_HONEYBEE(ah) ) {
                     OS_REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
                         AR_PHY_65NM_CH0_RXTX4_THERM_ON, 0);
                 }
@@ -4446,7 +4478,7 @@ HAL_BOOL ar9300_thermometer_apply(struct ath_hal *ah)
             if (!AR_SREV_HORNET(ah) && !AR_SREV_POSEIDON(ah)) {
                 OS_REG_RMW_FIELD(ah,
                     AR_PHY_65NM_CH1_RXTX4, AR_PHY_65NM_CH0_RXTX4_THERM_ON, 0);
-                if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)) {
+                if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah) && !AR_SREV_HONEYBEE(ah) ) {
                     OS_REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
                         AR_PHY_65NM_CH0_RXTX4_THERM_ON, 1);
                 }
@@ -4476,9 +4508,8 @@ HAL_BOOL ar9300_tuning_caps_apply(struct ath_hal *ah)
     if ((eep->base_eep_header.feature_enable & 0x40) >> 6) {
         tuning_caps_params &= 0x7f;
 
-        /* XXX TODO: ath9k skips it for Wasp and Honeybee/AR9531, not Poseidon */
-        if (AR_SREV_POSEIDON(ah) || AR_SREV_WASP(ah)) {
-            return AH_TRUE;
+        if (AR_SREV_POSEIDON(ah) || AR_SREV_WASP(ah) || AR_SREV_HONEYBEE(ah)) {
+            return true;
         } else if (AR_SREV_HORNET(ah)) {
             OS_REG_RMW_FIELD(ah,
                 AR_HORNET_CH0_XTAL, AR_OSPREY_CHO_XTAL_CAPINDAC,
@@ -4515,7 +4546,7 @@ HAL_BOOL ar9300_xpa_timing_control_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
     u_int8_t xpa_timing_control;
     ar9300_eeprom_t *eep = &AH9300(ah)->ah_eeprom;
     if ((eep->base_eep_header.feature_enable & 0x80) >> 7) {
-		if (AR_SREV_OSPREY(ah) || AR_SREV_AR9580(ah) || AR_SREV_WASP(ah)) {
+		if (AR_SREV_OSPREY(ah) || AR_SREV_AR9580(ah) || AR_SREV_WASP(ah) || AR_SREV_HONEYBEE(ah)) {
 			if (is_2ghz) {
                 xpa_timing_control = eep->modal_header_2g.tx_frame_to_xpa_on;
                 OS_REG_RMW_FIELD(ah,
@@ -4586,7 +4617,7 @@ ar9300_eeprom_set_board_values(struct ath_hal *ah, const struct ieee80211_channe
 	/* wait for Poseidon internal regular turnning */
     /* for Hornet we move it before initPLL to avoid an access issue */
     /* Function not used when EMULATION. */
-    if (!AR_SREV_HORNET(ah) && !AR_SREV_WASP(ah)) {
+    if (!AR_SREV_HORNET(ah) && !AR_SREV_WASP(ah) && !AR_SREV_HONEYBEE(ah)) {
         ar9300_internal_regulator_apply(ah);
     }
 

@@ -23,12 +23,12 @@ authusekey(
 	const u_char *str
 	)
 {
-	int len;
+	size_t	len;
 
 	len = strlen((const char *)str);
 	if (0 == len)
 		return 0;
 
-	MD5auth_setkey(keyno, keytype, str, len);
+	MD5auth_setkey(keyno, keytype, str, len, NULL);
 	return 1;
 }

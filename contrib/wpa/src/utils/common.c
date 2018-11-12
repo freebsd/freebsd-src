@@ -8,6 +8,7 @@
 
 #include "includes.h"
 
+#include "common/ieee802_11_defs.h"
 #include "common.h"
 
 
@@ -276,6 +277,31 @@ int wpa_scnprintf(char *buf, size_t size, const char *fmt, ...)
 
 	return ret;
 }
+
+
+int wpa_snprintf_hex_sep(char *buf, size_t buf_size, const u8 *data, size_t len,
+			 char sep)
+{
+	size_t i;
+	char *pos = buf, *end = buf + buf_size;
+	int ret;
+
+	if (buf_size == 0)
+		return 0;
+
+	for (i = 0; i < len; i++) {
+		ret = os_snprintf(pos, end - pos, "%02x%c",
+				  data[i], sep);
+		if (os_snprintf_error(end - pos, ret)) {
+			end[-1] = '\0';
+			return pos - buf;
+		}
+		pos += ret;
+	}
+	pos[-1] = '\0';
+	return pos - buf;
+}
+
 
 static inline int _wpa_snprintf_hex(char *buf, size_t buf_size, const u8 *data,
 				    size_t len, int uppercase)
@@ -584,7 +610,7 @@ size_t printf_decode(u8 *buf, size_t maxlen, const char *str)
  */
 const char * wpa_ssid_txt(const u8 *ssid, size_t ssid_len)
 {
-	static char ssid_txt[32 * 4 + 1];
+	static char ssid_txt[SSID_MAX_LEN * 4 + 1];
 
 	if (ssid == NULL) {
 		ssid_txt[0] = '\0';
@@ -947,6 +973,48 @@ int random_mac_addr_keep_oui(u8 *addr)
 
 
 /**
+ * cstr_token - Get next token from const char string
+ * @str: a constant string to tokenize
+ * @delim: a string of delimiters
+ * @last: a pointer to a character following the returned token
+ *      It has to be set to NULL for the first call and passed for any
+ *      futher call.
+ * Returns: a pointer to token position in str or NULL
+ *
+ * This function is similar to str_token, but it can be used with both
+ * char and const char strings. Differences:
+ * - The str buffer remains unmodified
+ * - The returned token is not a NULL terminated string, but a token
+ *   position in str buffer. If a return value is not NULL a size
+ *   of the returned token could be calculated as (last - token).
+ */
+const char * cstr_token(const char *str, const char *delim, const char **last)
+{
+	const char *end, *token = str;
+
+	if (!str || !delim || !last)
+		return NULL;
+
+	if (*last)
+		token = *last;
+
+	while (*token && os_strchr(delim, *token))
+		token++;
+
+	if (!*token)
+		return NULL;
+
+	end = token + 1;
+
+	while (*end && !os_strchr(delim, *end))
+		end++;
+
+	*last = end;
+	return token;
+}
+
+
+/**
  * str_token - Get next token from a string
  * @buf: String to tokenize. Note that the string might be modified.
  * @delim: String of delimiters
@@ -956,25 +1024,12 @@ int random_mac_addr_keep_oui(u8 *addr)
  */
 char * str_token(char *str, const char *delim, char **context)
 {
-	char *end, *pos = str;
+	char *token = (char *) cstr_token(str, delim, (const char **) context);
 
-	if (*context)
-		pos = *context;
+	if (token && **context)
+		*(*context)++ = '\0';
 
-	while (*pos && os_strchr(delim, *pos))
-		pos++;
-	if (!*pos)
-		return NULL;
-
-	end = pos + 1;
-	while (*end && !os_strchr(delim, *end))
-		end++;
-
-	if (*end)
-		*end++ = '\0';
-
-	*context = end;
-	return pos;
+	return token;
 }
 
 
@@ -1061,4 +1116,10 @@ size_t utf8_escape(const char *inp, size_t in_size,
 		*outp = '\0';
 
 	return res_size;
+}
+
+
+int is_ctrl_char(char c)
+{
+	return c > 0 && c < 32;
 }

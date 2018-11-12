@@ -39,6 +39,12 @@
 
 #define MLX4_INVALID_LKEY	0x100
 
+#define	DS_SIZE_ALIGNMENT	16
+
+#define	SET_BYTE_COUNT(byte_count) cpu_to_be32(byte_count)
+#define	SET_LSO_MSS(mss_hdr_size) cpu_to_be32(mss_hdr_size)
+#define	DS_BYTE_COUNT_MASK	cpu_to_be32(0x7fffffff)
+
 enum ib_m_qp_attr_mask {
 	IB_M_EXT_CLASS_1 = 1 << 28,
 	IB_M_EXT_CLASS_2 = 1 << 29,
@@ -266,7 +272,9 @@ enum { /* param3 */
 #define MLX4_FW_VER_WQE_CTRL_NEC mlx4_fw_ver(2, 2, 232)
 
 enum {
+	MLX4_WQE_CTRL_OWN		= 1 << 31,
 	MLX4_WQE_CTRL_NEC		= 1 << 29,
+	MLX4_WQE_CTRL_RR		= 1 << 6,
 	MLX4_WQE_CTRL_FENCE		= 1 << 6,
 	MLX4_WQE_CTRL_CQ_UPDATE		= 3 << 2,
 	MLX4_WQE_CTRL_SOLICITED		= 1 << 1,

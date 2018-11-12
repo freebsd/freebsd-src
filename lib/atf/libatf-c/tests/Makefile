@@ -2,10 +2,9 @@
 
 .include <bsd.init.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/atf/libatf-c
 TESTS_SUBDIRS=	detail
 
-ATF=		${.CURDIR:H:H:H:H}/contrib/atf
+ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}/atf-c
 .PATH:		${ATF}/atf-c/detail
 

@@ -51,9 +51,9 @@ linux${SFX}_assym.h: linux${SFX}_genassym.o
 linux${SFX}_locore.o: linux${SFX}_assym.h assym.s
 	${CC} -x assembler-with-cpp -DLOCORE -m32 -shared -s			\
 	-pipe -I. -I${SYSDIR} -Werror -Wall -fno-common -nostdinc -nostdlib	\
-	-fno-omit-frame-pointer							\
+	-fno-omit-frame-pointer -fPIC						\
 	-Wl,-T${.CURDIR}/../../${MACHINE_CPUARCH}/linux${SFX}/${VDSO}.lds.s	\
-	-Wl,-soname=${VDSO}.so.1,--eh-frame-hdr,-fPIC,-warn-common		\
+	-Wl,-soname=${VDSO}.so.1,--eh-frame-hdr,-warn-common		\
 	    ${.IMPSRC} -o ${.TARGET}
 
 linux${SFX}_support.o: linux${SFX}_assym.h assym.s

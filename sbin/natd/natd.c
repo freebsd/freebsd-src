@@ -223,7 +223,7 @@ int main (int argc, char** argv)
 /*
  * Create divert sockets. Use only one socket if -p was specified
  * on command line. Otherwise, create separate sockets for
- * outgoing and incoming connnections.
+ * outgoing and incoming connections.
  */
 		if (mip->inOutPort) {
 

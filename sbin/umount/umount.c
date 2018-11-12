@@ -434,7 +434,7 @@ getmntentry(const char *fromname, const char *onname, fsid_t *fsid, dowhat what)
 {
 	static struct statfs *mntbuf;
 	static size_t mntsize = 0;
-	static char *mntcheck = NULL;
+	static int *mntcheck = NULL;
 	struct statfs *sfs, *foundsfs;
 	int i, count;
 

@@ -28,7 +28,6 @@ cpu		CPU_XSCALE_PXA2X0
 hints		"GUMSTIX.hints"
 
 options 	PHYSADDR=0xa0000000
-options 	KERNPHYSADDR=0xa0200000	
 options 	KERNVIRTADDR=0xc0200000	# Used in ldscript.arm
 
 include 	"../xscale/pxa/std.pxa"

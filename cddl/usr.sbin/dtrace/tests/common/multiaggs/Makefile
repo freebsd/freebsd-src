@@ -31,4 +31,4 @@ CFILES= \
 
 
 
-.include "../../Makefile.inc1"
+.include "../../dtrace.test.mk"

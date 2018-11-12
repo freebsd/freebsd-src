@@ -256,21 +256,6 @@ static eventhandler_tag cdce_etag;
 
 static int  cdce_driver_loaded(struct module *, int, void *);
 
-DRIVER_MODULE(cdce, uhub, cdce_driver, cdce_devclass, cdce_driver_loaded, 0);
-MODULE_VERSION(cdce, 1);
-MODULE_DEPEND(cdce, uether, 1, 1, 1);
-MODULE_DEPEND(cdce, usb, 1, 1, 1);
-MODULE_DEPEND(cdce, ether, 1, 1, 1);
-
-static const struct usb_ether_methods cdce_ue_methods = {
-	.ue_attach_post = cdce_attach_post,
-	.ue_start = cdce_start,
-	.ue_init = cdce_init,
-	.ue_stop = cdce_stop,
-	.ue_setmulti = cdce_setmulti,
-	.ue_setpromisc = cdce_setpromisc,
-};
-
 static const STRUCT_USB_HOST_ID cdce_switch_devs[] = {
 	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E3272_INIT, MSC_EJECT_HUAWEI2)},
 };
@@ -305,6 +290,24 @@ static const STRUCT_USB_DUAL_ID cdce_dual_devs[] = {
 	{USB_IF_CSI(UICLASS_CDC, UISUBCLASS_ETHERNET_NETWORKING_CONTROL_MODEL, 0)},
 	{USB_IF_CSI(UICLASS_CDC, UISUBCLASS_MOBILE_DIRECT_LINE_MODEL, 0)},
 	{USB_IF_CSI(UICLASS_CDC, UISUBCLASS_NETWORK_CONTROL_MODEL, 0)},
+};
+
+DRIVER_MODULE(cdce, uhub, cdce_driver, cdce_devclass, cdce_driver_loaded, 0);
+MODULE_VERSION(cdce, 1);
+MODULE_DEPEND(cdce, uether, 1, 1, 1);
+MODULE_DEPEND(cdce, usb, 1, 1, 1);
+MODULE_DEPEND(cdce, ether, 1, 1, 1);
+USB_PNP_DEVICE_INFO(cdce_switch_devs);
+USB_PNP_HOST_INFO(cdce_host_devs);
+USB_PNP_DUAL_INFO(cdce_dual_devs);
+
+static const struct usb_ether_methods cdce_ue_methods = {
+	.ue_attach_post = cdce_attach_post,
+	.ue_start = cdce_start,
+	.ue_init = cdce_init,
+	.ue_stop = cdce_stop,
+	.ue_setmulti = cdce_setmulti,
+	.ue_setpromisc = cdce_setpromisc,
 };
 
 #if CDCE_HAVE_NCM
@@ -1535,6 +1538,7 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			/* check if we have a buffer */
 			if (m) {
+				m->m_len = m->m_pkthdr.len = temp + ETHER_ALIGN;
 				m_adj(m, ETHER_ALIGN);
 
 				usbd_copy_out(pc, offset, m->m_data, temp);

@@ -13,6 +13,7 @@
 
 #include "AMDGPUTargetStreamer.h"
 #include "SIDefines.h"
+#include "Utils/AMDGPUBaseInfo.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCELFStreamer.h"
@@ -220,6 +221,26 @@ AMDGPUTargetAsmStreamer::EmitAMDKernelCodeT(const amd_kernel_code_t &Header) {
 
 }
 
+void AMDGPUTargetAsmStreamer::EmitAMDGPUSymbolType(StringRef SymbolName,
+                                                   unsigned Type) {
+  switch (Type) {
+    default: llvm_unreachable("Invalid AMDGPU symbol type");
+    case ELF::STT_AMDGPU_HSA_KERNEL:
+      OS << "\t.amdgpu_hsa_kernel " << SymbolName << '\n' ;
+      break;
+  }
+}
+
+void AMDGPUTargetAsmStreamer::EmitAMDGPUHsaModuleScopeGlobal(
+    StringRef GlobalName) {
+  OS << "\t.amdgpu_hsa_module_global " << GlobalName << '\n';
+}
+
+void AMDGPUTargetAsmStreamer::EmitAMDGPUHsaProgramScopeGlobal(
+    StringRef GlobalName) {
+  OS << "\t.amdgpu_hsa_program_global " << GlobalName << '\n';
+}
+
 //===----------------------------------------------------------------------===//
 // AMDGPUTargetELFStreamer
 //===----------------------------------------------------------------------===//
@@ -291,7 +312,35 @@ AMDGPUTargetELFStreamer::EmitAMDKernelCodeT(const amd_kernel_code_t &Header) {
 
   MCStreamer &OS = getStreamer();
   OS.PushSection();
-  OS.SwitchSection(OS.getContext().getObjectFileInfo()->getTextSection());
+  // The MCObjectFileInfo that is available to the assembler is a generic
+  // implementation and not AMDGPUHSATargetObjectFile, so we can't use
+  // MCObjectFileInfo::getTextSection() here for fetching the HSATextSection.
+  OS.SwitchSection(AMDGPU::getHSATextSection(OS.getContext()));
   OS.EmitBytes(StringRef((const char*)&Header, sizeof(Header)));
   OS.PopSection();
+}
+
+void AMDGPUTargetELFStreamer::EmitAMDGPUSymbolType(StringRef SymbolName,
+                                                   unsigned Type) {
+  MCSymbolELF *Symbol = cast<MCSymbolELF>(
+      getStreamer().getContext().getOrCreateSymbol(SymbolName));
+  Symbol->setType(ELF::STT_AMDGPU_HSA_KERNEL);
+}
+
+void AMDGPUTargetELFStreamer::EmitAMDGPUHsaModuleScopeGlobal(
+    StringRef GlobalName) {
+
+  MCSymbolELF *Symbol = cast<MCSymbolELF>(
+      getStreamer().getContext().getOrCreateSymbol(GlobalName));
+  Symbol->setType(ELF::STT_OBJECT);
+  Symbol->setBinding(ELF::STB_LOCAL);
+}
+
+void AMDGPUTargetELFStreamer::EmitAMDGPUHsaProgramScopeGlobal(
+    StringRef GlobalName) {
+
+  MCSymbolELF *Symbol = cast<MCSymbolELF>(
+      getStreamer().getContext().getOrCreateSymbol(GlobalName));
+  Symbol->setType(ELF::STT_OBJECT);
+  Symbol->setBinding(ELF::STB_GLOBAL);
 }

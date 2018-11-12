@@ -289,8 +289,6 @@ qla_pci_attach(device_t dev)
 	int i;
 	uint32_t num_rcvq = 0;
 
-	QL_DPRINT2(ha, (dev, "%s: enter\n", __func__));
-
         if ((ha = device_get_softc(dev)) == NULL) {
                 device_printf(dev, "cannot get softc\n");
                 return (ENOMEM);

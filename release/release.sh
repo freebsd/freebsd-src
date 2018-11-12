@@ -275,6 +275,7 @@ extra_chroot_setup() {
 			PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
 			chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
 				${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" \
+				FORCE_PKG_REGISTER=1 \
 				install clean distclean
 		fi
 	fi
@@ -362,10 +363,10 @@ chroot_arm_armv6_build_release() {
 	chroot ${CHROOTDIR} cp -p ${OBJDIR}/${OSRELEASE}-${KERNEL}.img \
 		/R/${OSRELEASE}-${KERNEL}.img
 	chroot ${CHROOTDIR} xz -T ${XZ_THREADS} /R/${OSRELEASE}-${KERNEL}.img
+	cd ${CHROOTDIR}/R && sha512 ${OSRELEASE}* \
+		> CHECKSUM.SHA512
 	cd ${CHROOTDIR}/R && sha256 ${OSRELEASE}* \
 		> CHECKSUM.SHA256
-	cd ${CHROOTDIR}/R && md5 ${OSRELEASE}* \
-		> CHECKSUM.MD5
 
 	return 0
 } # chroot_arm_armv6_build_release()

@@ -1,16 +1,4 @@
 # $FreeBSD$
 
-# kernel gets loaded at 0x00200000 by the loader, but runs at virtual address
-# 0xc0200000.  RAM starts at 0.  We put the pagetable at a reasonable place
-# in memory, but may need to bounce it higher if there's a problem with this.
-# We could paper over this by loading the kernel at 0xc0000000 virtual, but
-# that leads to other complications, so we'll just reclaim the lower region of
-# ram after we're loaded.  Put the page tables for startup at 1MB.
-makeoptions	KERNPHYSADDR=0x00200000
 makeoptions	KERNVIRTADDR=0xc0200000
-
-options		KERNPHYSADDR=0x00200000
 options		KERNVIRTADDR=0xc0200000
-options		PHYSADDR=0x00000000
-
-options		ARM_L2_PIPT

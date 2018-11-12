@@ -31,16 +31,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
@@ -58,7 +55,7 @@ static			void
 falconsiena_intr_disable_unlocked(
 	__in		efx_nic_t *enp);
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level);
@@ -67,14 +64,26 @@ static			void
 falconsiena_intr_fini(
 	__in		efx_nic_t *enp);
 
+static			void
+falconsiena_intr_status_line(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *fatalp,
+	__out		uint32_t *qmaskp);
+
+static			void
+falconsiena_intr_status_message(
+	__in		efx_nic_t *enp,
+	__in		unsigned int message,
+	__out		boolean_t *fatalp);
+
+static			void
+falconsiena_intr_fatal(
+	__in		efx_nic_t *enp);
 
 static	__checkReturn	boolean_t
 falconsiena_intr_check_fatal(
 	__in		efx_nic_t *enp);
 
-static			void
-falconsiena_intr_fatal(
-	__in		efx_nic_t *enp);
 
 #endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
 
@@ -86,6 +95,9 @@ static efx_intr_ops_t	__efx_intr_falcon_ops = {
 	falconsiena_intr_disable,		/* eio_disable */
 	falconsiena_intr_disable_unlocked,	/* eio_disable_unlocked */
 	falconsiena_intr_trigger,		/* eio_trigger */
+	falconsiena_intr_status_line,		/* eio_status_line */
+	falconsiena_intr_status_message,	/* eio_status_message */
+	falconsiena_intr_fatal,			/* eio_fatal */
 	falconsiena_intr_fini,			/* eio_fini */
 };
 #endif	/* EFSYS_OPT_FALCON */
@@ -97,23 +109,28 @@ static efx_intr_ops_t	__efx_intr_siena_ops = {
 	falconsiena_intr_disable,		/* eio_disable */
 	falconsiena_intr_disable_unlocked,	/* eio_disable_unlocked */
 	falconsiena_intr_trigger,		/* eio_trigger */
+	falconsiena_intr_status_line,		/* eio_status_line */
+	falconsiena_intr_status_message,	/* eio_status_message */
+	falconsiena_intr_fatal,			/* eio_fatal */
 	falconsiena_intr_fini,			/* eio_fini */
 };
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON
-static efx_intr_ops_t	__efx_intr_hunt_ops = {
-	hunt_intr_init,			/* eio_init */
-	hunt_intr_enable,		/* eio_enable */
-	hunt_intr_disable,		/* eio_disable */
-	hunt_intr_disable_unlocked,	/* eio_disable_unlocked */
-	hunt_intr_trigger,		/* eio_trigger */
-	hunt_intr_fini,			/* eio_fini */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+static efx_intr_ops_t	__efx_intr_ef10_ops = {
+	ef10_intr_init,			/* eio_init */
+	ef10_intr_enable,		/* eio_enable */
+	ef10_intr_disable,		/* eio_disable */
+	ef10_intr_disable_unlocked,	/* eio_disable_unlocked */
+	ef10_intr_trigger,		/* eio_trigger */
+	ef10_intr_status_line,		/* eio_status_line */
+	ef10_intr_status_message,	/* eio_status_message */
+	ef10_intr_fatal,		/* eio_fatal */
+	ef10_intr_fini,			/* eio_fini */
 };
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
-
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
@@ -121,7 +138,7 @@ efx_intr_init(
 {
 	efx_intr_t *eip = &(enp->en_intr);
 	efx_intr_ops_t *eiop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
@@ -152,9 +169,15 @@ efx_intr_init(
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		eiop = (efx_intr_ops_t *)&__efx_intr_hunt_ops;
+		eiop = (efx_intr_ops_t *)&__efx_intr_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		eiop = (efx_intr_ops_t *)&__efx_intr_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(B_FALSE);
@@ -174,7 +197,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -235,7 +258,7 @@ efx_intr_disable_unlocked(
 }
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level)
@@ -256,35 +279,12 @@ efx_intr_status_line(
 	__out		uint32_t *qmaskp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
-	efx_dword_t dword;
+	efx_intr_ops_t *eiop = eip->ei_eiop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
 
-	/* Ensure Huntington and Falcon/Siena ISR at same location */
-	EFX_STATIC_ASSERT(FR_BZ_INT_ISR0_REG_OFST ==
-	    ER_DZ_BIU_INT_ISR_REG_OFST);
-
-	/*
-	 * Read the queue mask and implicitly acknowledge the
-	 * interrupt.
-	 */
-	EFX_BAR_READD(enp, FR_BZ_INT_ISR0_REG, &dword, B_FALSE);
-	*qmaskp = EFX_DWORD_FIELD(dword, EFX_DWORD_0);
-
-	EFSYS_PROBE1(qmask, uint32_t, *qmaskp);
-
-#if EFSYS_OPT_HUNTINGTON
-	if (enp->en_family == EFX_FAMILY_HUNTINGTON) {
-		/* Huntington reports fatal errors via events */
-		*fatalp = B_FALSE;
-		return;
-	}
-#endif
-	if (*qmaskp & (1U << eip->ei_level))
-		*fatalp = falconsiena_intr_check_fatal(enp);
-	else
-		*fatalp = B_FALSE;
+	eiop->eio_status_line(enp, fatalp, qmaskp);
 }
 
 			void
@@ -294,39 +294,25 @@ efx_intr_status_message(
 	__out		boolean_t *fatalp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
+	efx_intr_ops_t *eiop = eip->ei_eiop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
 
-#if EFSYS_OPT_HUNTINGTON
-	if (enp->en_family == EFX_FAMILY_HUNTINGTON) {
-		/* Huntington reports fatal errors via events */
-		*fatalp = B_FALSE;
-		return;
-	}
-#endif
-	if (message == eip->ei_level)
-		*fatalp = falconsiena_intr_check_fatal(enp);
-	else
-		*fatalp = B_FALSE;
+	eiop->eio_status_message(enp, message, fatalp);
 }
 
 		void
 efx_intr_fatal(
 	__in	efx_nic_t *enp)
 {
+	efx_intr_t *eip = &(enp->en_intr);
+	efx_intr_ops_t *eiop = eip->ei_eiop;
+
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
 
-#if EFSYS_OPT_HUNTINGTON
-	if (enp->en_family == EFX_FAMILY_HUNTINGTON) {
-		/* Huntington reports fatal errors via events */
-		return;
-	}
-#endif
-#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
-	falconsiena_intr_fatal(enp);
-#endif
+	eiop->eio_fatal(enp);
 }
 
 
@@ -336,7 +322,7 @@ efx_intr_fatal(
 
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
@@ -417,7 +403,7 @@ falconsiena_intr_disable_unlocked(
 	    &oword, B_FALSE);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level)
@@ -426,7 +412,7 @@ falconsiena_intr_trigger(
 	efx_oword_t oword;
 	unsigned int count;
 	uint32_t sel;
-	int rc;
+	efx_rc_t rc;
 
 	/* bug16757: No event queues can be initialized */
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_EV));
@@ -480,7 +466,7 @@ falconsiena_intr_trigger(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -508,6 +494,51 @@ falconsiena_intr_check_fatal(
 
 	return (B_FALSE);
 }
+
+static			void
+falconsiena_intr_status_line(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *fatalp,
+	__out		uint32_t *qmaskp)
+{
+	efx_intr_t *eip = &(enp->en_intr);
+	efx_dword_t dword;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
+
+	/*
+	 * Read the queue mask and implicitly acknowledge the
+	 * interrupt.
+	 */
+	EFX_BAR_READD(enp, FR_BZ_INT_ISR0_REG, &dword, B_FALSE);
+	*qmaskp = EFX_DWORD_FIELD(dword, EFX_DWORD_0);
+
+	EFSYS_PROBE1(qmask, uint32_t, *qmaskp);
+
+	if (*qmaskp & (1U << eip->ei_level))
+		*fatalp = falconsiena_intr_check_fatal(enp);
+	else
+		*fatalp = B_FALSE;
+}
+
+static			void
+falconsiena_intr_status_message(
+	__in		efx_nic_t *enp,
+	__in		unsigned int message,
+	__out		boolean_t *fatalp)
+{
+	efx_intr_t *eip = &(enp->en_intr);
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
+
+	if (message == eip->ei_level)
+		*fatalp = falconsiena_intr_check_fatal(enp);
+	else
+		*fatalp = B_FALSE;
+}
+
 
 static		void
 falconsiena_intr_fatal(

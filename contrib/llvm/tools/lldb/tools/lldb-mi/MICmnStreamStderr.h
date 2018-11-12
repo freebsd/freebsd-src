@@ -20,9 +20,6 @@
 //          CMICmnStreamStderr sets up and tears downs stderr for the driver.
 //
 //          Singleton class.
-// Gotchas: None.
-// Authors: Illya Rudkin 19/03/2014.
-// Changes: None.
 //--
 class CMICmnStreamStderr : public CMICmnBase, public MI::ISingleton<CMICmnStreamStderr>
 {
@@ -35,17 +32,17 @@ class CMICmnStreamStderr : public CMICmnBase, public MI::ISingleton<CMICmnStream
 
     // Methods:
   public:
-    bool Initialize(void) override;
-    bool Shutdown(void) override;
+    bool Initialize() override;
+    bool Shutdown() override;
     //
-    bool Lock(void);
-    bool Unlock(void);
+    bool Lock();
+    bool Unlock();
     bool Write(const CMIUtilString &vText, const bool vbSendToLog = true);
     bool WriteLLDBMsg(const CMIUtilString &vText, const bool vbSendToLog = true);
 
     // Methods:
   private:
-    /* ctor */ CMICmnStreamStderr(void);
+    /* ctor */ CMICmnStreamStderr();
     /* ctor */ CMICmnStreamStderr(const CMICmnStreamStderr &);
     void operator=(const CMICmnStreamStderr &);
     //
@@ -54,7 +51,7 @@ class CMICmnStreamStderr : public CMICmnBase, public MI::ISingleton<CMICmnStream
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ ~CMICmnStreamStderr(void) override;
+    /* dtor */ ~CMICmnStreamStderr() override;
 
     // Attributes:
   private:

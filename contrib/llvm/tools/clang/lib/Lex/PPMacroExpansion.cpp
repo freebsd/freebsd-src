@@ -145,8 +145,12 @@ void Preprocessor::updateModuleMacroInfo(const IdentifierInfo *II,
     NumHiddenOverrides[O] = -1;
 
   // Collect all macros that are not overridden by a visible macro.
-  llvm::SmallVector<ModuleMacro *, 16> Worklist(Leaf->second.begin(),
-                                                Leaf->second.end());
+  llvm::SmallVector<ModuleMacro *, 16> Worklist;
+  for (auto *LeafMM : Leaf->second) {
+    assert(LeafMM->getNumOverridingMacros() == 0 && "leaf macro overridden");
+    if (NumHiddenOverrides.lookup(LeafMM) == 0)
+      Worklist.push_back(LeafMM);
+  }
   while (!Worklist.empty()) {
     auto *MM = Worklist.pop_back_val();
     if (CurSubmoduleState->VisibleModules.isVisible(MM->getOwningModule())) {
@@ -593,9 +597,7 @@ static bool CheckMatchedBrackets(const SmallVectorImpl<Token> &Tokens) {
       Brackets.pop_back();
     }
   }
-  if (!Brackets.empty())
-    return false;
-  return true;
+  return Brackets.empty();
 }
 
 /// GenerateNewArgTokens - Returns true if OldTokens can be converted to a new
@@ -867,7 +869,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
         DiagnosticBuilder DB =
             Diag(MacroName,
                  diag::note_init_list_at_beginning_of_macro_argument);
-        for (const SourceRange &Range : InitLists)
+        for (SourceRange Range : InitLists)
           DB << Range;
       }
       return nullptr;
@@ -876,7 +878,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
       return nullptr;
 
     DiagnosticBuilder DB = Diag(MacroName, diag::note_suggest_parens_for_macro);
-    for (const SourceRange &ParenLocation : ParenHints) {
+    for (SourceRange ParenLocation : ParenHints) {
       DB << FixItHint::CreateInsertion(ParenLocation.getBegin(), "(");
       DB << FixItHint::CreateInsertion(ParenLocation.getEnd(), ")");
     }
@@ -1057,6 +1059,9 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
       .Case("attribute_availability", true)
       .Case("attribute_availability_with_message", true)
       .Case("attribute_availability_app_extension", true)
+      .Case("attribute_availability_with_version_underscores", true)
+      .Case("attribute_availability_tvos", true)
+      .Case("attribute_availability_watchos", true)
       .Case("attribute_cf_returns_not_retained", true)
       .Case("attribute_cf_returns_retained", true)
       .Case("attribute_cf_returns_on_parameters", true)
@@ -1075,7 +1080,7 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
       .Case("blocks", LangOpts.Blocks)
       .Case("c_thread_safety_attributes", true)
       .Case("cxx_exceptions", LangOpts.CXXExceptions)
-      .Case("cxx_rtti", LangOpts.RTTI)
+      .Case("cxx_rtti", LangOpts.RTTI && LangOpts.RTTIData)
       .Case("enumerator_attributes", true)
       .Case("nullability", true)
       .Case("memory_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Memory))
@@ -1084,7 +1089,7 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
       // Objective-C features
       .Case("objc_arr", LangOpts.ObjCAutoRefCount) // FIXME: REMOVE?
       .Case("objc_arc", LangOpts.ObjCAutoRefCount)
-      .Case("objc_arc_weak", LangOpts.ObjCARCWeak)
+      .Case("objc_arc_weak", LangOpts.ObjCWeak)
       .Case("objc_default_synthesize_properties", LangOpts.ObjC2)
       .Case("objc_fixed_enum", LangOpts.ObjC2)
       .Case("objc_instancetype", LangOpts.ObjC2)
@@ -1629,16 +1634,23 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       Value = FeatureII->getTokenID() == tok::identifier;
     else if (II == Ident__has_builtin) {
       // Check for a builtin is trivial.
-      Value = FeatureII->getBuiltinID() != 0;
+      if (FeatureII->getBuiltinID() != 0) {
+        Value = true;
+      } else {
+        StringRef Feature = FeatureII->getName();
+        Value = llvm::StringSwitch<bool>(Feature)
+                    .Case("__make_integer_seq", getLangOpts().CPlusPlus)
+                    .Default(false);
+      }
     } else if (II == Ident__has_attribute)
       Value = hasAttribute(AttrSyntax::GNU, nullptr, FeatureII,
-                           getTargetInfo().getTriple(), getLangOpts());
+                           getTargetInfo(), getLangOpts());
     else if (II == Ident__has_cpp_attribute)
       Value = hasAttribute(AttrSyntax::CXX, ScopeII, FeatureII,
-                           getTargetInfo().getTriple(), getLangOpts());
+                           getTargetInfo(), getLangOpts());
     else if (II == Ident__has_declspec)
       Value = hasAttribute(AttrSyntax::Declspec, nullptr, FeatureII,
-                           getTargetInfo().getTriple(), getLangOpts());
+                           getTargetInfo(), getLangOpts());
     else if (II == Ident__has_extension)
       Value = HasExtension(*this, FeatureII);
     else {

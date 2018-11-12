@@ -653,8 +653,7 @@ protected:
   uint64_t getCommonSymbolSizeImpl(DataRefImpl Symb) const override;
   uint32_t getSymbolFlags(DataRefImpl Symb) const override;
   SymbolRef::Type getSymbolType(DataRefImpl Symb) const override;
-  std::error_code getSymbolSection(DataRefImpl Symb,
-                                   section_iterator &Res) const override;
+  ErrorOr<section_iterator> getSymbolSection(DataRefImpl Symb) const override;
   void moveSectionNext(DataRefImpl &Sec) const override;
   std::error_code getSectionName(DataRefImpl Sec,
                                  StringRef &Res) const override;
@@ -774,6 +773,7 @@ public:
   std::error_code getSectionContents(const coff_section *Sec,
                                      ArrayRef<uint8_t> &Res) const;
 
+  uint64_t getImageBase() const;
   std::error_code getVaPtr(uint64_t VA, uintptr_t &Res) const;
   std::error_code getRvaPtr(uint32_t Rva, uintptr_t &Res) const;
   std::error_code getHintName(uint32_t Rva, uint16_t &Hint,
@@ -857,6 +857,9 @@ public:
   std::error_code getOrdinal(uint32_t &Result) const;
   std::error_code getExportRVA(uint32_t &Result) const;
   std::error_code getSymbolName(StringRef &Result) const;
+
+  std::error_code isForwarder(bool &Result) const;
+  std::error_code getForwardTo(StringRef &Result) const;
 
 private:
   const export_directory_table_entry *ExportTable;

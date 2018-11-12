@@ -75,8 +75,7 @@ public:
     /// The destructor is virtual since this class is designed to be
     /// inherited by the plug-in instance.
     //------------------------------------------------------------------
-    virtual
-    ~SystemRuntime();
+    ~SystemRuntime() override;
 
     //------------------------------------------------------------------
     /// Called after attaching to a process.
@@ -276,6 +275,23 @@ public:
         return LLDB_INVALID_ADDRESS;
     }
 
+
+    //------------------------------------------------------------------
+    /// Retrieve the Queue kind for the queue at a thread's dispatch_qaddr.
+    ///
+    /// Retrieve the Queue kind - either eQueueKindSerial or 
+    /// eQueueKindConcurrent, indicating that this queue processes work
+    /// items serially or concurrently.
+    ///
+    /// @return
+    ///     The Queue kind, if it could be read, else eQueueKindUnknown.
+    //------------------------------------------------------------------
+    virtual lldb::QueueKind
+    GetQueueKind (lldb::addr_t dispatch_qaddr)
+    {
+        return lldb::eQueueKindUnknown;
+    }
+
     //------------------------------------------------------------------
     /// Get the pending work items for a libdispatch Queue
     ///
@@ -354,9 +370,10 @@ protected:
     std::vector<ConstString> m_types;
 
 private:
+
     DISALLOW_COPY_AND_ASSIGN (SystemRuntime);
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_SystemRuntime_h_
+#endif // liblldb_SystemRuntime_h_

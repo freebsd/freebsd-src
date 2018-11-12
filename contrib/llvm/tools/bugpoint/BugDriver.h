@@ -36,7 +36,7 @@ class LLVMContext;
 
 class DebugCrashes;
 
-class GCC;
+class CC;
 
 extern bool DisableSimplifyCFG;
 
@@ -52,7 +52,7 @@ class BugDriver {
   std::vector<std::string> PassesToRun;
   AbstractInterpreter *Interpreter;   // How to run the program
   AbstractInterpreter *SafeInterpreter;  // To generate reference output, etc.
-  GCC *gcc;
+  CC *cc;
   bool run_find_bugs;
   unsigned Timeout;
   unsigned MemoryLimit;
@@ -321,16 +321,21 @@ void PrintFunctionList(const std::vector<Function*> &Funcs);
 ///
 void PrintGlobalVariableList(const std::vector<GlobalVariable*> &GVs);
 
+// DeleteGlobalInitializer - "Remove" the global variable by deleting its
+// initializer, making it external.
+//
+void DeleteGlobalInitializer(GlobalVariable *GV);
+
 // DeleteFunctionBody - "Remove" the function by deleting all of it's basic
 // blocks, making it external.
 //
 void DeleteFunctionBody(Function *F);
 
-/// SplitFunctionsOutOfModule - Given a module and a list of functions in the
-/// module, split the functions OUT of the specified module, and place them in
-/// the new module.
-Module *SplitFunctionsOutOfModule(Module *M, const std::vector<Function*> &F,
-                                  ValueToValueMapTy &VMap);
+/// Given a module and a list of functions in the module, split the functions
+/// OUT of the specified module, and place them in the new module.
+std::unique_ptr<Module>
+SplitFunctionsOutOfModule(Module *M, const std::vector<Function *> &F,
+                          ValueToValueMapTy &VMap);
 
 } // End llvm namespace
 

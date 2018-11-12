@@ -322,8 +322,8 @@ static void
 showjob(struct job *jp, int mode)
 {
 	char s[64];
-	char statestr[64];
-	const char *sigstr;
+	char statebuf[16];
+	const char *statestr, *coredump;
 	struct procstat *ps;
 	struct job *j;
 	int col, curr, i, jobno, prev, procno;
@@ -339,9 +339,10 @@ showjob(struct job *jp, int mode)
 			prev = j - jobtab + 1;
 	}
 #endif
+	coredump = "";
 	ps = jp->ps + jp->nprocs - 1;
 	if (jp->state == 0) {
-		strcpy(statestr, "Running");
+		statestr = "Running";
 #if JOBS
 	} else if (jp->state == JOBSTOPPED) {
 		while (!WIFSTOPPED(ps->status) && ps > jp->ps)
@@ -350,27 +351,25 @@ showjob(struct job *jp, int mode)
 			i = WSTOPSIG(ps->status);
 		else
 			i = -1;
-		sigstr = strsignal(i);
-		if (sigstr != NULL)
-			strcpy(statestr, sigstr);
-		else
-			strcpy(statestr, "Suspended");
+		statestr = strsignal(i);
+		if (statestr == NULL)
+			statestr = "Suspended";
 #endif
 	} else if (WIFEXITED(ps->status)) {
 		if (WEXITSTATUS(ps->status) == 0)
-			strcpy(statestr, "Done");
-		else
-			fmtstr(statestr, 64, "Done(%d)",
+			statestr = "Done";
+		else {
+			fmtstr(statebuf, sizeof(statebuf), "Done(%d)",
 			    WEXITSTATUS(ps->status));
+			statestr = statebuf;
+		}
 	} else {
 		i = WTERMSIG(ps->status);
-		sigstr = strsignal(i);
-		if (sigstr != NULL)
-			strcpy(statestr, sigstr);
-		else
-			strcpy(statestr, "Unknown signal");
+		statestr = strsignal(i);
+		if (statestr == NULL)
+			statestr = "Unknown signal";
 		if (WCOREDUMP(ps->status))
-			strcat(statestr, " (core dumped)");
+			coredump = " (core dumped)";
 	}
 
 	for (ps = jp->ps ; procno > 0 ; ps++, procno--) { /* for each process */
@@ -399,7 +398,8 @@ showjob(struct job *jp, int mode)
 		}
 		if (ps == jp->ps) {
 			out1str(statestr);
-			col += strlen(statestr);
+			out1str(coredump);
+			col += strlen(statestr) + strlen(coredump);
 		}
 		do {
 			out1c(' ');

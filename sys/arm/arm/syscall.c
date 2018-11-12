@@ -98,17 +98,6 @@ __FBSDID("$FreeBSD$");
 
 void swi_handler(struct trapframe *);
 
-static __inline void
-call_trapsignal(struct thread *td, int sig, u_long code)
-{
-	ksiginfo_t ksi;
-
-	ksiginfo_init_trap(&ksi);
-	ksi.ksi_signo = sig;
-	ksi.ksi_code = (int)code;
-	trapsignal(td, &ksi);
-}
-
 int
 cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {

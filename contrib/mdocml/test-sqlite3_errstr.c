@@ -4,5 +4,5 @@
 int
 main(void)
 {
-	return(strcmp(sqlite3_errstr(SQLITE_OK), "not an error"));
+	return strcmp(sqlite3_errstr(SQLITE_OK), "not an error");
 }

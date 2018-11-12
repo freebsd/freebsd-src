@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
+#include <machine/acle-compat.h>
 #include <machine/memdev.h>
 #include <machine/vmparam.h>
 
@@ -113,7 +114,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				return (EINVAL);
 			sx_xlock(&tmppt_lock);
 			pmap_kenter((vm_offset_t)_tmppt, v);
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 			pmap_tlb_flush(kernel_pmap, (vm_offset_t)_tmppt);
 #endif
 			o = (int)uio->uio_offset & PAGE_MASK;

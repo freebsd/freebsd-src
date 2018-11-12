@@ -1,4 +1,4 @@
-/*	$Id: test-wchar.c,v 1.2 2014/08/28 10:38:06 schwarze Exp $	*/
+/*	$Id: test-wchar.c,v 1.3 2015/10/06 18:32:20 schwarze Exp $	*/
 /*
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -32,32 +32,32 @@ main(void)
 
 	if (setlocale(LC_ALL, "") == NULL) {
 		fputs("setlocale(LC_ALL, \"\") failed\n", stderr);
-		return(1);
+		return 1;
 	}
 
 	if (setlocale(LC_CTYPE, "en_US.UTF-8") == NULL) {
 		fputs("setlocale(LC_CTYPE, \"en_US.UTF-8\") failed\n",
 		    stderr);
-		return(1);
+		return 1;
 	}
 
 	if (sizeof(wchar_t) < 4) {
 		fprintf(stderr, "wchar_t is only %zu bytes\n",
 		    sizeof(wchar_t));
-		return(1);
+		return 1;
 	}
 
 	if ((width = wcwidth(L' ')) != 1) {
 		fprintf(stderr, "wcwidth(L' ') returned %d\n", width);
-		return(1);
+		return 1;
 	}
 
 	dup2(STDERR_FILENO, STDOUT_FILENO);
 	wc = L'*';
 	if (putwchar(wc) != (wint_t)wc) {
 		fputs("bad putwchar return value\n", stderr);
-		return(1);
+		return 1;
 	}
 
-	return(0);
+	return 0;
 }

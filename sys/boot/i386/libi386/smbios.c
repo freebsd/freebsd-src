@@ -332,7 +332,7 @@ static caddr_t
 smbios_find_struct(int type)
 {
 	caddr_t		dmi;
-	int		i;
+	size_t		i;
 
 	if (smbios.addr == NULL)
 		return (NULL);
@@ -402,7 +402,7 @@ smbios_detect(const caddr_t addr)
 {
 	char		buf[16];
 	caddr_t		dmi;
-	int		i;
+	size_t		i;
 
 	smbios_probe(addr);
 	if (smbios.addr == NULL)

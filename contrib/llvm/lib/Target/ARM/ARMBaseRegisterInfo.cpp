@@ -87,7 +87,20 @@ ARMBaseRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     }
   }
 
+  if (STI.isTargetDarwin() && F->getCallingConv() == CallingConv::CXX_FAST_TLS)
+    return MF->getInfo<ARMFunctionInfo>()->isSplitCSR()
+               ? CSR_iOS_CXX_TLS_PE_SaveList
+               : CSR_iOS_CXX_TLS_SaveList;
   return RegList;
+}
+
+const MCPhysReg *ARMBaseRegisterInfo::getCalleeSavedRegsViaCopy(
+    const MachineFunction *MF) const {
+  assert(MF && "Invalid MachineFunction pointer.");
+  if (MF->getFunction()->getCallingConv() == CallingConv::CXX_FAST_TLS &&
+      MF->getInfo<ARMFunctionInfo>()->isSplitCSR())
+    return CSR_iOS_CXX_TLS_ViaCopy_SaveList;
+  return nullptr;
 }
 
 const uint32_t *
@@ -97,6 +110,8 @@ ARMBaseRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
   if (CC == CallingConv::GHC)
     // This is academic becase all GHC calls are (supposed to be) tail calls
     return CSR_NoRegs_RegMask;
+  if (STI.isTargetDarwin() && CC == CallingConv::CXX_FAST_TLS)
+    return CSR_iOS_CXX_TLS_RegMask;
   return STI.isTargetDarwin() ? CSR_iOS_RegMask : CSR_AAPCS_RegMask;
 }
 
@@ -104,6 +119,14 @@ const uint32_t*
 ARMBaseRegisterInfo::getNoPreservedMask() const {
   return CSR_NoRegs_RegMask;
 }
+
+const uint32_t *
+ARMBaseRegisterInfo::getTLSCallPreservedMask(const MachineFunction &MF) const {
+  assert(MF.getSubtarget<ARMSubtarget>().isTargetDarwin() &&
+         "only know about special TLS call on Darwin");
+  return CSR_iOS_TLSCall_RegMask;
+}
+
 
 const uint32_t *
 ARMBaseRegisterInfo::getThisReturnPreservedMask(const MachineFunction &MF,
@@ -225,7 +248,8 @@ ARMBaseRegisterInfo::getRegAllocationHints(unsigned VirtReg,
                                            ArrayRef<MCPhysReg> Order,
                                            SmallVectorImpl<MCPhysReg> &Hints,
                                            const MachineFunction &MF,
-                                           const VirtRegMap *VRM) const {
+                                           const VirtRegMap *VRM,
+                                           const LiveRegMatrix *Matrix) const {
   const MachineRegisterInfo &MRI = MF.getRegInfo();
   std::pair<unsigned, unsigned> Hint = MRI.getRegAllocationHint(VirtReg);
 
@@ -338,7 +362,7 @@ bool ARMBaseRegisterInfo::canRealignStack(const MachineFunction &MF) const {
   // 1. Dynamic stack realignment is explicitly disabled,
   // 2. This is a Thumb1 function (it's not useful, so we don't bother), or
   // 3. There are VLAs in the function and the base pointer is disabled.
-  if (MF.getFunction()->hasFnAttribute("no-realign-stack"))
+  if (!TargetRegisterInfo::canRealignStack(MF))
     return false;
   if (AFI->isThumb1OnlyFunction())
     return false;
@@ -353,18 +377,6 @@ bool ARMBaseRegisterInfo::canRealignStack(const MachineFunction &MF) const {
   // A base pointer is required and allowed.  Check that it isn't too late to
   // reserve it.
   return MRI->canReserveReg(BasePtr);
-}
-
-bool ARMBaseRegisterInfo::
-needsStackRealignment(const MachineFunction &MF) const {
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
-  const ARMFrameLowering *TFI = getFrameLowering(MF);
-  const Function *F = MF.getFunction();
-  unsigned StackAlign = TFI->getStackAlignment();
-  bool requiresRealignment = ((MFI->getMaxAlignment() > StackAlign) ||
-                              F->hasFnAttribute(Attribute::StackAlignment));
-
-  return requiresRealignment && canRealignStack(MF);
 }
 
 bool ARMBaseRegisterInfo::

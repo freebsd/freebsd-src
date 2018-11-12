@@ -84,6 +84,8 @@ BT::BitMask HexagonEvaluator::mask(unsigned Reg, unsigned Sub) const {
   uint16_t RW = getRegBitWidth(RegisterRef(Reg, Sub));
   switch (ID) {
     case DoubleRegsRegClassID:
+    case VecDblRegsRegClassID:
+    case VecDblRegs128BRegClassID:
       return (Sub == subreg_loreg) ? BT::BitMask(0, RW-1)
                                    : BT::BitMask(RW, 2*RW-1);
     default:
@@ -95,30 +97,29 @@ BT::BitMask HexagonEvaluator::mask(unsigned Reg, unsigned Sub) const {
   llvm_unreachable("Unexpected register/subregister");
 }
 
-
 namespace {
-  struct RegisterRefs : public std::vector<BT::RegisterRef> {
-    typedef std::vector<BT::RegisterRef> Base;
-    RegisterRefs(const MachineInstr *MI);
-    const BT::RegisterRef &operator[](unsigned n) const {
-      // The main purpose of this operator is to assert with bad argument.
-      assert(n < size());
-      return Base::operator[](n);
-    }
-  };
+class RegisterRefs {
+  std::vector<BT::RegisterRef> Vector;
 
-  RegisterRefs::RegisterRefs(const MachineInstr *MI)
-    : Base(MI->getNumOperands()) {
-    for (unsigned i = 0, n = size(); i < n; ++i) {
+public:
+  RegisterRefs(const MachineInstr *MI) : Vector(MI->getNumOperands()) {
+    for (unsigned i = 0, n = Vector.size(); i < n; ++i) {
       const MachineOperand &MO = MI->getOperand(i);
       if (MO.isReg())
-        at(i) = BT::RegisterRef(MO);
+        Vector[i] = BT::RegisterRef(MO);
       // For indices that don't correspond to registers, the entry will
       // remain constructed via the default constructor.
     }
   }
-}
 
+  size_t size() const { return Vector.size(); }
+  const BT::RegisterRef &operator[](unsigned n) const {
+    // The main purpose of this operator is to assert with bad argument.
+    assert(n < Vector.size());
+    return Vector[n];
+  }
+};
+}
 
 bool HexagonEvaluator::evaluate(const MachineInstr *MI,
       const CellMapType &Inputs, CellMapType &Outputs) const {
@@ -189,7 +190,7 @@ bool HexagonEvaluator::evaluate(const MachineInstr *MI,
     return true;
   };
   // Get the cell corresponding to the N-th operand.
-  auto cop = [this,Reg,MI,Inputs] (unsigned N, uint16_t W)
+  auto cop = [this,&Reg,&MI,&Inputs] (unsigned N, uint16_t W)
         -> BT::RegisterCell {
     const MachineOperand &Op = MI->getOperand(N);
     if (Op.isImm())

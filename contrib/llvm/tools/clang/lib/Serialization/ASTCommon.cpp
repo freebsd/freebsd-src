@@ -27,52 +27,166 @@ serialization::TypeIdx
 serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
   unsigned ID = 0;
   switch (BT->getKind()) {
-  case BuiltinType::Void:       ID = PREDEF_TYPE_VOID_ID;       break;
-  case BuiltinType::Bool:       ID = PREDEF_TYPE_BOOL_ID;       break;
-  case BuiltinType::Char_U:     ID = PREDEF_TYPE_CHAR_U_ID;     break;
-  case BuiltinType::UChar:      ID = PREDEF_TYPE_UCHAR_ID;      break;
-  case BuiltinType::UShort:     ID = PREDEF_TYPE_USHORT_ID;     break;
-  case BuiltinType::UInt:       ID = PREDEF_TYPE_UINT_ID;       break;
-  case BuiltinType::ULong:      ID = PREDEF_TYPE_ULONG_ID;      break;
-  case BuiltinType::ULongLong:  ID = PREDEF_TYPE_ULONGLONG_ID;  break;
-  case BuiltinType::UInt128:    ID = PREDEF_TYPE_UINT128_ID;    break;
-  case BuiltinType::Char_S:     ID = PREDEF_TYPE_CHAR_S_ID;     break;
-  case BuiltinType::SChar:      ID = PREDEF_TYPE_SCHAR_ID;      break;
+  case BuiltinType::Void:
+    ID = PREDEF_TYPE_VOID_ID;
+    break;
+  case BuiltinType::Bool:
+    ID = PREDEF_TYPE_BOOL_ID;
+    break;
+  case BuiltinType::Char_U:
+    ID = PREDEF_TYPE_CHAR_U_ID;
+    break;
+  case BuiltinType::UChar:
+    ID = PREDEF_TYPE_UCHAR_ID;
+    break;
+  case BuiltinType::UShort:
+    ID = PREDEF_TYPE_USHORT_ID;
+    break;
+  case BuiltinType::UInt:
+    ID = PREDEF_TYPE_UINT_ID;
+    break;
+  case BuiltinType::ULong:
+    ID = PREDEF_TYPE_ULONG_ID;
+    break;
+  case BuiltinType::ULongLong:
+    ID = PREDEF_TYPE_ULONGLONG_ID;
+    break;
+  case BuiltinType::UInt128:
+    ID = PREDEF_TYPE_UINT128_ID;
+    break;
+  case BuiltinType::Char_S:
+    ID = PREDEF_TYPE_CHAR_S_ID;
+    break;
+  case BuiltinType::SChar:
+    ID = PREDEF_TYPE_SCHAR_ID;
+    break;
   case BuiltinType::WChar_S:
-  case BuiltinType::WChar_U:    ID = PREDEF_TYPE_WCHAR_ID;      break;
-  case BuiltinType::Short:      ID = PREDEF_TYPE_SHORT_ID;      break;
-  case BuiltinType::Int:        ID = PREDEF_TYPE_INT_ID;        break;
-  case BuiltinType::Long:       ID = PREDEF_TYPE_LONG_ID;       break;
-  case BuiltinType::LongLong:   ID = PREDEF_TYPE_LONGLONG_ID;   break;
-  case BuiltinType::Int128:     ID = PREDEF_TYPE_INT128_ID;     break;
-  case BuiltinType::Half:       ID = PREDEF_TYPE_HALF_ID;       break;
-  case BuiltinType::Float:      ID = PREDEF_TYPE_FLOAT_ID;      break;
-  case BuiltinType::Double:     ID = PREDEF_TYPE_DOUBLE_ID;     break;
-  case BuiltinType::LongDouble: ID = PREDEF_TYPE_LONGDOUBLE_ID; break;
-  case BuiltinType::NullPtr:    ID = PREDEF_TYPE_NULLPTR_ID;    break;
-  case BuiltinType::Char16:     ID = PREDEF_TYPE_CHAR16_ID;     break;
-  case BuiltinType::Char32:     ID = PREDEF_TYPE_CHAR32_ID;     break;
-  case BuiltinType::Overload:   ID = PREDEF_TYPE_OVERLOAD_ID;   break;
-  case BuiltinType::BoundMember:ID = PREDEF_TYPE_BOUND_MEMBER;  break;
-  case BuiltinType::PseudoObject:ID = PREDEF_TYPE_PSEUDO_OBJECT;break;
-  case BuiltinType::Dependent:  ID = PREDEF_TYPE_DEPENDENT_ID;  break;
-  case BuiltinType::UnknownAny: ID = PREDEF_TYPE_UNKNOWN_ANY;   break;
+  case BuiltinType::WChar_U:
+    ID = PREDEF_TYPE_WCHAR_ID;
+    break;
+  case BuiltinType::Short:
+    ID = PREDEF_TYPE_SHORT_ID;
+    break;
+  case BuiltinType::Int:
+    ID = PREDEF_TYPE_INT_ID;
+    break;
+  case BuiltinType::Long:
+    ID = PREDEF_TYPE_LONG_ID;
+    break;
+  case BuiltinType::LongLong:
+    ID = PREDEF_TYPE_LONGLONG_ID;
+    break;
+  case BuiltinType::Int128:
+    ID = PREDEF_TYPE_INT128_ID;
+    break;
+  case BuiltinType::Half:
+    ID = PREDEF_TYPE_HALF_ID;
+    break;
+  case BuiltinType::Float:
+    ID = PREDEF_TYPE_FLOAT_ID;
+    break;
+  case BuiltinType::Double:
+    ID = PREDEF_TYPE_DOUBLE_ID;
+    break;
+  case BuiltinType::LongDouble:
+    ID = PREDEF_TYPE_LONGDOUBLE_ID;
+    break;
+  case BuiltinType::NullPtr:
+    ID = PREDEF_TYPE_NULLPTR_ID;
+    break;
+  case BuiltinType::Char16:
+    ID = PREDEF_TYPE_CHAR16_ID;
+    break;
+  case BuiltinType::Char32:
+    ID = PREDEF_TYPE_CHAR32_ID;
+    break;
+  case BuiltinType::Overload:
+    ID = PREDEF_TYPE_OVERLOAD_ID;
+    break;
+  case BuiltinType::BoundMember:
+    ID = PREDEF_TYPE_BOUND_MEMBER;
+    break;
+  case BuiltinType::PseudoObject:
+    ID = PREDEF_TYPE_PSEUDO_OBJECT;
+    break;
+  case BuiltinType::Dependent:
+    ID = PREDEF_TYPE_DEPENDENT_ID;
+    break;
+  case BuiltinType::UnknownAny:
+    ID = PREDEF_TYPE_UNKNOWN_ANY;
+    break;
   case BuiltinType::ARCUnbridgedCast:
-                                ID = PREDEF_TYPE_ARC_UNBRIDGED_CAST; break;
-  case BuiltinType::ObjCId:     ID = PREDEF_TYPE_OBJC_ID;       break;
-  case BuiltinType::ObjCClass:  ID = PREDEF_TYPE_OBJC_CLASS;    break;
-  case BuiltinType::ObjCSel:    ID = PREDEF_TYPE_OBJC_SEL;      break;
-  case BuiltinType::OCLImage1d:       ID = PREDEF_TYPE_IMAGE1D_ID;      break;
-  case BuiltinType::OCLImage1dArray:  ID = PREDEF_TYPE_IMAGE1D_ARR_ID;  break;
-  case BuiltinType::OCLImage1dBuffer: ID = PREDEF_TYPE_IMAGE1D_BUFF_ID; break;
-  case BuiltinType::OCLImage2d:       ID = PREDEF_TYPE_IMAGE2D_ID;      break;
-  case BuiltinType::OCLImage2dArray:  ID = PREDEF_TYPE_IMAGE2D_ARR_ID;  break;
-  case BuiltinType::OCLImage3d:       ID = PREDEF_TYPE_IMAGE3D_ID;      break;
-  case BuiltinType::OCLSampler:       ID = PREDEF_TYPE_SAMPLER_ID;      break;
-  case BuiltinType::OCLEvent:         ID = PREDEF_TYPE_EVENT_ID;        break;
+    ID = PREDEF_TYPE_ARC_UNBRIDGED_CAST;
+    break;
+  case BuiltinType::ObjCId:
+    ID = PREDEF_TYPE_OBJC_ID;
+    break;
+  case BuiltinType::ObjCClass:
+    ID = PREDEF_TYPE_OBJC_CLASS;
+    break;
+  case BuiltinType::ObjCSel:
+    ID = PREDEF_TYPE_OBJC_SEL;
+    break;
+  case BuiltinType::OCLImage1d:
+    ID = PREDEF_TYPE_IMAGE1D_ID;
+    break;
+  case BuiltinType::OCLImage1dArray:
+    ID = PREDEF_TYPE_IMAGE1D_ARR_ID;
+    break;
+  case BuiltinType::OCLImage1dBuffer:
+    ID = PREDEF_TYPE_IMAGE1D_BUFF_ID;
+    break;
+  case BuiltinType::OCLImage2d:
+    ID = PREDEF_TYPE_IMAGE2D_ID;
+    break;
+  case BuiltinType::OCLImage2dArray:
+    ID = PREDEF_TYPE_IMAGE2D_ARR_ID;
+    break;
+  case BuiltinType::OCLImage2dDepth:
+    ID = PREDEF_TYPE_IMAGE2D_DEP_ID;
+    break;
+  case BuiltinType::OCLImage2dArrayDepth:
+    ID = PREDEF_TYPE_IMAGE2D_ARR_DEP_ID;
+    break;
+  case BuiltinType::OCLImage2dMSAA:
+    ID = PREDEF_TYPE_IMAGE2D_MSAA_ID;
+    break;
+  case BuiltinType::OCLImage2dArrayMSAA:
+    ID = PREDEF_TYPE_IMAGE2D_ARR_MSAA_ID;
+    break;
+  case BuiltinType::OCLImage2dMSAADepth:
+    ID = PREDEF_TYPE_IMAGE2D_MSAA_DEP_ID;
+    break;
+  case BuiltinType::OCLImage2dArrayMSAADepth:
+    ID = PREDEF_TYPE_IMAGE2D_ARR_MSAA_DEPTH_ID;
+    break;
+  case BuiltinType::OCLImage3d:
+    ID = PREDEF_TYPE_IMAGE3D_ID;
+    break;
+  case BuiltinType::OCLSampler:
+    ID = PREDEF_TYPE_SAMPLER_ID;
+    break;
+  case BuiltinType::OCLEvent:
+    ID = PREDEF_TYPE_EVENT_ID;
+    break;
+  case BuiltinType::OCLClkEvent:
+    ID = PREDEF_TYPE_CLK_EVENT_ID;
+    break;
+  case BuiltinType::OCLQueue:
+    ID = PREDEF_TYPE_QUEUE_ID;
+    break;
+  case BuiltinType::OCLNDRange:
+    ID = PREDEF_TYPE_NDRANGE_ID;
+    break;
+  case BuiltinType::OCLReserveID:
+    ID = PREDEF_TYPE_RESERVE_ID_ID;
+    break;
   case BuiltinType::BuiltinFn:
-                                ID = PREDEF_TYPE_BUILTIN_FN; break;
-
+    ID = PREDEF_TYPE_BUILTIN_FN;
+    break;
+  case BuiltinType::OMPArraySection:
+    ID = PREDEF_TYPE_OMP_ARRAY_SECTION;
+    break;
   }
 
   return TypeIdx(ID);
@@ -215,6 +329,7 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   case Decl::ClassScopeFunctionSpecialization:
   case Decl::Import:
   case Decl::OMPThreadPrivate:
+  case Decl::BuiltinTemplate:
     return false;
 
   // These indirectly derive from Redeclarable<T> but are not actually

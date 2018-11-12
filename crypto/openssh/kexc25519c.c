@@ -1,4 +1,4 @@
-/* $OpenBSD: kexc25519c.c,v 1.4 2014/01/12 08:13:13 djm Exp $ */
+/* $OpenBSD: kexc25519c.c,v 1.7 2015/01/26 06:10:03 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -33,97 +33,138 @@
 #include <string.h>
 #include <signal.h>
 
-#include "xmalloc.h"
-#include "buffer.h"
-#include "key.h"
+#include "sshkey.h"
 #include "cipher.h"
 #include "kex.h"
 #include "log.h"
 #include "packet.h"
 #include "ssh2.h"
+#include "sshbuf.h"
+#include "digest.h"
+#include "ssherr.h"
 
-void
-kexc25519_client(Kex *kex)
+static int
+input_kex_c25519_reply(int type, u_int32_t seq, void *ctxt);
+
+int
+kexc25519_client(struct ssh *ssh)
 {
-	Key *server_host_key;
-	u_char client_key[CURVE25519_SIZE];
-	u_char client_pubkey[CURVE25519_SIZE];
-	u_char *server_pubkey = NULL;
-	u_char *server_host_key_blob = NULL, *signature = NULL;
-	u_char *hash;
-	u_int slen, sbloblen, hashlen;
-	Buffer shared_secret;
+	struct kex *kex = ssh->kex;
+	int r;
 
-	kexc25519_keygen(client_key, client_pubkey);
-
-	packet_start(SSH2_MSG_KEX_ECDH_INIT);
-	packet_put_string(client_pubkey, sizeof(client_pubkey));
-	packet_send();
-	debug("sending SSH2_MSG_KEX_ECDH_INIT");
-
+	kexc25519_keygen(kex->c25519_client_key, kex->c25519_client_pubkey);
 #ifdef DEBUG_KEXECDH
-	dump_digest("client private key:", client_key, sizeof(client_key));
+	dump_digest("client private key:", kex->c25519_client_key,
+	    sizeof(kex->c25519_client_key));
 #endif
+	if ((r = sshpkt_start(ssh, SSH2_MSG_KEX_ECDH_INIT)) != 0 ||
+	    (r = sshpkt_put_string(ssh, kex->c25519_client_pubkey,
+	    sizeof(kex->c25519_client_pubkey))) != 0 ||
+	    (r = sshpkt_send(ssh)) != 0)
+		return r;
 
 	debug("expecting SSH2_MSG_KEX_ECDH_REPLY");
-	packet_read_expect(SSH2_MSG_KEX_ECDH_REPLY);
+	ssh_dispatch_set(ssh, SSH2_MSG_KEX_ECDH_REPLY, &input_kex_c25519_reply);
+	return 0;
+}
+
+static int
+input_kex_c25519_reply(int type, u_int32_t seq, void *ctxt)
+{
+	struct ssh *ssh = ctxt;
+	struct kex *kex = ssh->kex;
+	struct sshkey *server_host_key = NULL;
+	struct sshbuf *shared_secret = NULL;
+	u_char *server_pubkey = NULL;
+	u_char *server_host_key_blob = NULL, *signature = NULL;
+	u_char hash[SSH_DIGEST_MAX_LENGTH];
+	size_t slen, pklen, sbloblen, hashlen;
+	int r;
+
+	if (kex->verify_host_key == NULL) {
+		r = SSH_ERR_INVALID_ARGUMENT;
+		goto out;
+	}
 
 	/* hostkey */
-	server_host_key_blob = packet_get_string(&sbloblen);
-	server_host_key = key_from_blob(server_host_key_blob, sbloblen);
-	if (server_host_key == NULL)
-		fatal("cannot decode server_host_key_blob");
-	if (server_host_key->type != kex->hostkey_type)
-		fatal("type mismatch for decoded server_host_key_blob");
-	if (kex->verify_host_key == NULL)
-		fatal("cannot verify server_host_key");
-	if (kex->verify_host_key(server_host_key) == -1)
-		fatal("server_host_key verification failed");
+	if ((r = sshpkt_get_string(ssh, &server_host_key_blob,
+	    &sbloblen)) != 0 ||
+	    (r = sshkey_from_blob(server_host_key_blob, sbloblen,
+	    &server_host_key)) != 0)
+		goto out;
+	if (server_host_key->type != kex->hostkey_type ||
+	    (kex->hostkey_type == KEY_ECDSA &&
+	    server_host_key->ecdsa_nid != kex->hostkey_nid)) {
+		r = SSH_ERR_KEY_TYPE_MISMATCH;
+		goto out;
+	}
+	if (kex->verify_host_key(server_host_key, ssh) == -1) {
+		r = SSH_ERR_SIGNATURE_INVALID;
+		goto out;
+	}
 
 	/* Q_S, server public key */
-	server_pubkey = packet_get_string(&slen);
-	if (slen != CURVE25519_SIZE)
-		fatal("Incorrect size for server Curve25519 pubkey: %d", slen);
+	/* signed H */
+	if ((r = sshpkt_get_string(ssh, &server_pubkey, &pklen)) != 0 ||
+	    (r = sshpkt_get_string(ssh, &signature, &slen)) != 0 ||
+	    (r = sshpkt_get_end(ssh)) != 0)
+		goto out;
+	if (pklen != CURVE25519_SIZE) {
+		r = SSH_ERR_SIGNATURE_INVALID;
+		goto out;
+	}
 
 #ifdef DEBUG_KEXECDH
 	dump_digest("server public key:", server_pubkey, CURVE25519_SIZE);
 #endif
 
-	/* signed H */
-	signature = packet_get_string(&slen);
-	packet_check_eom();
-
-	buffer_init(&shared_secret);
-	kexc25519_shared_key(client_key, server_pubkey, &shared_secret);
+	if ((shared_secret = sshbuf_new()) == NULL) {
+		r = SSH_ERR_ALLOC_FAIL;
+		goto out;
+	}
+	if ((r = kexc25519_shared_key(kex->c25519_client_key, server_pubkey,
+	    shared_secret)) < 0)
+		goto out;
 
 	/* calc and verify H */
-	kex_c25519_hash(
+	hashlen = sizeof(hash);
+	if ((r = kex_c25519_hash(
 	    kex->hash_alg,
 	    kex->client_version_string,
 	    kex->server_version_string,
-	    buffer_ptr(&kex->my), buffer_len(&kex->my),
-	    buffer_ptr(&kex->peer), buffer_len(&kex->peer),
+	    sshbuf_ptr(kex->my), sshbuf_len(kex->my),
+	    sshbuf_ptr(kex->peer), sshbuf_len(kex->peer),
 	    server_host_key_blob, sbloblen,
-	    client_pubkey,
+	    kex->c25519_client_pubkey,
 	    server_pubkey,
-	    buffer_ptr(&shared_secret), buffer_len(&shared_secret),
-	    &hash, &hashlen
-	);
-	free(server_host_key_blob);
-	free(server_pubkey);
-	if (key_verify(server_host_key, signature, slen, hash, hashlen) != 1)
-		fatal("key_verify failed for server_host_key");
-	key_free(server_host_key);
-	free(signature);
+	    sshbuf_ptr(shared_secret), sshbuf_len(shared_secret),
+	    hash, &hashlen)) < 0)
+		goto out;
+
+	if ((r = sshkey_verify(server_host_key, signature, slen, hash, hashlen,
+	    ssh->compat)) != 0)
+		goto out;
 
 	/* save session id */
 	if (kex->session_id == NULL) {
 		kex->session_id_len = hashlen;
-		kex->session_id = xmalloc(kex->session_id_len);
+		kex->session_id = malloc(kex->session_id_len);
+		if (kex->session_id == NULL) {
+			r = SSH_ERR_ALLOC_FAIL;
+			goto out;
+		}
 		memcpy(kex->session_id, hash, kex->session_id_len);
 	}
-	kex_derive_keys(kex, hash, hashlen,
-	    buffer_ptr(&shared_secret), buffer_len(&shared_secret));
-	buffer_free(&shared_secret);
-	kex_finish(kex);
+
+	if ((r = kex_derive_keys(ssh, hash, hashlen, shared_secret)) == 0)
+		r = kex_send_newkeys(ssh);
+out:
+	explicit_bzero(hash, sizeof(hash));
+	explicit_bzero(kex->c25519_client_key, sizeof(kex->c25519_client_key));
+	free(server_host_key_blob);
+	free(server_pubkey);
+	free(signature);
+	sshkey_free(server_host_key);
+	sshbuf_free(shared_secret);
+	return r;
 }

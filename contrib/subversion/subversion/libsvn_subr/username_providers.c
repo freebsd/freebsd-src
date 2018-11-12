@@ -40,12 +40,6 @@
 /* File provider                                                         */
 /*-----------------------------------------------------------------------*/
 
-/* The key that will be stored on disk.  Serves the same role as similar
-   constants in other providers. */
-#define AUTHN_USERNAME_KEY "username"
-
-
-
 /*** Username-only Provider ***/
 static svn_error_t *
 username_first_creds(void **credentials,
@@ -77,7 +71,8 @@ username_first_creds(void **credentials,
       svn_error_clear(err);
       if (! err && creds_hash)
         {
-          svn_string_t *str = svn_hash_gets(creds_hash, AUTHN_USERNAME_KEY);
+          svn_string_t *str = svn_hash_gets(creds_hash,
+                                            SVN_CONFIG_AUTHN_USERNAME_KEY);
           if (str && str->data)
             username = str->data;
         }
@@ -125,7 +120,7 @@ username_save_creds(svn_boolean_t *saved,
 
   /* Put the credentials in a hash and save it to disk */
   creds_hash = apr_hash_make(pool);
-  svn_hash_sets(creds_hash, AUTHN_USERNAME_KEY,
+  svn_hash_sets(creds_hash, SVN_CONFIG_AUTHN_USERNAME_KEY,
                 svn_string_create(creds->username, pool));
   err = svn_config_write_auth_data(creds_hash, SVN_AUTH_CRED_USERNAME,
                                    realmstring, config_dir, pool);

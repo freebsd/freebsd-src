@@ -1135,7 +1135,7 @@ generate_pkt (
 	if (pkt_key != NULL) {
 		x_pkt->exten[0] = htonl(key_id);
 		mac_size = 20; /* max room for MAC */
-		mac_size = make_mac((char *)x_pkt, pkt_len, mac_size,
+		mac_size = make_mac(x_pkt, pkt_len, mac_size,
 				    pkt_key, (char *)&x_pkt->exten[1]);
 		if (mac_size > 0)
 			pkt_len += mac_size + 4;

@@ -222,45 +222,42 @@ int main(int argc, char **argv) {
     }
   }
 
-  // Materialize requisite global values.
-  if (!DeleteFn)
-    for (size_t i = 0, e = GVs.size(); i != e; ++i) {
-      GlobalValue *GV = GVs[i];
-      if (std::error_code EC = GV->materialize()) {
-        errs() << argv[0] << ": error reading input: " << EC.message() << "\n";
-        return 1;
-      }
+  auto Materialize = [&](GlobalValue &GV) {
+    if (std::error_code EC = GV.materialize()) {
+      errs() << argv[0] << ": error reading input: " << EC.message() << "\n";
+      exit(1);
     }
-  else {
+  };
+
+  // Materialize requisite global values.
+  if (!DeleteFn) {
+    for (size_t i = 0, e = GVs.size(); i != e; ++i)
+      Materialize(*GVs[i]);
+  } else {
     // Deleting. Materialize every GV that's *not* in GVs.
     SmallPtrSet<GlobalValue *, 8> GVSet(GVs.begin(), GVs.end());
-    for (auto &G : M->globals()) {
-      if (!GVSet.count(&G)) {
-        if (std::error_code EC = G.materialize()) {
-          errs() << argv[0] << ": error reading input: " << EC.message()
-                 << "\n";
-          return 1;
-        }
-      }
-    }
     for (auto &F : *M) {
-      if (!GVSet.count(&F)) {
-        if (std::error_code EC = F.materialize()) {
-          errs() << argv[0] << ": error reading input: " << EC.message()
-                 << "\n";
-          return 1;
-        }
-      }
+      if (!GVSet.count(&F))
+        Materialize(F);
     }
+  }
+
+  {
+    std::vector<GlobalValue *> Gvs(GVs.begin(), GVs.end());
+    legacy::PassManager Extract;
+    Extract.add(createGVExtractionPass(Gvs, DeleteFn));
+    Extract.run(*M);
+
+    // Now that we have all the GVs we want, mark the module as fully
+    // materialized.
+    // FIXME: should the GVExtractionPass handle this?
+    M->materializeAll();
   }
 
   // In addition to deleting all other functions, we also want to spiff it
   // up a little bit.  Do this now.
   legacy::PassManager Passes;
 
-  std::vector<GlobalValue*> Gvs(GVs.begin(), GVs.end());
-
-  Passes.add(createGVExtractionPass(Gvs, DeleteFn));
   if (!DeleteFn)
     Passes.add(createGlobalDCEPass());           // Delete unreachable globals
   Passes.add(createStripDeadDebugInfoPass());    // Remove dead debug info

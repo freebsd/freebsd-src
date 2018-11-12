@@ -40,6 +40,7 @@
 
 #include <dev/fdt/fdt_common.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/armreg.h>
@@ -82,21 +83,8 @@ void
 platform_mp_setmaxid(void)
 {
 
-	mp_maxid = 3;
-}
-
-int
-platform_mp_probe(void)
-{
-
 	mp_ncpus = platform_get_ncpus();
-
-	return (mp_ncpus > 1);
-}
-
-void
-platform_mp_init_secondary(void)
-{
+	mp_maxid = mp_ncpus - 1;
 }
 
 void mptramp(void);
@@ -112,7 +100,7 @@ platform_mp_start_ap(void)
 	 * Initialization procedure depends on core revision,
 	 * in this step CHIP ID is checked to choose proper procedure
 	 */
-	cputype = cpufunc_id();
+	cputype = cpu_ident();
 	cputype &= CPU_ID_CPU_MASK;
 
 	/*
@@ -175,7 +163,7 @@ platform_mp_start_ap(void)
 		bus_space_write_4(fdtbus_bs_tag, CPU_PMU(cpu_num), CPU_PMU_BOOT,
 		    pmap_kextract((vm_offset_t)mpentry));
 
-	cpu_idcache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++ )
 		bus_space_write_4(fdtbus_bs_tag, MP, MP_SW_RESET(cpu_num), 0);
@@ -185,11 +173,4 @@ platform_mp_start_ap(void)
 	DELAY(10);
 
 	armadaxp_init_coher_fabric();
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

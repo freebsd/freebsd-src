@@ -1,8 +1,9 @@
 /*
+ * Copyright (c) 2008-2014, Simon Schubert <2@0x2c.org>.
  * Copyright (c) 2008 The DragonFly Project.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
- * by Simon 'corecode' Schubert <corecode@fs.ei.tum.de>.
+ * by Simon Schubert <2@0x2c.org>.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -289,7 +290,7 @@ load_queue(struct queue *queue)
 
 	spooldir = opendir(config.spooldir);
 	if (spooldir == NULL)
-		err(1, "reading queue");
+		err(EX_NOINPUT, "reading queue");
 
 	while ((de = readdir(spooldir)) != NULL) {
 		queuefn = NULL;

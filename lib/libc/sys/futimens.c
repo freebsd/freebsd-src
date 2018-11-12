@@ -42,8 +42,11 @@ futimens(int fd, const struct timespec times[2])
 {
 	struct timeval now, tv[2], *tvp;
 	struct stat sb;
+	int osreldate;
 
-	if (__getosreldate() >= 1100056)
+	osreldate = __getosreldate();
+	if (osreldate >= 1100056 ||
+	    (osreldate >= 1002506 && osreldate < 1100000))
 		return (__sys_futimens(fd, times));
 
 	if (times == NULL || (times[0].tv_nsec == UTIME_NOW &&

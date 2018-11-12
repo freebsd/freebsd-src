@@ -21,8 +21,8 @@
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
-/* Define to 1 if you have the `fgetln' function. */
-#define HAVE_FGETLN 1
+/* Define to 1 if you have the `getline' function. */
+#define HAVE_GETLINE 1
 
 /* Define to 1 if you have the `fork' function. */
 #define HAVE_FORK 1
@@ -188,9 +188,6 @@
 /* Define to 1 if you have the `vis' function. */
 #define HAVE_VIS 1
 
-/* Define to 1 if you have the `wcsdup' function. */
-#define HAVE_WCSDUP 1
-
 /* Define to 1 if `fork' works. */
 #define HAVE_WORKING_FORK 1
 
@@ -256,6 +253,9 @@
 
 /* Version number of package */
 #define VERSION "3.0"
+
+/* Define to 1 if the system provides the SIZE_MAX constant */
+#define HAVE_SIZE_MAX	1
 
 /* Define to 1 if you want wide-character code */
 /* #undef WIDECHAR */

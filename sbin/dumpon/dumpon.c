@@ -152,16 +152,31 @@ main(int argc, char *argv[])
 		usage();
 
 	if (strcmp(argv[0], "off") != 0) {
-		fd = open(argv[0], O_RDONLY);
+		char tmp[PATH_MAX];
+		char *dumpdev;
+
+		if (strncmp(argv[0], _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0) {
+			dumpdev = argv[0];
+		} else {
+			i = snprintf(tmp, PATH_MAX, "%s%s", _PATH_DEV, argv[0]);
+			if (i < 0) {
+				err(EX_OSERR, "%s", argv[0]);
+			} else if (i >= PATH_MAX) {
+				errno = EINVAL;
+				err(EX_DATAERR, "%s", argv[0]);
+			}
+			dumpdev = tmp;
+		}
+		fd = open(dumpdev, O_RDONLY);
 		if (fd < 0)
-			err(EX_OSFILE, "%s", argv[0]);
-		check_size(fd, argv[0]);
+			err(EX_OSFILE, "%s", dumpdev);
+		check_size(fd, dumpdev);
 		u = 0;
 		i = ioctl(fd, DIOCSKERNELDUMP, &u);
 		u = 1;
 		i = ioctl(fd, DIOCSKERNELDUMP, &u);
 		if (i == 0 && verbose)
-			printf("kernel dumps on %s\n", argv[0]);
+			printf("kernel dumps on %s\n", dumpdev);
 	} else {
 		fd = open(_PATH_DEVNULL, O_RDONLY);
 		if (fd < 0)

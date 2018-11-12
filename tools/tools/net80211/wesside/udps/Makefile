@@ -2,8 +2,7 @@
 
 PROG=	udps
 BINDIR=	/usr/local/bin
-DPADD=	${LIBZ}
-LDADD=	-lz
+LIBADD=	z
 CFLAGS=-g
 MAN=
 

@@ -1,6 +1,6 @@
 SUBDIRS = src
 
-EXTRA_DIST = libsdp.spec.in libsdp.conf
+EXTRA_DIST = libsdp.spec.in libsdp.conf scripts/libsdp.logrotate
 
 dist-hook: libsdp.spec
 	cp libsdp.spec $(distdir)
