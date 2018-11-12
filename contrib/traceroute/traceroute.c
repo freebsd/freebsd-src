@@ -523,7 +523,7 @@ main(int argc, char **argv)
 	int sump = 0;
 	int sockerrno;
 #ifdef WITH_CASPER
-	const char *types[] = { "NAME", "ADDR" };
+	const char *types[] = { "NAME2ADDR", "ADDR2NAME" };
 	int families[1];
 	cap_channel_t *casper;
 #endif

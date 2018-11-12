@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/counter.h>
+#include <sys/eventhandler.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -64,6 +65,8 @@ __FBSDID("$FreeBSD$");
 VNET_DEFINE_STATIC(uint16_t, nptv6_eid) = 0;
 #define	V_nptv6_eid	VNET(nptv6_eid)
 #define	IPFW_TLV_NPTV6_NAME	IPFW_TLV_EACTION_NAME(V_nptv6_eid)
+
+static eventhandler_tag nptv6_ifaddr_event;
 
 static struct nptv6_cfg *nptv6_alloc_config(const char *name, uint8_t set);
 static void nptv6_free_config(struct nptv6_cfg *cfg);
@@ -357,7 +360,8 @@ ipfw_nptv6(struct ip_fw_chain *chain, struct ip_fw_args *args,
 	if (cmd->opcode != O_EXTERNAL_ACTION ||
 	    cmd->arg1 != V_nptv6_eid ||
 	    icmd->opcode != O_EXTERNAL_INSTANCE ||
-	    (cfg = NPTV6_LOOKUP(chain, icmd)) == NULL)
+	    (cfg = NPTV6_LOOKUP(chain, icmd)) == NULL ||
+	    (cfg->flags & NPTV6_READY) == 0)
 		return (ret);
 	/*
 	 * We need act as router, so when forwarding is disabled -
@@ -442,7 +446,10 @@ nptv6_export_config(struct ip_fw_chain *ch, struct nptv6_cfg *cfg,
 {
 
 	uc->internal = cfg->internal;
-	uc->external = cfg->external;
+	if (cfg->flags & NPTV6_DYNAMIC_PREFIX)
+		memcpy(uc->if_name, cfg->if_name, IF_NAMESIZE);
+	else
+		uc->external = cfg->external;
 	uc->plen = cfg->plen;
 	uc->flags = cfg->flags & NPTV6_FLAGSMASK;
 	uc->set = cfg->no.set;
@@ -497,6 +504,140 @@ nptv6_calculate_adjustment(struct nptv6_cfg *cfg)
 	cfg->adjustment = cksum_add(~e, i);
 }
 
+static int
+nptv6_check_prefix(const struct in6_addr *addr)
+{
+
+	if (IN6_IS_ADDR_MULTICAST(addr) ||
+	    IN6_IS_ADDR_LINKLOCAL(addr) ||
+	    IN6_IS_ADDR_LOOPBACK(addr) ||
+	    IN6_IS_ADDR_UNSPECIFIED(addr))
+		return (EINVAL);
+	return (0);
+}
+
+static void
+nptv6_set_external(struct nptv6_cfg *cfg, struct in6_addr *addr)
+{
+
+	cfg->external = *addr;
+	IN6_MASK_ADDR(&cfg->external, &cfg->mask);
+	nptv6_calculate_adjustment(cfg);
+	cfg->flags |= NPTV6_READY;
+}
+
+/*
+ * Try to determine what prefix to use as external for
+ * configured interface name.
+ */
+static void
+nptv6_find_prefix(struct ip_fw_chain *ch, struct nptv6_cfg *cfg,
+    struct ifnet *ifp)
+{
+	struct ifaddr *ifa;
+	struct in6_ifaddr *ia;
+
+	MPASS(cfg->flags & NPTV6_DYNAMIC_PREFIX);
+	IPFW_UH_WLOCK_ASSERT(ch);
+
+	if (ifp == NULL) {
+		ifp = ifunit_ref(cfg->if_name);
+		if (ifp == NULL)
+			return;
+	}
+	if_addr_rlock(ifp);
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		ia = (struct in6_ifaddr *)ifa;
+		if (nptv6_check_prefix(&ia->ia_addr.sin6_addr) ||
+		    IN6_ARE_MASKED_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
+		    &cfg->internal, &cfg->mask))
+			continue;
+		/* Suitable address is found. */
+		nptv6_set_external(cfg, &ia->ia_addr.sin6_addr);
+		break;
+	}
+	if_addr_runlock(ifp);
+	if_rele(ifp);
+}
+
+struct ifaddr_event_args {
+	struct ifnet *ifp;
+	const struct in6_addr *addr;
+	int event;
+};
+
+static int
+ifaddr_cb(struct namedobj_instance *ni, struct named_object *no,
+    void *arg)
+{
+	struct ifaddr_event_args *args;
+	struct ip_fw_chain *ch;
+	struct nptv6_cfg *cfg;
+
+	ch = &V_layer3_chain;
+	cfg = (struct nptv6_cfg *)SRV_OBJECT(ch, no->kidx);
+	if ((cfg->flags & NPTV6_DYNAMIC_PREFIX) == 0)
+		return (0);
+
+	args = arg;
+	/* If interface name doesn't match, ignore */
+	if (strncmp(args->ifp->if_xname, cfg->if_name, IF_NAMESIZE))
+		return (0);
+	if (args->ifp->if_flags & IFF_DYING) { /* XXX: is it possible? */
+		cfg->flags &= ~NPTV6_READY;
+		return (0);
+	}
+	if (args->event == IFADDR_EVENT_DEL) {
+		/* If instance is not ready, ignore */
+		if ((cfg->flags & NPTV6_READY) == 0)
+			return (0);
+		/* If address does not match the external prefix, ignore */
+		if (IN6_ARE_MASKED_ADDR_EQUAL(&cfg->external, args->addr,
+		    &cfg->mask) != 0)
+			return (0);
+		/* Otherwise clear READY flag */
+		cfg->flags &= ~NPTV6_READY;
+	} else {/* IFADDR_EVENT_ADD */
+		/* If instance is already ready, ignore */
+		if (cfg->flags & NPTV6_READY)
+			return (0);
+		/* If address is not suitable for prefix, ignore */
+		if (nptv6_check_prefix(args->addr) ||
+		    IN6_ARE_MASKED_ADDR_EQUAL(args->addr, &cfg->internal,
+		    &cfg->mask))
+			return (0);
+		/* FALLTHROUGH */
+	}
+	MPASS(!(cfg->flags & NPTV6_READY));
+	/* Try to determine the prefix */
+	if_ref(args->ifp);
+	nptv6_find_prefix(ch, cfg, args->ifp);
+	return (0);
+}
+
+static void
+nptv6_ifaddrevent_handler(void *arg __unused, struct ifnet *ifp,
+    struct ifaddr *ifa, int event)
+{
+	struct ifaddr_event_args args;
+	struct ip_fw_chain *ch;
+
+	if (ifa->ifa_addr->sa_family != AF_INET6)
+		return;
+
+	args.ifp = ifp;
+	args.addr = &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
+	args.event = event;
+
+	ch = &V_layer3_chain;
+	IPFW_UH_WLOCK(ch);
+	ipfw_objhash_foreach_type(CHAIN_TO_SRV(ch), ifaddr_cb, &args,
+	    IPFW_TLV_NPTV6_NAME);
+	IPFW_UH_WUNLOCK(ch);
+}
+
 /*
  * Creates new NPTv6 instance.
  * Data layout (v0)(current):
@@ -523,15 +664,12 @@ nptv6_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		return (EINVAL);
 	if (uc->plen < 8 || uc->plen > 64 || uc->set >= IPFW_MAX_SETS)
 		return (EINVAL);
-	if (IN6_IS_ADDR_MULTICAST(&uc->internal) ||
-	    IN6_IS_ADDR_MULTICAST(&uc->external) ||
-	    IN6_IS_ADDR_UNSPECIFIED(&uc->internal) ||
-	    IN6_IS_ADDR_UNSPECIFIED(&uc->external) ||
-	    IN6_IS_ADDR_LINKLOCAL(&uc->internal) ||
-	    IN6_IS_ADDR_LINKLOCAL(&uc->external))
+	if (nptv6_check_prefix(&uc->internal))
 		return (EINVAL);
 	in6_prefixlen2mask(&mask, uc->plen);
-	if (IN6_ARE_MASKED_ADDR_EQUAL(&uc->internal, &uc->external, &mask))
+	if ((uc->flags & NPTV6_DYNAMIC_PREFIX) == 0 && (
+	    nptv6_check_prefix(&uc->external) ||
+	    IN6_ARE_MASKED_ADDR_EQUAL(&uc->external, &uc->internal, &mask)))
 		return (EINVAL);
 
 	ni = CHAIN_TO_SRV(ch);
@@ -544,14 +682,22 @@ nptv6_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 
 	cfg = nptv6_alloc_config(uc->name, uc->set);
 	cfg->plen = uc->plen;
+	cfg->flags = uc->flags & NPTV6_FLAGSMASK;
 	if (cfg->plen <= 48)
 		cfg->flags |= NPTV6_48PLEN;
-	cfg->internal = uc->internal;
-	cfg->external = uc->external;
 	cfg->mask = mask;
+	cfg->internal = uc->internal;
 	IN6_MASK_ADDR(&cfg->internal, &mask);
-	IN6_MASK_ADDR(&cfg->external, &mask);
-	nptv6_calculate_adjustment(cfg);
+	if (cfg->flags & NPTV6_DYNAMIC_PREFIX)
+		memcpy(cfg->if_name, uc->if_name, IF_NAMESIZE);
+	else
+		nptv6_set_external(cfg, &uc->external);
+
+	if ((uc->flags & NPTV6_DYNAMIC_PREFIX) != 0 &&
+	    nptv6_ifaddr_event == NULL)
+		nptv6_ifaddr_event = EVENTHANDLER_REGISTER(
+		    ifaddr_event_ext, nptv6_ifaddrevent_handler, NULL,
+		    EVENTHANDLER_PRI_ANY);
 
 	IPFW_UH_WLOCK(ch);
 	if (ipfw_objhash_alloc_idx(ni, &cfg->no.kidx) != 0) {
@@ -561,7 +707,10 @@ nptv6_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	}
 	ipfw_objhash_add(ni, &cfg->no);
 	SRV_OBJECT(ch, cfg->no.kidx) = cfg;
+	if (cfg->flags & NPTV6_DYNAMIC_PREFIX)
+		nptv6_find_prefix(ch, cfg, NULL);
 	IPFW_UH_WUNLOCK(ch);
+
 	return (0);
 }
 
@@ -870,6 +1019,8 @@ void
 nptv6_uninit(struct ip_fw_chain *ch, int last)
 {
 
+	if (last && nptv6_ifaddr_event != NULL)
+		EVENTHANDLER_DEREGISTER(ifaddr_event_ext, nptv6_ifaddr_event);
 	IPFW_DEL_OBJ_REWRITER(last, opcodes);
 	IPFW_DEL_SOPT_HANDLER(last, scodes);
 	ipfw_del_eaction(ch, V_nptv6_eid);

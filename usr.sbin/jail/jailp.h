@@ -67,6 +67,7 @@
 #define JF_TIMEOUT	0x0200	/* A command (or process kill) timed out */
 #define JF_SLEEPQ	0x0400	/* Waiting on a command and/or timeout */
 #define JF_FROM_RUNQ	0x0800	/* Has already been on the run queue */
+#define JF_SHOW		0x1000	/* -e Exhibit list of configured jails */
 
 #define JF_OP_MASK		(JF_START | JF_SET | JF_STOP)
 #define JF_RESTART		(JF_START | JF_STOP)

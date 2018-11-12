@@ -1434,6 +1434,18 @@ packageworld: .PHONY
 . endif
 .endfor
 
+_sysent_dirs=	sys/kern
+_sysent_dirs+=	sys/compat/freebsd32
+_sysent_dirs+=	sys/i386/ibcs2
+_sysent_dirs+=	sys/amd64/linux		\
+		sys/amd64/linux32	\
+		sys/arm64/linux		\
+		sys/i386/linux
+sysent: .PHONY
+.for _dir in ${_sysent_dirs}
+	${_+_}${MAKE} -C ${.CURDIR}/${_dir} sysent
+.endfor
+
 #
 # reinstall
 #

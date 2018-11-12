@@ -174,6 +174,9 @@ OLD_FILES+=usr/lib/clang/6.0.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/6.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/6.0.1/lib
 OLD_DIRS+=usr/lib/clang/6.0.1
+# 20181112: Cleanup old libcap_dns.
+OLD_LIBS+=lib/casper/libcap_dns.so.1
+OLD_LIBS+=usr/lib32/libcap_dns.so.1
 # 20181030: malloc_domain(9) KPI change
 OLD_FILES+=share/man/man9/malloc_domain.9.gz
 # 20181026: joy(4) removal

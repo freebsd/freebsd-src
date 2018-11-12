@@ -4351,7 +4351,7 @@ static const _umtx_op_func op_table_compat32[] = {
 };
 
 int
-freebsd32_umtx_op(struct thread *td, struct freebsd32_umtx_op_args *uap)
+freebsd32__umtx_op(struct thread *td, struct freebsd32__umtx_op_args *uap)
 {
 
 	if ((unsigned)uap->op < nitems(op_table_compat32)) {

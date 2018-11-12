@@ -2437,7 +2437,6 @@ OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .if ${MK_GCC} == no
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/bin/gcc
-OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/bin/gcpp
 OLD_FILES+=usr/bin/gperf
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
@@ -2474,15 +2473,20 @@ OLD_FILES+=usr/libexec/cc1
 OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/share/man/man1/g++.1.gz
 OLD_FILES+=usr/share/man/man1/gcc.1.gz
-OLD_FILES+=usr/share/man/man1/gcov.1.gz
 OLD_FILES+=usr/share/man/man1/gcpp.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.7.gz
 .endif
 
-.if ${MK_GCOV} == no
+.if (${MK_GCOV} == no || ${MK_GCC} == no) && ${MK_LLVM_COV} == no
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
+.endif
+
+.if ${MK_LLVM_COV} == no
+OLD_FILES+=usr/bin/llvm-cov
+OLD_FILES+=usr/bin/llvm-profdata
+OLD_FILES+=usr/share/man/man1/llvm-cov.1.gz
 .endif
 
 .if ${MK_GDB} == no || ${MK_GDB_LIBEXEC} == yes

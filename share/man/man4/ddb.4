@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 21, 2018
+.Dd November 10, 2018
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -108,7 +108,9 @@ If linked into the running kernel,
 it can be invoked locally with the
 .Ql debug
 .Xr keymap 5
-action.
+action, or by setting setting the
+.Dv debug.kdb.enter
+sysctl to 1.
 The debugger is also invoked on kernel
 .Xr panic 9
 if the
@@ -261,9 +263,9 @@ Non-printing characters are displayed as octal escapes.
 display in unsigned hex with character dump at the end of each line.
 The location is also displayed in hex at the beginning of each line.
 .It Cm i
-display as an instruction
+display as a disassembled instruction
 .It Cm I
-display as an instruction with possible alternate formats depending on the
+display as an disassembled instruction with possible alternate formats depending on the
 machine.
 On i386, this selects the alternate format for the instruction decoding
 (16 bits in a 32-bit code segment and vice versa).

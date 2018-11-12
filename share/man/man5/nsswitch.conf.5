@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2016
+.Dd November 10, 2018
 .Dt NSSWITCH.CONF 5
 .Os
 .Sh NAME
@@ -62,7 +62,7 @@ the current source.
 Each criterion consists of one or more status codes, and actions to
 take if that status code occurs.
 .Ss Sources
-The following sources are implemented:
+The following sources are implemented as part of the base system:
 .Pp
 .Bl -tag -width Source -compact
 .It Sy Source
@@ -100,6 +100,8 @@ makes use of the
 .Xr nscd 8
 daemon.
 .El
+.Pp
+Additional sources might be provided by third party software.
 .Ss Databases
 The following databases are used by the following C library functions:
 .Pp
@@ -340,6 +342,12 @@ sets a policy of "if the user is notfound in nis, do not try files."
 This treats nis as the authoritative source of information, except
 when the server is down.
 .Sh NOTES
+The
+.Nm
+file is parsed by each program only once.
+Subsequent changes will not be applied until the program
+is restarted.
+.Pp
 If system got compiled with
 .Va WITHOUT_NIS
 you have to remove
