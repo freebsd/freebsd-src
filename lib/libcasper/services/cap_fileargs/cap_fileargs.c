@@ -176,7 +176,7 @@ fileargs_init(int argc, char *argv[], int flags, mode_t mode,
 {
 	nvlist_t *limits;
 
-	if (argv <= 0 || argv == NULL) {
+	if (argc <= 0 || argv == NULL) {
 		return (fileargs_create(NULL, 0));
 	}
 
@@ -194,7 +194,7 @@ fileargs_cinit(cap_channel_t *cas, int argc, char *argv[], int flags,
 {
 	nvlist_t *limits;
 
-	if (argv <= 0 || argv == NULL) {
+	if (argc <= 0 || argv == NULL) {
 		return (fileargs_create(NULL, 0));
 	}
 
