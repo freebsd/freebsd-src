@@ -25,6 +25,9 @@
 #error "Never use <avx2intrin.h> directly; include <immintrin.h> instead."
 #endif
 
+#ifndef __AVX2INTRIN_H
+#define __AVX2INTRIN_H
+
 /* SSE4 Multiple Packed Sums of Absolute Difference.  */
 #define _mm256_mpsadbw_epu8(X, Y, M) __builtin_ia32_mpsadbw256((X), (Y), (M))
 
@@ -157,7 +160,23 @@ _mm256_blendv_epi8(__m256i __V1, __m256i __V2, __m256i __M)
 #define _mm256_blend_epi16(V1, V2, M) __extension__ ({ \
   __m256i __V1 = (V1); \
   __m256i __V2 = (V2); \
-  (__m256i)__builtin_ia32_pblendw256((__v16hi)__V1, (__v16hi)__V2, (M)); })
+  (__m256d)__builtin_shufflevector((__v16hi)__V1, (__v16hi)__V2, \
+                                   (((M) & 0x01) ? 16 : 0), \
+                                   (((M) & 0x02) ? 17 : 1), \
+                                   (((M) & 0x04) ? 18 : 2), \
+                                   (((M) & 0x08) ? 19 : 3), \
+                                   (((M) & 0x10) ? 20 : 4), \
+                                   (((M) & 0x20) ? 21 : 5), \
+                                   (((M) & 0x40) ? 22 : 6), \
+                                   (((M) & 0x80) ? 23 : 7), \
+                                   (((M) & 0x01) ? 24 : 8), \
+                                   (((M) & 0x02) ? 25 : 9), \
+                                   (((M) & 0x04) ? 26 : 10), \
+                                   (((M) & 0x08) ? 27 : 11), \
+                                   (((M) & 0x10) ? 28 : 12), \
+                                   (((M) & 0x20) ? 29 : 13), \
+                                   (((M) & 0x40) ? 30 : 14), \
+                                   (((M) & 0x80) ? 31 : 15)); })
 
 static __inline__ __m256i __attribute__((__always_inline__, __nodebug__))
 _mm256_cmpeq_epi8(__m256i __a, __m256i __b)
@@ -750,20 +769,32 @@ _mm256_broadcastsd_pd(__m128d __X)
 }
 
 static __inline__ __m256i __attribute__((__always_inline__, __nodebug__))
-_mm_broadcastsi128_si256(__m128i const *__a)
+_mm256_broadcastsi128_si256(__m128i __X)
 {
-  return (__m256i)__builtin_ia32_vbroadcastsi256(__a);
+  return (__m256i)__builtin_ia32_vbroadcastsi256(__X);
 }
 
 #define _mm_blend_epi32(V1, V2, M) __extension__ ({ \
   __m128i __V1 = (V1); \
   __m128i __V2 = (V2); \
-  (__m128i)__builtin_ia32_pblendd128((__v4si)__V1, (__v4si)__V2, (M)); })
+  (__m128i)__builtin_shufflevector((__v4si)__V1, (__v4si)__V2, \
+                                   (((M) & 0x01) ? 4 : 0), \
+                                   (((M) & 0x02) ? 5 : 1), \
+                                   (((M) & 0x04) ? 6 : 2), \
+                                   (((M) & 0x08) ? 7 : 3)); })
 
 #define _mm256_blend_epi32(V1, V2, M) __extension__ ({ \
   __m256i __V1 = (V1); \
   __m256i __V2 = (V2); \
-  (__m256i)__builtin_ia32_pblendd256((__v8si)__V1, (__v8si)__V2, (M)); })
+  (__m256i)__builtin_shufflevector((__v8si)__V1, (__v8si)__V2, \
+                                   (((M) & 0x01) ?  8 : 0), \
+                                   (((M) & 0x02) ?  9 : 1), \
+                                   (((M) & 0x04) ? 10 : 2), \
+                                   (((M) & 0x08) ? 11 : 3), \
+                                   (((M) & 0x10) ? 12 : 4), \
+                                   (((M) & 0x20) ? 13 : 5), \
+                                   (((M) & 0x40) ? 14 : 6), \
+                                   (((M) & 0x80) ? 15 : 7)); })
 
 static __inline__ __m256i __attribute__((__always_inline__, __nodebug__))
 _mm256_broadcastb_epi8(__m128i __X)
@@ -1058,7 +1089,7 @@ _mm_srlv_epi64(__m128i __X, __m128i __Y)
 
 #define _mm_mask_i32gather_epi64(a, m, i, mask, s) __extension__ ({ \
   __m128i __a = (a); \
-  int const *__m = (m); \
+  long long const *__m = (m); \
   __m128i __i = (i); \
   __m128i __mask = (mask); \
   (__m128i)__builtin_ia32_gatherd_q((__v2di)__a, (const __v2di *)__m, \
@@ -1066,7 +1097,7 @@ _mm_srlv_epi64(__m128i __X, __m128i __Y)
 
 #define _mm256_mask_i32gather_epi64(a, m, i, mask, s) __extension__ ({ \
   __m256i __a = (a); \
-  int const *__m = (m); \
+  long long const *__m = (m); \
   __m128i __i = (i); \
   __m256i __mask = (mask); \
   (__m256i)__builtin_ia32_gatherd_q256((__v4di)__a, (const __v4di *)__m, \
@@ -1074,7 +1105,7 @@ _mm_srlv_epi64(__m128i __X, __m128i __Y)
 
 #define _mm_mask_i64gather_epi64(a, m, i, mask, s) __extension__ ({ \
   __m128i __a = (a); \
-  int const *__m = (m); \
+  long long const *__m = (m); \
   __m128i __i = (i); \
   __m128i __mask = (mask); \
   (__m128i)__builtin_ia32_gatherq_q((__v2di)__a, (const __v2di *)__m, \
@@ -1082,7 +1113,7 @@ _mm_srlv_epi64(__m128i __X, __m128i __Y)
 
 #define _mm256_mask_i64gather_epi64(a, m, i, mask, s) __extension__ ({ \
   __m256i __a = (a); \
-  int const *__m = (m); \
+  long long const *__m = (m); \
   __m256i __i = (i); \
   __m256i __mask = (mask); \
   (__m256i)__builtin_ia32_gatherq_q256((__v4di)__a, (const __v4di *)__m, \
@@ -1173,29 +1204,31 @@ _mm_srlv_epi64(__m128i __X, __m128i __Y)
             (__v4si)_mm_set1_epi32(-1), (s)); })
 
 #define _mm_i32gather_epi64(m, i, s) __extension__ ({ \
-  int const *__m = (m); \
+  long long const *__m = (m); \
   __m128i __i = (i); \
   (__m128i)__builtin_ia32_gatherd_q((__v2di)_mm_setzero_si128(), \
              (const __v2di *)__m, (__v4si)__i, \
              (__v2di)_mm_set1_epi64x(-1), (s)); })
 
 #define _mm256_i32gather_epi64(m, i, s) __extension__ ({ \
-  int const *__m = (m); \
+  long long const *__m = (m); \
   __m128i __i = (i); \
   (__m256i)__builtin_ia32_gatherd_q256((__v4di)_mm256_setzero_si256(), \
              (const __v4di *)__m, (__v4si)__i, \
              (__v4di)_mm256_set1_epi64x(-1), (s)); })
 
 #define _mm_i64gather_epi64(m, i, s) __extension__ ({ \
-  int const *__m = (m); \
+  long long const *__m = (m); \
   __m128i __i = (i); \
   (__m128i)__builtin_ia32_gatherq_q((__v2di)_mm_setzero_si128(), \
              (const __v2di *)__m, (__v2di)__i, \
              (__v2di)_mm_set1_epi64x(-1), (s)); })
 
 #define _mm256_i64gather_epi64(m, i, s) __extension__ ({ \
-  int const *__m = (m); \
+  long long const *__m = (m); \
   __m256i __i = (i); \
   (__m256i)__builtin_ia32_gatherq_q256((__v4di)_mm256_setzero_si256(), \
              (const __v4di *)__m, (__v4di)__i, \
              (__v4di)_mm256_set1_epi64x(-1), (s)); })
+
+#endif /* __AVX2INTRIN_H */

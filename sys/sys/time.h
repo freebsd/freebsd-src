@@ -129,6 +129,7 @@ bintime_shift(struct bintime *_bt, int _exp)
 #define	SBT_1MS	(SBT_1S / 1000)
 #define	SBT_1US	(SBT_1S / 1000000)
 #define	SBT_1NS	(SBT_1S / 1000000000)
+#define	SBT_MAX	0x7fffffffffffffffLL
 
 static __inline int
 sbintime_getsec(sbintime_t _sbt)
@@ -397,7 +398,7 @@ extern sbintime_t sbt_tickthreshold;
  * Functions containing "up" returns time relative to boot and
  * should be used for calculating time intervals.
  *
- * Functions without "up" returns GMT time.
+ * Functions without "up" returns UTC time.
  *
  * Functions with the "get" prefix returns a less precise result
  * much faster than the functions without "get" prefix and should

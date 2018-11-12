@@ -12,11 +12,7 @@ CFLAGS+=-I${SENDMAIL_DIR}/include -I.
 WARNS?=	2
 WFORMAT=0
 
-LIBSMDIR=	${.OBJDIR}/../../lib/libsm
-LIBSM=		${LIBSMDIR}/libsm.a
-
-DPADD=	${LIBSM}
-LDADD=	${LIBSM}
+LIBADD=	sm
 
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h

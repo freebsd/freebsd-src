@@ -13,14 +13,18 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <sys/stat.h>
 
 #ifdef _WIN32
 #include "lldb/Host/windows/windows.h"
+#else
+#include <sys/ioctl.h>
 #endif
 
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/Error.h"
+#include "lldb/Core/Log.h"
 #include "lldb/Host/Config.h"
 #include "lldb/Host/FileSpec.h"
 
@@ -74,10 +78,13 @@ int File::kInvalidDescriptor = -1;
 FILE * File::kInvalidStream = NULL;
 
 File::File(const char *path, uint32_t options, uint32_t permissions) :
+    IOObject(eFDTypeFile, false),
     m_descriptor (kInvalidDescriptor),
     m_stream (kInvalidStream),
-    m_options (0),
-    m_owned (false)
+    m_options (),
+    m_own_stream (false),
+    m_is_interactive (eLazyBoolCalculate),
+    m_is_real_terminal (eLazyBoolCalculate)
 {
     Open (path, options, permissions);
 }
@@ -85,10 +92,14 @@ File::File(const char *path, uint32_t options, uint32_t permissions) :
 File::File (const FileSpec& filespec,
             uint32_t options,
             uint32_t permissions) :
+    IOObject(eFDTypeFile, false),
     m_descriptor (kInvalidDescriptor),
     m_stream (kInvalidStream),
     m_options (0),
-    m_owned (false)
+    m_own_stream (false),
+    m_is_interactive (eLazyBoolCalculate),
+    m_is_real_terminal (eLazyBoolCalculate)
+
 {
     if (filespec)
     {
@@ -97,10 +108,13 @@ File::File (const FileSpec& filespec,
 }
 
 File::File (const File &rhs) :
+    IOObject(eFDTypeFile, false),
     m_descriptor (kInvalidDescriptor),
     m_stream (kInvalidStream),
     m_options (0),
-    m_owned (false)
+    m_own_stream (false),
+    m_is_interactive (eLazyBoolCalculate),
+    m_is_real_terminal (eLazyBoolCalculate)
 {
     Duplicate (rhs);
 }
@@ -135,13 +149,20 @@ File::GetDescriptor() const
     return kInvalidDescriptor;
 }
 
+IOObject::WaitableHandle
+File::GetWaitableHandle()
+{
+    return m_descriptor;
+}
+
+
 void
 File::SetDescriptor (int fd, bool transfer_ownership)
 {
     if (IsValid())
         Close();
     m_descriptor = fd;
-    m_owned = transfer_ownership;
+    m_should_close_fd = transfer_ownership;
 }
 
 
@@ -155,10 +176,31 @@ File::GetStream ()
             const char *mode = GetStreamOpenModeFromOptions (m_options);
             if (mode)
             {
+                if (!m_should_close_fd)
+                {
+                    // We must duplicate the file descriptor if we don't own it because
+                    // when you call fdopen, the stream will own the fd
+#ifdef _WIN32
+                    m_descriptor = ::_dup(GetDescriptor());
+#else
+                    m_descriptor = ::fcntl(GetDescriptor(), F_DUPFD);
+#endif
+                    m_should_close_fd = true;
+                }
+
                 do
                 {
                     m_stream = ::fdopen (m_descriptor, mode);
                 } while (m_stream == NULL && errno == EINTR);
+
+                // If we got a stream, then we own the stream and should no
+                // longer own the descriptor because fclose() will close it for us
+
+                if (m_stream)
+                {
+                    m_own_stream = true;
+                    m_should_close_fd = false;
+                }
             }
         }
     }
@@ -172,7 +214,7 @@ File::SetStream (FILE *fh, bool transfer_ownership)
     if (IsValid())
         Close();
     m_stream = fh;
-    m_owned = transfer_ownership;
+    m_own_stream = transfer_ownership;
 }
 
 Error
@@ -194,7 +236,7 @@ File::Duplicate (const File &rhs)
         else
         {
             m_options = rhs.m_options;
-            m_owned = true;
+            m_should_close_fd = true;
         }
     }
     else
@@ -272,7 +314,10 @@ File::Open (const char *path, uint32_t options, uint32_t permissions)
     if (!DescriptorIsValid())
         error.SetErrorToErrno();
     else
-        m_owned = true;
+    {
+        m_should_close_fd = true;
+        m_options = options;
+    }
     
     return error;
 }
@@ -328,27 +373,24 @@ Error
 File::Close ()
 {
     Error error;
-    if (IsValid ())
+    if (StreamIsValid() && m_own_stream)
     {
-        if (m_owned)
-        {
-            if (StreamIsValid())
-            {
-                if (::fclose (m_stream) == EOF)
-                    error.SetErrorToErrno();
-            }
-            
-            if (DescriptorIsValid())
-            {
-                if (::close (m_descriptor) != 0)
-                    error.SetErrorToErrno();
-            }
-        }
-        m_descriptor = kInvalidDescriptor;
-        m_stream = kInvalidStream;
-        m_options = 0;
-        m_owned = false;
+        if (::fclose (m_stream) == EOF)
+            error.SetErrorToErrno();
     }
+    
+    if (DescriptorIsValid() && m_should_close_fd)
+    {
+        if (::close (m_descriptor) != 0)
+            error.SetErrorToErrno();
+    }
+    m_descriptor = kInvalidDescriptor;
+    m_stream = kInvalidStream;
+    m_options = 0;
+    m_own_stream = false;
+    m_should_close_fd = false;
+    m_is_interactive = eLazyBoolCalculate;
+    m_is_real_terminal = eLazyBoolCalculate;
     return error;
 }
 
@@ -635,6 +677,7 @@ File::Write (const void *buf, size_t &num_bytes)
         num_bytes = 0;
         error.SetErrorString("invalid file handle");
     }
+
     return error;
 }
 
@@ -844,3 +887,49 @@ File::ConvertOpenOptionsForPOSIXOpen (uint32_t open_options)
 
     return mode;
 }
+
+void
+File::CalculateInteractiveAndTerminal ()
+{
+    const int fd = GetDescriptor();
+    if (fd >= 0)
+    {
+        m_is_interactive = eLazyBoolNo;
+        m_is_real_terminal = eLazyBoolNo;
+#if (defined(_WIN32) || defined(__ANDROID_NDK__))
+        if (_isatty(fd))
+        {
+            m_is_interactive = eLazyBoolYes;
+            m_is_real_terminal = eLazyBoolYes;
+        }
+#else
+        if (isatty(fd))
+        {
+            m_is_interactive = eLazyBoolYes;
+            struct winsize window_size;
+            if (::ioctl (fd, TIOCGWINSZ, &window_size) == 0)
+            {
+                if (window_size.ws_col > 0)
+                    m_is_real_terminal = eLazyBoolYes;
+            }
+        }
+#endif
+    }
+}
+
+bool
+File::GetIsInteractive ()
+{
+    if (m_is_interactive == eLazyBoolCalculate)
+        CalculateInteractiveAndTerminal ();
+    return m_is_interactive == eLazyBoolYes;
+}
+
+bool
+File::GetIsRealTerminal ()
+{
+    if (m_is_real_terminal == eLazyBoolCalculate)
+        CalculateInteractiveAndTerminal();
+    return m_is_real_terminal == eLazyBoolYes;
+}
+

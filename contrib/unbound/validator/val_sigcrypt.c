@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -41,7 +41,6 @@
  * bridging between RR wireformat data and crypto calls.
  */
 #include "config.h"
-#include <ldns/ldns.h>
 #include "validator/val_sigcrypt.h"
 #include "validator/val_secalgo.h"
 #include "validator/validator.h"
@@ -52,7 +51,12 @@
 #include "util/module.h"
 #include "util/net_help.h"
 #include "util/regional.h"
+#include "ldns/keyraw.h"
+#include "ldns/sbuffer.h"
+#include "ldns/parseutil.h"
+#include "ldns/wire2str.h"
 
+#include <ctype.h>
 #if !defined(HAVE_SSL) && !defined(HAVE_NSS)
 #error "Need crypto library to do digital signature cryptography"
 #endif
@@ -286,7 +290,7 @@ ds_create_dnskey_digest(struct module_env* env,
 	struct ub_packed_rrset_key* ds_rrset, size_t ds_idx,
 	uint8_t* digest)
 {
-	ldns_buffer* b = env->scratch_buffer;
+	sldns_buffer* b = env->scratch_buffer;
 	uint8_t* dnskey_rdata;
 	size_t dnskey_len;
 	rrset_get_rdata(dnskey_rrset, dnskey_idx, &dnskey_rdata, &dnskey_len);
@@ -294,15 +298,15 @@ ds_create_dnskey_digest(struct module_env* env,
 	/* create digest source material in buffer 
 	 * digest = digest_algorithm( DNSKEY owner name | DNSKEY RDATA);
 	 *	DNSKEY RDATA = Flags | Protocol | Algorithm | Public Key. */
-	ldns_buffer_clear(b);
-	ldns_buffer_write(b, dnskey_rrset->rk.dname, 
+	sldns_buffer_clear(b);
+	sldns_buffer_write(b, dnskey_rrset->rk.dname, 
 		dnskey_rrset->rk.dname_len);
-	query_dname_tolower(ldns_buffer_begin(b));
-	ldns_buffer_write(b, dnskey_rdata+2, dnskey_len-2); /* skip rdatalen*/
-	ldns_buffer_flip(b);
+	query_dname_tolower(sldns_buffer_begin(b));
+	sldns_buffer_write(b, dnskey_rdata+2, dnskey_len-2); /* skip rdatalen*/
+	sldns_buffer_flip(b);
 	
 	return secalgo_ds_digest(ds_get_digest_algo(ds_rrset, ds_idx),
-		(unsigned char*)ldns_buffer_begin(b), ldns_buffer_limit(b),
+		(unsigned char*)sldns_buffer_begin(b), sldns_buffer_limit(b),
 		(unsigned char*)digest);
 }
 
@@ -366,7 +370,7 @@ dnskey_calc_keytag(struct ub_packed_rrset_key* dnskey_rrset, size_t dnskey_idx)
 	size_t len;
 	rrset_get_rdata(dnskey_rrset, dnskey_idx, &data, &len);
 	/* do not pass rdatalen to ldns */
-	return ldns_calc_keytag_raw(data+2, len-2);
+	return sldns_calc_keytag_raw(data+2, len-2);
 }
 
 int dnskey_algo_is_supported(struct ub_packed_rrset_key* dnskey_rrset,
@@ -530,7 +534,7 @@ dnskeyset_verify_rrset(struct module_env* env, struct val_env* ve,
 void algo_needs_reason(struct module_env* env, int alg, char** reason, char* s)
 {
 	char buf[256];
-	ldns_lookup_table *t = ldns_lookup_by_id(ldns_algorithms, alg);
+	sldns_lookup_table *t = sldns_lookup_by_id(sldns_algorithms, alg);
 	if(t&&t->name)
 		snprintf(buf, sizeof(buf), "%s with algorithm %s", s, t->name);
 	else	snprintf(buf, sizeof(buf), "%s with algorithm ALG%u", s,
@@ -579,7 +583,7 @@ dnskey_verify_rrset(struct module_env* env, struct val_env* ve,
 
 enum sec_status 
 dnskeyset_verify_rrset_sig(struct module_env* env, struct val_env* ve, 
-	uint32_t now, struct ub_packed_rrset_key* rrset, 
+	time_t now, struct ub_packed_rrset_key* rrset, 
 	struct ub_packed_rrset_key* dnskey, size_t sig_idx, 
 	struct rbtree_t** sortree, char** reason)
 {
@@ -640,7 +644,7 @@ struct canon_rr {
  */
 static int
 canonical_compare_byfield(struct packed_rrset_data* d, 
-	const ldns_rr_descriptor* desc, size_t i, size_t j)
+	const sldns_rr_descriptor* desc, size_t i, size_t j)
 {
 	/* sweep across rdata, keep track of some state:
 	 * 	which rr field, and bytes left in field.
@@ -784,7 +788,7 @@ canonical_compare(struct ub_packed_rrset_key* rrset, size_t i, size_t j)
 {
 	struct packed_rrset_data* d = (struct packed_rrset_data*)
 		rrset->entry.data;
-	const ldns_rr_descriptor* desc;
+	const sldns_rr_descriptor* desc;
 	uint16_t type = ntohs(rrset->rk.type);
 	size_t minlen;
 	int c;
@@ -808,7 +812,12 @@ canonical_compare(struct ub_packed_rrset_key* rrset, size_t i, size_t j)
 		case LDNS_RR_TYPE_MR:
 		case LDNS_RR_TYPE_PTR:
 		case LDNS_RR_TYPE_DNAME:
-			return query_dname_compare(d->rr_data[i]+2, 
+			/* the wireread function has already checked these
+			 * dname's for correctness, and this double checks */
+			if(!dname_valid(d->rr_data[i]+2, d->rr_len[i]-2) ||
+				!dname_valid(d->rr_data[j]+2, d->rr_len[j]-2))
+				return 0;
+			return query_dname_compare(d->rr_data[i]+2,
 				d->rr_data[j]+2);
 
 		/* These RR types have STR and fixed size rdata fields
@@ -831,7 +840,7 @@ canonical_compare(struct ub_packed_rrset_key* rrset, size_t i, size_t j)
 		case LDNS_RR_TYPE_PX:
 		case LDNS_RR_TYPE_NAPTR:
 		case LDNS_RR_TYPE_SRV:
-			desc = ldns_rr_descript(type);
+			desc = sldns_rr_descript(type);
 			log_assert(desc);
 			/* this holds for the types that need canonicalizing */
 			log_assert(desc->_minimum == desc->_maximum);
@@ -904,15 +913,15 @@ canonical_sort(struct ub_packed_rrset_key* rrset, struct packed_rrset_data* d,
  * @param can_owner_len: length of canonical owner name.
  */
 static void
-insert_can_owner(ldns_buffer* buf, struct ub_packed_rrset_key* k,
+insert_can_owner(sldns_buffer* buf, struct ub_packed_rrset_key* k,
 	uint8_t* sig, uint8_t** can_owner, size_t* can_owner_len)
 {
 	int rrsig_labels = (int)sig[3];
 	int fqdn_labels = dname_signame_label_count(k->rk.dname);
-	*can_owner = ldns_buffer_current(buf);
+	*can_owner = sldns_buffer_current(buf);
 	if(rrsig_labels == fqdn_labels) {
 		/* no change */
-		ldns_buffer_write(buf, k->rk.dname, k->rk.dname_len);
+		sldns_buffer_write(buf, k->rk.dname, k->rk.dname_len);
 		query_dname_tolower(*can_owner);
 		*can_owner_len = k->rk.dname_len;
 		return;
@@ -928,8 +937,8 @@ insert_can_owner(ldns_buffer* buf, struct ub_packed_rrset_key* k,
 			dname_remove_label(&nm, &len);	
 		}
 		*can_owner_len = len+2;
-		ldns_buffer_write(buf, (uint8_t*)"\001*", 2);
-		ldns_buffer_write(buf, nm, len);
+		sldns_buffer_write(buf, (uint8_t*)"\001*", 2);
+		sldns_buffer_write(buf, nm, len);
 		query_dname_tolower(*can_owner);
 	}
 }
@@ -941,10 +950,10 @@ insert_can_owner(ldns_buffer* buf, struct ub_packed_rrset_key* k,
  * @param len: length of the rdata (including rdatalen uint16).
  */
 static void
-canonicalize_rdata(ldns_buffer* buf, struct ub_packed_rrset_key* rrset,
+canonicalize_rdata(sldns_buffer* buf, struct ub_packed_rrset_key* rrset,
 	size_t len)
 {
-	uint8_t* datstart = ldns_buffer_current(buf)-len+2;
+	uint8_t* datstart = sldns_buffer_current(buf)-len+2;
 	switch(ntohs(rrset->rk.type)) {
 		case LDNS_RR_TYPE_NXT: 
 		case LDNS_RR_TYPE_NS:
@@ -1035,6 +1044,69 @@ canonicalize_rdata(ldns_buffer* buf, struct ub_packed_rrset_key* rrset,
 	}
 }
 
+int rrset_canonical_equal(struct regional* region,
+	struct ub_packed_rrset_key* k1, struct ub_packed_rrset_key* k2)
+{
+	struct rbtree_t sortree1, sortree2;
+	struct canon_rr *rrs1, *rrs2, *p1, *p2;
+	struct packed_rrset_data* d1=(struct packed_rrset_data*)k1->entry.data;
+	struct packed_rrset_data* d2=(struct packed_rrset_data*)k2->entry.data;
+	struct ub_packed_rrset_key fk;
+	struct packed_rrset_data fd;
+	size_t flen[2];
+	uint8_t* fdata[2];
+
+	/* basic compare */
+	if(k1->rk.dname_len != k2->rk.dname_len ||
+		k1->rk.flags != k2->rk.flags ||
+		k1->rk.type != k2->rk.type ||
+		k1->rk.rrset_class != k2->rk.rrset_class ||
+		query_dname_compare(k1->rk.dname, k2->rk.dname) != 0)
+		return 0;
+	if(d1->ttl != d2->ttl ||
+		d1->count != d2->count ||
+		d1->rrsig_count != d2->rrsig_count ||
+		d1->trust != d2->trust ||
+		d1->security != d2->security)
+		return 0;
+
+	/* init */
+	memset(&fk, 0, sizeof(fk));
+	memset(&fd, 0, sizeof(fd));
+	fk.entry.data = &fd;
+	fd.count = 2;
+	fd.rr_len = flen;
+	fd.rr_data = fdata;
+	rbtree_init(&sortree1, &canonical_tree_compare);
+	rbtree_init(&sortree2, &canonical_tree_compare);
+	rrs1 = regional_alloc(region, sizeof(struct canon_rr)*d1->count);
+	rrs2 = regional_alloc(region, sizeof(struct canon_rr)*d2->count);
+	if(!rrs1 || !rrs2) return 1; /* alloc failure */
+
+	/* sort */
+	canonical_sort(k1, d1, &sortree1, rrs1);
+	canonical_sort(k2, d2, &sortree2, rrs2);
+
+	/* compare canonical-sorted RRs for canonical-equality */
+	if(sortree1.count != sortree2.count)
+		return 0;
+	p1 = (struct canon_rr*)rbtree_first(&sortree1);
+	p2 = (struct canon_rr*)rbtree_first(&sortree2);
+	while(p1 != (struct canon_rr*)RBTREE_NULL &&
+		p2 != (struct canon_rr*)RBTREE_NULL) {
+		flen[0] = d1->rr_len[p1->rr_idx];
+		flen[1] = d2->rr_len[p2->rr_idx];
+		fdata[0] = d1->rr_data[p1->rr_idx];
+		fdata[1] = d2->rr_data[p2->rr_idx];
+
+		if(canonical_compare(&fk, 0, 1) != 0)
+			return 0;
+		p1 = (struct canon_rr*)rbtree_next(&p1->node);
+		p2 = (struct canon_rr*)rbtree_next(&p2->node);
+	}
+	return 1;
+}
+
 /**
  * Create canonical form of rrset in the scratch buffer.
  * @param region: temporary region.
@@ -1048,7 +1120,7 @@ canonicalize_rdata(ldns_buffer* buf, struct ub_packed_rrset_key* rrset,
  * @return false on alloc error.
  */
 static int
-rrset_canonical(struct regional* region, ldns_buffer* buf, 
+rrset_canonical(struct regional* region, sldns_buffer* buf, 
 	struct ub_packed_rrset_key* k, uint8_t* sig, size_t siglen,
 	struct rbtree_t** sortree)
 {
@@ -1072,13 +1144,13 @@ rrset_canonical(struct regional* region, ldns_buffer* buf,
 		canonical_sort(k, d, *sortree, rrs);
 	}
 
-	ldns_buffer_clear(buf);
-	ldns_buffer_write(buf, sig, siglen);
+	sldns_buffer_clear(buf);
+	sldns_buffer_write(buf, sig, siglen);
 	/* canonicalize signer name */
-	query_dname_tolower(ldns_buffer_begin(buf)+18); 
+	query_dname_tolower(sldns_buffer_begin(buf)+18); 
 	RBTREE_FOR(walk, struct canon_rr*, (*sortree)) {
 		/* see if there is enough space left in the buffer */
-		if(ldns_buffer_remaining(buf) < can_owner_len + 2 + 2 + 4
+		if(sldns_buffer_remaining(buf) < can_owner_len + 2 + 2 + 4
 			+ d->rr_len[walk->rr_idx]) {
 			log_err("verify: failed to canonicalize, "
 				"rrset too big");
@@ -1086,17 +1158,17 @@ rrset_canonical(struct regional* region, ldns_buffer* buf,
 		}
 		/* determine canonical owner name */
 		if(can_owner)
-			ldns_buffer_write(buf, can_owner, can_owner_len);
+			sldns_buffer_write(buf, can_owner, can_owner_len);
 		else	insert_can_owner(buf, k, sig, &can_owner, 
 				&can_owner_len);
-		ldns_buffer_write(buf, &k->rk.type, 2);
-		ldns_buffer_write(buf, &k->rk.rrset_class, 2);
-		ldns_buffer_write(buf, sig+4, 4);
-		ldns_buffer_write(buf, d->rr_data[walk->rr_idx], 
+		sldns_buffer_write(buf, &k->rk.type, 2);
+		sldns_buffer_write(buf, &k->rk.rrset_class, 2);
+		sldns_buffer_write(buf, sig+4, 4);
+		sldns_buffer_write(buf, d->rr_data[walk->rr_idx], 
 			d->rr_len[walk->rr_idx]);
 		canonicalize_rdata(buf, k, d->rr_len[walk->rr_idx]);
 	}
-	ldns_buffer_flip(buf);
+	sldns_buffer_flip(buf);
 	return 1;
 }
 
@@ -1215,12 +1287,12 @@ adjust_ttl(struct val_env* ve, uint32_t unow,
 	 *
 	 * Use the smallest of these.
 	 */
-	if(d->ttl > (uint32_t)origttl) {
+	if(d->ttl > (time_t)origttl) {
 		verbose(VERB_QUERY, "rrset TTL larger than original TTL,"
 			" adjusting TTL downwards");
 		d->ttl = origttl;
 	}
-	if(expittl > 0 && d->ttl > (uint32_t)expittl) {
+	if(expittl > 0 && d->ttl > (time_t)expittl) {
 		verbose(VERB_ALGO, "rrset TTL larger than sig expiration ttl,"
 			" adjusting TTL downwards");
 		d->ttl = expittl;
@@ -1228,8 +1300,8 @@ adjust_ttl(struct val_env* ve, uint32_t unow,
 }
 
 enum sec_status 
-dnskey_verify_rrset_sig(struct regional* region, ldns_buffer* buf, 
-	struct val_env* ve, uint32_t now,
+dnskey_verify_rrset_sig(struct regional* region, sldns_buffer* buf, 
+	struct val_env* ve, time_t now,
         struct ub_packed_rrset_key* rrset, struct ub_packed_rrset_key* dnskey,
         size_t dnskey_idx, size_t sig_idx,
 	struct rbtree_t** sortree, int* buf_canon, char** reason)

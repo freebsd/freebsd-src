@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2005
+.Dd May 26, 2015
 .Dt MEMMEM 3
 .Os
 .Sh NAME
@@ -51,14 +51,12 @@ in the byte string
 .Fa big .
 .Sh RETURN VALUES
 If
-.Fa big_len
-is smaller than
-.Fa little_len ,
-if
 .Fa little_len
-is 0, if
-.Fa big_len
-is 0 or if
+is zero
+.Fa big
+is returned (that is, an empty little is deemed to match at the beginning of
+big);
+if
 .Fa little
 occurs nowhere in
 .Fa big ,
@@ -80,7 +78,15 @@ The
 function first appeared in
 .Fx 6.0 .
 .Sh AUTHORS
-.An Pascal Gloor Aq pascal.gloor@spale.com
+.An Pascal Gloor Aq Mt pascal.gloor@spale.com
 .Sh BUGS
 This function was broken in Linux libc up to and including version 5.0.9
 and in GNU libc prior to version 2.1.
+Prior to
+.Fx 11.0
+.Nm
+returned
+.Dv NULL
+when
+.Fa little_len
+equals 0.

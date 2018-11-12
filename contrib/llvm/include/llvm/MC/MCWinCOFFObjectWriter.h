@@ -17,6 +17,7 @@ namespace llvm {
   class raw_ostream;
 
   class MCWinCOFFObjectTargetWriter {
+    virtual void anchor();
     const unsigned Machine;
 
   protected:
@@ -29,6 +30,7 @@ namespace llvm {
     virtual unsigned getRelocType(const MCValue &Target,
                                   const MCFixup &Fixup,
                                   bool IsCrossSection) const = 0;
+    virtual bool recordRelocation(const MCFixup &) const { return true; }
   };
 
   /// \brief Construct a new Win COFF writer instance.

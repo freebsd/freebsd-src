@@ -56,6 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/interrupt.h>
 
 #include <vm/uma.h>
+#include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -106,13 +110,14 @@ static uma_zone_t cpuset_zone;
 static struct mtx cpuset_lock;
 static struct setlist cpuset_ids;
 static struct unrhdr *cpuset_unr;
-static struct cpuset *cpuset_zero;
+static struct cpuset *cpuset_zero, *cpuset_default;
 
 /* Return the size of cpuset_t at the kernel level */
-SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD,
-	0, sizeof(cpuset_t), "sizeof(cpuset_t)");
+SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD | CTLFLAG_CAPRD,
+    SYSCTL_NULL_INT_PTR, sizeof(cpuset_t), "sizeof(cpuset_t)");
 
 cpuset_t *cpuset_root;
+cpuset_t cpuset_domain[MAXMEMDOM];
 
 /*
  * Acquire a reference to a cpuset, all pointers must be tracked with refs.
@@ -457,6 +462,7 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
 		return (0);
 	}
 	case CPU_WHICH_IRQ:
+	case CPU_WHICH_DOMAIN:
 		return (0);
 	default:
 		return (EINVAL);
@@ -716,7 +722,102 @@ out:
 }
 
 /*
- * Creates the cpuset for thread0.  We make two sets:
+ * Apply new cpumask to the ithread.
+ */
+int
+cpuset_setithread(lwpid_t id, int cpu)
+{
+	struct cpuset *nset, *rset;
+	struct cpuset *parent, *old_set;
+	struct thread *td;
+	struct proc *p;
+	cpusetid_t cs_id;
+	cpuset_t mask;
+	int error;
+
+	nset = uma_zalloc(cpuset_zone, M_WAITOK);
+	rset = uma_zalloc(cpuset_zone, M_WAITOK);
+	cs_id = CPUSET_INVALID;
+
+	CPU_ZERO(&mask);
+	if (cpu == NOCPU)
+		CPU_COPY(cpuset_root, &mask);
+	else
+		CPU_SET(cpu, &mask);
+
+	error = cpuset_which(CPU_WHICH_TID, id, &p, &td, &old_set);
+	if (error != 0 || ((cs_id = alloc_unr(cpuset_unr)) == CPUSET_INVALID))
+		goto out;
+
+	/* cpuset_which() returns with PROC_LOCK held. */
+	old_set = td->td_cpuset;
+
+	if (cpu == NOCPU) {
+
+		/*
+		 * roll back to default set. We're not using cpuset_shadow()
+		 * here because we can fail CPU_SUBSET() check. This can happen
+		 * if default set does not contain all CPUs.
+		 */
+		error = _cpuset_create(nset, cpuset_default, &mask,
+		    CPUSET_INVALID);
+
+		goto applyset;
+	}
+
+	if (old_set->cs_id == 1 || (old_set->cs_id == CPUSET_INVALID &&
+	    old_set->cs_parent->cs_id == 1)) {
+
+		/*
+		 * Current set is either default (1) or
+		 * shadowed version of default set.
+		 *
+		 * Allocate new root set to be able to shadow it
+		 * with any mask.
+		 */
+		error = _cpuset_create(rset, cpuset_zero,
+		    &cpuset_zero->cs_mask, cs_id);
+		if (error != 0) {
+			PROC_UNLOCK(p);
+			goto out;
+		}
+		rset->cs_flags |= CPU_SET_ROOT;
+		parent = rset;
+		rset = NULL;
+		cs_id = CPUSET_INVALID;
+	} else {
+		/* Assume existing set was already allocated by previous call */
+		parent = old_set;
+		old_set = NULL;
+	}
+
+	error = cpuset_shadow(parent, nset, &mask);
+applyset:
+	if (error == 0) {
+		thread_lock(td);
+		td->td_cpuset = nset;
+		sched_affinity(td);
+		thread_unlock(td);
+		nset = NULL;
+	} else
+		old_set = NULL;
+	PROC_UNLOCK(p);
+	if (old_set != NULL)
+		cpuset_rel(old_set);
+out:
+	if (nset != NULL)
+		uma_zfree(cpuset_zone, nset);
+	if (rset != NULL)
+		uma_zfree(cpuset_zone, rset);
+	if (cs_id != CPUSET_INVALID)
+		free_unr(cpuset_unr, cs_id);
+	return (error);
+}
+
+
+/*
+ * Creates system-wide cpusets and the cpuset for thread0 including two
+ * sets:
  * 
  * 0 - The root set which should represent all valid processors in the
  *     system.  It is initially created with a mask of all processors
@@ -735,6 +836,7 @@ cpuset_thread0(void)
 	cpuset_zone = uma_zcreate("cpuset", sizeof(struct cpuset), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtx_init(&cpuset_lock, "cpuset", NULL, MTX_SPIN | MTX_RECURSE);
+
 	/*
 	 * Create the root system set for the whole machine.  Doesn't use
 	 * cpuset_create() due to NULL parent.
@@ -747,16 +849,23 @@ cpuset_thread0(void)
 	set->cs_flags = CPU_SET_ROOT;
 	cpuset_zero = set;
 	cpuset_root = &set->cs_mask;
+
 	/*
 	 * Now derive a default, modifiable set from that to give out.
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK);
 	error = _cpuset_create(set, cpuset_zero, &cpuset_zero->cs_mask, 1);
 	KASSERT(error == 0, ("Error creating default set: %d\n", error));
+	cpuset_default = set;
+
 	/*
 	 * Initialize the unit allocator. 0 and 1 are allocated above.
 	 */
 	cpuset_unr = new_unrhdr(2, INT_MAX, NULL);
+
+	/* MD Code is responsible for initializing sets if vm_ndomains > 1. */
+	if (vm_ndomains == 1)
+		CPU_COPY(&all_cpus, &cpuset_domain[0]);
 
 	return (set);
 }
@@ -912,6 +1021,7 @@ sys_cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 	case CPU_WHICH_JAIL:
 		break;
 	case CPU_WHICH_IRQ:
+	case CPU_WHICH_DOMAIN:
 		return (EINVAL);
 	}
 	switch (uap->level) {
@@ -975,6 +1085,7 @@ sys_cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 		case CPU_WHICH_JAIL:
 			break;
 		case CPU_WHICH_IRQ:
+		case CPU_WHICH_DOMAIN:
 			error = EINVAL;
 			goto out;
 		}
@@ -1005,6 +1116,12 @@ sys_cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 			break;
 		case CPU_WHICH_IRQ:
 			error = intr_getaffinity(uap->id, mask);
+			break;
+		case CPU_WHICH_DOMAIN:
+			if (uap->id < 0 || uap->id >= vm_ndomains)
+				error = ESRCH;
+			else
+				CPU_COPY(&cpuset_domain[uap->id], mask);
 			break;
 		}
 		break;
@@ -1084,6 +1201,7 @@ sys_cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 		case CPU_WHICH_JAIL:
 			break;
 		case CPU_WHICH_IRQ:
+		case CPU_WHICH_DOMAIN:
 			error = EINVAL;
 			goto out;
 		}

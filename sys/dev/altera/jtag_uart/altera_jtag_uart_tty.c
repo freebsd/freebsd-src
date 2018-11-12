@@ -65,9 +65,9 @@ static struct ttydevsw aju_ttydevsw = {
 
 /*
  * When polling for the AC bit, the number of times we have to not see it
- * before assuming JTAG has disappeared on us.  By default, one second.
+ * before assuming JTAG has disappeared on us.  By default, two seconds.
  */
-#define	AJU_JTAG_MAXMISS		5
+#define	AJU_JTAG_MAXMISS		10
 
 /*
  * Polling intervals for input/output and JTAG connection events.
@@ -255,6 +255,22 @@ aju_handle_output(struct altera_jtag_uart_softc *sc, struct tty *tp)
 			if (ttydisc_getc(tp, &ch, sizeof(ch)) != sizeof(ch))
 				panic("%s: ttydisc_getc", __func__);
 			AJU_LOCK(sc);
+
+			/*
+			 * XXXRW: There is a slight race here in which we test
+			 * for writability, drop the lock, get the character
+			 * from the tty layer, re-acquire the lock, and then
+			 * write.  It's possible for other code --
+			 * specifically, the low-level console -- to have
+			 * written in the mean time, which might mean that
+			 * there is no longer space.  The BERI memory bus will
+			 * cause this write to block, wedging the processor
+			 * until space is available -- which could be a while
+			 * if JTAG is not attached!
+			 *
+			 * The 'easy' fix is to drop the character if WSPACE
+			 * has become unset.  Not sure what the 'hard' fix is.
+			 */
 			aju_data_write(sc, ch);
 		} else {
 			/*
@@ -438,11 +454,11 @@ altera_jtag_uart_attach(struct altera_jtag_uart_softc *sc)
 		aju_intr_readable_enable(sc);
 		AJU_UNLOCK(sc);
 	} else {
-		callout_init(&sc->ajus_io_callout, CALLOUT_MPSAFE);
+		callout_init(&sc->ajus_io_callout, 1);
 		callout_reset(&sc->ajus_io_callout, AJU_IO_POLLINTERVAL,
 		    aju_io_callout, sc);
 	}
-	callout_init(&sc->ajus_ac_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->ajus_ac_callout, 1);
 	callout_reset(&sc->ajus_ac_callout, AJU_AC_POLLINTERVAL,
 	    aju_ac_callout, sc);
 	return (0);

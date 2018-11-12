@@ -25,6 +25,25 @@ using namespace lldb;
 using namespace lldb_private;
 
 
+SectionLoadList::SectionLoadList (const SectionLoadList& rhs) :
+    m_addr_to_sect(),
+    m_sect_to_addr(),
+    m_mutex (Mutex::eMutexTypeRecursive)
+{
+    Mutex::Locker locker(rhs.m_mutex);
+    m_addr_to_sect = rhs.m_addr_to_sect;
+    m_sect_to_addr = rhs.m_sect_to_addr;
+}
+
+void
+SectionLoadList::operator=(const SectionLoadList &rhs)
+{
+    Mutex::Locker lhs_locker (m_mutex);
+    Mutex::Locker rhs_locker (rhs.m_mutex);
+    m_addr_to_sect = rhs.m_addr_to_sect;
+    m_sect_to_addr = rhs.m_sect_to_addr;
+}
+
 bool
 SectionLoadList::IsEmpty() const
 {
@@ -62,19 +81,17 @@ SectionLoadList::SetSectionLoadAddress (const lldb::SectionSP &section, addr_t l
     Log *log(lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_DYNAMIC_LOADER | LIBLLDB_LOG_VERBOSE));
 
     ModuleSP module_sp (section->GetModule());
-    
+
     if (module_sp)
     {
         if (log)
         {
             const FileSpec &module_file_spec (module_sp->GetFileSpec());
             log->Printf ("SectionLoadList::%s (section = %p (%s.%s), load_addr = 0x%16.16" PRIx64 ") module = %p",
-                         __FUNCTION__,
-                         section.get(),
+                         __FUNCTION__, static_cast<void*>(section.get()),
                          module_file_spec.GetPath().c_str(),
-                         section->GetName().AsCString(),
-                         load_addr,
-                         module_sp.get());
+                         section->GetName().AsCString(), load_addr,
+                         static_cast<void*>(module_sp.get()));
         }
 
         if (section->GetByteSize() == 0)
@@ -99,7 +116,7 @@ SectionLoadList::SetSectionLoadAddress (const lldb::SectionSP &section, addr_t l
         {
             // Some sections are ok to overlap, and for others we should warn. When
             // we have multiple load addresses that correspond to a section, we will
-            // allways attribute the section to the be last section that claims it
+            // always attribute the section to the be last section that claims it
             // exists at that address. Sometimes it is ok for more that one section
             // to be loaded at a specific load address, and other times it isn't.
             // The "warn_multiple" parameter tells us if we should warn in this case
@@ -136,8 +153,7 @@ SectionLoadList::SetSectionLoadAddress (const lldb::SectionSP &section, addr_t l
         if (log)
         {
             log->Printf ("SectionLoadList::%s (section = %p (%s), load_addr = 0x%16.16" PRIx64 ") error: module has been deleted",
-                         __FUNCTION__,
-                         section.get(),
+                         __FUNCTION__, static_cast<void*>(section.get()),
                          section->GetName().AsCString(),
                          load_addr);
         }
@@ -158,14 +174,13 @@ SectionLoadList::SetSectionUnloaded (const lldb::SectionSP &section_sp)
         {
             const FileSpec &module_file_spec (section_sp->GetModule()->GetFileSpec());
             log->Printf ("SectionLoadList::%s (section = %p (%s.%s))",
-                         __FUNCTION__,
-                         section_sp.get(),
+                         __FUNCTION__, static_cast<void*>(section_sp.get()),
                          module_file_spec.GetPath().c_str(),
                          section_sp->GetName().AsCString());
         }
 
         Mutex::Locker locker(m_mutex);
-        
+
         sect_to_addr_collection::iterator sta_pos = m_sect_to_addr.find(section_sp.get());
         if (sta_pos != m_sect_to_addr.end())
         {
@@ -190,11 +205,9 @@ SectionLoadList::SetSectionUnloaded (const lldb::SectionSP &section_sp, addr_t l
     {
         const FileSpec &module_file_spec (section_sp->GetModule()->GetFileSpec());
         log->Printf ("SectionLoadList::%s (section = %p (%s.%s), load_addr = 0x%16.16" PRIx64 ")",
-                     __FUNCTION__,
-                     section_sp.get(),
+                     __FUNCTION__, static_cast<void*>(section_sp.get()),
                      module_file_spec.GetPath().c_str(),
-                     section_sp->GetName().AsCString(),
-                     load_addr);
+                     section_sp->GetName().AsCString(), load_addr);
     }
     bool erased = false;
     Mutex::Locker locker(m_mutex);
@@ -204,7 +217,7 @@ SectionLoadList::SetSectionUnloaded (const lldb::SectionSP &section_sp, addr_t l
         erased = true;
         m_sect_to_addr.erase (sta_pos);
     }
-        
+
     addr_to_sect_collection::iterator ats_pos = m_addr_to_sect.find(load_addr);
     if (ats_pos != m_addr_to_sect.end())
     {
@@ -268,7 +281,8 @@ SectionLoadList::Dump (Stream &s, Target *target)
     addr_to_sect_collection::const_iterator pos, end;
     for (pos = m_addr_to_sect.begin(), end = m_addr_to_sect.end(); pos != end; ++pos)
     {
-        s.Printf("addr = 0x%16.16" PRIx64 ", section = %p: ", pos->first, pos->second.get());
+        s.Printf("addr = 0x%16.16" PRIx64 ", section = %p: ",
+                 pos->first, static_cast<void*>(pos->second.get()));
         pos->second->Dump (&s, target, 0);
     }
 }

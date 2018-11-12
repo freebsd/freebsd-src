@@ -3,7 +3,7 @@
 #
 # DESCRIPTION:
 #	Include this macro file after all others in a makefile and
-#	follow it with any target specfic flag settings.
+#	follow it with any target specific flag settings.
 #	For each such variable v in TARGET_FLAG_VARS we set:
 #.nf
 #
@@ -37,7 +37,7 @@
 
 
 # RCSid:
-#	$Id: target-flags.mk,v 1.8 2002/05/08 06:01:00 sjg Exp $
+#	$Id: target-flags.mk,v 1.9 2014/04/05 22:56:54 sjg Exp $
 #
 #	@(#) Copyright (c) 1998-2002, Simon J. Gerraty
 #

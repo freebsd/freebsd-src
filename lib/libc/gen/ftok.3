@@ -64,16 +64,16 @@ function will return -1 if
 .Fa path
 does not exist or if it cannot be accessed by the calling process.
 .Sh SEE ALSO
+.Xr msgget 2 ,
 .Xr semget 2 ,
-.Xr shmget 2 ,
-.Xr msgget 2
+.Xr shmget 2
 .Sh HISTORY
 The
 .Fn ftok
 function originates with System V and is typically used by programs
 that use the System V IPC routines.
 .Sh AUTHORS
-.An Thorsten Lockert Aq tholo@sigmasoft.com
+.An Thorsten Lockert Aq Mt tholo@sigmasoft.com
 .Sh BUGS
 The returned key is computed based on the device minor number and inode of the
 specified

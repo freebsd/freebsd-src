@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	rtsocket
-NO_MAN=
-WARNS?=	3
+MAN=
+WARNS?=	6
 
 .include <bsd.prog.mk>

@@ -13,12 +13,25 @@
 
 #include "Unix.h"
 #include "llvm/ADT/Hashing.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/Mutex.h"
+#include "llvm/Support/MutexGuard.h"
 #include "llvm/Support/TimeValue.h"
+#if HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+#if HAVE_SIGNAL_H
+#include <signal.h>
 #endif
 // DragonFlyBSD, OpenBSD, and Bitrig have deprecated <malloc.h> for
 // <stdlib.h> instead. Unix.h includes this for us already.
@@ -44,11 +57,6 @@
 using namespace llvm;
 using namespace sys;
 
-
-process::id_type self_process::get_id() {
-  return getpid();
-}
-
 static std::pair<TimeValue, TimeValue> getRUsageTimes() {
 #if defined(HAVE_GETRUSAGE)
   struct rusage RU;
@@ -68,45 +76,18 @@ static std::pair<TimeValue, TimeValue> getRUsageTimes() {
 #endif
 }
 
-TimeValue self_process::get_user_time() const {
-#if _POSIX_TIMERS > 0 && _POSIX_CPUTIME > 0
-  // Try to get a high resolution CPU timer.
-  struct timespec TS;
-  if (::clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &TS) == 0)
-    return TimeValue(static_cast<TimeValue::SecondsType>(TS.tv_sec),
-                     static_cast<TimeValue::NanoSecondsType>(TS.tv_nsec));
-#endif
-
-  // Otherwise fall back to rusage based timing.
-  return getRUsageTimes().first;
-}
-
-TimeValue self_process::get_system_time() const {
-  // We can only collect system time by inspecting the results of getrusage.
-  return getRUsageTimes().second;
-}
-
-static unsigned getPageSize() {
-#if defined(__CYGWIN__)
-  // On Cygwin, getpagesize() returns 64k but the page size for the purposes of
-  // memory protection and mmap() is 4k.
-  // See http://www.cygwin.com/ml/cygwin/2009-01/threads.html#00492
-  const int page_size = 0x1000;
-#elif defined(HAVE_GETPAGESIZE)
-  const int page_size = ::getpagesize();
+// On Cygwin, getpagesize() returns 64k(AllocationGranularity) and
+// offset in mmap(3) should be aligned to the AllocationGranularity.
+unsigned Process::getPageSize() {
+#if defined(HAVE_GETPAGESIZE)
+  static const int page_size = ::getpagesize();
 #elif defined(HAVE_SYSCONF)
-  long page_size = ::sysconf(_SC_PAGE_SIZE);
+  static long page_size = ::sysconf(_SC_PAGE_SIZE);
 #else
 #warning Cannot get the page size on this machine
 #endif
   return static_cast<unsigned>(page_size);
 }
-
-// This constructor guaranteed to be run exactly once on a single thread, and
-// sets up various process invariants that can be queried cheaply from then on.
-self_process::self_process() : PageSize(getPageSize()) {
-}
-
 
 size_t Process::GetMallocUsage() {
 #if defined(HAVE_MALLINFO)
@@ -135,15 +116,7 @@ size_t Process::GetMallocUsage() {
 void Process::GetTimeUsage(TimeValue &elapsed, TimeValue &user_time,
                            TimeValue &sys_time) {
   elapsed = TimeValue::now();
-  llvm::tie(user_time, sys_time) = getRUsageTimes();
-}
-
-int Process::GetCurrentUserId() {
-  return getuid();
-}
-
-int Process::GetCurrentGroupId() {
-  return getgid();
+  std::tie(user_time, sys_time) = getRUsageTimes();
 }
 
 #if defined(HAVE_MACH_MACH_H) && !defined(__GNU__)
@@ -190,6 +163,114 @@ void Process::PreventCoreFiles() {
 #endif
 }
 
+Optional<std::string> Process::GetEnv(StringRef Name) {
+  std::string NameStr = Name.str();
+  const char *Val = ::getenv(NameStr.c_str());
+  if (!Val)
+    return None;
+  return std::string(Val);
+}
+
+std::error_code
+Process::GetArgumentVector(SmallVectorImpl<const char *> &ArgsOut,
+                           ArrayRef<const char *> ArgsIn,
+                           SpecificBumpPtrAllocator<char> &) {
+  ArgsOut.append(ArgsIn.begin(), ArgsIn.end());
+
+  return std::error_code();
+}
+
+namespace {
+class FDCloser {
+public:
+  FDCloser(int &FD) : FD(FD), KeepOpen(false) {}
+  void keepOpen() { KeepOpen = true; }
+  ~FDCloser() {
+    if (!KeepOpen && FD >= 0)
+      ::close(FD);
+  }
+
+private:
+  FDCloser(const FDCloser &) LLVM_DELETED_FUNCTION;
+  void operator=(const FDCloser &) LLVM_DELETED_FUNCTION;
+
+  int &FD;
+  bool KeepOpen;
+};
+}
+
+std::error_code Process::FixupStandardFileDescriptors() {
+  int NullFD = -1;
+  FDCloser FDC(NullFD);
+  const int StandardFDs[] = {STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO};
+  for (int StandardFD : StandardFDs) {
+    struct stat st;
+    errno = 0;
+    while (fstat(StandardFD, &st) < 0) {
+      assert(errno && "expected errno to be set if fstat failed!");
+      // fstat should return EBADF if the file descriptor is closed.
+      if (errno == EBADF)
+        break;
+      // retry fstat if we got EINTR, otherwise bubble up the failure.
+      if (errno != EINTR)
+        return std::error_code(errno, std::generic_category());
+    }
+    // if fstat succeeds, move on to the next FD.
+    if (!errno)
+      continue;
+    assert(errno == EBADF && "expected errno to have EBADF at this point!");
+
+    if (NullFD < 0) {
+      while ((NullFD = open("/dev/null", O_RDWR)) < 0) {
+        if (errno == EINTR)
+          continue;
+        return std::error_code(errno, std::generic_category());
+      }
+    }
+
+    if (NullFD == StandardFD)
+      FDC.keepOpen();
+    else if (dup2(NullFD, StandardFD) < 0)
+      return std::error_code(errno, std::generic_category());
+  }
+  return std::error_code();
+}
+
+std::error_code Process::SafelyCloseFileDescriptor(int FD) {
+  // Create a signal set filled with *all* signals.
+  sigset_t FullSet;
+  if (sigfillset(&FullSet) < 0)
+    return std::error_code(errno, std::generic_category());
+  // Atomically swap our current signal mask with a full mask.
+  sigset_t SavedSet;
+#if LLVM_ENABLE_THREADS
+  if (int EC = pthread_sigmask(SIG_SETMASK, &FullSet, &SavedSet))
+    return std::error_code(EC, std::generic_category());
+#else
+  if (sigprocmask(SIG_SETMASK, &FullSet, &SavedSet) < 0)
+    return std::error_code(errno, std::generic_category());
+#endif
+  // Attempt to close the file descriptor.
+  // We need to save the error, if one occurs, because our subsequent call to
+  // pthread_sigmask might tamper with errno.
+  int ErrnoFromClose = 0;
+  if (::close(FD) < 0)
+    ErrnoFromClose = errno;
+  // Restore the signal mask back to what we saved earlier.
+  int EC = 0;
+#if LLVM_ENABLE_THREADS
+  EC = pthread_sigmask(SIG_SETMASK, &SavedSet, nullptr);
+#else
+  if (sigprocmask(SIG_SETMASK, &SavedSet, nullptr) < 0)
+    EC = errno;
+#endif
+  // The error code from close takes precedence over the one from
+  // pthread_sigmask.
+  if (ErrnoFromClose)
+    return std::error_code(ErrnoFromClose, std::generic_category());
+  return std::error_code(EC, std::generic_category());
+}
+
 bool Process::StandardInIsUserInput() {
   return FileDescriptorIsDisplayed(STDIN_FILENO);
 }
@@ -224,8 +305,6 @@ static unsigned getColumns(int FileID) {
 #if defined(HAVE_SYS_IOCTL_H) && defined(HAVE_TERMIOS_H)
   // Try to determine the width of the terminal.
   struct winsize ws;
-  // Zero-fill ws to avoid a false positive from MemorySanitizer.
-  memset(&ws, 0, sizeof(ws));
   if (ioctl(FileID, TIOCGWINSZ, &ws) == 0)
     Columns = ws.ws_col;
 #endif
@@ -247,22 +326,64 @@ unsigned Process::StandardErrColumns() {
   return getColumns(2);
 }
 
-static bool terminalHasColors() {
-  if (const char *term = std::getenv("TERM")) {
-    // Most modern terminals support ANSI escape sequences for colors.
-    // We could check terminfo, or have a list of known terms that support
-    // colors, but that would be overkill.
-    // The user can always ask for no colors by setting TERM to dumb, or
-    // using a commandline flag.
-    return strcmp(term, "dumb") != 0;
-  }
+#ifdef HAVE_TERMINFO
+// We manually declare these extern functions because finding the correct
+// headers from various terminfo, curses, or other sources is harder than
+// writing their specs down.
+extern "C" int setupterm(char *term, int filedes, int *errret);
+extern "C" struct term *set_curterm(struct term *termp);
+extern "C" int del_curterm(struct term *termp);
+extern "C" int tigetnum(char *capname);
+#endif
+
+#ifdef HAVE_TERMINFO
+static ManagedStatic<sys::Mutex> TermColorMutex;
+#endif
+
+static bool terminalHasColors(int fd) {
+#ifdef HAVE_TERMINFO
+  // First, acquire a global lock because these C routines are thread hostile.
+  MutexGuard G(*TermColorMutex);
+
+  int errret = 0;
+  if (setupterm((char *)nullptr, fd, &errret) != 0)
+    // Regardless of why, if we can't get terminfo, we shouldn't try to print
+    // colors.
+    return false;
+
+  // Test whether the terminal as set up supports color output. How to do this
+  // isn't entirely obvious. We can use the curses routine 'has_colors' but it
+  // would be nice to avoid a dependency on curses proper when we can make do
+  // with a minimal terminfo parsing library. Also, we don't really care whether
+  // the terminal supports the curses-specific color changing routines, merely
+  // if it will interpret ANSI color escape codes in a reasonable way. Thus, the
+  // strategy here is just to query the baseline colors capability and if it
+  // supports colors at all to assume it will translate the escape codes into
+  // whatever range of colors it does support. We can add more detailed tests
+  // here if users report them as necessary.
+  //
+  // The 'tigetnum' routine returns -2 or -1 on errors, and might return 0 if
+  // the terminfo says that no colors are supported.
+  bool HasColors = tigetnum(const_cast<char *>("colors")) > 0;
+
+  // Now extract the structure allocated by setupterm and free its memory
+  // through a really silly dance.
+  struct term *termp = set_curterm((struct term *)nullptr);
+  (void)del_curterm(termp); // Drop any errors here.
+
+  // Return true if we found a color capabilities for the current terminal.
+  if (HasColors)
+    return true;
+#endif
+
+  // Otherwise, be conservative.
   return false;
 }
 
 bool Process::FileDescriptorHasColors(int fd) {
   // A file descriptor has colors if it is displayed and the terminal has
   // colors.
-  return FileDescriptorIsDisplayed(fd) && terminalHasColors();
+  return FileDescriptorIsDisplayed(fd) && terminalHasColors(fd);
 }
 
 bool Process::StandardOutHasColors() {
@@ -273,28 +394,14 @@ bool Process::StandardErrHasColors() {
   return FileDescriptorHasColors(STDERR_FILENO);
 }
 
+void Process::UseANSIEscapeCodes(bool /*enable*/) {
+  // No effect.
+}
+
 bool Process::ColorNeedsFlush() {
   // No, we use ANSI escape sequences.
   return false;
 }
-
-#define COLOR(FGBG, CODE, BOLD) "\033[0;" BOLD FGBG CODE "m"
-
-#define ALLCOLORS(FGBG,BOLD) {\
-    COLOR(FGBG, "0", BOLD),\
-    COLOR(FGBG, "1", BOLD),\
-    COLOR(FGBG, "2", BOLD),\
-    COLOR(FGBG, "3", BOLD),\
-    COLOR(FGBG, "4", BOLD),\
-    COLOR(FGBG, "5", BOLD),\
-    COLOR(FGBG, "6", BOLD),\
-    COLOR(FGBG, "7", BOLD)\
-  }
-
-static const char colorcodes[2][2][8][10] = {
- { ALLCOLORS("3",""), ALLCOLORS("3","1;") },
- { ALLCOLORS("4",""), ALLCOLORS("4","1;") }
-};
 
 const char *Process::OutputColor(char code, bool bold, bool bg) {
   return colorcodes[bg?1:0][bold?1:0][code&7];
@@ -312,7 +419,7 @@ const char *Process::ResetColor() {
   return "\033[0m";
 }
 
-#if !defined(HAVE_ARC4RANDOM)
+#if !defined(HAVE_DECL_ARC4RANDOM) || !HAVE_DECL_ARC4RANDOM
 static unsigned GetRandomNumberSeed() {
   // Attempt to get the initial seed from /dev/urandom, if possible.
   if (FILE *RandomSource = ::fopen("/dev/urandom", "r")) {
@@ -333,7 +440,7 @@ static unsigned GetRandomNumberSeed() {
 #endif
 
 unsigned llvm::sys::Process::GetRandomNumber() {
-#if defined(HAVE_ARC4RANDOM)
+#if defined(HAVE_DECL_ARC4RANDOM) && HAVE_DECL_ARC4RANDOM
   return arc4random();
 #else
   static int x = (::srand(GetRandomNumberSeed()), 0);

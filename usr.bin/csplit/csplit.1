@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 24, 2008
+.Dd February 6, 2014
 .Dt CSPLIT 1
 .Os
 .Sh NAME
@@ -143,7 +143,7 @@ Split the
 .Xr mdoc 7
 file
 .Pa foo.1
-into one file for each section (up to 20):
+into one file for each section (up to 21 plus one for the rest, if any):
 .Pp
 .Dl "csplit -k foo.1 '%^\e.Sh%' '/^\e.Sh/' '{20}'"
 .Pp

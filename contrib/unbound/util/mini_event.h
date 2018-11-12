@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -57,6 +57,21 @@
 #ifndef HAVE_EVENT_BASE_FREE
 #define HAVE_EVENT_BASE_FREE
 #endif 
+
+/* redefine to use our own namespace so that on platforms where
+ * linkers crosslink library-private symbols with other symbols, it works */
+#define event_init minievent_init
+#define event_get_version minievent_get_version
+#define event_get_method minievent_get_method
+#define event_base_dispatch minievent_base_dispatch
+#define event_base_loopexit minievent_base_loopexit
+#define event_base_free minievent_base_free
+#define event_set minievent_set
+#define event_base_set minievent_base_set
+#define event_add minievent_add
+#define event_del minievent_del
+#define signal_add minisignal_add
+#define signal_del minisignal_del
 
 /** event timeout */
 #define EV_TIMEOUT	0x01
@@ -103,7 +118,7 @@ struct event_base
 	/** if we need to exit */
 	int need_to_exit;
 	/** where to store time in seconds */
-	uint32_t* time_secs;
+	time_t* time_secs;
 	/** where to store time in microseconds */
 	struct timeval* time_tv;
 };
@@ -134,7 +149,7 @@ struct event {
 
 /* function prototypes (some are as they appear in event.h) */
 /** create event base */
-void *event_init(uint32_t* time_secs, struct timeval* time_tv);
+void *event_init(time_t* time_secs, struct timeval* time_tv);
 /** get version */
 const char *event_get_version(void);
 /** get polling method, select */

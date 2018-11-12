@@ -39,21 +39,17 @@
 #ifndef _MACHINE_ASM_H_
 #define _MACHINE_ASM_H_
 #include <sys/cdefs.h>
+#include <machine/acle-compat.h>
+#include <machine/sysreg.h>
 
 #define	_C_LABEL(x)	x
 #define	_ASM_LABEL(x)	x
 
-#define I32_bit (1 << 7)	/* IRQ disable */
-#define F32_bit (1 << 6)        /* FIQ disable */
-
-#define CPU_CONTROL_32BP_ENABLE 0x00000010 /* P: 32-bit exception handlers */
-#define CPU_CONTROL_32BD_ENABLE 0x00000020 /* D: 32-bit addressing */
-
 #ifndef _ALIGN_TEXT
-# define _ALIGN_TEXT .align 0
+# define _ALIGN_TEXT .align 2
 #endif
 
-#ifdef __ARM_EABI__
+#ifndef _STANDALONE
 #define	STOP_UNWINDING	.cantunwind
 #define	_FNSTART	.fnstart
 #define	_FNEND		.fnend
@@ -64,32 +60,67 @@
 #endif
 
 /*
- * gas/arm uses @ as a single comment character and thus cannot be used here
- * Instead it recognised the # instead of an @ symbols in .type directives
- * We define a couple of macros so that assembly code will not be dependent
- * on one or the other.
+ * gas/arm uses @ as a single comment character and thus cannot be used here.
+ * It recognises the # instead of an @ symbol in .type directives.
  */
-#define _ASM_TYPE_FUNCTION	#function
-#define _ASM_TYPE_OBJECT	#object
-#define GLOBAL(X) .globl x
-#define _ENTRY(x) \
-	.text; _ALIGN_TEXT; .globl x; .type x,_ASM_TYPE_FUNCTION; x: _FNSTART
+#define	_ASM_TYPE_FUNCTION	#function
+#define	_ASM_TYPE_OBJECT	#object
 
-#define	_END(x)	.size x, . - x; _FNEND
-
+/* XXX Is this still the right prologue for profiling? */
 #ifdef GPROF
-#  define _PROF_PROLOGUE	\
-	mov ip, lr; bl __mcount
+#define	_PROF_PROLOGUE	\
+	mov ip, lr;	\
+	bl __mcount
 #else
-# define _PROF_PROLOGUE
+#define	_PROF_PROLOGUE
 #endif
 
+/*
+ * EENTRY()/EEND() mark "extra" entry/exit points from a function.
+ * LEENTRY()/LEEND() are the the same for local symbols.
+ * The unwind info cannot handle the concept of a nested function, or a function
+ * with multiple .fnstart directives, but some of our assembler code is written
+ * with multiple labels to allow entry at several points.  The EENTRY() macro
+ * defines such an extra entry point without a new .fnstart, so that it's
+ * basically just a label that you can jump to.  The EEND() macro does nothing
+ * at all, except document the exit point associated with the same-named entry.
+ */
+#define	GLOBAL(x)	.global x
+
+#ifdef __thumb__
+#define	_FUNC_MODE	.code 16; .thumb_func
+#else
+#define	_FUNC_MODE	.code 32
+#endif
+
+#define	_LEENTRY(x) 	.type x,_ASM_TYPE_FUNCTION; _FUNC_MODE; x:
+#define	_LEEND(x)	/* nothing */
+#define	_EENTRY(x) 	GLOBAL(x); _LEENTRY(x)
+#define	_EEND(x)	_LEEND(x)
+
+#define	_LENTRY(x)	.text; _ALIGN_TEXT; _LEENTRY(x); _FNSTART
+#define	_LEND(x)	.size x, . - x; _FNEND
+#define	_ENTRY(x)	.text; _ALIGN_TEXT; _EENTRY(x); _FNSTART
+#define	_END(x)		_LEND(x)
+
 #define	ENTRY(y)	_ENTRY(_C_LABEL(y)); _PROF_PROLOGUE
+#define	EENTRY(y)	_EENTRY(_C_LABEL(y));
 #define	ENTRY_NP(y)	_ENTRY(_C_LABEL(y))
+#define	EENTRY_NP(y)	_EENTRY(_C_LABEL(y))
 #define	END(y)		_END(_C_LABEL(y))
+#define	EEND(y)		_EEND(_C_LABEL(y))
 #define	ASENTRY(y)	_ENTRY(_ASM_LABEL(y)); _PROF_PROLOGUE
+#define	ASLENTRY(y)	_LENTRY(_ASM_LABEL(y)); _PROF_PROLOGUE
+#define	ASEENTRY(y)	_EENTRY(_ASM_LABEL(y));
+#define	ASLEENTRY(y)	_LEENTRY(_ASM_LABEL(y));
 #define	ASENTRY_NP(y)	_ENTRY(_ASM_LABEL(y))
+#define	ASLENTRY_NP(y)	_LENTRY(_ASM_LABEL(y))
+#define	ASEENTRY_NP(y)	_EENTRY(_ASM_LABEL(y))
+#define	ASLEENTRY_NP(y)	_LEENTRY(_ASM_LABEL(y))
 #define	ASEND(y)	_END(_ASM_LABEL(y))
+#define	ASLEND(y)	_LEND(_ASM_LABEL(y))
+#define	ASEEND(y)	_EEND(_ASM_LABEL(y))
+#define	ASLEEND(y)	_LEEND(_ASM_LABEL(y))
 
 #define	ASMSTR		.asciz
 
@@ -101,10 +132,16 @@
 	ldr	x, [x, got]
 #define	GOT_INIT(got,gotsym,pclabel) \
 	ldr	got, gotsym;	\
-	add	got, got, pc;	\
-	pclabel:
+	pclabel: add	got, pc
+#ifdef __thumb__
 #define	GOT_INITSYM(gotsym,pclabel) \
-	gotsym: .word _C_LABEL(_GLOBAL_OFFSET_TABLE_) + (. - (pclabel+4))
+	.align 2;		\
+	gotsym: .word _C_LABEL(_GLOBAL_OFFSET_TABLE_) - (pclabel+4)
+#else
+#define	GOT_INITSYM(gotsym,pclabel) \
+	.align 2;		\
+	gotsym: .word _C_LABEL(_GLOBAL_OFFSET_TABLE_) - (pclabel+8)
+#endif
 
 #ifdef __STDC__
 #define	PIC_SYM(x,y)	x ## ( ## y ## )
@@ -190,6 +227,23 @@
 # define RETeq	moveq	pc, lr
 # define RETne	movne	pc, lr
 # define RETc(c) mov##c	pc, lr
+#endif
+
+#if __ARM_ARCH >= 7
+#define ISB	isb
+#define DSB	dsb
+#define DMB	dmb
+#define WFI	wfi
+#elif __ARM_ARCH == 6
+#define ISB	mcr CP15_CP15ISB
+#define DSB	mcr CP15_CP15DSB
+#define DMB	mcr CP15_CP15DMB
+#define WFI	mcr CP15_CP15WFI
+#else
+#define ISB	mcr CP15_CP15ISB
+#define DSB	mcr CP15_CP15DSB	/* DSB and DMB are the */
+#define DMB	mcr CP15_CP15DSB	/* same prior to v6.*/
+/* No form of WFI available on v4, define nothing to get an error on use. */
 #endif
 
 #endif /* !_MACHINE_ASM_H_ */

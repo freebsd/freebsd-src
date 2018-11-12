@@ -357,7 +357,7 @@ the local domain name isn't set");
 					     ypxfr_mapname,
 					     ypxfr_master, 0)) == 0) {
 		yp_error("failed to get order number of %s: %s",
-				ypxfr_mapname, yp_errno == YPXFR_SUCC ?
+				ypxfr_mapname, yp_errno == YP_TRUE ?
 				"map has order 0" :
 				ypxfrerr_string((ypxfrstat)yp_errno));
 		ypxfr_exit(YPXFR_YPERR,NULL);
@@ -533,7 +533,7 @@ leave:
 					     ypxfr_mapname,
 					     ypxfr_master, 0)) == 0) {
 		yp_error("failed to get order number of %s: %s",
-				ypxfr_mapname, yp_errno == YPXFR_SUCC ?
+				ypxfr_mapname, yp_errno == YP_TRUE ?
 				"map has order 0" :
 				ypxfrerr_string((ypxfrstat)yp_errno));
 		ypxfr_exit(YPXFR_YPERR,ypxfr_temp_map);

@@ -31,7 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/procdesc.h>
 #include <sys/socket.h>
 
@@ -63,6 +63,9 @@ stdnull(void)
 	if (fd == -1)
 		errx(1, "Unable to open %s", _PATH_DEVNULL);
 
+	if (setsid() == -1)
+		errx(1, "Unable to detach from session");
+
 	if (dup2(fd, STDIN_FILENO) == -1)
 		errx(1, "Unable to cover stdin");
 	if (dup2(fd, STDOUT_FILENO) == -1)
@@ -88,7 +91,7 @@ zygote_clone(zygote_func_t *func, int flags, int *chanfdp, int *procfdp)
 	nvl = nvlist_create(0);
 	nvlist_add_number(nvl, "func", (uint64_t)(uintptr_t)func);
 	nvlist_add_number(nvl, "flags", (uint64_t)flags);
-	nvl = nvlist_xfer(zygote_sock, nvl);
+	nvl = nvlist_xfer(zygote_sock, nvl, 0);
 	if (nvl == NULL)
 		return (-1);
 	if (nvlist_exists_number(nvl, "error")) {
@@ -131,9 +134,14 @@ zygote_main(int sock)
 	closefrom(sock + 1);
 
 	for (;;) {
-		nvlin = nvlist_recv(sock);
-		if (nvlin == NULL)
+		nvlin = nvlist_recv(sock, 0);
+		if (nvlin == NULL) {
+			if (errno == ENOTCONN) {
+				/* Casperd exited. */
+				exit(0);
+			}
 			continue;
+		}
 		func = (zygote_func_t *)(uintptr_t)nvlist_get_number(nvlin,
 		    "func");
 		flags = (int)nvlist_get_number(nvlin, "flags");

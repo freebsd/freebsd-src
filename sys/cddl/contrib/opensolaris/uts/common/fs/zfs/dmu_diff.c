@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -130,7 +130,7 @@ report_dnode(struct diffarg *da, uint64_t object, dnode_phys_t *dnp)
 /* ARGSUSED */
 static int
 diff_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
-    const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
+    const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	struct diffarg *da = arg;
 	int err = 0;
@@ -152,7 +152,7 @@ diff_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	} else if (zb->zb_level == 0) {
 		dnode_phys_t *blk;
 		arc_buf_t *abuf;
-		uint32_t aflags = ARC_WAIT;
+		arc_flags_t aflags = ARC_FLAG_WAIT;
 		int blksz = BP_GET_LSIZE(bp);
 		int i;
 
@@ -221,7 +221,7 @@ dmu_diff(const char *tosnap_name, const char *fromsnap_name,
 		return (SET_ERROR(EXDEV));
 	}
 
-	fromtxg = fromsnap->ds_phys->ds_creation_txg;
+	fromtxg = dsl_dataset_phys(fromsnap)->ds_creation_txg;
 	dsl_dataset_rele(fromsnap, FTAG);
 
 	dsl_dataset_long_hold(tosnap, FTAG);

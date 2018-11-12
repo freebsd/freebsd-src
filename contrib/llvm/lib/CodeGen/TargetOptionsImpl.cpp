@@ -11,8 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/IR/Function.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
@@ -21,7 +22,8 @@ using namespace llvm;
 bool TargetOptions::DisableFramePointerElim(const MachineFunction &MF) const {
   // Check to see if we should eliminate non-leaf frame pointers and then
   // check to see if we should eliminate all frame pointers.
-  if (NoFramePointerElimNonLeaf && !NoFramePointerElim) {
+  if (MF.getFunction()->hasFnAttribute("no-frame-pointer-elim-non-leaf") &&
+      !NoFramePointerElim) {
     const MachineFrameInfo *MFI = MF.getFrameInfo();
     return MFI->hasCalls();
   }
@@ -50,29 +52,9 @@ StringRef TargetOptions::getTrapFunctionName() const {
   return TrapFuncName;
 }
 
-bool TargetOptions::operator==(const TargetOptions &TO) {
-#define ARE_EQUAL(X) X == TO.X
-  return
-    ARE_EQUAL(UnsafeFPMath) &&
-    ARE_EQUAL(NoInfsFPMath) &&
-    ARE_EQUAL(NoNaNsFPMath) &&
-    ARE_EQUAL(HonorSignDependentRoundingFPMathOption) &&
-    ARE_EQUAL(UseSoftFloat) &&
-    ARE_EQUAL(NoZerosInBSS) &&
-    ARE_EQUAL(JITExceptionHandling) &&
-    ARE_EQUAL(JITEmitDebugInfo) &&
-    ARE_EQUAL(JITEmitDebugInfoToDisk) &&
-    ARE_EQUAL(GuaranteedTailCallOpt) &&
-    ARE_EQUAL(DisableTailCalls) &&
-    ARE_EQUAL(StackAlignmentOverride) &&
-    ARE_EQUAL(RealignStack) &&
-    ARE_EQUAL(SSPBufferSize) &&
-    ARE_EQUAL(EnableFastISel) &&
-    ARE_EQUAL(PositionIndependentExecutable) &&
-    ARE_EQUAL(EnableSegmentedStacks) &&
-    ARE_EQUAL(UseInitArray) &&
-    ARE_EQUAL(TrapFuncName) &&
-    ARE_EQUAL(FloatABIType) &&
-    ARE_EQUAL(AllowFPOpFusion);
-#undef ARE_EQUAL
+/// getCFIFuncName - If this returns a non-empty string, then it is the name of
+/// the function that gets called on CFI violations in CFI non-enforcing mode
+/// (!TargetOptions::CFIEnforcing).
+StringRef TargetOptions::getCFIFuncName() const {
+  return CFIFuncName;
 }

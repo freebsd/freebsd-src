@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +48,7 @@ linux_fget(unsigned int fd)
 {
 	struct file *file;
 
-	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, 0, &file,
+	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, &file,
 	    NULL) != 0) {
 		return (NULL);
 	}
@@ -72,11 +73,19 @@ put_unused_fd(unsigned int fd)
 {
 	struct file *file;
 
-	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, 0, &file,
+	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, &file,
 	    NULL) != 0) {
 		return;
 	}
-	fdclose(curthread->td_proc->p_fd, file, fd, curthread);
+	/*
+	 * NOTE: We should only get here when the "fd" has not been
+	 * installed, so no need to free the associated Linux file
+	 * structure.
+	 */
+	fdclose(curthread, file, fd);
+
+	/* drop extra reference */
+	fdrop(file, curthread);
 }
 
 static inline void
@@ -84,12 +93,15 @@ fd_install(unsigned int fd, struct linux_file *filp)
 {
 	struct file *file;
 
-	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, 0, &file,
+	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, &file,
 	    NULL) != 0) {
 		file = NULL;
 	}
 	filp->_file = file;
-        finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
+	finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
+
+	/* drop the extra reference */
+	fput(filp);
 }
 
 static inline int
@@ -102,16 +114,18 @@ get_unused_fd(void)
 	error = falloc(curthread, &file, &fd, 0);
 	if (error)
 		return -error;
+	/* drop the extra reference */
+	fdrop(file, curthread);
 	return fd;
 }
 
 static inline struct linux_file *
-_alloc_file(int mode, const struct file_operations *fops)
+alloc_file(int mode, const struct file_operations *fops)
 {
 	struct linux_file *filp;
 
 	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
-	if (filp == NULL) 
+	if (filp == NULL)
 		return (NULL);
 	filp->f_op = fops;
 	filp->f_mode = mode;
@@ -119,7 +133,20 @@ _alloc_file(int mode, const struct file_operations *fops)
 	return filp;
 }
 
-#define	alloc_file(mnt, root, mode, fops)	_alloc_file((mode), (fops))
+struct fd {
+	struct linux_file *linux_file;
+};
+
+static inline void fdput(struct fd fd)
+{
+	fput(fd.linux_file);
+}
+
+static inline struct fd fdget(unsigned int fd)
+{
+	struct linux_file *f = linux_fget(fd);
+	return (struct fd){f};
+}
 
 #define	file	linux_file
 #define	fget	linux_fget

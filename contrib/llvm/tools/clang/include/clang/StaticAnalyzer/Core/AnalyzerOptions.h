@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ANALYZEROPTIONS_H
-#define LLVM_CLANG_ANALYZEROPTIONS_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_ANALYZEROPTIONS_H
+#define LLVM_CLANG_STATICANALYZER_CORE_ANALYZEROPTIONS_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -52,8 +52,9 @@ NumConstraints
 /// AnalysisDiagClients - Set of available diagnostic clients for rendering
 ///  analysis results.
 enum AnalysisDiagClients {
-#define ANALYSIS_DIAGNOSTICS(NAME, CMDFLAG, DESC, CREATFN, AUTOCREAT) PD_##NAME,
+#define ANALYSIS_DIAGNOSTICS(NAME, CMDFLAG, DESC, CREATFN) PD_##NAME,
 #include "clang/StaticAnalyzer/Core/Analyses.def"
+PD_NONE,
 NUM_ANALYSIS_DIAG_CLIENTS
 };
 
@@ -136,11 +137,18 @@ public:
   unsigned maxBlockVisitOnPath;
   
   
+  /// \brief Disable all analyzer checks.
+  ///
+  /// This flag allows one to disable analyzer checks on the code processed by
+  /// the given analysis consumer. Note, the code will get parsed and the
+  /// command-line options will get checked.
+  unsigned DisableAllChecks : 1;
+
   unsigned ShowCheckerHelp : 1;
   unsigned AnalyzeAll : 1;
   unsigned AnalyzerDisplayProgress : 1;
   unsigned AnalyzeNestedBlocks : 1;
-  
+
   /// \brief The flag regulates if we should eagerly assume evaluations of
   /// conditionals, thus, bifurcating the path.
   ///
@@ -198,8 +206,14 @@ private:
   /// \sa mayInlineTemplateFunctions
   Optional<bool> InlineTemplateFunctions;
 
-  /// \sa mayInlineCXXContainerCtorsAndDtors
-  Optional<bool> InlineCXXContainerCtorsAndDtors;
+  /// \sa mayInlineCXXAllocator
+  Optional<bool> InlineCXXAllocator;
+
+  /// \sa mayInlineCXXContainerMethods
+  Optional<bool> InlineCXXContainerMethods;
+
+  /// \sa mayInlineCXXSharedPtrDtor
+  Optional<bool> InlineCXXSharedPtrDtor;
 
   /// \sa mayInlineObjCMethod
   Optional<bool> ObjCInliningMode;
@@ -222,6 +236,12 @@ private:
 
   /// \sa shouldSuppressFromCXXStandardLibrary
   Optional<bool> SuppressFromCXXStandardLibrary;
+
+  /// \sa reportIssuesInMainSourceFile
+  Optional<bool> ReportIssuesInMainSourceFile;
+
+  /// \sa StableReportFilename
+  Optional<bool> StableReportFilename;
 
   /// \sa getGraphTrimInterval
   Optional<unsigned> GraphTrimInterval;
@@ -284,12 +304,28 @@ public:
   /// accepts the values "true" and "false".
   bool mayInlineTemplateFunctions();
 
-  /// Returns whether or not constructors and destructors of C++ container
-  /// objects may be considered for inlining.
+  /// Returns whether or not allocator call may be considered for inlining.
+  ///
+  /// This is controlled by the 'c++-allocator-inlining' config option, which
+  /// accepts the values "true" and "false".
+  bool mayInlineCXXAllocator();
+
+  /// Returns whether or not methods of C++ container objects may be considered
+  /// for inlining.
   ///
   /// This is controlled by the 'c++-container-inlining' config option, which
   /// accepts the values "true" and "false".
-  bool mayInlineCXXContainerCtorsAndDtors();
+  bool mayInlineCXXContainerMethods();
+
+  /// Returns whether or not the destructor of C++ 'shared_ptr' may be
+  /// considered for inlining.
+  ///
+  /// This covers std::shared_ptr, std::tr1::shared_ptr, and boost::shared_ptr,
+  /// and indeed any destructor named "~shared_ptr".
+  ///
+  /// This is controlled by the 'c++-shared_ptr-inlining' config option, which
+  /// accepts the values "true" and "false".
+  bool mayInlineCXXSharedPtrDtor();
 
   /// Returns whether or not paths that go through null returns should be
   /// suppressed.
@@ -325,6 +361,19 @@ public:
   /// This is controlled by the 'suppress-c++-stdlib' config option,
   /// which accepts the values "true" and "false".
   bool shouldSuppressFromCXXStandardLibrary();
+
+  /// Returns whether or not the diagnostic report should be always reported
+  /// in the main source file and not the headers.
+  ///
+  /// This is controlled by the 'report-in-main-source-file' config option,
+  /// which accepts the values "true" and "false".
+  bool shouldReportIssuesInMainSourceFile();
+
+  /// Returns whether or not the report filename should be random or not.
+  ///
+  /// This is controlled by the 'stable-report-filename' config option,
+  /// which accepts the values "true" and "false". Default = false
+  bool shouldWriteStableReportFilename();
 
   /// Returns whether irrelevant parts of a bug report path should be pruned
   /// out of the final output.
@@ -378,6 +427,7 @@ public:
     AnalysisConstraintsOpt(RangeConstraintsModel),
     AnalysisDiagOpt(PD_HTML),
     AnalysisPurgeOpt(PurgeStmt),
+    DisableAllChecks(0),
     ShowCheckerHelp(0),
     AnalyzeAll(0),
     AnalyzerDisplayProgress(0),

@@ -13,45 +13,44 @@
 
 #include "llvm/Object/Error.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/ManagedStatic.h"
 
 using namespace llvm;
 using namespace object;
 
 namespace {
-class _object_error_category : public _do_message {
+class _object_error_category : public std::error_category {
 public:
-  virtual const char* name() const;
-  virtual std::string message(int ev) const;
-  virtual error_condition default_error_condition(int ev) const;
+  const char* name() const LLVM_NOEXCEPT override;
+  std::string message(int ev) const override;
 };
 }
 
-const char *_object_error_category::name() const {
+const char *_object_error_category::name() const LLVM_NOEXCEPT {
   return "llvm.object";
 }
 
-std::string _object_error_category::message(int ev) const {
-  switch (ev) {
+std::string _object_error_category::message(int EV) const {
+  object_error E = static_cast<object_error>(EV);
+  switch (E) {
   case object_error::success: return "Success";
+  case object_error::arch_not_found:
+    return "No object file for requested architecture";
   case object_error::invalid_file_type:
     return "The file was not recognized as a valid object file";
   case object_error::parse_failed:
     return "Invalid data was encountered while parsing the file";
   case object_error::unexpected_eof:
     return "The end of the file was unexpectedly encountered";
-  default:
-    llvm_unreachable("An enumerator of object_error does not have a message "
-                     "defined.");
+  case object_error::bitcode_section_not_found:
+    return "Bitcode section not found in object file";
   }
+  llvm_unreachable("An enumerator of object_error does not have a message "
+                   "defined.");
 }
 
-error_condition _object_error_category::default_error_condition(int ev) const {
-  if (ev == object_error::success)
-    return errc::success;
-  return errc::invalid_argument;
-}
+static ManagedStatic<_object_error_category> error_category;
 
-const error_category &object::object_category() {
-  static _object_error_category o;
-  return o;
+const std::error_category &object::object_category() {
+  return *error_category;
 }

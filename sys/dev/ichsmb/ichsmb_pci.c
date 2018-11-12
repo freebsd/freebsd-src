@@ -86,8 +86,11 @@ __FBSDID("$FreeBSD$");
 #define ID_CPT				0x1c228086
 #define ID_PPT				0x1e228086
 #define ID_AVOTON			0x1f3c8086
-#define ID_COLETOCRK			0x23B08086 
+#define ID_COLETOCRK			0x23B08086
 #define ID_LPT				0x8c228086
+#define ID_LPTLP			0x9c228086
+#define ID_WCPT				0x8ca28086
+#define ID_WCPTLP			0x9ca28086
 
 #define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
 
@@ -196,6 +199,15 @@ ichsmb_pci_probe(device_t dev)
 		break;
 	case ID_LPT:
 		device_set_desc(dev, "Intel Lynx Point SMBus controller");
+		break;
+	case ID_LPTLP:
+		device_set_desc(dev, "Intel Lynx Point-LP SMBus controller");
+		break;
+	case ID_WCPT:
+		device_set_desc(dev, "Intel Wildcat Point SMBus controller");
+		break;
+	case ID_WCPTLP:
+		device_set_desc(dev, "Intel Wildcat Point-LP SMBus controller");
 		break;
 	case ID_COLETOCRK:
 		device_set_desc(dev, "Intel Coleto Creek SMBus controller");

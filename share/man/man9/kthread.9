@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2010
+.Dd July 15, 2014
 .Dt KTHREAD 9
 .Os
 .Sh NAME
@@ -275,7 +275,7 @@ buf_daemon()
 	    bufdaemonthread, SHUTDOWN_PRI_LAST);
 	...
 	for (;;) {
-		kthread_suspend_check(bufdaemonthread);
+		kthread_suspend_check();
 		...
 	}
 }

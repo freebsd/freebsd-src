@@ -107,11 +107,6 @@ CODE {
 		return;
 	}
 
-	static struct pmap_md *mmu_null_scan_md(mmu_t mmu, struct pmap_md *p)
-	{
-		return (NULL);
-	}
-
 	static void *mmu_null_mapdev_attr(mmu_t mmu, vm_offset_t pa,
 	    vm_size_t size, vm_memattr_t ma)
 	{
@@ -148,22 +143,6 @@ METHOD void advise {
 	vm_offset_t	_start;
 	vm_offset_t	_end;
 	int		_advice;
-};
-
-
-/**
- * @brief Change the wiring attribute for the page in the given physical
- * map and virtual address.
- *
- * @param _pmap		physical map of page
- * @param _va		page virtual address
- * @param _wired	TRUE to increment wired count, FALSE to decrement
- */
-METHOD void change_wiring {
-	mmu_t		_mmu;
-	pmap_t		_pmap;
-	vm_offset_t	_va;
-	boolean_t	_wired;
 };
 
 
@@ -240,15 +219,17 @@ METHOD void copy_pages {
  * @param _va		mapping virtual address
  * @param _p		mapping physical page
  * @param _prot		mapping page protection
- * @param _wired	TRUE if page will be wired
+ * @param _flags	pmap_enter flags
+ * @param _psind	superpage size index
  */
-METHOD void enter {
+METHOD int enter {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
 	vm_offset_t	_va;
 	vm_page_t	_p;
 	vm_prot_t	_prot;
-	boolean_t	_wired;
+	u_int		_flags;
+	int8_t		_psind;
 };
 
 
@@ -628,6 +609,22 @@ METHOD void remove_pages {
 
 
 /**
+ * @brief Clear the wired attribute from the mappings for the specified range
+ * of addresses in the given pmap.
+ *
+ * @param _pmap		physical map
+ * @param _start	virtual range start
+ * @param _end		virtual range end
+ */
+METHOD void unwire {
+	mmu_t		_mmu;
+	pmap_t		_pmap;
+	vm_offset_t	_start;
+	vm_offset_t	_end;
+};
+
+
+/**
  * @brief Zero a physical page. It is not assumed that the page is mapped,
  * so a temporary (or direct) mapping may need to be used.
  *
@@ -903,46 +900,36 @@ METHOD void sync_icache {
 /**
  * @brief Create temporary memory mapping for use by dumpsys().
  *
- * @param _md		The memory chunk in which the mapping lies.
- * @param _ofs		The offset within the chunk of the mapping.
+ * @param _pa		The physical page to map.
  * @param _sz		The requested size of the mapping.
- *
- * @retval vm_offset_t	The virtual address of the mapping.
- *			
- * The sz argument is modified to reflect the actual size of the
- * mapping.
+ * @param _va		The virtual address of the mapping.
  */
-METHOD vm_offset_t dumpsys_map {
+METHOD void dumpsys_map {
 	mmu_t		_mmu;
-	struct pmap_md	*_md;
-	vm_size_t	_ofs;
-	vm_size_t	*_sz;
+	vm_paddr_t	_pa;
+	size_t		_sz;
+	void		**_va;
 };
 
 
 /**
  * @brief Remove temporary dumpsys() mapping.
  *
- * @param _md		The memory chunk in which the mapping lies.
- * @param _ofs		The offset within the chunk of the mapping.
+ * @param _pa		The physical page to map.
+ * @param _sz		The requested size of the mapping.
  * @param _va		The virtual address of the mapping.
  */
 METHOD void dumpsys_unmap {
 	mmu_t		_mmu;
-	struct pmap_md	*_md;
-	vm_size_t	_ofs;
-	vm_offset_t	_va;
+	vm_paddr_t	_pa;
+	size_t		_sz;
+	void		*_va;
 };
 
 
 /**
- * @brief Scan/iterate memory chunks.
- *
- * @param _prev		The previously returned chunk or NULL.
- *
- * @retval		The next (or first when _prev is NULL) chunk.
+ * @brief Initialize memory chunks for dumpsys.
  */
-METHOD struct pmap_md * scan_md {
+METHOD void scan_init {
 	mmu_t		_mmu;
-	struct pmap_md	*_prev;
-} DEFAULT mmu_null_scan_md;
+};

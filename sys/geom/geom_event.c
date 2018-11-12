@@ -206,6 +206,14 @@ g_orphan_register(struct g_provider *pp)
 		KASSERT(cp->geom->orphan != NULL,
 		    ("geom %s has no orphan, class %s",
 		    cp->geom->name, cp->geom->class->name));
+		/*
+		 * XXX: g_dev_orphan method does deferred destroying
+		 * and it is possible, that other event could already
+		 * call the orphan method. Check consumer's flags to
+		 * do not schedule it twice.
+		 */
+		if (cp->flags & G_CF_ORPHAN)
+			continue;
 		cp->flags |= G_CF_ORPHAN;
 		cp->geom->orphan(cp);
 	}

@@ -2,19 +2,20 @@
 
 BINDIR?=	/boot
 
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "i386"
 CFLAGS+=        -march=i386
 .endif
 
+# Options used when building app-specific efi components
+# See conf/kern.mk for the correct set of these
+CFLAGS+=	-ffreestanding -Wformat -msoft-float
+LDFLAGS+=	-nostdlib
+
 .if ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=        -m32
-ACFLAGS+=       -m32
-LDFLAGS+=       -m elf_i386_fbsd
-AFLAGS+=        --32
+CFLAGS+=	-fshort-wchar
+CFLAGS+=	-mno-red-zone
+CFLAGS+=	-mno-mmx -mno-sse -mno-aes -mno-avx
 .endif
 
-# Options used when building app-specific efi components
-CFLAGS+=	-ffreestanding -fshort-wchar -Wformat
-LDFLAGS+=	-nostdlib
 
 .include "../Makefile.inc"

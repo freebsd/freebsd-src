@@ -180,8 +180,7 @@ mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
 			rangesptr += offset_cells;
 		}
 
-		if (fdt_data_verify((void *)rangesptr, par_addr_cells -
-		    offset_cells)) {
+		if ((par_addr_cells - offset_cells) > 2) {
 			rv = ERANGE;
 			goto out;
 		}
@@ -189,7 +188,7 @@ mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
 		    par_addr_cells - offset_cells);
 		rangesptr += par_addr_cells - offset_cells;
 
-		if (fdt_data_verify((void *)rangesptr, size_cells)) {
+		if (size_cells > 2) {
 			rv = ERANGE;
 			goto out;
 		}
@@ -235,14 +234,14 @@ mv_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap, vm_offset_t io_va
 	devmap->pd_pa = io_space.base_parent;
 	devmap->pd_size = io_space.len;
 	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	devmap->pd_cache = PTE_NOCACHE;
+	devmap->pd_cache = PTE_DEVICE;
 	devmap++;
 
 	devmap->pd_va = (mem_va ? mem_va : mem_space.base_parent);
 	devmap->pd_pa = mem_space.base_parent;
 	devmap->pd_size = mem_space.len;
 	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	devmap->pd_cache = PTE_NOCACHE;
+	devmap->pd_cache = PTE_DEVICE;
 	return (0);
 }
 
@@ -398,7 +397,7 @@ static driver_t mv_pcib_driver = {
 
 devclass_t pcib_devclass;
 
-DRIVER_MODULE(pcib, nexus, mv_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, ofwbus, mv_pcib_driver, pcib_devclass, 0, 0);
 
 static struct mtx pcicfg_mtx;
 
@@ -1050,7 +1049,8 @@ mv_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 {
 	struct mv_pcib_softc *sc;
 	struct ofw_pci_register reg;
-	uint32_t pintr, mintr;
+	uint32_t pintr, mintr[4];
+	int icells;
 	phandle_t iparent;
 
 	sc = device_get_softc(bus);
@@ -1062,10 +1062,11 @@ mv_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 	    (pci_get_slot(dev) << OFW_PCI_PHYS_HI_DEVICESHIFT) |
 	    (pci_get_function(dev) << OFW_PCI_PHYS_HI_FUNCTIONSHIFT);
 
-	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
-	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    &iparent))
-		return (ofw_bus_map_intr(dev, iparent, mintr));
+	icells = ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo,
+	    &reg, sizeof(reg), &pintr, sizeof(pintr), mintr, sizeof(mintr),
+	    &iparent);
+	if (icells > 0)
+		return (ofw_bus_map_intr(dev, iparent, icells, mintr));
 
 	/* Maybe it's a real interrupt, not an intpin */
 	if (pin > 4)
@@ -1169,7 +1170,7 @@ mv_pcib_alloc_msi(device_t dev, device_t child, int count,
 
 	for (i = start; i < start + count; i++) {
 		setbit(&sc->sc_msi_bitmap, i);
-		irqs[i] = MSI_IRQ + i;
+		*irqs++ = MSI_IRQ + i;
 	}
 	debugf("%s: start: %x count: %x\n", __func__, start, count);
 

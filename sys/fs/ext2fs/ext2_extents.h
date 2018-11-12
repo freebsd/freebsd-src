@@ -26,15 +26,15 @@
  * $FreeBSD$
  */
 #ifndef _FS_EXT2FS_EXT2_EXTENTS_H_
-#define _FS_EXT2FS_EXT2_EXTENTS_H_
+#define	_FS_EXT2FS_EXT2_EXTENTS_H_
 
 #include <sys/types.h>
 
-#define EXT4_EXT_MAGIC  0xf30a
+#define	EXT4_EXT_MAGIC  0xf30a
 
-#define EXT4_EXT_CACHE_NO	0
-#define EXT4_EXT_CACHE_GAP	1
-#define EXT4_EXT_CACHE_IN	2
+#define	EXT4_EXT_CACHE_NO	0
+#define	EXT4_EXT_CACHE_GAP	1
+#define	EXT4_EXT_CACHE_IN	2
 
 /*
  * Ext4 file system extent on disk.

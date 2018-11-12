@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -48,14 +48,14 @@ nlm_int_gmac_mdio_read(uint64_t nae_base, int bus, int block,
 	uint32_t mdio_ld_cmd;
 	uint32_t ctrlval;
 
-	ctrlval = INT_MDIO_CTRL_SMP 		|
+	ctrlval = INT_MDIO_CTRL_SMP		|
 	    (phyaddr << INT_MDIO_CTRL_PHYADDR_POS) |
 	    (regidx << INT_MDIO_CTRL_DEVTYPE_POS) |
 	    (2 << INT_MDIO_CTRL_OP_POS)		|
 	    (1 << INT_MDIO_CTRL_ST_POS)		|
-	    (7 << INT_MDIO_CTRL_XDIV_POS) 	|
+	    (7 << INT_MDIO_CTRL_XDIV_POS)	|
 	    (2 << INT_MDIO_CTRL_TA_POS)		|
-	    (2 << INT_MDIO_CTRL_MIIM_POS) 	|
+	    (2 << INT_MDIO_CTRL_MIIM_POS)	|
 	    (1 << INT_MDIO_CTRL_MCDIV_POS);
 
 	mdio_ld_cmd = nlm_read_nae_reg(nae_base,
@@ -148,16 +148,16 @@ nlm_int_gmac_mdio_reset(uint64_t nae_base, int bus, int block,
 {
 	uint32_t val;
 
-	val = (7 << INT_MDIO_CTRL_XDIV_POS) | 
+	val = (7 << INT_MDIO_CTRL_XDIV_POS) |
 	    (1 << INT_MDIO_CTRL_MCDIV_POS) |
 	    (INT_MDIO_CTRL_SMP);
 
 	nlm_write_nae_reg(nae_base,
-	    NAE_REG(block, intf_type, (INT_MDIO_CTRL + bus * 4)), 
+	    NAE_REG(block, intf_type, (INT_MDIO_CTRL + bus * 4)),
 	    val | INT_MDIO_CTRL_RST);
 
 	nlm_write_nae_reg(nae_base,
-	    NAE_REG(block, intf_type, (INT_MDIO_CTRL + bus * 4)), 
+	    NAE_REG(block, intf_type, (INT_MDIO_CTRL + bus * 4)),
 	    val);
 
         return (0);
@@ -185,7 +185,7 @@ nlm_gmac_mdio_read(uint64_t nae_base, int bus, int block,
 	    (EXT_G0_MDIO_CTRL + bus * 4)));
 	if (mdio_ld_cmd & EXT_G_MDIO_CMD_LCD) {
 		nlm_write_nae_reg(nae_base,
-		    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)), 
+		    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)),
 		    (mdio_ld_cmd & ~EXT_G_MDIO_CMD_LCD));
 		while(nlm_read_nae_reg(nae_base,
 		    NAE_REG(block, intf_type,
@@ -197,16 +197,16 @@ nlm_gmac_mdio_read(uint64_t nae_base, int bus, int block,
 	    (phyaddr << EXT_G_MDIO_PHYADDR_POS) |
 	    (regidx << EXT_G_MDIO_REGADDR_POS);
 	if (nlm_is_xlp8xx_ax() || nlm_is_xlp8xx_b0() || nlm_is_xlp3xx_ax())
-	    	ctrlval |= EXT_G_MDIO_DIV;
+		ctrlval |= EXT_G_MDIO_DIV;
 	else
 		ctrlval |= EXT_G_MDIO_DIV_WITH_HW_DIV64;
 
-	nlm_write_nae_reg(nae_base, 
-	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)), 
+	nlm_write_nae_reg(nae_base,
+	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)),
 	    ctrlval);
 
 	nlm_write_nae_reg(nae_base,
-	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)), 
+	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)),
 	    ctrlval | (1<<18));
 	DELAY(1000);
 	/* poll master busy bit until it is not busy */
@@ -215,7 +215,7 @@ nlm_gmac_mdio_read(uint64_t nae_base, int bus, int block,
 	    EXT_G_MDIO_STAT_MBSY);
 
 	nlm_write_nae_reg(nae_base,
-	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)), 
+	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)),
 	    ctrlval);
 
 	/* Read the data back */
@@ -246,7 +246,7 @@ nlm_gmac_mdio_write(uint64_t nae_base, int bus, int block,
 	    (EXT_G0_MDIO_CTRL + bus * 4)));
 	if (mdio_ld_cmd & EXT_G_MDIO_CMD_LCD) {
 		nlm_write_nae_reg(nae_base,
-		    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)), 
+		    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)),
 		    (mdio_ld_cmd & ~EXT_G_MDIO_CMD_LCD));
 		while(nlm_read_nae_reg(nae_base,
 		    NAE_REG(block, intf_type,
@@ -256,23 +256,23 @@ nlm_gmac_mdio_write(uint64_t nae_base, int bus, int block,
 
 	/* load data into ctrl data reg */
 	nlm_write_nae_reg(nae_base,
-	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL_DATA+bus*4)), 
+	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL_DATA+bus*4)),
 	    val);
 
 	ctrlval = EXT_G_MDIO_CMD_SP		|
 	    (phyaddr << EXT_G_MDIO_PHYADDR_POS)	|
 	    (regidx << EXT_G_MDIO_REGADDR_POS);
 	if (nlm_is_xlp8xx_ax() || nlm_is_xlp8xx_b0() || nlm_is_xlp3xx_ax())
-	    	ctrlval |= EXT_G_MDIO_DIV;
+		ctrlval |= EXT_G_MDIO_DIV;
 	else
 		ctrlval |= EXT_G_MDIO_DIV_WITH_HW_DIV64;
 
 	nlm_write_nae_reg(nae_base,
-	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)), 
+	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)),
 	    ctrlval);
 
 	nlm_write_nae_reg(nae_base,
-	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)), 
+	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)),
 	    ctrlval | EXT_G_MDIO_CMD_LCD);
 	DELAY(1000);
 
@@ -282,7 +282,7 @@ nlm_gmac_mdio_write(uint64_t nae_base, int bus, int block,
 	    (EXT_G0_MDIO_RD_STAT + bus * 4))) & EXT_G_MDIO_STAT_MBSY);
 
 	nlm_write_nae_reg(nae_base,
-	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)), 
+	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)),
 	    ctrlval);
 
 	return (0);
@@ -312,7 +312,7 @@ nlm_gmac_mdio_reset(uint64_t nae_base, int bus, int block,
 		ctrlval |= EXT_G_MDIO_DIV_WITH_HW_DIV64;
 
 	nlm_write_nae_reg(nae_base,
-	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL + bus * 4)), 
+	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL + bus * 4)),
 	    EXT_G_MDIO_MMRST | ctrlval);
 	nlm_write_nae_reg(nae_base,
 	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL + bus * 4)), ctrlval);

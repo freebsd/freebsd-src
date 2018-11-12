@@ -302,7 +302,7 @@ capabilities_headers_iterator_callback(void *baton,
           /* May contain multiple values, separated by commas. */
           int i;
           apr_array_header_t *vals = svn_cstring_split(val, ",", TRUE,
-                                                       opt_ctx->pool);
+                                                       session->pool);
 
           for (i = 0; i < vals->nelts; i++)
             {

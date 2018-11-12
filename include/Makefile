@@ -3,14 +3,14 @@
 #
 # Doing a "make install" builds /usr/include.
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 CLEANFILES= osreldate.h version vers.c
-SUBDIR= arpa gssapi protocols rpcsvc rpc xlocale
+SUBDIR= arpa protocols rpcsvc rpc xlocale
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
 	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
-	fts.h ftw.h getopt.h glob.h grp.h gssapi.h \
+	fts.h ftw.h getopt.h glob.h grp.h \
 	ieeefp.h ifaddrs.h \
 	inttypes.h iso646.h kenv.h langinfo.h libgen.h limits.h link.h \
 	locale.h malloc.h malloc_np.h memory.h monetary.h mpool.h mqueue.h \
@@ -36,22 +36,21 @@ PHDRS=	sched.h _semaphore.h
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 	syslog.h ucontext.h
 
-LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
-	netipsec ${_netipx} netnatm netsmb \
-	nfs nfsclient nfsserver \
-	sys vm
+LDIRS=	bsm cam geom net net80211 netgraph netinet netinet6 \
+	netipsec netnatm netsmb nfs nfsclient nfsserver sys vm
 
 LSUBDIRS=	cam/ata cam/scsi \
 	dev/acpica dev/agp dev/an dev/bktr dev/ciss dev/filemon dev/firewire \
 	dev/hwpmc \
-	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/nvme \
+	dev/ic dev/iicbus dev/io dev/lmc dev/mfi dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
-	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
+	dev/speaker dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
+	net/altq \
 	netgraph/atm netgraph/netflow \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
@@ -60,32 +59,35 @@ LSUBDIRS=	cam/ata cam/scsi \
 
 LSUBSUBDIRS=	dev/mpt/mpilib
 
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
-_dev_powermac_nvram=	dev/powermac_nvram
+.if ${MK_BLUETOOTH} != "no"
+LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
 
-.if ${MK_GPIB} != "no"
-_dev_ieee488=	dev/ieee488
+.if ${MK_CUSE} != "no"
+LSUBDIRS+=	fs/cuse
+.endif
+
+.if ${MK_GSSAPI} != "no"
+SUBDIR+=	gssapi
+INCS+=		gssapi.h
 .endif
 
 .if ${MK_HESIOD} != "no"
 INCS+=	hesiod.h
 .endif
 
-.if ${MK_BLUETOOTH} != "no"
-LSUBSUBDIRS+=	netgraph/bluetooth/include
-.endif
-
-# XXX unconditionally needed by <netsmb/netbios.h>
-#.if ${MK_IPX} != "no"
-_netipx=	netipx
-#.endif
-
 # Handle the #define aliases for libiconv
 .if ${MK_ICONV} == "yes"
 INCS+=		iconv.h
 .endif
-	
+
+.if ${MK_USB} != "no"
+LSUBDIRS+=	dev/usb
+.endif
+
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
+_dev_powermac_nvram=	dev/powermac_nvram
+.endif
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
@@ -143,7 +145,7 @@ compat:
 	    -p ${DESTDIR}${INCLUDEDIR}
 
 copies:
-.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc \
+.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
 	${_MARCHS}
 .if exists(${DESTDIR}${INCLUDEDIR}/$i)
 	cd ${DESTDIR}${INCLUDEDIR}/$i; \
@@ -159,6 +161,8 @@ copies:
 .endfor
 	cd ${.CURDIR}/../sys/dev/acpica; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 acpiio.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/acpica; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 acpi_hpet.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/acpica
 	cd ${.CURDIR}/../sys/dev/agp; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 agpreg.h \
@@ -176,9 +180,6 @@ copies:
 	cd ${.CURDIR}/../sys/dev/pci; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/pci
-	cd ${.CURDIR}/../sys/contrib/altq/altq; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-	    ${DESTDIR}${INCLUDEDIR}/altq
 	cd ${.CURDIR}/../sys/fs/cd9660/; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/isofs/cd9660
@@ -244,7 +245,7 @@ symlinks:
 	done
 .endfor
 	cd ${.CURDIR}/../sys/dev/acpica; \
-	for h in acpiio.h; do \
+	for h in acpiio.h acpi_hpet.h; do \
 		ln -fs ../../../../sys/dev/acpica/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/acpica; \
 	done
@@ -276,11 +277,6 @@ symlinks:
 		ln -fs ../../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-	cd ${.CURDIR}/../sys/contrib/altq/altq; \
-	for h in *.h; do \
-		ln -fs ../../../sys/contrib/altq/altq/$$h \
-		    ${DESTDIR}${INCLUDEDIR}/altq; \
-	done
 .if ${MK_IPFILTER} != "no"
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	for h in *.h; do \

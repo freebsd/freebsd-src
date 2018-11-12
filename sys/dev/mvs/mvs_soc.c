@@ -78,6 +78,9 @@ mvs_probe(device_t dev)
 	int i;
 	uint32_t devid, revid;
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "mrvl,sata"))
 		return (ENXIO);
 
@@ -88,7 +91,7 @@ mvs_probe(device_t dev)
 			snprintf(buf, sizeof(buf), "%s SATA controller",
 			    mvs_ids[i].name);
 			device_set_desc_copy(dev, buf);
-			return (BUS_PROBE_VENDOR);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return (ENXIO);
@@ -111,6 +114,7 @@ mvs_attach(device_t dev)
 		i++;
 	ctlr->channels = mvs_ids[i].ports;
 	ctlr->quirks = mvs_ids[i].quirks;
+	ctlr->ccc = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "ccc", &ctlr->ccc);
 	ctlr->cccc = 8;

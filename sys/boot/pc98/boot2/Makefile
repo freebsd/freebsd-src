@@ -2,10 +2,6 @@
 
 .include <bsd.own.mk>
 
-# XXX: clang can compile the boot code just fine, but boot2 gets too big
-CC:=		gcc
-COMPILER_TYPE:=	gcc
-
 FILES=		boot boot1 boot2
 
 NM?=		nm
@@ -23,11 +19,7 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 #BOOT2_UFS?=	UFS2_ONLY
 #BOOT2_UFS?=	UFS1_ONLY
 
-CFLAGS=	-Os \
-	-fno-guess-branch-probability \
-	-fomit-frame-pointer \
-	-fno-unit-at-a-time \
-	-mno-align-long-strings \
+CFLAGS=	-fomit-frame-pointer \
 	-mrtd \
 	-mregparm=3 \
 	-D${BOOT2_UFS} \
@@ -44,13 +36,21 @@ CFLAGS=	-Os \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline
 
-CFLAGS.gcc+=	--param max-inline-insns-single=100
+CFLAGS.gcc+=	-Os \
+		-fno-guess-branch-probability \
+		-fno-unit-at-a-time \
+		--param max-inline-insns-single=100
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} <= 40201
+CFLAGS.gcc+=   -mno-align-long-strings
+.endif
 
 # Set machine type to PC98_SYSTEM_PARAMETER
 #CFLAGS+=	-DSET_MACHINE_TYPE
 
 # Initialize the bi_bios_geom using the BIOS geometry
 #CFLAGS+=	-DGET_BIOSGEOM
+
+CFLAGS.clang+=	-Oz ${CLANG_OPT_SMALL}
 
 LD_FLAGS=-static -N --gc-sections
 
@@ -67,7 +67,7 @@ boot: boot1 boot2
 CLEANFILES+=	boot1 boot1.out boot1.o
 
 boot1: boot1.out
-	objcopy -S -O binary boot1.out ${.TARGET}
+	${OBJCOPY} -S -O binary boot1.out ${.TARGET}
 
 boot1.out: boot1.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
@@ -88,12 +88,13 @@ boot2.ldr:
 	dd if=/dev/zero of=${.TARGET} bs=276 count=1
 
 boot2.bin: boot2.out
-	objcopy -S -O binary boot2.out ${.TARGET}
+	${OBJCOPY} -S -O binary boot2.out ${.TARGET}
 
 boot2.out: ${BTXCRT} boot2.o sio.o
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
 
 boot2.o: boot2.s
+	${CC} ${ACFLAGS} -c boot2.s
 
 SRCS=	boot2.c boot2.h
 
@@ -110,3 +111,7 @@ boot2.h: boot1.out
 	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.boot1.S=		${CLANG_NO_IAS}
+CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

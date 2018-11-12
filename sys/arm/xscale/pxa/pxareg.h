@@ -47,9 +47,6 @@
 #ifndef _ARM_XSCALE_PXAREG_H_
 #define _ARM_XSCALE_PXAREG_H_
 
-/* Borrow some register definitions from sa11x0 */
-#include <arm/sa11x0/sa11x0_reg.h>
-
 #ifndef _LOCORE
 #include <sys/types.h>		/* for uint32_t */
 #endif

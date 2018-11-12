@@ -152,135 +152,123 @@ static struct {
 	char	*name;
 	int	method;
 	char	*description;
-	int	access;
+	int	flag_rdonly;
 } acpi_hp_sysctls[] = {
 	{
 		.name		= "wlan_enabled",
 		.method		= ACPI_HP_METHOD_WLAN_ENABLED,
 		.description	= "Enable/Disable WLAN (WiFi)",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wlan_radio",
 		.method		= ACPI_HP_METHOD_WLAN_RADIO,
 		.description	= "WLAN radio status",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "wlan_on_air",
 		.method		= ACPI_HP_METHOD_WLAN_ON_AIR,
 		.description	= "WLAN radio ready to use (enabled and radio)",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "wlan_enable_if_radio_on",
 		.method		= ACPI_HP_METHOD_WLAN_ENABLE_IF_RADIO_ON,
 		.description	= "Enable WLAN if radio is turned on",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wlan_disable_if_radio_off",
 		.method		= ACPI_HP_METHOD_WLAN_DISABLE_IF_RADIO_OFF,
 		.description	= "Disable WLAN if radio is turned off",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "bt_enabled",
 		.method		= ACPI_HP_METHOD_BLUETOOTH_ENABLED,
 		.description	= "Enable/Disable Bluetooth",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "bt_radio",
 		.method		= ACPI_HP_METHOD_BLUETOOTH_RADIO,
 		.description	= "Bluetooth radio status",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "bt_on_air",
 		.method		= ACPI_HP_METHOD_BLUETOOTH_ON_AIR,
 		.description	= "Bluetooth radio ready to use"
 				    " (enabled and radio)",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "bt_enable_if_radio_on",
 		.method		= ACPI_HP_METHOD_BLUETOOTH_ENABLE_IF_RADIO_ON,
 		.description	= "Enable bluetooth if radio is turned on",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "bt_disable_if_radio_off",
 		.method		= ACPI_HP_METHOD_BLUETOOTH_DISABLE_IF_RADIO_OFF,
 		.description	= "Disable bluetooth if radio is turned off",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wwan_enabled",
 		.method		= ACPI_HP_METHOD_WWAN_ENABLED,
 		.description	= "Enable/Disable WWAN (UMTS)",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wwan_radio",
 		.method		= ACPI_HP_METHOD_WWAN_RADIO,
 		.description	= "WWAN radio status",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "wwan_on_air",
 		.method		= ACPI_HP_METHOD_WWAN_ON_AIR,
 		.description	= "WWAN radio ready to use (enabled and radio)",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "wwan_enable_if_radio_on",
 		.method		= ACPI_HP_METHOD_WWAN_ENABLE_IF_RADIO_ON,
 		.description	= "Enable WWAN if radio is turned on",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wwan_disable_if_radio_off",
 		.method		= ACPI_HP_METHOD_WWAN_DISABLE_IF_RADIO_OFF,
 		.description	= "Disable WWAN if radio is turned off",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "als_enabled",
 		.method		= ACPI_HP_METHOD_ALS,
 		.description	= "Enable/Disable ALS (Ambient light sensor)",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "display",
 		.method		= ACPI_HP_METHOD_DISPLAY,
 		.description	= "Display status",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "hdd_temperature",
 		.method		= ACPI_HP_METHOD_HDDTEMP,
 		.description	= "HDD temperature",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "is_docked",
 		.method		= ACPI_HP_METHOD_DOCK,
 		.description	= "Docking station status",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "cmi_detail",
 		.method		= ACPI_HP_METHOD_CMI_DETAIL,
 		.description	= "Details shown in CMI output "
 				    "(cat /dev/hpcmi)",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "verbose",
 		.method		= ACPI_HP_METHOD_VERBOSE,
 		.description	= "Verbosity level",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 
 	{ NULL, 0, NULL, 0 }
@@ -560,11 +548,19 @@ acpi_hp_attach(device_t dev)
 			sc->was_wwan_on_air = arg;
 		}
 
-		SYSCTL_ADD_PROC(sc->sysctl_ctx,
-		SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-			acpi_hp_sysctls[i].name, acpi_hp_sysctls[i].access,
-			sc, i, acpi_hp_sysctl, "I",
-			acpi_hp_sysctls[i].description);
+		if (acpi_hp_sysctls[i].flag_rdonly != 0) {
+			SYSCTL_ADD_PROC(sc->sysctl_ctx,
+			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+			    acpi_hp_sysctls[i].name, CTLTYPE_INT | CTLFLAG_RD,
+			    sc, i, acpi_hp_sysctl, "I",
+			    acpi_hp_sysctls[i].description);
+		} else {
+			SYSCTL_ADD_PROC(sc->sysctl_ctx,
+			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+			    acpi_hp_sysctls[i].name, CTLTYPE_INT | CTLFLAG_RW,
+			    sc, i, acpi_hp_sysctl, "I",
+			    acpi_hp_sysctls[i].description);
+		}
 	}
 	ACPI_SERIAL_END(hp);
 

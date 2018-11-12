@@ -3,12 +3,11 @@
 
 PROG=		hccontrol
 MAN=		hccontrol.8
-SRCS=		send_recv.c link_policy.c link_control.c \
+SRCS=		send_recv.c link_policy.c link_control.c le.c\
 		host_controller_baseband.c info.c status.c node.c hccontrol.c \
 		util.c
 WARNS?=		2
 
-DPADD=		${LIBBLUETOOTH}
-LDADD=		-lbluetooth
+LIBADD=		bluetooth
 
 .include <bsd.prog.mk>

@@ -14,17 +14,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/Dominators.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Analysis/DominatorInternals.h"
-#include "llvm/Assembly/Writer.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/Support/CFG.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/GenericDomTreeConstruction.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 using namespace llvm;
@@ -57,41 +57,23 @@ bool BasicBlockEdge::isSingleEdge() const {
 //===----------------------------------------------------------------------===//
 //
 // Provide public access to DominatorTree information.  Implementation details
-// can be found in DominatorInternals.h.
+// can be found in Dominators.h, GenericDomTree.h, and
+// GenericDomTreeConstruction.h.
 //
 //===----------------------------------------------------------------------===//
 
 TEMPLATE_INSTANTIATION(class llvm::DomTreeNodeBase<BasicBlock>);
 TEMPLATE_INSTANTIATION(class llvm::DominatorTreeBase<BasicBlock>);
 
-char DominatorTree::ID = 0;
-INITIALIZE_PASS(DominatorTree, "domtree",
-                "Dominator Tree Construction", true, true)
-
-bool DominatorTree::runOnFunction(Function &F) {
-  DT->recalculate(F);
-  return false;
-}
-
-void DominatorTree::verifyAnalysis() const {
-  if (!VerifyDomInfo) return;
-
-  Function &F = *getRoot()->getParent();
-
-  DominatorTree OtherDT;
-  OtherDT.getBase().recalculate(F);
-  if (compare(OtherDT)) {
-    errs() << "DominatorTree is not up to date!\nComputed:\n";
-    print(errs());
-    errs() << "\nActual:\n";
-    OtherDT.print(errs());
-    abort();
-  }
-}
-
-void DominatorTree::print(raw_ostream &OS, const Module *) const {
-  DT->print(OS);
-}
+#define LLVM_COMMA ,
+TEMPLATE_INSTANTIATION(void llvm::Calculate<Function LLVM_COMMA BasicBlock *>(
+    DominatorTreeBase<GraphTraits<BasicBlock *>::NodeType> &DT LLVM_COMMA
+        Function &F));
+TEMPLATE_INSTANTIATION(
+    void llvm::Calculate<Function LLVM_COMMA Inverse<BasicBlock *> >(
+        DominatorTreeBase<GraphTraits<Inverse<BasicBlock *> >::NodeType> &DT
+            LLVM_COMMA Function &F));
+#undef LLVM_COMMA
 
 // dominates - Return true if Def dominates a use in User. This performs
 // the special checks necessary if Def and User are in the same basic block.
@@ -210,8 +192,7 @@ bool DominatorTree::dominates(const BasicBlockEdge &BBE,
   return true;
 }
 
-bool DominatorTree::dominates(const BasicBlockEdge &BBE,
-                              const Use &U) const {
+bool DominatorTree::dominates(const BasicBlockEdge &BBE, const Use &U) const {
   // Assert that we have a single edge. We could handle them by simply
   // returning false, but since isSingleEdge is linear on the number of
   // edges, the callers can normally handle them more efficiently.
@@ -234,8 +215,7 @@ bool DominatorTree::dominates(const BasicBlockEdge &BBE,
   return dominates(BBE, UseBB);
 }
 
-bool DominatorTree::dominates(const Instruction *Def,
-                              const Use &U) const {
+bool DominatorTree::dominates(const Instruction *Def, const Use &U) const {
   Instruction *UserInst = cast<Instruction>(U.getUser());
   const BasicBlock *DefBB = Def->getParent();
 
@@ -300,3 +280,79 @@ bool DominatorTree::isReachableFromEntry(const Use &U) const {
   // Everything else uses their operands in their own block.
   return isReachableFromEntry(I->getParent());
 }
+
+void DominatorTree::verifyDomTree() const {
+  if (!VerifyDomInfo)
+    return;
+
+  Function &F = *getRoot()->getParent();
+
+  DominatorTree OtherDT;
+  OtherDT.recalculate(F);
+  if (compare(OtherDT)) {
+    errs() << "DominatorTree is not up to date!\nComputed:\n";
+    print(errs());
+    errs() << "\nActual:\n";
+    OtherDT.print(errs());
+    abort();
+  }
+}
+
+//===----------------------------------------------------------------------===//
+//  DominatorTreeAnalysis and related pass implementations
+//===----------------------------------------------------------------------===//
+//
+// This implements the DominatorTreeAnalysis which is used with the new pass
+// manager. It also implements some methods from utility passes.
+//
+//===----------------------------------------------------------------------===//
+
+DominatorTree DominatorTreeAnalysis::run(Function &F) {
+  DominatorTree DT;
+  DT.recalculate(F);
+  return DT;
+}
+
+char DominatorTreeAnalysis::PassID;
+
+DominatorTreePrinterPass::DominatorTreePrinterPass(raw_ostream &OS) : OS(OS) {}
+
+PreservedAnalyses DominatorTreePrinterPass::run(Function &F,
+                                                FunctionAnalysisManager *AM) {
+  OS << "DominatorTree for function: " << F.getName() << "\n";
+  AM->getResult<DominatorTreeAnalysis>(F).print(OS);
+
+  return PreservedAnalyses::all();
+}
+
+PreservedAnalyses DominatorTreeVerifierPass::run(Function &F,
+                                                 FunctionAnalysisManager *AM) {
+  AM->getResult<DominatorTreeAnalysis>(F).verifyDomTree();
+
+  return PreservedAnalyses::all();
+}
+
+//===----------------------------------------------------------------------===//
+//  DominatorTreeWrapperPass Implementation
+//===----------------------------------------------------------------------===//
+//
+// The implementation details of the wrapper pass that holds a DominatorTree
+// suitable for use with the legacy pass manager.
+//
+//===----------------------------------------------------------------------===//
+
+char DominatorTreeWrapperPass::ID = 0;
+INITIALIZE_PASS(DominatorTreeWrapperPass, "domtree",
+                "Dominator Tree Construction", true, true)
+
+bool DominatorTreeWrapperPass::runOnFunction(Function &F) {
+  DT.recalculate(F);
+  return false;
+}
+
+void DominatorTreeWrapperPass::verifyAnalysis() const { DT.verifyDomTree(); }
+
+void DominatorTreeWrapperPass::print(raw_ostream &OS, const Module *) const {
+  DT.print(OS);
+}
+

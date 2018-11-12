@@ -59,7 +59,7 @@ namespace llvm {
     // poisoned, so that dangling SlotIndex access can be reliably detected.
     void setPoison() {
       intptr_t tmp = reinterpret_cast<intptr_t>(mi);
-      assert(((tmp & 0x1) == 0x0) && "Pointer already poisoned?");  
+      assert(((tmp & 0x1) == 0x0) && "Pointer already poisoned?");
       tmp |= 0x1;
       mi = reinterpret_cast<MachineInstr*>(tmp);
     }
@@ -147,11 +147,11 @@ namespace llvm {
     };
 
     /// Construct an invalid index.
-    SlotIndex() : lie(0, 0) {}
+    SlotIndex() : lie(nullptr, 0) {}
 
     // Construct a new slot index from the given one, and set the slot.
     SlotIndex(const SlotIndex &li, Slot s) : lie(li.listEntry(), unsigned(s)) {
-      assert(lie.getPointer() != 0 &&
+      assert(lie.getPointer() != nullptr &&
              "Attempt to construct index with 0 pointer.");
     }
 
@@ -162,7 +162,7 @@ namespace llvm {
     }
 
     /// Return true for a valid index.
-    operator bool() const { return isValid(); }
+    LLVM_EXPLICIT operator bool() const { return isValid(); }
 
     /// Print this index to the given raw_ostream.
     void print(raw_ostream &os) const;
@@ -216,6 +216,13 @@ namespace llvm {
     /// Return the distance from this index to the given one.
     int distance(SlotIndex other) const {
       return other.getIndex() - getIndex();
+    }
+
+    /// Return the scaled distance from this index to the given one, where all
+    /// slots on the same instruction have zero distance.
+    int getInstrDistance(SlotIndex other) const {
+      return (other.listEntry()->getIndex() - listEntry()->getIndex())
+        / Slot_Count;
     }
 
     /// isBlock - Returns true if this is a block boundary slot.
@@ -370,10 +377,10 @@ namespace llvm {
       initializeSlotIndexesPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual void getAnalysisUsage(AnalysisUsage &au) const;
-    virtual void releaseMemory();
+    void getAnalysisUsage(AnalysisUsage &au) const override;
+    void releaseMemory() override;
 
-    virtual bool runOnMachineFunction(MachineFunction &fn);
+    bool runOnMachineFunction(MachineFunction &fn) override;
 
     /// Dump the indexes.
     void dump() const;
@@ -414,7 +421,7 @@ namespace llvm {
     /// Returns the instruction for the given index, or null if the given
     /// index has no instruction associated with it.
     MachineInstr* getInstructionFromIndex(SlotIndex index) const {
-      return index.isValid() ? index.listEntry()->getInstr() : 0;
+      return index.isValid() ? index.listEntry()->getInstr() : nullptr;
     }
 
     /// Returns the next non-null index, if one exists.
@@ -538,20 +545,20 @@ namespace llvm {
         std::lower_bound(idx2MBBMap.begin(), idx2MBBMap.end(), start);
 
       if (itr == idx2MBBMap.end()) {
-        itr = prior(itr);
+        itr = std::prev(itr);
         return itr->second;
       }
 
       // Check that we don't cross the boundary into this block.
       if (itr->first < end)
-        return 0;
+        return nullptr;
 
-      itr = prior(itr);
+      itr = std::prev(itr);
 
       if (itr->first <= start)
         return itr->second;
 
-      return 0;
+      return nullptr;
     }
 
     /// Insert the given machine instruction into the mapping. Returns the
@@ -567,18 +574,18 @@ namespace llvm {
       // affected by debug information.
       assert(!mi->isDebugValue() && "Cannot number DBG_VALUE instructions.");
 
-      assert(mi->getParent() != 0 && "Instr must be added to function.");
+      assert(mi->getParent() != nullptr && "Instr must be added to function.");
 
       // Get the entries where mi should be inserted.
       IndexList::iterator prevItr, nextItr;
       if (Late) {
         // Insert mi's index immediately before the following instruction.
         nextItr = getIndexAfter(mi).listEntry();
-        prevItr = prior(nextItr);
+        prevItr = std::prev(nextItr);
       } else {
         // Insert mi's index immediately after the preceding instruction.
         prevItr = getIndexBefore(mi).listEntry();
-        nextItr = llvm::next(prevItr);
+        nextItr = std::next(prevItr);
       }
 
       // Get a number for the new instr, or 0 if there's no room currently.
@@ -608,7 +615,7 @@ namespace llvm {
         IndexListEntry *miEntry(mi2iItr->second.listEntry());
         assert(miEntry->getInstr() == mi && "Instruction indexes broken.");
         // FIXME: Eventually we want to actually delete these indexes.
-        miEntry->setInstr(0);
+        miEntry->setInstr(nullptr);
         mi2iMap.erase(mi2iItr);
       }
     }
@@ -631,17 +638,17 @@ namespace llvm {
     /// Add the given MachineBasicBlock into the maps.
     void insertMBBInMaps(MachineBasicBlock *mbb) {
       MachineFunction::iterator nextMBB =
-        llvm::next(MachineFunction::iterator(mbb));
+        std::next(MachineFunction::iterator(mbb));
 
-      IndexListEntry *startEntry = 0;
-      IndexListEntry *endEntry = 0;
+      IndexListEntry *startEntry = nullptr;
+      IndexListEntry *endEntry = nullptr;
       IndexList::iterator newItr;
       if (nextMBB == mbb->getParent()->end()) {
         startEntry = &indexList.back();
-        endEntry = createEntry(0, 0);
+        endEntry = createEntry(nullptr, 0);
         newItr = indexList.insertAfter(startEntry, endEntry);
       } else {
-        startEntry = createEntry(0, 0);
+        startEntry = createEntry(nullptr, 0);
         endEntry = getMBBStartIdx(nextMBB).listEntry();
         newItr = indexList.insert(endEntry, startEntry);
       }
@@ -672,7 +679,7 @@ namespace llvm {
     /// performance. Any remaining SlotIndex objects that point to the same
     /// index are left 'dangling' (much the same as a dangling pointer to a
     /// freed object) and should not be accessed, except to destruct them.
-    /// 
+    ///
     /// Like dangling pointers, access to dangling SlotIndexes can cause
     /// painful-to-track-down bugs, especially if the memory for the index
     /// previously pointed to has been re-used. To detect dangling SlotIndex

@@ -38,6 +38,7 @@ public:
         noexcept(is_nothrow_default_constructible<allocator_type>::value);
     explicit forward_list(const allocator_type& a);
     explicit forward_list(size_type n);
+    explicit forward_list(size_type n, const allocator_type& a); // C++14
     forward_list(size_type n, const value_type& v);
     forward_list(size_type n, const value_type& v, const allocator_type& a);
     template <class InputIterator>
@@ -187,7 +188,6 @@ template <class _Tp, class _VoidPtr> struct __forward_list_node;
 template <class _NodePtr>
 struct __forward_begin_node
 {
-    typedef __forward_begin_node __self;
     typedef _NodePtr pointer;
 
     pointer __next_;
@@ -196,27 +196,33 @@ struct __forward_begin_node
 };
 
 template <class _Tp, class _VoidPtr>
-struct __forward_list_node
-    : public __forward_begin_node
-             <
-                 typename pointer_traits<_VoidPtr>::template
+struct _LIBCPP_HIDDEN __begin_node_of
+{
+    typedef __forward_begin_node
+        <
+             typename pointer_traits<_VoidPtr>::template
 #ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-                     rebind<__forward_list_node<_Tp, _VoidPtr> >
+                 rebind<__forward_list_node<_Tp, _VoidPtr> >
 #else
-                     rebind<__forward_list_node<_Tp, _VoidPtr> >::other
+                 rebind<__forward_list_node<_Tp, _VoidPtr> >::other
 #endif
-             >
+         > type;
+};
+
+template <class _Tp, class _VoidPtr>
+struct __forward_list_node
+    : public __begin_node_of<_Tp, _VoidPtr>::type
 {
     typedef _Tp value_type;
 
     value_type __value_;
 };
 
-template<class _Tp, class _Alloc> class _LIBCPP_TYPE_VIS forward_list;
-template<class _NodeConstPtr> class _LIBCPP_TYPE_VIS __forward_list_const_iterator;
+template<class _Tp, class _Alloc> class _LIBCPP_TYPE_VIS_ONLY forward_list;
+template<class _NodeConstPtr> class _LIBCPP_TYPE_VIS_ONLY __forward_list_const_iterator;
 
 template <class _NodePtr>
-class _LIBCPP_TYPE_VIS __forward_list_iterator
+class _LIBCPP_TYPE_VIS_ONLY __forward_list_iterator
 {
     typedef _NodePtr __node_pointer;
 
@@ -225,8 +231,8 @@ class _LIBCPP_TYPE_VIS __forward_list_iterator
     _LIBCPP_INLINE_VISIBILITY
     explicit __forward_list_iterator(__node_pointer __p) _NOEXCEPT : __ptr_(__p) {}
 
-    template<class, class> friend class _LIBCPP_TYPE_VIS forward_list;
-    template<class> friend class _LIBCPP_TYPE_VIS __forward_list_const_iterator;
+    template<class, class> friend class _LIBCPP_TYPE_VIS_ONLY forward_list;
+    template<class> friend class _LIBCPP_TYPE_VIS_ONLY __forward_list_const_iterator;
 
 public:
     typedef forward_iterator_tag                              iterator_category;
@@ -276,7 +282,7 @@ public:
 };
 
 template <class _NodeConstPtr>
-class _LIBCPP_TYPE_VIS __forward_list_const_iterator
+class _LIBCPP_TYPE_VIS_ONLY __forward_list_const_iterator
 {
     typedef _NodeConstPtr __node_const_pointer;
 
@@ -356,9 +362,9 @@ protected:
     typedef _Tp    value_type;
     typedef _Alloc allocator_type;
 
-    typedef typename allocator_traits<allocator_type>::void_pointer void_pointer;
-    typedef __forward_list_node<value_type, void_pointer>           __node;
-    typedef typename __node::__self                                 __begin_node;
+    typedef typename allocator_traits<allocator_type>::void_pointer  void_pointer;
+    typedef __forward_list_node<value_type, void_pointer>            __node;
+    typedef typename __begin_node_of<value_type, void_pointer>::type __begin_node;
     typedef typename allocator_traits<allocator_type>::template
 #ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
                 rebind_alloc<__node>
@@ -542,7 +548,7 @@ __forward_list_base<_Tp, _Alloc>::clear() _NOEXCEPT
 }
 
 template <class _Tp, class _Alloc = allocator<_Tp> >
-class _LIBCPP_TYPE_VIS forward_list
+class _LIBCPP_TYPE_VIS_ONLY forward_list
     : private __forward_list_base<_Tp, _Alloc>
 {
     typedef __forward_list_base<_Tp, _Alloc> base;
@@ -571,6 +577,9 @@ public:
         {} // = default;
     explicit forward_list(const allocator_type& __a);
     explicit forward_list(size_type __n);
+#if _LIBCPP_STD_VER > 11
+    explicit forward_list(size_type __n, const allocator_type& __a);
+#endif
     forward_list(size_type __n, const value_type& __v);
     forward_list(size_type __n, const value_type& __v, const allocator_type& __a);
     template <class _InputIterator>
@@ -794,6 +803,28 @@ forward_list<_Tp, _Alloc>::forward_list(size_type __n)
     }
 }
 
+#if _LIBCPP_STD_VER > 11
+template <class _Tp, class _Alloc>
+forward_list<_Tp, _Alloc>::forward_list(size_type __n, const allocator_type& __a)
+    : base ( __a )
+{
+    if (__n > 0)
+    {
+        __node_allocator& __a = base::__alloc();
+        typedef __allocator_destructor<__node_allocator> _Dp;
+        unique_ptr<__node, _Dp> __h(nullptr, _Dp(__a, 1));
+        for (__node_pointer __p = base::__before_begin(); __n > 0; --__n,
+                                                             __p = __p->__next_)
+        {
+            __h.reset(__node_traits::allocate(__a, 1));
+            __node_traits::construct(__a, _VSTD::addressof(__h->__value_));
+            __h->__next_ = nullptr;
+            __p->__next_ = __h.release();
+        }
+    }
+}
+#endif
+
 template <class _Tp, class _Alloc>
 forward_list<_Tp, _Alloc>::forward_list(size_type __n, const value_type& __v)
 {
@@ -960,7 +991,7 @@ forward_list<_Tp, _Alloc>::assign(_InputIterator __f, _InputIterator __l)
     iterator __i = before_begin();
     iterator __j = _VSTD::next(__i);
     iterator __e = end();
-    for (; __j != __e && __f != __l; ++__i, ++__j, ++__f)
+    for (; __j != __e && __f != __l; ++__i, (void) ++__j, ++__f)
         *__j = *__f;
     if (__j == __e)
         insert_after(__i, __f, __l);
@@ -1170,7 +1201,7 @@ forward_list<_Tp, _Alloc>::insert_after(const_iterator __p,
         try
         {
 #endif  // _LIBCPP_NO_EXCEPTIONS
-            for (++__f; __f != __l; ++__f, __last = __last->__next_)
+            for (++__f; __f != __l; ++__f, ((void)(__last = __last->__next_)))
             {
                 __h.reset(__node_traits::allocate(__a, 1));
                 __node_traits::construct(__a, _VSTD::addressof(__h->__value_), *__f);
@@ -1390,6 +1421,7 @@ template <class _Tp, class _Alloc>
 void
 forward_list<_Tp, _Alloc>::remove(const value_type& __v)
 {
+    forward_list<_Tp, _Alloc> __deleted_nodes; // collect the nodes we're removing
     iterator __e = end();
     for (iterator __i = before_begin(); __i.__ptr_->__next_ != nullptr;)
     {
@@ -1398,7 +1430,7 @@ forward_list<_Tp, _Alloc>::remove(const value_type& __v)
             iterator __j = _VSTD::next(__i, 2);
             for (; __j != __e && *__j == __v; ++__j)
                 ;
-            erase_after(__i, __j);
+            __deleted_nodes.splice_after(__deleted_nodes.before_begin(), *this, __i, __j);
             if (__j == __e)
                 break;
             __i = __j;

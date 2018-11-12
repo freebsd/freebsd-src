@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "pseudo-lowering"
 #include "CodeGenInstruction.h"
 #include "CodeGenTarget.h"
 #include "llvm/ADT/IndexedMap.h"
@@ -20,6 +19,8 @@
 #include "llvm/TableGen/TableGenBackend.h"
 #include <vector>
 using namespace llvm;
+
+#define DEBUG_TYPE "pseudo-lowering"
 
 namespace {
 class PseudoLoweringEmitter {
@@ -156,8 +157,7 @@ void PseudoLoweringEmitter::evaluateExpansion(Record *Rec) {
 
   // If there are more operands that weren't in the DAG, they have to
   // be operands that have default values, or we have an error. Currently,
-  // Operands that are a sublass of OperandWithDefaultOp have default values.
-
+  // Operands that are a subclass of OperandWithDefaultOp have default values.
 
   // Validate that each result pattern argument has a matching (by name)
   // argument in the source instruction, in either the (outs) or (ins) list.
@@ -200,70 +200,74 @@ void PseudoLoweringEmitter::emitLoweringEmitter(raw_ostream &o) {
 
   o << "bool " << Target.getName() + "AsmPrinter" << "::\n"
     << "emitPseudoExpansionLowering(MCStreamer &OutStreamer,\n"
-    << "                            const MachineInstr *MI) {\n"
-    << "  switch (MI->getOpcode()) {\n"
-    << "    default: return false;\n";
-  for (unsigned i = 0, e = Expansions.size(); i != e; ++i) {
-    PseudoExpansion &Expansion = Expansions[i];
-    CodeGenInstruction &Source = Expansion.Source;
-    CodeGenInstruction &Dest = Expansion.Dest;
-    o << "    case " << Source.Namespace << "::"
-      << Source.TheDef->getName() << ": {\n"
-      << "      MCInst TmpInst;\n"
-      << "      MCOperand MCOp;\n"
-      << "      TmpInst.setOpcode(" << Dest.Namespace << "::"
-      << Dest.TheDef->getName() << ");\n";
+    << "                            const MachineInstr *MI) {\n";
 
-    // Copy the operands from the source instruction.
-    // FIXME: Instruction operands with defaults values (predicates and cc_out
-    //        in ARM, for example shouldn't need explicit values in the
-    //        expansion DAG.
-    unsigned MIOpNo = 0;
-    for (unsigned OpNo = 0, E = Dest.Operands.size(); OpNo != E;
-         ++OpNo) {
-      o << "      // Operand: " << Dest.Operands[OpNo].Name << "\n";
-      for (unsigned i = 0, e = Dest.Operands[OpNo].MINumOperands;
-           i != e; ++i) {
-        switch (Expansion.OperandMap[MIOpNo + i].Kind) {
-        case OpData::Operand:
-          o << "      lowerOperand(MI->getOperand("
-            << Source.Operands[Expansion.OperandMap[MIOpNo].Data
-                .Operand].MIOperandNo + i
-            << "), MCOp);\n"
-            << "      TmpInst.addOperand(MCOp);\n";
-          break;
-        case OpData::Imm:
-          o << "      TmpInst.addOperand(MCOperand::CreateImm("
-            << Expansion.OperandMap[MIOpNo + i].Data.Imm << "));\n";
-          break;
-        case OpData::Reg: {
-          Record *Reg = Expansion.OperandMap[MIOpNo + i].Data.Reg;
-          o << "      TmpInst.addOperand(MCOperand::CreateReg(";
-          // "zero_reg" is special.
-          if (Reg->getName() == "zero_reg")
-            o << "0";
-          else
-            o << Reg->getValueAsString("Namespace") << "::" << Reg->getName();
-          o << "));\n";
-          break;
+  if (!Expansions.empty()) {
+    o << "  switch (MI->getOpcode()) {\n"
+      << "    default: return false;\n";
+    for (auto &Expansion : Expansions) {
+      CodeGenInstruction &Source = Expansion.Source;
+      CodeGenInstruction &Dest = Expansion.Dest;
+      o << "    case " << Source.Namespace << "::"
+        << Source.TheDef->getName() << ": {\n"
+        << "      MCInst TmpInst;\n"
+        << "      MCOperand MCOp;\n"
+        << "      TmpInst.setOpcode(" << Dest.Namespace << "::"
+        << Dest.TheDef->getName() << ");\n";
+
+      // Copy the operands from the source instruction.
+      // FIXME: Instruction operands with defaults values (predicates and cc_out
+      //        in ARM, for example shouldn't need explicit values in the
+      //        expansion DAG.
+      unsigned MIOpNo = 0;
+      for (const auto &DestOperand : Dest.Operands) {
+        o << "      // Operand: " << DestOperand.Name << "\n";
+        for (unsigned i = 0, e = DestOperand.MINumOperands; i != e; ++i) {
+          switch (Expansion.OperandMap[MIOpNo + i].Kind) {
+            case OpData::Operand:
+            o << "      lowerOperand(MI->getOperand("
+              << Source.Operands[Expansion.OperandMap[MIOpNo].Data
+              .Operand].MIOperandNo + i
+              << "), MCOp);\n"
+              << "      TmpInst.addOperand(MCOp);\n";
+            break;
+            case OpData::Imm:
+            o << "      TmpInst.addOperand(MCOperand::CreateImm("
+              << Expansion.OperandMap[MIOpNo + i].Data.Imm << "));\n";
+            break;
+            case OpData::Reg: {
+              Record *Reg = Expansion.OperandMap[MIOpNo + i].Data.Reg;
+              o << "      TmpInst.addOperand(MCOperand::CreateReg(";
+              // "zero_reg" is special.
+              if (Reg->getName() == "zero_reg")
+                o << "0";
+              else
+                o << Reg->getValueAsString("Namespace") << "::"
+                  << Reg->getName();
+              o << "));\n";
+              break;
+            }
+          }
         }
-        }
+        MIOpNo += DestOperand.MINumOperands;
       }
-      MIOpNo += Dest.Operands[OpNo].MINumOperands;
+      if (Dest.Operands.isVariadic) {
+        MIOpNo = Source.Operands.size() + 1;
+        o << "      // variable_ops\n";
+        o << "      for (unsigned i = " << MIOpNo
+          << ", e = MI->getNumOperands(); i != e; ++i)\n"
+          << "        if (lowerOperand(MI->getOperand(i), MCOp))\n"
+          << "          TmpInst.addOperand(MCOp);\n";
+      }
+      o << "      EmitToStreamer(OutStreamer, TmpInst);\n"
+        << "      break;\n"
+        << "    }\n";
     }
-    if (Dest.Operands.isVariadic) {
-      MIOpNo = Source.Operands.size() + 1;
-      o << "      // variable_ops\n";
-      o << "      for (unsigned i = " << MIOpNo
-        << ", e = MI->getNumOperands(); i != e; ++i)\n"
-        << "        if (lowerOperand(MI->getOperand(i), MCOp))\n"
-        << "          TmpInst.addOperand(MCOp);\n";
-    }
-    o << "      OutStreamer.EmitInstruction(TmpInst);\n"
-      << "      break;\n"
-      << "    }\n";
-  }
-  o << "  }\n  return true;\n}\n\n";
+    o << "  }\n  return true;";
+  } else
+    o << "  return false;";
+
+  o << "\n}\n\n";
 }
 
 void PseudoLoweringEmitter::run(raw_ostream &o) {
@@ -273,11 +277,10 @@ void PseudoLoweringEmitter::run(raw_ostream &o) {
   assert(InstructionClass && "Instruction class definition missing!");
 
   std::vector<Record*> Insts;
-  for (std::map<std::string, Record*>::const_iterator I =
-         Records.getDefs().begin(), E = Records.getDefs().end(); I != E; ++I) {
-    if (I->second->isSubClassOf(ExpansionClass) &&
-        I->second->isSubClassOf(InstructionClass))
-      Insts.push_back(I->second);
+  for (const auto &D : Records.getDefs()) {
+    if (D.second->isSubClassOf(ExpansionClass) &&
+        D.second->isSubClassOf(InstructionClass))
+      Insts.push_back(D.second.get());
   }
 
   // Process the pseudo expansion definitions, validating them as we do so.

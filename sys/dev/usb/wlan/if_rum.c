@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 static int rum_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, rum, CTLFLAG_RW, 0, "USB rum");
-SYSCTL_INT(_hw_usb_rum, OID_AUTO, debug, CTLFLAG_RW, &rum_debug, 0,
+SYSCTL_INT(_hw_usb_rum, OID_AUTO, debug, CTLFLAG_RWTUN, &rum_debug, 0,
     "Debug level");
 #endif
 
@@ -201,8 +201,8 @@ static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_update_slot(struct ifnet *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
-static void		rum_update_mcast(struct ifnet *);
-static void		rum_update_promisc(struct ifnet *);
+static void		rum_update_mcast(struct ieee80211com *);
+static void		rum_update_promisc(struct ieee80211com *);
 static void		rum_setpromisc(struct rum_softc *);
 static const char	*rum_get_rf(int);
 static void		rum_read_eeprom(struct rum_softc *);
@@ -488,6 +488,8 @@ rum_attach(device_t self)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(self);
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
 
 	/* set device capabilities */
@@ -797,7 +799,7 @@ rum_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		rum_tx_free(data, 0);
 		usbd_xfer_set_priv(xfer, NULL);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		/* FALLTHROUGH */
@@ -851,7 +853,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		data = usbd_xfer_get_priv(xfer);
 		if (data != NULL) {
 			rum_tx_free(data, error);
@@ -897,7 +899,7 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (len < (int)(RT2573_RX_DESC_SIZE + IEEE80211_MIN_LEN)) {
 			DPRINTF("%s: xfer too short %d\n",
 			    device_get_nameunit(sc->sc_dev), len);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 
@@ -914,14 +916,14 @@ rum_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		         * filled RUM_TXRX_CSR2:
 		         */
 			DPRINTFN(5, "PHY or CRC error\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			DPRINTF("could not allocate mbuf\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		usbd_copy_out(pc, RT2573_RX_DESC_SIZE,
@@ -1035,6 +1037,8 @@ rum_setup_tx_desc(struct rum_softc *sc, struct rum_tx_desc *desc,
 		desc->plcp_length_hi = plcp_length >> 6;
 		desc->plcp_length_lo = plcp_length & 0x3f;
 	} else {
+		if (rate == 0)
+			rate = 2;	/* avoid division by zero */
 		plcp_length = (16 * len + rate - 1) / rate;
 		if (rate == 22) {
 			remainder = (16 * len) % 22;
@@ -1319,7 +1323,7 @@ rum_start(struct ifnet *ifp)
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (rum_tx_data(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 		}
 	}
@@ -1839,11 +1843,11 @@ rum_setpromisc(struct rum_softc *sc)
 }
 
 static void
-rum_update_promisc(struct ifnet *ifp)
+rum_update_promisc(struct ieee80211com *ic)
 {
-	struct rum_softc *sc = ifp->if_softc;
+	struct rum_softc *sc = ic->ic_softc;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
 	RUM_LOCK(sc);
@@ -1852,12 +1856,12 @@ rum_update_promisc(struct ifnet *ifp)
 }
 
 static void
-rum_update_mcast(struct ifnet *ifp)
+rum_update_mcast(struct ieee80211com *ic)
 {
 	static int warning_printed;
 
 	if (warning_printed == 0) {
-		if_printf(ifp, "need to implement %s\n", __func__);
+		ic_printf(ic, "need to implement %s\n", __func__);
 		warning_printed = 1;
 	}
 }
@@ -2203,7 +2207,7 @@ rum_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return EIO;
 	}
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 	if (params == NULL) {
 		/*
@@ -2224,7 +2228,7 @@ rum_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	return 0;
 bad:
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	RUM_UNLOCK(sc);
 	ieee80211_free_node(ni);
 	return EIO;
@@ -2279,7 +2283,7 @@ rum_ratectl_task(void *arg, int pending)
 	(void) ieee80211_ratectl_rate(ni, NULL, 0);
 	ieee80211_free_node(ni);
 
-	ifp->if_oerrors += fail;	/* count TX retry-fail as Tx errors */
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, fail);	/* count TX retry-fail as Tx errors */
 
 	usb_callout_reset(&rvp->ratectl_ch, hz, rum_ratectl_timeout, rvp);
 	RUM_UNLOCK(sc);

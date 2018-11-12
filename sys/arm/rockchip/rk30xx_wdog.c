@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,6 +83,9 @@ static void rk30_wd_watchdog_fn(void *private, u_int cmd, int *error);
 static int
 rk30_wd_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "rockchip,rk30xx-wdt")) {
 		device_set_desc(dev, "Rockchip RK30XX Watchdog");

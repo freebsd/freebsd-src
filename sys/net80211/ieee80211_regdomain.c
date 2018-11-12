@@ -84,7 +84,7 @@ void
 ieee80211_regdomain_detach(struct ieee80211com *ic)
 {
 	if (ic->ic_countryie != NULL) {
-		free(ic->ic_countryie, M_80211_NODE_IE);
+		IEEE80211_FREE(ic->ic_countryie, M_80211_NODE_IE);
 		ic->ic_countryie = NULL;
 	}
 }
@@ -301,19 +301,19 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
 	struct ieee80211_country_ie *ie;
 	int i, skip, nruns;
 
-	aie = malloc(IEEE80211_COUNTRY_MAX_SIZE, M_80211_NODE_IE,
-	    M_NOWAIT | M_ZERO);
+	aie = IEEE80211_MALLOC(IEEE80211_COUNTRY_MAX_SIZE, M_80211_NODE_IE,
+	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (aie == NULL) {
-		if_printf(ic->ic_ifp,
-		    "%s: unable to allocate memory for country ie\n", __func__);
+		ic_printf(ic, "%s: unable to allocate memory for country ie\n",
+		    __func__);
 		/* XXX stat */
 		return NULL;
 	}
 	ie = (struct ieee80211_country_ie *) aie->ie_data;
 	ie->ie = IEEE80211_ELEMID_COUNTRY;
 	if (rd->isocc[0] == '\0') {
-		if_printf(ic->ic_ifp, "no ISO country string for cc %d; "
-			"using blanks\n", rd->country);
+		ic_printf(ic, "no ISO country string for cc %d; using blanks\n",
+		    rd->country);
 		ie->cc[0] = ie->cc[1] = ' ';
 	} else {
 		ie->cc[0] = rd->isocc[0];
@@ -350,7 +350,7 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
 		if (c->ic_ieee != nextchan ||
 		    c->ic_maxregpower != frm[-1]) {	/* new run */
 			if (nruns == IEEE80211_COUNTRY_MAX_BANDS) {
-				if_printf(ic->ic_ifp, "%s: country ie too big, "
+				ic_printf(ic, "%s: country ie too big, "
 				    "runs > max %d, truncating\n",
 				    __func__, IEEE80211_COUNTRY_MAX_BANDS);
 				/* XXX stat? fail? */
@@ -493,7 +493,7 @@ ieee80211_setregdomain(struct ieee80211vap *vap,
 	 * Invalidate channel-related state.
 	 */
 	if (ic->ic_countryie != NULL) {
-		free(ic->ic_countryie, M_80211_NODE_IE);
+		IEEE80211_FREE(ic->ic_countryie, M_80211_NODE_IE);
 		ic->ic_countryie = NULL;
 	}
 	ieee80211_scan_flush(vap);

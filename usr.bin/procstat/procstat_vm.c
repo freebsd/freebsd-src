@@ -50,9 +50,9 @@ procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 
 	ptrwidth = 2*sizeof(void *) + 2;
 	if (!hflag)
-		printf("%5s %*s %*s %3s %4s %4s %3s %3s %4s %-2s %-s\n",
+		printf("%5s %*s %*s %3s %4s %4s %3s %3s %-4s %-2s %-s\n",
 		    "PID", ptrwidth, "START", ptrwidth, "END", "PRT", "RES",
-		    "PRES", "REF", "SHD", "FL", "TP", "PATH");
+		    "PRES", "REF", "SHD", "FLAG", "TP", "PATH");
 
 	freep = procstat_getvmmap(procstat, kipp, &cnt);
 	if (freep == NULL)
@@ -99,6 +99,9 @@ procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 			break;
 		case KVME_TYPE_SG:
 			str = "sg";
+			break;
+		case KVME_TYPE_MGTDEVICE:
+			str = "md";
 			break;
 		case KVME_TYPE_UNKNOWN:
 		default:

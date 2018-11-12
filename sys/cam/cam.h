@@ -121,7 +121,8 @@ enum {
 	SF_QUIET_IR		= 0x04,	/* Be quiet about Illegal Request reponses */
 	SF_PRINT_ALWAYS		= 0x08,	/* Always print error status. */
 	SF_NO_RECOVERY		= 0x10,	/* Don't do active error recovery. */
-	SF_NO_RETRY		= 0x20	/* Don't do any retries. */
+	SF_NO_RETRY		= 0x20,	/* Don't do any retries. */
+	SF_RETRY_BUSY		= 0x40	/* Retry BUSY status. */
 };
 
 /* CAM  Status field values */

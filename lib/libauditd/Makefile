@@ -19,6 +19,6 @@ CFLAGS+=	-I${OPENBSMDIR} -I${LIBBSMDIR}
 
 WARNS?=		3
 
-NO_MAN=
+MAN=
 
 .include <bsd.lib.mk>

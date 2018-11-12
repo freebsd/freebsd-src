@@ -104,7 +104,6 @@ extern int	ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
 #endif
 static vop_fsync_t	ffs_fsync;
 static vop_lock1_t	ffs_lock;
-static vop_getpages_t	ffs_getpages;
 static vop_read_t	ffs_read;
 static vop_write_t	ffs_write;
 static int	ffs_extread(struct vnode *vp, struct uio *uio, int ioflag);
@@ -124,7 +123,8 @@ static vop_vptofh_t	ffs_vptofh;
 struct vop_vector ffs_vnodeops1 = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
-	.vop_getpages =		ffs_getpages,
+	.vop_getpages =		vnode_pager_local_getpages,
+	.vop_getpages_async =	vnode_pager_local_getpages_async,
 	.vop_lock1 =		ffs_lock,
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
@@ -143,7 +143,8 @@ struct vop_vector ffs_fifoops1 = {
 struct vop_vector ffs_vnodeops2 = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
-	.vop_getpages =		ffs_getpages,
+	.vop_getpages =		vnode_pager_local_getpages,
+	.vop_getpages_async =	vnode_pager_local_getpages_async,
 	.vop_lock1 =		ffs_lock,
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
@@ -259,9 +260,17 @@ loop:
 			continue;
 		if (bp->b_lblkno > lbn)
 			panic("ffs_syncvnode: syncing truncated data.");
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0) {
+			BO_UNLOCK(bo);
+		} else if (wait != 0) {
+			if (BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
+			    BO_LOCKPTR(bo)) != 0) {
+				bp->b_vflags &= ~BV_SCANNED;
+				goto next;
+			}
+		} else
 			continue;
-		BO_UNLOCK(bo);
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
 		/*
@@ -620,7 +629,7 @@ ffs_read(ap)
 	}
 
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
-	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0 &&
+	    (vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0 &&
 	    (ip->i_flag & IN_ACCESS) == 0) {
 		VI_LOCK(vp);
 		ip->i_flag |= IN_ACCESS;
@@ -720,10 +729,10 @@ ffs_write(ap)
 		if (uio->uio_offset + xfersize > ip->i_size)
 			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 
-                /*
+		/*
 		 * We must perform a read-before-write if the transfer size
 		 * does not cover the entire buffer.
-                 */
+		 */
 		if (fs->fs_bsize > xfersize)
 			flags |= BA_CLRBUF;
 		else
@@ -837,48 +846,6 @@ ffs_write(ap)
 		error = ffs_update(vp, 1);
 	return (error);
 }
-
-/*
- * get page routine
- */
-static int
-ffs_getpages(ap)
-	struct vop_getpages_args *ap;
-{
-	int i;
-	vm_page_t mreq;
-	int pcount;
-
-	pcount = round_page(ap->a_count) / PAGE_SIZE;
-	mreq = ap->a_m[ap->a_reqpage];
-
-	/*
-	 * if ANY DEV_BSIZE blocks are valid on a large filesystem block,
-	 * then the entire page is valid.  Since the page may be mapped,
-	 * user programs might reference data beyond the actual end of file
-	 * occuring within the page.  We have to zero that data.
-	 */
-	VM_OBJECT_WLOCK(mreq->object);
-	if (mreq->valid) {
-		if (mreq->valid != VM_PAGE_BITS_ALL)
-			vm_page_zero_invalid(mreq, TRUE);
-		for (i = 0; i < pcount; i++) {
-			if (i != ap->a_reqpage) {
-				vm_page_lock(ap->a_m[i]);
-				vm_page_free(ap->a_m[i]);
-				vm_page_unlock(ap->a_m[i]);
-			}
-		}
-		VM_OBJECT_WUNLOCK(mreq->object);
-		return VM_PAGER_OK;
-	}
-	VM_OBJECT_WUNLOCK(mreq->object);
-
-	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
-					    ap->a_count,
-					    ap->a_reqpage);
-}
-
 
 /*
  * Extended attribute area reading.
@@ -1082,7 +1049,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 		/*
 		 * We must perform a read-before-write if the transfer size
 		 * does not cover the entire buffer.
-                 */
+		 */
 		if (fs->fs_bsize > xfersize)
 			flags |= BA_CLRBUF;
 		else
@@ -1399,11 +1366,6 @@ struct vop_openextattr_args {
 };
 */
 {
-	struct inode *ip;
-	struct fs *fs;
-
-	ip = VTOI(ap->a_vp);
-	fs = ip->i_fs;
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
@@ -1427,11 +1389,6 @@ struct vop_closeextattr_args {
 };
 */
 {
-	struct inode *ip;
-	struct fs *fs;
-
-	ip = VTOI(ap->a_vp);
-	fs = ip->i_fs;
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
@@ -1545,13 +1502,11 @@ vop_getextattr {
 */
 {
 	struct inode *ip;
-	struct fs *fs;
 	u_char *eae, *p;
 	unsigned easize;
 	int error, ealen;
 
 	ip = VTOI(ap->a_vp);
-	fs = ip->i_fs;
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
@@ -1600,14 +1555,12 @@ vop_listextattr {
 */
 {
 	struct inode *ip;
-	struct fs *fs;
 	u_char *eae, *p, *pe, *pn;
 	unsigned easize;
 	uint32_t ul;
 	int error, ealen;
 
 	ip = VTOI(ap->a_vp);
-	fs = ip->i_fs;
 
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);

@@ -11,7 +11,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: local.h,v 1.59 2013/11/22 20:51:43 ca Exp $
+ *	$Id: local.h,v 1.59 2013-11-22 20:51:43 ca Exp $
  */
 
 /*

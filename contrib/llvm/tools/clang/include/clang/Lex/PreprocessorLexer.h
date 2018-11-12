@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_PreprocessorLexer_H
-#define LLVM_CLANG_PreprocessorLexer_H
+#ifndef LLVM_CLANG_LEX_PREPROCESSORLEXER_H
+#define LLVM_CLANG_LEX_PREPROCESSORLEXER_H
 
 #include "clang/Lex/MultipleIncludeOpt.h"
 #include "clang/Lex/Token.h"
@@ -76,7 +76,7 @@ protected:
   PreprocessorLexer(Preprocessor *pp, FileID fid);
 
   PreprocessorLexer()
-    : PP(0), InitialNumSLocEntries(0),
+    : PP(nullptr), InitialNumSLocEntries(0),
       ParsingPreprocessorDirective(false),
       ParsingFilename(false),
       LexingRawMode(false) {}
@@ -111,9 +111,9 @@ protected:
   /// stack, returning information about it.  If the conditional stack is empty,
   /// this returns true and does not fill in the arguments.
   bool popConditionalLevel(PPConditionalInfo &CI) {
-    if (ConditionalStack.empty()) return true;
-    CI = ConditionalStack.back();
-    ConditionalStack.pop_back();
+    if (ConditionalStack.empty())
+      return true;
+    CI = ConditionalStack.pop_back_val();
     return false;
   }
 

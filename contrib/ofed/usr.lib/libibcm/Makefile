@@ -12,10 +12,10 @@ IBSRCDIR=	${IBCMDIR}/src
 
 LIB=		ibcm
 SHLIB_MAJOR=	1
-NO_PROFILE=
+MK_PROFILE=	no
 
 SRCS= cm.c
-CFLAGS+=	-I ${IBCMDIR}/include
+CFLAGS+=	-I${IBCMDIR}/include
 
 MAN=
 VERSION_MAP= ${IBSRCDIR}/libibcm.map

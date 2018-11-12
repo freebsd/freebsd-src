@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #define	SP804_TIMER1_LOAD	0x00
 #define	SP804_TIMER1_VALUE	0x04
@@ -183,6 +182,9 @@ sp804_timer_intr(void *arg)
 static int
 sp804_timer_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "arm,sp804")) {
 		device_set_desc(dev, "SP804 System Timer");

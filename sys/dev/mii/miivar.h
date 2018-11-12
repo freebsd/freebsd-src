@@ -36,6 +36,7 @@
 #define	_DEV_MII_MIIVAR_H_
 
 #include <sys/queue.h>
+#include <net/if_var.h>	/* XXX driver API temporary */
 
 /*
  * Media Independent Interface data structure defintions
@@ -44,20 +45,13 @@
 struct mii_softc;
 
 /*
- * Callbacks from MII layer into network interface device driver.
- */
-typedef	int (*mii_readreg_t)(struct device *, int, int);
-typedef	void (*mii_writereg_t)(struct device *, int, int, int);
-typedef	void (*mii_statchg_t)(struct device *);
-
-/*
  * A network interface driver has one of these structures in its softc.
  * It is the interface from the network interface driver to the MII
  * layer.
  */
 struct mii_data {
 	struct ifmedia mii_media;	/* media information */
-	struct ifnet *mii_ifp;		/* pointer back to network interface */
+	if_t mii_ifp;		/* pointer back to network interface */
 
 	/*
 	 * For network interfaces with multiple PHYs, a list of all
@@ -72,13 +66,6 @@ struct mii_data {
 	 */
 	u_int mii_media_status;
 	u_int mii_media_active;
-
-	/*
-	 * Calls from MII layer into network interface driver.
-	 */
-	mii_readreg_t mii_readreg;
-	mii_writereg_t mii_writereg;
-	mii_statchg_t mii_statchg;
 };
 typedef struct mii_data mii_data_t;
 
@@ -193,27 +180,6 @@ struct mii_phydesc {
 	MII_STR_ ## a ## _ ## b }
 #define MII_PHY_END	{ 0, 0, NULL }
 
-/*
- * An array of these structures map MII media types to BMCR/ANAR settings.
- */
-struct mii_media {
-	u_int	mm_bmcr;		/* BMCR settings for this media */
-	u_int	mm_anar;		/* ANAR settings for this media */
-	u_int	mm_gtcr;		/* 100base-T2 or 1000base-T CR */
-};
-
-#define	MII_MEDIA_NONE		0
-#define	MII_MEDIA_10_T		1
-#define	MII_MEDIA_10_T_FDX	2
-#define	MII_MEDIA_100_T4	3
-#define	MII_MEDIA_100_TX	4
-#define	MII_MEDIA_100_TX_FDX	5
-#define	MII_MEDIA_1000_X	6
-#define	MII_MEDIA_1000_X_FDX	7
-#define	MII_MEDIA_1000_T	8
-#define	MII_MEDIA_1000_T_FDX	9
-#define	MII_NMEDIA		10
-
 #ifdef _KERNEL
 
 #define PHY_READ(p, r) \
@@ -246,9 +212,8 @@ MIIBUS_ACCESSOR(flags,		FLAGS,		u_int)
 extern devclass_t	miibus_devclass;
 extern driver_t		miibus_driver;
 
-int	mii_attach(device_t, device_t *, struct ifnet *, ifm_change_cb_t,
+int	mii_attach(device_t, device_t *, if_t, ifm_change_cb_t,
 	    ifm_stat_cb_t, int, int, int, int);
-void	mii_down(struct mii_data *);
 int	mii_mediachg(struct mii_data *);
 void	mii_tick(struct mii_data *);
 void	mii_pollstat(struct mii_data *);
@@ -256,12 +221,15 @@ void	mii_phy_add_media(struct mii_softc *);
 
 int	mii_phy_auto(struct mii_softc *);
 int	mii_phy_detach(device_t dev);
-void	mii_phy_down(struct mii_softc *);
 u_int	mii_phy_flowstatus(struct mii_softc *);
 void	mii_phy_reset(struct mii_softc *);
 void	mii_phy_setmedia(struct mii_softc *sc);
 void	mii_phy_update(struct mii_softc *, int);
 int	mii_phy_tick(struct mii_softc *);
+int	mii_phy_mac_match(struct mii_softc *, const char *);
+int	mii_dev_mac_match(device_t, const char *);
+void	*mii_phy_mac_softc(struct mii_softc *);
+void	*mii_dev_mac_softc(device_t);
 
 const struct mii_phydesc * mii_phy_match(const struct mii_attach_args *ma,
     const struct mii_phydesc *mpd);

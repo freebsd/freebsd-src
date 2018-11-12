@@ -202,6 +202,8 @@ struct serf_ssl_certificate_t {
 };
 
 static void disable_compression(serf_ssl_context_t *ssl_ctx);
+static char *
+    pstrdup_escape_nul_bytes(const char *buf, int len, apr_pool_t *pool);
 
 #if SSL_VERBOSE
 /* Log all ssl alerts that we receive from the server. */
@@ -427,6 +429,85 @@ static BIO_METHOD bio_file_method = {
 #endif
 };
 
+typedef enum san_copy_t {
+    EscapeNulAndCopy = 0,
+    ErrorOnNul = 1,
+} san_copy_t;
+
+
+static apr_status_t
+get_subject_alt_names(apr_array_header_t **san_arr, X509 *ssl_cert,
+                      san_copy_t copy_action, apr_pool_t *pool)
+{
+    STACK_OF(GENERAL_NAME) *names;
+
+    /* assert: copy_action == ErrorOnNul || (san_arr && pool) */
+
+    if (san_arr) {
+        *san_arr = NULL;
+    }
+
+    /* Get subjectAltNames */
+    names = X509_get_ext_d2i(ssl_cert, NID_subject_alt_name, NULL, NULL);
+    if (names) {
+        int names_count = sk_GENERAL_NAME_num(names);
+        int name_idx;
+
+        if (san_arr)
+            *san_arr = apr_array_make(pool, names_count, sizeof(char*));
+        for (name_idx = 0; name_idx < names_count; name_idx++) {
+            char *p = NULL;
+            GENERAL_NAME *nm = sk_GENERAL_NAME_value(names, name_idx);
+
+            switch (nm->type) {
+                case GEN_DNS:
+                    if (copy_action == ErrorOnNul &&
+                        strlen(nm->d.ia5->data) != nm->d.ia5->length)
+                        return SERF_ERROR_SSL_CERT_FAILED;
+                    if (san_arr && *san_arr)
+                        p = pstrdup_escape_nul_bytes((const char *)nm->d.ia5->data,
+                                                     nm->d.ia5->length,
+                                                     pool);
+                    break;
+                default:
+                    /* Don't know what to do - skip. */
+                    break;
+            }
+
+            if (p) {
+                APR_ARRAY_PUSH(*san_arr, char*) = p;
+            }
+        }
+        sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
+    }
+    
+    return APR_SUCCESS;
+}
+
+static apr_status_t validate_cert_hostname(X509 *server_cert, apr_pool_t *pool)
+{
+    char buf[1024];
+    int length;
+    apr_status_t ret;
+
+    ret = get_subject_alt_names(NULL, server_cert, ErrorOnNul, NULL);
+    if (ret) {
+      return ret;
+    } else {
+        /* Fail if the subject's CN field contains \0 characters. */
+        X509_NAME *subject = X509_get_subject_name(server_cert);
+        if (!subject)
+            return SERF_ERROR_SSL_CERT_FAILED;
+
+        length = X509_NAME_get_text_by_NID(subject, NID_commonName, buf, 1024);
+        if (length != -1)
+            if (strlen(buf) != length)
+                return SERF_ERROR_SSL_CERT_FAILED;
+    }
+
+    return APR_SUCCESS;
+}
+
 static int
 validate_server_certificate(int cert_valid, X509_STORE_CTX *store_ctx)
 {
@@ -435,6 +516,7 @@ validate_server_certificate(int cert_valid, X509_STORE_CTX *store_ctx)
     X509 *server_cert;
     int err, depth;
     int failures = 0;
+    apr_status_t status;
 
     ssl = X509_STORE_CTX_get_ex_data(store_ctx,
                                      SSL_get_ex_data_X509_STORE_CTX_idx());
@@ -463,6 +545,7 @@ validate_server_certificate(int cert_valid, X509_STORE_CTX *store_ctx)
             case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
             case X509_V_ERR_CERT_UNTRUSTED:
             case X509_V_ERR_INVALID_CA:
+            case X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
                     failures |= SERF_SSL_CERT_UNKNOWNCA;
                     break;
             case X509_V_ERR_CERT_REVOKED:
@@ -474,6 +557,11 @@ validate_server_certificate(int cert_valid, X509_STORE_CTX *store_ctx)
         }
     }
 
+    /* Validate hostname */
+    status = validate_cert_hostname(server_cert, ctx->pool);
+    if (status)
+        failures |= SERF_SSL_CERT_UNKNOWN_FAILURE;
+
     /* Check certificate expiry dates. */
     if (X509_cmp_current_time(X509_get_notBefore(server_cert)) >= 0) {
         failures |= SERF_SSL_CERT_NOTYETVALID;
@@ -484,7 +572,6 @@ validate_server_certificate(int cert_valid, X509_STORE_CTX *store_ctx)
 
     if (ctx->server_cert_callback &&
         (depth == 0 || failures)) {
-        apr_status_t status;
         serf_ssl_certificate_t *cert;
         apr_pool_t *subpool;
 
@@ -511,7 +598,6 @@ validate_server_certificate(int cert_valid, X509_STORE_CTX *store_ctx)
 
     if (ctx->server_cert_chain_callback
         && (depth == 0 || failures)) {
-        apr_status_t status;
         STACK_OF(X509) *chain;
         const serf_ssl_certificate_t **certs;
         int certs_len;
@@ -958,16 +1044,24 @@ static apr_status_t cleanup_ssl(void *data)
 
 #endif
 
-static apr_uint32_t have_init_ssl = 0;
+#if !APR_VERSION_AT_LEAST(1,0,0)
+#define apr_atomic_cas32(mem, with, cmp) apr_atomic_cas(mem, with, cmp)
+#endif
+
+enum ssl_init_e
+{
+   INIT_UNINITIALIZED = 0,
+   INIT_BUSY = 1,
+   INIT_DONE = 2
+};
+
+static volatile apr_uint32_t have_init_ssl = INIT_UNINITIALIZED;
 
 static void init_ssl_libraries(void)
 {
     apr_uint32_t val;
-#if APR_VERSION_AT_LEAST(1,0,0)
-    val = apr_atomic_xchg32(&have_init_ssl, 1);
-#else
-    val = apr_atomic_cas(&have_init_ssl, 1, 0);
-#endif
+
+    val = apr_atomic_cas32(&have_init_ssl, INIT_BUSY, INIT_UNINITIALIZED);
 
     if (!val) {
 #if APR_HAS_THREADS
@@ -1015,6 +1109,19 @@ static void init_ssl_libraries(void)
 
         apr_pool_cleanup_register(ssl_pool, NULL, cleanup_ssl, cleanup_ssl);
 #endif
+        apr_atomic_cas32(&have_init_ssl, INIT_DONE, INIT_BUSY);
+    }
+  else
+    {
+        /* Make sure we don't continue before the initialization in another
+           thread has completed */
+        while (val != INIT_DONE) {
+            apr_sleep(APR_USEC_PER_SEC / 1000);
+      
+            val = apr_atomic_cas32(&have_init_ssl,
+                                   INIT_UNINITIALIZED,
+                                   INIT_UNINITIALIZED);            
+        }
     }
 }
 
@@ -1198,21 +1305,16 @@ void serf_ssl_server_cert_chain_callback_set(
     context->server_cert_userdata = data;
 }
 
-static serf_ssl_context_t *ssl_init_context(void)
+static serf_ssl_context_t *ssl_init_context(serf_bucket_alloc_t *allocator)
 {
     serf_ssl_context_t *ssl_ctx;
-    apr_pool_t *pool;
-    serf_bucket_alloc_t *allocator;
 
     init_ssl_libraries();
-
-    apr_pool_create(&pool, NULL);
-    allocator = serf_bucket_allocator_create(pool, NULL, NULL);
 
     ssl_ctx = serf_bucket_mem_alloc(allocator, sizeof(*ssl_ctx));
 
     ssl_ctx->refcount = 0;
-    ssl_ctx->pool = pool;
+    ssl_ctx->pool = serf_bucket_allocator_get_pool(allocator);
     ssl_ctx->allocator = allocator;
 
     ssl_ctx->ctx = SSL_CTX_new(SSLv23_client_method());
@@ -1269,8 +1371,6 @@ static serf_ssl_context_t *ssl_init_context(void)
 static apr_status_t ssl_free_context(
     serf_ssl_context_t *ssl_ctx)
 {
-    apr_pool_t *p;
-
     /* If never had the pending buckets, don't try to free them. */
     if (ssl_ctx->decrypt.pending != NULL) {
         serf_bucket_destroy(ssl_ctx->decrypt.pending);
@@ -1283,10 +1383,7 @@ static apr_status_t ssl_free_context(
     SSL_free(ssl_ctx->ssl);
     SSL_CTX_free(ssl_ctx->ctx);
 
-    p = ssl_ctx->pool;
-
     serf_bucket_mem_free(ssl_ctx->allocator, ssl_ctx);
-    apr_pool_destroy(p);
 
     return APR_SUCCESS;
 }
@@ -1300,7 +1397,7 @@ static serf_bucket_t * serf_bucket_ssl_create(
 
     ctx = serf_bucket_mem_alloc(allocator, sizeof(*ctx));
     if (!ssl_ctx) {
-        ctx->ssl_ctx = ssl_init_context();
+        ctx->ssl_ctx = ssl_init_context(allocator);
     }
     else {
         ctx->ssl_ctx = ssl_ctx;
@@ -1449,7 +1546,50 @@ serf_ssl_context_t *serf_bucket_ssl_encrypt_context_get(
 
 /* Functions to read a serf_ssl_certificate structure. */
 
-/* Creates a hash_table with keys (E, CN, OU, O, L, ST and C). */
+/* Takes a counted length string and escapes any NUL bytes so that
+ * it can be used as a C string.  NUL bytes are escaped as 3 characters
+ * "\00" (that's a literal backslash).
+ * The returned string is allocated in POOL.
+ */
+static char *
+pstrdup_escape_nul_bytes(const char *buf, int len, apr_pool_t *pool)
+{
+    int i, nul_count = 0;
+    char *ret;
+
+    /* First determine if there are any nul bytes in the string. */
+    for (i = 0; i < len; i++) {
+        if (buf[i] == '\0')
+            nul_count++;
+    }
+
+    if (nul_count == 0) {
+        /* There aren't so easy case to just copy the string */
+        ret = apr_pstrdup(pool, buf);
+    } else {
+        /* There are so we have to replace nul bytes with escape codes
+         * Proper length is the length of the original string, plus
+         * 2 times the number of nulls (for two digit hex code for
+         * the value) + the trailing null. */
+        char *pos;
+        ret = pos = apr_palloc(pool, len + 2 * nul_count + 1);
+        for (i = 0; i < len; i++) {
+            if (buf[i] != '\0') {
+                *(pos++) = buf[i];
+            } else {
+                *(pos++) = '\\';
+                *(pos++) = '0';
+                *(pos++) = '0';
+            }
+        }
+        *pos = '\0';
+    }
+
+    return ret;
+}
+
+/* Creates a hash_table with keys (E, CN, OU, O, L, ST and C). Any NUL bytes in
+   these fields in the certificate will be escaped as \00. */
 static apr_hash_t *
 convert_X509_NAME_to_table(X509_NAME *org, apr_pool_t *pool)
 {
@@ -1462,37 +1602,44 @@ convert_X509_NAME_to_table(X509_NAME *org, apr_pool_t *pool)
                                     NID_commonName,
                                     buf, 1024);
     if (ret != -1)
-        apr_hash_set(tgt, "CN", APR_HASH_KEY_STRING, apr_pstrdup(pool, buf));
+        apr_hash_set(tgt, "CN", APR_HASH_KEY_STRING,
+                     pstrdup_escape_nul_bytes(buf, ret, pool));
     ret = X509_NAME_get_text_by_NID(org,
                                     NID_pkcs9_emailAddress,
                                     buf, 1024);
     if (ret != -1)
-        apr_hash_set(tgt, "E", APR_HASH_KEY_STRING, apr_pstrdup(pool, buf));
+        apr_hash_set(tgt, "E", APR_HASH_KEY_STRING,
+                     pstrdup_escape_nul_bytes(buf, ret, pool));
     ret = X509_NAME_get_text_by_NID(org,
                                     NID_organizationalUnitName,
                                     buf, 1024);
     if (ret != -1)
-        apr_hash_set(tgt, "OU", APR_HASH_KEY_STRING, apr_pstrdup(pool, buf));
+        apr_hash_set(tgt, "OU", APR_HASH_KEY_STRING,
+                     pstrdup_escape_nul_bytes(buf, ret, pool));
     ret = X509_NAME_get_text_by_NID(org,
                                     NID_organizationName,
                                     buf, 1024);
     if (ret != -1)
-        apr_hash_set(tgt, "O", APR_HASH_KEY_STRING, apr_pstrdup(pool, buf));
+        apr_hash_set(tgt, "O", APR_HASH_KEY_STRING,
+                     pstrdup_escape_nul_bytes(buf, ret, pool));
     ret = X509_NAME_get_text_by_NID(org,
                                     NID_localityName,
                                     buf, 1024);
     if (ret != -1)
-        apr_hash_set(tgt, "L", APR_HASH_KEY_STRING, apr_pstrdup(pool, buf));
+        apr_hash_set(tgt, "L", APR_HASH_KEY_STRING,
+                     pstrdup_escape_nul_bytes(buf, ret, pool));
     ret = X509_NAME_get_text_by_NID(org,
                                     NID_stateOrProvinceName,
                                     buf, 1024);
     if (ret != -1)
-        apr_hash_set(tgt, "ST", APR_HASH_KEY_STRING, apr_pstrdup(pool, buf));
+        apr_hash_set(tgt, "ST", APR_HASH_KEY_STRING,
+                     pstrdup_escape_nul_bytes(buf, ret, pool));
     ret = X509_NAME_get_text_by_NID(org,
                                     NID_countryName,
                                     buf, 1024);
     if (ret != -1)
-        apr_hash_set(tgt, "C", APR_HASH_KEY_STRING, apr_pstrdup(pool, buf));
+        apr_hash_set(tgt, "C", APR_HASH_KEY_STRING,
+                     pstrdup_escape_nul_bytes(buf, ret, pool));
 
     return tgt;
 }
@@ -1538,7 +1685,7 @@ apr_hash_t *serf_ssl_cert_certificate(
     unsigned int md_size, i;
     unsigned char md[EVP_MAX_MD_SIZE];
     BIO *bio;
-    STACK_OF(GENERAL_NAME) *names;
+    apr_array_header_t *san_arr;
 
     /* sha1 fingerprint */
     if (X509_digest(cert->ssl_cert, EVP_sha1(), md, &md_size)) {
@@ -1583,32 +1730,8 @@ apr_hash_t *serf_ssl_cert_certificate(
     BIO_free(bio);
 
     /* Get subjectAltNames */
-    names = X509_get_ext_d2i(cert->ssl_cert, NID_subject_alt_name, NULL, NULL);
-    if (names) {
-        int names_count = sk_GENERAL_NAME_num(names);
-
-        apr_array_header_t *san_arr = apr_array_make(pool, names_count,
-                                                     sizeof(char*));
+    if (!get_subject_alt_names(&san_arr, cert->ssl_cert, EscapeNulAndCopy, pool))
         apr_hash_set(tgt, "subjectAltName", APR_HASH_KEY_STRING, san_arr);
-        for (i = 0; i < names_count; i++) {
-            char *p = NULL;
-            GENERAL_NAME *nm = sk_GENERAL_NAME_value(names, i);
-
-            switch (nm->type) {
-            case GEN_DNS:
-                p = apr_pstrmemdup(pool, (const char *)nm->d.ia5->data,
-                                   nm->d.ia5->length);
-                break;
-            default:
-                /* Don't know what to do - skip. */
-                break;
-            }
-            if (p) {
-                APR_ARRAY_PUSH(san_arr, char*) = p;
-            }
-        }
-        sk_GENERAL_NAME_pop_free(names, GENERAL_NAME_free);
-    }
 
     return tgt;
 }

@@ -62,6 +62,7 @@ ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_TEMPSAVE, offsetof(struct pcpu, pc_tempsave));
 ASSYM(PC_DISISAVE, offsetof(struct pcpu, pc_disisave));
 ASSYM(PC_DBSAVE, offsetof(struct pcpu, pc_dbsave));
+ASSYM(PC_RESTORE, offsetof(struct pcpu, pc_restore));
 
 #if defined(BOOKE)
 ASSYM(PC_BOOKE_CRITSAVE, offsetof(struct pcpu, pc_booke_critsave));
@@ -170,9 +171,9 @@ ASSYM(FRAME_XER, offsetof(struct trapframe, xer));
 ASSYM(FRAME_SRR0, offsetof(struct trapframe, srr0));
 ASSYM(FRAME_SRR1, offsetof(struct trapframe, srr1));
 ASSYM(FRAME_EXC, offsetof(struct trapframe, exc));
-ASSYM(FRAME_AIM_DAR, offsetof(struct trapframe, cpu.aim.dar));
+ASSYM(FRAME_AIM_DAR, offsetof(struct trapframe, dar));
 ASSYM(FRAME_AIM_DSISR, offsetof(struct trapframe, cpu.aim.dsisr));
-ASSYM(FRAME_BOOKE_DEAR, offsetof(struct trapframe, cpu.booke.dear));
+ASSYM(FRAME_BOOKE_DEAR, offsetof(struct trapframe, dar));
 ASSYM(FRAME_BOOKE_ESR, offsetof(struct trapframe, cpu.booke.esr));
 ASSYM(FRAME_BOOKE_DBCR0, offsetof(struct trapframe, cpu.booke.dbcr0));
 

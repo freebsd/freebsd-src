@@ -65,7 +65,7 @@ void	*memmem(const void *, size_t, const void *, size_t) __pure;
 #endif
 void	*memmove(void *, const void *, size_t);
 void	*memset(void *, int, size_t);
-#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200809
 char	*stpcpy(char * __restrict, const char * __restrict);
 char	*stpncpy(char * __restrict, const char * __restrict, size_t);
 #endif
@@ -99,7 +99,7 @@ void	 strmode(int, char *);
 char	*strncat(char * __restrict, const char * __restrict, size_t);
 int	 strncmp(const char *, const char *, size_t) __pure;
 char	*strncpy(char * __restrict, const char * __restrict, size_t);
-#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200809
 char	*strndup(const char *, size_t) __malloc_like;
 size_t	 strnlen(const char *, size_t) __pure;
 #endif
@@ -111,7 +111,7 @@ char	*strrchr(const char *, int) __pure;
 #if __BSD_VISIBLE
 char	*strsep(char **, const char *);
 #endif
-#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200809
 char	*strsignal(int);
 #endif
 size_t	 strspn(const char *, const char *) __pure;

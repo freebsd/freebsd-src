@@ -6,20 +6,23 @@ sinclude(acx_nlnetlabs.m4)
 # must be numbers. ac_defun because of later processing.
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[6])
-m4_define([VERSION_MICRO],[16])
+m4_define([VERSION_MICRO],[17])
 AC_INIT(ldns, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), libdns@nlnetlabs.nl, libdns)
 AC_CONFIG_SRCDIR([packet.c])
 # needed to build correct soname
-AC_SUBST(LIBTOOL_VERSION_INFO, VERSION_MAJOR:VERSION_MINOR:VERSION_MICRO)
 AC_SUBST(LDNS_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(LDNS_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(LDNS_VERSION_MICRO, [VERSION_MICRO])
+AC_SUBST(VERSION_INFO, [VERSION_MAJOR:VERSION_MINOR:VERSION_MICRO])
+
+AC_AIX
+LT_INIT
+AC_CONFIG_MACRO_DIR([m4])
 
 OURCPPFLAGS=''
 CPPFLAGS=${CPPFLAGS:-${OURCPPFLAGS}}
 CFLAGS="$CFLAGS"
 
-AC_AIX
 # Checks for programs.
 AC_PROG_CC
 ACX_DEPFLAG
@@ -70,6 +73,7 @@ fi
 ACX_CHECK_COMPILER_FLAG(Wall, [CFLAGS="-Wall $CFLAGS"])
 ACX_CHECK_COMPILER_FLAG(W, [CFLAGS="-W $CFLAGS"])
 ACX_CHECK_COMPILER_FLAG(Wwrite-strings, [CFLAGS="-Wwrite-strings $CFLAGS"])
+ACX_CHECK_COMPILER_FLAG(Wstrict-prototypes, [CFLAGS="-Wstrict-prototypes $CFLAGS"])
 
 
 AC_CHECK_HEADERS([getopt.h time.h],,, [AC_INCLUDES_DEFAULT])
@@ -152,7 +156,7 @@ else
 fi
 
 # add option to disable installation of ldns-config script
-AC_ARG_ENABLE(ldns-config, [ --disable-ldns-config	disable installation of ldns-config (default=enabled)],
+AC_ARG_ENABLE(ldns-config, AC_HELP_STRING([--disable-ldns-config], [disable installation of ldns-config (default=enabled)]),
 	enable_ldns_config=$enableval, enable_ldns_config=yes)
 if test "x$enable_ldns_config" = xyes; then
 	AC_SUBST(INSTALL_CONFIG, [install-config])
@@ -165,6 +169,16 @@ else
 	AC_SUBST(UNINSTALL_CONFIG, [""])
 	AC_SUBST(UNINSTALL_CONFIG_MANPAGE, [""])
 fi
+
+# add option to disable library printing to stderr
+AC_ARG_ENABLE(stderr-msgs, AC_HELP_STRING([--enable-stderr-msgs], [Enable printing to stderr (default=disabled)]), enable_stderr_msgs=$enableval, enable_stderr_msgs=no)
+case "$enable_stderr_msgs" in
+    no) dnl default
+        ;;
+    *)  
+        AC_DEFINE_UNQUOTED([STDERR_MSGS], [1], [Define this to enable messages to stderr.])
+        ;;
+esac
 
 # check for python
 PYTHON_X_CFLAGS=""
@@ -255,6 +269,30 @@ else
   AC_SUBST(PYLDNSXUNINST, "")
 fi
 
+# check for perl
+ldns_with_p5_dns_ldns=no
+AC_ARG_WITH(p5-dns-ldns, AC_HELP_STRING([--with-p5-dns-ldns], 
+ [generate DNS::LDNS perl bindings]), 
+ [],[ withval="no" ])
+ldns_have_perl=no
+if test x_$withval != x_no; then
+   AC_PATH_PROG([PERL], [perl])
+   if test -z "$PERL"; then
+      AC_MSG_ERROR([Cannot find perl in your system path])
+   fi
+   AC_SUBST(P5_DNS_LDNS, "p5-dns-ldns")dnl
+   AC_SUBST(TEST_P5_DNS_LDNS, "test-p5-dns-ldns")dnl
+   AC_SUBST(INSTALL_P5_DNS_LDNS, "install-p5-dns-ldns")dnl
+   AC_SUBST(UNINSTALL_P5_DNS_LDNS, "uninstall-p5-dns-ldns")dnl
+   AC_SUBST(CLEAN_P5_DNS_LDNS, "clean-p5-dns-ldns")
+else
+   AC_SUBST(P5_DNS_LDNS, "")dnl
+   AC_SUBST(TEST_P5_DNS_LDNS, "")dnl
+   AC_SUBST(INSTALL_P5_DNS_LDNS, "")dnl
+   AC_SUBST(UNINSTALL_P5_DNS_LDNS, "")dnl
+   AC_SUBST(CLEAN_P5_DNS_LDNS, "")
+fi
+
 # Use libtool
 ACX_LIBTOOL_C_ONLY
 
@@ -320,11 +358,67 @@ case "$enable_ecdsa" in
       ;;
 esac
 
+AC_ARG_ENABLE(dane, AC_HELP_STRING([--disable-dane], [Disable DANE support]))
+case "$enable_dane" in
+    no)
+      AC_SUBST(ldns_build_config_use_dane, 0)
+      ;;
+    *) dnl default
+      if test "x$HAVE_SSL" != "xyes"; then
+        AC_MSG_ERROR([DANE enabled, but no SSL support])
+      fi
+      AC_CHECK_FUNC(X509_check_ca, [], [AC_MSG_ERROR([OpenSSL does not support DANE: please upgrade OpenSSL or rerun with --disable-dane])])
+      AC_DEFINE_UNQUOTED([USE_DANE], [1], [Define this to enable DANE support.])
+      AC_SUBST(ldns_build_config_use_dane, 1)
+      ;;
+esac
+
+AC_ARG_ENABLE(rrtype-ninfo, AC_HELP_STRING([--enable-rrtype-ninfo], [Enable draft RR type ninfo.]))
+case "$enable_rrtype_ninfo" in
+	yes)
+		AC_DEFINE_UNQUOTED([RRTYPE_NINFO], [], [Define this to enable RR type NINFO.])
+		;;
+	no|*)
+		;;
+esac
+AC_ARG_ENABLE(rrtype-rkey, AC_HELP_STRING([--enable-rrtype-rkey], [Enable draft RR type rkey.]))
+case "$enable_rrtype_rkey" in
+	yes)
+		AC_DEFINE_UNQUOTED([RRTYPE_RKEY], [], [Define this to enable RR type RKEY.])
+		;;
+	no|*)
+		;;
+esac
+AC_ARG_ENABLE(rrtype-cds, AC_HELP_STRING([--enable-rrtype-cds], [Enable draft RR type cds.]))
+case "$enable_rrtype_cds" in
+	yes)
+		AC_DEFINE_UNQUOTED([RRTYPE_CDS], [], [Define this to enable RR type CDS.])
+		;;
+	no|*)
+		;;
+esac
+AC_ARG_ENABLE(rrtype-uri, AC_HELP_STRING([--enable-rrtype-uri], [Enable draft RR type uri.]))
+case "$enable_rrtype_uri" in
+	yes)
+		AC_DEFINE_UNQUOTED([RRTYPE_URI], [], [Define this to enable RR type URI.])
+		;;
+	no|*)
+		;;
+esac
+AC_ARG_ENABLE(rrtype-ta, AC_HELP_STRING([--enable-rrtype-ta], [Enable draft RR type ta.]))
+case "$enable_rrtype_ta" in
+	yes)
+		AC_DEFINE_UNQUOTED([RRTYPE_TA], [], [Define this to enable RR type TA.])
+		;;
+	no|*)
+		;;
+esac
+
 AC_SUBST(LIBSSL_CPPFLAGS)
 AC_SUBST(LIBSSL_LDFLAGS)
 AC_SUBST(LIBSSL_LIBS)
 if test "x$HAVE_SSL" = "xyes"; then
-AC_SUBST(LIBSSL_SSL_LIBS, ["$LIBSSL_LIBS -lssl"])
+AC_SUBST(LIBSSL_SSL_LIBS, ["-lssl $LIBSSL_LIBS"])
 fi
 CPPFLAGS=$tmp_CPPFLAGS
 LDFLAGS=$tmp_LDFLAGS
@@ -426,7 +520,7 @@ AC_INCLUDES_DEFAULT
 ])
 
 if test x_$with_examples != x_no; then
-AC_CHECK_HEADERS([pcap.h],, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([pcap.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_LIB(pcap, pcap_open_offline, [
 	AC_DEFINE([HAVE_LIBPCAP], [1], [Define to 1 if you have the `pcap' library (-lpcap).])dnl`
 	AC_SUBST([LIBPCAP_LIBS], [-lpcap])
@@ -458,8 +552,9 @@ else
   AC_SUBST(ldns_build_config_have_socklen_t, 0)
 fi
 AC_TYPE_SIZE_T
-AC_TYPE_SSIZE_T
-AC_TYPE_INTPTR_T
+AC_CHECK_TYPE(ssize_t, int)
+dnl AC_TYPE_INTPTR_T does not work on all platforms (autoconf)
+AC_CHECK_TYPE(intptr_t, size_t)
 AC_CHECK_TYPE(in_addr_t, [], [AC_DEFINE([in_addr_t], [uint32_t], [in_addr_t])], [
 #if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -481,8 +576,6 @@ AC_FUNC_REALLOC
 
 AC_REPLACE_FUNCS(b64_pton)
 AC_REPLACE_FUNCS(b64_ntop)
-AC_REPLACE_FUNCS(b32_pton)
-AC_REPLACE_FUNCS(b32_ntop)
 AC_REPLACE_FUNCS(calloc)
 AC_REPLACE_FUNCS(timegm)
 AC_REPLACE_FUNCS(gmtime_r)
@@ -497,7 +590,17 @@ AC_REPLACE_FUNCS(snprintf)
 AC_REPLACE_FUNCS(strlcpy)
 AC_REPLACE_FUNCS(memmove)
 AC_FUNC_FORK
-AC_CHECK_FUNCS([endprotoent endservent sleep random fcntl strtoul bzero memset])
+AC_CHECK_FUNCS([endprotoent endservent sleep random fcntl strtoul bzero memset b32_ntop b32_pton])
+if test "x$HAVE_B32_NTOP" = "xyes"; then
+	AC_SUBST(ldns_build_config_have_b32_ntop, 1)
+else
+	AC_SUBST(ldns_build_config_have_b32_ntop, 0)
+fi
+if test "x$HAVE_B32_PTON" = "xyes"; then
+	AC_SUBST(ldns_build_config_have_b32_pton, 1)
+else
+	AC_SUBST(ldns_build_config_have_b32_pton, 0)
+fi
 
 ACX_CHECK_GETADDRINFO_WITH_INCLUDES
 if test $ac_cv_func_getaddrinfo = no; then
@@ -618,7 +721,6 @@ AH_BOTTOM([
 extern "C" {
 #endif
 
-#ifndef B64_PTON
 int ldns_b64_ntop(uint8_t const *src, size_t srclength,
 	 	  char *target, size_t targsize);
 /**
@@ -629,8 +731,6 @@ static inline size_t ldns_b64_ntop_calculate_size(size_t srcsize)
 {
 	return ((((srcsize + 2) / 3) * 4) + 1);
 }
-#endif /* !B64_PTON */
-#ifndef B64_NTOP
 int ldns_b64_pton(char const *src, uint8_t *target, size_t targsize);
 /**
  * calculates the size needed to store the result of ldns_b64_pton
@@ -640,7 +740,12 @@ static inline size_t ldns_b64_pton_calculate_size(size_t srcsize)
 {
 	return (((((srcsize + 3) / 4) * 3)) + 1);
 }
-#endif /* !B64_NTOP */
+
+/**
+ * Given in dnssec_zone.c, also used in dnssec_sign.c:w
+
+ */
+int ldns_dname_compare_v(const void *a, const void *b);
 
 #ifndef HAVE_SLEEP
 /* use windows sleep, in millisecs, instead */

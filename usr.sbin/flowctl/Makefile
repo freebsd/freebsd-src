@@ -2,14 +2,13 @@
 # $FreeBSD$
 #
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 	
 PROG=	flowctl
 MAN=	flowctl.8
 
 WARNS?= 2
-DPADD=  ${LIBNETGRAPH}
-LDADD=  -lnetgraph
+LIBADD=	netgraph
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6

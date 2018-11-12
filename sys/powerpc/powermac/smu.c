@@ -210,7 +210,7 @@ static driver_t smu_driver = {
 
 static devclass_t smu_devclass;
 
-DRIVER_MODULE(smu, nexus, smu_driver, smu_devclass, 0, 0);
+DRIVER_MODULE(smu, ofwbus, smu_driver, smu_devclass, 0, 0);
 static MALLOC_DEFINE(M_SMU, "smu", "SMU Sensor Information");
 
 #define SMU_MAILBOX		0x8000860c
@@ -1033,12 +1033,12 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 					      OID_AUTO, sysctl_name,
 					      CTLFLAG_RD, 0, "Fan Information");
 			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-				       "minrpm", CTLTYPE_INT | CTLFLAG_RD,
-				       &fan->fan.min_rpm, sizeof(int),
+				       "minrpm", CTLFLAG_RD,
+				       &fan->fan.min_rpm, 0,
 				       "Minimum allowed RPM");
 			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-				       "maxrpm", CTLTYPE_INT | CTLFLAG_RD,
-				       &fan->fan.max_rpm, sizeof(int),
+				       "maxrpm", CTLFLAG_RD,
+				       &fan->fan.max_rpm, 0,
 				       "Maximum allowed RPM");
 			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 					"rpm",CTLTYPE_INT | CTLFLAG_RW |
@@ -1054,12 +1054,12 @@ smu_attach_fans(device_t dev, phandle_t fanroot)
 					      OID_AUTO, sysctl_name,
 					      CTLFLAG_RD, 0, "Fan Information");
 			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-				       "minpwm", CTLTYPE_INT | CTLFLAG_RD,
-				       &fan->fan.min_rpm, sizeof(int),
+				       "minpwm", CTLFLAG_RD,
+				       &fan->fan.min_rpm, 0,
 				       "Minimum allowed PWM in %");
 			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-				       "maxpwm", CTLTYPE_INT | CTLFLAG_RD,
-				       &fan->fan.max_rpm, sizeof(int),
+				       "maxpwm", CTLFLAG_RD,
+				       &fan->fan.max_rpm, 0,
 				       "Maximum allowed PWM in %");
 			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 					"pwm",CTLTYPE_INT | CTLFLAG_RW |

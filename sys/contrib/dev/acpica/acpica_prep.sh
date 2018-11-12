@@ -18,10 +18,12 @@ fulldirs="common compiler components include os_specific"
 
 # files to remove
 stripdirs="generate libraries tests tools"
-stripfiles="Makefile README accygwin.h acefi.h achaiku.h acintel.h	\
-	aclinux.h acmacosx.h acmsvc.h acnetbsd.h acos2.h acwin.h	\
-	acwin64.h new_table.txt osfreebsdtbl.c oslinuxtbl.c osunixdir.c	\
-	osunixmap.c oswindir.c oswintbl.c oswinxf.c readme.txt utclib.c"
+stripfiles="Makefile README accygwin.h acdragonfly.h acdragonflyex.h	\
+	acefi.h achaiku.h acintel.h aclinux.h aclinuxex.h acmacosx.h	\
+	acmsvc.h acnetbsd.h acos2.h acwin.h acwin64.h new_table.txt	\
+	osbsdtbl.c osefitbl.c osefixf.c osfreebsdtbl.c oslinuxtbl.c	\
+	osunixdir.c osunixmap.c oswindir.c oswintbl.c oswinxf.c		\
+	readme.txt utclib.c"
 
 # include files to canonify
 src_headers="acapps.h acbuffer.h accommon.h acconfig.h acdebug.h	\
@@ -30,8 +32,8 @@ src_headers="acapps.h acbuffer.h accommon.h acconfig.h acdebug.h	\
 	acopcode.h acoutput.h acparser.h acpi.h acpiosxf.h acpixf.h	\
 	acpredef.h acresrc.h acrestyp.h acstruct.h actables.h actbl.h	\
 	actbl1.h actbl2.h actbl3.h actypes.h acutils.h amlcode.h	\
-	amlresrc.h platform/acenv.h platform/acfreebsd.h		\
-	platform/acgcc.h"
+	amlresrc.h platform/acenv.h platform/acenvex.h			\
+	platform/acfreebsd.h platform/acgcc.h"
 comp_headers="aslcompiler.h asldefine.h aslglobal.h aslmessages.h	\
 	aslsupport.l asltypes.h dtcompiler.h dttemplate.h preprocess.h"
 platform_headers="acfreebsd.h acgcc.h"
@@ -85,6 +87,6 @@ rm -rf ${wrk}
 # assist the developer in generating a diff
 echo "Directories you may want to 'svn diff':"
 echo "    sys/contrib/dev/acpica sys/dev/acpica \\"
-echo "    sys/amd64/acpica sys/i386/acpica sys/ia64/acpica sys/x86/acpica \\"
-echo "    sys/amd64/include sys/i386/include sys/ia64/include \\"
+echo "    sys/amd64/acpica sys/i386/acpica sys/x86/acpica \\"
+echo "    sys/amd64/include sys/i386/include include \\"
 echo "    sys/boot sys/conf sys/modules/acpi usr.sbin/acpi"

@@ -308,6 +308,10 @@ struct iwn_softc {
 	struct task		sc_reinit_task;
 	struct task		sc_radioon_task;
 	struct task		sc_radiooff_task;
+	struct task		sc_panic_task;
+
+	/* Taskqueue */
+	struct taskqueue	*sc_tq;
 
 	/* Calibration information */
 	struct callout		calib_to;
@@ -327,6 +331,22 @@ struct iwn_softc {
 	struct iwn_rxon		*rxon;
 	int			ctx;
 	struct ieee80211vap	*ivap[IWN_NUM_RXON_CTX];
+
+	/* General statistics */
+	/*
+	 * The statistics are reset after each channel
+	 * change.  So it may be zeroed after things like
+	 * a background scan.
+	 *
+	 * So for now, this is just a cheap hack to
+	 * expose the last received statistics dump
+	 * via an ioctl().  Later versions of this
+	 * could expose the last 'n' messages, or just
+	 * provide a pipeline for the firmware responses
+	 * via something like BPF.
+	 */
+	struct iwn_stats	last_stat;
+	int			last_stat_valid;
 
 	uint8_t			uc_scan_progress;
 	uint32_t		rawtemp;
@@ -394,6 +414,9 @@ struct iwn_softc {
 
 	/* For specific params */
 	const struct iwn_base_params *base_params;
+
+#define	IWN_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
+	uint32_t		ucode_rev;
 };
 
 #define IWN_LOCK_INIT(_sc) \

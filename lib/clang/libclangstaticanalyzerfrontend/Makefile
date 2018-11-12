@@ -7,9 +7,13 @@ LIB=	clangstaticanalyzerfrontend
 SRCDIR=	tools/clang/lib/StaticAnalyzer/Frontend
 SRCS=	AnalysisConsumer.cpp \
 	CheckerRegistration.cpp \
-	FrontendActions.cpp
+	ModelConsumer.cpp \
+	FrontendActions.cpp \
+	ModelInjector.cpp
 
 TGHDRS=	AttrList \
+	AttrParsedAttrList \
+	AttrVisitor \
 	Attrs \
 	Checkers \
 	CommentCommandList \

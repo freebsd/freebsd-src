@@ -1,5 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/oui.h,v 1.8 2008-01-09 09:40:47 hannes Exp $ (LBL) */
-/* 
+/*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code
  * distributions retain the above copyright notice and this paragraph

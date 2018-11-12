@@ -158,6 +158,7 @@ MIRROR_BUTTON=$?
 exec 3>&-
 
 _UNAME_R=`uname -r`
+_UNAME_R=${_UNAME_R%-p*}
 
 case ${_UNAME_R} in
 	*-CURRENT|*-STABLE|*-PRERELEASE)

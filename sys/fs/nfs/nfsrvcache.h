@@ -116,7 +116,6 @@ LIST_HEAD(nfsrvhashhead, nfsrvcache);
 /* The fine-grained locked cache hash table for TCP. */
 struct nfsrchash_bucket {
 	struct mtx		mtx;
-	char			lock_name[16];
 	struct nfsrvhashhead	tbl;
 };
 

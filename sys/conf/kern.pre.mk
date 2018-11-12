@@ -3,11 +3,21 @@
 # Part of a unified Makefile for building kernels.  This part contains all
 # of the definitions that need to be before %BEFORE_DEPEND.
 
+# Allow user to configure things that only effect src tree builds.
+# Note: This is duplicated from src.sys.mk to ensure that we include
+# /etc/src.conf when building the kernel. Kernels can be built without
+# the rest of /usr/src, but they still always process SRCCONF even though
+# the normal mechanisms to prevent that (compiling out of tree) won't
+# work. To ensure they do work, we have to duplicate thee few lines here.
+SRCCONF?=	/etc/src.conf
+.if (exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf") && !target(_srcconf_included_)
+.include "${SRCCONF}"
+_srcconf_included_:
+.endif
+
 .include <bsd.own.mk>
 .include <bsd.compiler.mk>
-
-# backwards compat option for older systems.
-MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
+.include "kern.opts.mk"
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
@@ -16,7 +26,7 @@ KODIR?=		/boot/${KERNEL}
 LDSCRIPT_NAME?=	ldscript.$M
 LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 
-M=		${MACHINE_CPUARCH}
+M=		${MACHINE}
 
 AWK?=		awk
 CP?=		cp
@@ -36,10 +46,10 @@ _MINUS_O=	-O2
 .endif
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${COMPILER_TYPE} != "clang"
-COPTFLAGS?=-O2 -frename-registers -pipe
-.else
+.if ${COMPILER_TYPE} == "clang"
 COPTFLAGS?=-O2 -pipe
+.else
+COPTFLAGS?=-O2 -frename-registers -pipe
 .endif
 .else
 COPTFLAGS?=${_MINUS_O} -pipe
@@ -50,18 +60,14 @@ COPTFLAGS+= -fno-strict-aliasing
 .if !defined(NO_CPU_COPTFLAGS)
 COPTFLAGS+= ${_CPUCFLAGS}
 .endif
-C_DIALECT= -std=c99
 NOSTDINC= -nostdinc
 
 INCLUDES= ${NOSTDINC} ${INCLMAGIC} -I. -I$S
 
-# This hack lets us use the OpenBSD altq code without spamming a new
-# include path into contrib'ed source files.
-INCLUDES+= -I$S/contrib/altq
-
 .if make(depend) || make(kernel-depend)
 
-# ... and the same for ipfilter
+# This hack lets us use the ipfilter code without spamming a new
+# include path into contrib'ed source files.
 INCLUDES+= -I$S/contrib/ipfilter
 
 # ... and the same for ath
@@ -69,6 +75,9 @@ INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal
 
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm
+
+# ... and the same for vchiq
+INCLUDES+= -I$S/contrib/vchiq
 
 # ... and the same for twa
 INCLUDES+= -I$S/dev/twa
@@ -78,41 +87,31 @@ INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 .endif
 
-CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
+CFLAGS=	${COPTFLAGS} ${DEBUG}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
 CFLAGS_PARAM_INLINE_UNIT_GROWTH?=100
 CFLAGS_PARAM_LARGE_FUNCTION_GROWTH?=1000
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS_ARCH_PARAMS?=--param max-inline-insns-single=1000
 .endif
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
-CFLAGS+= --param inline-unit-growth=${CFLAGS_PARAM_INLINE_UNIT_GROWTH}
-CFLAGS+= --param large-function-growth=${CFLAGS_PARAM_LARGE_FUNCTION_GROWTH}
+CFLAGS.gcc+= -fno-common -fms-extensions -finline-limit=${INLINE_LIMIT}
+CFLAGS.gcc+= --param inline-unit-growth=${CFLAGS_PARAM_INLINE_UNIT_GROWTH}
+CFLAGS.gcc+= --param large-function-growth=${CFLAGS_PARAM_LARGE_FUNCTION_GROWTH}
 .if defined(CFLAGS_ARCH_PARAMS)
-CFLAGS+=${CFLAGS_ARCH_PARAMS}
-.endif
+CFLAGS.gcc+=${CFLAGS_ARCH_PARAMS}
 .endif
 WERROR?= -Werror
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
-ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
-
-.if ${COMPILER_TYPE} == "clang"
-CLANG_NO_IAS= -no-integrated-as
-.else
-GCC_MS_EXTENSIONS= -fms-extensions
-.endif
+ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS} ${ASM_CFLAGS.${.IMPSRC:T}} 
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
 CFLAGS+=	-DGPROF
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+=	-falign-functions=16
-.endif
+CFLAGS.gcc+=	-falign-functions=16
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
 PROF=		-pg
-.if ${COMPILER_TYPE} != "clang"
+.if ${COMPILER_TYPE} == "gcc"
 PROF+=		-mprofiler-epilogue
 .endif
 .else
@@ -160,7 +159,7 @@ NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 # Infiniband C flags.  Correct include paths and omit errors that linux
 # does not honor.
 OFEDINCLUDES=	-I$S/ofed/include/
-OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}
+OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith
 OFEDCFLAGS=	${CFLAGS:N-I*} ${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
 OFED_C=		${OFED_C_NOIMP} ${.IMPSRC}
@@ -171,8 +170,8 @@ SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_OBJS+= hack.So
-SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} ${LDFLAGS} --no-warn-mismatch \
-	-warn-common -export-dynamic -dynamic-linker /red/herring \
+SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} ${_LDFLAGS} --no-warn-mismatch \
+	--warn-common --export-dynamic --dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
 	${SIZE} ${.TARGET} ; chmod 755 ${.TARGET}
@@ -183,14 +182,13 @@ SYSTEM_DEP+= ${LDSCRIPT}
 
 MKMODULESENV+=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
 MKMODULESENV+=	MACHINE_CPUARCH=${MACHINE_CPUARCH}
+MKMODULESENV+=	MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH}
+MKMODULESENV+=	MODULES_EXTRA="${MODULES_EXTRA}" WITHOUT_MODULES="${WITHOUT_MODULES}"
 .if (${KERN_IDENT} == LINT)
 MKMODULESENV+=	ALL_MODULES=LINT
 .endif
 .if defined(MODULES_OVERRIDE)
 MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
-.endif
-.if defined(WITHOUT_MODULES)
-MKMODULESENV+=	WITHOUT_MODULES="${WITHOUT_MODULES}"
 .endif
 .if defined(DEBUG)
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"

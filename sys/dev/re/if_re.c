@@ -148,7 +148,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <pci/if_rlreg.h>
+#include <dev/rl/if_rlreg.h>
 
 MODULE_DEPEND(re, pci, 1, 1, 1);
 MODULE_DEPEND(re, ether, 1, 1, 1);
@@ -656,6 +656,10 @@ re_set_rxmode(struct rl_softc *sc)
 	ifp = sc->rl_ifp;
 
 	rxfilt = RL_RXCFG_CONFIG | RL_RXCFG_RX_INDIV | RL_RXCFG_RX_BROAD;
+	if ((sc->rl_flags & RL_FLAG_EARLYOFF) != 0)
+		rxfilt |= RL_RXCFG_EARLYOFF;
+	else if ((sc->rl_flags & RL_FLAG_EARLYOFFV2) != 0)
+		rxfilt |= RL_RXCFG_EARLYOFFV2;
 
 	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
 		if (ifp->if_flags & IFF_PROMISC)
@@ -697,6 +701,12 @@ re_set_rxmode(struct rl_softc *sc)
 			hashes[1] = h;
 		}
 		rxfilt |= RL_RXCFG_RX_MULTI;
+	}
+
+	if  (sc->rl_hwrev->rl_rev == RL_HWREV_8168F) {
+		/* Disable multicast filtering due to silicon bug. */
+		hashes[0] = 0xffffffff;
+		hashes[1] = 0xffffffff;
 	}
 
 done:
@@ -1265,7 +1275,7 @@ re_attach(device_t dev)
 		msic = 0;
 	/* Prefer MSI-X to MSI. */
 	if (msixc > 0) {
-		msixc = 1;
+		msixc = RL_MSI_MESSAGES;
 		rid = PCIR_BAR(4);
 		sc->rl_res_pba = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 		    &rid, RF_ACTIVE);
@@ -1275,7 +1285,7 @@ re_attach(device_t dev)
 		}
 		if (sc->rl_res_pba != NULL &&
 		    pci_alloc_msix(dev, &msixc) == 0) {
-			if (msixc == 1) {
+			if (msixc == RL_MSI_MESSAGES) {
 				device_printf(dev, "Using %d MSI-X message\n",
 				    msixc);
 				sc->rl_flags |= RL_FLAG_MSIX;
@@ -1292,7 +1302,7 @@ re_attach(device_t dev)
 	}
 	/* Prefer MSI to INTx. */
 	if (msixc == 0 && msic > 0) {
-		msic = 1;
+		msic = RL_MSI_MESSAGES;
 		if (pci_alloc_msi(dev, &msic) == 0) {
 			if (msic == RL_MSI_MESSAGES) {
 				device_printf(dev, "Using %d MSI message\n",
@@ -1463,15 +1473,23 @@ re_attach(device_t dev)
 		    RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8168E_VL:
-	case RL_HWREV_8168EP:
 	case RL_HWREV_8168F:
-	case RL_HWREV_8168G:
+		sc->rl_flags |= RL_FLAG_EARLYOFF;
+		/* FALLTHROUGH */
 	case RL_HWREV_8411:
-	case RL_HWREV_8411B:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
 		    RL_FLAG_CMDSTOP_WAIT_TXQ | RL_FLAG_WOL_MANLINK;
+		break;
+	case RL_HWREV_8168EP:
+	case RL_HWREV_8168G:
+	case RL_HWREV_8411B:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
+		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
+		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
+		    RL_FLAG_CMDSTOP_WAIT_TXQ | RL_FLAG_WOL_MANLINK |
+		    RL_FLAG_EARLYOFFV2 | RL_FLAG_RXDV_GATED;
 		break;
 	case RL_HWREV_8168GU:
 		if (pci_get_device(dev) == RT_DEVICEID_8101E) {
@@ -1482,7 +1500,8 @@ re_attach(device_t dev)
 
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
-		    RL_FLAG_AUTOPAD | RL_FLAG_CMDSTOP_WAIT_TXQ;
+		    RL_FLAG_AUTOPAD | RL_FLAG_CMDSTOP_WAIT_TXQ |
+		    RL_FLAG_EARLYOFFV2 | RL_FLAG_RXDV_GATED;
 		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SBL:
@@ -1606,16 +1625,18 @@ re_attach(device_t dev)
 	ifp->if_start = re_start;
 	/*
 	 * RTL8168/8111C generates wrong IP checksummed frame if the
-	 * packet has IP options so disable TX IP checksum offloading.
+	 * packet has IP options so disable TX checksum offloading.
 	 */
 	if (sc->rl_hwrev->rl_rev == RL_HWREV_8168C ||
 	    sc->rl_hwrev->rl_rev == RL_HWREV_8168C_SPIN2 ||
-	    sc->rl_hwrev->rl_rev == RL_HWREV_8168CP)
-		ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
-	else
+	    sc->rl_hwrev->rl_rev == RL_HWREV_8168CP) {
+		ifp->if_hwassist = 0;
+		ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TSO4;
+	} else {
 		ifp->if_hwassist = CSUM_IP | CSUM_TCP | CSUM_UDP;
+		ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
+	}
 	ifp->if_hwassist |= CSUM_TSO;
-	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_init = re_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, RL_IFQ_MAXLEN);
@@ -1666,7 +1687,7 @@ re_attach(device_t dev)
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 #ifdef DEV_NETMAP
 	re_netmap_attach(sc);
@@ -1803,10 +1824,10 @@ re_detach(device_t dev)
 	/* Unload and free the RX DMA ring memory and map */
 
 	if (sc->rl_ldata.rl_rx_list_tag) {
-		if (sc->rl_ldata.rl_rx_list_map)
+		if (sc->rl_ldata.rl_rx_list_addr)
 			bus_dmamap_unload(sc->rl_ldata.rl_rx_list_tag,
 			    sc->rl_ldata.rl_rx_list_map);
-		if (sc->rl_ldata.rl_rx_list_map && sc->rl_ldata.rl_rx_list)
+		if (sc->rl_ldata.rl_rx_list)
 			bus_dmamem_free(sc->rl_ldata.rl_rx_list_tag,
 			    sc->rl_ldata.rl_rx_list,
 			    sc->rl_ldata.rl_rx_list_map);
@@ -1816,10 +1837,10 @@ re_detach(device_t dev)
 	/* Unload and free the TX DMA ring memory and map */
 
 	if (sc->rl_ldata.rl_tx_list_tag) {
-		if (sc->rl_ldata.rl_tx_list_map)
+		if (sc->rl_ldata.rl_tx_list_addr)
 			bus_dmamap_unload(sc->rl_ldata.rl_tx_list_tag,
 			    sc->rl_ldata.rl_tx_list_map);
-		if (sc->rl_ldata.rl_tx_list_map && sc->rl_ldata.rl_tx_list)
+		if (sc->rl_ldata.rl_tx_list)
 			bus_dmamem_free(sc->rl_ldata.rl_tx_list_tag,
 			    sc->rl_ldata.rl_tx_list,
 			    sc->rl_ldata.rl_tx_list_map);
@@ -1861,10 +1882,10 @@ re_detach(device_t dev)
 	/* Unload and free the stats buffer and map */
 
 	if (sc->rl_ldata.rl_stag) {
-		if (sc->rl_ldata.rl_smap)
+		if (sc->rl_ldata.rl_stats_addr)
 			bus_dmamap_unload(sc->rl_ldata.rl_stag,
 			    sc->rl_ldata.rl_smap);
-		if (sc->rl_ldata.rl_smap && sc->rl_ldata.rl_stats)
+		if (sc->rl_ldata.rl_stats)
 			bus_dmamem_free(sc->rl_ldata.rl_stag,
 			    sc->rl_ldata.rl_stats, sc->rl_ldata.rl_smap);
 		bus_dma_tag_destroy(sc->rl_ldata.rl_stag);
@@ -2226,7 +2247,7 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 			    (rxstat & RL_RDESC_STAT_ERRS) == RL_RDESC_STAT_GIANT)
 				rxerr = 0;
 			if (rxerr != 0) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				/*
 				 * If this is part of a multi-fragment packet,
 				 * discard all the pieces.
@@ -2249,7 +2270,7 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 		else
 			rxerr = re_newbuf(sc, i);
 		if (rxerr != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			if (sc->rl_head != NULL) {
 				m_freem(sc->rl_head);
 				sc->rl_head = sc->rl_tail = NULL;
@@ -2291,7 +2312,7 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 #ifdef RE_FIXUP_RX
 		re_fixup_rx(m);
 #endif
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		m->m_pkthdr.rcvif = ifp;
 
 		/* Do RX checksumming if enabled */
@@ -2410,11 +2431,11 @@ re_txeof(struct rl_softc *sc)
 			txd->tx_m = NULL;
 			if (txstat & (RL_TDESC_STAT_EXCESSCOL|
 			    RL_TDESC_STAT_COLCNT))
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if (txstat & RL_TDESC_STAT_TXERRSUM)
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			else
-				ifp->if_opackets++;
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
 		sc->rl_ldata.rl_tx_free++;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -3170,10 +3191,9 @@ re_init_locked(struct rl_softc *sc)
 	CSR_WRITE_4(sc, RL_TXLIST_ADDR_LO,
 	    RL_ADDR_LO(sc->rl_ldata.rl_tx_list_addr));
 
-	/*
-	 * Enable transmit and receive.
-	 */
-	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
+	if ((sc->rl_flags & RL_FLAG_RXDV_GATED) != 0)
+		CSR_WRITE_4(sc, RL_MISC, CSR_READ_4(sc, RL_MISC) &
+		    ~0x00080000);
 
 	/*
 	 * Set the initial TX configuration.
@@ -3201,6 +3221,11 @@ re_init_locked(struct rl_softc *sc)
 		CSR_WRITE_2(sc, RL_INTRMOD, 0x5100);
 	}
 
+	/*
+	 * Enable transmit and receive.
+	 */
+	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB | RL_CMD_RX_ENB);
+
 #ifdef DEVICE_POLLING
 	/*
 	 * Disable interrupts if we are polling.
@@ -3224,10 +3249,6 @@ re_init_locked(struct rl_softc *sc)
 
 	/* Start RX/TX process. */
 	CSR_WRITE_4(sc, RL_MISSEDPKT, 0);
-#ifdef notdef
-	/* Enable receiver and transmitter. */
-	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
-#endif
 
 	/*
 	 * Initialize the timer interrupt register so that
@@ -3347,7 +3368,6 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct rl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	uint32_t		rev;
 	int			error = 0;
 
 	switch (command) {
@@ -3436,15 +3456,9 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if ((mask & IFCAP_TXCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0) {
-				rev = sc->rl_hwrev->rl_rev;
-				if (rev == RL_HWREV_8168C ||
-				    rev == RL_HWREV_8168C_SPIN2 ||
-				    rev == RL_HWREV_8168CP)
-					ifp->if_hwassist |= CSUM_TCP | CSUM_UDP;
-				else
-					ifp->if_hwassist |= RE_CSUM_FEATURES;
-			} else
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+				ifp->if_hwassist |= RE_CSUM_FEATURES;
+			else
 				ifp->if_hwassist &= ~RE_CSUM_FEATURES;
 			reinit = 1;
 		}
@@ -3527,7 +3541,7 @@ re_watchdog(struct rl_softc *sc)
 	}
 
 	if_printf(ifp, "watchdog timeout\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	re_rxeof(sc, NULL);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;

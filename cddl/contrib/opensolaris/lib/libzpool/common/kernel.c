@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -29,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
+#include <libgen.h>
 #include <sys/spa.h>
 #include <sys/stat.h>
 #include <sys/processor.h>
@@ -49,6 +52,9 @@ char hw_serial[HW_HOSTID_LEN];
 #ifdef illumos
 kmutex_t cpu_lock;
 #endif
+
+/* If set, all blocks read will be copied to the specified directory. */
+char *vn_dumpdir = NULL;
 
 struct utsname utsname = {
 	"userland", "libzpool", "1", "1", "na"
@@ -413,6 +419,7 @@ int
 vn_open(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2, int x3)
 {
 	int fd;
+	int dump_fd;
 	vnode_t *vp;
 	int old_umask;
 	char realpath[MAXPATHLEN];
@@ -461,6 +468,17 @@ vn_open(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2, int x3)
 	if (flags & FCREAT)
 		(void) umask(old_umask);
 
+	if (vn_dumpdir != NULL) {
+		char dumppath[MAXPATHLEN];
+		(void) snprintf(dumppath, sizeof (dumppath),
+		    "%s/%s", vn_dumpdir, basename(realpath));
+		dump_fd = open64(dumppath, O_CREAT | O_WRONLY, 0666);
+		if (dump_fd == -1)
+			return (errno);
+	} else {
+		dump_fd = -1;
+	}
+
 	if (fd == -1)
 		return (errno);
 
@@ -476,6 +494,7 @@ vn_open(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2, int x3)
 	vp->v_fd = fd;
 	vp->v_size = st.st_size;
 	vp->v_path = spa_strdup(path);
+	vp->v_dump_fd = dump_fd;
 
 	return (0);
 }
@@ -508,6 +527,11 @@ vn_rdwr(int uio, vnode_t *vp, void *addr, ssize_t len, offset_t offset,
 
 	if (uio == UIO_READ) {
 		iolen = pread64(vp->v_fd, addr, len, offset);
+		if (vp->v_dump_fd != -1) {
+			int status =
+			    pwrite64(vp->v_dump_fd, addr, iolen, offset);
+			ASSERT(status != -1);
+		}
 	} else {
 		/*
 		 * To simulate partial disk writes, we split writes into two
@@ -534,6 +558,8 @@ void
 vn_close(vnode_t *vp, int openflag, cred_t *cr, kthread_t *td)
 {
 	close(vp->v_fd);
+	if (vp->v_dump_fd != -1)
+		close(vp->v_dump_fd);
 	spa_strfree(vp->v_path);
 	umem_free(vp, sizeof (vnode_t));
 }
@@ -624,6 +650,9 @@ dprintf_setup(int *argc, char **argv)
 	 */
 	if (dprintf_find_string("on"))
 		dprintf_print_all = 1;
+
+	if (dprintf_string != NULL)
+		zfs_flags |= ZFS_DEBUG_DPRINTF;
 }
 
 int
@@ -661,7 +690,7 @@ __dprintf(const char *file, const char *func, int line, const char *fmt, ...)
 		if (dprintf_find_string("pid"))
 			(void) printf("%d ", getpid());
 		if (dprintf_find_string("tid"))
-			(void) printf("%ul ", thr_self());
+			(void) printf("%lu ", thr_self());
 #if 0
 		if (dprintf_find_string("cpu"))
 			(void) printf("%u ", getcpuid());
@@ -800,20 +829,17 @@ delay(clock_t ticks)
 /*
  * Find highest one bit set.
  *	Returns bit number + 1 of highest bit that is set, otherwise returns 0.
- * High order bit is 31 (or 63 in _LP64 kernel).
  */
 int
-highbit(ulong_t i)
+highbit64(uint64_t i)
 {
-	register int h = 1;
+	int h = 1;
 
 	if (i == 0)
 		return (0);
-#ifdef _LP64
-	if (i & 0xffffffff00000000ul) {
+	if (i & 0xffffffff00000000ULL) {
 		h += 32; i >>= 32;
 	}
-#endif
 	if (i & 0xffff0000) {
 		h += 16; i >>= 16;
 	}

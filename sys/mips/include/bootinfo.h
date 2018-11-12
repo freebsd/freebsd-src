@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2013 Robert N. M. Watson
  * Copyright (C) 1994 by Rodney W. Grimes, Milwaukie, Oregon  97222
  * All rights reserved.
  *
@@ -36,33 +37,15 @@
 #define	_MACHINE_BOOTINFO_H_
 
 /* Only change the version number if you break compatibility. */
-#define	BOOTINFO_VERSION	1
-
-#define	N_BIOS_GEOM		8
+#define	BOOTINFO_VERSION	2
 
 #define	MIPS_BOOTINFO_MAGIC	0xCDEACDEA
 
-/* Extended OLV bootinfo struct.  The data area includes a list of named
-   OIDs and associated data values.  The format is:
-
-   NUL-terminated dotted-string name
-   2 byte length, in big-endian order
-   LENGTH bytes of data
-   [...]
-
-   The two magic fields are used to guard against other bootloaders that
-   may place other sorts of data here.  */
-
-struct bootinfo_ext {
-#define	BOOTINFO_EXT_MAGIC1	0x55aa00ff
-	unsigned int		magic1;
-	unsigned char		*data;
-	unsigned int		size;
-#define	BOOTINFO_EXT_MAGIC2	0x32719187
-	unsigned int		magic2;
-};
-
-#define	BOOTINFO_EXT_MAX_SIZE	16384
+#if defined(__mips_n32) || defined(__mips_n64)
+typedef	uint64_t	bi_ptr_t;
+#else
+typedef	uint32_t	bi_ptr_t;
+#endif
 
 /*
  * A zero bootinfo field often means that there is no info available.
@@ -70,73 +53,33 @@ struct bootinfo_ext {
  * normal value.
  */
 struct bootinfo {
-	u_int32_t	bi_version;
-	u_int32_t	bi_kernelname;		/* represents a char * */
-	u_int32_t	bi_nfs_diskless;	/* struct nfs_diskless * */
-				/* End of fields that are always present. */
-#define	bi_endcommon	bi_n_bios_used
-	u_int32_t	bi_n_bios_used;
-	u_int32_t	bi_bios_geom[N_BIOS_GEOM];
-	u_int32_t	bi_size;
-	u_int8_t	bi_memsizes_valid;
-	u_int8_t	bi_bios_dev;		/* bootdev BIOS unit number */
-	u_int8_t	bi_pad[2];
-	u_int32_t	bi_basemem;
-	u_int32_t	bi_extmem;
-	u_int32_t	bi_symtab;		/* struct symtab * */
-	u_int32_t	bi_esymtab;		/* struct symtab * */
-				/* Items below only from advanced bootloader */
-	u_int32_t	bi_kernend;		/* end of kernel space */
-	u_int32_t	bi_envp;		/* environment */
-	u_int32_t	bi_modulep;		/* preloaded modules */
+	/* bootinfo meta-data. */
+	uint32_t	bi_version;
+	uint32_t	bi_size;
+
+	/* bootinfo contents. */
+	uint64_t	bi_boot2opts;	/* boot2 flags to loader. */
+	bi_ptr_t	bi_kernelname;	/* Pointer to name. */
+	bi_ptr_t	bi_nfs_diskless;/* Pointer to NFS data. */
+	bi_ptr_t	bi_dtb;		/* Pointer to dtb. */
+	bi_ptr_t	bi_memsize;	/* Physical memory size in bytes. */
+	bi_ptr_t	bi_modulep;	/* Preloaded modules. */
+	bi_ptr_t	bi_boot_dev_type;	/* Boot-device type. */
+	bi_ptr_t	bi_boot_dev_unitptr;	/* Boot-device unit/pointer. */
 };
+
+/*
+ * Possible boot-device types passed from boot2 to loader, loader to kernel.
+ * In most cases, the object pointed to will hold a filesystem; one exception
+ * is BOOTINFO_DEV_TYPE_DRAM, which points to a pre-loaded object (e.g.,
+ * loader, kernel).
+ */
+#define	BOOTINFO_DEV_TYPE_DRAM		0	/* DRAM loader/kernel (ptr). */
+#define	BOOTINFO_DEV_TYPE_CFI		1	/* CFI flash (unit). */
+#define	BOOTINFO_DEV_TYPE_SDCARD	2	/* SD card (unit). */
 
 #ifdef _KERNEL
 extern struct bootinfo	bootinfo;
 #endif
-
-/*
- * Constants for converting boot-style device number to type,
- * adaptor (uba, mba, etc), unit number and partition number.
- * Type (== major device number) is in the low byte
- * for backward compatibility.  Except for that of the "magic
- * number", each mask applies to the shifted value.
- * Format:
- *	 (4) (4) (4) (4)  (8)     (8)
- *	--------------------------------
- *	|MA | AD| CT| UN| PART  | TYPE |
- *	--------------------------------
- */
-#define	B_ADAPTORSHIFT		24
-#define	B_ADAPTORMASK		0x0f
-#define	B_ADAPTOR(val)		(((val) >> B_ADAPTORSHIFT) & B_ADAPTORMASK)
-#define	B_CONTROLLERSHIFT	20
-#define	B_CONTROLLERMASK	0xf
-#define	B_CONTROLLER(val)	(((val)>>B_CONTROLLERSHIFT) & B_CONTROLLERMASK)
-#define	B_SLICESHIFT		20
-#define	B_SLICEMASK		0xff
-#define	B_SLICE(val)		(((val)>>B_SLICESHIFT) & B_SLICEMASK)
-#define	B_UNITSHIFT		16
-#define	B_UNITMASK		0xf
-#define	B_UNIT(val)		(((val) >> B_UNITSHIFT) & B_UNITMASK)
-#define	B_PARTITIONSHIFT	8
-#define	B_PARTITIONMASK		0xff
-#define	B_PARTITION(val)	(((val) >> B_PARTITIONSHIFT) & B_PARTITIONMASK)
-#define	B_TYPESHIFT		0
-#define	B_TYPEMASK		0xff
-#define	B_TYPE(val)		(((val) >> B_TYPESHIFT) & B_TYPEMASK)
-
-#define	B_MAGICMASK	0xf0000000
-#define	B_DEVMAGIC	0xa0000000
-
-#define	MAKEBOOTDEV(type, adaptor, controller, unit, partition)		\
-	(((type) << B_TYPESHIFT) | ((adaptor) << B_ADAPTORSHIFT) |	\
-	((controller) << B_CONTROLLERSHIFT) | ((unit) << B_UNITSHIFT) |	\
-	((partition) << B_PARTITIONSHIFT) | B_DEVMAGIC)
-
-#define	BASE_SLICE		2
-#define	COMPATIBILITY_SLICE	0
-#define	MAX_SLICES		32
-#define	WHOLE_DISK_SLICE	1
 
 #endif	/* !_MACHINE_BOOTINFO_H_ */

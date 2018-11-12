@@ -1146,13 +1146,14 @@ atiixp_release_resource(struct atiixp_info *sc)
 		bus_dma_tag_destroy(sc->parent_dmat);
 		sc->parent_dmat = NULL;
 	}
-	if (sc->sgd_dmamap)
+	if (sc->sgd_addr) {
 		bus_dmamap_unload(sc->sgd_dmat, sc->sgd_dmamap);
+		sc->sgd_addr = 0;
+	}
 	if (sc->sgd_table) {
 		bus_dmamem_free(sc->sgd_dmat, sc->sgd_table, sc->sgd_dmamap);
 		sc->sgd_table = NULL;
 	}
-	sc->sgd_dmamap = NULL;
 	if (sc->sgd_dmat) {
 		bus_dma_tag_destroy(sc->sgd_dmat);
 		sc->sgd_dmat = NULL;
@@ -1193,7 +1194,7 @@ atiixp_pci_attach(device_t dev)
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_atiixp softc");
 	sc->dev = dev;
 
-	callout_init(&sc->poll_timer, CALLOUT_MPSAFE);
+	callout_init(&sc->poll_timer, 1);
 	sc->poll_ticks = 1;
 
 	if (resource_int_value(device_get_name(sc->dev),

@@ -76,9 +76,8 @@ static SYSCTL_NODE(_hw, OID_AUTO, upgt, CTLFLAG_RD, 0,
 
 #ifdef UPGT_DEBUG
 int upgt_debug = 0;
-SYSCTL_INT(_hw_upgt, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &upgt_debug,
+SYSCTL_INT(_hw_upgt, OID_AUTO, debug, CTLFLAG_RWTUN, &upgt_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.upgt.debug", &upgt_debug);
 enum {
 	UPGT_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	UPGT_DEBUG_RECV		= 0x00000002,	/* basic recv operation */
@@ -143,7 +142,7 @@ static struct ieee80211vap *upgt_vap_create(struct ieee80211com *,
 		    const uint8_t [IEEE80211_ADDR_LEN],
 		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	upgt_vap_delete(struct ieee80211vap *);
-static void	upgt_update_mcast(struct ifnet *);
+static void	upgt_update_mcast(struct ieee80211com *);
 static uint8_t	upgt_rx_rate(struct upgt_softc *, const int);
 static void	upgt_set_multi(void *);
 static void	upgt_stop(struct upgt_softc *);
@@ -183,7 +182,7 @@ static const STRUCT_USB_HOST_ID upgt_devs[] = {
 	UPGT_DEV(FSC,		E5400),
 	UPGT_DEV(GLOBESPAN,	PRISM_GT_1),
 	UPGT_DEV(GLOBESPAN,	PRISM_GT_2),
-	UPGT_DEV(NETGEAR,	WG111V2_2),
+	UPGT_DEV(NETGEAR,	WG111V1_2),
 	UPGT_DEV(INTERSIL,	PRISM_GT),
 	UPGT_DEV(SMC,		2862WG),
 	UPGT_DEV(USR,		USR5422),
@@ -342,6 +341,8 @@ upgt_attach(device_t dev)
 
 	ic = ifp->if_l2com;
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(dev);
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
 	ic->ic_opmode = IEEE80211_M_STA;
 	/* set device capabilities */
@@ -417,7 +418,7 @@ upgt_txeof(struct usb_xfer *xfer, struct upgt_data *data)
 		ieee80211_free_node(data->ni);
 		data->ni = NULL;
 	}
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 }
 
 static void
@@ -429,7 +430,7 @@ upgt_get_stats(struct upgt_softc *sc)
 
 	data_cmd = upgt_getbuf(sc);
 	if (data_cmd == NULL) {
-		device_printf(sc->sc_dev, "%s: out of buffer.\n", __func__);
+		device_printf(sc->sc_dev, "%s: out of buffers.\n", __func__);
 		return;
 	}
 
@@ -855,7 +856,7 @@ upgt_start(struct ifnet *ifp)
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, data_tx, next);
 			UPGT_STAT_INC(sc, st_tx_inactive);
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 		sc->sc_tx_timer = 5;
@@ -892,7 +893,7 @@ upgt_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, data_tx, next);
 		UPGT_STAT_INC(sc, st_tx_inactive);
 		ieee80211_free_node(ni);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		UPGT_UNLOCK(sc);
 		return (EIO);
 	}
@@ -912,7 +913,7 @@ upgt_watchdog(void *arg)
 		if (--sc->sc_tx_timer == 0) {
 			device_printf(sc->sc_dev, "watchdog timeout\n");
 			/* upgt_init(ifp); XXX needs a process context ? */
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return;
 		}
 		callout_reset(&sc->sc_watchdog_ch, hz, upgt_watchdog, sc);
@@ -1114,9 +1115,9 @@ upgt_vap_delete(struct ieee80211vap *vap)
 }
 
 static void
-upgt_update_mcast(struct ifnet *ifp)
+upgt_update_mcast(struct ieee80211com *ic)
 {
-	struct upgt_softc *sc = ifp->if_softc;
+	struct upgt_softc *sc = ic->ic_softc;
 
 	upgt_set_multi(sc);
 }
@@ -1553,7 +1554,7 @@ upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 		tap->wr_rate = upgt_rx_rate(sc, rxdesc->rate);
 		tap->wr_antsignal = rxdesc->rssi;
 	}
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	DPRINTF(sc, UPGT_DEBUG_RX_PROC, "%s: RX done\n", __func__);
 	*rssi = rxdesc->rssi;
@@ -2294,7 +2295,8 @@ done:
 	 * will stall.  It's strange, but it works, so we keep reading
 	 * the statistics here.  *shrug*
 	 */
-	if (!(ifp->if_opackets % UPGT_TX_STAT_INTERVAL))
+	if (!(ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS) %
+	    UPGT_TX_STAT_INTERVAL))
 		upgt_get_stats(sc);
 
 	return (error);
@@ -2367,7 +2369,7 @@ setup:
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto setup;
 		}
 		break;
@@ -2419,7 +2421,7 @@ setup:
 		if (data->ni != NULL) {
 			ieee80211_free_node(data->ni);
 			data->ni = NULL;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);

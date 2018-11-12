@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 static int umcs_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, umcs, CTLFLAG_RW, 0, "USB umcs quadport serial adapter");
-SYSCTL_INT(_hw_usb_umcs, OID_AUTO, debug, CTLFLAG_RW, &umcs_debug, 0, "Debug level");
+SYSCTL_INT(_hw_usb_umcs, OID_AUTO, debug, CTLFLAG_RWTUN, &umcs_debug, 0, "Debug level");
 #endif					/* USB_DEBUG */
 
 
@@ -1083,7 +1083,10 @@ umcs7840_calc_baudrate(uint32_t rate, uint16_t *divisor, uint8_t *clk)
 
 	for (i = 0; i < umcs7840_baudrate_divisors_len - 1 &&
 	    !(rate > umcs7840_baudrate_divisors[i] && rate <= umcs7840_baudrate_divisors[i + 1]); ++i);
-	*divisor = umcs7840_baudrate_divisors[i + 1] / rate;
+	if (rate == 0)
+		*divisor = 1;	/* XXX */
+	else
+		*divisor = umcs7840_baudrate_divisors[i + 1] / rate;
 	/* 0x00 .. 0x70 */
 	*clk = i << MCS7840_DEV_SPx_CLOCK_SHIFT;
 	return (0);

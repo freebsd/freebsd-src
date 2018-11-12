@@ -70,6 +70,7 @@ struct g_part_alias_list {
 	enum g_part_alias alias;
 } g_part_alias_list[G_PART_ALIAS_COUNT] = {
 	{ "apple-boot", G_PART_ALIAS_APPLE_BOOT },
+	{ "apple-core-storage", G_PART_ALIAS_APPLE_CORE_STORAGE },
 	{ "apple-hfs", G_PART_ALIAS_APPLE_HFS },
 	{ "apple-label", G_PART_ALIAS_APPLE_LABEL },
 	{ "apple-raid", G_PART_ALIAS_APPLE_RAID },
@@ -108,15 +109,24 @@ struct g_part_alias_list {
 	{ "vmware-vmkdiag", G_PART_ALIAS_VMKDIAG },
 	{ "vmware-reserved", G_PART_ALIAS_VMRESERVED },
 	{ "vmware-vsanhdr", G_PART_ALIAS_VMVSANHDR },
+	{ "dragonfly-label32", G_PART_ALIAS_DFBSD },
+	{ "dragonfly-label64", G_PART_ALIAS_DFBSD64 },
+	{ "dragonfly-swap", G_PART_ALIAS_DFBSD_SWAP },
+	{ "dragonfly-ufs", G_PART_ALIAS_DFBSD_UFS },
+	{ "dragonfly-vinum", G_PART_ALIAS_DFBSD_VINUM },
+	{ "dragonfly-ccd", G_PART_ALIAS_DFBSD_CCD },
+	{ "dragonfly-legacy", G_PART_ALIAS_DFBSD_LEGACY },
+	{ "dragonfly-hammer", G_PART_ALIAS_DFBSD_HAMMER },
+	{ "dragonfly-hammer2", G_PART_ALIAS_DFBSD_HAMMER2 },
+	{ "prep-boot", G_PART_ALIAS_PREP_BOOT },
 };
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, part, CTLFLAG_RW, 0,
     "GEOM_PART stuff");
 static u_int check_integrity = 1;
-TUNABLE_INT("kern.geom.part.check_integrity", &check_integrity);
 SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity,
-    CTLFLAG_RW | CTLFLAG_TUN, &check_integrity, 1,
+    CTLFLAG_RWTUN, &check_integrity, 1,
     "Enable integrity checking");
 
 /*
@@ -134,6 +144,7 @@ static g_orphan_t g_part_orphan;
 static g_spoiled_t g_part_spoiled;
 static g_start_t g_part_start;
 static g_resize_t g_part_resize;
+static g_ioctl_t g_part_ioctl;
 
 static struct g_class g_part_class = {
 	.name = "PART",
@@ -150,7 +161,8 @@ static struct g_class g_part_class = {
 	.orphan = g_part_orphan,
 	.spoiled = g_part_spoiled,
 	.start = g_part_start,
-	.resize = g_part_resize
+	.resize = g_part_resize,
+	.ioctl = g_part_ioctl,
 };
 
 DECLARE_GEOM_CLASS(g_part_class, g_part);
@@ -440,7 +452,8 @@ g_part_find_geom(const char *name)
 {
 	struct g_geom *gp;
 	LIST_FOREACH(gp, &g_part_class.geom, geom) {
-		if (!strcmp(name, gp->name))
+		if ((gp->flags & G_GEOM_WITHER) == 0 &&
+		    strcmp(name, gp->name) == 0)
 			break;
 	}
 	return (gp);
@@ -461,10 +474,6 @@ g_part_parm_geom(struct gctl_req *req, const char *name, struct g_geom **v)
 	if (gp == NULL) {
 		gctl_error(req, "%d %s '%s'", EINVAL, name, gname);
 		return (EINVAL);
-	}
-	if ((gp->flags & G_GEOM_WITHER) != 0) {
-		gctl_error(req, "%d %s", ENXIO, gname);
-		return (ENXIO);
 	}
 	*v = gp;
 	return (0);
@@ -1316,7 +1325,9 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 
 	error = G_PART_RESIZE(table, entry, gpp);
 	if (error) {
-		gctl_error(req, "%d", error);
+		gctl_error(req, "%d%s", error, error != EBUSY ? "":
+		    " resizing will lead to unexpected shrinking"
+		    " due to alignment");
 		return (error);
 	}
 
@@ -2048,6 +2059,25 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	}
 }
 
+/*-
+ * This start routine is only called for non-trivial requests, all the
+ * trivial ones are handled autonomously by the slice code.
+ * For requests we handle here, we must call the g_io_deliver() on the
+ * bio, and return non-zero to indicate to the slice code that we did so.
+ * This code executes in the "DOWN" I/O path, this means:
+ *    * No sleeping.
+ *    * Don't grab the topology lock.
+ *    * Don't call biowait, g_getattr(), g_setattr() or g_read_data()
+ */
+static int
+g_part_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread *td)
+{
+	struct g_part_table *table;
+
+	table = pp->geom->softc;
+	return G_PART_IOCTL(table, pp, cmd, data, fflag, td);
+}
+
 static void
 g_part_resize(struct g_consumer *cp)
 {
@@ -2063,8 +2093,10 @@ g_part_resize(struct g_consumer *cp)
 		table->gpt_opened = 1;
 	}
 	if (G_PART_RESIZE(table, NULL, NULL) == 0)
-		printf("GEOM_PART: %s was automatically resized\n",
-		    cp->geom->name);
+		printf("GEOM_PART: %s was automatically resized.\n"
+		    "  Use `gpart commit %s` to save changes or "
+		    "`gpart undo %s` to revert them.\n", cp->geom->name,
+		    cp->geom->name, cp->geom->name);
 	if (g_part_check_integrity(table, cp) != 0) {
 		g_access(cp, -1, -1, -1);
 		table->gpt_opened = 0;

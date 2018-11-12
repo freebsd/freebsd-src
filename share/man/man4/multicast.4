@@ -326,7 +326,7 @@ mc.mf6cc_parent = iif_index;
 for (i = 0; i < maxvifs; i++)
     if (oifs_ttl[i] > 0)
         IF_SET(i, &mc.mf6cc_ifset);
-setsockopt(mrouter_s4, IPPROTO_IPV6, MRT6_ADD_MFC,
+setsockopt(mrouter_s6, IPPROTO_IPV6, MRT6_ADD_MFC,
            (void *)&mc, sizeof(mc));
 .Ed
 .Pp
@@ -365,7 +365,7 @@ struct mf6cctl mc;
 memset(&mc, 0, sizeof(mc));
 memcpy(&mc.mf6cc_origin, &source_addr, sizeof(mc.mf6cc_origin));
 memcpy(&mc.mf6cc_mcastgrp, &group_addr, sizeof(mf6cc_mcastgrp));
-setsockopt(mrouter_s4, IPPROTO_IPV6, MRT6_DEL_MFC,
+setsockopt(mrouter_s6, IPPROTO_IPV6, MRT6_DEL_MFC,
            (void *)&mc, sizeof(mc));
 .Ed
 .Pp
@@ -945,16 +945,16 @@ signal, but the next upcall will be triggered no earlier than
 after the previous upcall.
 .\"
 .Sh SEE ALSO
-.Xr altq 4 ,
-.Xr dummynet 4 ,
 .Xr getsockopt 2 ,
-.Xr gif 4 ,
-.Xr gre 4 ,
 .Xr recvfrom 2 ,
 .Xr recvmsg 2 ,
 .Xr setsockopt 2 ,
 .Xr socket 2 ,
 .Xr sourcefilter 3 ,
+.Xr altq 4 ,
+.Xr dummynet 4 ,
+.Xr gif 4 ,
+.Xr gre 4 ,
 .Xr icmp6 4 ,
 .Xr igmp 4 ,
 .Xr inet 4 ,

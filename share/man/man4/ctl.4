@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 2, 2013
+.Dd May 22, 2015
 .Dt CTL 4
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@ To compile this driver into the kernel,
 place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device iscsi"
 .Cd "device ctl"
 .Ed
 .Pp
@@ -57,7 +58,7 @@ Tagged queueing
 .It
 SCSI task attribute support (ordered, head of queue, simple tags)
 .It
-SCSI implicit command ordering support.
+SCSI implicit command ordering support
 .It
 Full task management support (abort, LUN reset, target reset, etc.)
 .It
@@ -66,6 +67,12 @@ Support for multiple ports
 Support for multiple simultaneous initiators
 .It
 Support for multiple simultaneous backing stores
+.It
+Support for VMWare VAAI: COMPARE AND WRITE, XCOPY, WRITE SAME,
+and UNMAP commands
+.It
+Support for Microsoft ODX: POPULATE TOKEN/WRITE USING TOKEN,
+WRITE SAME, and UNMAP commands
 .It
 Persistent reservation support
 .It
@@ -77,6 +84,22 @@ All I/O handled in-kernel, no userland context switch overhead
 .El
 .Pp
 It also serves as a kernel component of the native iSCSI target.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.cam.ctl.iscsi.maxcmdsn_delta
+The number of outstanding commands to advertise to the initiator.
+Technically, it's the difference between ExpCmdSN and MaxCmdSN fields
+in the iSCSI PDU.
+.It Va kern.cam.ctl.iscsi.ping_timeout
+The number of seconds to wait for the initiator to respond to a NOP-In
+PDU.
+In the event that there is no response within that time the session gets
+forcibly terminated.
 .Sh SEE ALSO
 .Xr ctladm 8 ,
 .Xr ctld 8 ,
@@ -90,4 +113,4 @@ subsystem first appeared in
 The
 .Nm
 subsystem was written by
-.An Kenneth Merry Aq ken@FreeBSD.org .
+.An Kenneth Merry Aq Mt ken@FreeBSD.org .

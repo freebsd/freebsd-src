@@ -28,7 +28,7 @@
  */
 
 #if !defined(__SORT_FILE_H__)
-#define __SORT_FILE_H__
+#define	__SORT_FILE_H__
 
 #include "coll.h"
 #include "sort.h"
@@ -39,8 +39,8 @@
 #define	SORT_HEAPSORT	3
 #define	SORT_RADIXSORT  4
 
-#define DEFAULT_SORT_ALGORITHM SORT_HEAPSORT
-#define DEFAULT_SORT_FUNC heapsort
+#define	DEFAULT_SORT_ALGORITHM SORT_HEAPSORT
+#define	DEFAULT_SORT_FUNC heapsort
 
 /*
  * List of data to be sorted.
@@ -55,7 +55,7 @@ struct sort_list
 };
 
 /*
- * File reader object 
+ * File reader object
  */
 struct file_reader;
 
@@ -68,16 +68,6 @@ struct file_list
 	size_t			 count;
 	size_t			 sz;
 	bool			 tmp;
-};
-
-/*
- * Structure for zero-separated file reading (for input files list)
- */
-struct file0_reader
-{
-	char			*current_line;
-	FILE			*f;
-	size_t			 current_sz;
 };
 
 /* memory */
@@ -109,8 +99,6 @@ extern const char* compress_program;
 struct file_reader *file_reader_init(const char *fsrc);
 struct bwstring *file_reader_readline(struct file_reader *fr);
 void file_reader_free(struct file_reader *fr);
-
-char *read_file0_line(struct file0_reader *f0r);
 
 void init_tmp_files(void);
 void clear_tmp_files(void);

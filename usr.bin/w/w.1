@@ -28,7 +28,7 @@
 .\"     @(#)w.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2010
+.Dd November 5, 2014
 .Dt W 1
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nd "display who is logged in and what they are doing"
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl dhin
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -99,7 +100,9 @@ flags are no longer supported.
 .Xr finger 1 ,
 .Xr ps 1 ,
 .Xr uptime 1 ,
-.Xr who 1
+.Xr who 1 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3
 .Sh HISTORY
 The
 .Nm

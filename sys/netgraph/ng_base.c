@@ -2952,15 +2952,12 @@ uma_zone_t			ng_qzone;
 uma_zone_t			ng_qdzone;
 static int			numthreads = 0; /* number of queue threads */
 static int			maxalloc = 4096;/* limit the damage of a leak */
-static int			maxdata = 512;	/* limit the damage of a DoS */
+static int			maxdata = 4096;	/* limit the damage of a DoS */
 
-TUNABLE_INT("net.graph.threads", &numthreads);
 SYSCTL_INT(_net_graph, OID_AUTO, threads, CTLFLAG_RDTUN, &numthreads,
     0, "Number of queue processing threads");
-TUNABLE_INT("net.graph.maxalloc", &maxalloc);
 SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RDTUN, &maxalloc,
     0, "Maximum number of non-data queue items to allocate");
-TUNABLE_INT("net.graph.maxdata", &maxdata);
 SYSCTL_INT(_net_graph, OID_AUTO, maxdata, CTLFLAG_RDTUN, &maxdata,
     0, "Maximum number of data queue items to allocate");
 
@@ -3252,8 +3249,8 @@ static moduledata_t netgraph_mod = {
 };
 DECLARE_MODULE(netgraph, netgraph_mod, SI_SUB_NETGRAPH, SI_ORDER_FIRST);
 SYSCTL_NODE(_net, OID_AUTO, graph, CTLFLAG_RW, 0, "netgraph Family");
-SYSCTL_INT(_net_graph, OID_AUTO, abi_version, CTLFLAG_RD, 0, NG_ABI_VERSION,"");
-SYSCTL_INT(_net_graph, OID_AUTO, msg_version, CTLFLAG_RD, 0, NG_VERSION, "");
+SYSCTL_INT(_net_graph, OID_AUTO, abi_version, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_ABI_VERSION,"");
+SYSCTL_INT(_net_graph, OID_AUTO, msg_version, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_VERSION, "");
 
 #ifdef	NETGRAPH_DEBUG
 void

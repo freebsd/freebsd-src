@@ -11,7 +11,7 @@
 #define LLVM_CLANG_FRONTEND_CHAINEDDIAGNOSTICCONSUMER_H
 
 #include "clang/Basic/Diagnostic.h"
-#include "llvm/ADT/OwningPtr.h"
+#include <memory>
 
 namespace clang {
 class LangOptions;
@@ -22,38 +22,43 @@ class LangOptions;
 /// diagnostics should be included in counts.
 class ChainedDiagnosticConsumer : public DiagnosticConsumer {
   virtual void anchor();
-  OwningPtr<DiagnosticConsumer> Primary;
-  OwningPtr<DiagnosticConsumer> Secondary;
+  std::unique_ptr<DiagnosticConsumer> OwningPrimary;
+  DiagnosticConsumer *Primary;
+  std::unique_ptr<DiagnosticConsumer> Secondary;
 
 public:
-  ChainedDiagnosticConsumer(DiagnosticConsumer *_Primary,
-                          DiagnosticConsumer *_Secondary) {
-    Primary.reset(_Primary);
-    Secondary.reset(_Secondary);
-  }
+  ChainedDiagnosticConsumer(std::unique_ptr<DiagnosticConsumer> Primary,
+                            std::unique_ptr<DiagnosticConsumer> Secondary)
+      : OwningPrimary(std::move(Primary)), Primary(OwningPrimary.get()),
+        Secondary(std::move(Secondary)) {}
 
-  virtual void BeginSourceFile(const LangOptions &LO,
-                               const Preprocessor *PP) {
+  /// \brief Construct without taking ownership of \c Primary.
+  ChainedDiagnosticConsumer(DiagnosticConsumer *Primary,
+                            std::unique_ptr<DiagnosticConsumer> Secondary)
+      : Primary(Primary), Secondary(std::move(Secondary)) {}
+
+  void BeginSourceFile(const LangOptions &LO,
+                       const Preprocessor *PP) override {
     Primary->BeginSourceFile(LO, PP);
     Secondary->BeginSourceFile(LO, PP);
   }
 
-  virtual void EndSourceFile() {
+  void EndSourceFile() override {
     Secondary->EndSourceFile();
     Primary->EndSourceFile();
   }
 
-  virtual void finish() {
+  void finish() override {
     Secondary->finish();
     Primary->finish();
   }
 
-  virtual bool IncludeInDiagnosticCounts() const {
+  bool IncludeInDiagnosticCounts() const override {
     return Primary->IncludeInDiagnosticCounts();
   }
 
-  virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
-                                const Diagnostic &Info) {
+  void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                        const Diagnostic &Info) override {
     // Default implementation (Warnings/errors count).
     DiagnosticConsumer::HandleDiagnostic(DiagLevel, Info);
 

@@ -17,10 +17,10 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/Target/Mangler.h"
 
 using namespace llvm;
 
@@ -43,7 +43,7 @@ MCOperand XCoreMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
       Symbol = MO.getMBB()->getSymbol();
       break;
     case MachineOperand::MO_GlobalAddress:
-      Symbol = Mang->getSymbol(MO.getGlobal());
+      Symbol = Printer.getSymbol(MO.getGlobal());
       Offset += MO.getOffset();
       break;
     case MachineOperand::MO_BlockAddress:

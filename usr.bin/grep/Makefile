@@ -2,7 +2,7 @@
 #	$FreeBSD$
 #	$OpenBSD: Makefile,v 1.6 2003/06/25 15:00:04 millert Exp $
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_BSD_GREP} == "yes"
 PROG=	grep
@@ -11,7 +11,7 @@ PROG=	bsdgrep
 CLEANFILES+= bsdgrep.1
 
 bsdgrep.1: grep.1
-	cp ${.ALLSRC} ${.TARGET}
+	${CP} ${.ALLSRC} ${.TARGET}
 .endif
 SRCS=	file.c grep.c queue.c util.c
 
@@ -31,21 +31,13 @@ MLINKS= grep.1 egrep.1 \
 	grep.1 fgrep.1 \
 	grep.1 zgrep.1 \
 	grep.1 zegrep.1 \
-	grep.1 zfgrep.1 \
-	grep.1 xzgrep.1 \
-	grep.1 xzegrep.1 \
-	grep.1 xzfgrep.1 \
-	grep.1 lzgrep.1 \
-	grep.1 lzegrep.1 \
-	grep.1 lzfgrep.1
+	grep.1 zfgrep.1
 .endif
 
-LDADD=	-lz
-DPADD=	${LIBZ}
+LIBADD=	z
 
-.if !defined(WITHOUT_LZMA_SUPPORT)
-LDADD+=	-llzma
-DPADD+=	${LIBLZMA}
+.if ${MK_LZMA_SUPPORT} != "no"
+LIBADD+=	lzma
 
 LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
 	${BINDIR}/${PROG} ${BINDIR}/xzegrep \
@@ -53,13 +45,19 @@ LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
 	${BINDIR}/${PROG} ${BINDIR}/lzgrep \
 	${BINDIR}/${PROG} ${BINDIR}/lzegrep \
 	${BINDIR}/${PROG} ${BINDIR}/lzfgrep
+
+MLINKS+= grep.1 xzgrep.1 \
+	 grep.1 xzegrep.1 \
+	 grep.1 xzfgrep.1 \
+	 grep.1 lzgrep.1 \
+	 grep.1 lzegrep.1 \
+	 grep.1 lzfgrep.1
 .else
 CFLAGS+= -DWITHOUT_LZMA
 .endif
 
-.if !defined(WITHOUT_BZIP2_SUPPORT)
-LDADD+=	-lbz2
-DPADD+=	${LIBBZ2}
+.if ${MK_BZIP2_SUPPORT} != "no"
+LIBADD+=	bz2
 
 .if ${MK_BSD_GREP} == "yes"
 LINKS+= ${BINDIR}/grep ${BINDIR}/bzgrep \
@@ -73,16 +71,19 @@ MLINKS+= grep.1 bzgrep.1 \
 CFLAGS+= -DWITHOUT_BZIP2
 .endif
 
-.if !defined(WITHOUT_GNU_COMPAT)
+.if ${MK_GNU_GREP_COMPAT} != "no"
 CFLAGS+= -I${DESTDIR}/usr/include/gnu
-LDADD+=	-lgnuregex
-DPADD+=	${LIBGNUREGEX}
+LIBADD+=	gnuregex
 .endif
 
-.if !defined(WITHOUT_NLS)
+.if ${MK_NLS} != "no"
 .include "${.CURDIR}/nls/Makefile.inc"
 .else
 CFLAGS+= -DWITHOUT_NLS
+.endif
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
 .endif
 
 .include <bsd.prog.mk>

@@ -14,7 +14,7 @@
 .if exists(${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}/opensolaris_atomic.S)
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
 ATOMIC_SRCS=	opensolaris_atomic.S
-.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "sparc64"
+.if ${MACHINE_ARCH} != "sparc64"
 ACFLAGS+=	-Wa,--noexecstack
 .endif
 .else
@@ -56,11 +56,12 @@ CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/thread
 CFLAGS+=	-I${.CURDIR}/../../../lib/libpthread/sys
 CFLAGS+=	-I${.CURDIR}/../../../lib/libthr/arch/${MACHINE_CPUARCH}/include
 
-DPADD=		${LIBMD} ${LIBPTHREAD} ${LIBZ}
-LDADD=		-lmd -lpthread -lz
+DPADD=		${LIBMD} ${LIBPTHREAD} ${LIBZ} ${LIBNVPAIR} \
+		${LIBAVL} ${LIBUMEM}
+LDADD=		-lmd -lpthread -lz -lnvpair -lavl -lumem
 
 # atomic.S doesn't like profiling.
-NO_PROFILE=
+MK_PROFILE=	no
 
 CSTD=	c99
 

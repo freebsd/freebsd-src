@@ -98,6 +98,7 @@ main(int argc, char *argv[])
 	int             which = -1;
 	char		*config = NULL;
 	struct userconf *cnf;
+	struct stat	st;
 
 	static const char *opts[W_NUM][M_NUM] =
 	{
@@ -143,6 +144,13 @@ main(int argc, char *argv[])
 			if (argv[1][1] == 'V') {
 				optarg = &argv[1][2];
 				if (*optarg == '\0') {
+					if (stat(argv[2], &st) != 0)
+						errx(EX_OSFILE, \
+						    "no such directory `%s'",
+						    argv[2]);
+					if (!S_ISDIR(st.st_mode))
+						errx(EX_OSFILE, "`%s' not a "
+						    "directory", argv[2]);
 					optarg = argv[2];
 					++argv;
 					--argc;
@@ -213,8 +221,9 @@ main(int argc, char *argv[])
 		char * etcpath = getarg(&arglist, 'V')->val;
 		if (*etcpath) {
 			if (config == NULL) {	/* Only override config location if -C not specified */
-				config = malloc(MAXPATHLEN);
-				snprintf(config, MAXPATHLEN, "%s/pw.conf", etcpath);
+				asprintf(&config, "%s/pw.conf", etcpath);
+				if (config == NULL)
+					 errx(EX_OSERR, "out of memory");
 			}
 			memcpy(&PWF, &VPWF, sizeof PWF);
 			setpwdir(etcpath);

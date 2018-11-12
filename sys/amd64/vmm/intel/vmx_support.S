@@ -29,13 +29,17 @@
 
 #include <machine/asmacros.h>
 
-#include "vmx_assym.s"
+#include "vmx_assym.h"
 
 #ifdef SMP
 #define	LK	lock ;
 #else
 #define	LK
 #endif
+
+/* Be friendly to DTrace FBT's prologue/epilogue pattern matching */
+#define VENTER  push %rbp ; mov %rsp,%rbp
+#define VLEAVE  pop %rbp
 
 /*
  * Assumes that %rdi holds a pointer to the 'vmxctx'.
@@ -72,8 +76,7 @@
  *
  * Assumes that %rdi holds a pointer to the 'vmxctx'.
  */
-#define	VMX_HOST_SAVE(tmpreg)						\
-	movq	(%rsp), tmpreg;			/* return address */	\
+#define	VMX_HOST_SAVE							\
 	movq    %r15, VMXCTX_HOST_R15(%rdi);				\
 	movq    %r14, VMXCTX_HOST_R14(%rdi);				\
 	movq    %r13, VMXCTX_HOST_R13(%rdi);				\
@@ -81,9 +84,8 @@
 	movq    %rbp, VMXCTX_HOST_RBP(%rdi);				\
 	movq    %rsp, VMXCTX_HOST_RSP(%rdi);				\
 	movq    %rbx, VMXCTX_HOST_RBX(%rdi);				\
-	movq    tmpreg, VMXCTX_HOST_RIP(%rdi)
 
-#define	VMX_HOST_RESTORE(tmpreg)					\
+#define	VMX_HOST_RESTORE						\
 	movq	VMXCTX_HOST_R15(%rdi), %r15;				\
 	movq	VMXCTX_HOST_R14(%rdi), %r14;				\
 	movq	VMXCTX_HOST_R13(%rdi), %r13;				\
@@ -91,20 +93,20 @@
 	movq	VMXCTX_HOST_RBP(%rdi), %rbp;				\
 	movq	VMXCTX_HOST_RSP(%rdi), %rsp;				\
 	movq	VMXCTX_HOST_RBX(%rdi), %rbx;				\
-	movq	VMXCTX_HOST_RIP(%rdi), tmpreg;				\
-	movq	tmpreg, (%rsp)			/* return address */
 
 /*
  * vmx_enter_guest(struct vmxctx *vmxctx, int launched)
  * %rdi: pointer to the 'vmxctx'
- * %esi: launch state of the VMCS
+ * %rsi: pointer to the 'vmx'
+ * %edx: launch state of the VMCS
  * Interrupts must be disabled on entry.
  */
 ENTRY(vmx_enter_guest)
+	VENTER
 	/*
 	 * Save host state before doing anything else.
 	 */
-	VMX_HOST_SAVE(%r10)
+	VMX_HOST_SAVE
 
 	/*
 	 * Activate guest pmap on this cpu.
@@ -114,19 +116,19 @@ ENTRY(vmx_enter_guest)
 	LK btsl	%eax, PM_ACTIVE(%r11)
 
 	/*
-	 * If 'vmxctx->eptgen[curcpu]' is not identical to 'pmap->pm_eptgen'
+	 * If 'vmx->eptgen[curcpu]' is not identical to 'pmap->pm_eptgen'
 	 * then we must invalidate all mappings associated with this EPTP.
 	 */
 	movq	PM_EPTGEN(%r11), %r10
-	cmpq	%r10, VMXCTX_EPTGEN(%rdi, %rax, 8)
+	cmpq	%r10, VMX_EPTGEN(%rsi, %rax, 8)
 	je	guest_restore
 
-	/* Refresh 'vmxctx->eptgen[curcpu]' */
-	movq	%r10, VMXCTX_EPTGEN(%rdi, %rax, 8)
+	/* Refresh 'vmx->eptgen[curcpu]' */
+	movq	%r10, VMX_EPTGEN(%rsi, %rax, 8)
 
 	/* Setup the invept descriptor on the host stack */
 	mov	%rsp, %r11
-	movq	VMXCTX_EPTP(%rdi), %rax
+	movq	VMX_EPTP(%rsi), %rax
 	movq	%rax, -16(%r11)
 	movq	$0x0, -8(%r11)
 	mov	$0x1, %eax		/* Single context invalidate */
@@ -134,7 +136,7 @@ ENTRY(vmx_enter_guest)
 	jbe	invept_error		/* Check invept instruction error */
 
 guest_restore:
-	cmpl	$0, %esi
+	cmpl	$0, %edx
 	je	do_launch
 
 	VMX_GUEST_RESTORE
@@ -185,15 +187,18 @@ inst_error:
 	movl	PCPU(CPUID), %r10d
 	LK btrl	%r10d, PM_ACTIVE(%r11)
 
-	VMX_HOST_RESTORE(%r10)
+	VMX_HOST_RESTORE
+	VLEAVE
 	ret
-END(vmx_enter_guest)
 
 /*
- * void vmx_exit_guest(void)
- * %rsp points to the struct vmxctx
+ * Non-error VM-exit from the guest. Make this a label so it can
+ * be used by C code when setting up the VMCS.
+ * The VMCS-restored %rsp points to the struct vmxctx
  */
-ENTRY(vmx_exit_guest)
+	ALIGN_TEXT
+	.globl	vmx_exit_guest
+vmx_exit_guest:
 	/*
 	 * Save guest state that is not automatically saved in the vmcs.
 	 */
@@ -225,15 +230,16 @@ ENTRY(vmx_exit_guest)
 	movl	PCPU(CPUID), %r10d
 	LK btrl	%r10d, PM_ACTIVE(%r11)
 
-	VMX_HOST_RESTORE(%r10)
+	VMX_HOST_RESTORE
 
 	/*
 	 * This will return to the caller of 'vmx_enter_guest()' with a return
 	 * value of VMX_GUEST_VMEXIT.
 	 */
 	movl	$VMX_GUEST_VMEXIT, %eax
+	VLEAVE
 	ret
-END(vmx_exit_guest)
+END(vmx_enter_guest)
 
 /*
  * %rdi = interrupt handler entry point
@@ -242,6 +248,7 @@ END(vmx_exit_guest)
  * instruction in Intel SDM, Vol 2.
  */
 ENTRY(vmx_call_isr)
+	VENTER
 	mov	%rsp, %r11			/* save %rsp */
 	and	$~0xf, %rsp			/* align on 16-byte boundary */
 	pushq	$KERNEL_SS			/* %ss */
@@ -250,5 +257,6 @@ ENTRY(vmx_call_isr)
 	pushq	$KERNEL_CS			/* %cs */
 	cli					/* disable interrupts */
 	callq	*%rdi				/* push %rip and call isr */
+	VLEAVE
 	ret
 END(vmx_call_isr)

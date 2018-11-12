@@ -107,7 +107,6 @@ struct buf {
 	off_t	b_offset;		/* Offset into file. */
 	TAILQ_ENTRY(buf) b_bobufs;	/* (V) Buffer's associated vnode. */
 	uint32_t	b_vflags;	/* (V) BV_* flags */
-	TAILQ_ENTRY(buf) b_freelist;	/* (Q) Free list position inactive. */
 	unsigned short b_qindex;	/* (Q) buffer queue index */
 	uint32_t	b_flags;	/* B_* flags. */
 	b_xflags_t b_xflags;		/* extra flags */
@@ -124,9 +123,15 @@ struct buf {
 	struct	ucred *b_rcred;		/* Read credentials reference. */
 	struct	ucred *b_wcred;		/* Write credentials reference. */
 	void	*b_saveaddr;		/* Original b_addr for physio. */
-	union	pager_info {
-		int	pg_reqpage;
-	} b_pager;
+	union {
+		TAILQ_ENTRY(buf) bu_freelist; /* (Q) */
+		struct {
+			void	(*pg_iodone)(void *, vm_page_t *, int, int);
+			int	pg_reqpage;
+		} bu_pager;
+	} b_union;
+#define	b_freelist	b_union.bu_freelist
+#define	b_pager         b_union.bu_pager
 	union	cluster_info {
 		TAILQ_HEAD(cluster_list_head, buf) cluster_head;
 		TAILQ_ENTRY(buf) cluster_entry;
@@ -210,10 +215,10 @@ struct buf {
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
 #define	B_000400000	0x00040000	/* Available flag. */
 #define	B_000800000	0x00080000	/* Available flag. */
-#define	B_00100000	0x00100000	/* Available flag. */
+#define	B_001000000	0x00100000	/* Available flag. */
 #define	B_DIRTY		0x00200000	/* Needs writing later (in EXT2FS). */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
-#define	B_00800000	0x00800000	/* Available flag. */
+#define	B_FS_FLAG1	0x00800000	/* Available flag for FS use. */
 #define	B_NOCOPY	0x01000000	/* Don't copy-on-write this buf. */
 #define	B_INFREECNT	0x02000000	/* buf is counted in numfreebufs */
 #define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */
@@ -226,8 +231,8 @@ struct buf {
 #define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
 	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26dirty\25b20" \
 	"\24b19\23b18\22clusterok\21malloc\20nocache\17b14\16inval" \
-	"\15b12\14b11\13eintr\12done\11persist\10delwri\7validsuspwrt" \
-	"\6cache\5deferred\4direct\3async\2needcommit\1age"
+	"\15kvaalloc\14unmapped\13eintr\12done\11persist\10delwri" \
+	"\7validsuspwrt\6cache\5deferred\4direct\3async\2needcommit\1age"
 
 /*
  * These flags are kept in b_xflags.
@@ -470,6 +475,8 @@ extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
 extern int	cluster_pbuf_freecnt;	/* Number of pbufs for clusters */
 extern int	vnode_pbuf_freecnt;	/* Number of pbufs for vnode pager */
+extern int	vnode_async_pbuf_freecnt; /* Number of pbufs for vnode pager,
+					     asynchronous reads */
 extern caddr_t	unmapped_buf;
 
 void	runningbufwakeup(struct buf *);

@@ -12,59 +12,68 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPCMCAsmInfo.h"
+#include "llvm/ADT/Triple.h"
+
 using namespace llvm;
 
 void PPCMCAsmInfoDarwin::anchor() { }
 
-PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit) {
+PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit, const Triple& T) {
   if (is64Bit) {
     PointerSize = CalleeSaveStackSlotSize = 8;
   }
   IsLittleEndian = false;
 
-  PCSymbol = ".";
   CommentString = ";";
   ExceptionsType = ExceptionHandling::DwarfCFI;
 
   if (!is64Bit)
-    Data64bitsDirective = 0;      // We can't emit a 64-bit unit in PPC32 mode.
+    Data64bitsDirective = nullptr; // We can't emit a 64-bit unit in PPC32 mode.
 
   AssemblerDialect = 1;           // New-Style mnemonics.
   SupportsDebugInformation= true; // Debug information.
+
+  // The installed assembler for OSX < 10.6 lacks some directives.
+  // FIXME: this should really be a check on the assembler characteristics
+  // rather than OS version
+  if (T.isMacOSX() && T.isMacOSXVersionLT(10, 6))
+    HasWeakDefCanBeHiddenDirective = false;
+
+  UseIntegratedAssembler = true;
 }
 
-void PPCLinuxMCAsmInfo::anchor() { }
+void PPCELFMCAsmInfo::anchor() { }
 
-PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
+PPCELFMCAsmInfo::PPCELFMCAsmInfo(bool is64Bit, const Triple& T) {
   if (is64Bit) {
     PointerSize = CalleeSaveStackSlotSize = 8;
   }
-  IsLittleEndian = false;
+  IsLittleEndian = T.getArch() == Triple::ppc64le;
 
   // ".comm align is in bytes but .align is pow-2."
   AlignmentIsInBytes = false;
 
   CommentString = "#";
-  GlobalPrefix = "";
-  PrivateGlobalPrefix = ".L";
-  WeakRefDirective = "\t.weak\t";
-  
+
   // Uses '.section' before '.bss' directive
   UsesELFSectionDirectiveForBSS = true;  
 
   // Debug Information
   SupportsDebugInformation = true;
 
-  PCSymbol = ".";
+  DollarIsPC = true;
 
   // Set up DWARF directives
-  HasLEB128 = true;  // Target asm supports leb128 directives (little-endian)
+  MinInstAlignment = 4;
 
   // Exceptions handling
   ExceptionsType = ExceptionHandling::DwarfCFI;
     
   ZeroDirective = "\t.space\t";
-  Data64bitsDirective = is64Bit ? "\t.quad\t" : 0;
-  AssemblerDialect = 0;           // Old-Style mnemonics.
+  Data64bitsDirective = is64Bit ? "\t.quad\t" : nullptr;
+  AssemblerDialect = 1;           // New-Style mnemonics.
+  LCOMMDirectiveAlignmentType = LCOMM::ByteAlignment;
+
+  UseIntegratedAssembler = true;
 }
 

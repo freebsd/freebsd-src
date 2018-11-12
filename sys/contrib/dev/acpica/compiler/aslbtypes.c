@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -243,7 +242,7 @@ AnMapEtypeToBtype (
 
             return (ACPI_BTYPE_INTEGER | ACPI_BTYPE_DDB_HANDLE);
 
-        case ACPI_BTYPE_DEBUG_OBJECT:
+        case ACPI_TYPE_DEBUG_OBJECT:
 
             /* Cannot be used as a source operand */
 
@@ -374,6 +373,12 @@ AnGetBtype (
     ACPI_PARSE_OBJECT       *ReferencedNode;
     UINT32                  ThisNodeBtype = 0;
 
+
+    if (!Op)
+    {
+        AcpiOsPrintf ("Null Op in AnGetBtype\n");
+        return (ACPI_UINT32_MAX);
+    }
 
     if ((Op->Asl.ParseOpcode == PARSEOP_NAMESEG)     ||
         (Op->Asl.ParseOpcode == PARSEOP_NAMESTRING)  ||

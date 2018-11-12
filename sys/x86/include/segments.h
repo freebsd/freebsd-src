@@ -46,11 +46,7 @@
  */
 #define	SEL_RPL_MASK	3		/* requester priv level */
 #define	ISPL(s)		((s)&3)		/* priority level of a selector */
-#ifdef XEN
-#define	SEL_KPL		1		/* kernel priority level */
-#else
 #define	SEL_KPL		0		/* kernel priority level */
-#endif
 #define	SEL_UPL		3		/* user priority level */
 #define	ISLDT(s)	((s)&SEL_LDT)	/* is it local or global */
 #define	SEL_LDT		4		/* local descriptor table */
@@ -219,7 +215,7 @@ union descriptor {
 #define	IDT_DTRACE_RET	0x92	/* DTrace pid provider Interrupt Vector */
 #define	IDT_EVTCHN	0x93	/* Xen HVM Event Channel Interrupt Vector */
 
-#if defined(__i386__) || defined(__ia64__)
+#if defined(__i386__)
 /*
  * Entries in the Global Descriptor Table (GDT)
  * Note that each 4 entries share a single 32 byte L1 cache line.
@@ -244,11 +240,7 @@ union descriptor {
 #define	GBIOSUTIL_SEL	16	/* BIOS interface (Utility) */
 #define	GBIOSARGS_SEL	17	/* BIOS interface (Arguments) */
 #define	GNDIS_SEL	18	/* For the NDIS layer */
-#ifdef XEN
-#define	NGDT		9
-#else
 #define	NGDT		19
-#endif
 
 /*
  * Entries in the Local Descriptor Table (LDT)
@@ -264,7 +256,7 @@ union descriptor {
 #define	LBSDICALLS_SEL	16	/* BSDI system call gate */
 #define	NLDT		(LBSDICALLS_SEL + 1)
 
-#else /* !__i386__ && !__ia64__ */
+#else /* !__i386__ */
 /*
  * Entries in the Global Descriptor Table (GDT)
  */
@@ -282,6 +274,6 @@ union descriptor {
 #define	GUSERLDT_SEL	11	/* LDT */
 /* slot 12 is second half of GUSERLDT_SEL */
 #define	NGDT 		13
-#endif /* __i386__ || __ia64__ */
+#endif /* __i386__ */
 
 #endif /* !_X86_SEGMENTS_H_ */

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARMHAZARDRECOGNIZER_H
-#define ARMHAZARDRECOGNIZER_H
+#ifndef LLVM_LIB_TARGET_ARM_ARMHAZARDRECOGNIZER_H
+#define LLVM_LIB_TARGET_ARM_ARMHAZARDRECOGNIZER_H
 
 #include "llvm/CodeGen/ScoreboardHazardRecognizer.h"
 
@@ -28,29 +28,22 @@ class MachineInstr;
 /// ARM preRA scheduler uses an unspecialized instance of the
 /// ScoreboardHazardRecognizer.
 class ARMHazardRecognizer : public ScoreboardHazardRecognizer {
-  const ARMBaseInstrInfo &TII;
-  const ARMBaseRegisterInfo &TRI;
-  const ARMSubtarget &STI;
-
   MachineInstr *LastMI;
   unsigned FpMLxStalls;
 
 public:
   ARMHazardRecognizer(const InstrItineraryData *ItinData,
-                      const ARMBaseInstrInfo &tii,
-                      const ARMBaseRegisterInfo &tri,
-                      const ARMSubtarget &sti,
-                      const ScheduleDAG *DAG) :
-    ScoreboardHazardRecognizer(ItinData, DAG, "post-RA-sched"), TII(tii),
-    TRI(tri), STI(sti), LastMI(0) {}
+                      const ScheduleDAG *DAG)
+    : ScoreboardHazardRecognizer(ItinData, DAG, "post-RA-sched"),
+      LastMI(nullptr) {}
 
-  virtual HazardType getHazardType(SUnit *SU, int Stalls);
-  virtual void Reset();
-  virtual void EmitInstruction(SUnit *SU);
-  virtual void AdvanceCycle();
-  virtual void RecedeCycle();
+  HazardType getHazardType(SUnit *SU, int Stalls) override;
+  void Reset() override;
+  void EmitInstruction(SUnit *SU) override;
+  void AdvanceCycle() override;
+  void RecedeCycle() override;
 };
 
 } // end namespace llvm
 
-#endif // ARMHAZARDRECOGNIZER_H
+#endif

@@ -11,16 +11,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CGCLEANUP_H
-#define CLANG_CODEGEN_CGCLEANUP_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CGCLEANUP_H
+#define LLVM_CLANG_LIB_CODEGEN_CGCLEANUP_H
 
-/// EHScopeStack is defined in CodeGenFunction.h, but its
-/// implementation is in this file and in CGCleanup.cpp.
-#include "CodeGenFunction.h"
+#include "EHScopeStack.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
-  class Value;
-  class BasicBlock;
+class BasicBlock;
+class Value;
+class ConstantInt;
+class AllocaInst;
 }
 
 namespace clang {
@@ -94,7 +96,7 @@ public:
   enum Kind { Cleanup, Catch, Terminate, Filter };
 
   EHScope(Kind kind, EHScopeStack::stable_iterator enclosingEHScope)
-    : CachedLandingPad(0), CachedEHDispatchBlock(0),
+    : CachedLandingPad(nullptr), CachedEHDispatchBlock(nullptr),
       EnclosingEHScope(enclosingEHScope) {
     CommonBits.Kind = kind;
   }
@@ -143,12 +145,12 @@ public:
   struct Handler {
     /// A type info value, or null (C++ null, not an LLVM null pointer)
     /// for a catch-all.
-    llvm::Value *Type;
+    llvm::Constant *Type;
 
     /// The catch handler for this type.
     llvm::BasicBlock *Block;
 
-    bool isCatchAll() const { return Type == 0; }
+    bool isCatchAll() const { return Type == nullptr; }
   };
 
 private:
@@ -178,10 +180,10 @@ public:
   }
 
   void setCatchAllHandler(unsigned I, llvm::BasicBlock *Block) {
-    setHandler(I, /*catchall*/ 0, Block);
+    setHandler(I, /*catchall*/ nullptr, Block);
   }
 
-  void setHandler(unsigned I, llvm::Value *Type, llvm::BasicBlock *Block) {
+  void setHandler(unsigned I, llvm::Constant *Type, llvm::BasicBlock *Block) {
     assert(I < getNumHandlers());
     getHandlers()[I].Type = Type;
     getHandlers()[I].Block = Block;
@@ -190,6 +192,15 @@ public:
   const Handler &getHandler(unsigned I) const {
     assert(I < getNumHandlers());
     return getHandlers()[I];
+  }
+
+  // Clear all handler blocks.
+  // FIXME: it's better to always call clearHandlerBlocks in DTOR and have a
+  // 'takeHandler' or some such function which removes ownership from the
+  // EHCatchScope object if the handlers should live longer than EHCatchScope.
+  void clearHandlerBlocks() {
+    for (unsigned I = 0, N = getNumHandlers(); I != N; ++I)
+      delete getHandler(I).Block;
   }
 
   typedef const Handler *iterator;
@@ -257,7 +268,7 @@ public:
                  EHScopeStack::stable_iterator enclosingNormal,
                  EHScopeStack::stable_iterator enclosingEH)
     : EHScope(EHScope::Cleanup, enclosingEH), EnclosingNormal(enclosingNormal),
-      NormalBlock(0), ActiveFlag(0), ExtInfo(0) {
+      NormalBlock(nullptr), ActiveFlag(nullptr), ExtInfo(nullptr) {
     CleanupBits.IsNormalCleanup = isNormal;
     CleanupBits.IsEHCleanup = isEH;
     CleanupBits.IsActive = isActive;
@@ -269,9 +280,11 @@ public:
     assert(CleanupBits.CleanupSize == cleanupSize && "cleanup size overflow");
   }
 
-  ~EHCleanupScope() {
+  void Destroy() {
     delete ExtInfo;
   }
+  // Objects of EHCleanupScope are not destructed. Use Destroy().
+  ~EHCleanupScope() LLVM_DELETED_FUNCTION;
 
   bool isNormalCleanup() const { return CleanupBits.IsNormalCleanup; }
   llvm::BasicBlock *getNormalBlock() const { return NormalBlock; }
@@ -330,7 +343,7 @@ public:
   void addBranchAfter(llvm::ConstantInt *Index,
                       llvm::BasicBlock *Block) {
     struct ExtInfo &ExtInfo = getExtInfo();
-    if (ExtInfo.Branches.insert(Block))
+    if (ExtInfo.Branches.insert(Block).second)
       ExtInfo.BranchAfters.push_back(std::make_pair(Block, Index));
   }
 
@@ -365,7 +378,7 @@ public:
   ///
   /// \return true if the branch-through was new to this scope
   bool addBranchThrough(llvm::BasicBlock *Block) {
-    return getExtInfo().Branches.insert(Block);
+    return getExtInfo().Branches.insert(Block).second;
   }
 
   /// Determines if this cleanup scope has any branch throughs.
@@ -444,7 +457,7 @@ class EHScopeStack::iterator {
   explicit iterator(char *Ptr) : Ptr(Ptr) {}
 
 public:
-  iterator() : Ptr(0) {}
+  iterator() : Ptr(nullptr) {}
 
   EHScope *get() const { 
     return reinterpret_cast<EHScope*>(Ptr);

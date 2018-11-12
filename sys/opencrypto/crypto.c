@@ -161,10 +161,10 @@ int	crypto_userasymcrypto = 1;	/* userland may do asym crypto reqs */
 SYSCTL_INT(_kern, OID_AUTO, userasymcrypto, CTLFLAG_RW,
 	   &crypto_userasymcrypto, 0,
 	   "Enable/disable user-mode access to asymmetric crypto support");
-int	crypto_devallowsoft = 0;	/* only use hardware crypto for asym */
+int	crypto_devallowsoft = 0;	/* only use hardware crypto */
 SYSCTL_INT(_kern, OID_AUTO, cryptodevallowsoft, CTLFLAG_RW,
 	   &crypto_devallowsoft, 0,
-	   "Enable/disable use of software asym crypto support");
+	   "Enable/disable use of software crypto by /dev/crypto");
 
 MALLOC_DEFINE(M_CRYPTO_DATA, "crypto", "crypto session records");
 
@@ -368,9 +368,8 @@ again:
 				best = cap;
 		}
 	}
-	if (best != NULL)
-		return best;
-	if (match == CRYPTOCAP_F_HARDWARE && (flags & CRYPTOCAP_F_SOFTWARE)) {
+	if (best == NULL && match == CRYPTOCAP_F_HARDWARE &&
+	    (flags & CRYPTOCAP_F_SOFTWARE)) {
 		/* sort of an Algol 68-style for loop */
 		match = CRYPTOCAP_F_SOFTWARE;
 		goto again;
@@ -421,9 +420,12 @@ crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int crid)
 			(*sid) <<= 32;
 			(*sid) |= (lid & 0xffffffff);
 			cap->cc_sessions++;
-		}
-	} else
+		} else
+			CRYPTDEB("dev newsession failed");
+	} else {
+		CRYPTDEB("no driver");
 		err = EINVAL;
+	}
 	CRYPTO_DRIVER_UNLOCK();
 	return err;
 }

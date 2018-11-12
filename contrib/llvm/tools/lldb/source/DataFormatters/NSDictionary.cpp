@@ -36,52 +36,167 @@ GetLLDBNSPairType (TargetSP target_sp)
 
     if (target_ast_context)
     {
-        clang::ASTContext *ast = target_ast_context->getASTContext();
+        ConstString g___lldb_autogen_nspair("__lldb_autogen_nspair");
 
-        if (ast)
+        clang_type = target_ast_context->GetTypeForIdentifier<clang::CXXRecordDecl>(g___lldb_autogen_nspair);
+        
+        if (!clang_type)
         {
-            const char* type_name = "__lldb_autogen_nspair";
+            clang_type = target_ast_context->CreateRecordType(NULL, lldb::eAccessPublic, g___lldb_autogen_nspair.GetCString(), clang::TTK_Struct, lldb::eLanguageTypeC);
             
-            clang::IdentifierInfo &myIdent = ast->Idents.get(type_name);
-            clang::DeclarationName myName = ast->DeclarationNames.getIdentifier(&myIdent);
-
-            clang::DeclContext::lookup_const_result result = ast->getTranslationUnitDecl()->lookup(myName);
-
-            for (clang::NamedDecl *named_decl : result)
+            if (clang_type)
             {
-                if (const clang::CXXRecordDecl *record_decl = llvm::dyn_cast<clang::CXXRecordDecl>(named_decl))
-                {
-                    clang_type.SetClangType(ast, clang::QualType(record_decl->getTypeForDecl(), 0));
-                    break;
-                }
-                else
-                {
-                    // somebody else (the user?) has defined a type with the magic name already - fail!!!
-                    return clang_type;
-                }
-            }
-
-            if (!clang_type)
-            {
-                clang_type = target_ast_context->CreateRecordType(NULL, lldb::eAccessPublic, type_name, clang::TTK_Struct, lldb::eLanguageTypeC);
-                
-                if (clang_type)
-                {
-                    clang_type.StartTagDeclarationDefinition();
-                    ClangASTType id_clang_type = target_ast_context->GetBasicType (eBasicTypeObjCID);
-                    clang_type.AddFieldToRecordType("key", id_clang_type, lldb::eAccessPublic, 0);
-                    clang_type.AddFieldToRecordType("value", id_clang_type, lldb::eAccessPublic, 0);
-                    clang_type.CompleteTagDeclarationDefinition();
-                }
+                clang_type.StartTagDeclarationDefinition();
+                ClangASTType id_clang_type = target_ast_context->GetBasicType (eBasicTypeObjCID);
+                clang_type.AddFieldToRecordType("key", id_clang_type, lldb::eAccessPublic, 0);
+                clang_type.AddFieldToRecordType("value", id_clang_type, lldb::eAccessPublic, 0);
+                clang_type.CompleteTagDeclarationDefinition();
             }
         }
     }
     return clang_type;
 }
 
+namespace lldb_private {
+    namespace  formatters {
+        class NSDictionaryISyntheticFrontEnd : public SyntheticChildrenFrontEnd
+        {
+        private:
+            struct DataDescriptor_32
+            {
+                uint32_t _used : 26;
+                uint32_t _szidx : 6;
+            };
+            struct DataDescriptor_64
+            {
+                uint64_t _used : 58;
+                uint32_t _szidx : 6;
+            };
+            
+            struct DictionaryItemDescriptor
+            {
+                lldb::addr_t key_ptr;
+                lldb::addr_t val_ptr;
+                lldb::ValueObjectSP valobj_sp;
+            };
+            
+        public:
+            NSDictionaryISyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
+            
+            virtual size_t
+            CalculateNumChildren ();
+            
+            virtual lldb::ValueObjectSP
+            GetChildAtIndex (size_t idx);
+            
+            virtual bool
+            Update();
+            
+            virtual bool
+            MightHaveChildren ();
+            
+            virtual size_t
+            GetIndexOfChildWithName (const ConstString &name);
+            
+            virtual
+            ~NSDictionaryISyntheticFrontEnd ();
+        private:
+            ExecutionContextRef m_exe_ctx_ref;
+            uint8_t m_ptr_size;
+            lldb::ByteOrder m_order;
+            DataDescriptor_32 *m_data_32;
+            DataDescriptor_64 *m_data_64;
+            lldb::addr_t m_data_ptr;
+            ClangASTType m_pair_type;
+            std::vector<DictionaryItemDescriptor> m_children;
+        };
+        
+        class NSDictionaryMSyntheticFrontEnd : public SyntheticChildrenFrontEnd
+        {
+        private:
+            struct DataDescriptor_32
+            {
+                uint32_t _used : 26;
+                uint32_t _kvo : 1;
+                uint32_t _size;
+                uint32_t _mutations;
+                uint32_t _objs_addr;
+                uint32_t _keys_addr;
+            };
+            struct DataDescriptor_64
+            {
+                uint64_t _used : 58;
+                uint32_t _kvo : 1;
+                uint64_t _size;
+                uint64_t _mutations;
+                uint64_t _objs_addr;
+                uint64_t _keys_addr;
+            };
+            struct DictionaryItemDescriptor
+            {
+                lldb::addr_t key_ptr;
+                lldb::addr_t val_ptr;
+                lldb::ValueObjectSP valobj_sp;
+            };
+        public:
+            NSDictionaryMSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
+            
+            virtual size_t
+            CalculateNumChildren ();
+            
+            virtual lldb::ValueObjectSP
+            GetChildAtIndex (size_t idx);
+            
+            virtual bool
+            Update();
+            
+            virtual bool
+            MightHaveChildren ();
+            
+            virtual size_t
+            GetIndexOfChildWithName (const ConstString &name);
+            
+            virtual
+            ~NSDictionaryMSyntheticFrontEnd ();
+        private:
+            ExecutionContextRef m_exe_ctx_ref;
+            uint8_t m_ptr_size;
+            lldb::ByteOrder m_order;
+            DataDescriptor_32 *m_data_32;
+            DataDescriptor_64 *m_data_64;
+            ClangASTType m_pair_type;
+            std::vector<DictionaryItemDescriptor> m_children;
+        };
+        
+        class NSDictionaryCodeRunningSyntheticFrontEnd : public SyntheticChildrenFrontEnd
+        {
+        public:
+            NSDictionaryCodeRunningSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
+            
+            virtual size_t
+            CalculateNumChildren ();
+            
+            virtual lldb::ValueObjectSP
+            GetChildAtIndex (size_t idx);
+            
+            virtual bool
+            Update();
+            
+            virtual bool
+            MightHaveChildren ();
+            
+            virtual size_t
+            GetIndexOfChildWithName (const ConstString &name);
+            
+            virtual
+            ~NSDictionaryCodeRunningSyntheticFrontEnd ();
+        };
+    }
+}
+
 template<bool name_entries>
 bool
-lldb_private::formatters::NSDictionarySummaryProvider (ValueObject& valobj, Stream& stream)
+lldb_private::formatters::NSDictionarySummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options)
 {
     ProcessSP process_sp = valobj.GetProcessSP();
     if (!process_sp)
@@ -210,9 +325,9 @@ lldb::ValueObjectSP
 lldb_private::formatters::NSDictionaryCodeRunningSyntheticFrontEnd::GetChildAtIndex (size_t idx)
 {
     StreamString idx_name;
-    idx_name.Printf("[%zu]",idx);
+    idx_name.Printf("[%" PRIu64 "]", (uint64_t)idx);
     StreamString key_fetcher_expr;
-    key_fetcher_expr.Printf("(id)[(NSArray*)[(id)0x%" PRIx64 " allKeys] objectAtIndex:%zu]",m_backend.GetPointerValue(),idx);
+    key_fetcher_expr.Printf("(id)[(NSArray*)[(id)0x%" PRIx64 " allKeys] objectAtIndex:%" PRIu64 "]", m_backend.GetPointerValue(), (uint64_t)idx);
     StreamString value_fetcher_expr;
     value_fetcher_expr.Printf("(id)[(id)0x%" PRIx64 " objectForKey:(%s)]",m_backend.GetPointerValue(),key_fetcher_expr.GetData());
     StreamString object_fetcher_expr;
@@ -220,7 +335,9 @@ lldb_private::formatters::NSDictionaryCodeRunningSyntheticFrontEnd::GetChildAtIn
     lldb::ValueObjectSP child_sp;
     EvaluateExpressionOptions options;
     options.SetKeepInMemory(true);
-    m_backend.GetTargetSP()->EvaluateExpression(object_fetcher_expr.GetData(), m_backend.GetFrameSP().get(), child_sp,
+    m_backend.GetTargetSP()->EvaluateExpression(object_fetcher_expr.GetData(),
+                                                GetViableFrame(m_backend.GetTargetSP().get()),
+                                                child_sp,
                                                 options);
     if (child_sp)
         child_sp->SetName(ConstString(idx_name.GetData()));
@@ -403,9 +520,12 @@ lldb_private::formatters::NSDictionaryISyntheticFrontEnd::GetChildAtIndex (size_
         }
         
         StreamString idx_name;
-        idx_name.Printf("[%zu]",idx);
+        idx_name.Printf("[%" PRIu64 "]", (uint64_t)idx);
         DataExtractor data(buffer_sp, m_order, m_ptr_size);
-        dict_item.valobj_sp = ValueObject::CreateValueObjectFromData(idx_name.GetData(), data, m_exe_ctx_ref, m_pair_type);
+        dict_item.valobj_sp = CreateValueObjectFromData(idx_name.GetData(),
+                                                        data,
+                                                        m_exe_ctx_ref,
+                                                        m_pair_type);
     }
     return dict_item.valobj_sp;
 }
@@ -567,15 +687,18 @@ lldb_private::formatters::NSDictionaryMSyntheticFrontEnd::GetChildAtIndex (size_
         }
         
         StreamString idx_name;
-        idx_name.Printf("[%zu]",idx);
+        idx_name.Printf("[%" PRIu64 "]", (uint64_t)idx);
         DataExtractor data(buffer_sp, m_order, m_ptr_size);
-        dict_item.valobj_sp = ValueObject::CreateValueObjectFromData(idx_name.GetData(), data, m_exe_ctx_ref, m_pair_type);
+        dict_item.valobj_sp = CreateValueObjectFromData(idx_name.GetData(),
+                                                        data,
+                                                        m_exe_ctx_ref,
+                                                        m_pair_type);
     }
     return dict_item.valobj_sp;
 }
 
 template bool
-lldb_private::formatters::NSDictionarySummaryProvider<true> (ValueObject&, Stream&) ;
+lldb_private::formatters::NSDictionarySummaryProvider<true> (ValueObject&, Stream&, const TypeSummaryOptions&) ;
 
 template bool
-lldb_private::formatters::NSDictionarySummaryProvider<false> (ValueObject&, Stream&) ;
+lldb_private::formatters::NSDictionarySummaryProvider<false> (ValueObject&, Stream&, const TypeSummaryOptions&) ;

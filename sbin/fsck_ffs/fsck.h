@@ -369,7 +369,7 @@ int flushentry(void);
  * to get space.
  */
 static inline void*
-Malloc(int size)
+Malloc(size_t size)
 {
 	void *retval;
 
@@ -384,7 +384,7 @@ Malloc(int size)
  * to get space.
  */
 static inline void*
-Calloc(int cnt, int size)
+Calloc(size_t cnt, size_t size)
 {
 	void *retval;
 

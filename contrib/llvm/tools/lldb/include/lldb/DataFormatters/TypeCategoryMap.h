@@ -18,7 +18,7 @@
 #include "lldb/lldb-public.h"
 #include "lldb/lldb-enumerations.h"
 
-#include "lldb/DataFormatters/FormatNavigator.h"
+#include "lldb/DataFormatters/FormattersContainer.h"
 #include "lldb/DataFormatters/TypeCategory.h"
 
 namespace lldb_private {
@@ -63,6 +63,12 @@ namespace lldb_private {
         
         bool
         Disable (ValueSP category);
+
+        void
+        EnableAllCategories ();
+        
+        void
+        DisableAllCategories ();
         
         void
         Clear ();
@@ -108,6 +114,10 @@ namespace lldb_private {
                               lldb::DynamicValueType use_dynamic);
 #endif
         
+    lldb::TypeValidatorImplSP
+    GetValidator (ValueObject& valobj,
+                  lldb::DynamicValueType use_dynamic);
+        
     private:
         
         class delete_matching_categories
@@ -144,7 +154,7 @@ namespace lldb_private {
             return m_map_mutex;
         }
         
-        friend class FormatNavigator<KeyType, ValueType>;
+        friend class FormattersContainer<KeyType, ValueType>;
         friend class FormatManager;
     };
 } // namespace lldb_private

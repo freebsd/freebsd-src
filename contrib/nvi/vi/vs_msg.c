@@ -37,11 +37,11 @@ typedef enum {
 					 */
 } sw_t;
 
-static void	vs_divider __P((SCR *));
-static void	vs_msgsave __P((SCR *, mtype_t, char *, size_t));
-static void	vs_output __P((SCR *, mtype_t, const char *, int));
-static void	vs_scroll __P((SCR *, int *, sw_t));
-static void	vs_wait __P((SCR *, int *, sw_t));
+static void	vs_divider(SCR *);
+static void	vs_msgsave(SCR *, mtype_t, char *, size_t);
+static void	vs_output(SCR *, mtype_t, const char *, int);
+static void	vs_scroll(SCR *, int *, sw_t);
+static void	vs_wait(SCR *, int *, sw_t);
 
 /*
  * vs_busy --
@@ -53,7 +53,7 @@ static void	vs_wait __P((SCR *, int *, sw_t));
  * messages, e.g. X11 clock icons, should set their scr_busy function to the
  * correct function before calling the main editor routine.
  *
- * PUBLIC: void vs_busy __P((SCR *, const char *, busy_t));
+ * PUBLIC: void vs_busy(SCR *, const char *, busy_t);
  */
 void
 vs_busy(SCR *sp, const char *msg, busy_t btype)
@@ -142,7 +142,7 @@ vs_busy(SCR *sp, const char *msg, busy_t btype)
  * vs_home --
  *	Home the cursor to the bottom row, left-most column.
  *
- * PUBLIC: void vs_home __P((SCR *));
+ * PUBLIC: void vs_home(SCR *);
  */
 void
 vs_home(SCR *sp)
@@ -155,7 +155,7 @@ vs_home(SCR *sp)
  * vs_update --
  *	Update a command.
  *
- * PUBLIC: void vs_update __P((SCR *, const char *, const CHAR_T *));
+ * PUBLIC: void vs_update(SCR *, const char *, const CHAR_T *);
  */
 void
 vs_update(SCR *sp, const char *m1, const CHAR_T *m2)
@@ -225,7 +225,7 @@ vs_update(SCR *sp, const char *m1, const CHAR_T *m2)
  * alternate method of displaying messages, e.g. dialog boxes, should set their
  * scr_msg function to the correct function before calling the editor.
  *
- * PUBLIC: void vs_msg __P((SCR *, mtype_t, char *, size_t));
+ * PUBLIC: void vs_msg(SCR *, mtype_t, char *, size_t);
  */
 void
 vs_msg(SCR *sp, mtype_t mtype, char *line, size_t len)
@@ -506,7 +506,7 @@ vs_output(SCR *sp, mtype_t mtype, const char *line, int llen)
  * This routine is called when exiting a colon command to resolve any ex
  * output that may have occurred.
  *
- * PUBLIC: int vs_ex_resolve __P((SCR *, int *));
+ * PUBLIC: int vs_ex_resolve(SCR *, int *);
  */
 int
 vs_ex_resolve(SCR *sp, int *continuep)
@@ -630,7 +630,7 @@ vs_ex_resolve(SCR *sp, int *continuep)
  * vs_resolve --
  *	Deal with message output.
  *
- * PUBLIC: int vs_resolve __P((SCR *, SCR *, int));
+ * PUBLIC: int vs_resolve(SCR *, SCR *, int);
  */
 int
 vs_resolve(SCR *sp, SCR *csp, int forcewait)

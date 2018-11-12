@@ -7,25 +7,25 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SYSTEMZMCFIXUPS_H
-#define LLVM_SYSTEMZMCFIXUPS_H
+#ifndef LLVM_LIB_TARGET_SYSTEMZ_MCTARGETDESC_SYSTEMZMCFIXUPS_H
+#define LLVM_LIB_TARGET_SYSTEMZ_MCTARGETDESC_SYSTEMZMCFIXUPS_H
 
 #include "llvm/MC/MCFixup.h"
 
 namespace llvm {
 namespace SystemZ {
-  enum FixupKind {
-    // These correspond directly to R_390_* relocations.
-    FK_390_PC16DBL = FirstTargetFixupKind,
-    FK_390_PC32DBL,
-    FK_390_PLT16DBL,
-    FK_390_PLT32DBL,
+enum FixupKind {
+  // These correspond directly to R_390_* relocations.
+  FK_390_PC16DBL = FirstTargetFixupKind,
+  FK_390_PC32DBL,
+  FK_390_PLT16DBL,
+  FK_390_PLT32DBL,
 
-    // Marker
-    LastTargetFixupKind,
-    NumTargetFixupKinds = LastTargetFixupKind - FirstTargetFixupKind
-  };
-}
+  // Marker
+  LastTargetFixupKind,
+  NumTargetFixupKinds = LastTargetFixupKind - FirstTargetFixupKind
+};
+} // end namespace SystemZ
 } // end namespace llvm
 
 #endif

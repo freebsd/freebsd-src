@@ -37,7 +37,7 @@ INTDIR=.\LibR
 OutDir=.\LibR
 # End Custom Macros
 
-ALL : "$(OUTDIR)\apr-1.lib"
+ALL : ".\LibR\gen_test_char.exe" "$(OUTDIR)\apr-1.lib"
 
 
 CLEAN :
@@ -45,11 +45,13 @@ CLEAN :
 	-@erase "$(INTDIR)\apr-1.pdb"
 	-@erase "$(INTDIR)\apr_atomic.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
+	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
 	-@erase "$(INTDIR)\apr_hash.obj"
 	-@erase "$(INTDIR)\apr_pools.obj"
 	-@erase "$(INTDIR)\apr_random.obj"
+	-@erase "$(INTDIR)\apr_skiplist.obj"
 	-@erase "$(INTDIR)\apr_snprintf.obj"
 	-@erase "$(INTDIR)\apr_strings.obj"
 	-@erase "$(INTDIR)\apr_strnatcmp.obj"
@@ -114,6 +116,10 @@ CLEAN :
 	-@erase "$(INTDIR)\utf8.obj"
 	-@erase "$(INTDIR)\version.obj"
 	-@erase "$(OUTDIR)\apr-1.lib"
+	-@erase ".\include\apr.h"
+	-@erase ".\include\apr_gen_test_char.h"
+	-@erase "$(OUTDIR)\gen_test_char.exe"
+	-@erase "$(OUTDIR)\gen_test_char.obj"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -161,6 +167,7 @@ LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
+	"$(INTDIR)\apr_escape.obj" \
 	"$(INTDIR)\buffer.obj" \
 	"$(INTDIR)\copy.obj" \
 	"$(INTDIR)\dir.obj" \
@@ -220,6 +227,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\apr_strnatcmp.obj" \
 	"$(INTDIR)\apr_strtok.obj" \
 	"$(INTDIR)\apr_hash.obj" \
+	"$(INTDIR)\apr_skiplist.obj" \
 	"$(INTDIR)\apr_tables.obj" \
 	"$(INTDIR)\proc.obj" \
 	"$(INTDIR)\signals.obj" \
@@ -243,7 +251,7 @@ INTDIR=.\LibD
 OutDir=.\LibD
 # End Custom Macros
 
-ALL : ".\include\apr.h" "$(OUTDIR)\apr-1.lib"
+ALL : ".\LibD\gen_test_char.exe" ".\include\apr_escape_test_char.h" ".\include\apr.h" "$(OUTDIR)\apr-1.lib"
 
 
 CLEAN :
@@ -251,11 +259,13 @@ CLEAN :
 	-@erase "$(INTDIR)\apr-1.pdb"
 	-@erase "$(INTDIR)\apr_atomic.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
+	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
 	-@erase "$(INTDIR)\apr_hash.obj"
 	-@erase "$(INTDIR)\apr_pools.obj"
 	-@erase "$(INTDIR)\apr_random.obj"
+	-@erase "$(INTDIR)\apr_skiplist.obj"
 	-@erase "$(INTDIR)\apr_snprintf.obj"
 	-@erase "$(INTDIR)\apr_strings.obj"
 	-@erase "$(INTDIR)\apr_strnatcmp.obj"
@@ -321,6 +331,9 @@ CLEAN :
 	-@erase "$(INTDIR)\version.obj"
 	-@erase "$(OUTDIR)\apr-1.lib"
 	-@erase ".\include\apr.h"
+	-@erase ".\include\apr_gen_test_char.h"
+	-@erase "$(OUTDIR)\gen_test_char.exe"
+	-@erase "$(OUTDIR)\gen_test_char.obj"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -368,6 +381,7 @@ LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
+	"$(INTDIR)\apr_escape.obj" \
 	"$(INTDIR)\buffer.obj" \
 	"$(INTDIR)\copy.obj" \
 	"$(INTDIR)\dir.obj" \
@@ -427,6 +441,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\apr_strnatcmp.obj" \
 	"$(INTDIR)\apr_strtok.obj" \
 	"$(INTDIR)\apr_hash.obj" \
+	"$(INTDIR)\apr_skiplist.obj" \
 	"$(INTDIR)\apr_tables.obj" \
 	"$(INTDIR)\proc.obj" \
 	"$(INTDIR)\signals.obj" \
@@ -450,7 +465,7 @@ INTDIR=.\9x\LibR
 OutDir=.\9x\LibR
 # End Custom Macros
 
-ALL : ".\include\apr.h" "$(OUTDIR)\apr-1.lib"
+ALL : ".\include\apr_escape_test_char.h" ".\include\apr.h" ".\9x\LibR\gen_test_char.exe" "$(OUTDIR)\apr-1.lib"
 
 
 CLEAN :
@@ -458,11 +473,13 @@ CLEAN :
 	-@erase "$(INTDIR)\apr-1.pdb"
 	-@erase "$(INTDIR)\apr_atomic.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
+	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
 	-@erase "$(INTDIR)\apr_hash.obj"
 	-@erase "$(INTDIR)\apr_pools.obj"
 	-@erase "$(INTDIR)\apr_random.obj"
+	-@erase "$(INTDIR)\apr_skiplist.obj"
 	-@erase "$(INTDIR)\apr_snprintf.obj"
 	-@erase "$(INTDIR)\apr_strings.obj"
 	-@erase "$(INTDIR)\apr_strnatcmp.obj"
@@ -528,6 +545,9 @@ CLEAN :
 	-@erase "$(INTDIR)\version.obj"
 	-@erase "$(OUTDIR)\apr-1.lib"
 	-@erase ".\include\apr.h"
+	-@erase ".\include\apr_gen_test_char.h"
+	-@erase "$(OUTDIR)\gen_test_char.exe"
+	-@erase "$(OUTDIR)\gen_test_char.obj"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -575,6 +595,7 @@ LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
+	"$(INTDIR)\apr_escape.obj" \
 	"$(INTDIR)\buffer.obj" \
 	"$(INTDIR)\copy.obj" \
 	"$(INTDIR)\dir.obj" \
@@ -634,6 +655,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\apr_strnatcmp.obj" \
 	"$(INTDIR)\apr_strtok.obj" \
 	"$(INTDIR)\apr_hash.obj" \
+	"$(INTDIR)\apr_skiplist.obj" \
 	"$(INTDIR)\apr_tables.obj" \
 	"$(INTDIR)\proc.obj" \
 	"$(INTDIR)\signals.obj" \
@@ -657,7 +679,7 @@ INTDIR=.\9x\LibD
 OutDir=.\9x\LibD
 # End Custom Macros
 
-ALL : ".\include\apr.h" "$(OUTDIR)\apr-1.lib"
+ALL : ".\include\apr_escape_test_char.h" ".\include\apr.h" ".\9x\LibD\gen_test_char.exe" "$(OUTDIR)\apr-1.lib"
 
 
 CLEAN :
@@ -665,11 +687,13 @@ CLEAN :
 	-@erase "$(INTDIR)\apr-1.pdb"
 	-@erase "$(INTDIR)\apr_atomic.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
+	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
 	-@erase "$(INTDIR)\apr_hash.obj"
 	-@erase "$(INTDIR)\apr_pools.obj"
 	-@erase "$(INTDIR)\apr_random.obj"
+	-@erase "$(INTDIR)\apr_skiplist.obj"
 	-@erase "$(INTDIR)\apr_snprintf.obj"
 	-@erase "$(INTDIR)\apr_strings.obj"
 	-@erase "$(INTDIR)\apr_strnatcmp.obj"
@@ -735,6 +759,9 @@ CLEAN :
 	-@erase "$(INTDIR)\version.obj"
 	-@erase "$(OUTDIR)\apr-1.lib"
 	-@erase ".\include\apr.h"
+	-@erase ".\include\apr_gen_test_char.h"
+	-@erase "$(OUTDIR)\gen_test_char.exe"
+	-@erase "$(OUTDIR)\gen_test_char.obj"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -782,6 +809,7 @@ LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
+	"$(INTDIR)\apr_escape.obj" \
 	"$(INTDIR)\buffer.obj" \
 	"$(INTDIR)\copy.obj" \
 	"$(INTDIR)\dir.obj" \
@@ -841,6 +869,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\apr_strnatcmp.obj" \
 	"$(INTDIR)\apr_strtok.obj" \
 	"$(INTDIR)\apr_hash.obj" \
+	"$(INTDIR)\apr_skiplist.obj" \
 	"$(INTDIR)\apr_tables.obj" \
 	"$(INTDIR)\proc.obj" \
 	"$(INTDIR)\signals.obj" \
@@ -864,7 +893,7 @@ INTDIR=.\x64\LibR
 OutDir=.\x64\LibR
 # End Custom Macros
 
-ALL : ".\include\apr.h" "$(OUTDIR)\apr-1.lib"
+ALL : ".\x64\LibR\gen_test_char.exe" ".\include\apr_escape_test_char.h" ".\include\apr.h" "$(OUTDIR)\apr-1.lib"
 
 
 CLEAN :
@@ -872,11 +901,13 @@ CLEAN :
 	-@erase "$(INTDIR)\apr-1.pdb"
 	-@erase "$(INTDIR)\apr_atomic.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
+	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
 	-@erase "$(INTDIR)\apr_hash.obj"
 	-@erase "$(INTDIR)\apr_pools.obj"
 	-@erase "$(INTDIR)\apr_random.obj"
+	-@erase "$(INTDIR)\apr_skiplist.obj"
 	-@erase "$(INTDIR)\apr_snprintf.obj"
 	-@erase "$(INTDIR)\apr_strings.obj"
 	-@erase "$(INTDIR)\apr_strnatcmp.obj"
@@ -942,6 +973,9 @@ CLEAN :
 	-@erase "$(INTDIR)\version.obj"
 	-@erase "$(OUTDIR)\apr-1.lib"
 	-@erase ".\include\apr.h"
+	-@erase ".\include\apr_gen_test_char.h"
+	-@erase "$(OUTDIR)\gen_test_char.exe"
+	-@erase "$(OUTDIR)\gen_test_char.obj"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -989,6 +1023,7 @@ LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
+	"$(INTDIR)\apr_escape.obj" \
 	"$(INTDIR)\buffer.obj" \
 	"$(INTDIR)\copy.obj" \
 	"$(INTDIR)\dir.obj" \
@@ -1048,6 +1083,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\apr_strnatcmp.obj" \
 	"$(INTDIR)\apr_strtok.obj" \
 	"$(INTDIR)\apr_hash.obj" \
+	"$(INTDIR)\apr_skiplist.obj" \
 	"$(INTDIR)\apr_tables.obj" \
 	"$(INTDIR)\proc.obj" \
 	"$(INTDIR)\signals.obj" \
@@ -1071,7 +1107,7 @@ INTDIR=.\x64\LibD
 OutDir=.\x64\LibD
 # End Custom Macros
 
-ALL : ".\include\apr.h" "$(OUTDIR)\apr-1.lib"
+ALL : ".\x64\LibD\gen_test_char.exe" ".\include\apr_escape_test_char.h" ".\include\apr.h" "$(OUTDIR)\apr-1.lib"
 
 
 CLEAN :
@@ -1079,11 +1115,13 @@ CLEAN :
 	-@erase "$(INTDIR)\apr-1.pdb"
 	-@erase "$(INTDIR)\apr_atomic.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
+	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
 	-@erase "$(INTDIR)\apr_hash.obj"
 	-@erase "$(INTDIR)\apr_pools.obj"
 	-@erase "$(INTDIR)\apr_random.obj"
+	-@erase "$(INTDIR)\apr_skiplist.obj"
 	-@erase "$(INTDIR)\apr_snprintf.obj"
 	-@erase "$(INTDIR)\apr_strings.obj"
 	-@erase "$(INTDIR)\apr_strnatcmp.obj"
@@ -1149,6 +1187,9 @@ CLEAN :
 	-@erase "$(INTDIR)\version.obj"
 	-@erase "$(OUTDIR)\apr-1.lib"
 	-@erase ".\include\apr.h"
+	-@erase ".\include\apr_gen_test_char.h"
+	-@erase "$(OUTDIR)\gen_test_char.exe"
+	-@erase "$(OUTDIR)\gen_test_char.obj"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -1196,6 +1237,7 @@ LIB32_FLAGS=/nologo /out:"$(OUTDIR)\apr-1.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
 	"$(INTDIR)\dso.obj" \
+	"$(INTDIR)\apr_escape.obj" \
 	"$(INTDIR)\buffer.obj" \
 	"$(INTDIR)\copy.obj" \
 	"$(INTDIR)\dir.obj" \
@@ -1255,6 +1297,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\apr_strnatcmp.obj" \
 	"$(INTDIR)\apr_strtok.obj" \
 	"$(INTDIR)\apr_hash.obj" \
+	"$(INTDIR)\apr_skiplist.obj" \
 	"$(INTDIR)\apr_tables.obj" \
 	"$(INTDIR)\proc.obj" \
 	"$(INTDIR)\signals.obj" \
@@ -1292,6 +1335,12 @@ SOURCE=.\atomic\win32\apr_atomic.c
 SOURCE=.\dso\win32\dso.c
 
 "$(INTDIR)\dso.obj" : $(SOURCE) "$(INTDIR)" ".\include\apr.h"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=.\encoding\apr_escape.c
+
+"$(INTDIR)\apr_escape.obj" : $(SOURCE) "$(INTDIR)" ".\include\apr_escape.h" ".\include\apr_escape_test_char.h" ".\include\apr.h"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -1650,6 +1699,12 @@ SOURCE=.\tables\apr_hash.c
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE=.\tables\apr_skiplist.c
+
+"$(INTDIR)\apr_skiplist.obj" : $(SOURCE) "$(INTDIR)" ".\include\apr.h"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
 SOURCE=.\tables\apr_tables.c
 
 "$(INTDIR)\apr_tables.obj" : $(SOURCE) "$(INTDIR)" ".\include\apr.h"
@@ -1766,6 +1821,152 @@ InputPath=.\include\apr.hw
 InputPath=.\include\apr.hw
 
 ".\include\apr.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	type .\include\apr.hw > .\include\apr.h
+<< 
+	
+
+!ENDIF 
+
+SOURCE=.\include\apr_escape.h
+
+!IF  "$(CFG)" == "apr - Win32 Release"
+
+InputPath=.\include\apr_escape.h
+
+".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	cl.exe /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\LibR\gen_test_char /Fe.\LibR\gen_test_char.exe .\tools\gen_test_char.c 
+	.\LibR\gen_test_char.exe > .\include\apr_escape_test_char.h
+<< 
+	
+
+!ELSEIF  "$(CFG)" == "apr - Win32 Debug"
+
+InputPath=.\include\apr_escape.h
+
+".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	cl.exe /nologo /W3 /EHsc /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\LibD\gen_test_char /Fe.\LibD\gen_test_char.exe .\tools\gen_test_char.c 
+	.\LibD\gen_test_char.exe > .\include\apr_escape_test_char.h
+<< 
+	
+
+!ELSEIF  "$(CFG)" == "apr - Win32 Release9x"
+
+InputPath=.\include\apr_escape.h
+
+".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	cl.exe /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\9x\LibR\gen_test_char /Fe.\9x\LibR\gen_test_char.exe .\tools\gen_test_char.c 
+	.\9x\LibR\gen_test_char.exe > .\include\apr_escape_test_char.h
+<< 
+	
+
+!ELSEIF  "$(CFG)" == "apr - Win32 Debug9x"
+
+InputPath=.\include\apr_escape.h
+
+".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	cl.exe /nologo /W3 /EHsc /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\9x\LibD\gen_test_char /Fe.\9x\LibD\gen_test_char.exe .\tools\gen_test_char.c 
+	.\9x\LibD\gen_test_char.exe > .\include\apr_escape_test_char.h
+<< 
+	
+
+!ELSEIF  "$(CFG)" == "apr - x64 Release"
+
+InputPath=.\include\apr_escape.h
+
+".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	cl.exe /nologo /W3 /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\x64\LibR\gen_test_char /Fe.\x64\LibR\gen_test_char.exe .\tools\gen_test_char.c 
+	.\x64\LibR\gen_test_char.exe > .\include\apr_escape_test_char.h
+<< 
+	
+
+!ELSEIF  "$(CFG)" == "apr - x64 Debug"
+
+InputPath=.\include\apr_escape.h
+
+".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	cl.exe /nologo /W3 /EHsc /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /FD /I ".\include" /Fo.\x64\LibD\gen_test_char /Fe.\x64\LibD\gen_test_char.exe .\tools\gen_test_char.c 
+	.\x64\LibD\gen_test_char.exe > .\include\apr_escape_test_char.h
+<< 
+	
+
+!ENDIF 
+
+SOURCE=.\include\apr_want.h
+
+!IF  "$(CFG)" == "apr - Win32 Release"
+
+InputPath=.\include\apr_want.h
+
+"$(INTDIR)\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	type .\include\apr.hw > .\include\apr.h
+<< 
+	
+
+!ELSEIF  "$(CFG)" == "apr - Win32 Debug"
+
+InputPath=.\include\apr_want.h
+
+"$(INTDIR)\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	type .\include\apr.hw > .\include\apr.h
+<< 
+	
+
+!ELSEIF  "$(CFG)" == "apr - Win32 Release9x"
+
+InputPath=.\include\apr_want.h
+
+"$(INTDIR)\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	type .\include\apr.hw > .\include\apr.h
+<< 
+	
+
+!ELSEIF  "$(CFG)" == "apr - Win32 Debug9x"
+
+InputPath=.\include\apr_want.h
+
+"$(INTDIR)\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	type .\include\apr.hw > .\include\apr.h
+<< 
+	
+
+!ELSEIF  "$(CFG)" == "apr - x64 Release"
+
+InputPath=.\include\apr_want.h
+
+"$(INTDIR)\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	<<tempfile.bat 
+	@echo off 
+	type .\include\apr.hw > .\include\apr.h
+<< 
+	
+
+!ELSEIF  "$(CFG)" == "apr - x64 Debug"
+
+InputPath=.\include\apr_want.h
+
+"$(INTDIR)\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
 	<<tempfile.bat 
 	@echo off 
 	type .\include\apr.hw > .\include\apr.h

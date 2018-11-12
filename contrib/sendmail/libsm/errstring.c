@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: errstring.c,v 1.20 2013/11/22 20:51:42 ca Exp $")
+SM_RCSID("@(#)$Id: errstring.c,v 1.20 2013-11-22 20:51:42 ca Exp $")
 
 #include <errno.h>
 #include <stdio.h>	/* sys_errlist, on some platforms */

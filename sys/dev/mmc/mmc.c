@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 
 #include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
@@ -76,7 +77,12 @@ struct mmc_softc {
 	struct intr_config_hook config_intrhook;
 	device_t owner;
 	uint32_t last_rca;
+	int	 squelched; /* suppress reporting of (expected) errors */
+	int	 log_count;
+	struct timeval log_time;
 };
+
+#define	LOG_PPS		5 /* Log no more than 5 errors per second. */
 
 /*
  * Per-card data
@@ -102,6 +108,7 @@ struct mmc_ivars {
 	uint32_t hs_tran_speed;	/* Max speed in high speed mode */
 	uint32_t erase_sector;	/* Card native erase sector size */
 	char card_id_string[64];/* Formatted CID info (serial, MFG, etc) */
+	char card_sn_string[16];/* Formatted serial # for disk->d_ident */
 };
 
 #define CMD_RETRIES	3
@@ -425,6 +432,13 @@ mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd, int retries)
 			err = cmd->error;
 	} while (err != MMC_ERR_NONE && retries-- > 0);
 
+	if (err != MMC_ERR_NONE && sc->squelched == 0) {
+		if (ppsratecheck(&sc->log_time, &sc->log_count, LOG_PPS)) {
+			device_printf(sc->dev, "CMD%d failed, RESULT: %d\n",
+			    cmd->opcode, err);
+		}
+	}
+
 	return (err);
 }
 
@@ -435,6 +449,8 @@ mmc_wait_for_app_cmd(struct mmc_softc *sc, uint32_t rca,
 	struct mmc_command appcmd;
 	int err;
 
+	/* Squelch error reporting at lower levels, we report below. */
+	sc->squelched++;
 	do {
 		memset(&appcmd, 0, sizeof(appcmd));
 		appcmd.opcode = MMC_APP_CMD;
@@ -454,6 +470,14 @@ mmc_wait_for_app_cmd(struct mmc_softc *sc, uint32_t rca,
 				err = cmd->error;
 		}
 	} while (err != MMC_ERR_NONE && retries-- > 0);
+	sc->squelched--;
+
+	if (err != MMC_ERR_NONE && sc->squelched == 0) {
+		if (ppsratecheck(&sc->log_time, &sc->log_count, LOG_PPS)) {
+			device_printf(sc->dev, "ACMD%d failed, RESULT: %d\n",
+			    cmd->opcode, err);
+		}
+	}
 
 	return (err);
 }
@@ -759,6 +783,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		mmcbr_set_bus_width(sc->dev, bus_width_8);
 		mmcbr_update_ios(sc->dev);
 
+		sc->squelched++; /* Errors are expected, squelch reporting. */
 		memset(&cmd, 0, sizeof(cmd));
 		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_W;
@@ -782,6 +807,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		data.len = 8;
 		data.flags = MMC_DATA_READ;
 		err = mmc_wait_for_cmd(sc, &cmd, 0);
+		sc->squelched--;
 		
 		mmcbr_set_bus_width(sc->dev, bus_width_1);
 		mmcbr_update_ios(sc->dev);
@@ -794,6 +820,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		mmcbr_set_bus_width(sc->dev, bus_width_4);
 		mmcbr_update_ios(sc->dev);
 
+		sc->squelched++; /* Errors are expected, squelch reporting. */
 		memset(&cmd, 0, sizeof(cmd));
 		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_W;
@@ -817,6 +844,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		data.len = 4;
 		data.flags = MMC_DATA_READ;
 		err = mmc_wait_for_cmd(sc, &cmd, 0);
+		sc->squelched--;
 
 		mmcbr_set_bus_width(sc->dev, bus_width_1);
 		mmcbr_update_ios(sc->dev);
@@ -887,6 +915,9 @@ mmc_format_card_id_string(struct mmc_ivars *ivar)
 	 * mmcsd0: 968MB <SD SD01G 8.0 SN 2686905 Mfg 08/2008 by 3 TN> at mmc0
 	 * 22.5MHz/4bit/128-block
 	 *
+	 * Also format just the card serial number, which the mmcsd driver will
+	 * use as the disk->d_ident string.
+	 *
 	 * The card_id_string in mmc_ivars is currently allocated as 64 bytes,
 	 * and our max formatted length is currently 55 bytes if every field
 	 * contains the largest value.
@@ -900,8 +931,10 @@ mmc_format_card_id_string(struct mmc_ivars *ivar)
 		snprintf(oidstr, sizeof(oidstr), "%c%c", c1, c2);
 	else
 		snprintf(oidstr, sizeof(oidstr), "0x%04x", ivar->cid.oid);
+	snprintf(ivar->card_sn_string, sizeof(ivar->card_sn_string),
+	    "%08X", ivar->cid.psn);
 	snprintf(ivar->card_id_string, sizeof(ivar->card_id_string),
-	    "%s%s %s %d.%d SN %u MFG %02d/%04d by %d %s",
+	    "%s%s %s %d.%d SN %08X MFG %02d/%04d by %d %s",
 	    ivar->mode == mode_sd ? "SD" : "MMC", ivar->high_cap ? "HC" : "",
 	    ivar->cid.pnm, ivar->cid.prv >> 4, ivar->cid.prv & 0x0f,
 	    ivar->cid.psn, ivar->cid.mdt_month, ivar->cid.mdt_year,
@@ -1264,7 +1297,9 @@ mmc_discover_cards(struct mmc_softc *sc)
 	if (bootverbose || mmc_debug)
 		device_printf(sc->dev, "Probing cards\n");
 	while (1) {
+		sc->squelched++; /* Errors are expected, squelch reporting. */
 		err = mmc_all_send_cid(sc, raw_cid);
+		sc->squelched--;
 		if (err == MMC_ERR_TIMEOUT)
 			break;
 		if (err != MMC_ERR_NONE) {
@@ -1344,6 +1379,20 @@ mmc_discover_cards(struct mmc_softc *sc)
 					ivar->hs_tran_speed = SD_MAX_HS;
 				}
 			}
+
+			/*
+			 * We reselect the card here. Some cards become
+			 * unselected and timeout with the above two commands,
+			 * although the state tables / diagrams in the standard
+			 * suggest they go back to the transfer state. The only
+			 * thing we use from the sd_status is the erase sector
+			 * size, but it is still nice to get that right. It is
+			 * normally harmless for cards not misbehaving. The
+			 * Atmel bridge will complain about this command timing
+			 * out. Others seem to handle it correctly, so it may
+			 * be a combination of card and controller.
+			 */
+			mmc_select_card(sc, ivar->rca);
 			mmc_app_sd_status(sc, ivar->rca, ivar->raw_sd_status);
 			mmc_app_decode_sd_status(ivar->raw_sd_status,
 			    &ivar->sd_status);
@@ -1351,7 +1400,6 @@ mmc_discover_cards(struct mmc_softc *sc)
 				ivar->erase_sector =
 				    16 << ivar->sd_status.au_size;
 			}
-			mmc_select_card(sc, 0);
 			/* Find max supported bus width. */
 			if ((mmcbr_get_caps(sc->dev) & MMC_CAP_4_BIT_DATA) &&
 			    (ivar->scr.bus_widths & SD_SCR_BUS_WIDTH_4))
@@ -1379,6 +1427,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 				child = device_add_child(sc->dev, NULL, -1);
 				device_set_ivars(child, ivar);
 			}
+			mmc_select_card(sc, 0);
 			return;
 		}
 		mmc_decode_cid_mmc(ivar->raw_cid, &ivar->cid);
@@ -1411,10 +1460,10 @@ mmc_discover_cards(struct mmc_softc *sc)
 			break;
 		}
 
+		mmc_select_card(sc, ivar->rca);
+
 		/* Only MMC >= 4.x cards support EXT_CSD. */
 		if (ivar->csd.spec_vers >= 4) {
-			/* Card must be selected to fetch EXT_CSD. */
-			mmc_select_card(sc, ivar->rca);
 			mmc_send_ext_csd(sc, ivar->raw_ext_csd);
 			/* Handle extended capacity from EXT_CSD */
 			sec_count = ivar->raw_ext_csd[EXT_CSD_SEC_CNT] +
@@ -1437,7 +1486,6 @@ mmc_discover_cards(struct mmc_softc *sc)
 				ivar->hs_tran_speed = ivar->tran_speed;
 			/* Find max supported bus width. */
 			ivar->bus_width = mmc_test_bus_width(sc);
-			mmc_select_card(sc, 0);
 			/* Handle HC erase sector size. */
 			if (ivar->raw_ext_csd[EXT_CSD_ERASE_GRP_SIZE] != 0) {
 				ivar->erase_sector = 1024 *
@@ -1471,6 +1519,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			child = device_add_child(sc->dev, NULL, -1);
 			device_set_ivars(child, ivar);
 		}
+		mmc_select_card(sc, 0);
 	}
 }
 
@@ -1530,6 +1579,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 		/*
 		 * First, try SD modes
 		 */
+		sc->squelched++; /* Errors are expected, squelch reporting. */
 		mmcbr_set_mode(dev, mode_sd);
 		mmc_power_up(sc);
 		mmcbr_set_bus_mode(dev, pushpull);
@@ -1555,6 +1605,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 				    "MMC probe: OK (OCR: 0x%08x)\n", ocr);
 		} else if (bootverbose || mmc_debug)
 			device_printf(sc->dev, "SD probe: OK (OCR: 0x%08x)\n", ocr);
+		sc->squelched--;
 
 		mmcbr_set_ocr(dev, mmc_select_vdd(sc, ocr));
 		if (mmcbr_get_ocr(dev) != 0)
@@ -1572,6 +1623,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 	if (bootverbose || mmc_debug)
 		device_printf(sc->dev, "Current OCR: 0x%08x\n", mmcbr_get_ocr(dev));
 	if (mmcbr_get_ocr(dev) == 0) {
+		device_printf(sc->dev, "No compatible cards found on bus\n");
 		mmc_delete_cards(sc);
 		mmc_power_down(sc);
 		return;
@@ -1584,7 +1636,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 		mmc_send_app_op_cond(sc,
 		    (err ? 0 : MMC_OCR_CCS) | mmcbr_get_ocr(dev), NULL);
 	} else
-		mmc_send_op_cond(sc, mmcbr_get_ocr(dev), NULL);
+		mmc_send_op_cond(sc, MMC_OCR_CCS | mmcbr_get_ocr(dev), NULL);
 	mmc_discover_cards(sc);
 	mmc_rescan_cards(sc);
 
@@ -1697,6 +1749,9 @@ mmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	case MMC_IVAR_CARD_ID_STRING:
 		*(char **)result = ivar->card_id_string;
 		break;
+	case MMC_IVAR_CARD_SN_STRING:
+		*(char **)result = ivar->card_sn_string;
+		break;
 	}
 	return (0);
 }
@@ -1756,9 +1811,14 @@ static driver_t mmc_driver = {
 };
 static devclass_t mmc_devclass;
 
-DRIVER_MODULE(mmc, ti_mmchs, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, a10_mmc, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, aml8726_mmc, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, aml8726_sdxc, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, sdhci_pci, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, sdhci_bcm, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, sdhci_fdt, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, sdhci_imx, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, sdhci_pci, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, sdhci_ti, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, ti_mmchs, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, dwmmc, mmc_driver, mmc_devclass, NULL, NULL);

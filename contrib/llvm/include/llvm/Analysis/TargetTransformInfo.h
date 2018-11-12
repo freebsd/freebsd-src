@@ -28,7 +28,9 @@
 
 namespace llvm {
 
+class Function;
 class GlobalValue;
+class Loop;
 class Type;
 class User;
 class Value;
@@ -57,11 +59,6 @@ protected:
   /// TTI instance in the analysis group's stack, and the top of the analysis
   /// group's stack.
   void pushTTIStack(Pass *P);
-
-  /// All pass subclasses must in their finalizePass routine call popTTIStack
-  /// to update the pointers tracking the previous TTI instance in the analysis
-  /// group's stack, and the top of the analysis group's stack.
-  void popTTIStack();
 
   /// All pass subclasses must call TargetTransformInfo::getAnalysisUsage.
   virtual void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -109,7 +106,7 @@ public:
   /// The returned cost is defined in terms of \c TargetCostConstants, see its
   /// comments for a detailed explanation of the cost values.
   virtual unsigned getOperationCost(unsigned Opcode, Type *Ty,
-                                    Type *OpTy = 0) const;
+                                    Type *OpTy = nullptr) const;
 
   /// \brief Estimate the cost of a GEP operation when lowered.
   ///
@@ -171,6 +168,12 @@ public:
   /// comments for a detailed explanation of the cost values.
   virtual unsigned getUserCost(const User *U) const;
 
+  /// \brief hasBranchDivergence - Return true if branch divergence exists.
+  /// Branch divergence has a significantly negative impact on GPU performance
+  /// when threads in the same wavefront take different paths due to conditional
+  /// branches.
+  virtual bool hasBranchDivergence() const;
+
   /// \brief Test whether calls to a function lower to actual program function
   /// calls.
   ///
@@ -181,9 +184,52 @@ public:
   /// should probably move to simpler cost metrics using the above.
   /// Alternatively, we could split the cost interface into distinct code-size
   /// and execution-speed costs. This would allow modelling the core of this
-  /// query more accurately as the a call is a single small instruction, but
+  /// query more accurately as a call is a single small instruction, but
   /// incurs significant execution cost.
   virtual bool isLoweredToCall(const Function *F) const;
+
+  /// Parameters that control the generic loop unrolling transformation.
+  struct UnrollingPreferences {
+    /// The cost threshold for the unrolled loop, compared to
+    /// CodeMetrics.NumInsts aggregated over all basic blocks in the loop body.
+    /// The unrolling factor is set such that the unrolled loop body does not
+    /// exceed this cost. Set this to UINT_MAX to disable the loop body cost
+    /// restriction.
+    unsigned Threshold;
+    /// The cost threshold for the unrolled loop when optimizing for size (set
+    /// to UINT_MAX to disable).
+    unsigned OptSizeThreshold;
+    /// The cost threshold for the unrolled loop, like Threshold, but used
+    /// for partial/runtime unrolling (set to UINT_MAX to disable).
+    unsigned PartialThreshold;
+    /// The cost threshold for the unrolled loop when optimizing for size, like
+    /// OptSizeThreshold, but used for partial/runtime unrolling (set to UINT_MAX
+    /// to disable).
+    unsigned PartialOptSizeThreshold;
+    /// A forced unrolling factor (the number of concatenated bodies of the
+    /// original loop in the unrolled loop body). When set to 0, the unrolling
+    /// transformation will select an unrolling factor based on the current cost
+    /// threshold and other factors.
+    unsigned Count;
+    // Set the maximum unrolling factor. The unrolling factor may be selected
+    // using the appropriate cost threshold, but may not exceed this number
+    // (set to UINT_MAX to disable). This does not apply in cases where the
+    // loop is being fully unrolled.
+    unsigned MaxCount;
+    /// Allow partial unrolling (unrolling of loops to expand the size of the
+    /// loop body, not only to eliminate small constant-trip-count loops).
+    bool     Partial;
+    /// Allow runtime unrolling (unrolling of loops to expand the size of the
+    /// loop body even when the number of loop iterations is not known at compile
+    /// time).
+    bool     Runtime;
+  };
+
+  /// \brief Get target-customized preferences for the generic loop unrolling
+  /// transformation. The caller will initialize UP with the current
+  /// target-independent defaults.
+  virtual void getUnrollingPreferences(const Function *F, Loop *L,
+                                       UnrollingPreferences &UP) const;
 
   /// @}
 
@@ -204,20 +250,19 @@ public:
     PSK_FastHardware
   };
 
-  /// isLegalAddImmediate - Return true if the specified immediate is legal
-  /// add immediate, that is the target has add instructions which can add
-  /// a register with the immediate without having to materialize the
-  /// immediate into a register.
+  /// \brief Return true if the specified immediate is legal add immediate, that
+  /// is the target has add instructions which can add a register with the
+  /// immediate without having to materialize the immediate into a register.
   virtual bool isLegalAddImmediate(int64_t Imm) const;
 
-  /// isLegalICmpImmediate - Return true if the specified immediate is legal
-  /// icmp immediate, that is the target has icmp instructions which can compare
-  /// a register against the immediate without having to materialize the
-  /// immediate into a register.
+  /// \brief Return true if the specified immediate is legal icmp immediate,
+  /// that is the target has icmp instructions which can compare a register
+  /// against the immediate without having to materialize the immediate into a
+  /// register.
   virtual bool isLegalICmpImmediate(int64_t Imm) const;
 
-  /// isLegalAddressingMode - Return true if the addressing mode represented by
-  /// AM is legal for this target, for a load/store of the specified type.
+  /// \brief Return true if the addressing mode represented by AM is legal for
+  /// this target, for a load/store of the specified type.
   /// The type may be VoidTy, in which case only return true if the addressing
   /// mode is legal for a load/store of any legal type.
   /// TODO: Handle pre/postinc as well.
@@ -225,31 +270,58 @@ public:
                                      int64_t BaseOffset, bool HasBaseReg,
                                      int64_t Scale) const;
 
-  /// isTruncateFree - Return true if it's free to truncate a value of
-  /// type Ty1 to type Ty2. e.g. On x86 it's free to truncate a i32 value in
-  /// register EAX to i16 by referencing its sub-register AX.
+  /// \brief Return true if the target works with masked instruction
+  /// AVX2 allows masks for consecutive load and store for i32 and i64 elements.
+  /// AVX-512 architecture will also allow masks for non-consecutive memory
+  /// accesses.
+  virtual bool isLegalMaskedStore(Type *DataType, int Consecutive) const;
+  virtual bool isLegalMaskedLoad (Type *DataType, int Consecutive) const;
+
+  /// \brief Return the cost of the scaling factor used in the addressing
+  /// mode represented by AM for this target, for a load/store
+  /// of the specified type.
+  /// If the AM is supported, the return value must be >= 0.
+  /// If the AM is not supported, it returns a negative value.
+  /// TODO: Handle pre/postinc as well.
+  virtual int getScalingFactorCost(Type *Ty, GlobalValue *BaseGV,
+                                   int64_t BaseOffset, bool HasBaseReg,
+                                   int64_t Scale) const;
+
+  /// \brief Return true if it's free to truncate a value of type Ty1 to type
+  /// Ty2. e.g. On x86 it's free to truncate a i32 value in register EAX to i16
+  /// by referencing its sub-register AX.
   virtual bool isTruncateFree(Type *Ty1, Type *Ty2) const;
 
-  /// Is this type legal.
+  /// \brief Return true if this type is legal.
   virtual bool isTypeLegal(Type *Ty) const;
 
-  /// getJumpBufAlignment - returns the target's jmp_buf alignment in bytes
+  /// \brief Returns the target's jmp_buf alignment in bytes.
   virtual unsigned getJumpBufAlignment() const;
 
-  /// getJumpBufSize - returns the target's jmp_buf size in bytes.
+  /// \brief Returns the target's jmp_buf size in bytes.
   virtual unsigned getJumpBufSize() const;
 
-  /// shouldBuildLookupTables - Return true if switches should be turned into
-  /// lookup tables for the target.
+  /// \brief Return true if switches should be turned into lookup tables for the
+  /// target.
   virtual bool shouldBuildLookupTables() const;
 
-  /// getPopcntSupport - Return hardware support for population count.
+  /// \brief Return hardware support for population count.
   virtual PopcntSupportKind getPopcntSupport(unsigned IntTyWidthInBit) const;
 
-  /// getIntImmCost - Return the expected cost of materializing the given
-  /// integer immediate of the specified type.
+  /// \brief Return true if the hardware has a fast square-root instruction.
+  virtual bool haveFastSqrt(Type *Ty) const;
+
+  /// \brief Return the expected cost of materializing for the given integer
+  /// immediate of the specified type.
   virtual unsigned getIntImmCost(const APInt &Imm, Type *Ty) const;
 
+  /// \brief Return the expected cost of materialization for the given integer
+  /// immediate of the specified type for a given instruction. The cost can be
+  /// zero if the immediate can be folded into the specified instruction.
+  virtual unsigned getIntImmCost(unsigned Opc, unsigned Idx, const APInt &Imm,
+                                 Type *Ty) const;
+  virtual unsigned getIntImmCost(Intrinsic::ID IID, unsigned Idx,
+                                 const APInt &Imm, Type *Ty) const;
   /// @}
 
   /// \name Vector Target Information
@@ -259,16 +331,21 @@ public:
   enum ShuffleKind {
     SK_Broadcast,       ///< Broadcast element 0 to all other elements.
     SK_Reverse,         ///< Reverse the order of the vector.
+    SK_Alternate,       ///< Choose alternate elements from vector.
     SK_InsertSubvector, ///< InsertSubvector. Index indicates start offset.
     SK_ExtractSubvector ///< ExtractSubvector Index indicates start offset.
   };
 
-  /// \brief Additonal information about an operand's possible values.
+  /// \brief Additional information about an operand's possible values.
   enum OperandValueKind {
-    OK_AnyValue,            // Operand can have any value.
-    OK_UniformValue,        // Operand is uniform (splat of a value).
-    OK_UniformConstantValue // Operand is uniform constant.
+    OK_AnyValue,                 // Operand can have any value.
+    OK_UniformValue,             // Operand is uniform (splat of a value).
+    OK_UniformConstantValue,     // Operand is uniform constant.
+    OK_NonUniformConstantValue   // Operand is a non uniform constant value.
   };
+
+  /// \brief Additional properties of an operand's values.
+  enum OperandValueProperties { OP_None = 0, OP_PowerOf2 = 1 };
 
   /// \return The number of scalar or vector registers that the target has.
   /// If 'Vectors' is true, it returns the number of vector registers. If it is
@@ -278,21 +355,24 @@ public:
   /// \return The width of the largest scalar or vector register type.
   virtual unsigned getRegisterBitWidth(bool Vector) const;
 
-  /// \return The maximum unroll factor that the vectorizer should try to
+  /// \return The maximum interleave factor that any transform should try to
   /// perform for this target. This number depends on the level of parallelism
   /// and the number of execution units in the CPU.
-  virtual unsigned getMaximumUnrollFactor() const;
+  virtual unsigned getMaxInterleaveFactor() const;
 
   /// \return The expected cost of arithmetic ops, such as mul, xor, fsub, etc.
-  virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                                  OperandValueKind Opd1Info = OK_AnyValue,
-                                  OperandValueKind Opd2Info = OK_AnyValue) const;
+  virtual unsigned
+  getArithmeticInstrCost(unsigned Opcode, Type *Ty,
+                         OperandValueKind Opd1Info = OK_AnyValue,
+                         OperandValueKind Opd2Info = OK_AnyValue,
+                         OperandValueProperties Opd1PropInfo = OP_None,
+                         OperandValueProperties Opd2PropInfo = OP_None) const;
 
   /// \return The cost of a shuffle instruction of kind Kind and of type Tp.
   /// The index and subtype parameters are used by the subvector insertion and
   /// extraction shuffle kinds.
   virtual unsigned getShuffleCost(ShuffleKind Kind, Type *Tp, int Index = 0,
-                                  Type *SubTp = 0) const;
+                                  Type *SubTp = nullptr) const;
 
   /// \return The expected cost of cast instructions, such as bitcast, trunc,
   /// zext, etc.
@@ -305,7 +385,7 @@ public:
 
   /// \returns The expected cost of compare and select instructions.
   virtual unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
-                                      Type *CondTy = 0) const;
+                                      Type *CondTy = nullptr) const;
 
   /// \return The expected cost of vector Insert and Extract.
   /// Use -1 to indicate that there is no information on the index value.
@@ -316,6 +396,22 @@ public:
   virtual unsigned getMemoryOpCost(unsigned Opcode, Type *Src,
                                    unsigned Alignment,
                                    unsigned AddressSpace) const;
+
+  /// \brief Calculate the cost of performing a vector reduction.
+  ///
+  /// This is the cost of reducing the vector value of type \p Ty to a scalar
+  /// value using the operation denoted by \p Opcode. The form of the reduction
+  /// can either be a pairwise reduction or a reduction that splits the vector
+  /// at every reduction level.
+  ///
+  /// Pairwise:
+  ///  (v0, v1, v2, v3)
+  ///  ((v0+v1), (v2, v3), undef, undef)
+  /// Split:
+  ///  (v0, v1, v2, v3)
+  ///  ((v0+v2), (v1+v3), undef, undef)
+  virtual unsigned getReductionCost(unsigned Opcode, Type *Ty,
+                                    bool IsPairwiseForm) const;
 
   /// \returns The cost of Intrinsic instructions.
   virtual unsigned getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
@@ -329,7 +425,18 @@ public:
   /// merged into the instruction indexing mode. Some targets might want to
   /// distinguish between address computation for memory operations on vector
   /// types and scalar types. Such targets should override this function.
-  virtual unsigned getAddressComputationCost(Type *Ty) const;
+  /// The 'IsComplex' parameter is a hint that the address computation is likely
+  /// to involve multiple instructions and as such unlikely to be merged into
+  /// the address indexing mode.
+  virtual unsigned getAddressComputationCost(Type *Ty,
+                                             bool IsComplex = false) const;
+
+  /// \returns The cost, if any, of keeping values of the given types alive
+  /// over a callsite.
+  ///
+  /// Some types may require the use of register classes that do not have
+  /// any callee-saved registers, so would require a spill and fill.
+  virtual unsigned getCostOfKeepingLiveOverCall(ArrayRef<Type*> Tys) const;
 
   /// @}
 

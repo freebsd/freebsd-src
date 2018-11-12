@@ -64,6 +64,13 @@ def FastCC_ARM_APCS : CallingConv<[
   CCIfType<[f64], CCAssignToReg<[D0, D1, D2, D3, D4, D5, D6, D7]>>,
   CCIfType<[f32], CCAssignToReg<[S0, S1, S2, S3, S4, S5, S6, S7, S8,
                                  S9, S10, S11, S12, S13, S14, S15]>>,
+
+  // CPRCs may be allocated to co-processor registers or the stack - they
+  // may never be allocated to core registers. 
+  CCIfType<[f32], CCAssignToStackWithShadow<4, 4, [Q0, Q1, Q2, Q3]>>,
+  CCIfType<[f64], CCAssignToStackWithShadow<8, 4, [Q0, Q1, Q2, Q3]>>,
+  CCIfType<[v2f64], CCAssignToStackWithShadow<16, 4, [Q0, Q1, Q2, Q3]>>,
+
   CCDelegateTo<CC_ARM_APCS>
 ]>;
 
@@ -114,10 +121,11 @@ def CC_ARM_AAPCS_Common : CallingConv<[
   CCIfType<[i32], CCIf<"ArgFlags.getOrigAlign() != 8",
                        CCAssignToReg<[R0, R1, R2, R3]>>>,
 
-  CCIfType<[i32], CCIfAlign<"8", CCAssignToStackWithShadow<4, 8, R3>>>,
-  CCIfType<[i32, f32], CCAssignToStack<4, 4>>,
-  CCIfType<[f64], CCAssignToStack<8, 8>>,
-  CCIfType<[v2f64], CCAssignToStack<16, 8>>
+  CCIfType<[i32], CCIfAlign<"8", CCAssignToStackWithShadow<4, 8, [R0, R1, R2, R3]>>>,
+  CCIfType<[i32], CCAssignToStackWithShadow<4, 4, [R0, R1, R2, R3]>>,
+  CCIfType<[f32], CCAssignToStackWithShadow<4, 4, [Q0, Q1, Q2, Q3]>>,
+  CCIfType<[f64], CCAssignToStackWithShadow<8, 8, [Q0, Q1, Q2, Q3]>>,
+  CCIfType<[v2f64], CCAssignToStackWithShadow<16, 8, [Q0, Q1, Q2, Q3]>>
 ]>;
 
 def RetCC_ARM_AAPCS_Common : CallingConv<[
@@ -166,6 +174,9 @@ def CC_ARM_AAPCS_VFP : CallingConv<[
   CCIfType<[v1i64, v2i32, v4i16, v8i8, v2f32], CCBitConvertToType<f64>>,
   CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
 
+  // HFAs are passed in a contiguous block of registers, or on the stack
+  CCIfConsecutiveRegs<CCCustom<"CC_ARM_AAPCS_Custom_Aggregate">>,
+
   CCIfType<[v2f64], CCAssignToReg<[Q0, Q1, Q2, Q3]>>,
   CCIfType<[f64], CCAssignToReg<[D0, D1, D2, D3, D4, D5, D6, D7]>>,
   CCIfType<[f32], CCAssignToReg<[S0, S1, S2, S3, S4, S5, S6, S7, S8,
@@ -207,10 +218,24 @@ def CSR_AAPCS_ThisReturn : CalleeSavedRegs<(add LR, R11, R10, R9, R8, R7, R6,
 def CSR_iOS : CalleeSavedRegs<(add LR, R7, R6, R5, R4, (sub CSR_AAPCS, R9))>;
 
 def CSR_iOS_ThisReturn : CalleeSavedRegs<(add LR, R7, R6, R5, R4,
-                                          (sub CSR_AAPCS_ThisReturn, R9))>;
+                                         (sub CSR_AAPCS_ThisReturn, R9))>;
 
-// GHC set of callee saved regs is empty as all those regs are
-// used for passing STG regs around
-// add is a workaround for not being able to compile empty list:
-// def CSR_GHC : CalleeSavedRegs<()>;
-def CSR_GHC : CalleeSavedRegs<(add)>;
+// The "interrupt" attribute is used to generate code that is acceptable in
+// exception-handlers of various kinds. It makes us use a different return
+// instruction (handled elsewhere) and affects which registers we must return to
+// our "caller" in the same state as we receive them.
+
+// For most interrupts, all registers except SP and LR are shared with
+// user-space. We mark LR to be saved anyway, since this is what the ARM backend
+// generally does rather than tracking its liveness as a normal register.
+def CSR_GenericInt : CalleeSavedRegs<(add LR, (sequence "R%u", 12, 0))>;
+
+// The fast interrupt handlers have more private state and get their own copies
+// of R8-R12, in addition to SP and LR. As before, mark LR for saving too.
+
+// FIXME: we mark R11 as callee-saved since it's often the frame-pointer, and
+// current frame lowering expects to encounter it while processing callee-saved
+// registers.
+def CSR_FIQ : CalleeSavedRegs<(add LR, R11, (sequence "R%u", 7, 0))>;
+
+

@@ -40,7 +40,8 @@
 #define	USB_HAVE_MBUF 0
 #define	USB_HAVE_TT_SUPPORT 1
 #define	USB_HAVE_POWERD 1
-#define	USB_HAVE_MSCTEST 0
+#define	USB_HAVE_MSCTEST 1
+#define	USB_HAVE_MSCTEST_DETACH 0
 #define	USB_HAVE_PF 0
 #define	USB_HAVE_ROOT_MOUNT_HOLD 0
 #define	USB_HAVE_ID_SECTION 0
@@ -49,6 +50,7 @@
 #define	USB_HAVE_FIXED_IFACE 0
 #define	USB_HAVE_FIXED_CONFIG 0
 #define	USB_HAVE_FIXED_PORT 0
+#define	USB_HAVE_DISABLE_ENUM 0
 
 #define	USB_CALLOUT_ZERO_TICKS 1
 
@@ -81,7 +83,7 @@
 #define	USB_EP0_BUFSIZE		1024	/* bytes */
 #define	USB_CS_RESET_LIMIT	20	/* failures = 20 * 50 ms = 1sec */
 
-#define	USB_MAX_AUTO_QUIRK	4	/* maximum number of dynamic quirks */
+#define	USB_MAX_AUTO_QUIRK	8	/* maximum number of dynamic quirks */
 
 typedef uint32_t usb_timeout_t;		/* milliseconds */
 typedef uint32_t usb_frlength_t;	/* bytes */

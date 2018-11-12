@@ -86,12 +86,6 @@ rtas_setup(void *junk)
 		return;
 	}
 	OF_package_to_path(rtas, path, sizeof(path));
-	rtasi = OF_open(path);
-	if (rtasi == 0) {
-		rtas = 0;
-		printf("Error initializing RTAS: could not open node\n");
-		return;
-	}
 
 	mtx_init(&rtas_mtx, "RTAS", NULL, MTX_SPIN);
 
@@ -110,7 +104,7 @@ rtas_setup(void *junk)
 	 * It must be 4KB-aligned and not cross a 256 MB boundary.
 	 */
 
-	OF_getprop(rtas, "rtas-size", &rtas_size, sizeof(rtas_size));
+	OF_getencprop(rtas, "rtas-size", &rtas_size, sizeof(rtas_size));
 	rtas_size = round_page(rtas_size);
 	rtas_bounce_virt = contigmalloc(rtas_size + PAGE_SIZE, M_RTAS, 0, 0,
 	    ulmin(platform_real_maxaddr(), BUS_SPACE_MAXADDR_32BIT),
@@ -125,15 +119,32 @@ rtas_setup(void *junk)
 	 * Instantiate RTAS. We always use the 32-bit version.
 	 */
 
-	result = OF_call_method("instantiate-rtas", rtasi, 1, 1,
-	    (cell_t)rtas_private_data, &rtas_ptr);
-	OF_close(rtasi);
+	if (OF_hasprop(rtas, "linux,rtas-entry") &&
+	    OF_hasprop(rtas, "linux,rtas-base")) {
+		OF_getencprop(rtas, "linux,rtas-base", &rtas_ptr,
+		    sizeof(rtas_ptr));
+		rtas_private_data = rtas_ptr;
+		OF_getencprop(rtas, "linux,rtas-entry", &rtas_ptr,
+		    sizeof(rtas_ptr));
+	} else {
+		rtasi = OF_open(path);
+		if (rtasi == 0) {
+			rtas = 0;
+			printf("Error initializing RTAS: could not open "
+			    "node\n");
+			return;
+		}
 
-	if (result != 0) {
-		rtas = 0;
-		rtas_ptr = 0;
-		printf("Error initializing RTAS (%d)\n", result);
-		return;
+		result = OF_call_method("instantiate-rtas", rtasi, 1, 1,
+		    (cell_t)rtas_private_data, &rtas_ptr);
+		OF_close(rtasi);
+
+		if (result != 0) {
+			rtas = 0;
+			rtas_ptr = 0;
+			printf("Error initializing RTAS (%d)\n", result);
+			return;
+		}
 	}
 
 	rtas_entry = (uintptr_t)(rtas_ptr);
@@ -252,7 +263,7 @@ rtas_token_lookup(const char *method)
 	if (!rtas_exists())
 		return (-1);
 
-	if (OF_getprop(rtas, method, &token, sizeof(token)) == -1)
+	if (OF_getencprop(rtas, method, &token, sizeof(token)) == -1)
 		return (-1);
 
 	return (token);

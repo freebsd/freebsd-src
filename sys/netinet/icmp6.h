@@ -297,9 +297,11 @@ struct nd_opt_hdr {		/* Neighbor discovery option header */
 #define ND_OPT_PREFIX_INFORMATION	3
 #define ND_OPT_REDIRECTED_HEADER	4
 #define ND_OPT_MTU			5
+#define ND_OPT_NONCE			14	/* RFC 3971 */
 #define ND_OPT_ROUTE_INFO		24	/* RFC 4191 */
 #define ND_OPT_RDNSS			25	/* RFC 6106 */
 #define ND_OPT_DNSSL			31	/* RFC 6106 */
+#define ND_OPT_MAX			31
 
 struct nd_opt_prefix_info {	/* prefix information */
 	u_int8_t	nd_opt_pi_type;
@@ -328,6 +330,16 @@ struct nd_opt_mtu {		/* MTU option */
 	u_int8_t	nd_opt_mtu_len;
 	u_int16_t	nd_opt_mtu_reserved;
 	u_int32_t	nd_opt_mtu_mtu;
+} __packed;
+
+#define	ND_OPT_NONCE_LEN	((1 * 8) - 2)
+#if ((ND_OPT_NONCE_LEN + 2) % 8) != 0
+#error "(ND_OPT_NONCE_LEN + 2) must be a multiple of 8."
+#endif 
+struct nd_opt_nonce {		/* nonce option */
+	u_int8_t	nd_opt_nonce_type;
+	u_int8_t	nd_opt_nonce_len;
+	u_int8_t	nd_opt_nonce[ND_OPT_NONCE_LEN];
 } __packed;
 
 struct nd_opt_route_info {	/* route info */

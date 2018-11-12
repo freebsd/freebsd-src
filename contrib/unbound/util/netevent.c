@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -39,11 +39,13 @@
  * This file contains event notification functions.
  */
 #include "config.h"
-#include <ldns/wire2host.h>
 #include "util/netevent.h"
 #include "util/log.h"
 #include "util/net_help.h"
 #include "util/fptr_wlist.h"
+#include "ldns/pkthdr.h"
+#include "ldns/sbuffer.h"
+#include "dnstap/dnstap.h"
 #ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
 #endif
@@ -122,7 +124,7 @@ struct internal_base {
 	/** libevent event_base type. */
 	struct event_base* base;
 	/** seconds time pointer points here */
-	uint32_t secs;
+	time_t secs;
 	/** timeval with current time */
 	struct timeval now;
 	/** the event used for slow_accept timeouts */
@@ -171,7 +173,7 @@ comm_base_now(struct comm_base* b)
 	if(gettimeofday(&b->eb->now, NULL) < 0) {
 		log_err("gettimeofday: %s", strerror(errno));
 	}
-	b->eb->secs = (uint32_t)b->eb->now.tv_sec;
+	b->eb->secs = (time_t)b->eb->now.tv_sec;
 }
 #endif /* USE_MINI_EVENT */
 
@@ -234,6 +236,23 @@ comm_base_create(int sigs)
 	return b;
 }
 
+struct comm_base*
+comm_base_create_event(struct event_base* base)
+{
+	struct comm_base* b = (struct comm_base*)calloc(1,
+		sizeof(struct comm_base));
+	if(!b)
+		return NULL;
+	b->eb = (struct internal_base*)calloc(1, sizeof(struct internal_base));
+	if(!b->eb) {
+		free(b);
+		return NULL;
+	}
+	b->eb->base = base;
+	comm_base_now(b);
+	return b;
+}
+
 void 
 comm_base_delete(struct comm_base* b)
 {
@@ -258,7 +277,22 @@ comm_base_delete(struct comm_base* b)
 }
 
 void 
-comm_base_timept(struct comm_base* b, uint32_t** tt, struct timeval** tv)
+comm_base_delete_no_base(struct comm_base* b)
+{
+	if(!b)
+		return;
+	if(b->eb->slow_accept_enabled) {
+		if(event_del(&b->eb->slow_accept) != 0) {
+			log_err("could not event_del slow_accept");
+		}
+	}
+	b->eb->base = NULL;
+	free(b->eb);
+	free(b);
+}
+
+void 
+comm_base_timept(struct comm_base* b, time_t** tt, struct timeval** tv)
 {
 	*tt = &b->eb->secs;
 	*tv = &b->eb->now;
@@ -320,6 +354,10 @@ udp_send_errno_needs_log(struct sockaddr* addr, socklen_t addrlen)
 			break;
 	}
 #endif
+	/* permission denied is gotten for every send if the
+	 * network is disconnected (on some OS), squelch it */
+	if(errno == EPERM && verbosity < VERB_DETAIL)
+		return 0;
 	/* squelch errors where people deploy AAAA ::ffff:bla for
 	 * authority servers, which we try for intranets. */
 	if(errno == EINVAL && addr_is_ip4mapped(
@@ -342,18 +380,18 @@ int tcp_connect_errno_needs_log(struct sockaddr* addr, socklen_t addrlen)
 
 /* send a UDP reply */
 int
-comm_point_send_udp_msg(struct comm_point *c, ldns_buffer* packet,
+comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
 	struct sockaddr* addr, socklen_t addrlen) 
 {
 	ssize_t sent;
 	log_assert(c->fd != -1);
 #ifdef UNBOUND_DEBUG
-	if(ldns_buffer_remaining(packet) == 0)
+	if(sldns_buffer_remaining(packet) == 0)
 		log_err("error: send empty UDP packet");
 #endif
 	log_assert(addr && addrlen > 0);
-	sent = sendto(c->fd, (void*)ldns_buffer_begin(packet), 
-		ldns_buffer_remaining(packet), 0,
+	sent = sendto(c->fd, (void*)sldns_buffer_begin(packet), 
+		sldns_buffer_remaining(packet), 0,
 		addr, addrlen);
 	if(sent == -1) {
 		if(!udp_send_errno_needs_log(addr, addrlen))
@@ -367,9 +405,9 @@ comm_point_send_udp_msg(struct comm_point *c, ldns_buffer* packet,
 		log_addr(VERB_OPS, "remote address is", 
 			(struct sockaddr_storage*)addr, addrlen);
 		return 0;
-	} else if((size_t)sent != ldns_buffer_remaining(packet)) {
+	} else if((size_t)sent != sldns_buffer_remaining(packet)) {
 		log_err("sent %d in place of %d bytes", 
-			(int)sent, (int)ldns_buffer_remaining(packet));
+			(int)sent, (int)sldns_buffer_remaining(packet));
 		return 0;
 	}
 	return 1;
@@ -387,7 +425,7 @@ static void p_ancil(const char* str, struct comm_reply* r)
 		char buf[1024];
 		if(inet_ntop(AF_INET6, &r->pktinfo.v6info.ipi6_addr, 
 			buf, (socklen_t)sizeof(buf)) == 0) {
-			strncpy(buf, "(inet_ntop error)", sizeof(buf));
+			(void)strlcpy(buf, "(inet_ntop error)", sizeof(buf));
 		}
 		buf[sizeof(buf)-1]=0;
 		log_info("%s: %s %d", str, buf, r->pktinfo.v6info.ipi6_ifindex);
@@ -396,13 +434,13 @@ static void p_ancil(const char* str, struct comm_reply* r)
 		char buf1[1024], buf2[1024];
 		if(inet_ntop(AF_INET, &r->pktinfo.v4info.ipi_addr, 
 			buf1, (socklen_t)sizeof(buf1)) == 0) {
-			strncpy(buf1, "(inet_ntop error)", sizeof(buf1));
+			(void)strlcpy(buf1, "(inet_ntop error)", sizeof(buf1));
 		}
 		buf1[sizeof(buf1)-1]=0;
 #ifdef HAVE_STRUCT_IN_PKTINFO_IPI_SPEC_DST
 		if(inet_ntop(AF_INET, &r->pktinfo.v4info.ipi_spec_dst, 
 			buf2, (socklen_t)sizeof(buf2)) == 0) {
-			strncpy(buf2, "(inet_ntop error)", sizeof(buf2));
+			(void)strlcpy(buf2, "(inet_ntop error)", sizeof(buf2));
 		}
 		buf2[sizeof(buf2)-1]=0;
 #else
@@ -414,7 +452,7 @@ static void p_ancil(const char* str, struct comm_reply* r)
 		char buf1[1024];
 		if(inet_ntop(AF_INET, &r->pktinfo.v4addr, 
 			buf1, (socklen_t)sizeof(buf1)) == 0) {
-			strncpy(buf1, "(inet_ntop error)", sizeof(buf1));
+			(void)strlcpy(buf1, "(inet_ntop error)", sizeof(buf1));
 		}
 		buf1[sizeof(buf1)-1]=0;
 		log_info("%s: %s", str, buf1);
@@ -425,7 +463,7 @@ static void p_ancil(const char* str, struct comm_reply* r)
 
 /** send a UDP reply over specified interface*/
 static int
-comm_point_send_udp_msg_if(struct comm_point *c, ldns_buffer* packet,
+comm_point_send_udp_msg_if(struct comm_point *c, sldns_buffer* packet,
 	struct sockaddr* addr, socklen_t addrlen, struct comm_reply* r) 
 {
 #if defined(AF_INET6) && defined(IPV6_PKTINFO) && defined(HAVE_SENDMSG)
@@ -439,15 +477,15 @@ comm_point_send_udp_msg_if(struct comm_point *c, ldns_buffer* packet,
 
 	log_assert(c->fd != -1);
 #ifdef UNBOUND_DEBUG
-	if(ldns_buffer_remaining(packet) == 0)
+	if(sldns_buffer_remaining(packet) == 0)
 		log_err("error: send empty UDP packet");
 #endif
 	log_assert(addr && addrlen > 0);
 
 	msg.msg_name = addr;
 	msg.msg_namelen = addrlen;
-	iov[0].iov_base = ldns_buffer_begin(packet);
-	iov[0].iov_len = ldns_buffer_remaining(packet);
+	iov[0].iov_base = sldns_buffer_begin(packet);
+	iov[0].iov_len = sldns_buffer_remaining(packet);
 	msg.msg_iov = iov;
 	msg.msg_iovlen = 1;
 	msg.msg_control = control;
@@ -507,9 +545,9 @@ comm_point_send_udp_msg_if(struct comm_point *c, ldns_buffer* packet,
 		log_addr(VERB_OPS, "remote address is", 
 			(struct sockaddr_storage*)addr, addrlen);
 		return 0;
-	} else if((size_t)sent != ldns_buffer_remaining(packet)) {
+	} else if((size_t)sent != sldns_buffer_remaining(packet)) {
 		log_err("sent %d in place of %d bytes", 
-			(int)sent, (int)ldns_buffer_remaining(packet));
+			(int)sent, (int)sldns_buffer_remaining(packet));
 		return 0;
 	}
 	return 1;
@@ -546,14 +584,14 @@ comm_point_udp_ancil_callback(int fd, short event, void* arg)
 	log_assert(rep.c && rep.c->buffer && rep.c->fd == fd);
 	comm_base_now(rep.c->ev->base);
 	for(i=0; i<NUM_UDP_PER_SELECT; i++) {
-		ldns_buffer_clear(rep.c->buffer);
+		sldns_buffer_clear(rep.c->buffer);
 		rep.addrlen = (socklen_t)sizeof(rep.addr);
 		log_assert(fd != -1);
-		log_assert(ldns_buffer_remaining(rep.c->buffer) > 0);
+		log_assert(sldns_buffer_remaining(rep.c->buffer) > 0);
 		msg.msg_name = &rep.addr;
 		msg.msg_namelen = (socklen_t)sizeof(rep.addr);
-		iov[0].iov_base = ldns_buffer_begin(rep.c->buffer);
-		iov[0].iov_len = ldns_buffer_remaining(rep.c->buffer);
+		iov[0].iov_base = sldns_buffer_begin(rep.c->buffer);
+		iov[0].iov_len = sldns_buffer_remaining(rep.c->buffer);
 		msg.msg_iov = iov;
 		msg.msg_iovlen = 1;
 		msg.msg_control = ancil;
@@ -569,8 +607,8 @@ comm_point_udp_ancil_callback(int fd, short event, void* arg)
 			return;
 		}
 		rep.addrlen = msg.msg_namelen;
-		ldns_buffer_skip(rep.c->buffer, rcv);
-		ldns_buffer_flip(rep.c->buffer);
+		sldns_buffer_skip(rep.c->buffer, rcv);
+		sldns_buffer_flip(rep.c->buffer);
 		rep.srctype = 0;
 #ifndef S_SPLINT_S
 		for(cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
@@ -634,12 +672,12 @@ comm_point_udp_callback(int fd, short event, void* arg)
 	log_assert(rep.c && rep.c->buffer && rep.c->fd == fd);
 	comm_base_now(rep.c->ev->base);
 	for(i=0; i<NUM_UDP_PER_SELECT; i++) {
-		ldns_buffer_clear(rep.c->buffer);
+		sldns_buffer_clear(rep.c->buffer);
 		rep.addrlen = (socklen_t)sizeof(rep.addr);
 		log_assert(fd != -1);
-		log_assert(ldns_buffer_remaining(rep.c->buffer) > 0);
-		rcv = recvfrom(fd, (void*)ldns_buffer_begin(rep.c->buffer), 
-			ldns_buffer_remaining(rep.c->buffer), 0, 
+		log_assert(sldns_buffer_remaining(rep.c->buffer) > 0);
+		rcv = recvfrom(fd, (void*)sldns_buffer_begin(rep.c->buffer), 
+			sldns_buffer_remaining(rep.c->buffer), 0, 
 			(struct sockaddr*)&rep.addr, &rep.addrlen);
 		if(rcv == -1) {
 #ifndef USE_WINSOCK
@@ -655,8 +693,8 @@ comm_point_udp_callback(int fd, short event, void* arg)
 #endif
 			return;
 		}
-		ldns_buffer_skip(rep.c->buffer, rcv);
-		ldns_buffer_flip(rep.c->buffer);
+		sldns_buffer_skip(rep.c->buffer, rcv);
+		sldns_buffer_flip(rep.c->buffer);
 		rep.srctype = 0;
 		fptr_ok(fptr_whitelist_comm_point(rep.c->callback));
 		if((*rep.c->callback)(rep.c, rep.c->cb_arg, NETEVENT_NOERROR, &rep)) {
@@ -676,7 +714,7 @@ setup_tcp_handler(struct comm_point* c, int fd)
 {
 	log_assert(c->type == comm_tcp);
 	log_assert(c->fd == -1);
-	ldns_buffer_clear(c->buffer);
+	sldns_buffer_clear(c->buffer);
 	c->tcp_is_reading = 1;
 	c->tcp_byte_count = 0;
 	comm_point_start_listening(c, fd, TCP_QUERY_TIMEOUT);
@@ -748,7 +786,7 @@ int comm_point_perform_accept(struct comm_point* c,
 			return -1;
 		}
 #endif
-		log_err("accept failed: %s", strerror(errno));
+		log_err_addr("accept failed", strerror(errno), addr, *addrlen);
 #else /* USE_WINSOCK */
 		if(WSAGetLastError() == WSAEINPROGRESS ||
 			WSAGetLastError() == WSAECONNRESET)
@@ -757,9 +795,9 @@ int comm_point_perform_accept(struct comm_point* c,
 			winsock_tcp_wouldblock(&c->ev->ev, EV_READ);
 			return -1;
 		}
-		log_err("accept failed: %s", wsa_strerror(WSAGetLastError()));
+		log_err_addr("accept failed", wsa_strerror(WSAGetLastError()),
+			addr, *addrlen);
 #endif
-		log_addr(0, "remote address is", addr, *addrlen);
 		return -1;
 	}
 	fd_set_nonblock(new_fd);
@@ -878,7 +916,7 @@ static void
 tcp_callback_writer(struct comm_point* c)
 {
 	log_assert(c->type == comm_tcp);
-	ldns_buffer_clear(c->buffer);
+	sldns_buffer_clear(c->buffer);
 	if(c->tcp_do_toggle_rw)
 		c->tcp_is_reading = 1;
 	c->tcp_byte_count = 0;
@@ -892,7 +930,7 @@ static void
 tcp_callback_reader(struct comm_point* c)
 {
 	log_assert(c->type == comm_tcp || c->type == comm_local);
-	ldns_buffer_flip(c->buffer);
+	sldns_buffer_flip(c->buffer);
 	if(c->tcp_do_toggle_rw)
 		c->tcp_is_reading = 0;
 	c->tcp_byte_count = 0;
@@ -985,7 +1023,7 @@ ssl_handle_read(struct comm_point* c)
 	if(c->tcp_byte_count < sizeof(uint16_t)) {
 		/* read length bytes */
 		ERR_clear_error();
-		if((r=SSL_read(c->ssl, (void*)ldns_buffer_at(c->buffer,
+		if((r=SSL_read(c->ssl, (void*)sldns_buffer_at(c->buffer,
 			c->tcp_byte_count), (int)(sizeof(uint16_t) -
 			c->tcp_byte_count))) <= 0) {
 			int want = SSL_get_error(c->ssl, r);
@@ -1009,24 +1047,24 @@ ssl_handle_read(struct comm_point* c)
 		c->tcp_byte_count += r;
 		if(c->tcp_byte_count != sizeof(uint16_t))
 			return 1;
-		if(ldns_buffer_read_u16_at(c->buffer, 0) >
-			ldns_buffer_capacity(c->buffer)) {
+		if(sldns_buffer_read_u16_at(c->buffer, 0) >
+			sldns_buffer_capacity(c->buffer)) {
 			verbose(VERB_QUERY, "ssl: dropped larger than buffer");
 			return 0;
 		}
-		ldns_buffer_set_limit(c->buffer,
-			ldns_buffer_read_u16_at(c->buffer, 0));
-		if(ldns_buffer_limit(c->buffer) < LDNS_HEADER_SIZE) {
+		sldns_buffer_set_limit(c->buffer,
+			sldns_buffer_read_u16_at(c->buffer, 0));
+		if(sldns_buffer_limit(c->buffer) < LDNS_HEADER_SIZE) {
 			verbose(VERB_QUERY, "ssl: dropped bogus too short.");
 			return 0;
 		}
 		verbose(VERB_ALGO, "Reading ssl tcp query of length %d",
-			(int)ldns_buffer_limit(c->buffer));
+			(int)sldns_buffer_limit(c->buffer));
 	}
-	log_assert(ldns_buffer_remaining(c->buffer) > 0);
+	log_assert(sldns_buffer_remaining(c->buffer) > 0);
 	ERR_clear_error();
-	r = SSL_read(c->ssl, (void*)ldns_buffer_current(c->buffer),
-		(int)ldns_buffer_remaining(c->buffer));
+	r = SSL_read(c->ssl, (void*)sldns_buffer_current(c->buffer),
+		(int)sldns_buffer_remaining(c->buffer));
 	if(r <= 0) {
 		int want = SSL_get_error(c->ssl, r);
 		if(want == SSL_ERROR_ZERO_RETURN) {
@@ -1046,8 +1084,8 @@ ssl_handle_read(struct comm_point* c)
 		log_crypto_err("could not SSL_read");
 		return 0;
 	}
-	ldns_buffer_skip(c->buffer, (ssize_t)r);
-	if(ldns_buffer_remaining(c->buffer) <= 0) {
+	sldns_buffer_skip(c->buffer, (ssize_t)r);
+	if(sldns_buffer_remaining(c->buffer) <= 0) {
 		tcp_callback_reader(c);
 	}
 	return 1;
@@ -1072,7 +1110,7 @@ ssl_handle_write(struct comm_point* c)
 	/* ignore return, if fails we may simply block */
 	(void)SSL_set_mode(c->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
 	if(c->tcp_byte_count < sizeof(uint16_t)) {
-		uint16_t len = htons(ldns_buffer_limit(c->buffer));
+		uint16_t len = htons(sldns_buffer_limit(c->buffer));
 		ERR_clear_error();
 		r = SSL_write(c->ssl,
 			(void*)(((uint8_t*)&len)+c->tcp_byte_count),
@@ -1099,17 +1137,17 @@ ssl_handle_write(struct comm_point* c)
 		c->tcp_byte_count += r;
 		if(c->tcp_byte_count < sizeof(uint16_t))
 			return 1;
-		ldns_buffer_set_position(c->buffer, c->tcp_byte_count -
+		sldns_buffer_set_position(c->buffer, c->tcp_byte_count -
 			sizeof(uint16_t));
-		if(ldns_buffer_remaining(c->buffer) == 0) {
+		if(sldns_buffer_remaining(c->buffer) == 0) {
 			tcp_callback_writer(c);
 			return 1;
 		}
 	}
-	log_assert(ldns_buffer_remaining(c->buffer) > 0);
+	log_assert(sldns_buffer_remaining(c->buffer) > 0);
 	ERR_clear_error();
-	r = SSL_write(c->ssl, (void*)ldns_buffer_current(c->buffer),
-		(int)ldns_buffer_remaining(c->buffer));
+	r = SSL_write(c->ssl, (void*)sldns_buffer_current(c->buffer),
+		(int)sldns_buffer_remaining(c->buffer));
 	if(r <= 0) {
 		int want = SSL_get_error(c->ssl, r);
 		if(want == SSL_ERROR_ZERO_RETURN) {
@@ -1129,9 +1167,9 @@ ssl_handle_write(struct comm_point* c)
 		log_crypto_err("could not SSL_write");
 		return 0;
 	}
-	ldns_buffer_skip(c->buffer, (ssize_t)r);
+	sldns_buffer_skip(c->buffer, (ssize_t)r);
 
-	if(ldns_buffer_remaining(c->buffer) == 0) {
+	if(sldns_buffer_remaining(c->buffer) == 0) {
 		tcp_callback_writer(c);
 	}
 	return 1;
@@ -1169,7 +1207,7 @@ comm_point_tcp_handle_read(int fd, struct comm_point* c, int short_ok)
 	log_assert(fd != -1);
 	if(c->tcp_byte_count < sizeof(uint16_t)) {
 		/* read length bytes */
-		r = recv(fd,(void*)ldns_buffer_at(c->buffer,c->tcp_byte_count),
+		r = recv(fd,(void*)sldns_buffer_at(c->buffer,c->tcp_byte_count),
 			sizeof(uint16_t)-c->tcp_byte_count, 0);
 		if(r == 0)
 			return 0;
@@ -1181,7 +1219,8 @@ comm_point_tcp_handle_read(int fd, struct comm_point* c, int short_ok)
 			if(errno == ECONNRESET && verbosity < 2)
 				return 0; /* silence reset by peer */
 #endif
-			log_err("read (in tcp s): %s", strerror(errno));
+			log_err_addr("read (in tcp s)", strerror(errno),
+				&c->repinfo.addr, c->repinfo.addrlen);
 #else /* USE_WINSOCK */
 			if(WSAGetLastError() == WSAECONNRESET)
 				return 0;
@@ -1191,42 +1230,42 @@ comm_point_tcp_handle_read(int fd, struct comm_point* c, int short_ok)
 				winsock_tcp_wouldblock(&c->ev->ev, EV_READ);
 				return 1;
 			}
-			log_err("read (in tcp s): %s", 
-				wsa_strerror(WSAGetLastError()));
+			log_err_addr("read (in tcp s)", 
+				wsa_strerror(WSAGetLastError()),
+				&c->repinfo.addr, c->repinfo.addrlen);
 #endif
-			log_addr(0, "remote address is", &c->repinfo.addr,
-				c->repinfo.addrlen);
 			return 0;
 		} 
 		c->tcp_byte_count += r;
 		if(c->tcp_byte_count != sizeof(uint16_t))
 			return 1;
-		if(ldns_buffer_read_u16_at(c->buffer, 0) >
-			ldns_buffer_capacity(c->buffer)) {
+		if(sldns_buffer_read_u16_at(c->buffer, 0) >
+			sldns_buffer_capacity(c->buffer)) {
 			verbose(VERB_QUERY, "tcp: dropped larger than buffer");
 			return 0;
 		}
-		ldns_buffer_set_limit(c->buffer, 
-			ldns_buffer_read_u16_at(c->buffer, 0));
+		sldns_buffer_set_limit(c->buffer, 
+			sldns_buffer_read_u16_at(c->buffer, 0));
 		if(!short_ok && 
-			ldns_buffer_limit(c->buffer) < LDNS_HEADER_SIZE) {
+			sldns_buffer_limit(c->buffer) < LDNS_HEADER_SIZE) {
 			verbose(VERB_QUERY, "tcp: dropped bogus too short.");
 			return 0;
 		}
 		verbose(VERB_ALGO, "Reading tcp query of length %d", 
-			(int)ldns_buffer_limit(c->buffer));
+			(int)sldns_buffer_limit(c->buffer));
 	}
 
-	log_assert(ldns_buffer_remaining(c->buffer) > 0);
-	r = recv(fd, (void*)ldns_buffer_current(c->buffer), 
-		ldns_buffer_remaining(c->buffer), 0);
+	log_assert(sldns_buffer_remaining(c->buffer) > 0);
+	r = recv(fd, (void*)sldns_buffer_current(c->buffer), 
+		sldns_buffer_remaining(c->buffer), 0);
 	if(r == 0) {
 		return 0;
 	} else if(r == -1) {
 #ifndef USE_WINSOCK
 		if(errno == EINTR || errno == EAGAIN)
 			return 1;
-		log_err("read (in tcp r): %s", strerror(errno));
+		log_err_addr("read (in tcp r)", strerror(errno),
+			&c->repinfo.addr, c->repinfo.addrlen);
 #else /* USE_WINSOCK */
 		if(WSAGetLastError() == WSAECONNRESET)
 			return 0;
@@ -1236,15 +1275,14 @@ comm_point_tcp_handle_read(int fd, struct comm_point* c, int short_ok)
 			winsock_tcp_wouldblock(&c->ev->ev, EV_READ);
 			return 1;
 		}
-		log_err("read (in tcp r): %s", 
-			wsa_strerror(WSAGetLastError()));
+		log_err_addr("read (in tcp r)",
+			wsa_strerror(WSAGetLastError()),
+			&c->repinfo.addr, c->repinfo.addrlen);
 #endif
-		log_addr(0, "remote address is", &c->repinfo.addr,
-			c->repinfo.addrlen);
 		return 0;
 	}
-	ldns_buffer_skip(c->buffer, r);
-	if(ldns_buffer_remaining(c->buffer) <= 0) {
+	sldns_buffer_skip(c->buffer, r);
+	if(sldns_buffer_remaining(c->buffer) <= 0) {
 		tcp_callback_reader(c);
 	}
 	return 1;
@@ -1286,7 +1324,8 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 		if(error != 0 && verbosity < 2)
 			return 0; /* silence lots of chatter in the logs */
                 else if(error != 0) {
-			log_err("tcp connect: %s", strerror(error));
+			log_err_addr("tcp connect", strerror(error),
+				&c->repinfo.addr, c->repinfo.addrlen);
 #else /* USE_WINSOCK */
 		/* examine error */
 		if(error == WSAEINPROGRESS)
@@ -1297,10 +1336,9 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 		} else if(error != 0 && verbosity < 2)
 			return 0;
 		else if(error != 0) {
-			log_err("tcp connect: %s", wsa_strerror(error));
+			log_err_addr("tcp connect", wsa_strerror(error),
+				&c->repinfo.addr, c->repinfo.addrlen);
 #endif /* USE_WINSOCK */
-			log_addr(0, "remote address is", &c->repinfo.addr, 
-				c->repinfo.addrlen);
 			return 0;
 		}
 	}
@@ -1308,13 +1346,13 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 		return ssl_handle_it(c);
 
 	if(c->tcp_byte_count < sizeof(uint16_t)) {
-		uint16_t len = htons(ldns_buffer_limit(c->buffer));
+		uint16_t len = htons(sldns_buffer_limit(c->buffer));
 #ifdef HAVE_WRITEV
 		struct iovec iov[2];
 		iov[0].iov_base = (uint8_t*)&len + c->tcp_byte_count;
 		iov[0].iov_len = sizeof(uint16_t) - c->tcp_byte_count;
-		iov[1].iov_base = ldns_buffer_begin(c->buffer);
-		iov[1].iov_len = ldns_buffer_limit(c->buffer);
+		iov[1].iov_base = sldns_buffer_begin(c->buffer);
+		iov[1].iov_len = sldns_buffer_limit(c->buffer);
 		log_assert(iov[0].iov_len > 0);
 		log_assert(iov[1].iov_len > 0);
 		r = writev(fd, iov, 2);
@@ -1324,13 +1362,19 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 #endif /* HAVE_WRITEV */
 		if(r == -1) {
 #ifndef USE_WINSOCK
-#ifdef EPIPE
+#  ifdef EPIPE
                 	if(errno == EPIPE && verbosity < 2)
                         	return 0; /* silence 'broken pipe' */
-#endif
+  #endif
 			if(errno == EINTR || errno == EAGAIN)
 				return 1;
-			log_err("tcp writev: %s", strerror(errno));
+#  ifdef HAVE_WRITEV
+			log_err_addr("tcp writev", strerror(errno),
+				&c->repinfo.addr, c->repinfo.addrlen);
+#  else /* HAVE_WRITEV */
+			log_err_addr("tcp send s", strerror(errno),
+				&c->repinfo.addr, c->repinfo.addrlen);
+#  endif /* HAVE_WRITEV */
 #else
 			if(WSAGetLastError() == WSAENOTCONN)
 				return 1;
@@ -1340,31 +1384,31 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 				winsock_tcp_wouldblock(&c->ev->ev, EV_WRITE);
 				return 1; 
 			}
-			log_err("tcp send s: %s", 
-				wsa_strerror(WSAGetLastError()));
+			log_err_addr("tcp send s",
+				wsa_strerror(WSAGetLastError()),
+				&c->repinfo.addr, c->repinfo.addrlen);
 #endif
-			log_addr(0, "remote address is", &c->repinfo.addr,
-				c->repinfo.addrlen);
 			return 0;
 		}
 		c->tcp_byte_count += r;
 		if(c->tcp_byte_count < sizeof(uint16_t))
 			return 1;
-		ldns_buffer_set_position(c->buffer, c->tcp_byte_count - 
+		sldns_buffer_set_position(c->buffer, c->tcp_byte_count - 
 			sizeof(uint16_t));
-		if(ldns_buffer_remaining(c->buffer) == 0) {
+		if(sldns_buffer_remaining(c->buffer) == 0) {
 			tcp_callback_writer(c);
 			return 1;
 		}
 	}
-	log_assert(ldns_buffer_remaining(c->buffer) > 0);
-	r = send(fd, (void*)ldns_buffer_current(c->buffer), 
-		ldns_buffer_remaining(c->buffer), 0);
+	log_assert(sldns_buffer_remaining(c->buffer) > 0);
+	r = send(fd, (void*)sldns_buffer_current(c->buffer), 
+		sldns_buffer_remaining(c->buffer), 0);
 	if(r == -1) {
 #ifndef USE_WINSOCK
 		if(errno == EINTR || errno == EAGAIN)
 			return 1;
-		log_err("tcp send r: %s", strerror(errno));
+		log_err_addr("tcp send r", strerror(errno),
+			&c->repinfo.addr, c->repinfo.addrlen);
 #else
 		if(WSAGetLastError() == WSAEINPROGRESS)
 			return 1;
@@ -1372,16 +1416,14 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 			winsock_tcp_wouldblock(&c->ev->ev, EV_WRITE);
 			return 1; 
 		}
-		log_err("tcp send r: %s", 
-			wsa_strerror(WSAGetLastError()));
+		log_err_addr("tcp send r", wsa_strerror(WSAGetLastError()),
+			&c->repinfo.addr, c->repinfo.addrlen);
 #endif
-		log_addr(0, "remote address is", &c->repinfo.addr,
-			c->repinfo.addrlen);
 		return 0;
 	}
-	ldns_buffer_skip(c->buffer, r);
+	sldns_buffer_skip(c->buffer, r);
 
-	if(ldns_buffer_remaining(c->buffer) == 0) {
+	if(sldns_buffer_remaining(c->buffer) == 0) {
 		tcp_callback_writer(c);
 	}
 	
@@ -1464,7 +1506,7 @@ void comm_point_raw_handle_callback(int ATTR_UNUSED(fd),
 }
 
 struct comm_point* 
-comm_point_create_udp(struct comm_base *base, int fd, ldns_buffer* buffer,
+comm_point_create_udp(struct comm_base *base, int fd, sldns_buffer* buffer,
 	comm_point_callback_t* callback, void* callback_arg)
 {
 	struct comm_point* c = (struct comm_point*)calloc(1,
@@ -1514,7 +1556,7 @@ comm_point_create_udp(struct comm_base *base, int fd, ldns_buffer* buffer,
 
 struct comm_point* 
 comm_point_create_udp_ancil(struct comm_base *base, int fd, 
-	ldns_buffer* buffer, 
+	sldns_buffer* buffer, 
 	comm_point_callback_t* callback, void* callback_arg)
 {
 	struct comm_point* c = (struct comm_point*)calloc(1,
@@ -1580,7 +1622,7 @@ comm_point_create_tcp_handler(struct comm_base *base,
 	}
 	c->ev->base = base;
 	c->fd = -1;
-	c->buffer = ldns_buffer_new(bufsize);
+	c->buffer = sldns_buffer_new(bufsize);
 	if(!c->buffer) {
 		free(c->ev);
 		free(c);
@@ -1588,7 +1630,7 @@ comm_point_create_tcp_handler(struct comm_base *base,
 	}
 	c->timeout = (struct timeval*)malloc(sizeof(struct timeval));
 	if(!c->timeout) {
-		ldns_buffer_free(c->buffer);
+		sldns_buffer_free(c->buffer);
 		free(c->ev);
 		free(c);
 		return NULL;
@@ -1705,7 +1747,7 @@ comm_point_create_tcp_out(struct comm_base *base, size_t bufsize,
 	}
 	c->ev->base = base;
 	c->fd = -1;
-	c->buffer = ldns_buffer_new(bufsize);
+	c->buffer = sldns_buffer_new(bufsize);
 	if(!c->buffer) {
 		free(c->ev);
 		free(c);
@@ -1731,7 +1773,7 @@ comm_point_create_tcp_out(struct comm_base *base, size_t bufsize,
 	if(event_base_set(base->eb->base, &c->ev->ev) != 0)
 	{
 		log_err("could not basetset tcpout event");
-		ldns_buffer_free(c->buffer);
+		sldns_buffer_free(c->buffer);
 		free(c->ev);
 		free(c);
 		return NULL;
@@ -1757,7 +1799,7 @@ comm_point_create_local(struct comm_base *base, int fd, size_t bufsize,
 	}
 	c->ev->base = base;
 	c->fd = fd;
-	c->buffer = ldns_buffer_new(bufsize);
+	c->buffer = sldns_buffer_new(bufsize);
 	if(!c->buffer) {
 		free(c->ev);
 		free(c);
@@ -1882,7 +1924,7 @@ comm_point_delete(struct comm_point* c)
 	}
 	free(c->timeout);
 	if(c->type == comm_tcp || c->type == comm_local)
-		ldns_buffer_free(c->buffer);
+		sldns_buffer_free(c->buffer);
 	free(c->ev);
 	free(c);
 }
@@ -1899,7 +1941,19 @@ comm_point_send_reply(struct comm_reply *repinfo)
 		else
 			comm_point_send_udp_msg(repinfo->c, repinfo->c->buffer,
 			(struct sockaddr*)&repinfo->addr, repinfo->addrlen);
+#ifdef USE_DNSTAP
+		if(repinfo->c->dtenv != NULL &&
+		   repinfo->c->dtenv->log_client_response_messages)
+			dt_msg_send_client_response(repinfo->c->dtenv,
+			&repinfo->addr, repinfo->c->type, repinfo->c->buffer);
+#endif
 	} else {
+#ifdef USE_DNSTAP
+		if(repinfo->c->tcp_parent->dtenv != NULL &&
+		   repinfo->c->tcp_parent->dtenv->log_client_response_messages)
+			dt_msg_send_client_response(repinfo->c->tcp_parent->dtenv,
+			&repinfo->addr, repinfo->c->type, repinfo->c->buffer);
+#endif
 		comm_point_start_listening(repinfo->c, -1, TCP_QUERY_TIMEOUT);
 	}
 }
@@ -1994,7 +2048,7 @@ size_t comm_point_get_mem(struct comm_point* c)
 	if(c->timeout) 
 		s += sizeof(*c->timeout);
 	if(c->type == comm_tcp || c->type == comm_local)
-		s += sizeof(*c->buffer) + ldns_buffer_capacity(c->buffer);
+		s += sizeof(*c->buffer) + sldns_buffer_capacity(c->buffer);
 	if(c->type == comm_tcp_accept) {
 		int i;
 		for(i=0; i<c->max_tcp_count; i++)

@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 .include <bsd.init.mk>
+.include <bsd.compiler.mk>
 
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .ln .s .S .asm
 
@@ -28,9 +29,7 @@ CTFFLAGS+= -g
 PROG=	${PROG_CXX}
 .endif
 
-.if defined(PROG) && target(${PROG})
-MK_DEBUG_FILES=	no
-.elif !empty(LDFLAGS:M-Wl,*--oformat,*) || !empty(LDFLAGS:M-static)
+.if !empty(LDFLAGS:M-Wl,*--oformat,*) || !empty(LDFLAGS:M-static)
 MK_DEBUG_FILES=	no
 .endif
 
@@ -52,10 +51,6 @@ STRIP?=	-s
 LDFLAGS+= -static
 .endif
 
-.if defined(USEPRIVATELIB)
-LDFLAGS+= -L${_SHLIBDIRPREFIX}${LIBPRIVATEDIR} -rpath ${LIBPRIVATEDIR}
-.endif
-
 .if ${MK_DEBUG_FILES} != "no"
 PROG_FULL=${PROG}.full
 # Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
@@ -63,7 +58,7 @@ PROG_FULL=${PROG}.full
     ${BINDIR} == "/bin" ||\
     ${BINDIR} == "/libexec" ||\
     ${BINDIR} == "/sbin" ||\
-    ${BINDIR:C%/usr/(bin|bsdinstall|games|libexec|lpr|sendmail|sm.bin|sbin)(/.*)?%/usr/bin%} == "/usr/bin"\
+    ${BINDIR:C%/usr/(bin|bsdinstall|libexec|lpr|sendmail|sm.bin|sbin)(/.*)?%/usr/bin%} == "/usr/bin"\
      )
 DEBUGFILEDIR=	${DEBUGDIR}${BINDIR}
 .else
@@ -146,7 +141,8 @@ MAN1=	${MAN}
 .endif
 .endif # defined(PROG)
 
-all: objwarn ${PROG} ${SCRIPTS}
+all: beforebuild .WAIT ${PROG} ${SCRIPTS}
+beforebuild: objwarn
 .if ${MK_MAN} != "no"
 all: _manpages
 .endif
@@ -168,15 +164,15 @@ CLEANFILES+= ${OBJS}
 _EXTRADEPEND:
 .if defined(LDFLAGS) && !empty(LDFLAGS:M-nostdlib)
 .if defined(DPADD) && !empty(DPADD)
-	echo ${PROG}: ${DPADD} >> ${DEPENDFILE}
+	echo ${PROG_FULL}: ${DPADD} >> ${DEPENDFILE}
 .endif
 .else
-	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
-.if defined(PROG_CXX) && !defined(EARLY_BUILD)
-.if ${MK_CLANG_IS_CC} != "no" && empty(CXXFLAGS:M-stdlib=libstdc++)
-	echo ${PROG}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
+	echo ${PROG_FULL}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
+.if defined(PROG_CXX)
+.if ${COMPILER_TYPE} == "clang" && empty(CXXFLAGS:M-stdlib=libstdc++)
+	echo ${PROG_FULL}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
 .else
-	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
+	echo ${PROG_FULL}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
 .endif
 .endif
 .endif
@@ -275,7 +271,3 @@ ${OBJS}: ${SRCS:M*.h}
 .include <bsd.obj.mk>
 
 .include <bsd.sys.mk>
-
-.if defined(PORTNAME)
-.include <bsd.pkg.mk>
-.endif

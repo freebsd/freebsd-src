@@ -17,10 +17,11 @@
 namespace lldb_private {
 
 class UnwindAssembly :
+   public std::enable_shared_from_this<UnwindAssembly>,
    public PluginInterface
 {
 public:
-    static UnwindAssembly*
+    static lldb::UnwindAssemblySP
     FindPlugin (const ArchSpec &arch);
 
     virtual
@@ -30,6 +31,11 @@ public:
     GetNonCallSiteUnwindPlanFromAssembly (AddressRange& func, 
                                           Thread& thread, 
                                           UnwindPlan& unwind_plan) = 0;
+
+    virtual bool
+    AugmentUnwindPlanFromCallSite (AddressRange& func,
+                                   Thread& thread,
+                                   UnwindPlan& unwind_plan) = 0;
 
     virtual bool
     GetFastUnwindPlan (AddressRange& func, 

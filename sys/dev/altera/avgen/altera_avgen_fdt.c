@@ -62,6 +62,9 @@ static int
 altera_avgen_fdt_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "sri-cambridge,avgen")) {
 		device_set_desc(dev, "Generic Altera Avalon device attachment");
 		return (BUS_PROBE_DEFAULT);

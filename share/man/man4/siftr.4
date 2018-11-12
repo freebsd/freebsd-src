@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2010
+.Dd March 18, 2015
 .Dt SIFTR 4
 .Os
 .Sh NAME
@@ -334,6 +334,22 @@ Bytes acknowledged via SACK are not excluded from this count.
 .Bl -tag -offset indent -width Va
 .It Va 26
 The current number of segments in the reassembly queue.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 27
+Flowid for the connection.
+A caveat: Zero '0' either represents a valid flowid or a default value when it's
+not being set. There is no easy way to differentiate without looking at actual
+network interface card and drivers being used.
+.El
+.Bl -tag -offset indent -width Va
+.It Va 28
+Flow type for the connection.
+Flowtype defines which protocol fields are hashed to produce the flowid. 
+A complete listing is available in
+.Pa sys/mbuf.h
+under
+.Dv M_HASHTYPE_* .
 .El
 .Pp
 The third type of log message is written to the file when the module is disabled
@@ -642,12 +658,12 @@ http://caia.swin.edu.au/freebsd/etcp09/
 .An -nosplit
 .Nm
 was written by
-.An Lawrence Stewart Aq lstewart@FreeBSD.org
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org
 and
-.An James Healy Aq jimmy@deefa.com .
+.An James Healy Aq Mt jimmy@deefa.com .
 .Pp
 This manual page was written by
-.An Lawrence Stewart Aq lstewart@FreeBSD.org .
+.An Lawrence Stewart Aq Mt lstewart@FreeBSD.org .
 .Sh BUGS
 Current known limitations and any relevant workarounds are outlined below:
 .Bl -dash

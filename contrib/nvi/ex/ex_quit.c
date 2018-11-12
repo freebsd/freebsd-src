@@ -27,7 +27,7 @@ static const char sccsid[] = "$Id: ex_quit.c,v 10.8 2001/06/25 15:19:18 skimo Ex
  * ex_quit -- :quit[!]
  *	Quit.
  *
- * PUBLIC: int ex_quit __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_quit(SCR *, EXCMD *);
  */
 int
 ex_quit(SCR *sp, EXCMD *cmdp)

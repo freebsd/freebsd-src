@@ -51,6 +51,7 @@ int
 pw_group(struct userconf * cnf, int mode, struct cargs * args)
 {
 	int		rc;
+	struct carg    *a_newname = getarg(args, 'l');
 	struct carg    *a_name = getarg(args, 'n');
 	struct carg    *a_gid = getarg(args, 'g');
 	struct carg    *arg;
@@ -66,6 +67,11 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		NULL
 	};
 
+	if (a_gid != NULL) {
+		if (strspn(a_gid->val, "0123456789") != strlen(a_gid->val))
+			errx(EX_USAGE, "-g expects a number");
+	}
+
 	if (mode == M_LOCK || mode == M_UNLOCK)
 		errx(EX_USAGE, "'lock' command is not available for groups");
 
@@ -77,7 +83,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		gid_t next = gr_gidpolicy(cnf, args);
 		if (getarg(args, 'q'))
 			return next;
-		printf("%ld\n", (long)next);
+		printf("%u\n", next);
 		return EXIT_SUCCESS;
 	}
 
@@ -110,7 +116,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 				char	*fmems[1];
 				fmems[0] = NULL;
 				fakegroup.gr_name = a_name ? a_name->val : "nogroup";
-				fakegroup.gr_gid = a_gid ? (gid_t) atol(a_gid->val) : -1;
+				fakegroup.gr_gid = a_gid ? (gid_t) atol(a_gid->val) : (gid_t)-1;
 				fakegroup.gr_mem = fmems;
 				return print_group(&fakegroup, getarg(args, 'P') != NULL);
 			}
@@ -129,10 +135,9 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			if (rc == -1)
 				err(EX_IOERR, "group '%s' not available (NIS?)", grp->gr_name);
 			else if (rc != 0) {
-				warn("group update");
-				return EX_IOERR;
+				err(EX_IOERR, "group update");
 			}
-			pw_log(cnf, mode, W_GROUP, "%s(%ld) removed", a_name->val, (long) gid);
+			pw_log(cnf, mode, W_GROUP, "%s(%u) removed", a_name->val, gid);
 			return EXIT_SUCCESS;
 		} else if (mode == M_PRINT)
 			return print_group(grp, getarg(args, 'P') != NULL);
@@ -140,8 +145,8 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		if (a_gid)
 			grp->gr_gid = (gid_t) atoi(a_gid->val);
 
-		if ((arg = getarg(args, 'l')) != NULL)
-			grp->gr_name = pw_checkname((u_char *)arg->val, 0);
+		if (a_newname != NULL)
+			grp->gr_name = pw_checkname((u_char *)a_newname->val, 0);
 	} else {
 		if (a_name == NULL)	/* Required */
 			errx(EX_DATAERR, "group name required");
@@ -195,10 +200,8 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 				fputc('\n', stdout);
 				fflush(stdout);
 			}
-			if (b < 0) {
-				warn("-h file descriptor");
-				return EX_OSERR;
-			}
+			if (b < 0)
+				err(EX_OSERR, "-h file descriptor");
 			line[b] = '\0';
 			if ((p = strpbrk(line, " \t\r\n")) != NULL)
 				*p = '\0';
@@ -227,10 +230,12 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		else if (arg->ch == 'm') {
 			int	k = 0;
 
-			while (grp->gr_mem[k] != NULL) {
-				if (extendarray(&members, &grmembers, i + 2) != -1)
-					members[i++] = grp->gr_mem[k];
-				k++;
+			if (grp->gr_mem != NULL) {
+				while (grp->gr_mem[k] != NULL) {
+					if (extendarray(&members, &grmembers, i + 2) != -1)
+						members[i++] = grp->gr_mem[k];
+					k++;
+				}
 			}
 		}
 
@@ -257,22 +262,24 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 
 	if (mode == M_ADD && (rc = addgrent(grp)) != 0) {
 		if (rc == -1)
-			warnx("group '%s' already exists", grp->gr_name);
+			errx(EX_IOERR, "group '%s' already exists",
+			    grp->gr_name);
 		else
-			warn("group update");
-		return EX_IOERR;
+			err(EX_IOERR, "group update");
 	} else if (mode == M_UPDATE && (rc = chggrent(a_name->val, grp)) != 0) {
 		if (rc == -1)
-			warnx("group '%s' not available (NIS?)", grp->gr_name);
+			errx(EX_IOERR, "group '%s' not available (NIS?)",
+			    grp->gr_name);
 		else
-			warn("group update");
-		return EX_IOERR;
+			err(EX_IOERR, "group update");
 	}
+
+	arg = a_newname != NULL ? a_newname : a_name;
 	/* grp may have been invalidated */
-	if ((grp = GETGRNAM(a_name->val)) == NULL)
+	if ((grp = GETGRNAM(arg->val)) == NULL)
 		errx(EX_SOFTWARE, "group disappeared during update");
 
-	pw_log(cnf, mode, W_GROUP, "%s(%ld)", grp->gr_name, (long) grp->gr_gid);
+	pw_log(cnf, mode, W_GROUP, "%s(%u)", grp->gr_name, grp->gr_gid);
 
 	free(members);
 
@@ -310,6 +317,9 @@ delete_members(char ***members, int *grmembers, int *i, struct carg *arg,
 	char *valuePtr;
 	int k;
 	struct passwd *pwd;
+
+	if (grp->gr_mem == NULL)
+		return;
 
 	k = 0;
 	while (grp->gr_mem[k] != NULL) {
@@ -351,7 +361,7 @@ gr_gidpolicy(struct userconf * cnf, struct cargs * args)
 		gid = (gid_t) atol(a_gid->val);
 
 		if ((grp = GETGRGID(gid)) != NULL && getarg(args, 'o') == NULL)
-			errx(EX_DATAERR, "gid `%ld' has already been allocated", (long) grp->gr_gid);
+			errx(EX_DATAERR, "gid `%u' has already been allocated", grp->gr_gid);
 	} else {
 		struct bitmap   bm;
 
@@ -415,8 +425,10 @@ print_group(struct group * grp, int pretty)
 		printf("Group Name: %-15s   #%lu\n"
 		       "   Members: ",
 		       grp->gr_name, (long) grp->gr_gid);
-		for (i = 0; grp->gr_mem[i]; i++)
-			printf("%s%s", i ? "," : "", grp->gr_mem[i]);
+		if (grp->gr_mem != NULL) {
+			for (i = 0; grp->gr_mem[i]; i++)
+				printf("%s%s", i ? "," : "", grp->gr_mem[i]);
+		}
 		fputs("\n\n", stdout);
 	}
 	return EXIT_SUCCESS;

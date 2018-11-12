@@ -101,14 +101,15 @@ static driver_t tsec_fdt_driver = {
 };
 
 DRIVER_MODULE(tsec, simplebus, tsec_fdt_driver, tsec_devclass, 0, 0);
-MODULE_DEPEND(tsec, simplebus, 1, 1, 1);
-MODULE_DEPEND(tsec, ether, 1, 1, 1);
 
 static int
 tsec_fdt_probe(device_t dev)
 {
 	struct tsec_softc *sc;
 	uint32_t id;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_get_type(dev) == NULL ||
 	    strcmp(ofw_bus_get_type(dev), "network") != 0)
@@ -165,7 +166,7 @@ tsec_fdt_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	phy = OF_xref_phandle(phy);
+	phy = OF_node_from_xref(phy);
 	OF_decode_addr(OF_parent(phy), 0, &sc->phy_bst, &sc->phy_bsh);
 	OF_getencprop(phy, "reg", &sc->phyaddr, sizeof(sc->phyaddr));
 

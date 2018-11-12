@@ -51,6 +51,7 @@ DEFINE_XEN_GUEST_HANDLE(void);
 
 DEFINE_XEN_GUEST_HANDLE(uint64_t);
 DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
+DEFINE_XEN_GUEST_HANDLE(xen_ulong_t);
 #endif
 
 /*

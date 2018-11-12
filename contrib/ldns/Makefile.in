@@ -2,7 +2,7 @@
 # See the file LICENSE for the license
 SHELL 		= @SHELL@
 VERSION         = @PACKAGE_VERSION@
-version_info	= @LIBTOOL_VERSION_INFO@
+version_info	= @VERSION_INFO@
 srcdir 		= @srcdir@
 prefix  	= @prefix@
 exec_prefix 	= @exec_prefix@
@@ -13,8 +13,10 @@ datadir		= @datadir@
 libdir		= @libdir@
 includedir	= @includedir@
 doxygen		= @doxygen@
-pywrapdir       = ${srcdir}/contrib/python
-pyldnsxwrapdir  = ${srcdir}/contrib/ldnsx
+pywrapdir       = $(srcdir)/contrib/python
+pyldnsxwrapdir  = $(srcdir)/contrib/ldnsx
+p5_dns_ldns_dir = $(srcdir)/contrib/DNS-LDNS
+PERL		= @PERL@
 swig		= @swig@
 swigpy_flags	= -python @SWIGPY3@
 python_site	= @PYTHON_SITE_PKG@
@@ -57,17 +59,19 @@ LINTFLAGS	+= "-Dsigset_t=long"
 LINTFLAGS	+= "-D__uint16_t=uint16_t" -D"__pure2=" -D"__wchar_t=wchar_t" -D"__packed=" -D"__aligned(x)="
 # Ubuntu oneiric"
 LINTFLAGS       += -D"__BEGIN_DECLS=" -D"__ssize_t=ssize_t" -D"__intptr_t=intptr_t" -D"__nonnull(x)=" -D"__THROW=" -D"__wur=" -D"__off_t=unsigned" -D"__off64_t=unsigned" -D"__useconds_t=unsigned" -D"__uid_t=unsigned" -D"__gid_t=unsigned" -D"__attribute_deprecated__=" -D"__pid_t=unsigned" -D"__restrict=" -D"__END_DECLS=" -D"__BEGIN_NAMESPACE_STD=" -D"__END_NAMESPACE_STD=" -D"__BEGIN_NAMESPACE_C99=" -D"__END_NAMESPACE_C99="  -D"__socklen_t=unsigned" -D"sa_family_t=unsigned " -D"__mode_t=unsigned" -D"u_int16_t=uint16_t" -D"u_int32_t=uint32_t" -D"u_int8_t=uint8_t" -D"u_short=unsigned short" -D"__u16=uint16_t" -D"__u32=uint32_t" -D"__u64=uint64_t"
+# FreeBSD 9
+LINTFLAGS       += -D"_RuneLocale=int"
 DEPFLAG		= @DEPFLAG@
 
 INSTALL		= $(srcdir)/install-sh 
 
 LIBLOBJS	= $(LIBOBJS:.o=.lo)
-LDNS_LOBJS	= buffer.lo dane.lo dname.lo dnssec.lo dnssec_sign.lo dnssec_verify.lo dnssec_zone.lo duration.lo error.lo higher.lo host2str.lo host2wire.lo keys.lo net.lo packet.lo parse.lo rbtree.lo rdata.lo resolver.lo rr.lo rr_functions.lo sha1.lo sha2.lo str2host.lo tsig.lo update.lo util.lo wire2host.lo zone.lo 
+LDNS_LOBJS	= buffer.lo dane.lo dname.lo dnssec.lo dnssec_sign.lo dnssec_verify.lo dnssec_zone.lo duration.lo error.lo higher.lo host2str.lo host2wire.lo keys.lo net.lo packet.lo parse.lo radix.lo rbtree.lo rdata.lo resolver.lo rr.lo rr_functions.lo sha1.lo sha2.lo str2host.lo tsig.lo update.lo util.lo wire2host.lo zone.lo 
 LDNS_LOBJS_EX	= ^linktest\.c$$
 LDNS_ALL_LOBJS	= $(LDNS_LOBJS) $(LIBLOBJS)
 LIB		= libldns.la
 
-LDNS_HEADERS	= buffer.h dane.h dname.h dnssec.h dnssec_sign.h dnssec_verify.h dnssec_zone.h duration.h error.h higher.h host2str.h host2wire.h keys.h ldns.h packet.h parse.h rbtree.h rdata.h resolver.h rr_functions.h rr.h sha1.h sha2.h str2host.h tsig.h update.h wire2host.h zone.h 
+LDNS_HEADERS	= buffer.h dane.h dname.h dnssec.h dnssec_sign.h dnssec_verify.h dnssec_zone.h duration.h error.h higher.h host2str.h host2wire.h keys.h ldns.h packet.h parse.h radix.h rbtree.h rdata.h resolver.h rr_functions.h rr.h sha1.h sha2.h str2host.h tsig.h update.h wire2host.h zone.h 
 LDNS_HEADERS_EX	= ^config\.h|common\.h|util\.h|net\.h$$
 LDNS_HEADERS_GEN= common.h util.h net.h
 
@@ -92,16 +96,14 @@ EX_SSL_LOBJS	= examples/ldns-nsec3-hash.lo examples/ldns-revoke.lo examples/ldns
 COMPILE		= $(CC) $(CPPFLAGS) $(CFLAGS)
 COMP_LIB	= $(LIBTOOL) --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS)
 LINK		= $(CC) $(CFLAGS) $(LDFLAGS) $(LIBS)
-LINK_LIB	= $(LIBTOOL) --mode=link $(CC) $(CFLAGS) $(LDFLAGS) \
-		  $(LIBS) -version-number $(version_info) -no-undefined
-LINK_EXE	= $(LIBTOOL) --mode=link $(CC) $(CPPFLAGS) \
-			    $(LIBSSL_CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+LINK_LIB	= $(LIBTOOL) --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -version-number $(version_info) -no-undefined
+LINK_EXE	= $(LIBTOOL) --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LIBSSL_LDFLAGS)
 
 .PHONY:	clean realclean docclean manpages doc lint all lib pyldns test
 .PHONY: install uninstall install-doc uninstall-doc uninstall-pyldns
 .PHONY: install-h uninstall-h install-lib uninstall-lib install-pyldns
 
-all:	setup-builddir lib linktest manpages @PYLDNS@ @DRILL@ @EXAMPLES@
+all:	setup-builddir lib linktest manpages @P5_DNS_LDNS@ @PYLDNS@ @DRILL@ @EXAMPLES@
 
 .SUFFIXES: .c .o .a .lo .h .i
 
@@ -205,7 +207,8 @@ clean-examples:
 	$(LIBTOOL) --mode clean rm -f $(EXAMPLE_LOBJS)
 
 linktest: $(srcdir)/linktest.c libldns.la
-	$(LIBTOOL) --mode=link $(CC) $(srcdir)/linktest.c $(CPPFLAGS) $(LIBSSL_CPPFLAGS) $(CFLAGS) -lldns $(LIBS) -o linktest
+	$(COMP_LIB) $(LIBSSL_CPPFLAGS) -c $(srcdir)/linktest.c -o linktest.lo
+	$(LINK_EXE) linktest.lo $(LIBS) $(LIBSSL_LIBS) -lldns -o linktest
 
 lib: libldns.la
 
@@ -247,9 +250,29 @@ ldns_wrapper.lo: $(pywrapdir)/ldns_wrapper.c ldns/config.h
 _ldns.la: ldns_wrapper.lo libldns.la 
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(PYTHON_CFLAGS) $(LDFLAGS) $(PYTHON_LDFLAGS) -module -version-number $(version_info) -no-undefined -o $@ ldns_wrapper.lo -rpath $(python_site) -L. -L.libs -lldns $(LIBS)
 
-install: install-h install-lib @INSTALL_CONFIG@ install-manpages $(pyldns_inst) $(pyldnsx_inst) @INSTALL_DRILL@ @INSTALL_EXAMPLES@
+$(p5_dns_ldns_dir)/Makefile: $(p5_dns_ldns_dir)/Makefile.PL
+	BUILDDIR=`pwd`; cd $(p5_dns_ldns_dir); $(PERL) Makefile.PL PREFIX="$(prefix)" LIBS="-L$$BUILDDIR/.libs -lldns" INC="-I$$BUILDDIR"
 
-uninstall: uninstall-manpages @UNINSTALL_CONFIG@ uninstall-h uninstall-lib $(pyldns_uninst) $(pyldnsx_uninst) @UNINSTALL_DRILL@ @UNINSTALL_EXAMPLES@
+$(p5_dns_ldns_dir)/blib/arch/auto/DNS/LDNS/LDNS.so: $(p5_dns_ldns_dir)/Makefile
+	cd $(p5_dns_ldns_dir); $(MAKE)
+
+p5-dns-ldns: $(p5_dns_ldns_dir)/blib/arch/auto/DNS/LDNS/LDNS.so
+
+install-p5-dns-ldns: $(p5_dns_ldns_dir)/Makefile
+	cd $(p5_dns_ldns_dir); $(MAKE) install
+
+uninstall-p5-dns-ldns: $(p5_dns_ldns_dir)/Makefile
+	cd $(p5_dns_ldns_dir); $(MAKE) uninstall
+
+clean-p5-dns-ldns: $(p5_dns_ldns_dir)/Makefile
+	cd $(p5_dns_ldns_dir); $(MAKE) clean
+
+test-p5-dns-ldns: $(p5_dns_ldns_dir)/Makefile
+	cd $(p5_dns_ldns_dir); $(MAKE) test
+
+install: install-h install-lib @INSTALL_CONFIG@ install-manpages $(pyldns_inst) $(pyldnsx_inst) @INSTALL_P5_DNS_LDNS@ @INSTALL_DRILL@ @INSTALL_EXAMPLES@
+
+uninstall: uninstall-manpages @UNINSTALL_CONFIG@ uninstall-h uninstall-lib $(pyldns_uninst) $(pyldnsx_uninst) @UNINSTALL_P5_DNS_LDNS@ @UNINSTALL_DRILL@ @UNINSTALL_EXAMPLES@
 
 destclean: uninstall
 
@@ -331,7 +354,7 @@ clean-lib:
 	$(LIBTOOL) --mode clean rm -f $(pywrapdir)/ldns_wrapper.c
 	$(LIBTOOL) --mode clean rm -f $(pywrapdir)/ldns.py
 
-clean: @CLEAN_DRILL@ @CLEAN_EXAMPLES@ clean-manpages clean-lib  putdown-builddir
+clean: @CLEAN_DRILL@ @CLEAN_EXAMPLES@ @CLEAN_P5_DNS_LDNS@ clean-manpages clean-lib  putdown-builddir
 
 realclean: clean docclean
 	rm -f config.status
@@ -396,7 +419,7 @@ allclean: test-clean clean
 test-clean:
 	tpkg -b test clean
 
-test:
+test: @TEST_P5_DNS_LDNS@
 	if test -x "`which bash`"; then bash test/test_all.sh; else sh test/test_all.sh; fi
 
 
@@ -481,56 +504,56 @@ buffer.lo buffer.o: $(srcdir)/buffer.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 dane.lo dane.o: $(srcdir)/dane.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 dname.lo dname.o: $(srcdir)/dname.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 dnssec.lo dnssec.o: $(srcdir)/dnssec.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 dnssec_sign.lo dnssec_sign.o: $(srcdir)/dnssec_sign.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 dnssec_verify.lo dnssec_verify.o: $(srcdir)/dnssec_verify.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 dnssec_zone.lo dnssec_zone.o: $(srcdir)/dnssec_zone.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 duration.lo duration.o: $(srcdir)/duration.c ldns/config.h $(srcdir)/ldns/duration.h
 error.lo error.o: $(srcdir)/error.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
@@ -538,72 +561,74 @@ error.lo error.o: $(srcdir)/error.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/uti
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 higher.lo higher.o: $(srcdir)/higher.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 host2str.lo host2str.o: $(srcdir)/host2str.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 host2wire.lo host2wire.o: $(srcdir)/host2wire.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 keys.lo keys.o: $(srcdir)/keys.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 linktest.lo linktest.o: $(srcdir)/linktest.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 net.lo net.o: $(srcdir)/net.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 packet.lo packet.o: $(srcdir)/packet.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 parse.lo parse.o: $(srcdir)/parse.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+radix.lo radix.o: $(srcdir)/radix.c ldns/config.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/error.h ldns/util.h \
+ ldns/common.h
 rbtree.lo rbtree.o: $(srcdir)/rbtree.c ldns/config.h $(srcdir)/ldns/rbtree.h ldns/util.h ldns/common.h
 rdata.lo rdata.o: $(srcdir)/rdata.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
@@ -611,40 +636,40 @@ rdata.lo rdata.o: $(srcdir)/rdata.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/uti
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 resolver.lo resolver.o: $(srcdir)/resolver.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 rr.lo rr.o: $(srcdir)/rr.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 rr_functions.lo rr_functions.o: $(srcdir)/rr_functions.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 sha1.lo sha1.o: $(srcdir)/sha1.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 sha2.lo sha2.o: $(srcdir)/sha2.c ldns/config.h $(srcdir)/ldns/sha2.h
 str2host.lo str2host.o: $(srcdir)/str2host.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
@@ -652,24 +677,24 @@ str2host.lo str2host.o: $(srcdir)/str2host.c ldns/config.h $(srcdir)/ldns/ldns.h
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 tsig.lo tsig.o: $(srcdir)/tsig.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 update.lo update.o: $(srcdir)/update.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 util.lo util.o: $(srcdir)/util.c ldns/config.h $(srcdir)/ldns/rdata.h ldns/common.h $(srcdir)/ldns/error.h \
  ldns/util.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/buffer.h
 wire2host.lo wire2host.o: $(srcdir)/wire2host.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
@@ -678,18 +703,16 @@ wire2host.lo wire2host.o: $(srcdir)/wire2host.c ldns/config.h $(srcdir)/ldns/ldn
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 zone.lo zone.o: $(srcdir)/zone.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
-compat/b32_ntop.lo compat/b32_ntop.o: $(srcdir)/compat/b32_ntop.c ldns/config.h
-compat/b32_pton.lo compat/b32_pton.o: $(srcdir)/compat/b32_pton.c ldns/config.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 compat/b64_ntop.lo compat/b64_ntop.o: $(srcdir)/compat/b64_ntop.c ldns/config.h
 compat/b64_pton.lo compat/b64_pton.o: $(srcdir)/compat/b64_pton.c ldns/config.h
 compat/calloc.lo compat/calloc.o: $(srcdir)/compat/calloc.c ldns/config.h
@@ -715,8 +738,8 @@ examples/ldns-chaos.lo examples/ldns-chaos.o: $(srcdir)/examples/ldns-chaos.c ld
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-compare-zones.lo examples/ldns-compare-zones.o: $(srcdir)/examples/ldns-compare-zones.c ldns/config.h $(srcdir)/ldns/ldns.h \
  ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
  $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
@@ -724,31 +747,31 @@ examples/ldns-compare-zones.lo examples/ldns-compare-zones.o: $(srcdir)/examples
  $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h \
  $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
  $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
- $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-dane.lo examples/ldns-dane.o: $(srcdir)/examples/ldns-dane.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldnsd.lo examples/ldnsd.o: $(srcdir)/examples/ldnsd.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h \
  $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h \
  $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h $(srcdir)/ldns/zone.h \
  $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-dpa.lo examples/ldns-dpa.o: $(srcdir)/examples/ldns-dpa.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h $(srcdir)/examples/ldns-dpa.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h $(srcdir)/examples/ldns-dpa.h
 examples/ldns-gen-zone.lo examples/ldns-gen-zone.o: $(srcdir)/examples/ldns-gen-zone.c ldns/config.h $(srcdir)/ldns/ldns.h \
  ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
  $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
@@ -756,15 +779,15 @@ examples/ldns-gen-zone.lo examples/ldns-gen-zone.o: $(srcdir)/examples/ldns-gen-
  $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h \
  $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
  $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
- $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-key2ds.lo examples/ldns-key2ds.o: $(srcdir)/examples/ldns-key2ds.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-keyfetcher.lo examples/ldns-keyfetcher.o: $(srcdir)/examples/ldns-keyfetcher.c ldns/config.h $(srcdir)/ldns/ldns.h \
  ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
  $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
@@ -772,31 +795,31 @@ examples/ldns-keyfetcher.lo examples/ldns-keyfetcher.o: $(srcdir)/examples/ldns-
  $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h \
  $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
  $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
- $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-keygen.lo examples/ldns-keygen.o: $(srcdir)/examples/ldns-keygen.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-mx.lo examples/ldns-mx.o: $(srcdir)/examples/ldns-mx.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-notify.lo examples/ldns-notify.o: $(srcdir)/examples/ldns-notify.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-nsec3-hash.lo examples/ldns-nsec3-hash.o: $(srcdir)/examples/ldns-nsec3-hash.c ldns/config.h $(srcdir)/ldns/ldns.h \
  ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
  $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
@@ -804,7 +827,7 @@ examples/ldns-nsec3-hash.lo examples/ldns-nsec3-hash.o: $(srcdir)/examples/ldns-
  $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h \
  $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
  $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
- $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-read-zone.lo examples/ldns-read-zone.o: $(srcdir)/examples/ldns-read-zone.c ldns/config.h $(srcdir)/ldns/ldns.h \
  ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
  $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
@@ -812,7 +835,7 @@ examples/ldns-read-zone.lo examples/ldns-read-zone.o: $(srcdir)/examples/ldns-re
  $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h \
  $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
  $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
- $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-resolver.lo examples/ldns-resolver.o: $(srcdir)/examples/ldns-resolver.c ldns/config.h $(srcdir)/ldns/ldns.h \
  ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
  $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
@@ -820,23 +843,23 @@ examples/ldns-resolver.lo examples/ldns-resolver.o: $(srcdir)/examples/ldns-reso
  $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h \
  $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
  $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
- $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-revoke.lo examples/ldns-revoke.o: $(srcdir)/examples/ldns-revoke.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-rrsig.lo examples/ldns-rrsig.o: $(srcdir)/examples/ldns-rrsig.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-signzone.lo examples/ldns-signzone.o: $(srcdir)/examples/ldns-signzone.c ldns/config.h $(srcdir)/ldns/ldns.h \
  ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
  $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
@@ -844,7 +867,7 @@ examples/ldns-signzone.lo examples/ldns-signzone.o: $(srcdir)/examples/ldns-sign
  $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h \
  $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
  $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
- $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-test-edns.lo examples/ldns-test-edns.o: $(srcdir)/examples/ldns-test-edns.c ldns/config.h $(srcdir)/ldns/ldns.h \
  ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
  $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
@@ -852,15 +875,15 @@ examples/ldns-test-edns.lo examples/ldns-test-edns.o: $(srcdir)/examples/ldns-te
  $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h \
  $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
  $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
- $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-testns.lo examples/ldns-testns.o: $(srcdir)/examples/ldns-testns.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h $(srcdir)/examples/ldns-testpkts.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h $(srcdir)/examples/ldns-testpkts.h
 examples/ldns-testpkts.lo examples/ldns-testpkts.o: $(srcdir)/examples/ldns-testpkts.c ldns/config.h $(srcdir)/ldns/ldns.h \
  ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
  $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
@@ -868,15 +891,16 @@ examples/ldns-testpkts.lo examples/ldns-testpkts.o: $(srcdir)/examples/ldns-test
  $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h \
  $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
  $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
- $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h $(srcdir)/examples/ldns-testpkts.h
+ $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h \
+ $(srcdir)/examples/ldns-testpkts.h
 examples/ldns-update.lo examples/ldns-update.o: $(srcdir)/examples/ldns-update.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-verify-zone.lo examples/ldns-verify-zone.o: $(srcdir)/examples/ldns-verify-zone.c ldns/config.h $(srcdir)/ldns/ldns.h \
  ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h \
  $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h \
@@ -884,39 +908,39 @@ examples/ldns-verify-zone.lo examples/ldns-verify-zone.o: $(srcdir)/examples/ldn
  $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h \
  $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h \
  $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h \
- $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-version.lo examples/ldns-version.o: $(srcdir)/examples/ldns-version.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-walk.lo examples/ldns-walk.o: $(srcdir)/examples/ldns-walk.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-zcat.lo examples/ldns-zcat.o: $(srcdir)/examples/ldns-zcat.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-zsplit.lo examples/ldns-zsplit.o: $(srcdir)/examples/ldns-zsplit.c ldns/config.h $(srcdir)/ldns/ldns.h ldns/util.h \
  ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h \
  $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h $(srcdir)/ldns/packet.h $(srcdir)/ldns/keys.h \
  $(srcdir)/ldns/zone.h $(srcdir)/ldns/resolver.h $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h \
  $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h \
  $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 drill/chasetrace.lo drill/chasetrace.o: $(srcdir)/drill/chasetrace.c $(srcdir)/drill/drill.h ldns/config.h \
  $(srcdir)/drill/drill_util.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h \
  $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h \
@@ -924,8 +948,8 @@ drill/chasetrace.lo drill/chasetrace.o: $(srcdir)/drill/chasetrace.c $(srcdir)/d
  $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h \
  $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h \
  $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 drill/dnssec.lo drill/dnssec.o: $(srcdir)/drill/dnssec.c $(srcdir)/drill/drill.h ldns/config.h $(srcdir)/drill/drill_util.h \
  $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h \
  $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h \
@@ -933,7 +957,7 @@ drill/dnssec.lo drill/dnssec.o: $(srcdir)/drill/dnssec.c $(srcdir)/drill/drill.h
  $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h \
  $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h \
  ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h \
- $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 drill/drill.lo drill/drill.o: $(srcdir)/drill/drill.c $(srcdir)/drill/drill.h ldns/config.h $(srcdir)/drill/drill_util.h \
  $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h \
  $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h \
@@ -941,7 +965,7 @@ drill/drill.lo drill/drill.o: $(srcdir)/drill/drill.c $(srcdir)/drill/drill.h ld
  $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h \
  $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h \
  ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h \
- $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 drill/drill_util.lo drill/drill_util.o: $(srcdir)/drill/drill_util.c $(srcdir)/drill/drill.h ldns/config.h \
  $(srcdir)/drill/drill_util.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h \
  $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h \
@@ -949,8 +973,8 @@ drill/drill_util.lo drill/drill_util.o: $(srcdir)/drill/drill_util.c $(srcdir)/d
  $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h \
  $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h \
  $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 drill/error.lo drill/error.o: $(srcdir)/drill/error.c $(srcdir)/drill/drill.h ldns/config.h $(srcdir)/drill/drill_util.h \
  $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h \
  $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h \
@@ -958,7 +982,7 @@ drill/error.lo drill/error.o: $(srcdir)/drill/error.c $(srcdir)/drill/drill.h ld
  $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h \
  $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h \
  ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h \
- $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 drill/root.lo drill/root.o: $(srcdir)/drill/root.c $(srcdir)/drill/drill.h ldns/config.h $(srcdir)/drill/drill_util.h \
  $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h \
  $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h \
@@ -966,7 +990,7 @@ drill/root.lo drill/root.o: $(srcdir)/drill/root.c $(srcdir)/drill/drill.h ldns/
  $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h \
  $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h \
  ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h \
- $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 drill/securetrace.lo drill/securetrace.o: $(srcdir)/drill/securetrace.c $(srcdir)/drill/drill.h ldns/config.h \
  $(srcdir)/drill/drill_util.h $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h \
  $(srcdir)/ldns/error.h $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h \
@@ -974,8 +998,8 @@ drill/securetrace.lo drill/securetrace.o: $(srcdir)/drill/securetrace.c $(srcdir
  $(srcdir)/ldns/tsig.h $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h \
  $(srcdir)/ldns/dnssec_verify.h $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h \
  $(srcdir)/ldns/host2wire.h ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h \
- $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h \
- $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/wire2host.h $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h \
+ $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 drill/work.lo drill/work.o: $(srcdir)/drill/work.c $(srcdir)/drill/drill.h ldns/config.h $(srcdir)/drill/drill_util.h \
  $(srcdir)/ldns/ldns.h ldns/util.h ldns/common.h $(srcdir)/ldns/buffer.h $(srcdir)/ldns/error.h \
  $(srcdir)/ldns/dane.h $(srcdir)/ldns/rdata.h $(srcdir)/ldns/rr.h $(srcdir)/ldns/dname.h $(srcdir)/ldns/dnssec.h \
@@ -983,7 +1007,7 @@ drill/work.lo drill/work.o: $(srcdir)/drill/work.c $(srcdir)/drill/drill.h ldns/
  $(srcdir)/ldns/dnssec_zone.h $(srcdir)/ldns/rbtree.h $(srcdir)/ldns/host2str.h $(srcdir)/ldns/dnssec_verify.h \
  $(srcdir)/ldns/dnssec_sign.h $(srcdir)/ldns/duration.h $(srcdir)/ldns/higher.h $(srcdir)/ldns/host2wire.h \
  ldns/net.h $(srcdir)/ldns/str2host.h $(srcdir)/ldns/update.h $(srcdir)/ldns/wire2host.h \
- $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
+ $(srcdir)/ldns/rr_functions.h $(srcdir)/ldns/parse.h $(srcdir)/ldns/radix.h $(srcdir)/ldns/sha1.h $(srcdir)/ldns/sha2.h
 examples/ldns-chaos: examples/ldns-chaos.lo examples/ldns-chaos.o $(LIB)
 examples/ldns-compare-zones: examples/ldns-compare-zones.lo examples/ldns-compare-zones.o $(LIB)
 examples/ldnsd: examples/ldnsd.lo examples/ldnsd.o $(LIB)

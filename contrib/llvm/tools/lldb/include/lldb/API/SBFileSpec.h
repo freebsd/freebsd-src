@@ -21,7 +21,7 @@ public:
 
     SBFileSpec (const lldb::SBFileSpec &rhs);
 
-    SBFileSpec (const char *path);// Deprected, use SBFileSpec (const char *path, bool resolve)
+    SBFileSpec (const char *path);// Deprecated, use SBFileSpec (const char *path, bool resolve)
 
     SBFileSpec (const char *path, bool resolve);
 
@@ -63,6 +63,7 @@ public:
 private:
     friend class SBAttachInfo;
     friend class SBBlock;
+    friend class SBCommandInterpreter;
     friend class SBCompileUnit;
     friend class SBDeclaration;
     friend class SBFileSpecList;

@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.192 2015/05/05 21:51:09 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.192 2015/05/05 21:51:09 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $");
+__RCSID("$NetBSD: var.c,v 1.192 2015/05/05 21:51:09 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -140,17 +140,6 @@ __RCSID("$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $");
 #include    "job.h"
 
 extern int makelevel;
-/*
- * XXX transition hack for FreeBSD ports.
- * bsd.port.mk can set .MAKE.FreeBSD_UL=yes
- * to cause us to treat :[LU] as aliases for :t[lu]
- * To be reverted when ports converts to :t[lu] (when 8.3 is EOL)
- */
-#define MAKE_FREEBSD_UL ".MAKE.FreeBSD_UL"
-#ifdef MAKE_FREEBSD_UL
-static int FreeBSD_UL = FALSE;
-#endif
-
 /*
  * This lets us tell if we have replaced the original environ
  * (which we cannot free).
@@ -990,12 +979,6 @@ Var_Set(const char *name, const char *val, GNode *ctxt, int flags)
 
 	Var_Append(MAKEOVERRIDES, name, VAR_GLOBAL);
     }
-	
-#ifdef MAKE_FREEBSD_UL
-    if (strcmp(MAKE_FREEBSD_UL, name) == 0) {
-	FreeBSD_UL = getBoolean(MAKE_FREEBSD_UL, FALSE);
-    }
-#endif
 
 
  out:
@@ -2654,7 +2637,7 @@ ApplyModifiers(char *nstr, const char *tstr,
 			break;
 		    }
 		    free(UNCONST(pattern.rhs));
-		    newStr = var_Error;
+		    newStr = varNoError;
 		    break;
 		}
 		goto default_case; /* "::<unrecognised>" */
@@ -2689,24 +2672,8 @@ ApplyModifiers(char *nstr, const char *tstr,
 		free(loop.str);
 		break;
 	    }
-	case 'U':
-#ifdef MAKE_FREEBSD_UL
-	    if (FreeBSD_UL) {
-		int nc = tstr[1];
-
-		/* we have to be careful, since :U is used internally */
-		if (nc == ':' || nc == endc) {
-		    char *dp = bmake_strdup(nstr);
-		    for (newStr = dp; *dp; dp++)
-			*dp = toupper((unsigned char)*dp);
-		    cp = tstr + 1;
-		    termc = *cp;
-		    break;		/* yes inside the conditional */
-		}
-		/* FALLTHROUGH */
-	    }
-#endif
 	case 'D':
+	case 'U':
 	    {
 		Buffer  buf;    	/* Buffer for patterns */
 		int	    wantit;	/* want data in buffer */
@@ -2766,17 +2733,6 @@ ApplyModifiers(char *nstr, const char *tstr,
 		break;
 	    }
 	case 'L':
-#ifdef MAKE_FREEBSD_UL
-	    if (FreeBSD_UL) {
-		char *dp = bmake_strdup(nstr);
-		for (newStr = dp; *dp; dp++)
-		    *dp = tolower((unsigned char)*dp);
-		cp = tstr + 1;
-		termc = *cp;
-		break;
-	    }
-	    /* FALLTHROUGH */
-#endif
 	    {
 		if ((v->flags & VAR_JUNK) != 0)
 		    v->flags |= VAR_KEEP;
@@ -3305,7 +3261,7 @@ ApplyModifiers(char *nstr, const char *tstr,
 
 		termc = *--cp;
 		delim = '\0';
-		if (Cond_EvalExpression(NULL, v->name, &value, 0)
+		if (Cond_EvalExpression(NULL, v->name, &value, 0, FALSE)
 		    == COND_INVALID) {
 		    Error("Bad conditional expression `%s' in %s?%s:%s",
 			  v->name, v->name, pattern.lhs, pattern.rhs);
@@ -3644,14 +3600,13 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 				 * expanding it in a non-local context. This
 				 * is done to support dynamic sources. The
 				 * result is just the invocation, unaltered */
-    Var_Parse_State parsestate; /* Flags passed to helper functions */
+    const char     *extramodifiers; /* extra modifiers to apply first */
     char	  name[2];
 
     *freePtr = NULL;
+    extramodifiers = NULL;
     dynamic = FALSE;
     start = str;
-    parsestate.oneBigWord = FALSE;
-    parsestate.varSpace = ' ';	/* word separator */
 
     startc = str[1];
     if (startc != PROPEN && startc != BROPEN) {
@@ -3705,6 +3660,7 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	}
     } else {
 	Buffer buf;	/* Holds the variable name */
+	int depth = 1;
 
 	endc = startc == PROPEN ? PRCLOSE : BRCLOSE;
 	Buf_Init(&buf, 0);
@@ -3712,10 +3668,21 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	/*
 	 * Skip to the end character or a colon, whichever comes first.
 	 */
-	for (tstr = str + 2;
-	     *tstr != '\0' && *tstr != endc && *tstr != ':';
-	     tstr++)
+	for (tstr = str + 2; *tstr != '\0'; tstr++)
 	{
+	    /*
+	     * Track depth so we can spot parse errors.
+	     */
+	    if (*tstr == startc) {
+		depth++;
+	    }
+	    if (*tstr == endc) {
+		if (--depth == 0)
+		    break;
+	    }
+	    if (depth == 1 && *tstr == ':') {
+		break;
+	    }
 	    /*
 	     * A variable inside a variable, expand
 	     */
@@ -3735,7 +3702,7 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	}
 	if (*tstr == ':') {
 	    haveModifier = TRUE;
-	} else if (*tstr != '\0') {
+	} else if (*tstr == endc) {
 	    haveModifier = FALSE;
 	} else {
 	    /*
@@ -3767,7 +3734,7 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	 */
 	if ((v == NULL) && (ctxt != VAR_CMD) && (ctxt != VAR_GLOBAL) &&
 		(vlen == 2) && (str[1] == 'F' || str[1] == 'D') &&
-		strchr("@%*!<>", str[0]) != NULL) {
+		strchr("@%?*!<>", str[0]) != NULL) {
 	    /*
 	     * Well, it's local -- go look for it.
 	     */
@@ -3776,29 +3743,12 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	    v = VarFind(name, ctxt, 0);
 
 	    if (v != NULL) {
-		/*
-		 * No need for nested expansion or anything, as we're
-		 * the only one who sets these things and we sure don't
-		 * but nested invocations in them...
-		 */
-		nstr = Buf_GetAll(&v->val, NULL);
-
 		if (str[1] == 'D') {
-		    nstr = VarModify(ctxt, &parsestate, nstr, VarHead,
-				    NULL);
-		} else {
-		    nstr = VarModify(ctxt, &parsestate, nstr, VarTail,
-				    NULL);
+			extramodifiers = "H:";
 		}
-		/*
-		 * Resulting string is dynamically allocated, so
-		 * tell caller to free it.
-		 */
-		*freePtr = nstr;
-		*lengthPtr = tstr-start+1;
-		Buf_Destroy(&buf, TRUE);
-		VarFreeEnv(v, TRUE);
-		return nstr;
+		else { /* F */
+			extramodifiers = "T:";
+		}
 	    }
 	}
 
@@ -3893,16 +3843,29 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 
     v->flags &= ~VAR_IN_USE;
 
-    if ((nstr != NULL) && haveModifier) {
+    if ((nstr != NULL) && (haveModifier || extramodifiers != NULL)) {
+	void *extraFree;
 	int used;
-	/*
-	 * Skip initial colon.
-	 */
-	tstr++;
 
-	nstr = ApplyModifiers(nstr, tstr, startc, endc,
-			      v, ctxt, errnum, &used, freePtr);
-	tstr += used;
+	extraFree = NULL;
+	if (extramodifiers != NULL) {
+		nstr = ApplyModifiers(nstr, extramodifiers, '(', ')',
+				      v, ctxt, errnum, &used, &extraFree);
+	}
+
+	if (haveModifier) {
+		/* Skip initial colon. */
+		tstr++;
+
+		nstr = ApplyModifiers(nstr, tstr, startc, endc,
+				      v, ctxt, errnum, &used, freePtr);
+		tstr += used;
+		if (extraFree) {
+			free(extraFree);
+		}
+	} else {
+		*freePtr = extraFree;
+	}
     }
     if (*tstr) {
 	*lengthPtr = tstr - start + 1;
@@ -4085,7 +4048,7 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
 		 */
 		if (oldVars) {
 		    str += length;
-		} else if (undefErr) {
+		} else if (undefErr || val == var_Error) {
 		    /*
 		     * If variable is undefined, complain and skip the
 		     * variable. The complaint will stop us from doing anything

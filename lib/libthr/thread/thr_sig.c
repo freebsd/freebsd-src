@@ -38,6 +38,7 @@
 #include "un-namespace.h"
 #include "libc_private.h"
 
+#include "libc_private.h"
 #include "thr_private.h"
 
 /* #define DEBUG_SIGNAL */
@@ -54,24 +55,23 @@ struct usigaction {
 
 static struct usigaction _thr_sigact[_SIG_MAXSIG];
 
+static inline struct usigaction *
+__libc_sigaction_slot(int signo)
+{
+
+	return (&_thr_sigact[signo - 1]);
+}
+
 static void thr_sighandler(int, siginfo_t *, void *);
 static void handle_signal(struct sigaction *, int, siginfo_t *, ucontext_t *);
 static void check_deferred_signal(struct pthread *);
 static void check_suspend(struct pthread *);
 static void check_cancel(struct pthread *curthread, ucontext_t *ucp);
 
-int	___pause(void);
-int	_raise(int);
-int	__sigtimedwait(const sigset_t *set, siginfo_t *info,
-	const struct timespec * timeout);
 int	_sigtimedwait(const sigset_t *set, siginfo_t *info,
 	const struct timespec * timeout);
-int	__sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int	_sigwaitinfo(const sigset_t *set, siginfo_t *info);
-int	___sigwait(const sigset_t *set, int *sig);
 int	_sigwait(const sigset_t *set, int *sig);
-int	__sigsuspend(const sigset_t *sigmask);
-int	_sigaction(int, const struct sigaction *, struct sigaction *);
 int	_setcontext(const ucontext_t *);
 int	_swapcontext(ucontext_t *, const ucontext_t *);
 
@@ -143,8 +143,8 @@ sigcancel_handler(int sig __unused,
 	errno = err;
 }
 
-typedef void (*ohandler)(int sig, int code,
-	struct sigcontext *scp, char *addr, __sighandler_t *catcher);
+typedef void (*ohandler)(int sig, int code, struct sigcontext *scp,
+    char *addr, __sighandler_t *catcher);
 
 /*
  * The signal handler wrapper is entered with all signal masked.
@@ -152,15 +152,19 @@ typedef void (*ohandler)(int sig, int code,
 static void
 thr_sighandler(int sig, siginfo_t *info, void *_ucp)
 {
-	struct pthread *curthread = _get_curthread();
-	ucontext_t *ucp = _ucp;
+	struct pthread *curthread;
+	ucontext_t *ucp;
 	struct sigaction act;
+	struct usigaction *usa;
 	int err;
 
 	err = errno;
-	_thr_rwl_rdlock(&_thr_sigact[sig-1].lock);
-	act = _thr_sigact[sig-1].sigact;
-	_thr_rwl_unlock(&_thr_sigact[sig-1].lock);
+	curthread = _get_curthread();
+	ucp = _ucp;
+	usa = __libc_sigaction_slot(sig);
+	_thr_rwl_rdlock(&usa->lock);
+	act = usa->sigact;
+	_thr_rwl_unlock(&usa->lock);
 	errno = err;
 	curthread->deferred_run = 0;
 
@@ -234,12 +238,12 @@ handle_signal(struct sigaction *actp, int sig, siginfo_t *info, ucontext_t *ucp)
 	 * so after setjmps() returns once more, the user code may need to
 	 * re-set cancel_enable flag by calling pthread_setcancelstate().
 	 */
-	if ((actp->sa_flags & SA_SIGINFO) != 0)
-		(*(sigfunc))(sig, info, ucp);
-	else {
-		((ohandler)(*sigfunc))(
-			sig, info->si_code, (struct sigcontext *)ucp,
-			info->si_addr, (__sighandler_t *)sigfunc);
+	if ((actp->sa_flags & SA_SIGINFO) != 0) {
+		sigfunc(sig, info, ucp);
+	} else {
+		((ohandler)sigfunc)(sig, info->si_code,
+		    (struct sigcontext *)ucp, info->si_addr,
+		    (__sighandler_t *)sigfunc);
 	}
 	err = errno;
 
@@ -395,9 +399,34 @@ check_suspend(struct pthread *curthread)
 }
 
 void
-_thr_signal_init(void)
+_thr_signal_init(int dlopened)
 {
-	struct sigaction act;
+	struct sigaction act, nact, oact;
+	struct usigaction *usa;
+	sigset_t oldset;
+	int sig, error;
+
+	if (dlopened) {
+		__sys_sigprocmask(SIG_SETMASK, &_thr_maskset, &oldset);
+		for (sig = 1; sig <= _SIG_MAXSIG; sig++) {
+			if (sig == SIGCANCEL)
+				continue;
+			error = __sys_sigaction(sig, NULL, &oact);
+			if (error == -1 || oact.sa_handler == SIG_DFL ||
+			    oact.sa_handler == SIG_IGN)
+				continue;
+			usa = __libc_sigaction_slot(sig);
+			usa->sigact = oact;
+			nact = oact;
+			remove_thr_signals(&usa->sigact.sa_mask);
+			nact.sa_flags &= ~SA_NODEFER;
+			nact.sa_flags |= SA_SIGINFO;
+			nact.sa_sigaction = thr_sighandler;
+			nact.sa_mask = _thr_maskset;
+			(void)__sys_sigaction(sig, &nact, NULL);
+		}
+		__sys_sigprocmask(SIG_SETMASK, &oldset, NULL);
+	}
 
 	/* Install SIGCANCEL handler. */
 	SIGFILLSET(act.sa_mask);
@@ -418,18 +447,20 @@ _thr_sigact_unload(struct dl_phdr_info *phdr_info)
 	struct pthread *curthread = _get_curthread();
 	struct urwlock *rwlp;
 	struct sigaction *actp;
+	struct usigaction *usa;
 	struct sigaction kact;
 	void (*handler)(int);
 	int sig;
  
 	_thr_signal_block(curthread);
 	for (sig = 1; sig <= _SIG_MAXSIG; sig++) {
-		actp = &_thr_sigact[sig-1].sigact;
+		usa = __libc_sigaction_slot(sig);
+		actp = &usa->sigact;
 retry:
 		handler = actp->sa_handler;
 		if (handler != SIG_DFL && handler != SIG_IGN &&
 		    __elf_phdr_match_addr(phdr_info, handler)) {
-			rwlp = &_thr_sigact[sig-1].lock;
+			rwlp = &usa->lock;
 			_thr_rwl_wrlock(rwlp);
 			if (handler != actp->sa_handler) {
 				_thr_rwl_unlock(rwlp);
@@ -455,7 +486,7 @@ _thr_signal_prefork(void)
 	int i;
 
 	for (i = 1; i <= _SIG_MAXSIG; ++i)
-		_thr_rwl_rdlock(&_thr_sigact[i-1].lock);
+		_thr_rwl_rdlock(&__libc_sigaction_slot(i)->lock);
 }
 
 void
@@ -464,7 +495,7 @@ _thr_signal_postfork(void)
 	int i;
 
 	for (i = 1; i <= _SIG_MAXSIG; ++i)
-		_thr_rwl_unlock(&_thr_sigact[i-1].lock);
+		_thr_rwl_unlock(&__libc_sigaction_slot(i)->lock);
 }
 
 void
@@ -472,8 +503,10 @@ _thr_signal_postfork_child(void)
 {
 	int i;
 
-	for (i = 1; i <= _SIG_MAXSIG; ++i)
-		bzero(&_thr_sigact[i-1].lock, sizeof(struct urwlock));
+	for (i = 1; i <= _SIG_MAXSIG; ++i) {
+		bzero(&__libc_sigaction_slot(i) -> lock,
+		    sizeof(struct urwlock));
+	}
 }
 
 void
@@ -481,84 +514,64 @@ _thr_signal_deinit(void)
 {
 }
 
-__weak_reference(___pause, pause);
-
 int
-___pause(void)
-{
-	sigset_t oset;
-
-	if (_sigprocmask(SIG_BLOCK, NULL, &oset) == -1)
-		return (-1);
-	return (__sigsuspend(&oset));
-}
-
-__weak_reference(_raise, raise);
-
-int
-_raise(int sig)
-{
-	return _thr_send_sig(_get_curthread(), sig);
-}
-
-__weak_reference(_sigaction, sigaction);
-
-int
-_sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
+__thr_sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 {
 	struct sigaction newact, oldact, oldact2;
 	sigset_t oldset;
-	int ret = 0, err = 0;
+	struct usigaction *usa;
+	int ret, err;
 
 	if (!_SIG_VALID(sig) || sig == SIGCANCEL) {
 		errno = EINVAL;
 		return (-1);
 	}
 
-	if (act)
-		newact = *act;
+	ret = 0;
+	err = 0;
+	usa = __libc_sigaction_slot(sig);
 
 	__sys_sigprocmask(SIG_SETMASK, &_thr_maskset, &oldset);
-	_thr_rwl_wrlock(&_thr_sigact[sig-1].lock);
+	_thr_rwl_wrlock(&usa->lock);
  
 	if (act != NULL) {
-		oldact2 = _thr_sigact[sig-1].sigact;
+		oldact2 = usa->sigact;
+		newact = *act;
 
  		/*
 		 * if a new sig handler is SIG_DFL or SIG_IGN,
-		 * don't remove old handler from _thr_sigact[],
+		 * don't remove old handler from __libc_sigact[],
 		 * so deferred signals still can use the handlers,
 		 * multiple threads invoking sigaction itself is
 		 * a race condition, so it is not a problem.
 		 */
 		if (newact.sa_handler != SIG_DFL &&
 		    newact.sa_handler != SIG_IGN) {
-			_thr_sigact[sig-1].sigact = newact;
-			remove_thr_signals(
-				&_thr_sigact[sig-1].sigact.sa_mask);
+			usa->sigact = newact;
+			remove_thr_signals(&usa->sigact.sa_mask);
 			newact.sa_flags &= ~SA_NODEFER;
 			newact.sa_flags |= SA_SIGINFO;
 			newact.sa_sigaction = thr_sighandler;
 			newact.sa_mask = _thr_maskset; /* mask all signals */
 		}
-		if ((ret = __sys_sigaction(sig, &newact, &oldact))) {
+		ret = __sys_sigaction(sig, &newact, &oldact);
+		if (ret == -1) {
 			err = errno;
-			_thr_sigact[sig-1].sigact = oldact2;
+			usa->sigact = oldact2;
 		}
 	} else if (oact != NULL) {
 		ret = __sys_sigaction(sig, NULL, &oldact);
 		err = errno;
 	}
 
-	if (oldact.sa_handler != SIG_DFL &&
-	    oldact.sa_handler != SIG_IGN) {
+	if (oldact.sa_handler != SIG_DFL && oldact.sa_handler != SIG_IGN) {
 		if (act != NULL)
 			oldact = oldact2;
 		else if (oact != NULL)
-			oldact = _thr_sigact[sig-1].sigact;
+			oldact = usa->sigact;
 	}
 
-	_thr_rwl_unlock(&_thr_sigact[sig-1].lock);
+	_thr_rwl_unlock(&usa->lock);
 	__sys_sigprocmask(SIG_SETMASK, &oldset, NULL);
 
 	if (ret == 0) {
@@ -570,10 +583,8 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 	return (ret);
 }
 
-__weak_reference(_sigprocmask, sigprocmask);
-
 int
-_sigprocmask(int how, const sigset_t *set, sigset_t *oset)
+__thr_sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 {
 	const sigset_t *p = set;
 	sigset_t newset;
@@ -593,12 +604,11 @@ __weak_reference(_pthread_sigmask, pthread_sigmask);
 int
 _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
-	if (_sigprocmask(how, set, oset))
+
+	if (__thr_sigprocmask(how, set, oset))
 		return (errno);
 	return (0);
 }
-
-__weak_reference(__sigsuspend, sigsuspend);
 
 int
 _sigsuspend(const sigset_t * set)
@@ -609,7 +619,7 @@ _sigsuspend(const sigset_t * set)
 }
 
 int
-__sigsuspend(const sigset_t * set)
+__thr_sigsuspend(const sigset_t * set)
 {
 	struct pthread *curthread;
 	sigset_t newset;
@@ -633,10 +643,6 @@ __sigsuspend(const sigset_t * set)
 	return (ret);
 }
 
-__weak_reference(___sigwait, sigwait);
-__weak_reference(__sigtimedwait, sigtimedwait);
-__weak_reference(__sigwaitinfo, sigwaitinfo);
-
 int
 _sigtimedwait(const sigset_t *set, siginfo_t *info,
 	const struct timespec * timeout)
@@ -653,8 +659,8 @@ _sigtimedwait(const sigset_t *set, siginfo_t *info,
  *   it is not canceled.
  */
 int
-__sigtimedwait(const sigset_t *set, siginfo_t *info,
-	const struct timespec * timeout)
+__thr_sigtimedwait(const sigset_t *set, siginfo_t *info,
+    const struct timespec * timeout)
 {
 	struct pthread	*curthread = _get_curthread();
 	sigset_t newset;
@@ -681,7 +687,7 @@ _sigwaitinfo(const sigset_t *set, siginfo_t *info)
  *   it is not canceled.
  */ 
 int
-__sigwaitinfo(const sigset_t *set, siginfo_t *info)
+__thr_sigwaitinfo(const sigset_t *set, siginfo_t *info)
 {
 	struct pthread	*curthread = _get_curthread();
 	sigset_t newset;
@@ -707,7 +713,7 @@ _sigwait(const sigset_t *set, int *sig)
  *   it is not canceled.
  */ 
 int
-___sigwait(const sigset_t *set, int *sig)
+__thr_sigwait(const sigset_t *set, int *sig)
 {
 	struct pthread	*curthread = _get_curthread();
 	sigset_t newset;
@@ -721,9 +727,8 @@ ___sigwait(const sigset_t *set, int *sig)
 	return (ret);
 }
 
-__weak_reference(_setcontext, setcontext);
 int
-_setcontext(const ucontext_t *ucp)
+__thr_setcontext(const ucontext_t *ucp)
 {
 	ucontext_t uc;
 
@@ -735,12 +740,11 @@ _setcontext(const ucontext_t *ucp)
 		return __sys_setcontext(ucp);
 	(void) memcpy(&uc, ucp, sizeof(uc));
 	SIGDELSET(uc.uc_sigmask, SIGCANCEL);
-	return __sys_setcontext(&uc);
+	return (__sys_setcontext(&uc));
 }
 
-__weak_reference(_swapcontext, swapcontext);
 int
-_swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
+__thr_swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 {
 	ucontext_t uc;
 
@@ -753,5 +757,5 @@ _swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 		SIGDELSET(uc.uc_sigmask, SIGCANCEL);
 		ucp = &uc;
 	}
-	return __sys_swapcontext(oucp, ucp);
+	return (__sys_swapcontext(oucp, ucp));
 }

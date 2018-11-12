@@ -39,16 +39,29 @@ BreakpointLocation::BreakpointLocation
     Breakpoint &owner,
     const Address &addr,
     lldb::tid_t tid,
-    bool hardware
+    bool hardware,
+    bool check_for_resolver
 ) :
     StoppointLocation (loc_id, addr.GetOpcodeLoadAddress(&owner.GetTarget()), hardware),
     m_being_created(true),
+    m_should_resolve_indirect_functions (false),
+    m_is_reexported (false),
+    m_is_indirect (false),
     m_address (addr),
     m_owner (owner),
     m_options_ap (),
     m_bp_site_sp (),
     m_condition_mutex ()
 {
+    if (check_for_resolver)
+    {
+        Symbol *symbol = m_address.CalculateSymbolContextSymbol();
+        if (symbol && symbol->IsIndirect())
+        {
+            SetShouldResolveIndirectFunctions (true);
+        }
+    }
+    
     SetThreadID (tid);
     m_being_created = false;
 }
@@ -276,7 +289,8 @@ BreakpointLocation::ConditionSaysStop (ExecutionContext &exe_ctx, Error &error)
         if (!m_user_expression_sp->Parse(errors,
                                          exe_ctx,
                                          eExecutionPolicyOnlyWhenNeeded,
-                                         true))
+                                         true,
+                                         false))
         {
             error.SetErrorStringWithFormat("Couldn't parse conditional expression:\n%s",
                                            errors.GetData());
@@ -303,7 +317,7 @@ BreakpointLocation::ConditionSaysStop (ExecutionContext &exe_ctx, Error &error)
     
     ClangExpressionVariableSP result_variable_sp;
     
-    ExecutionResults result_code =
+    ExpressionResults result_code =
     m_user_expression_sp->Execute(execution_errors,
                                   exe_ctx,
                                   options,
@@ -312,11 +326,10 @@ BreakpointLocation::ConditionSaysStop (ExecutionContext &exe_ctx, Error &error)
     
     bool ret;
     
-    if (result_code == eExecutionCompleted)
+    if (result_code == eExpressionCompleted)
     {
         if (!result_variable_sp)
         {
-            ret = false;
             error.SetErrorString("Expression did not return a result");
             return false;
         }
@@ -436,8 +449,7 @@ BreakpointLocation::ShouldStop (StoppointCallbackContext *context)
     bool should_stop = true;
     Log *log = lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_BREAKPOINTS);
 
-    IncrementHitCount();
-
+    // Do this first, if a location is disabled, it shouldn't increment its hit count.
     if (!IsEnabled())
         return false;
 
@@ -459,6 +471,13 @@ BreakpointLocation::ShouldStop (StoppointCallbackContext *context)
     }
     
     return should_stop;
+}
+
+void
+BreakpointLocation::BumpHitCount()
+{
+    if (IsEnabled())
+        IncrementHitCount();
 }
 
 bool
@@ -509,8 +528,15 @@ BreakpointLocation::ClearBreakpointSite ()
 {
     if (m_bp_site_sp.get())
     {
-        m_owner.GetTarget().GetProcessSP()->RemoveOwnerFromBreakpointSite (GetBreakpoint().GetID(), 
+        ProcessSP process_sp(m_owner.GetTarget().GetProcessSP());
+        // If the process exists, get it to remove the owner, it will remove the physical implementation
+        // of the breakpoint as well if there are no more owners.  Otherwise just remove this owner.
+        if (process_sp)
+            process_sp->RemoveOwnerFromBreakpointSite (GetBreakpoint().GetID(),
                                                                            GetID(), m_bp_site_sp);
+        else
+            m_bp_site_sp->RemoveOwner(GetBreakpoint().GetID(), GetID());
+        
         m_bp_site_sp.reset();
         return true;
     }
@@ -545,8 +571,11 @@ BreakpointLocation::GetDescription (Stream *s, lldb::DescriptionLevel level)
 
         if (level == lldb::eDescriptionLevelFull || level == eDescriptionLevelInitial)
         {
-            s->PutCString("where = ");
-            sc.DumpStopContext (s, m_owner.GetTarget().GetProcessSP().get(), m_address, false, true, false);
+            if (IsReExported())
+                s->PutCString ("re-exported target = ");
+            else
+                s->PutCString("where = ");
+            sc.DumpStopContext (s, m_owner.GetTarget().GetProcessSP().get(), m_address, false, true, false, true);
         }
         else
         {
@@ -584,7 +613,10 @@ BreakpointLocation::GetDescription (Stream *s, lldb::DescriptionLevel level)
                 if (sc.symbol)
                 {
                     s->EOL();
-                    s->Indent("symbol = ");
+                    if (IsReExported())
+                        s->Indent ("re-exported target = ");
+                    else
+                        s->Indent("symbol = ");
                     s->PutCString(sc.symbol->GetMangled().GetName().AsCString("<unknown>"));
                 }
             }
@@ -608,10 +640,28 @@ BreakpointLocation::GetDescription (Stream *s, lldb::DescriptionLevel level)
     if (exe_scope == NULL)
         exe_scope = target;
 
-    if (eDescriptionLevelInitial)
+    if (level == eDescriptionLevelInitial)
         m_address.Dump(s, exe_scope, Address::DumpStyleLoadAddress, Address::DumpStyleFileAddress);
     else
         m_address.Dump(s, exe_scope, Address::DumpStyleLoadAddress, Address::DumpStyleModuleWithFileAddress);
+    
+    if (IsIndirect() && m_bp_site_sp)
+    {
+        Address resolved_address;
+        resolved_address.SetLoadAddress(m_bp_site_sp->GetLoadAddress(), target);
+        Symbol *resolved_symbol = resolved_address.CalculateSymbolContextSymbol();
+        if (resolved_symbol)
+        {
+            if (level == eDescriptionLevelFull || level == eDescriptionLevelInitial)
+                s->Printf (", ");
+            else if (level == lldb::eDescriptionLevelVerbose)
+            {
+                s->EOL();
+                s->Indent();
+            }
+            s->Printf ("indirect target = %s", resolved_symbol->GetName().GetCString());
+        }
+    }
 
     if (level == lldb::eDescriptionLevelVerbose)
     {
@@ -673,4 +723,13 @@ BreakpointLocation::SendBreakpointLocationChangedEvent (lldb::BreakpointEventTyp
         m_owner.GetTarget().BroadcastEvent (Target::eBroadcastBitBreakpointChanged, data);
     }
 }
-    
+
+void
+BreakpointLocation::SwapLocation (BreakpointLocationSP swap_from)
+{
+    m_address = swap_from->m_address;
+    m_should_resolve_indirect_functions = swap_from->m_should_resolve_indirect_functions;
+    m_is_reexported = swap_from->m_is_reexported;
+    m_is_indirect = swap_from->m_is_indirect;
+    m_user_expression_sp.reset();
+}

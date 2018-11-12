@@ -113,10 +113,12 @@ static struct ib_ucontext *c4iw_alloc_ucontext(struct ib_device *ibdev,
 	return &context->ibucontext;
 }
 
+#ifdef DOT5
 static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
 {
     return pgprot_writecombine(prot);
 }
+#endif
 
 static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {

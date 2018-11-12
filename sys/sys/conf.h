@@ -106,24 +106,6 @@ struct clonedevs;
 struct vm_object;
 struct vnode;
 
-/*
- * Note: d_thread_t is provided as a transition aid for those drivers
- * that treat struct proc/struct thread as an opaque data type and
- * exist in substantially the same form in both 4.x and 5.x.  Writers
- * of drivers that dips into the d_thread_t structure should use
- * struct thread or struct proc as appropriate for the version of the
- * OS they are using.  It is provided in lieu of each device driver
- * inventing its own way of doing this.  While it does violate style(9)
- * in a number of ways, this violation is deemed to be less
- * important than the benefits that a uniform API between releases
- * gives.
- *
- * Users of struct thread/struct proc that aren't device drivers should
- * not use d_thread_t.
- */
-
-typedef struct thread d_thread_t;
-
 typedef int d_open_t(struct cdev *dev, int oflags, int devtype, struct thread *td);
 typedef int d_fdopen_t(struct cdev *dev, int oflags, struct thread *td, struct file *fp);
 typedef int d_close_t(struct cdev *dev, int fflag, int devtype, struct thread *td);
@@ -227,14 +209,16 @@ struct devsw_module_data {
 	/* Do not initialize fields hereafter */
 };
 
-#define	DEV_MODULE(name, evh, arg)					\
+#define	DEV_MODULE_ORDERED(name, evh, arg, ord)				\
 static moduledata_t name##_mod = {					\
     #name,								\
     evh,								\
     arg									\
 };									\
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
+DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, ord)
 
+#define	DEV_MODULE(name, evh, arg)					\
+    DEV_MODULE_ORDERED(name, evh, arg, SI_ORDER_MIDDLE)
 
 void clone_setup(struct clonedevs **cdp);
 void clone_cleanup(struct clonedevs **);
@@ -243,6 +227,7 @@ void clone_cleanup(struct clonedevs **);
 int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **dev, int extra);
 
 int	count_dev(struct cdev *_dev);
+void	delist_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
 int	destroy_dev_sched(struct cdev *dev);
 int	destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg);
@@ -334,9 +319,8 @@ struct dumperinfo {
 	off_t   mediasize;	/* Space available in bytes. */
 };
 
-int set_dumper(struct dumperinfo *, const char *_devname);
+int set_dumper(struct dumperinfo *, const char *_devname, struct thread *td);
 int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
-void dumpsys(struct dumperinfo *);
 int doadump(boolean_t);
 extern int dumping;		/* system is dumping */
 

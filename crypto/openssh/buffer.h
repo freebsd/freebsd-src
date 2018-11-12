@@ -1,4 +1,4 @@
-/* $OpenBSD: buffer.h,v 1.22 2013/07/12 00:19:58 djm Exp $ */
+/* $OpenBSD: buffer.h,v 1.23 2014/01/12 08:13:13 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -88,6 +88,10 @@ void	*buffer_get_string_ret(Buffer *, u_int *);
 char	*buffer_get_cstring_ret(Buffer *, u_int *);
 void	*buffer_get_string_ptr_ret(Buffer *, u_int *);
 int	buffer_get_char_ret(u_char *, Buffer *);
+
+void *buffer_get_bignum2_as_string_ret(Buffer *, u_int *);
+void *buffer_get_bignum2_as_string(Buffer *, u_int *);
+void  buffer_put_bignum2_from_string(Buffer *, const u_char *, u_int);
 
 #ifdef OPENSSL_HAS_ECC
 #include <openssl/ec.h>

@@ -3,6 +3,7 @@
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common ${.CURDIR}/../../common
 
 FILES=		zfsboot
+MAN=		zfsboot.8
 
 NM?=		nm
 
@@ -35,6 +36,8 @@ CFLAGS.gcc+=	--param max-inline-insns-single=100
 
 LD_FLAGS=-static -N --gc-sections
 
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
+
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
 
@@ -46,7 +49,7 @@ zfsboot: zfsboot1 zfsboot2
 CLEANFILES+=	zfsboot1 zfsldr.out zfsldr.o
 
 zfsboot1: zfsldr.out
-	objcopy -S -O binary zfsldr.out ${.TARGET}
+	${OBJCOPY} -S -O binary zfsldr.out ${.TARGET}
 
 zfsldr.out: zfsldr.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} zfsldr.o
@@ -72,7 +75,7 @@ zfsboot.ldr:
 	cp /dev/null ${.TARGET}
 
 zfsboot.bin: zfsboot.out
-	objcopy -S -O binary zfsboot.out ${.TARGET}
+	${OBJCOPY} -S -O binary zfsboot.out ${.TARGET}
 
 zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}

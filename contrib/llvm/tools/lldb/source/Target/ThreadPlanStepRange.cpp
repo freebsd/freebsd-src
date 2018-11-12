@@ -44,19 +44,25 @@ ThreadPlanStepRange::ThreadPlanStepRange (ThreadPlanKind kind,
                                           Thread &thread, 
                                           const AddressRange &range, 
                                           const SymbolContext &addr_context, 
-                                          lldb::RunMode stop_others) :
+                                          lldb::RunMode stop_others,
+                                          bool given_ranges_only) :
     ThreadPlan (kind, name, thread, eVoteNoOpinion, eVoteNoOpinion),
     m_addr_context (addr_context),
     m_address_ranges (),
     m_stop_others (stop_others),
     m_stack_id (),
+    m_parent_stack_id(),
     m_no_more_plans (false),
     m_first_run_event (true),
-    m_use_fast_step(false)
+    m_use_fast_step(false),
+    m_given_ranges_only (given_ranges_only)
 {
     m_use_fast_step = GetTarget().GetUseFastStepping();
     AddRange(range);
     m_stack_id = m_thread.GetStackFrameAtIndex(0)->GetStackID();
+    StackFrameSP parent_stack = m_thread.GetStackFrameAtIndex(1);
+    if (parent_stack)
+      m_parent_stack_id = parent_stack->GetStackID();
 }
 
 ThreadPlanStepRange::~ThreadPlanStepRange ()
@@ -145,7 +151,7 @@ ThreadPlanStepRange::InRange ()
             break;
     }
     
-    if (!ret_value)
+    if (!ret_value && !m_given_ranges_only)
     {
         // See if we've just stepped to another part of the same line number...
         StackFrame *frame = m_thread.GetStackFrameAtIndex(0).get();
@@ -270,7 +276,16 @@ ThreadPlanStepRange::CompareCurrentFrameToStartFrame()
     }
     else
     {
-        frame_order = eFrameCompareOlder;
+        StackFrameSP cur_parent_frame = m_thread.GetStackFrameAtIndex(1);
+        StackID cur_parent_id;
+        if (cur_parent_frame)
+          cur_parent_id = cur_parent_frame->GetStackID();
+        if (m_parent_stack_id.IsValid()
+            && cur_parent_id.IsValid()
+            && m_parent_stack_id == cur_parent_id)
+           frame_order = eFrameCompareSameParent;
+        else
+            frame_order = eFrameCompareOlder;
     }
     return frame_order;
 }
@@ -443,8 +458,8 @@ ThreadPlanStepRange::NextRangeBreakpointExplainsStop (lldb::StopInfoSP stop_info
             }
         }
         if (log)
-            log->Printf ("ThreadPlanStepRange::NextRangeBreakpointExplainsStop - Hit next range breakpoint which has %zu owners - explains stop: %u.",
-                        num_owners,
+            log->Printf ("ThreadPlanStepRange::NextRangeBreakpointExplainsStop - Hit next range breakpoint which has %" PRIu64 " owners - explains stop: %u.",
+                        (uint64_t)num_owners,
                         explains_stop);
         ClearNextBranchBreakpoint();
         return  explains_stop;

@@ -76,6 +76,7 @@ extern struct mtx futex_mtx;
 #define	FUTEX_TID_MASK		0x3fffffff
 #define	FUTEX_BITSET_MATCH_ANY	0xffffffff
 
-void	release_futexes(struct proc *);
+void	release_futexes(struct thread *,
+			struct linux_emuldata *);
 
 #endif	/* !_LINUX_FUTEX_H */

@@ -62,11 +62,9 @@ SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, gate, CTLFLAG_RW, 0,
     "GEOM_GATE configuration");
 static int g_gate_debug = 0;
-TUNABLE_INT("kern.geom.gate.debug", &g_gate_debug);
-SYSCTL_INT(_kern_geom_gate, OID_AUTO, debug, CTLFLAG_RW, &g_gate_debug, 0,
+SYSCTL_INT(_kern_geom_gate, OID_AUTO, debug, CTLFLAG_RWTUN, &g_gate_debug, 0,
     "Debug level");
 static u_int g_gate_maxunits = 256;
-TUNABLE_INT("kern.geom.gate.maxunits", &g_gate_maxunits);
 SYSCTL_UINT(_kern_geom_gate, OID_AUTO, maxunits, CTLFLAG_RDTUN,
     &g_gate_maxunits, 0, "Maximum number of ggate devices");
 
@@ -488,7 +486,7 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	if (sc->sc_queue_size > G_GATE_MAX_QUEUE_SIZE)
 		sc->sc_queue_size = G_GATE_MAX_QUEUE_SIZE;
 	sc->sc_timeout = ggio->gctl_timeout;
-	callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_callout, 1);
 
 	mtx_lock(&g_gate_units_lock);
 	sc->sc_unit = g_gate_getunit(ggio->gctl_unit, &error);

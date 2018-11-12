@@ -38,7 +38,7 @@ import sys
 # a more complicated example might be:
 #    const type * const * serf_func3(...
 #
-_funcs = re.compile(r'^(?:(?:\w+|\*) )+\*?(serf_[a-z][a-z_0-9]*)\(',
+_funcs = re.compile(r'^(?:(?:\w+|\*) )+\*?(serf_[a-z][a-zA-Z_0-9]*)\(',
                     re.MULTILINE)
 
 # This regex parses the bucket type definitions which look like:

@@ -15,7 +15,6 @@
 #define LLVM_CLANG_AST_TEMPLATENAME_H
 
 #include "clang/Basic/LLVM.h"
-#include "clang/Basic/OperatorKinds.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/PointerUnion.h"
 
@@ -25,13 +24,14 @@ class ASTContext;
 class DependentTemplateName;
 class DiagnosticBuilder;
 class IdentifierInfo;
+class NamedDecl;
 class NestedNameSpecifier;
+enum OverloadedOperatorKind : int;
 class OverloadedTemplateStorage;
 struct PrintingPolicy;
 class QualifiedTemplateName;
-class NamedDecl;
-class SubstTemplateTemplateParmStorage;
 class SubstTemplateTemplateParmPackStorage;
+class SubstTemplateTemplateParmStorage;
 class TemplateArgument;
 class TemplateDecl;
 class TemplateTemplateParmDecl;
@@ -71,19 +71,19 @@ public:
   OverloadedTemplateStorage *getAsOverloadedStorage()  {
     return Bits.Kind == Overloaded
              ? reinterpret_cast<OverloadedTemplateStorage *>(this) 
-             : 0;
+             : nullptr;
   }
   
   SubstTemplateTemplateParmStorage *getAsSubstTemplateTemplateParm() {
     return Bits.Kind == SubstTemplateTemplateParm
              ? reinterpret_cast<SubstTemplateTemplateParmStorage *>(this)
-             : 0;
+             : nullptr;
   }
 
   SubstTemplateTemplateParmPackStorage *getAsSubstTemplateTemplateParmPack() {
     return Bits.Kind == SubstTemplateTemplateParmPack
              ? reinterpret_cast<SubstTemplateTemplateParmPackStorage *>(this)
-             : 0;
+             : nullptr;
   }
 };
   
@@ -243,7 +243,7 @@ public:
                               Storage.dyn_cast<UncommonTemplateNameStorage *>())
       return Uncommon->getAsOverloadedStorage();
     
-    return 0;
+    return nullptr;
   }
 
   /// \brief Retrieve the substituted template template parameter, if 
@@ -256,7 +256,7 @@ public:
           Storage.dyn_cast<UncommonTemplateNameStorage *>())
       return uncommon->getAsSubstTemplateTemplateParm();
     
-    return 0;
+    return nullptr;
   }
 
   /// \brief Retrieve the substituted template template parameter pack, if 
@@ -270,7 +270,7 @@ public:
         Storage.dyn_cast<UncommonTemplateNameStorage *>())
       return Uncommon->getAsSubstTemplateTemplateParmPack();
     
-    return 0;
+    return nullptr;
   }
 
   /// \brief Retrieve the underlying qualified template name

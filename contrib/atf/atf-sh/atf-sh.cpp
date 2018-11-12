@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2010 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,7 +22,6 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
 extern "C" {
 #include <unistd.h>
@@ -36,9 +32,8 @@ extern "C" {
 #include <cstring>
 #include <iostream>
 
-#include "atf-c++/config.hpp"
-
 #include "atf-c++/detail/application.hpp"
+#include "atf-c++/detail/env.hpp"
 #include "atf-c++/detail/fs.hpp"
 #include "atf-c++/detail/sanity.hpp"
 
@@ -63,9 +58,11 @@ static
 std::string*
 construct_script(const char* filename)
 {
-    const std::string libexecdir = atf::config::get("atf_libexecdir");
-    const std::string pkgdatadir = atf::config::get("atf_pkgdatadir");
-    const std::string shell = atf::config::get("atf_shell");
+    const std::string libexecdir = atf::env::get(
+        "ATF_LIBEXECDIR", ATF_LIBEXECDIR);
+    const std::string pkgdatadir = atf::env::get(
+        "ATF_PKGDATADIR", ATF_PKGDATADIR);
+    const std::string shell = atf::env::get("ATF_SHELL", ATF_SHELL);
 
     std::string* command = new std::string();
     command->reserve(512);
@@ -111,6 +108,11 @@ construct_argv(const std::string& shell, const int interpreter_argc,
 class atf_sh : public atf::application::app {
     static const char* m_description;
 
+    atf::fs::path m_shell;
+
+    options_set specific_options(void) const;
+    void process_option(int, const char*);
+
 public:
     atf_sh(void);
 
@@ -122,8 +124,36 @@ const char* atf_sh::m_description =
     "system sh(1) with the atf-sh library.";
 
 atf_sh::atf_sh(void) :
-    app(m_description, "atf-sh(1)", "atf(7)")
+    app(m_description, "atf-sh(1)"),
+    m_shell(atf::fs::path(atf::env::get("ATF_SHELL", ATF_SHELL)))
 {
+}
+
+atf_sh::options_set
+atf_sh::specific_options(void)
+    const
+{
+    using atf::application::option;
+    options_set opts;
+
+    INV(m_shell == atf::fs::path(atf::env::get("ATF_SHELL", ATF_SHELL)));
+    opts.insert(option('s', "shell", "Path to the shell interpreter to use; "
+                       "default: " + m_shell.str()));
+
+    return opts;
+}
+
+void
+atf_sh::process_option(int ch, const char* arg)
+{
+    switch (ch) {
+    case 's':
+        m_shell = atf::fs::path(arg);
+        break;
+
+    default:
+        UNREACHABLE;
+    }
 }
 
 int
@@ -137,15 +167,14 @@ atf_sh::main(void)
         throw std::runtime_error("The test program '" + script.str() + "' "
                                  "does not exist");
 
-    const std::string shell = atf::config::get("atf_shell");
-    const char** argv = construct_argv(shell, m_argc, m_argv);
+    const char** argv = construct_argv(m_shell.str(), m_argc, m_argv);
     // Don't bother keeping track of the memory allocated by construct_argv:
     // we are going to exec or die immediately.
 
-    const int ret = execv(shell.c_str(), const_cast< char** >(argv));
+    const int ret = execv(m_shell.c_str(), const_cast< char** >(argv));
     INV(ret == -1);
-    std::cerr << "Failed to execute " << shell << ": " << std::strerror(errno)
-              << "\n";
+    std::cerr << "Failed to execute " << m_shell.str() << ": "
+              << std::strerror(errno) << "\n";
     return EXIT_FAILURE;
 }
 

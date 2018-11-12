@@ -14,7 +14,7 @@
 #include "clang/Tooling/FileMatchTrie.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/PathV2.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include <sstream>
 
@@ -24,7 +24,7 @@ namespace tooling {
 /// \brief Default \c PathComparator using \c llvm::sys::fs::equivalent().
 struct DefaultPathComparator : public PathComparator {
   virtual ~DefaultPathComparator() {}
-  virtual bool equivalent(StringRef FileA, StringRef FileB) const {
+  bool equivalent(StringRef FileA, StringRef FileB) const override {
     return FileA == FileB || llvm::sys::fs::equivalent(FileA, FileB);
   }
 };

@@ -1,20 +1,34 @@
-#ifndef	MANDOC_CONFIG_H
-#define	MANDOC_CONFIG_H
+#ifndef MANDOC_CONFIG_H
+#define MANDOC_CONFIG_H
 
 #if defined(__linux__) || defined(__MINT__)
-# define _GNU_SOURCE /* strptime(), getsubopt() */
+#define _GNU_SOURCE	/* See test-*.c what needs this. */
 #endif
 
-#include <stdio.h>
-
-#define HAVE_FGETLN
-#define HAVE_STRPTIME
-#define HAVE_GETSUBOPT
-#define HAVE_STRLCAT
-#define HAVE_MMAP
-#define HAVE_STRLCPY
-
 #include <sys/types.h>
+
+#define HAVE_DIRENT_NAMLEN 1
+#define HAVE_FGETLN 1
+#define HAVE_FTS 1
+#define HAVE_GETSUBOPT 1
+#define HAVE_MMAP 1
+#define HAVE_REALLOCARRAY 1
+#define HAVE_STRCASESTR 1
+#define HAVE_STRLCAT 1
+#define HAVE_STRLCPY 1
+#define HAVE_STRPTIME 1
+#define HAVE_STRSEP 1
+#define HAVE_STRTONUM 1
+#define HAVE_WCHAR 1
+#define HAVE_SQLITE3 1
+#define HAVE_SQLITE3_ERRSTR 0
+#define HAVE_OHASH 1
+#define HAVE_MANPATH 1
+
+#define BINM_APROPOS "apropos"
+#define BINM_MAN "man"
+#define BINM_WHATIS "whatis"
+#define BINM_MAKEWHATIS "makewhatis"
 
 #if !defined(__BEGIN_DECLS)
 #  ifdef __cplusplus
@@ -31,28 +45,7 @@
 #  endif
 #endif
 
-#if defined(__APPLE__)
-# define htobe32(x) OSSwapHostToBigInt32(x)
-# define betoh32(x) OSSwapBigToHostInt32(x)
-# define htobe64(x) OSSwapHostToBigInt64(x)
-# define betoh64(x) OSSwapBigToHostInt64(x)
-#elif defined(__linux__)
-# define betoh32(x) be32toh(x)
-# define betoh64(x) be64toh(x)
-#endif
-
-#ifndef HAVE_STRLCAT
-extern	size_t	  strlcat(char *, const char *, size_t);
-#endif
-#ifndef HAVE_STRLCPY
-extern	size_t	  strlcpy(char *, const char *, size_t);
-#endif
-#ifndef HAVE_GETSUBOPT
-extern	int	  getsubopt(char **, char * const *, char **);
-extern	char	 *suboptarg;
-#endif
-#ifndef HAVE_FGETLN
-extern	char	 *fgetln(FILE *, size_t *);
-#endif
+extern	void	 *reallocarray(void *, size_t, size_t);
+extern	const char *sqlite3_errstr(int);
 
 #endif /* MANDOC_CONFIG_H */

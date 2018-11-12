@@ -118,7 +118,7 @@ link_addr(addr, sdl)
 	return;
 }
 
-static char hexlist[] = "0123456789abcdef";
+static const char hexlist[] = "0123456789abcdef";
 
 char *
 link_ntoa(sdl)

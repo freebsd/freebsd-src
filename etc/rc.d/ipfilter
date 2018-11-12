@@ -65,7 +65,6 @@ ipfilter_reload()
 			err 1 'Load of rules into alternate set failed; aborting reload'
 		fi
 	fi
-	${ipfilter_program:-/sbin/ipf} -I -6 -Fa
 	if [ -r "${ipv6_ipfilter_rules}" ]; then
 		${ipfilter_program:-/sbin/ipf} -I -6 \
 		    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}

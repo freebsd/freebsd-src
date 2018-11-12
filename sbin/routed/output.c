@@ -673,8 +673,6 @@ supply(struct sockaddr_in *dst,
 	struct rt_entry *rt;
 	int def_metric;
 
-	assert(ifp != NULL);
-
 	ws.state = 0;
 	ws.gen_limit = 1024;
 

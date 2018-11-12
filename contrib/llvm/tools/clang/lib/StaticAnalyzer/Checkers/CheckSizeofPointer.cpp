@@ -24,10 +24,12 @@ using namespace ento;
 namespace {
 class WalkAST : public StmtVisitor<WalkAST> {
   BugReporter &BR;
+  const CheckerBase *Checker;
   AnalysisDeclContext* AC;
 
 public:
-  WalkAST(BugReporter &br, AnalysisDeclContext* ac) : BR(br), AC(ac) {}
+  WalkAST(BugReporter &br, const CheckerBase *checker, AnalysisDeclContext *ac)
+      : BR(br), Checker(checker), AC(ac) {}
   void VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E);
   void VisitStmt(Stmt *S) { VisitChildren(S); }
   void VisitChildren(Stmt *S);
@@ -45,7 +47,7 @@ void WalkAST::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
   if (E->getKind() != UETT_SizeOf)
     return;
 
-  // If an explicit type is used in the code, usually the coder knows what he is
+  // If an explicit type is used in the code, usually the coder knows what they are
   // doing.
   if (E->isArgumentType())
     return;
@@ -60,15 +62,14 @@ void WalkAST::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
     if (!isa<DeclRefExpr>(ArgEx->IgnoreParens()))
       return;
 
-    SourceRange R = ArgEx->getSourceRange();
     PathDiagnosticLocation ELoc =
       PathDiagnosticLocation::createBegin(E, BR.getSourceManager(), AC);
-    BR.EmitBasicReport(AC->getDecl(),
+    BR.EmitBasicReport(AC->getDecl(), Checker,
                        "Potential unintended use of sizeof() on pointer type",
-                       "Logic",
+                       categories::LogicError,
                        "The code calls sizeof() on a pointer type. "
                        "This can produce an unexpected result.",
-                       ELoc, &R, 1);
+                       ELoc, ArgEx->getSourceRange());
   }
 }
 
@@ -81,7 +82,7 @@ class SizeofPointerChecker : public Checker<check::ASTCodeBody> {
 public:
   void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
                         BugReporter &BR) const {
-    WalkAST walker(BR, mgr.getAnalysisDeclContext(D));
+    WalkAST walker(BR, this, mgr.getAnalysisDeclContext(D));
     walker.Visit(D->getBody());
   }
 };

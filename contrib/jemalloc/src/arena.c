@@ -614,8 +614,11 @@ arena_chunk_alloc(arena_t *arena)
 
 	if (arena->spare != NULL)
 		chunk = arena_chunk_init_spare(arena);
-	else
+	else {
 		chunk = arena_chunk_init_hard(arena);
+		if (chunk == NULL)
+			return (NULL);
+	}
 
 	/* Insert the run into the runs_avail tree. */
 	arena_avail_insert(arena, chunk, map_bias, chunk_npages-map_bias,
@@ -2476,7 +2479,6 @@ bin_info_run_size_calc(arena_bin_info_t *bin_info, size_t min_run_size)
 			    bin_info->reg_interval) - pad_size;
 		} while (try_hdr_size > try_redzone0_offset);
 	} while (try_run_size <= arena_maxclass
-	    && try_run_size <= arena_maxclass
 	    && RUN_MAX_OVRHD * (bin_info->reg_interval << 3) >
 	    RUN_MAX_OVRHD_RELAX
 	    && (try_redzone0_offset << RUN_BFP) > RUN_MAX_OVRHD * try_run_size

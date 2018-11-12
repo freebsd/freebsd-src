@@ -70,7 +70,8 @@ struct lzma_index_hash_s {
 
 
 extern LZMA_API(lzma_index_hash *)
-lzma_index_hash_init(lzma_index_hash *index_hash, lzma_allocator *allocator)
+lzma_index_hash_init(lzma_index_hash *index_hash,
+		const lzma_allocator *allocator)
 {
 	if (index_hash == NULL) {
 		index_hash = lzma_alloc(sizeof(lzma_index_hash), allocator);
@@ -101,7 +102,8 @@ lzma_index_hash_init(lzma_index_hash *index_hash, lzma_allocator *allocator)
 
 
 extern LZMA_API(void)
-lzma_index_hash_end(lzma_index_hash *index_hash, lzma_allocator *allocator)
+lzma_index_hash_end(lzma_index_hash *index_hash,
+		const lzma_allocator *allocator)
 {
 	lzma_free(index_hash, allocator);
 	return;

@@ -438,8 +438,10 @@ sshpam_thread(void *ctxtp)
 	const char **ptr_pam_user = &pam_user;
 	char *tz = getenv("TZ");
 
-	pam_get_item(sshpam_handle, PAM_USER,
+	sshpam_err = pam_get_item(sshpam_handle, PAM_USER,
 	    (sshpam_const void **)ptr_pam_user);
+	if (sshpam_err != PAM_SUCCESS)
+		goto auth_fail;
 
 	environ[0] = NULL;
 	if (tz != NULL)

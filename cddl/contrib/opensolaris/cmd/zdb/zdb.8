@@ -14,12 +14,12 @@
 .\"
 .\" Copyright 2012, Richard Lowe.
 .\" Copyright (c) 2012, Marcelo Araujo <araujo@FreeBSD.org>.
-.\" Copyright (c) 2012 by Delphix. All rights reserved.
+.\" Copyright (c) 2012, 2014 by Delphix. All rights reserved.
 .\" All Rights Reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 31, 2013
+.Dd July 26, 2014
 .Dt ZDB 8
 .Os
 .Sh NAME
@@ -27,11 +27,12 @@
 .Nd Display zpool debugging and consistency information
 .Sh SYNOPSIS
 .Nm
-.Op Fl CumdibcsDvhLXFPA
+.Op Fl CumdibcsDvhLMXFPA
 .Op Fl e Op Fl p Ar path...
 .Op Fl t Ar txg
 .Op Fl U Ar cache
-.Op Fl M Ar inflight I/Os
+.Op Fl I Ar inflight I/Os
+.Op Fl x Ar dumpdir
 .Ar poolname
 .Op Ar object ...
 .Nm
@@ -41,7 +42,7 @@
 .Ar dataset
 .Op Ar object ...
 .Nm
-.Fl m Op Fl LXFPA
+.Fl m Op Fl MLXFPA
 .Op Fl t Ar txg
 .Op Fl e Op Fl p Ar path...
 .Op Fl U Ar cache
@@ -127,6 +128,12 @@ compression ratio (compress), inflation due to the zfs copies property
 If specified twice, display a histogram of deduplication statistics, showing
 the allocated (physically present on disk) and referenced (logically
 referenced in the pool) block counts and sizes by reference count.
+.Pp
+If specified a third time, display the statistics independently for each deduplication table.
+.Pp
+If specified a fourth time, dump the contents of the deduplication tables describing duplicate blocks.
+.Pp
+If specified a fifth time, also dump the contents of the deduplication tables describing unique blocks.
 .It Fl h
 Display pool history similar to
 .Cm zpool history ,
@@ -147,6 +154,13 @@ By default,
 .Nm
 verifies that all non-free blocks are referenced, which can be very expensive.
 .It Fl m
+Display the offset, spacemap, and free space of each metaslab.
+When specified twice, also display information about the on-disk free
+space histogram associated with each metaslab. When specified three time,
+display the maximum contiguous free space, the in-core free space histogram,
+and the percentage of free space in each space map.  When specified
+four times display every spacemap record.
+.It Fl M
 Display the offset, spacemap, and free space of each metaslab.
 When specified twice, also display information about the maximum contiguous
 free space and the percentage of free space in each space map.
@@ -211,10 +225,18 @@ Operate on an exported pool, not present in
 The
 .Fl p
 flag specifies the path under which devices are to be searched.
+.It Fl x Ar dumpdir
+All blocks accessed will be copied to files in the specified directory.
+The blocks will be placed in sparse files whose name is the same as
+that of the file or device read.  zdb can be then run on the generated files.
+Note that the
+.Fl bbc
+flags are sufficient to access (and thus copy)
+all metadata on the pool.
 .It Fl F
 Attempt to make an unreadable pool readable by trying progressively older
 transactions.
-.It Fl M Ar inflight I/Os
+.It Fl I Ar inflight I/Os
 Limit the number of outstanding checksum I/Os to the specified value.
 The default value is 200. This option affects the performance of the
 .Fl c

@@ -71,7 +71,7 @@ MALLOC_DEFINE(M_HDACC, "hdacc", "HDA CODEC");
 static const struct {
 	uint32_t id;
 	uint16_t revid;
-	char *name;
+	const char *name;
 } hdacc_codecs[] = {
 	{ HDA_CODEC_CS4206, 0,		"Cirrus Logic CS4206" },
 	{ HDA_CODEC_CS4207, 0,		"Cirrus Logic CS4207" },
@@ -87,6 +87,7 @@ static const struct {
 	{ HDA_CODEC_ALC273, 0,		"Realtek ALC273" },
 	{ HDA_CODEC_ALC275, 0,		"Realtek ALC275" },
 	{ HDA_CODEC_ALC276, 0,		"Realtek ALC276" },
+	{ HDA_CODEC_ALC292, 0,		"Realtek ALC292" },
 	{ HDA_CODEC_ALC660, 0,		"Realtek ALC660-VD" },
 	{ HDA_CODEC_ALC662, 0x0002,	"Realtek ALC662 rev2" },
 	{ HDA_CODEC_ALC662, 0,		"Realtek ALC662" },
@@ -319,6 +320,7 @@ static const struct {
 	{ HDA_CODEC_INTELCPT, 0,	"Intel Cougar Point" },
 	{ HDA_CODEC_INTELPPT, 0,	"Intel Panther Point" },
 	{ HDA_CODEC_INTELHSW, 0,	"Intel Haswell" },
+	{ HDA_CODEC_INTELBDW, 0,	"Intel Broadwell" },
 	{ HDA_CODEC_INTELCL, 0,		"Intel Crestline" },
 	{ HDA_CODEC_SII1390, 0,		"Silicon Image SiI1390" },
 	{ HDA_CODEC_SII1392, 0,		"Silicon Image SiI1392" },
@@ -341,7 +343,6 @@ static const struct {
 	{ HDA_CODEC_STACXXXX, 0,	"Sigmatel" },
 	{ HDA_CODEC_VTXXXX, 0,		"VIA" },
 };
-#define HDACC_CODECS_LEN	(sizeof(hdacc_codecs) / sizeof(hdacc_codecs[0]))
 
 static int
 hdacc_suspend(device_t dev)
@@ -381,7 +382,7 @@ hdacc_probe(device_t dev)
 	id = ((uint32_t)hda_get_vendor_id(dev) << 16) + hda_get_device_id(dev);
 	revid = ((uint32_t)hda_get_revision_id(dev) << 8) + hda_get_stepping_id(dev);
 
-	for (i = 0; i < HDACC_CODECS_LEN; i++) {
+	for (i = 0; i < nitems(hdacc_codecs); i++) {
 		if (!HDA_DEV_MATCH(hdacc_codecs[i].id, id))
 			continue;
 		if (hdacc_codecs[i].revid != 0 &&
@@ -389,7 +390,7 @@ hdacc_probe(device_t dev)
 			continue;
 		break;
 	}
-	if (i < HDACC_CODECS_LEN) {
+	if (i < nitems(hdacc_codecs)) {
 		if ((hdacc_codecs[i].id & 0xffff) != 0xffff)
 			strlcpy(buf, hdacc_codecs[i].name, sizeof(buf));
 		else
@@ -713,7 +714,7 @@ static device_method_t hdacc_methods[] = {
 	DEVMETHOD(hdac_unsol_free,	hdacc_unsol_free),
 	DEVMETHOD(hdac_unsol_intr,	hdacc_unsol_intr),
 	DEVMETHOD(hdac_pindump,		hdacc_pindump),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t hdacc_driver = {
@@ -724,4 +725,4 @@ static driver_t hdacc_driver = {
 
 static devclass_t hdacc_devclass;
 
-DRIVER_MODULE(snd_hda, hdac, hdacc_driver, hdacc_devclass, 0, 0);
+DRIVER_MODULE(snd_hda, hdac, hdacc_driver, hdacc_devclass, NULL, NULL);

@@ -65,27 +65,22 @@ SYSCTL_NODE(_hw, OID_AUTO, malo, CTLFLAG_RD, 0,
     "Marvell 88w8335 driver parameters");
 
 static	int malo_txcoalesce = 8;	/* # tx pkts to q before poking f/w*/
-SYSCTL_INT(_hw_malo, OID_AUTO, txcoalesce, CTLFLAG_RW, &malo_txcoalesce,
+SYSCTL_INT(_hw_malo, OID_AUTO, txcoalesce, CTLFLAG_RWTUN, &malo_txcoalesce,
 	    0, "tx buffers to send at once");
-TUNABLE_INT("hw.malo.txcoalesce", &malo_txcoalesce);
 static	int malo_rxbuf = MALO_RXBUF;		/* # rx buffers to allocate */
-SYSCTL_INT(_hw_malo, OID_AUTO, rxbuf, CTLFLAG_RW, &malo_rxbuf,
+SYSCTL_INT(_hw_malo, OID_AUTO, rxbuf, CTLFLAG_RWTUN, &malo_rxbuf,
 	    0, "rx buffers allocated");
-TUNABLE_INT("hw.malo.rxbuf", &malo_rxbuf);
 static	int malo_rxquota = MALO_RXBUF;		/* # max buffers to process */
-SYSCTL_INT(_hw_malo, OID_AUTO, rxquota, CTLFLAG_RW, &malo_rxquota,
+SYSCTL_INT(_hw_malo, OID_AUTO, rxquota, CTLFLAG_RWTUN, &malo_rxquota,
 	    0, "max rx buffers to process per interrupt");
-TUNABLE_INT("hw.malo.rxquota", &malo_rxquota);
 static	int malo_txbuf = MALO_TXBUF;		/* # tx buffers to allocate */
-SYSCTL_INT(_hw_malo, OID_AUTO, txbuf, CTLFLAG_RW, &malo_txbuf,
+SYSCTL_INT(_hw_malo, OID_AUTO, txbuf, CTLFLAG_RWTUN, &malo_txbuf,
 	    0, "tx buffers allocated");
-TUNABLE_INT("hw.malo.txbuf", &malo_txbuf);
 
 #ifdef MALO_DEBUG
 static	int malo_debug = 0;
-SYSCTL_INT(_hw_malo, OID_AUTO, debug, CTLFLAG_RW, &malo_debug,
+SYSCTL_INT(_hw_malo, OID_AUTO, debug, CTLFLAG_RWTUN, &malo_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.malo.debug", &malo_debug);
 enum {
 	MALO_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	MALO_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
@@ -138,7 +133,7 @@ static	void	malo_tx_cleanupq(struct malo_softc *, struct malo_txq *);
 static	void	malo_start(struct ifnet *);
 static	void	malo_watchdog(void *);
 static	int	malo_ioctl(struct ifnet *, u_long, caddr_t);
-static	void	malo_updateslot(struct ifnet *);
+static	void	malo_updateslot(struct ieee80211com *);
 static	int	malo_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static	void	malo_scan_start(struct ieee80211com *);
 static	void	malo_scan_end(struct ieee80211com *);
@@ -170,7 +165,7 @@ static void
 malo_bar0_write4(struct malo_softc *sc, bus_size_t off, uint32_t val)
 {
 	DPRINTF(sc, MALO_DEBUG_FW, "%s: off 0x%jx val 0x%x\n",
-	    __func__, (intmax_t)off, val);
+	    __func__, (uintmax_t)off, val);
 
 	bus_space_write_4(sc->malo_io0t, sc->malo_io0h, off, val);
 }
@@ -281,6 +276,8 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	ic->ic_ifp = ifp;
+	ic->ic_softc = sc;
+	ic->ic_name = device_get_nameunit(sc->malo_dev);
 	/* XXX not right but it's not used anywhere important */
 	ic->ic_phytype = IEEE80211_T_OFDM;
 	ic->ic_opmode = IEEE80211_M_STA;
@@ -496,13 +493,6 @@ malo_desc_setup(struct malo_softc *sc, const char *name,
 	}
 	
 	/* allocate descriptors */
-	error = bus_dmamap_create(dd->dd_dmat, BUS_DMA_NOWAIT, &dd->dd_dmamap);
-	if (error != 0) {
-		if_printf(ifp, "unable to create dmamap for %s descriptors, "
-		    "error %u\n", dd->dd_name, error);
-		goto fail0;
-	}
-	
 	error = bus_dmamem_alloc(dd->dd_dmat, (void**) &dd->dd_desc,
 	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &dd->dd_dmamap);
 	if (error != 0) {
@@ -522,16 +512,15 @@ malo_desc_setup(struct malo_softc *sc, const char *name,
 	
 	ds = dd->dd_desc;
 	memset(ds, 0, dd->dd_desc_len);
-	DPRINTF(sc, MALO_DEBUG_RESET, "%s: %s DMA map: %p (%lu) -> %p (%lu)\n",
+	DPRINTF(sc, MALO_DEBUG_RESET,
+	    "%s: %s DMA map: %p (%lu) -> 0x%jx (%lu)\n",
 	    __func__, dd->dd_name, ds, (u_long) dd->dd_desc_len,
-	    (caddr_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
+	    (uintmax_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
 
 	return 0;
 fail2:
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
 fail1:
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-fail0:
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
@@ -632,7 +621,6 @@ malo_desc_cleanup(struct malo_softc *sc, struct malo_descdma *dd)
 {
 	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
 	bus_dma_tag_destroy(dd->dd_dmat);
 
 	memset(dd, 0, sizeof(*dd));
@@ -892,10 +880,9 @@ malo_printrxbuf(const struct malo_rxbuf *bf, u_int ix)
 	const struct malo_rxdesc *ds = bf->bf_desc;
 	uint32_t status = le32toh(ds->status);
 	
-	printf("R[%2u] (DS.V:%p DS.P:%p) NEXT:%08x DATA:%08x RC:%02x%s\n"
+	printf("R[%2u] (DS.V:%p DS.P:0x%jx) NEXT:%08x DATA:%08x RC:%02x%s\n"
 	    "      STAT:%02x LEN:%04x SNR:%02x NF:%02x CHAN:%02x"
-	    " RATE:%02x QOS:%04x\n",
-	    ix, ds, (const struct malo_desc *)bf->bf_daddr,
+	    " RATE:%02x QOS:%04x\n", ix, ds, (uintmax_t)bf->bf_daddr,
 	    le32toh(ds->physnext), le32toh(ds->physbuffdata),
 	    ds->rxcontrol, 
 	    ds->rxcontrol != MALO_RXD_CTRL_DRIVER_OWN ?
@@ -911,8 +898,7 @@ malo_printtxbuf(const struct malo_txbuf *bf, u_int qnum, u_int ix)
 	uint32_t status = le32toh(ds->status);
 	
 	printf("Q%u[%3u]", qnum, ix);
-	printf(" (DS.V:%p DS.P:%p)\n",
-	    ds, (const struct malo_txdesc *)bf->bf_daddr);
+	printf(" (DS.V:%p DS.P:0x%jx)\n", ds, (uintmax_t)bf->bf_daddr);
 	printf("    NEXT:%08x DATA:%08x LEN:%04x STAT:%08x%s\n",
 	    le32toh(ds->physnext),
 	    le32toh(ds->pktptr), le16toh(ds->pktlen), status,
@@ -1260,7 +1246,7 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 	STAILQ_INSERT_TAIL(&txq->active, bf, bf_list);
 	MALO_TXDESC_SYNC(txq, ds, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	sc->malo_timer = 5;
 	MALO_TXQ_UNLOCK(txq);
 	return 0;
@@ -1298,7 +1284,7 @@ malo_start(struct ifnet *ifp)
 		 * Pass the frame to the h/w for transmission.
 		 */
 		if (malo_tx_start(sc, ni, bf, m)) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if (bf != NULL) {
 				bf->bf_m = NULL;
 				bf->bf_node = NULL;
@@ -1356,7 +1342,7 @@ malo_watchdog(void *arg)
 
 		/* XXX no way to reset h/w. now  */
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		sc->malo_stats.mst_watchdog++;
 	}
 }
@@ -1780,15 +1766,14 @@ malo_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  * like slot time and preamble.
  */
 static void
-malo_updateslot(struct ifnet *ifp)
+malo_updateslot(struct ieee80211com *ic)
 {
-	struct malo_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct malo_softc *sc = ic->ic_softc;
 	struct malo_hal *mh = sc->malo_mh;
 	int error;
 	
 	/* NB: can be called early; suppress needless cmds */
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((ic->ic_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
 	DPRINTF(sc, MALO_DEBUG_RESET,
@@ -1885,7 +1870,7 @@ malo_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 * Pass the frame to the h/w for transmission.
 	 */
 	if (malo_tx_start(sc, ni, bf, m) != 0) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		bf->bf_m = NULL;
 		bf->bf_node = NULL;
 		MALO_TXQ_LOCK(txq);
@@ -2093,7 +2078,7 @@ malo_rx_proc(void *arg, int npending)
 #endif
 		status = ds->status;
 		if (status & MALO_RXD_STATUS_DECRYPT_ERR_MASK) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto rx_next;
 		}
 		/*
@@ -2132,7 +2117,7 @@ malo_rx_proc(void *arg, int npending)
 		/* XXX don't need mbuf, just dma buffer */
 		mnew = malo_getrxmbuf(sc, bf);
 		if (mnew == NULL) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto rx_next;
 		}
 		/*
@@ -2173,7 +2158,7 @@ malo_rx_proc(void *arg, int npending)
 			    len, ds->rate, rssi);
 		}
 #endif
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		
 		/* dispatch */
 		ni = ieee80211_find_rxnode(ic,

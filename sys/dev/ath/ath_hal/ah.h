@@ -199,6 +199,7 @@ typedef enum {
 	HAL_CAP_SERIALISE_WAR	= 245,	/* serialise register access on PCI */
 	HAL_CAP_ENFORCE_TXOP	= 246,	/* Enforce TXOP if supported */
 	HAL_CAP_RX_LNA_MIXING	= 247,	/* RX hardware uses LNA mixing */
+	HAL_CAP_DO_MYBEACON	= 248,	/* Supports HAL_RX_FILTER_MYBEACON */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -404,6 +405,7 @@ typedef enum {
 	HAL_RX_FILTER_PROM	= 0x00000020,	/* Promiscuous mode */
 	HAL_RX_FILTER_PROBEREQ	= 0x00000080,	/* Allow probe request frames */
 	HAL_RX_FILTER_PHYERR	= 0x00000100,	/* Allow phy errors */
+	HAL_RX_FILTER_MYBEACON  = 0x00000200,   /* Filter beacons other than mine */
 	HAL_RX_FILTER_COMPBAR	= 0x00000400,	/* Allow compressed BAR */
 	HAL_RX_FILTER_COMP_BA	= 0x00000800,	/* Allow compressed blockack */
 	HAL_RX_FILTER_PHYRADAR	= 0x00002000,	/* Allow phy radar errors */
@@ -538,6 +540,7 @@ typedef enum {
 typedef struct {
 	u_int32_t	cyclecnt_diff;		/* delta cycle count */
 	u_int32_t	rxclr_cnt;		/* rx clear count */
+	u_int32_t	extrxclr_cnt;		/* ext chan rx clear count */
 	u_int32_t	txframecnt_diff;	/* delta tx frame count */
 	u_int32_t	rxframecnt_diff;	/* delta rx frame count */
 	u_int32_t	listen_time;		/* listen time in msec - time for which ch is free */
@@ -847,6 +850,48 @@ typedef struct {
 
 #define	HAL_RSSI_EP_MULTIPLIER	(1<<7)	/* pow2 to optimize out * and / */
 
+/*
+ * This is the ANI state and MIB stats.
+ *
+ * It's used by the HAL modules to keep state /and/ by the debug ioctl
+ * to fetch ANI information.
+ */
+typedef struct {
+	uint32_t	ast_ani_niup;   /* ANI increased noise immunity */
+	uint32_t	ast_ani_nidown; /* ANI decreased noise immunity */
+	uint32_t	ast_ani_spurup; /* ANI increased spur immunity */
+	uint32_t	ast_ani_spurdown;/* ANI descreased spur immunity */
+	uint32_t	ast_ani_ofdmon; /* ANI OFDM weak signal detect on */
+	uint32_t	ast_ani_ofdmoff;/* ANI OFDM weak signal detect off */
+	uint32_t	ast_ani_cckhigh;/* ANI CCK weak signal threshold high */
+	uint32_t	ast_ani_ccklow; /* ANI CCK weak signal threshold low */
+	uint32_t	ast_ani_stepup; /* ANI increased first step level */
+	uint32_t	ast_ani_stepdown;/* ANI decreased first step level */
+	uint32_t	ast_ani_ofdmerrs;/* ANI cumulative ofdm phy err count */
+	uint32_t	ast_ani_cckerrs;/* ANI cumulative cck phy err count */
+	uint32_t	ast_ani_reset;  /* ANI parameters zero'd for non-STA */
+	uint32_t	ast_ani_lzero;  /* ANI listen time forced to zero */
+	uint32_t	ast_ani_lneg;   /* ANI listen time calculated < 0 */
+	HAL_MIB_STATS	ast_mibstats;   /* MIB counter stats */
+	HAL_NODE_STATS	ast_nodestats;  /* Latest rssi stats from driver */
+} HAL_ANI_STATS;
+
+typedef struct {
+	uint8_t		noiseImmunityLevel;
+	uint8_t		spurImmunityLevel;
+	uint8_t		firstepLevel;
+	uint8_t		ofdmWeakSigDetectOff;
+	uint8_t		cckWeakSigThreshold;
+	uint32_t	listenTime;
+
+	/* NB: intentionally ordered so data exported to user space is first */
+	uint32_t	txFrameCount;   /* Last txFrameCount */
+	uint32_t	rxFrameCount;   /* Last rx Frame count */
+	uint32_t	cycleCount;     /* Last cycleCount
+					   (to detect wrap-around) */
+	uint32_t	ofdmPhyErrCount;/* OFDM err count since last reset */
+	uint32_t	cckPhyErrCount; /* CCK err count since last reset */
+} HAL_ANI_STATE;
 
 struct ath_desc;
 struct ath_tx_status;
@@ -1262,6 +1307,7 @@ typedef struct
 	int ath_hal_show_bb_panic;
 	int ath_hal_ant_ctrl_comm2g_switch_enable;
 	int ath_hal_ext_atten_margin_cfg;
+	int ath_hal_min_gainidx;
 	int ath_hal_war70c;
 	uint32_t ath_hal_mci_config;
 } HAL_OPS_CONFIG;
@@ -1296,6 +1342,9 @@ struct ath_hal {
 
 	uint32_t	ah_intrstate[8];	/* last int state */
 	uint32_t	ah_syncstate;		/* last sync intr state */
+
+	/* Current powerstate from HAL calls */
+	HAL_POWER_MODE	ah_powerMode;
 
 	HAL_OPS_CONFIG ah_config;
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
@@ -1583,6 +1632,18 @@ struct ath_hal {
 	void	    __ahdecl(*ah_btCoexDisable)(struct ath_hal *);
 	int	    __ahdecl(*ah_btCoexEnable)(struct ath_hal *);
 
+	/* Bluetooth MCI methods */
+	void	    __ahdecl(*ah_btMciSetup)(struct ath_hal *,
+				uint32_t, void *, uint16_t, uint32_t);
+	HAL_BOOL    __ahdecl(*ah_btMciSendMessage)(struct ath_hal *,
+				uint8_t, uint32_t, uint32_t *, uint8_t,
+				HAL_BOOL, HAL_BOOL);
+	uint32_t    __ahdecl(*ah_btMciGetInterrupt)(struct ath_hal *,
+				uint32_t *, uint32_t *);
+	uint32_t    __ahdecl(*ah_btMciGetState)(struct ath_hal *,
+				uint32_t, uint32_t *);
+	void	    __ahdecl(*ah_btMciDetach)(struct ath_hal *);
+
 	/* LNA diversity configuration */
 	void	    __ahdecl(*ah_divLnaConfGet)(struct ath_hal *,
 				HAL_ANT_COMB_CONFIG *);
@@ -1611,7 +1672,8 @@ extern	const char *__ahdecl ath_hal_probe(uint16_t vendorid, uint16_t devid);
  * be returned if the status parameter is non-zero.
  */
 extern	struct ath_hal * __ahdecl ath_hal_attach(uint16_t devid, HAL_SOFTC,
-		HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata, HAL_STATUS* status);
+		HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata,
+		HAL_OPS_CONFIG *ah_config, HAL_STATUS* status);
 
 extern	const char *ath_hal_mac_name(struct ath_hal *);
 extern	const char *ath_hal_rf_name(struct ath_hal *);

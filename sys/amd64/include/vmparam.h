@@ -87,7 +87,7 @@
  * largest physical address that is accessible by ISA DMA is split
  * into two PHYSSEG entries. 
  */
-#define	VM_PHYSSEG_MAX		31
+#define	VM_PHYSSEG_MAX		63
 
 /*
  * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
@@ -101,14 +101,22 @@
 #define	VM_FREEPOOL_DIRECT	1
 
 /*
- * Create two free page lists: VM_FREELIST_DEFAULT is for physical
- * pages that are above the largest physical address that is
- * accessible by ISA DMA and VM_FREELIST_ISADMA is for physical pages
- * that are below that address.
+ * Create up to three free page lists: VM_FREELIST_DMA32 is for physical pages
+ * that have physical addresses below 4G but are not accessible by ISA DMA,
+ * and VM_FREELIST_ISADMA is for physical pages that are accessible by ISA
+ * DMA.
  */
-#define	VM_NFREELIST		2
+#define	VM_NFREELIST		3
 #define	VM_FREELIST_DEFAULT	0
-#define	VM_FREELIST_ISADMA	1
+#define	VM_FREELIST_DMA32	1
+#define	VM_FREELIST_ISADMA	2
+
+/*
+ * Create the DMA32 free list only if the number of physical pages above
+ * physical address 4G is at least 16M, which amounts to 64GB of physical
+ * memory.
+ */
+#define	VM_DMA32_NPAGES_THRESHOLD	16777216
 
 /*
  * An allocation size of 16MB is supported in order to optimize the
@@ -175,8 +183,24 @@
 #define	VM_MAX_ADDRESS		UPT_MAX_ADDRESS
 #define	VM_MIN_ADDRESS		(0)
 
-#define	PHYS_TO_DMAP(x)		((x) | DMAP_MIN_ADDRESS)
-#define	DMAP_TO_PHYS(x)		((x) & ~DMAP_MIN_ADDRESS)
+/*
+ * XXX Allowing dmaplimit == 0 is a temporary workaround for vt(4) efifb's
+ * early use of PHYS_TO_DMAP before the mapping is actually setup. This works
+ * because the result is not actually accessed until later, but the early
+ * vt fb startup needs to be reworked.
+ */
+#define	PHYS_TO_DMAP(x)	({						\
+	KASSERT(dmaplimit == 0 || (x) < dmaplimit,			\
+	    ("physical address %#jx not covered by the DMAP",		\
+	    (uintmax_t)x));						\
+	(x) | DMAP_MIN_ADDRESS; })
+
+#define	DMAP_TO_PHYS(x)	({						\
+	KASSERT((x) < (DMAP_MIN_ADDRESS + dmaplimit) &&			\
+	    (x) >= DMAP_MIN_ADDRESS,					\
+	    ("virtual address %#jx not covered by the DMAP",		\
+	    (uintmax_t)x));						\
+	(x) & ~DMAP_MIN_ADDRESS; })
 
 /*
  * How many physical pages per kmem arena virtual page.

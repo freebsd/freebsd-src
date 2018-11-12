@@ -19,8 +19,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_LIVERANGECALC_H
-#define LLVM_CODEGEN_LIVERANGECALC_H
+#ifndef LLVM_LIB_CODEGEN_LIVERANGECALC_H
+#define LLVM_LIB_CODEGEN_LIVERANGECALC_H
 
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/IndexedMap.h"
@@ -40,12 +40,6 @@ class LiveRangeCalc {
   MachineDominatorTree *DomTree;
   VNInfo::Allocator *Alloc;
 
-  /// Seen - Bit vector of active entries in LiveOut, also used as a visited
-  /// set by findReachingDefs.  One entry per basic block, indexed by block
-  /// number.  This is kept as a separate bit vector because it can be cleared
-  /// quickly when switching live ranges.
-  BitVector Seen;
-
   /// LiveOutPair - A value and the block that defined it.  The domtree node is
   /// redundant, it can be computed as: MDT[Indexes.getMBBFromIndex(VNI->def)].
   typedef std::pair<VNInfo*, MachineDomTreeNode*> LiveOutPair;
@@ -53,8 +47,14 @@ class LiveRangeCalc {
   /// LiveOutMap - Map basic blocks to the value leaving the block.
   typedef IndexedMap<LiveOutPair, MBB2NumberFunctor> LiveOutMap;
 
-  /// LiveOut - Map each basic block where a live range is live out to the
-  /// live-out value and its defining block.
+  /// Bit vector of active entries in LiveOut, also used as a visited set by
+  /// findReachingDefs.  One entry per basic block, indexed by block number.
+  /// This is kept as a separate bit vector because it can be cleared quickly
+  /// when switching live ranges.
+  BitVector Seen;
+
+  /// Map each basic block where a live range is live out to the live-out value
+  /// and its defining block.
   ///
   /// For every basic block, MBB, one of these conditions shall be true:
   ///
@@ -70,14 +70,14 @@ class LiveRangeCalc {
   ///
   /// The map can be shared by multiple live ranges as long as no two are
   /// live-out of the same block.
-  LiveOutMap LiveOut;
+  LiveOutMap Map;
 
   /// LiveInBlock - Information about a basic block where a live range is known
   /// to be live-in, but the value has not yet been determined.
   struct LiveInBlock {
-    // LI - The live range that is live-in to this block.  The algorithms can
+    // The live range set that is live-in to this block.  The algorithms can
     // handle multiple non-overlapping live ranges simultaneously.
-    LiveInterval *LI;
+    LiveRange &LR;
 
     // DomNode - Dominator tree node for the block.
     // Cleared when the final value has been determined and LI has been updated.
@@ -91,8 +91,8 @@ class LiveRangeCalc {
     // Live-in value filled in by updateSSA once it is known.
     VNInfo *Value;
 
-    LiveInBlock(LiveInterval *li, MachineDomTreeNode *node, SlotIndex kill)
-      : LI(li), DomNode(node), Kill(kill), Value(0) {}
+    LiveInBlock(LiveRange &LR, MachineDomTreeNode *node, SlotIndex kill)
+      : LR(LR), DomNode(node), Kill(kill), Value(nullptr) {}
   };
 
   /// LiveIn - Work list of blocks where the live-in value has yet to be
@@ -111,10 +111,8 @@ class LiveRangeCalc {
   /// are added to the LiveIn array, and the function returns false.
   ///
   /// PhysReg, when set, is used to verify live-in lists on basic blocks.
-  bool findReachingDefs(LiveInterval *LI,
-                        MachineBasicBlock *KillMBB,
-                        SlotIndex Kill,
-                        unsigned PhysReg);
+  bool findReachingDefs(LiveRange &LR, MachineBasicBlock &KillMBB,
+                        SlotIndex Kill, unsigned PhysReg);
 
   /// updateSSA - Compute the values that will be live in to all requested
   /// blocks in LiveIn.  Create PHI-def values as required to preserve SSA form.
@@ -123,11 +121,22 @@ class LiveRangeCalc {
   /// blocks.  No values are read from the live ranges.
   void updateSSA();
 
-  /// Add liveness as specified in the LiveIn vector.
-  void updateLiveIns();
+  /// Transfer information from the LiveIn vector to the live ranges and update
+  /// the given @p LiveOuts.
+  void updateFromLiveIns();
+
+  /// Extend the live range of @p LR to reach all uses of Reg.
+  ///
+  /// All uses must be jointly dominated by existing liveness.  PHI-defs are
+  /// inserted as needed to preserve SSA form.
+  void extendToUses(LiveRange &LR, unsigned Reg, unsigned LaneMask);
+
+  /// Reset Map and Seen fields.
+  void resetLiveOutMap();
 
 public:
-  LiveRangeCalc() : MF(0), MRI(0), Indexes(0), DomTree(0), Alloc(0) {}
+  LiveRangeCalc() : MF(nullptr), MRI(nullptr), Indexes(nullptr),
+                    DomTree(nullptr), Alloc(nullptr) {}
 
   //===--------------------------------------------------------------------===//
   // High-level interface.
@@ -146,10 +155,6 @@ public:
              MachineDominatorTree*,
              VNInfo::Allocator*);
 
-  /// calculate - Calculate the live range of a virtual register from its defs
-  /// and uses.  LI must be empty with no values.
-  void calculate(LiveInterval *LI);
-
   //===--------------------------------------------------------------------===//
   // Mid-level interface.
   //===--------------------------------------------------------------------===//
@@ -165,28 +170,25 @@ public:
   /// single existing value, Alloc may be null.
   ///
   /// PhysReg, when set, is used to verify live-in lists on basic blocks.
-  void extend(LiveInterval *LI, SlotIndex Kill, unsigned PhysReg = 0);
+  void extend(LiveRange &LR, SlotIndex Kill, unsigned PhysReg = 0);
 
   /// createDeadDefs - Create a dead def in LI for every def operand of Reg.
   /// Each instruction defining Reg gets a new VNInfo with a corresponding
   /// minimal live range.
-  void createDeadDefs(LiveInterval *LI, unsigned Reg);
+  void createDeadDefs(LiveRange &LR, unsigned Reg);
 
-  /// createDeadDefs - Create a dead def in LI for every def of LI->reg.
-  void createDeadDefs(LiveInterval *LI) {
-    createDeadDefs(LI, LI->reg);
-  }
-
-  /// extendToUses - Extend the live range of LI to reach all uses of Reg.
+  /// Extend the live range of @p LR to reach all uses of Reg.
   ///
   /// All uses must be jointly dominated by existing liveness.  PHI-defs are
   /// inserted as needed to preserve SSA form.
-  void extendToUses(LiveInterval *LI, unsigned Reg);
-
-  /// extendToUses - Extend the live range of LI to reach all uses of LI->reg.
-  void extendToUses(LiveInterval *LI) {
-    extendToUses(LI, LI->reg);
+  void extendToUses(LiveRange &LR, unsigned PhysReg) {
+    extendToUses(LR, PhysReg, ~0u);
   }
+
+  /// Calculates liveness for the register specified in live interval @p LI.
+  /// Creates subregister live ranges as needed if subreg liveness tracking is
+  /// enabled.
+  void calculate(LiveInterval &LI);
 
   //===--------------------------------------------------------------------===//
   // Low-level interface.
@@ -209,22 +211,22 @@ public:
   /// addLiveInBlock().
   void setLiveOutValue(MachineBasicBlock *MBB, VNInfo *VNI) {
     Seen.set(MBB->getNumber());
-    LiveOut[MBB] = LiveOutPair(VNI, (MachineDomTreeNode *)0);
+    Map[MBB] = LiveOutPair(VNI, nullptr);
   }
 
   /// addLiveInBlock - Add a block with an unknown live-in value.  This
   /// function can only be called once per basic block.  Once the live-in value
   /// has been determined, calculateValues() will add liveness to LI.
   ///
-  /// @param LI      The live range that is live-in to the block.
+  /// @param LR      The live range that is live-in to the block.
   /// @param DomNode The domtree node for the block.
   /// @param Kill    Index in block where LI is killed.  If the value is
   ///                live-through, set Kill = SLotIndex() and also call
   ///                setLiveOutValue(MBB, 0).
-  void addLiveInBlock(LiveInterval *LI,
+  void addLiveInBlock(LiveRange &LR,
                       MachineDomTreeNode *DomNode,
                       SlotIndex Kill = SlotIndex()) {
-    LiveIn.push_back(LiveInBlock(LI, DomNode, Kill));
+    LiveIn.push_back(LiveInBlock(LR, DomNode, Kill));
   }
 
   /// calculateValues - Calculate the value that will be live-in to each block

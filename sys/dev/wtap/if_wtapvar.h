@@ -130,6 +130,7 @@ struct wtap_vap {
 struct taskqueue;
 
 struct wtap_softc {
+	char 			name[7];	/* wtapXX\0 */
 	int32_t			id;
 	int32_t			up;
 	struct ifnet		*sc_ifp;	/* interface common */

@@ -64,28 +64,28 @@ static SYSCTL_NODE(_hw_usb, OID_AUTO, g_mouse, CTLFLAG_RW, 0, "USB mouse gadget"
 #ifdef USB_DEBUG
 static int g_mouse_debug = 0;
 
-SYSCTL_INT(_hw_usb_g_mouse, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_g_mouse, OID_AUTO, debug, CTLFLAG_RWTUN,
     &g_mouse_debug, 0, "Debug level");
 #endif
 
 static int g_mouse_mode = 0;
 
-SYSCTL_INT(_hw_usb_g_mouse, OID_AUTO, mode, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_g_mouse, OID_AUTO, mode, CTLFLAG_RWTUN,
     &g_mouse_mode, 0, "Mode selection");
 
 static int g_mouse_button_press_interval = 0;
 
-SYSCTL_INT(_hw_usb_g_mouse, OID_AUTO, button_press_interval, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_g_mouse, OID_AUTO, button_press_interval, CTLFLAG_RWTUN,
     &g_mouse_button_press_interval, 0, "Mouse button update interval in milliseconds");
 
 static int g_mouse_cursor_update_interval = 1023;
 
-SYSCTL_INT(_hw_usb_g_mouse, OID_AUTO, cursor_update_interval, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_g_mouse, OID_AUTO, cursor_update_interval, CTLFLAG_RWTUN,
     &g_mouse_cursor_update_interval, 0, "Mouse cursor update interval in milliseconds");
 
 static int g_mouse_cursor_radius = 128;
 
-SYSCTL_INT(_hw_usb_g_mouse, OID_AUTO, cursor_radius, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_g_mouse, OID_AUTO, cursor_radius, CTLFLAG_RWTUN,
     &g_mouse_cursor_radius, 0, "Mouse cursor radius in pixels");
 
 struct g_mouse_data {

@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -66,7 +63,7 @@
 #ifdef PC98
 #include <pc98/cbus/cbus.h>
 #else
-#include <x86/isa/isa.h>
+#include <isa/isareg.h>
 #endif
 #endif
 
@@ -89,7 +86,7 @@ char intrnames[INTRCNT_COUNT * (MAXCOMLEN + 1)];
 size_t sintrcnt = sizeof(intrcnt);
 size_t sintrnames = sizeof(intrnames);
 
-static int	intr_assign_cpu(void *arg, u_char cpu);
+static int	intr_assign_cpu(void *arg, int cpu);
 static void	intr_disable_src(void *arg);
 static void	intr_init(void *__dummy);
 static int	intr_pic_registered(struct pic *pic);
@@ -308,7 +305,7 @@ intr_suspend(void)
 }
 
 static int
-intr_assign_cpu(void *arg, u_char cpu)
+intr_assign_cpu(void *arg, int cpu)
 {
 #ifdef SMP
 	struct intsrc *isrc;
@@ -426,6 +423,23 @@ intr_describe(u_int vector, void *ih, const char *descr)
 	return (0);
 }
 
+void
+intr_reprogram(void)
+{
+	struct intsrc *is;
+	int v;
+
+	mtx_lock(&intr_table_lock);
+	for (v = 0; v < NUM_IO_INTS; v++) {
+		is = interrupt_sources[v];
+		if (is == NULL)
+			continue;
+		if (is->is_pic->pic_reprogram_pin != NULL)
+			is->is_pic->pic_reprogram_pin(is);
+	}
+	mtx_unlock(&intr_table_lock);
+}
+
 #ifdef DDB
 /*
  * Dump data about interrupt handlers
@@ -517,13 +531,6 @@ intr_shuffle_irqs(void *arg __unused)
 {
 	struct intsrc *isrc;
 	int i;
-
-#ifdef XEN
-	/*
-	 * Doesn't work yet
-	 */
-	return;
-#endif
 
 	/* Don't bother on UP. */
 	if (mp_ncpus == 1)

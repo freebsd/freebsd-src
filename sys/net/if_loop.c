@@ -34,10 +34,8 @@
  * Loopback interface driver for protocol testing and timing.
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -64,22 +62,12 @@
 #include <netinet/in_var.h>
 #endif
 
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
 #ifdef INET6
 #ifndef INET
 #include <netinet/in.h>
 #endif
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
-#endif
-
-#ifdef NETATALK
-#include <netatalk/at.h>
-#include <netatalk/at_var.h>
 #endif
 
 #include <security/mac/mac_framework.h>
@@ -100,7 +88,6 @@
 				    CSUM_SCTP_VALID)
 
 int		loioctl(struct ifnet *, u_long, caddr_t);
-static void	lortrequest(int, struct rtentry *, struct rt_addrinfo *);
 int		looutput(struct ifnet *ifp, struct mbuf *m,
 		    const struct sockaddr *dst, struct route *ro);
 static int	lo_clone_create(struct if_clone *, int, caddr_t);
@@ -238,8 +225,8 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 	}
 
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC)
@@ -272,9 +259,6 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		m->m_pkthdr.csum_flags = LO_CSUM_SET;
 #endif
 		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES6;
-		break;
-	case AF_IPX:
-	case AF_APPLETALK:
 		break;
 	default:
 		printf("looutput: af=%d unexpected\n", af);
@@ -368,34 +352,15 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 		isr = NETISR_IPV6;
 		break;
 #endif
-#ifdef IPX
-	case AF_IPX:
-		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		isr = NETISR_ATALK2;
-		break;
-#endif
 	default:
 		printf("if_simloop: can't handle af=%d\n", af);
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	netisr_queue(isr, m);	/* mbuf is free'd on failure. */
 	return (0);
-}
-
-/* ARGSUSED */
-static void
-lortrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
-{
-
-	RT_LOCK_ASSERT(rt);
-	rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu;
 }
 
 /*
@@ -405,7 +370,6 @@ lortrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 int
 loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct ifaddr *ifa;
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0, mask;
 
@@ -413,8 +377,6 @@ loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
-		ifa = (struct ifaddr *)data;
-		ifa->ifa_rtrequest = lortrequest;
 		/*
 		 * Everything else is done at a higher level.
 		 */

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_ARM_ARMADDRESSINGMODES_H
-#define LLVM_TARGET_ARM_ARMADDRESSINGMODES_H
+#ifndef LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMADDRESSINGMODES_H
+#define LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMADDRESSINGMODES_H
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
@@ -140,7 +140,7 @@ namespace ARM_AM {
     if ((Imm & ~255U) == 0) return 0;
 
     // Use CTZ to compute the rotate amount.
-    unsigned TZ = CountTrailingZeros_32(Imm);
+    unsigned TZ = countTrailingZeros(Imm);
 
     // Rotate amount must be even.  Something like 0x200 must be rotated 8 bits,
     // not 9.
@@ -153,7 +153,7 @@ namespace ARM_AM {
     // For values like 0xF000000F, we should ignore the low 6 bits, then
     // retry the hunt.
     if (Imm & 63U) {
-      unsigned TZ2 = CountTrailingZeros_32(Imm & ~63U);
+      unsigned TZ2 = countTrailingZeros(Imm & ~63U);
       unsigned RotAmt2 = TZ2 & ~1;
       if ((rotr32(Imm, RotAmt2) & ~255U) == 0)
         return (32-RotAmt2)&31;  // HW rotates right, not left.
@@ -221,7 +221,7 @@ namespace ARM_AM {
     if ((Imm & ~255U) == 0) return 0;
 
     // Use CTZ to compute the shift amount.
-    return CountTrailingZeros_32(Imm);
+    return countTrailingZeros(Imm);
   }
 
   /// isThumbImmShiftedVal - Return true if the specified value can be obtained
@@ -240,7 +240,7 @@ namespace ARM_AM {
     if ((Imm & ~65535U) == 0) return 0;
 
     // Use CTZ to compute the shift amount.
-    return CountTrailingZeros_32(Imm);
+    return countTrailingZeros(Imm);
   }
 
   /// isThumbImm16ShiftedVal - Return true if the specified value can be
@@ -296,7 +296,7 @@ namespace ARM_AM {
   /// encoding is possible.
   /// See ARM Reference Manual A6.3.2.
   static inline int getT2SOImmValRotateVal(unsigned V) {
-    unsigned RotAmt = CountLeadingZeros_32(V);
+    unsigned RotAmt = countLeadingZeros(V);
     if (RotAmt >= 24)
       return -1;
 
@@ -328,7 +328,7 @@ namespace ARM_AM {
   static inline unsigned getT2SOImmValRotate(unsigned V) {
     if ((V & ~255U) == 0) return 0;
     // Use CTZ to compute the rotate amount.
-    unsigned RotAmt = CountTrailingZeros_32(V);
+    unsigned RotAmt = countTrailingZeros(V);
     return (32 - RotAmt) & 31;
   }
 
@@ -573,6 +573,53 @@ namespace ARM_AM {
       llvm_unreachable("Unsupported NEON immediate");
     }
     return Val;
+  }
+
+  // Generic validation for single-byte immediate (0X00, 00X0, etc).
+  static inline bool isNEONBytesplat(unsigned Value, unsigned Size) {
+    assert(Size >= 1 && Size <= 4 && "Invalid size");
+    unsigned count = 0;
+    for (unsigned i = 0; i < Size; ++i) {
+      if (Value & 0xff) count++;
+      Value >>= 8;
+    }
+    return count == 1;
+  }
+
+  /// Checks if Value is a correct immediate for instructions like VBIC/VORR.
+  static inline bool isNEONi16splat(unsigned Value) {
+    if (Value > 0xffff)
+      return false;
+    // i16 value with set bits only in one byte X0 or 0X.
+    return Value == 0 || isNEONBytesplat(Value, 2);
+  }
+
+  // Encode NEON 16 bits Splat immediate for instructions like VBIC/VORR
+  static inline unsigned encodeNEONi16splat(unsigned Value) {
+    assert(isNEONi16splat(Value) && "Invalid NEON splat value");
+    if (Value >= 0x100)
+      Value = (Value >> 8) | 0xa00;
+    else
+      Value |= 0x800;
+    return Value;
+  }
+
+  /// Checks if Value is a correct immediate for instructions like VBIC/VORR.
+  static inline bool isNEONi32splat(unsigned Value) {
+    // i32 value with set bits only in one byte X000, 0X00, 00X0, or 000X.
+    return Value == 0 || isNEONBytesplat(Value, 4);
+  }
+
+  /// Encode NEON 32 bits Splat immediate for instructions like VBIC/VORR.
+  static inline unsigned encodeNEONi32splat(unsigned Value) {
+    assert(isNEONi32splat(Value) && "Invalid NEON splat value");
+    if (Value >= 0x100 && Value <= 0xff00)
+      Value = (Value >> 8) | 0x200;
+    else if (Value > 0xffff && Value <= 0xff0000)
+      Value = (Value >> 16) | 0x400;
+    else if (Value > 0xffffff)
+      Value = (Value >> 24) | 0x600;
+    return Value;
   }
 
   AMSubMode getLoadStoreMultipleSubMode(int Opcode);

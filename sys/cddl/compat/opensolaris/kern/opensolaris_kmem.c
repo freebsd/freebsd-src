@@ -120,7 +120,7 @@ static void
 kmem_size_init(void *unused __unused)
 {
 
-	kmem_size_val = (uint64_t)cnt.v_page_count * PAGE_SIZE;
+	kmem_size_val = (uint64_t)vm_cnt.v_page_count * PAGE_SIZE;
 	if (kmem_size_val > vm_kmem_size)
 		kmem_size_val = vm_kmem_size;
 }
@@ -131,13 +131,6 @@ kmem_size(void)
 {
 
 	return (kmem_size_val);
-}
-
-uint64_t
-kmem_used(void)
-{
-
-	return (vmem_size(kmem_arena, VMEM_ALLOC));
 }
 
 static int

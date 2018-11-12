@@ -4,6 +4,6 @@
 
 CFLAGS+=	-Wall
 PROG=	tcpstream
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

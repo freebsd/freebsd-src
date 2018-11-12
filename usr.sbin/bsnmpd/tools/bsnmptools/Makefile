@@ -1,21 +1,14 @@
 # $FreeBSD$
 # Author: Shteryana Shopova <syrinx@FreeBSD.org>
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}
 
 PROG=	bsnmpget
 
-DPADD+=	${LIBBSNMP} ${LIBBSNMPTOOLS}
-LDADD+=	-lbsnmp -lbsnmptools
+LIBADD=	bsnmp bsnmptools
 CFLAGS+=	-I${.CURDIR}/../libbsnmptools
-LDFLAGS+=	-L${LIBBSNMPTOOLSDIR}
-
-.if ${MK_OPENSSL} != "no"
-DPADD+= ${LIBCRYPTO}
-LDADD+= -lcrypto
-.endif
 
 LINKS=  ${BINDIR}/bsnmpget ${BINDIR}/bsnmpwalk
 LINKS+=  ${BINDIR}/bsnmpget ${BINDIR}/bsnmpset

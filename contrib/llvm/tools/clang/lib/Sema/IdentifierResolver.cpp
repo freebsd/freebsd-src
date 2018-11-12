@@ -45,7 +45,7 @@ class IdentifierResolver::IdDeclInfoMap {
   unsigned int CurIndex;
 
 public:
-  IdDeclInfoMap() : CurPool(0), CurIndex(POOL_SIZE) {}
+  IdDeclInfoMap() : CurPool(nullptr), CurIndex(POOL_SIZE) {}
 
   ~IdDeclInfoMap() {
     IdDeclInfoPool *Cur = CurPool;
@@ -78,19 +78,6 @@ void IdentifierResolver::IdDeclInfo::RemoveDecl(NamedDecl *D) {
   llvm_unreachable("Didn't find this decl on its identifier's chain!");
 }
 
-bool
-IdentifierResolver::IdDeclInfo::ReplaceDecl(NamedDecl *Old, NamedDecl *New) {
-  for (DeclsTy::iterator I = Decls.end(); I != Decls.begin(); --I) {
-    if (Old == *(I-1)) {
-      *(I - 1) = New;
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
 //===----------------------------------------------------------------------===//
 // IdentifierResolver Implementation
 //===----------------------------------------------------------------------===//
@@ -108,13 +95,12 @@ IdentifierResolver::~IdentifierResolver() {
 /// if 'D' is in Scope 'S', otherwise 'S' is ignored and isDeclInScope returns
 /// true if 'D' belongs to the given declaration context.
 bool IdentifierResolver::isDeclInScope(Decl *D, DeclContext *Ctx, Scope *S,
-                             bool ExplicitInstantiationOrSpecialization) const {
+                                       bool AllowInlineNamespace) const {
   Ctx = Ctx->getRedeclContext();
 
   if (Ctx->isFunctionOrMethod() || S->isFunctionPrototypeScope()) {
     // Ignore the scopes associated within transparent declaration contexts.
-    while (S->getEntity() &&
-           ((DeclContext *)S->getEntity())->isTransparentContext())
+    while (S->getEntity() && S->getEntity()->isTransparentContext())
       S = S->getParent();
 
     if (S->isDeclScope(D))
@@ -144,10 +130,12 @@ bool IdentifierResolver::isDeclInScope(Decl *D, DeclContext *Ctx, Scope *S,
     return false;
   }
 
+  // FIXME: If D is a local extern declaration, this check doesn't make sense;
+  // we should be checking its lexical context instead in that case, because
+  // that is its scope.
   DeclContext *DCtx = D->getDeclContext()->getRedeclContext();
-  return ExplicitInstantiationOrSpecialization
-           ? Ctx->InEnclosingNamespaceSetOf(DCtx)
-           : Ctx->Equals(DCtx);
+  return AllowInlineNamespace ? Ctx->InEnclosingNamespaceSetOf(DCtx)
+                              : Ctx->Equals(DCtx);
 }
 
 /// AddDecl - Link the decl to its shadowed decl chain.
@@ -166,7 +154,7 @@ void IdentifierResolver::AddDecl(NamedDecl *D) {
   IdDeclInfo *IDI;
 
   if (isDeclPtr(Ptr)) {
-    Name.setFETokenInfo(NULL);
+    Name.setFETokenInfo(nullptr);
     IDI = &(*IdDeclInfos)[Name];
     NamedDecl *PrevD = static_cast<NamedDecl*>(Ptr);
     IDI->AddDecl(PrevD);
@@ -228,35 +216,11 @@ void IdentifierResolver::RemoveDecl(NamedDecl *D) {
 
   if (isDeclPtr(Ptr)) {
     assert(D == Ptr && "Didn't find this decl on its identifier's chain!");
-    Name.setFETokenInfo(NULL);
+    Name.setFETokenInfo(nullptr);
     return;
   }
 
   return toIdDeclInfo(Ptr)->RemoveDecl(D);
-}
-
-bool IdentifierResolver::ReplaceDecl(NamedDecl *Old, NamedDecl *New) {
-  assert(Old->getDeclName() == New->getDeclName() &&
-         "Cannot replace a decl with another decl of a different name");
-
-  DeclarationName Name = Old->getDeclName();
-  if (IdentifierInfo *II = Name.getAsIdentifierInfo())
-    updatingIdentifier(*II);
-
-  void *Ptr = Name.getFETokenInfo<void>();
-
-  if (!Ptr)
-    return false;
-
-  if (isDeclPtr(Ptr)) {
-    if (Ptr == Old) {
-      Name.setFETokenInfo(New);
-      return true;
-    }
-    return false;
-  }
-
-  return toIdDeclInfo(Ptr)->ReplaceDecl(Old, New);
 }
 
 /// begin - Returns an iterator for decls with name 'Name'.
@@ -312,10 +276,8 @@ static DeclMatchKind compareDeclarations(NamedDecl *Existing, NamedDecl *New) {
 
     // If the existing declaration is somewhere in the previous declaration
     // chain of the new declaration, then prefer the new declaration.
-    for (Decl::redecl_iterator RD = New->redecls_begin(), 
-                            RDEnd = New->redecls_end();
-         RD != RDEnd; ++RD) {
-      if (*RD == Existing)
+    for (auto RD : New->redecls()) {
+      if (RD == Existing)
         return DMK_Replace;
         
       if (RD->isCanonicalDecl())
@@ -355,8 +317,8 @@ bool IdentifierResolver::tryAddTopLevelDecl(NamedDecl *D, DeclarationName Name){
       Name.setFETokenInfo(D);
       return true;
     }
-    
-    Name.setFETokenInfo(NULL);
+
+    Name.setFETokenInfo(nullptr);
     IDI = &(*IdDeclInfos)[Name];
     
     // If the existing declaration is not visible in translation unit scope,

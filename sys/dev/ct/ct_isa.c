@@ -137,8 +137,7 @@ ct_isa_match(device_t dev)
 		return ENXIO;
 
 	bzero(&ch, sizeof(ch));
-	ch.ch_iot = rman_get_bustag(port_res);
-	ch.ch_ioh = rman_get_bushandle(port_res),
+	ch.ch_io = port_res;
 	ch.ch_bus_weight = ct_isa_bus_access_weight;
 
 	rv = ctprobesubr(&ch, 0, BSHW_DEFAULT_HOSTID,
@@ -159,7 +158,7 @@ ct_isa_match(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, mem_res);
 
 	if (rv != 0)
-		return 0;
+		return (BUS_PROBE_DEFAULT);
 	return ENXIO;
 }
 
@@ -175,7 +174,6 @@ ct_isa_attach(device_t dev)
 	int irq_rid, drq_rid, chiprev;
 	u_int8_t *vaddr;
 	bus_addr_t addr;
-	intrmask_t s;
 
 	hw = ct_find_hw(dev);
 	if (ct_space_map(dev, hw, &ct->port_res, &ct->mem_res) != 0) {
@@ -183,13 +181,8 @@ ct_isa_attach(device_t dev)
 		return ENXIO;
 	}
 
-	bzero(chp, sizeof(*chp));
-	chp->ch_iot = rman_get_bustag(ct->port_res);
-	chp->ch_ioh = rman_get_bushandle(ct->port_res);
-	if (ct->mem_res) {
-		chp->ch_memt = rman_get_bustag(ct->mem_res);
-		chp->ch_memh = rman_get_bushandle(ct->mem_res);
-	}
+	chp->ch_io = ct->port_res;
+	chp->ch_mem = ct->mem_res;
 	chp->ch_bus_weight = ct_isa_bus_access_weight;
 
 	irq_rid = 0;
@@ -214,7 +207,7 @@ ct_isa_attach(device_t dev)
 	/* setup DMA map */
 	if (bus_dma_tag_create(NULL, 1, 0,
 			       BUS_SPACE_MAXADDR_24BIT, BUS_SPACE_MAXADDR,
-			       NULL, NULL, MAXBSIZE, 1,
+			       NULL, NULL, DFLTPHYS, 1,
 			       BUS_SPACE_MAXSIZE_32BIT,
 			       BUS_DMA_ALLOCNOW, NULL, NULL,
 			       &ct->sc_dmat) != 0) {
@@ -230,7 +223,7 @@ ct_isa_attach(device_t dev)
 		return ENXIO;
 	}
 
-	bus_dmamap_load(ct->sc_dmat, ct->sc_dmamapt, vaddr, MAXBSIZE,
+	bus_dmamap_load(ct->sc_dmat, ct->sc_dmamapt, vaddr, DFLTPHYS,
 			ct_dmamap, &addr, BUS_DMA_NOWAIT);
 
 	/* setup machdep softc */
@@ -238,7 +231,7 @@ ct_isa_attach(device_t dev)
 	bs->sc_io_control = 0;
 	bs->sc_bounce_phys = (u_int8_t *)addr;
 	bs->sc_bounce_addr = vaddr;
-	bs->sc_bounce_size = MAXBSIZE;
+	bs->sc_bounce_size = DFLTPHYS;
 	bs->sc_minphys = (1 << 24);
 	bs->sc_dmasync_before = ct_isa_dmasync_before;
 	bs->sc_dmasync_after = ct_isa_dmasync_after;
@@ -254,7 +247,7 @@ ct_isa_attach(device_t dev)
 	ct->ct_synch_setup = bshw_synch_setup;
 
 	ct->sc_xmode = CT_XMODE_DMA;
-	if (chp->ch_memh != NULL)
+	if (chp->ch_mem != NULL)
 		ct->sc_xmode |= CT_XMODE_PIO;
 
 	ct->sc_chiprev = chiprev;
@@ -297,13 +290,12 @@ ct_isa_attach(device_t dev)
 	slp->sl_dev = dev;
 	slp->sl_hostid = bs->sc_hostid;
 	slp->sl_cfgflags = device_get_flags(dev);
+	mtx_init(&slp->sl_lock, "ct", NULL, MTX_DEF);
 
-	s = splcam();
 	ctattachsubr(ct);
-	splx(s);
 
-	if (bus_setup_intr(dev, ct->irq_res, INTR_TYPE_CAM,
-			   NULL, (driver_intr_t *)ctintr, ct, &ct->sc_ih)) {
+	if (bus_setup_intr(dev, ct->irq_res, INTR_TYPE_CAM | INTR_MPSAFE,
+			   NULL, ctintr, ct, &ct->sc_ih)) {
 		ct_space_unmap(dev, ct);
 		return ENXIO;
 	}
@@ -326,7 +318,7 @@ ct_space_map(device_t dev, struct bshw *hw,
 	*memhp = NULL;
 
 	port_rid = 0;
-	*iohp = bus_alloc_resource(dev, SYS_RES_IOPORT, &port_rid, 0, ~0,
+	*iohp = bus_alloc_resource(dev, SYS_RES_IOPORT, &port_rid, 0ul, ~0ul,
 				   BSHW_IOSZ, RF_ACTIVE);
 	if (*iohp == NULL)
 		return ENXIO;
@@ -335,7 +327,7 @@ ct_space_map(device_t dev, struct bshw *hw,
 		return 0;
 
 	mem_rid = 0;
-	*memhp = bus_alloc_resource(dev, SYS_RES_MEMORY, &mem_rid, 0, ~0,
+	*memhp = bus_alloc_resource(dev, SYS_RES_MEMORY, &mem_rid, 0ul, ~0ul,
 				    BSHW_MEMSZ, RF_ACTIVE);
 	if (*memhp == NULL) {
 		bus_release_resource(dev, SYS_RES_IOPORT, port_rid, *iohp);

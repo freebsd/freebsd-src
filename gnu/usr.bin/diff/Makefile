@@ -1,9 +1,12 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 DIFFSRC=${.CURDIR}/../../../contrib/diff/src
 .PATH: ${DIFFSRC} \
        ${.CURDIR}/../../../contrib/diff/lib \
-       ${.CURDIR}/../../../contrib/diff/man
+       ${.CURDIR}/../../../contrib/diff/man \
+       ${.CURDIR}/../../../contrib/diff/doc
 
 PROG=	diff
 SRCS=   analyze.c context.c diff.c dir.c ed.c ifdef.c io.c \
@@ -22,9 +25,12 @@ CFLAGS+=-I${.CURDIR}/../../../contrib/diff/src
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff/lib
 CFLAGS+=-I${DESTDIR}/usr/include/gnu
 
-SUBDIR+=doc
+MAN=	diff.1 diff.7
 
-DPADD=	${LIBGNUREGEX}
-LDADD=	-lgnuregex
+LIBADD+=	gnuregex
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

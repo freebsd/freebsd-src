@@ -1,13 +1,12 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_MAILWRAPPER} != "no"
 PROG=	mailwrapper
 MAN=	mailwrapper.8
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 .endif
 
 .if ${MK_MAILWRAPPER} != "no" || ${MK_SENDMAIL} != "no"

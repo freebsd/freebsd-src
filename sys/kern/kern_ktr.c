@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -44,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/alq.h>
 #include <sys/cons.h>
 #include <sys/cpuset.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
@@ -98,41 +96,21 @@ static MALLOC_DEFINE(M_KTR, "KTR", "KTR");
 FEATURE(ktr, "Kernel support for KTR kernel tracing facility");
 
 volatile int	ktr_idx = 0;
-int	ktr_mask = KTR_MASK;
-int	ktr_compile = KTR_COMPILE;
+uint64_t ktr_mask = KTR_MASK;
+uint64_t ktr_compile = KTR_COMPILE;
 int	ktr_entries = KTR_BOOT_ENTRIES;
 int	ktr_version = KTR_VERSION;
 struct	ktr_entry ktr_buf_init[KTR_BOOT_ENTRIES];
 struct	ktr_entry *ktr_buf = ktr_buf_init;
 cpuset_t ktr_cpumask = CPUSET_T_INITIALIZER(KTR_CPUMASK);
-static char ktr_cpumask_str[CPUSETBUFSIZ];
-
-TUNABLE_INT("debug.ktr.mask", &ktr_mask);
-
-TUNABLE_STR("debug.ktr.cpumask", ktr_cpumask_str, sizeof(ktr_cpumask_str));
 
 static SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
 
 SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD,
     &ktr_version, 0, "Version of the KTR interface");
 
-SYSCTL_UINT(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD,
+SYSCTL_UQUAD(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD,
     &ktr_compile, 0, "Bitmask of KTR event classes compiled into the kernel");
-
-static void
-ktr_cpumask_initializer(void *dummy __unused)
-{
-
-	/*
-	 * TUNABLE_STR() runs with SI_ORDER_MIDDLE priority, thus it must be
-	 * already set, if necessary.
-	 */
-	if (ktr_cpumask_str[0] != '\0' &&
-	    cpusetobj_strscan(&ktr_cpumask, ktr_cpumask_str) == -1)
-		CPU_FILL(&ktr_cpumask);
-}
-SYSINIT(ktr_cpumask_initializer, SI_SUB_TUNABLES, SI_ORDER_ANY,
-    ktr_cpumask_initializer, NULL);
 
 static int
 sysctl_debug_ktr_cpumask(SYSCTL_HANDLER_ARGS)
@@ -153,7 +131,7 @@ sysctl_debug_ktr_cpumask(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_debug_ktr, OID_AUTO, cpumask,
-    CTLFLAG_RW | CTLFLAG_MPSAFE | CTLTYPE_STRING, NULL, 0,
+    CTLFLAG_RWTUN | CTLFLAG_MPSAFE | CTLTYPE_STRING, NULL, 0,
     sysctl_debug_ktr_cpumask, "S",
     "Bitmask of CPUs on which KTR logging is enabled");
 
@@ -184,18 +162,19 @@ SYSCTL_PROC(_debug_ktr, OID_AUTO, clear, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
 static int
 sysctl_debug_ktr_mask(SYSCTL_HANDLER_ARGS)
 {
-	int mask, error;
+	uint64_t mask;
+	int error;
 
 	mask = ktr_mask;
-	error = sysctl_handle_int(oidp, &mask, 0, req);
+	error = sysctl_handle_64(oidp, &mask, 0, req);
 	if (error || !req->newptr)
 		return (error);
 	ktr_mask = mask;
 	return (error);
 }
 
-SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RW, 0, 0,
-    sysctl_debug_ktr_mask, "IU",
+SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_U64 | CTLFLAG_RWTUN, 0, 0,
+    sysctl_debug_ktr_mask, "QU",
     "Bitmask of KTR event classes for which logging is enabled");
 
 #if KTR_ENTRIES > KTR_BOOT_ENTRIES
@@ -206,7 +185,7 @@ SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RW, 0, 0,
 static void
 ktr_entries_initializer(void *dummy __unused)
 {
-	int mask;
+	uint64_t mask;
 
 	/* Temporarily disable ktr in case malloc() is being traced. */
 	mask = ktr_mask;
@@ -215,9 +194,11 @@ ktr_entries_initializer(void *dummy __unused)
 	    M_WAITOK | M_ZERO);
 	memcpy(ktr_buf, ktr_buf_init + ktr_idx,
 	    (KTR_BOOT_ENTRIES - ktr_idx) * sizeof(*ktr_buf));
-	if (ktr_idx != 0)
+	if (ktr_idx != 0) {
 		memcpy(ktr_buf + KTR_BOOT_ENTRIES - ktr_idx, ktr_buf_init,
 		    ktr_idx * sizeof(*ktr_buf));
+		ktr_idx = KTR_BOOT_ENTRIES;
+	}
 	ktr_entries = KTR_ENTRIES;
 	ktr_mask = mask;
 }
@@ -228,7 +209,8 @@ SYSINIT(ktr_entries_initializer, SI_SUB_KMEM, SI_ORDER_ANY,
 static int
 sysctl_debug_ktr_entries(SYSCTL_HANDLER_ARGS)
 {
-	int entries, error, mask;
+	uint64_t mask;
+	int entries, error;
 	struct ktr_entry *buf, *oldbuf;
 
 	entries = ktr_entries;
@@ -239,7 +221,7 @@ sysctl_debug_ktr_entries(SYSCTL_HANDLER_ARGS)
 		return (ERANGE);
 	/* Disable ktr temporarily. */
 	mask = ktr_mask;
-	atomic_store_rel_int(&ktr_mask, 0);
+	ktr_mask = 0;
 	/* Wait for threads to go idle. */
 	if ((error = quiesce_all_cpus("ktrent", PCATCH)) != 0) {
 		ktr_mask = mask;
@@ -255,7 +237,7 @@ sysctl_debug_ktr_entries(SYSCTL_HANDLER_ARGS)
 	ktr_buf = buf;
 	ktr_entries = entries;
 	ktr_idx = 0;
-	atomic_store_rel_int(&ktr_mask, mask);
+	ktr_mask = mask;
 	if (oldbuf != NULL)
 		free(oldbuf, M_KTR);
 
@@ -330,7 +312,7 @@ SYSCTL_PROC(_debug_ktr, OID_AUTO, alq_enable,
 #endif
 
 void
-ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
+ktr_tracepoint(uint64_t mask, const char *file, int line, const char *format,
     u_long arg1, u_long arg2, u_long arg3, u_long arg4, u_long arg5,
     u_long arg6)
 {
@@ -344,7 +326,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 #endif
 	int cpu;
 
-	if (panicstr)
+	if (panicstr || kdb_active)
 		return;
 	if ((ktr_mask & mask) == 0 || ktr_buf == NULL)
 		return;

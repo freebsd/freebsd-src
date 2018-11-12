@@ -45,7 +45,7 @@
  */
 	.globl	CNAME(sigcode64),CNAME(szsigcode64)
 CNAME(sigcode64):
-	addi	1,1,-48			/* reserved space for callee */
+	addi	1,1,-112		/* reserved space for callee */
 	mflr	2			/* resolve function descriptor */
 	ld	0,0(2)			
 	ld	2,8(2)
@@ -53,7 +53,7 @@ CNAME(sigcode64):
 
 	blrl
 
-	addi	3,1,48+SF_UC		/* restore sp, and get &frame->sf_uc */
+	addi	3,1,112+SF_UC		/* restore sp, and get &frame->sf_uc */
 	li	0,SYS_sigreturn
 	sc				/* sigreturn(scp) */
 	li	0,SYS_exit

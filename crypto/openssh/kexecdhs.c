@@ -1,4 +1,4 @@
-/* $OpenBSD: kexecdhs.c,v 1.5 2013/07/19 07:37:48 markus Exp $ */
+/* $OpenBSD: kexecdhs.c,v 1.10 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -37,12 +37,7 @@
 #include "kex.h"
 #include "log.h"
 #include "packet.h"
-#include "dh.h"
 #include "ssh2.h"
-#ifdef GSSAPI
-#include "ssh-gss.h"
-#endif
-#include "monitor_wrap.h"
 
 #ifdef OPENSSL_HAS_ECC
 
@@ -108,13 +103,13 @@ kexecdh_server(Kex *kex)
 		fatal("%s: BN_new failed", __func__);
 	if (BN_bin2bn(kbuf, klen, shared_secret) == NULL)
 		fatal("%s: BN_bin2bn failed", __func__);
-	memset(kbuf, 0, klen);
+	explicit_bzero(kbuf, klen);
 	free(kbuf);
 
 	/* calc H */
 	key_to_blob(server_host_public, &server_host_key_blob, &sbloblen);
 	kex_ecdh_hash(
-	    kex->evp_md,
+	    kex->hash_alg,
 	    group,
 	    kex->client_version_string,
 	    kex->server_version_string,
@@ -153,7 +148,7 @@ kexecdh_server(Kex *kex)
 	/* have keys, free server key */
 	EC_KEY_free(server_key);
 
-	kex_derive_keys(kex, hash, hashlen, shared_secret);
+	kex_derive_keys_bn(kex, hash, hashlen, shared_secret);
 	BN_clear_free(shared_secret);
 	kex_finish(kex);
 }

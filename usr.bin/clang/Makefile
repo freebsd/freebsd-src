@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	clang clang-tblgen tblgen
 
@@ -13,15 +13,16 @@ SUBDIR+=bugpoint \
 	llvm-as \
 	llvm-bcanalyzer \
 	llvm-diff \
+	llvm-cov \
 	llvm-dis \
 	llvm-extract \
 	llvm-link \
 	llvm-mc \
 	llvm-nm \
 	llvm-objdump \
-	llvm-prof \
-	llvm-ranlib \
+	llvm-profdata \
 	llvm-rtdyld \
+	llvm-symbolizer \
 	macho-dump \
 	opt
 .endif
@@ -30,5 +31,7 @@ SUBDIR+=bugpoint \
 SUBDIR+=lldb
 .endif
 .endif # TOOLS_PREFIX
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

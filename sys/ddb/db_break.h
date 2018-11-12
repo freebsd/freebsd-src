@@ -38,7 +38,7 @@
  */
 
 #ifndef BKPT_INST_TYPE
-#define BKPT_INST_TYPE int
+#define	BKPT_INST_TYPE int
 #endif
 
 struct db_breakpoint {

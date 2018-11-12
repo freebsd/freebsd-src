@@ -22,17 +22,17 @@ using namespace lldb;
 using namespace lldb_private;
 
 ThreadList::ThreadList (Process *process) :
+    ThreadCollection(),
     m_process (process),
     m_stop_id (0),
-    m_threads(),
     m_selected_tid (LLDB_INVALID_THREAD_ID)
 {
 }
 
 ThreadList::ThreadList (const ThreadList &rhs) :
+    ThreadCollection(),
     m_process (rhs.m_process),
     m_stop_id (rhs.m_stop_id),
-    m_threads (),
     m_selected_tid ()
 {
     // Use the assignment operator since it uses the mutex
@@ -75,14 +75,6 @@ void
 ThreadList::SetStopID (uint32_t stop_id)
 {
     m_stop_id = stop_id;
-}
-
-
-void
-ThreadList::AddThread (const ThreadSP &thread_sp)
-{
-    Mutex::Locker locker(GetMutex());
-    m_threads.push_back(thread_sp);
 }
 
 uint32_t
@@ -251,7 +243,7 @@ ThreadList::ShouldStop (Event *event_ptr)
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_STEP));
 
     // The ShouldStop method of the threads can do a whole lot of work,
-    // running breakpoint commands & conditions, etc.  So we don't want
+    // figuring out whether the thread plan conditions are met.  So we don't want
     // to keep the ThreadList locked the whole time we are doing this.
     // FIXME: It is possible that running code could cause new threads
     // to be created.  If that happens we will miss asking them whether
@@ -276,7 +268,16 @@ ThreadList::ShouldStop (Event *event_ptr)
     }
 
     bool did_anybody_stop_for_a_reason = false;
+    
+    // If the event is an Interrupt event, then we're going to stop no matter what.  Otherwise, presume we won't stop.
     bool should_stop = false;
+    if (Process::ProcessEventData::GetInterruptedFromEvent(event_ptr))
+    {
+        if (log)
+            log->Printf("ThreadList::%s handling interrupt event, should stop set to true", __FUNCTION__);
+        
+        should_stop = true;
+    }
     
     // Now we run through all the threads and get their stop info's.  We want to make sure to do this first before
     // we start running the ShouldStop, because one thread's ShouldStop could destroy information (like deleting a
@@ -293,17 +294,31 @@ ThreadList::ShouldStop (Event *event_ptr)
     {
         ThreadSP thread_sp(*pos);
         
-        did_anybody_stop_for_a_reason |= thread_sp->ThreadStoppedForAReason();
+        // We should never get a stop for which no thread had a stop reason, but sometimes we do see this -
+        // for instance when we first connect to a remote stub.  In that case we should stop, since we can't figure out
+        // the right thing to do and stopping gives the user control over what to do in this instance.
+        //
+        // Note, this causes a problem when you have a thread specific breakpoint, and a bunch of threads hit the breakpoint,
+        // but not the thread which we are waiting for.  All the threads that are not "supposed" to hit the breakpoint
+        // are marked as having no stop reason, which is right, they should not show a stop reason.  But that triggers this
+        // code and causes us to stop seemingly for no reason.
+        //
+        // Since the only way we ever saw this error was on first attach, I'm only going to trigger set did_anybody_stop_for_a_reason
+        // to true unless this is the first stop.
+        //
+        // If this becomes a problem, we'll have to have another StopReason like "StopInfoHidden" which will look invalid
+        // everywhere but at this check.
+    
+        if (thread_sp->GetProcess()->GetStopID() > 1)
+            did_anybody_stop_for_a_reason = true;
+        else
+            did_anybody_stop_for_a_reason |= thread_sp->ThreadStoppedForAReason();
         
         const bool thread_should_stop = thread_sp->ShouldStop(event_ptr);
         if (thread_should_stop)
             should_stop |= true;
     }
 
-    // We should never get a stop for which no thread had a stop reason, but sometimes we do see this -
-    // for instance when we first connect to a remote stub.  In that case we should stop, since we can't figure out
-    // the right thing to do and stopping gives the user control over what to do in this instance.
-    
     if (!should_stop && !did_anybody_stop_for_a_reason)
     {
         should_stop = true;

@@ -1,9 +1,11 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/sound
-.PATH: ${.CURDIR}/../../../dev/sound/pcm
-.PATH: ${.CURDIR}/../../../dev/sound/midi
-.PATH: ${.CURDIR}/../../../dev/sound/isa
+SYSDIR?=${.CURDIR}/../../..
+
+.PATH: ${SYSDIR}/dev/sound
+.PATH: ${SYSDIR}/dev/sound/pcm
+.PATH: ${SYSDIR}/dev/sound/midi
+.PATH: ${SYSDIR}/dev/sound/isa
 
 KMOD=	sound
 SRCS=	device_if.h bus_if.h isa_if.h pci_if.h opt_isa.h
@@ -19,32 +21,21 @@ SRCS+=	ac97.c ac97_patch.c buffer.c channel.c clone.c dsp.c
 SRCS+=	mixer.c sndstat.c sound.c unit.c vchan.c
 SRCS+=	midi.c mpu401.c sequencer.c
 
-.if !exists(@)
-feeder_eq_gen.h:	@
-.else
-feeder_eq_gen.h:	@/tools/sound/feeder_eq_mkfilter.awk
-.endif
-	${AWK} -f @/tools/sound/feeder_eq_mkfilter.awk -- ${FEEDER_EQ_PRESETS} > ${.TARGET}
+feeder_eq_gen.h:	${SYSDIR}/tools/sound/feeder_eq_mkfilter.awk
+	${AWK} -f ${SYSDIR}/tools/sound/feeder_eq_mkfilter.awk -- ${FEEDER_EQ_PRESETS} > ${.TARGET}
 
-.if !exists(@)
-feeder_rate_gen.h:	@
-.else
-feeder_rate_gen.h:	@/tools/sound/feeder_rate_mkfilter.awk
-.endif
-	${AWK} -f @/tools/sound/feeder_rate_mkfilter.awk -- ${FEEDER_RATE_PRESETS} > ${.TARGET}
+feeder_rate_gen.h:	${SYSDIR}/tools/sound/feeder_rate_mkfilter.awk
+	${AWK} -f ${SYSDIR}/tools/sound/feeder_rate_mkfilter.awk -- ${FEEDER_RATE_PRESETS} > ${.TARGET}
 
-.if !exists(@)
-snd_fxdiv_gen.h:	@
-.else
-snd_fxdiv_gen.h:	@/tools/sound/snd_fxdiv_gen.awk
-.endif
-	${AWK} -f @/tools/sound/snd_fxdiv_gen.awk -- > ${.TARGET}
+snd_fxdiv_gen.h:	${SYSDIR}/tools/sound/snd_fxdiv_gen.awk
+	${AWK} -f ${SYSDIR}/tools/sound/snd_fxdiv_gen.awk -- > ${.TARGET}
 
 CLEANFILES+=	feeder_eq_gen.h feeder_rate_gen.h snd_fxdiv_gen.h
 
 EXPORT_SYMS=	YES	# XXX evaluate
 
-.if ${MACHINE_CPUARCH} == "sparc64" || ${MACHINE_CPUARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} != "i386" && ${MACHINE_CPUARCH} != "amd64" && \
+    ${MACHINE_CPUARCH} != "pc98"
 # Create an empty opt_isa.h in order to keep kmod.mk from linking in an
 # existing one from KERNBUILDDIR which possibly has DEV_ISA defined so
 # sound.ko is always built without isadma support.

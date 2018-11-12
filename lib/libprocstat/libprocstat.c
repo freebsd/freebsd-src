@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/ksem.h>
 #include <sys/mman.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #define	_KERNEL
 #include <sys/mount.h>
 #include <sys/pipe.h>
@@ -1235,7 +1235,7 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 	struct vnode vnode;
 	char tagstr[12];
 	void *vp;
-	int error, found;
+	int error;
 	unsigned int i;
 
 	assert(kd);
@@ -1264,7 +1264,7 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 	/*
 	 * Find appropriate handler.
 	 */
-	for (i = 0, found = 0; i < NTYPES; i++)
+	for (i = 0; i < NTYPES; i++)
 		if (!strcmp(fstypes[i].tag, tagstr)) {
 			if (fstypes[i].handler(kd, &vnode, vn) != 0) {
 				goto fail;
@@ -2052,7 +2052,7 @@ procstat_getumask_sysctl(pid_t pid, unsigned short *maskp)
 	mib[3] = pid;
 	len = sizeof(*maskp);
 	error = sysctl(mib, 4, maskp, &len, NULL, 0);
-	if (error != 0 && errno != ESRCH)
+	if (error != 0 && errno != ESRCH && errno != EPERM)
 		warn("sysctl: kern.proc.umask: %d", pid);
 	return (error);
 }

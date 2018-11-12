@@ -258,14 +258,14 @@ macb_free_desc_dma_tx(struct macb_softc *sc)
 
 	/* TX descriptor ring. */
 	if (sc->dmatag_data_tx != NULL) {
-		if (sc->dmamap_ring_tx != NULL)
+		if (sc->ring_paddr_tx != 0)
 			bus_dmamap_unload(sc->dmatag_data_tx,
 			    sc->dmamap_ring_tx);
-		if (sc->dmamap_ring_tx != NULL && sc->desc_tx != NULL)
+		if (sc->desc_tx != NULL)
 			bus_dmamem_free(sc->dmatag_data_tx, sc->desc_tx,
 			    sc->dmamap_ring_tx);
-		sc->dmamap_ring_tx = NULL;
-		sc->dmamap_ring_tx = NULL;
+		sc->ring_paddr_tx = 0;
+		sc->desc_tx = NULL;
 		bus_dma_tag_destroy(sc->dmatag_data_tx);
 		sc->dmatag_data_tx = NULL;
 	}
@@ -389,15 +389,14 @@ macb_free_desc_dma_rx(struct macb_softc *sc)
 	}
 	/* RX descriptor ring. */
 	if (sc->dmatag_data_rx != NULL) {
-		if (sc->dmamap_ring_rx != NULL)
+		if (sc->ring_paddr_rx != 0)
 			bus_dmamap_unload(sc->dmatag_data_rx,
 			    sc->dmamap_ring_rx);
-		if (sc->dmamap_ring_rx != NULL &&
-		    sc->desc_rx != NULL)
+		if (sc->desc_rx != NULL)
 			bus_dmamem_free(sc->dmatag_data_rx, sc->desc_rx,
 			    sc->dmamap_ring_rx);
+		sc->ring_paddr_rx = 0;
 		sc->desc_rx = NULL;
-		sc->dmamap_ring_rx = NULL;
 		bus_dma_tag_destroy(sc->dmatag_data_rx);
 		sc->dmatag_data_rx = NULL;
 	}
@@ -523,12 +522,12 @@ macb_watchdog(struct macb_softc *sc)
 	ifp = sc->ifp;
 	if ((sc->flags & MACB_FLAG_LINK) == 0) {
 		if_printf(ifp, "watchdog timeout (missed link)\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return;
 	}
 
 	if_printf(ifp, "watchdog timeout\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	macbinit_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -678,7 +677,7 @@ macb_tx_cleanup(struct macb_softc *sc)
 					  td->dmamap);
 			m_freem(td->buff);
 			td->buff = NULL;
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
 
 		do {
@@ -733,7 +732,7 @@ macb_rx(struct macb_softc *sc)
 		bus_dmamap_sync(sc->dmatag_ring_rx,
 		    sc->rx_desc[sc->rx_cons].dmamap, BUS_DMASYNC_POSTREAD);
 		if (macb_new_rxbuf(sc, sc->rx_cons) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			first = sc->rx_cons;
 			
 			do  {
@@ -782,7 +781,7 @@ macb_rx(struct macb_softc *sc)
 			m->m_flags |= M_PKTHDR;
 			m->m_pkthdr.len = rxbytes;
 			m->m_pkthdr.rcvif = ifp;
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 			nsegs = 0;
 			MACB_UNLOCK(sc);

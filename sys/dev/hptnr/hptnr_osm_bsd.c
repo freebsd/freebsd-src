@@ -30,13 +30,13 @@
 #include <dev/hptnr/hptnr_config.h>
 #include <dev/hptnr/os_bsd.h>
 #include <dev/hptnr/hptintf.h>
-
-static int hpt_probe(device_t dev)
+int msi = 0;
+int debug_flag = 0;
+static HIM *hpt_match(device_t dev)
 {
 	PCI_ID pci_id;
 	HIM *him;
 	int i;
-	PHBA hba;
 
 	for (him = him_list; him; him = him->next) {
 		for (i=0; him->get_supported_device_id(i, &pci_id); i++) {
@@ -44,17 +44,25 @@ static int hpt_probe(device_t dev)
 				him->get_controller_count(&pci_id,0,0);
 			if ((pci_get_vendor(dev) == pci_id.vid) &&
 				(pci_get_device(dev) == pci_id.did)){
-				KdPrint(("hpt_probe: adapter at PCI %d:%d:%d, IRQ %d",
-					pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev), pci_get_irq(dev)
-				));
-				device_set_desc(dev, him->name);
-				hba = (PHBA)device_get_softc(dev);
-				memset(hba, 0, sizeof(HBA));
-				hba->ext_type = EXT_TYPE_HBA;
-				hba->ldm_adapter.him = him;
-				return 0;
+				return (him);
 			}
 		}
+	}
+
+	return (NULL);
+}
+
+static int hpt_probe(device_t dev)
+{
+	HIM *him;
+
+	him = hpt_match(dev);
+	if (him != NULL) {
+		KdPrint(("hpt_probe: adapter at PCI %d:%d:%d, IRQ %d",
+			pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev), pci_get_irq(dev)
+			));
+		device_set_desc(dev, him->name);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);
@@ -63,17 +71,19 @@ static int hpt_probe(device_t dev)
 static int hpt_attach(device_t dev)
 {
 	PHBA hba = (PHBA)device_get_softc(dev);
-	HIM *him = hba->ldm_adapter.him;
+	HIM *him;
 	PCI_ID pci_id;
 	HPT_UINT size;
 	PVBUS vbus;
 	PVBUS_EXT vbus_ext;
 	
 	KdPrint(("hpt_attach(%d/%d/%d)", pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev)));
-	
-#if __FreeBSD_version >=440000
+
+	him = hpt_match(dev);
+	hba->ext_type = EXT_TYPE_HBA;
+	hba->ldm_adapter.him = him;
+
 	pci_enable_busmaster(dev);
-#endif
 
 	pci_id.vid = pci_get_vendor(dev);
 	pci_id.did = pci_get_device(dev);
@@ -82,8 +92,6 @@ static int hpt_attach(device_t dev)
 
 	size = him->get_adapter_size(&pci_id);
 	hba->ldm_adapter.him_handle = malloc(size, M_DEVBUF, M_WAITOK);
-	if (!hba->ldm_adapter.him_handle)
-		return ENXIO;
 
 	hba->pcidev = dev;
 	hba->pciaddr.tree = 0;
@@ -93,7 +101,7 @@ static int hpt_attach(device_t dev)
 
 	if (!him->create_adapter(&pci_id, hba->pciaddr, hba->ldm_adapter.him_handle, hba)) {
 		free(hba->ldm_adapter.him_handle, M_DEVBUF);
-		return -1;
+		return ENXIO;
 	}
 
 	os_printk("adapter at PCI %d:%d:%d, IRQ %d",
@@ -101,12 +109,8 @@ static int hpt_attach(device_t dev)
 
 	if (!ldm_register_adapter(&hba->ldm_adapter)) {
 		size = ldm_get_vbus_size();
-		vbus_ext = malloc(sizeof(VBUS_EXT) + size, M_DEVBUF, M_WAITOK);
-		if (!vbus_ext) {
-			free(hba->ldm_adapter.him_handle, M_DEVBUF);
-			return -1;
-		}
-		memset(vbus_ext, 0, sizeof(VBUS_EXT));
+		vbus_ext = malloc(sizeof(VBUS_EXT) + size, M_DEVBUF, M_WAITOK |
+			M_ZERO);
 		vbus_ext->ext_type = EXT_TYPE_VBUS;
 		ldm_create_vbus((PVBUS)vbus_ext->vbus, vbus_ext);
 		ldm_register_adapter(&hba->ldm_adapter);
@@ -287,7 +291,7 @@ static int hpt_flush_vdev(PVBUS_EXT vbus_ext, PVDEV vd)
 
 	KdPrint(("flusing dev %p", vd));
 
-	hpt_lock_vbus(vbus_ext);
+	hpt_assert_vbus_locked(vbus_ext);
 
 	if (mIsArray(vd->type) && vd->u.array.transform)
 		count = MAX(vd->u.array.transform->source->cmds_per_request,
@@ -298,7 +302,6 @@ static int hpt_flush_vdev(PVBUS_EXT vbus_ext, PVDEV vd)
 	pCmd = ldm_alloc_cmds(vd->vbus, count);
 
 	if (!pCmd) {
-		hpt_unlock_vbus(vbus_ext);
 		return -1;
 	}
 
@@ -324,8 +327,6 @@ static int hpt_flush_vdev(PVBUS_EXT vbus_ext, PVDEV vd)
 
 	ldm_free_cmds(pCmd);
 
-	hpt_unlock_vbus(vbus_ext);
-
 	return result;
 }
 
@@ -340,6 +341,7 @@ static void hpt_shutdown_vbus(PVBUS_EXT vbus_ext, int howto)
 
 	/* stop all ctl tasks and disable the worker taskqueue */
 	hpt_stop_tasks(vbus_ext);
+	hpt_lock_vbus(vbus_ext);
 	vbus_ext->worker.ta_context = 0;
 
 	/* flush devices */
@@ -352,7 +354,6 @@ static void hpt_shutdown_vbus(PVBUS_EXT vbus_ext, int howto)
 		}
 	}
 
-	hpt_lock_vbus(vbus_ext);
 	ldm_shutdown(vbus);
 	hpt_unlock_vbus(vbus_ext);
 
@@ -368,6 +369,8 @@ static void hpt_shutdown_vbus(PVBUS_EXT vbus_ext, int howto)
 		free(hba->ldm_adapter.him_handle, M_DEVBUF);
 	}
 
+	callout_drain(&vbus_ext->timer);
+	mtx_destroy(&vbus_ext->lock);
 	free(vbus_ext, M_DEVBUF);
 	KdPrint(("hpt_shutdown_vbus done"));
 }
@@ -429,10 +432,61 @@ static void os_cmddone(PCOMMAND pCmd)
 {
 	POS_CMDEXT ext = (POS_CMDEXT)pCmd->priv;
 	union ccb *ccb = ext->ccb;
+	HPT_U8 *cdb;
+		
+	if (ccb->ccb_h.flags & CAM_CDB_POINTER)
+		cdb = ccb->csio.cdb_io.cdb_ptr;
+	else
+		cdb = ccb->csio.cdb_io.cdb_bytes;
 
 	KdPrint(("os_cmddone(%p, %d)", pCmd, pCmd->Result));
+
+	callout_stop(&ext->timeout);
+	switch(cdb[0]) {
+		case 0x85: /*ATA_16*/
+		case 0xA1: /*ATA_12*/
+		{
+			PassthroughCmd *passthru = &pCmd->uCmd.Passthrough;
+			HPT_U8 *sense_buffer = (HPT_U8 *)&ccb->csio.sense_data;
+			memset(&ccb->csio.sense_data, 0,sizeof(ccb->csio.sense_data));
+
+			sense_buffer[0] = 0x72; /* Response Code */
+			sense_buffer[7] = 14; /* Additional Sense Length */
 	
-	untimeout(hpt_timeout, pCmd, ext->timeout_ch);
+			sense_buffer[8] = 0x9; /* ATA Return Descriptor */
+			sense_buffer[9] = 0xc; /* Additional Descriptor Length */
+			sense_buffer[11] = (HPT_U8)passthru->bFeaturesReg; /* Error */
+			sense_buffer[13] = (HPT_U8)passthru->bSectorCountReg;  /* Sector Count (7:0) */
+			sense_buffer[15] = (HPT_U8)passthru->bLbaLowReg; /* LBA Low (7:0) */
+			sense_buffer[17] = (HPT_U8)passthru->bLbaMidReg; /* LBA Mid (7:0) */
+			sense_buffer[19] = (HPT_U8)passthru->bLbaHighReg; /* LBA High (7:0) */
+	
+			if ((cdb[0] == 0x85) && (cdb[1] & 0x1))
+			{
+				sense_buffer[10] = 1;
+				sense_buffer[12] = (HPT_U8)(passthru->bSectorCountReg >> 8); /* Sector Count (15:8) */
+				sense_buffer[14] = (HPT_U8)(passthru->bLbaLowReg >> 8);	/* LBA Low (15:8) */
+				sense_buffer[16] = (HPT_U8)(passthru->bLbaMidReg >> 8); /* LBA Mid (15:8) */
+				sense_buffer[18] = (HPT_U8)(passthru->bLbaHighReg >> 8); /* LBA High (15:8) */
+			}
+	
+			sense_buffer[20] = (HPT_U8)passthru->bDriveHeadReg; /* Device */
+			sense_buffer[21] = (HPT_U8)passthru->bCommandReg; /* Status */
+			KdPrint(("sts 0x%x err 0x%x low 0x%x mid 0x%x hig 0x%x dh 0x%x sc 0x%x",
+					 passthru->bCommandReg,
+					 passthru->bFeaturesReg,
+					 passthru->bLbaLowReg,
+					 passthru->bLbaMidReg,
+					 passthru->bLbaHighReg,
+					 passthru->bDriveHeadReg,
+					 passthru->bSectorCountReg));
+			KdPrint(("result:0x%x,bFeaturesReg:0x%04x,bSectorCountReg:0x%04x,LBA:0x%04x%04x%04x ",
+				pCmd->Result,passthru->bFeaturesReg,passthru->bSectorCountReg,
+				passthru->bLbaHighReg,passthru->bLbaMidReg,passthru->bLbaLowReg));
+		}
+		default:
+			break;
+	}
 
 	switch(pCmd->Result) {
 	case RETURN_SUCCESS:
@@ -511,7 +565,7 @@ static void hpt_io_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs
 		}
 	}
 
-	ext->timeout_ch = timeout(hpt_timeout, pCmd, HPT_OSM_TIMEOUT);
+	callout_reset(&ext->timeout, HPT_OSM_TIMEOUT, hpt_timeout, pCmd);
 	ldm_queue_cmd(pCmd);
 }
 
@@ -547,7 +601,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 	vd = ldm_find_target(vbus, ccb->ccb_h.target_id);
 
 	if (!vd) {
-		ccb->ccb_h.status = CAM_TID_INVALID;
+		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 		xpt_done(ccb);
 		return;
 	}
@@ -559,47 +613,303 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 
-	case INQUIRY:
-		{
-			PINQUIRYDATA inquiryData;
-			memset(ccb->csio.data_ptr, 0, ccb->csio.dxfer_len);
-			inquiryData = (PINQUIRYDATA)ccb->csio.data_ptr;
+	case 0x85: /*ATA_16*/
+	case 0xA1: /*ATA_12*/
+	{
+		int error;
+		HPT_U8 prot;
+		PassthroughCmd *passthru;	
 		
-			inquiryData->AdditionalLength = 31;
-			inquiryData->CommandQueue = 1;
-			memcpy(&inquiryData->VendorId, "HPT     ", 8);
-			memcpy(&inquiryData->ProductId, "DISK 0_0        ", 16);
-	
-			if (vd->target_id / 10) {
-				inquiryData->ProductId[7] = (vd->target_id % 100) / 10 + '0';
-				inquiryData->ProductId[8] = (vd->target_id % 100) % 10 + '0';
-			}
-			else
-				inquiryData->ProductId[7] = (vd->target_id % 100) % 10 + '0';
-	
-			memcpy(&inquiryData->ProductRevisionLevel, "4.00", 4);
-	
-			ccb->ccb_h.status = CAM_REQ_CMP;
+		if (mIsArray(vd->type)) {
+			ccb->ccb_h.status = CAM_PATH_INVALID;
+			break;
 		}
-		break;
+		
+		HPT_ASSERT(vd->type == VD_RAW && vd->u.raw.legacy_disk);
+		
+		prot = (cdb[1] & 0x1e) >> 1;
+		
+		
+		if (prot < 3 || prot > 5) 
+		{
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			break;
+		}
+		
+		pCmd = ldm_alloc_cmds(vbus, vd->cmds_per_request);
+		if (!pCmd) {
+			HPT_ASSERT(0);
+			ccb->ccb_h.status = CAM_BUSY;
+			break;
+		}
+		
+		passthru = &pCmd->uCmd.Passthrough;
+		if (cdb[0] == 0x85/*ATA_16*/) {
+			if (cdb[1] & 0x1) {
+				passthru->bFeaturesReg =
+					((HPT_U16)cdb[3] << 8)
+						| cdb[4];
+				passthru->bSectorCountReg =
+					((HPT_U16)cdb[5] << 8) |
+						cdb[6];
+				passthru->bLbaLowReg =
+					((HPT_U16)cdb[7] << 8) |
+						cdb[8];
+				passthru->bLbaMidReg =
+					((HPT_U16)cdb[9] << 8) |
+						cdb[10];
+				passthru->bLbaHighReg =
+					((HPT_U16)cdb[11] << 8) |
+						cdb[12];
+			} else {
+				passthru->bFeaturesReg = cdb[4];
+				passthru->bSectorCountReg = cdb[6];
+				passthru->bLbaLowReg = cdb[8];
+				passthru->bLbaMidReg = cdb[10];
+				passthru->bLbaHighReg = cdb[12];
+			}
+			passthru->bDriveHeadReg = cdb[13];
+			passthru->bCommandReg = cdb[14];
+		
+		} else { /*ATA_12*/
+		
+			passthru->bFeaturesReg = cdb[3];
+			passthru->bSectorCountReg = cdb[4];
+			passthru->bLbaLowReg = cdb[5];
+			passthru->bLbaMidReg = cdb[6];
+			passthru->bLbaHighReg = cdb[7];
+			passthru->bDriveHeadReg = cdb[8];
+			passthru->bCommandReg = cdb[9];
+		}
+		
+		if (cdb[1] & 0xe0) {
+			
+		
+			if (!(passthru->bCommandReg == ATA_CMD_READ_MULTI ||
+				passthru->bCommandReg == ATA_CMD_READ_MULTI_EXT ||
+				passthru->bCommandReg == ATA_CMD_WRITE_MULTI ||
+				passthru->bCommandReg == ATA_CMD_WRITE_MULTI_EXT ||
+				passthru->bCommandReg == ATA_CMD_WRITE_MULTI_FUA_EXT)
+				) {
+				goto error;
+			}
+		}
+		
+		
+		if (passthru->bFeaturesReg == ATA_SET_FEATURES_XFER &&
+			passthru->bCommandReg == ATA_CMD_SET_FEATURES) {
+			goto error;
+		}
 
+		
+		passthru->nSectors = ccb->csio.dxfer_len/ATA_SECTOR_SIZE;
+		switch (prot) {
+			default: /*None data*/
+				break;
+			case 4: /*PIO data in, T_DIR=1 match check*/
+				if ((cdb[2] & 3) && 
+					(cdb[2] & 0x8) == 0)
+				{
+					OsPrint(("PIO data in, T_DIR=1 match check"));
+					goto error;
+				}
+				pCmd->flags.data_in = 1;
+						break;
+			case 5: /*PIO data out, T_DIR=0 match check*/
+				if ((cdb[2] & 3) && 
+					(cdb[2] & 0x8))
+				{
+					OsPrint(("PIO data out, T_DIR=0 match check"));
+					goto error;
+				}
+
+				pCmd->flags.data_out = 1;
+				break;
+		}
+		pCmd->type = CMD_TYPE_PASSTHROUGH;
+		pCmd->priv = ext = cmdext_get(vbus_ext);
+		HPT_ASSERT(ext);
+		ext->ccb = ccb;
+		pCmd->target = vd;
+		pCmd->done = os_cmddone;
+		pCmd->buildsgl = os_buildsgl;
+		pCmd->psg = ext->psg;
+
+		if(!ccb->csio.dxfer_len)
+		{
+			ldm_queue_cmd(pCmd);
+			return;
+		}
+		pCmd->flags.physical_sg = 1;
+		error = bus_dmamap_load_ccb(vbus_ext->io_dmat, 
+					ext->dma_map, ccb, 
+					hpt_io_dmamap_callback, pCmd,
+				    	BUS_DMA_WAITOK
+					);
+		KdPrint(("bus_dmamap_load return %d", error));
+		if (error && error!=EINPROGRESS) {
+			os_printk("bus_dmamap_load error %d", error);
+			cmdext_put(ext);
+			ldm_free_cmds(pCmd);
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			xpt_done(ccb);
+		}
+		return;
+error:
+		ldm_free_cmds(pCmd);
+		ccb->ccb_h.status = CAM_PATH_INVALID;
+		break;
+	}
+
+	case INQUIRY:
+	{
+		PINQUIRYDATA inquiryData;
+		HIM_DEVICE_CONFIG devconf;
+		HPT_U8 *rbuf;
+
+		memset(ccb->csio.data_ptr, 0, ccb->csio.dxfer_len);
+		inquiryData = (PINQUIRYDATA)ccb->csio.data_ptr;
+
+		if (cdb[1] & 1) {
+			rbuf = (HPT_U8 *)inquiryData;
+			switch(cdb[2]) {
+			case 0:
+				rbuf[0] = 0;
+				rbuf[1] = 0;
+				rbuf[2] = 0;
+				rbuf[3] = 3;
+				rbuf[4] = 0;
+				rbuf[5] = 0x80;
+				rbuf[6] = 0x83;
+				ccb->ccb_h.status = CAM_REQ_CMP;
+				break;
+			case 0x80: {
+				rbuf[0] = 0;
+				rbuf[1] = 0x80;
+				rbuf[2] = 0;
+				if (vd->type == VD_RAW) {
+					rbuf[3] = 20;
+					vd->u.raw.him->get_device_config(vd->u.raw.phy_dev,&devconf);
+					memcpy(&rbuf[4], devconf.pIdentifyData->SerialNumber, 20);
+					ldm_ide_fixstring(&rbuf[4], 20);
+				} else {
+					rbuf[3] = 1;
+					rbuf[4] = 0x20;
+				}
+				ccb->ccb_h.status = CAM_REQ_CMP;				
+				break;
+			}
+			case 0x83:
+				rbuf[0] = 0;
+				rbuf[1] = 0x83;
+				rbuf[2] = 0;
+				rbuf[3] = 12; 
+				rbuf[4] = 1;
+				rbuf[5] = 2; 
+				rbuf[6] = 0;
+				rbuf[7] = 8; 
+				rbuf[8] = 0; 
+				rbuf[9] = 0x19;
+				rbuf[10] = 0x3C;
+				rbuf[11] = 0;
+				rbuf[12] = 0;
+				rbuf[13] = 0;
+				rbuf[14] = 0;
+				rbuf[15] = 0;
+				ccb->ccb_h.status = CAM_REQ_CMP;			
+				break;
+			default:
+				ccb->ccb_h.status = CAM_REQ_INVALID;
+				break;
+			}
+
+			break;
+		} 
+		else if (cdb[2]) {	
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			break;
+		}
+
+		inquiryData->DeviceType = 0; /*DIRECT_ACCESS_DEVICE*/
+		inquiryData->Versions = 5; /*SPC-3*/
+		inquiryData->ResponseDataFormat = 2;
+		inquiryData->AdditionalLength = 0x5b;
+		inquiryData->CommandQueue = 1;
+
+		if (ccb->csio.dxfer_len > 63) {
+			rbuf = (HPT_U8 *)inquiryData;			
+			rbuf[58] = 0x60;
+			rbuf[59] = 0x3;
+			
+			rbuf[64] = 0x3; 
+			rbuf[66] = 0x3; 
+			rbuf[67] = 0x20;
+			
+		}
+		
+		if (vd->type == VD_RAW) {
+			vd->u.raw.him->get_device_config(vd->u.raw.phy_dev,&devconf);
+
+			if ((devconf.pIdentifyData->GeneralConfiguration & 0x80))
+				inquiryData->RemovableMedia = 1;
+
+			
+			memcpy(&inquiryData->VendorId, "ATA     ", 8);
+			memcpy(&inquiryData->ProductId, devconf.pIdentifyData->ModelNumber, 16);
+			ldm_ide_fixstring((HPT_U8 *)&inquiryData->ProductId, 16);
+			memcpy(&inquiryData->ProductRevisionLevel, devconf.pIdentifyData->FirmwareRevision, 4);
+			ldm_ide_fixstring((HPT_U8 *)&inquiryData->ProductRevisionLevel, 4);
+			if (inquiryData->ProductRevisionLevel[0] == 0 || inquiryData->ProductRevisionLevel[0] == ' ')
+				memcpy(&inquiryData->ProductRevisionLevel, "n/a ", 4);
+		} else {
+			memcpy(&inquiryData->VendorId, "HPT     ", 8);
+			snprintf((char *)&inquiryData->ProductId, 16, "DISK_%d_%d        ",
+				os_get_vbus_seq(vbus_ext), vd->target_id);
+			inquiryData->ProductId[15] = ' ';
+			memcpy(&inquiryData->ProductRevisionLevel, "4.00", 4);
+		}
+
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		break;
+	}
 	case READ_CAPACITY:
 	{
 		HPT_U8 *rbuf = ccb->csio.data_ptr;
 		HPT_U32 cap;
+		HPT_U8 sector_size_shift = 0;
+		HPT_U64 new_cap;
+		HPT_U32 sector_size = 0;
+
+		if (mIsArray(vd->type))
+			sector_size_shift = vd->u.array.sector_size_shift;
+		else{
+			if(vd->type == VD_RAW){
+				sector_size = vd->u.raw.logical_sector_size;
+			}
 		
-		if (vd->capacity>0xfffffffful)
-			cap = 0xfffffffful;
+			switch (sector_size) {
+				case 0x1000:
+					KdPrint(("set 4k setctor size in READ_CAPACITY"));
+					sector_size_shift = 3;
+					break;
+				default:
+					break;
+			}			
+		}
+		new_cap = vd->capacity >> sector_size_shift;
+		
+		if (new_cap > 0xfffffffful)
+			cap = 0xffffffff;
 		else
-			cap = vd->capacity - 1;
-	
+			cap = new_cap - 1;
+			
 		rbuf[0] = (HPT_U8)(cap>>24);
 		rbuf[1] = (HPT_U8)(cap>>16);
 		rbuf[2] = (HPT_U8)(cap>>8);
 		rbuf[3] = (HPT_U8)cap;
 		rbuf[4] = 0;
 		rbuf[5] = 0;
-		rbuf[6] = 2;
+		rbuf[6] = 2 << sector_size_shift;
 		rbuf[7] = 0;
 
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -609,8 +919,28 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 	case SERVICE_ACTION_IN: 
 	{
 		HPT_U8 *rbuf = ccb->csio.data_ptr;
-		HPT_U64	cap = vd->capacity - 1;
+		HPT_U64	cap = 0;
+		HPT_U8 sector_size_shift = 0;
+		HPT_U32 sector_size = 0;
+
+		if(mIsArray(vd->type))
+			sector_size_shift = vd->u.array.sector_size_shift;
+		else{
+			if(vd->type == VD_RAW){
+				sector_size = vd->u.raw.logical_sector_size;
+			}
 		
+			switch (sector_size) {
+				case 0x1000:
+					KdPrint(("set 4k setctor size in SERVICE_ACTION_IN"));
+					sector_size_shift = 3;
+					break;
+				default:
+					break;
+			}			
+		}
+		cap = (vd->capacity >> sector_size_shift) - 1;
+					
 		rbuf[0] = (HPT_U8)(cap>>56);
 		rbuf[1] = (HPT_U8)(cap>>48);
 		rbuf[2] = (HPT_U8)(cap>>40);
@@ -621,7 +951,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 		rbuf[7] = (HPT_U8)cap;
 		rbuf[8] = 0;
 		rbuf[9] = 0;
-		rbuf[10] = 2;
+		rbuf[10] = 2 << sector_size_shift;
 		rbuf[11] = 0;
 		
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -639,6 +969,8 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 	case 0x8f: /* VERIFY_16 */
 	{
 		int error;
+		HPT_U8 sector_size_shift = 0;
+		HPT_U32 sector_size = 0;
 		pCmd = ldm_alloc_cmds(vbus, vd->cmds_per_request);
 		if(!pCmd){
 			KdPrint(("Failed to allocate command!"));
@@ -676,6 +1008,27 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 			pCmd->uCmd.Ide.nSectors = (HPT_U16) cdb[8] | ((HPT_U16)cdb[7]<<8);
 			break;
 		}
+
+		if(mIsArray(vd->type)) {
+			sector_size_shift = vd->u.array.sector_size_shift;
+		}
+		else{
+			if(vd->type == VD_RAW){
+				sector_size = vd->u.raw.logical_sector_size;
+			}
+	  		
+			switch (sector_size) {
+				case 0x1000:
+					KdPrint(("<8>resize sector size from 4k to 512"));
+					sector_size_shift = 3;
+					break;
+				default:
+					break;
+	 		}			
+		}
+		pCmd->uCmd.Ide.Lba <<= sector_size_shift;
+		pCmd->uCmd.Ide.nSectors <<= sector_size_shift;
+
 		
 		switch (cdb[0]) {
 		case READ_6:
@@ -714,7 +1067,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 	}
 
 	default:
-		ccb->ccb_h.status = CAM_REQ_INVALID;
+		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 		break;
 	}
 
@@ -728,18 +1081,15 @@ static void hpt_action(struct cam_sim *sim, union ccb *ccb)
 
 	KdPrint(("hpt_action(fn=%d, id=%d)", ccb->ccb_h.func_code, ccb->ccb_h.target_id));
 
+	hpt_assert_vbus_locked(vbus_ext);
 	switch (ccb->ccb_h.func_code) {
 	
 	case XPT_SCSI_IO:
-		hpt_lock_vbus(vbus_ext);
 		hpt_scsi_io(vbus_ext, ccb);
-		hpt_unlock_vbus(vbus_ext);
 		return;
 
 	case XPT_RESET_BUS:
-		hpt_lock_vbus(vbus_ext);
 		ldm_reset_vbus((PVBUS)vbus_ext->vbus);
-		hpt_unlock_vbus(vbus_ext);
 		break;
 
 	case XPT_GET_TRAN_SETTINGS:
@@ -773,12 +1123,10 @@ static void hpt_action(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "HPT   ", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
-#if (__FreeBSD_version >= 800000)
 		cpi->transport = XPORT_SPI;
 		cpi->transport_version = 2;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
-#endif
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -802,7 +1150,9 @@ static void hpt_pci_intr(void *arg)
 
 static void hpt_poll(struct cam_sim *sim)
 {
-	hpt_pci_intr(cam_sim_softc(sim));
+	PVBUS_EXT vbus_ext = cam_sim_softc(sim);
+	hpt_assert_vbus_locked(vbus_ext);
+	ldm_intr((PVBUS)vbus_ext->vbus);
 }
 
 static void hpt_async(void * callback_arg, u_int32_t code, struct cam_path * path, void * arg)
@@ -951,19 +1301,7 @@ static struct cdevsw hpt_cdevsw = {
 	.d_close =	hpt_close,
 	.d_ioctl =	hpt_ioctl,
 	.d_name =	driver_name,
-#if __FreeBSD_version>=503000
 	.d_version =	D_VERSION,
-#endif
-#if (__FreeBSD_version>=503000 && __FreeBSD_version<600034)
-	.d_flags =	D_NEEDGIANT,
-#endif
-#if __FreeBSD_version<600034
-#if __FreeBSD_version>501000
-	.d_maj = 	MAJOR_AUTO,
-#else 
-	.d_maj = HPT_DEV_MAJOR,
-#endif
-#endif
 };
 
 static struct intr_config_hook hpt_ich;
@@ -1000,7 +1338,8 @@ static void hpt_final_init(void *dummy)
 	/* initializing hardware */
 	ldm_for_each_vbus(vbus, vbus_ext) {
 		/* make timer available here */
-		callout_handle_init(&vbus_ext->timer);
+		mtx_init(&vbus_ext->lock, "hptsleeplock", NULL, MTX_DEF);
+		callout_init_mtx(&vbus_ext->timer, &vbus_ext->lock, 0);
 		if (hpt_init_vbus(vbus_ext)) {
 			os_printk("fail to initialize hardware");
 			break; /* FIXME */
@@ -1012,9 +1351,6 @@ static void hpt_final_init(void *dummy)
 		struct cam_devq *devq;
 		struct ccb_setasync	ccb;
 		
-#if (__FreeBSD_version >= 500000)
-		mtx_init(&vbus_ext->lock, "hptsleeplock", NULL, MTX_DEF);
-#endif
 		if (bus_dma_tag_create(NULL,/* parent */
 				4,	/* alignment */
 				BUS_SPACE_MAXADDR_32BIT+1, /* boundary */
@@ -1025,10 +1361,8 @@ static void hpt_final_init(void *dummy)
 				os_max_sg_descriptors,	/* nsegments */
 				0x10000,	/* maxsegsize */
 				BUS_DMA_WAITOK,		/* flags */
-#if __FreeBSD_version>502000
 				busdma_lock_mutex,	/* lockfunc */
 				&vbus_ext->lock,		/* lockfuncarg */
-#endif
 				&vbus_ext->io_dmat	/* tag */))
 		{
 			return ;
@@ -1048,7 +1382,7 @@ static void hpt_final_init(void *dummy)
 				os_printk("Can't create dma map(%d)", i);
 				return ;
 			}
-			callout_handle_init(&ext->timeout_ch);
+			callout_init_mtx(&ext->timeout, &vbus_ext->lock, 0);
 		}
 
 		if ((devq = cam_simq_alloc(os_max_queue_comm)) == NULL) {
@@ -1056,25 +1390,19 @@ static void hpt_final_init(void *dummy)
 			return ;
 		}
 
-#if __FreeBSD_version > 700025
+		hpt_lock_vbus(vbus_ext);
 		vbus_ext->sim = cam_sim_alloc(hpt_action, hpt_poll, driver_name,
-				vbus_ext, unit_number, &Giant, os_max_queue_comm, /*tagged*/8,  devq);
-#else 
-		vbus_ext->sim = cam_sim_alloc(hpt_action, hpt_poll, driver_name,
-				vbus_ext, unit_number, os_max_queue_comm, /*tagged*/8,  devq);
-#endif
+				vbus_ext, unit_number, &vbus_ext->lock,
+				os_max_queue_comm, /*tagged*/8,  devq);
 		unit_number++;
 		if (!vbus_ext->sim) {
 			os_printk("cam_sim_alloc failed");
 			cam_simq_free(devq);
+			hpt_unlock_vbus(vbus_ext);
 			return ;
 		}
 
-#if __FreeBSD_version > 700044
 		if (xpt_bus_register(vbus_ext->sim, NULL, 0) != CAM_SUCCESS) {
-#else 
-		if (xpt_bus_register(vbus_ext->sim, 0) != CAM_SUCCESS) {
-#endif
 			os_printk("xpt_bus_register failed");
 			cam_sim_free(vbus_ext->sim, /*free devq*/ TRUE);
 			vbus_ext->sim = NULL;
@@ -1088,9 +1416,11 @@ static void hpt_final_init(void *dummy)
 			os_printk("xpt_create_path failed");
 			xpt_bus_deregister(cam_sim_path(vbus_ext->sim));
 			cam_sim_free(vbus_ext->sim, /*free_devq*/TRUE);
+			hpt_unlock_vbus(vbus_ext);
 			vbus_ext->sim = NULL;
 			return ;
 		}
+		hpt_unlock_vbus(vbus_ext);
 
 		xpt_setup_ccb(&ccb.ccb_h, vbus_ext->path, /*priority*/5);
 		ccb.ccb_h.func_code = XPT_SASYNC_CB;
@@ -1108,12 +1438,8 @@ static void hpt_final_init(void *dummy)
 				return ;
 			}
 			
-			if (bus_setup_intr(hba->pcidev, hba->irq_res, INTR_TYPE_CAM,
-#if __FreeBSD_version > 700025
+			if (bus_setup_intr(hba->pcidev, hba->irq_res, INTR_TYPE_CAM | INTR_MPSAFE,
 				NULL, hpt_pci_intr, vbus_ext, &hba->irq_handle)) 
-#else 
-				hpt_pci_intr, vbus_ext, &hba->irq_handle)) 
-#endif
 			{
 				os_printk("can't set up interrupt");
 				return ;
@@ -1138,7 +1464,7 @@ static void hpt_final_init(void *dummy)
 	    S_IRUSR | S_IWUSR, "%s", driver_name);
 }
 
-#if defined(KLD_MODULE) && (__FreeBSD_version >= 503000)
+#if defined(KLD_MODULE)
 
 typedef struct driverlink *driverlink_t;
 struct driverlink {
@@ -1230,29 +1556,17 @@ __DRIVER_MODULE(TARGETNAME, pci, hpt_pci_driver, hpt_devclass, 0, 0);
 __MODULE_VERSION(TARGETNAME, 1);
 __MODULE_DEPEND(TARGETNAME, cam, 1, 1, 1);
 
-#if __FreeBSD_version>503000
-typedef struct cdev * ioctl_dev_t;
-#else 
-typedef dev_t ioctl_dev_t;
-#endif
-
-#if __FreeBSD_version >= 500000
-typedef	struct thread *	ioctl_thread_t;
-#else 
-typedef struct proc *	ioctl_thread_t;
-#endif
-
-static int hpt_open(ioctl_dev_t dev, int flags, int devtype, ioctl_thread_t td)
+static int hpt_open(struct cdev *dev, int flags, int devtype, struct thread *td)
 {
 	return 0;
 }
 
-static int hpt_close(ioctl_dev_t dev, int flags, int devtype, ioctl_thread_t td)
+static int hpt_close(struct cdev *dev, int flags, int devtype, struct thread *td)
 {
 	return 0;
 }
 
-static int hpt_ioctl(ioctl_dev_t dev, u_long cmd, caddr_t data, int fflag, ioctl_thread_t td)
+static int hpt_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	PHPT_IOCTL_PARAM piop=(PHPT_IOCTL_PARAM)data;
 	IOCTL_ARG ioctl_args;
@@ -1291,16 +1605,8 @@ static int hpt_ioctl(ioctl_dev_t dev, u_long cmd, caddr_t data, int fflag, ioctl
 				goto invalid;
 		}
 		
-#if (__FreeBSD_version >= 500000)
-		mtx_lock(&Giant);
-#endif
-
 		hpt_do_ioctl(&ioctl_args);
 	
-#if (__FreeBSD_version >= 500000)
-		mtx_unlock(&Giant);
-#endif
-
 		if (ioctl_args.result==HPT_IOCTL_RESULT_OK) {
 			if (piop->nOutBufferSize) {
 				if (copyout(ioctl_args.lpOutBuffer,
@@ -1341,8 +1647,6 @@ static int	hpt_rescan_bus(void)
 	PVBUS 				vbus;
 	PVBUS_EXT			vbus_ext;	
 		
-	mtx_lock(&Giant);
-
 	ldm_for_each_vbus(vbus, vbus_ext) {
 		if ((ccb = xpt_alloc_ccb()) == NULL)
 		{
@@ -1356,6 +1660,5 @@ static int	hpt_rescan_bus(void)
 		}
 		xpt_rescan(ccb);
 	}
-	mtx_unlock(&Giant);
 	return(0);	
 }

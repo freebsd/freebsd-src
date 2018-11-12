@@ -132,10 +132,11 @@ __FBSDID("$FreeBSD$");
 /* Define this to check for blessed mutexes */
 #undef BLESSING
 
+#ifndef WITNESS_COUNT
 #define	WITNESS_COUNT 		1536
-#define	WITNESS_CHILDCOUNT 	(WITNESS_COUNT * 4)
+#endif
 #define	WITNESS_HASH_SIZE	251	/* Prime, gives load factor < 2 */
-#define	WITNESS_PENDLIST	1024
+#define	WITNESS_PENDLIST	(1024 + MAXCPU)
 
 /* Allocate 256 KB of stack data space */
 #define	WITNESS_LO_DATA_COUNT	2048
@@ -153,7 +154,6 @@ __FBSDID("$FreeBSD$");
 
 #define	MAX_W_NAME	64
 
-#define	BADSTACK_SBUF_SIZE	(256 * WITNESS_COUNT)
 #define	FULLGRAPH_SBUF_SIZE	512
 
 /*
@@ -182,7 +182,7 @@ __FBSDID("$FreeBSD$");
 #define	WITNESS_ATOD(x)	(((x) & WITNESS_RELATED_MASK) << 2)
 
 #define	WITNESS_INDEX_ASSERT(i)						\
-	MPASS((i) > 0 && (i) <= w_max_used_index && (i) < WITNESS_COUNT)
+	MPASS((i) > 0 && (i) <= w_max_used_index && (i) < witness_count)
 
 static MALLOC_DEFINE(M_WITNESS, "Witness", "Witness");
 
@@ -380,8 +380,7 @@ static SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, NULL,
  * completely disabled.
  */
 static int witness_watch = 1;
-TUNABLE_INT("debug.witness.watch", &witness_watch);
-SYSCTL_PROC(_debug_witness, OID_AUTO, watch, CTLFLAG_RW | CTLTYPE_INT, NULL, 0,
+SYSCTL_PROC(_debug_witness, OID_AUTO, watch, CTLFLAG_RWTUN | CTLTYPE_INT, NULL, 0,
     sysctl_debug_witness_watch, "I", "witness is watching lock operations");
 
 #ifdef KDB
@@ -396,8 +395,7 @@ int	witness_kdb = 1;
 #else
 int	witness_kdb = 0;
 #endif
-TUNABLE_INT("debug.witness.kdb", &witness_kdb);
-SYSCTL_INT(_debug_witness, OID_AUTO, kdb, CTLFLAG_RW, &witness_kdb, 0, "");
+SYSCTL_INT(_debug_witness, OID_AUTO, kdb, CTLFLAG_RWTUN, &witness_kdb, 0, "");
 
 /*
  * When KDB is enabled and witness_trace is 1, it will cause the system
@@ -406,8 +404,7 @@ SYSCTL_INT(_debug_witness, OID_AUTO, kdb, CTLFLAG_RW, &witness_kdb, 0, "");
  *	- locks are held when going to sleep.
  */
 int	witness_trace = 1;
-TUNABLE_INT("debug.witness.trace", &witness_trace);
-SYSCTL_INT(_debug_witness, OID_AUTO, trace, CTLFLAG_RW, &witness_trace, 0, "");
+SYSCTL_INT(_debug_witness, OID_AUTO, trace, CTLFLAG_RWTUN, &witness_trace, 0, "");
 #endif /* KDB */
 
 #ifdef WITNESS_SKIPSPIN
@@ -415,9 +412,13 @@ int	witness_skipspin = 1;
 #else
 int	witness_skipspin = 0;
 #endif
-TUNABLE_INT("debug.witness.skipspin", &witness_skipspin);
-SYSCTL_INT(_debug_witness, OID_AUTO, skipspin, CTLFLAG_RDTUN, &witness_skipspin,
-    0, "");
+SYSCTL_INT(_debug_witness, OID_AUTO, skipspin, CTLFLAG_RDTUN, &witness_skipspin, 0, "");
+
+int badstack_sbuf_size;
+
+int witness_count = WITNESS_COUNT;
+SYSCTL_INT(_debug_witness, OID_AUTO, witness_count, CTLFLAG_RDTUN, 
+    &witness_count, 0, "");
 
 /*
  * Call this to print out the relations between locks.
@@ -453,7 +454,7 @@ SYSCTL_INT(_debug_witness, OID_AUTO, sleep_cnt, CTLFLAG_RD, &w_sleep_cnt, 0,
     "");
 
 static struct witness *w_data;
-static uint8_t w_rmatrix[WITNESS_COUNT+1][WITNESS_COUNT+1];
+static uint8_t **w_rmatrix;
 static struct lock_list_entry w_locklistdata[LOCK_CHILDCOUNT];
 static struct witness_hash w_hash;	/* The witness hash table. */
 
@@ -489,6 +490,11 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "pmc-sleep", &lock_class_mtx_sleep },
 #endif
 	{ "time lock", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
+	 * umtx
+	 */
+	{ "umtx lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * Sockets
@@ -527,7 +533,7 @@ static struct witness_order_list_entry order_lists[] = {
 	/*
 	 * UNIX Domain Sockets
 	 */
-	{ "unp_global_rwlock", &lock_class_rw },
+	{ "unp_link_rwlock", &lock_class_rw },
 	{ "unp_list_lock", &lock_class_mtx_sleep },
 	{ "unp", &lock_class_mtx_sleep },
 	{ "so_snd", &lock_class_mtx_sleep },
@@ -545,12 +551,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "tcp", &lock_class_rw },
 	{ "tcpinp", &lock_class_rw },
 	{ "so_snd", &lock_class_mtx_sleep },
-	{ NULL, NULL },
-	/*
-	 * netatalk
-	 */
-	{ "ddp_list_mtx", &lock_class_mtx_sleep },
-	{ "ddp_mtx", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * BPF
@@ -642,7 +642,6 @@ static struct witness_order_list_entry order_lists[] = {
 #endif
 	{ "process slock", &lock_class_mtx_spin },
 	{ "sleepq chain", &lock_class_mtx_spin },
-	{ "umtx lock", &lock_class_mtx_spin },
 	{ "rm_spinlock", &lock_class_mtx_spin },
 	{ "turnstile chain", &lock_class_mtx_spin },
 	{ "turnstile lock", &lock_class_mtx_spin },
@@ -671,9 +670,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "mprof lock", &lock_class_mtx_spin },
 	{ "zombie lock", &lock_class_mtx_spin },
 	{ "ALD Queue", &lock_class_mtx_spin },
-#ifdef __ia64__
-	{ "MCA spin lock", &lock_class_mtx_spin },
-#endif
 #if defined(__i386__) || defined(__amd64__)
 	{ "pcicfg", &lock_class_mtx_spin },
 	{ "NDIS thread lock", &lock_class_mtx_spin },
@@ -738,8 +734,17 @@ witness_initialize(void *dummy __unused)
 	struct witness *w, *w1;
 	int i;
 
-	w_data = malloc(sizeof (struct witness) * WITNESS_COUNT, M_WITNESS,
-	    M_NOWAIT | M_ZERO);
+	w_data = malloc(sizeof (struct witness) * witness_count, M_WITNESS,
+	    M_WAITOK | M_ZERO);
+
+	w_rmatrix = malloc(sizeof(*w_rmatrix) * (witness_count + 1),
+	    M_WITNESS, M_WAITOK | M_ZERO);
+
+	for (i = 0; i < witness_count + 1; i++) {
+		w_rmatrix[i] = malloc(sizeof(*w_rmatrix[i]) *
+		    (witness_count + 1), M_WITNESS, M_WAITOK | M_ZERO);
+	}
+	badstack_sbuf_size = witness_count * 256;
 
 	/*
 	 * We have to release Giant before initializing its witness
@@ -751,7 +756,7 @@ witness_initialize(void *dummy __unused)
 	CTR1(KTR_WITNESS, "%s: initializing witness", __func__);
 	mtx_init(&w_mtx, "witness lock", NULL, MTX_SPIN | MTX_QUIET |
 	    MTX_NOWITNESS | MTX_NOPROFILE);
-	for (i = WITNESS_COUNT - 1; i >= 0; i--) {
+	for (i = witness_count - 1; i >= 0; i--) {
 		w = &w_data[i];
 		memset(w, 0, sizeof(*w));
 		w_data[i].w_index = i;	/* Witness index never changes. */
@@ -764,8 +769,10 @@ witness_initialize(void *dummy __unused)
 	STAILQ_REMOVE_HEAD(&w_free, w_list);
 	w_free_cnt--;
 
-	memset(w_rmatrix, 0,
-	    (sizeof(**w_rmatrix) * (WITNESS_COUNT+1) * (WITNESS_COUNT+1)));
+	for (i = 0; i < witness_count; i++) {
+		memset(w_rmatrix[i], 0, sizeof(*w_rmatrix[i]) * 
+		    (witness_count + 1));
+	}
 
 	for (i = 0; i < LOCK_CHILDCOUNT; i++)
 		witness_lock_list_free(&w_locklistdata[i]);
@@ -1208,7 +1215,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	for (j = 0, lle = lock_list; lle != NULL; lle = lle->ll_next) {
 		for (i = lle->ll_count - 1; i >= 0; i--, j++) {
 
-			MPASS(j < WITNESS_COUNT);
+			MPASS(j < witness_count);
 			lock1 = &lle->ll_children[i];
 
 			/*
@@ -2069,7 +2076,7 @@ witness_get(void)
 	w_free_cnt--;
 	index = w->w_index;
 	MPASS(index > 0 && index == w_max_used_index+1 &&
-	    index < WITNESS_COUNT);
+	    index < witness_count);
 	bzero(w, sizeof(*w));
 	w->w_index = index;
 	if (index > w_max_used_index)
@@ -2433,7 +2440,7 @@ DB_SHOW_COMMAND(locks, db_witness_list)
 	struct thread *td;
 
 	if (have_addr)
-		td = db_lookup_thread(addr, TRUE);
+		td = db_lookup_thread(addr, true);
 	else
 		td = kdb_thread;
 	witness_ddb_list(td);
@@ -2494,7 +2501,7 @@ sysctl_debug_witness_badstacks(SYSCTL_HANDLER_ARGS)
 		return (error);
 	}
 	error = 0;
-	sb = sbuf_new(NULL, NULL, BADSTACK_SBUF_SIZE, SBUF_AUTOEXTEND);
+	sb = sbuf_new(NULL, NULL, badstack_sbuf_size, SBUF_AUTOEXTEND);
 	if (sb == NULL)
 		return (ENOMEM);
 

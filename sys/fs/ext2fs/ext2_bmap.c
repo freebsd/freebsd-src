@@ -94,7 +94,7 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	struct inode *ip;
 	struct m_ext2fs *fs;
 	struct ext4_extent *ep;
-	struct ext4_extent_path path;
+	struct ext4_extent_path path = { .ep_bp = NULL };
 	daddr_t lbn;
 
 	ip = VTOI(vp);
@@ -145,7 +145,6 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	struct buf *bp;
 	struct ext2mount *ump;
 	struct mount *mp;
-	struct vnode *devvp;
 	struct indir a[NIADDR+1], *ap;
 	daddr_t daddr;
 	e2fs_lbn_t metalbn;
@@ -156,7 +155,6 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	ip = VTOI(vp);
 	mp = vp->v_mount;
 	ump = VFSTOEXT2(mp);
-	devvp = ump->um_devvp;
 
 	bsize = EXT2_BLOCK_SIZE(ump->um_e2fs);
 
@@ -250,10 +248,10 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 			bn = ap->in_off;
 			if (runb && bn) {
 				for (--bn; bn >= 0 && *runb < maxrun &&
-			    		is_sequential(ump,
+					is_sequential(ump,
 					((e2fs_daddr_t *)bp->b_data)[bn],
 					((e2fs_daddr_t *)bp->b_data)[bn + 1]);
-			    		--bn, ++*runb);
+					--bn, ++*runb);
 			}
 		}
 	}

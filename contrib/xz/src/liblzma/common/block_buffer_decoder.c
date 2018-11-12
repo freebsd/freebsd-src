@@ -14,7 +14,7 @@
 
 
 extern LZMA_API(lzma_ret)
-lzma_block_buffer_decode(lzma_block *block, lzma_allocator *allocator,
+lzma_block_buffer_decode(lzma_block *block, const lzma_allocator *allocator,
 		const uint8_t *in, size_t *in_pos, size_t in_size,
 		uint8_t *out, size_t *out_pos, size_t out_size)
 {

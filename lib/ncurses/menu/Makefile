@@ -40,8 +40,7 @@ CLEANFILES=	ncurses_def.h
 
 CFLAGS+=	-I${SRCDIR}
 
-DPADD=	${LIBNCURSES${LIB_SUFFIX:tu}}
-LDADD=	-lncurses${LIB_SUFFIX}
+LIBADD+=	ncurses${LIB_SUFFIX}
 
 .if defined(ENABLE_WIDEC)
 INCS=	menu.h eti.h
@@ -130,7 +129,7 @@ MLINKS=	menu_attributes.3 menu_back.3 \
 	mitem_value.3 set_item_value.3 \
 	mitem_visible.3 item_visible.3
 .else
-NO_MAN=
+MAN=
 .endif
 
 .include <bsd.lib.mk>

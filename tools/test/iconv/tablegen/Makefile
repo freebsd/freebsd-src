@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	tablegen
-NO_MAN=	yes
+MAN=
 
 WARNS?=	3
 

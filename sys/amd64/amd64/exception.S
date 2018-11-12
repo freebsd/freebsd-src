@@ -153,9 +153,13 @@ IDTVEC(xmm)
 IDTVEC(tss)
 	TRAP_ERR(T_TSSFLT)
 IDTVEC(missing)
-	TRAP_ERR(T_SEGNPFLT)
+	subq	$TF_ERR,%rsp
+	movl	$T_SEGNPFLT,TF_TRAPNO(%rsp)
+	jmp	prot_addrf
 IDTVEC(stk)
-	TRAP_ERR(T_STKFLT)
+	subq	$TF_ERR,%rsp
+	movl	$T_STKFLT,TF_TRAPNO(%rsp)
+	jmp	prot_addrf
 IDTVEC(align)
 	TRAP_ERR(T_ALIGNFLT)
 
@@ -228,7 +232,7 @@ alltraps_pushregs_no_rdi:
 	.type	calltrap,@function
 calltrap:
 	movq	%rsp,%rdi
-	call	trap
+	call	trap_check
 	MEXITCOUNT
 	jmp	doreti			/* Handle any pending ASTs */
 
@@ -318,6 +322,7 @@ IDTVEC(page)
 IDTVEC(prot)
 	subq	$TF_ERR,%rsp
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+prot_addrf:
 	movq	$0,TF_ADDR(%rsp)
 	movq	%rdi,TF_RDI(%rsp)	/* free up a GP register */
 	leaq	doreti_iret(%rip),%rdi
@@ -721,21 +726,38 @@ ld_fsbase:
 	pushfq
 	cli
 	movl	$MSR_GSBASE,%ecx
+	/* Save current kernel %gs base into %r12d:%r13d */
 	rdmsr
+	movl	%eax,%r12d
+	movl	%edx,%r13d
 	.globl	ld_gs
 ld_gs:
 	movw	%si,%gs
+	/* Save user %gs base into %r14d:%r15d */
+	rdmsr
+	movl	%eax,%r14d
+	movl	%edx,%r15d
+	/* Restore kernel %gs base */
+	movl	%r12d,%eax
+	movl	%r13d,%edx
 	wrmsr
 	popfq
+	/*
+	 * Restore user %gs base, either from PCB if used for TLS, or
+	 * from the previously saved msr read.
+	 */
+	movl	$MSR_KGSBASE,%ecx
 	cmpw	$KUG32SEL,%si
 	jne	1f
-	movl	$MSR_KGSBASE,%ecx
 	movl	PCB_GSBASE(%r8),%eax
 	movl	PCB_GSBASE+4(%r8),%edx
+	jmp	ld_gsbase
+1:
+	movl	%r14d,%eax
+	movl	%r15d,%edx
 	.globl	ld_gsbase
 ld_gsbase:
-	wrmsr
-1:
+	wrmsr	/* May trap if non-canonical, but only for TLS. */
 	.globl	ld_es
 ld_es:
 	movw	TF_ES(%rsp),%es

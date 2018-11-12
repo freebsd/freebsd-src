@@ -37,99 +37,99 @@ public:
     // Constructors and Destructors
     //------------------------------------------------------------------
     static lldb::ProcessSP
-    CreateInstance (lldb_private::Target& target, 
-                    lldb_private::Listener &listener, 
+    CreateInstance (lldb_private::Target& target,
+                    lldb_private::Listener &listener,
                     const lldb_private::FileSpec *crash_file_path);
-    
+
     static void
     Initialize();
-    
+
     static void
     Terminate();
-    
+
     static lldb_private::ConstString
     GetPluginNameStatic();
-    
+
     static const char *
     GetPluginDescriptionStatic();
-    
+
     //------------------------------------------------------------------
     // Constructors and Destructors
     //------------------------------------------------------------------
-    ProcessElfCore(lldb_private::Target& target, 
+    ProcessElfCore(lldb_private::Target& target,
                     lldb_private::Listener &listener,
                     const lldb_private::FileSpec &core_file);
-    
+
     virtual
     ~ProcessElfCore();
-    
+
     //------------------------------------------------------------------
     // Check if a given Process
     //------------------------------------------------------------------
     virtual bool
     CanDebug (lldb_private::Target &target,
-              bool plugin_specified_by_name);
-    
+              bool plugin_specified_by_name) override;
+
     //------------------------------------------------------------------
     // Creating a new process, or attaching to an existing one
     //------------------------------------------------------------------
     virtual lldb_private::Error
-    DoLoadCore ();
-    
+    DoLoadCore () override;
+
     virtual lldb_private::DynamicLoader *
-    GetDynamicLoader ();
+    GetDynamicLoader () override;
 
     //------------------------------------------------------------------
     // PluginInterface protocol
     //------------------------------------------------------------------
     virtual lldb_private::ConstString
-    GetPluginName();
-    
+    GetPluginName() override;
+
     virtual uint32_t
-    GetPluginVersion();
-    
+    GetPluginVersion() override;
+
     //------------------------------------------------------------------
     // Process Control
-    //------------------------------------------------------------------    
+    //------------------------------------------------------------------
     virtual lldb_private::Error
-    DoDestroy ();
-    
+    DoDestroy () override;
+
     virtual void
-    RefreshStateAfterStop();
-    
+    RefreshStateAfterStop() override;
+
     //------------------------------------------------------------------
     // Process Queries
     //------------------------------------------------------------------
     virtual bool
-    IsAlive ();
+    IsAlive () override;
 
     //------------------------------------------------------------------
     // Process Memory
     //------------------------------------------------------------------
     virtual size_t
-    ReadMemory (lldb::addr_t addr, void *buf, size_t size, lldb_private::Error &error);
-    
+    ReadMemory (lldb::addr_t addr, void *buf, size_t size, lldb_private::Error &error) override;
+
     virtual size_t
-    DoReadMemory (lldb::addr_t addr, void *buf, size_t size, lldb_private::Error &error);
-    
+    DoReadMemory (lldb::addr_t addr, void *buf, size_t size, lldb_private::Error &error) override;
+
     virtual lldb::addr_t
-    GetImageInfoAddress ();
+    GetImageInfoAddress () override;
 
     lldb_private::ArchSpec
     GetArchitecture();
 
     // Returns AUXV structure found in the core file
     const lldb::DataBufferSP
-    GetAuxvData();
+    GetAuxvData() override;
 
 protected:
     void
     Clear ( );
-    
+
     virtual bool
-    UpdateThreadList (lldb_private::ThreadList &old_thread_list, 
-                      lldb_private::ThreadList &new_thread_list);
-   
+    UpdateThreadList (lldb_private::ThreadList &old_thread_list,
+                      lldb_private::ThreadList &new_thread_list) override;
+
 private:
     //------------------------------------------------------------------
     // For ProcessElfCore only
@@ -141,6 +141,8 @@ private:
     lldb_private::FileSpec m_core_file;
     std::string  m_dyld_plugin_name;
     DISALLOW_COPY_AND_ASSIGN (ProcessElfCore);
+
+    llvm::Triple::OSType m_os;
 
     // True if m_thread_contexts contains valid entries
     bool m_thread_data_valid;

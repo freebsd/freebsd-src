@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,7 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
-#define __RSXFACE_C__
+#define EXPORT_ACPI_INTERFACES
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -62,11 +61,11 @@
     ACPI_COPY_FIELD(Out, In, MinAddressFixed);           \
     ACPI_COPY_FIELD(Out, In, MaxAddressFixed);           \
     ACPI_COPY_FIELD(Out, In, Info);                      \
-    ACPI_COPY_FIELD(Out, In, Granularity);               \
-    ACPI_COPY_FIELD(Out, In, Minimum);                   \
-    ACPI_COPY_FIELD(Out, In, Maximum);                   \
-    ACPI_COPY_FIELD(Out, In, TranslationOffset);         \
-    ACPI_COPY_FIELD(Out, In, AddressLength);             \
+    ACPI_COPY_FIELD(Out, In, Address.Granularity);       \
+    ACPI_COPY_FIELD(Out, In, Address.Minimum);           \
+    ACPI_COPY_FIELD(Out, In, Address.Maximum);           \
+    ACPI_COPY_FIELD(Out, In, Address.TranslationOffset); \
+    ACPI_COPY_FIELD(Out, In, Address.AddressLength);     \
     ACPI_COPY_FIELD(Out, In, ResourceSource);
 
 

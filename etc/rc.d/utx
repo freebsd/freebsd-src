@@ -5,6 +5,7 @@
 
 # PROVIDE: utx
 # REQUIRE: DAEMON FILESYSTEMS
+# BEFORE: LOGIN
 # KEYWORD: shutdown
 
 . /etc/rc.subr

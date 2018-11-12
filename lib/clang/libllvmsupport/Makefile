@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	llvmsupport
 
@@ -8,16 +8,19 @@ SRCDIR=	lib/Support
 SRCS=	APFloat.cpp \
 	APInt.cpp \
 	APSInt.cpp \
+	ARMBuildAttrs.cpp \
+	ARMWinEH.cpp \
 	Allocator.cpp \
 	Atomic.cpp \
 	BlockFrequency.cpp \
 	BranchProbability.cpp \
 	CommandLine.cpp \
-	ConstantRange.cpp \
+	Compression.cpp \
 	ConvertUTF.c \
 	ConvertUTFWrapper.cpp \
 	CrashRecoveryContext.cpp \
 	DAGDeltaAlgorithm.cpp \
+	DataExtractor.cpp \
 	Debug.cpp \
 	DeltaAlgorithm.cpp \
 	Dwarf.cpp \
@@ -30,34 +33,40 @@ SRCS=	APFloat.cpp \
 	GraphWriter.cpp \
 	Hashing.cpp \
 	Host.cpp \
-	IncludeFile.cpp \
 	IntEqClasses.cpp \
 	IntervalMap.cpp \
 	IntrusiveRefCntPtr.cpp \
 	IsInf.cpp \
 	IsNAN.cpp \
+	LEB128.cpp \
+	LineIterator.cpp \
 	Locale.cpp \
 	LockFileManager.cpp \
+	MD5.cpp \
 	ManagedStatic.cpp \
+	MathExtras.cpp \
 	Memory.cpp \
 	MemoryBuffer.cpp \
 	MemoryObject.cpp \
 	Mutex.cpp \
+	Options.cpp \
 	Path.cpp \
-	PathV2.cpp \
 	PluginLoader.cpp \
 	PrettyStackTrace.cpp \
 	Process.cpp \
 	Program.cpp \
 	RWMutex.cpp \
+	RandomNumberGenerator.cpp \
 	Regex.cpp \
+	ScaledNumber.cpp \
 	SearchForAddressOfSpecialSymbol.cpp \
 	Signals.cpp \
 	SmallPtrSet.cpp \
 	SmallVector.cpp \
 	SourceMgr.cpp \
+	SpecialCaseList.cpp \
 	Statistic.cpp \
-	StreamableMemoryObject.cpp \
+	StreamingMemoryObject.cpp \
 	StringExtras.cpp \
 	StringMap.cpp \
 	StringPool.cpp \
@@ -70,6 +79,7 @@ SRCS=	APFloat.cpp \
 	ToolOutputFile.cpp \
 	Triple.cpp \
 	Twine.cpp \
+	Unicode.cpp \
 	Valgrind.cpp \
 	Watchdog.cpp \
 	YAMLParser.cpp \
@@ -81,17 +91,10 @@ SRCS=	APFloat.cpp \
 	regerror.c \
 	regexec.c \
 	regfree.c \
-	regstrlcpy.c \
-	system_error.cpp
-
-.if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
-SRCS+=	DataExtractor.cpp \
-	Disassembler.cpp
-.endif
+	regstrlcpy.c
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	Compression.cpp \
-	DataStream.cpp \
+SRCS+=	DataStream.cpp \
 	FileUtilities.cpp \
 	SystemUtils.cpp
 .endif

@@ -13,21 +13,28 @@ SRCS=	CF.cpp \
 	FormatClasses.cpp \
 	FormatManager.cpp \
 	LibCxx.cpp \
+	LibCxxInitializerList.cpp \
 	LibCxxList.cpp \
 	LibCxxMap.cpp \
 	LibCxxUnorderedMap.cpp \
+	LibCxxVector.cpp \
 	LibStdcpp.cpp \
 	NSArray.cpp \
 	NSDictionary.cpp \
+	NSIndexPath.cpp \
 	NSSet.cpp \
+	StringPrinter.cpp \
 	TypeCategory.cpp \
 	TypeCategoryMap.cpp \
 	TypeFormat.cpp \
 	TypeSummary.cpp \
 	TypeSynthetic.cpp \
+	TypeValidator.cpp \
 	ValueObjectPrinter.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	AttrList \
+	Attrs \
+	DiagnosticCommonKinds \
 	DeclNodes \
 	StmtNodes \
 	CommentCommandList

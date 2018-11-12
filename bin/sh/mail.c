@@ -85,7 +85,7 @@ chkmail(int silent)
 	setstackmark(&smark);
 	mpath = mpathset()? mpathval() : mailval();
 	for (i = 0 ; i < nmboxes ; i++) {
-		p = padvance(&mpath, nullstr);
+		p = padvance(&mpath, "");
 		if (p == NULL)
 			break;
 		if (*p == '\0')

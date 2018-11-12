@@ -1,4 +1,4 @@
-/*	$Id: att.c,v 1.9 2011/03/22 14:33:05 kristaps Exp $ */
+/*	$Id: att.c,v 1.13 2014/11/28 18:57:31 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -14,26 +14,36 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
-#include <stdlib.h>
+#include <sys/types.h>
 #include <string.h>
-#include <time.h>
 
 #include "mdoc.h"
-#include "mandoc.h"
 #include "libmdoc.h"
 
 #define LINE(x, y) \
-	if (0 == strcmp(p, x)) return(y);
+	if (0 == strcmp(p, x)) return(y)
+
 
 const char *
 mdoc_a2att(const char *p)
 {
 
-#include "att.in" 
+	LINE("v1",	"Version\\~1 AT&T UNIX");
+	LINE("v2",	"Version\\~2 AT&T UNIX");
+	LINE("v3",	"Version\\~3 AT&T UNIX");
+	LINE("v4",	"Version\\~4 AT&T UNIX");
+	LINE("v5",	"Version\\~5 AT&T UNIX");
+	LINE("v6",	"Version\\~6 AT&T UNIX");
+	LINE("v7",	"Version\\~7 AT&T UNIX");
+	LINE("32v",	"Version\\~32V AT&T UNIX");
+	LINE("III",	"AT&T System\\~III UNIX");
+	LINE("V",	"AT&T System\\~V UNIX");
+	LINE("V.1",	"AT&T System\\~V Release\\~1 UNIX");
+	LINE("V.2",	"AT&T System\\~V Release\\~2 UNIX");
+	LINE("V.3",	"AT&T System\\~V Release\\~3 UNIX");
+	LINE("V.4",	"AT&T System\\~V Release\\~4 UNIX");
 
 	return(NULL);
 }

@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/link_elf.h>
 
 #ifdef DDB_CTF
-#include <net/zlib.h>
+#include <sys/zlib.h>
 #endif
 
 #include "linker_if.h"
@@ -317,10 +317,6 @@ link_elf_delete_gdb(struct link_map *l)
 }
 #endif /* GDB */
 
-#ifdef __ia64__
-Elf_Addr link_elf_get_gp(linker_file_t);
-#endif
-
 /*
  * The kernel symbol table starts here.
  */
@@ -333,6 +329,22 @@ link_elf_error(const char *filename, const char *s)
 		printf("kldload: %s\n", s);
 	else
 		printf("kldload: %s: %s\n", filename, s);
+}
+
+static void
+link_elf_invoke_ctors(caddr_t addr, size_t size)
+{
+	void (**ctor)(void);
+	size_t i, cnt;
+
+	if (addr == NULL || size == 0)
+		return;
+	cnt = size / sizeof(*ctor);
+	ctor = (void *)addr;
+	for (i = 0; i < cnt; i++) {
+		if (ctor[i] != NULL)
+			(*ctor[i])();
+	}
 }
 
 /*
@@ -364,13 +376,19 @@ link_elf_link_common_finish(linker_file_t lf)
 	GDB_STATE(RT_CONSISTENT);
 #endif
 
+	/* Invoke .ctors */
+	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
 	return (0);
 }
+
+extern vm_offset_t __startkernel;
 
 static void
 link_elf_init(void* arg)
 {
 	Elf_Dyn *dp;
+	Elf_Addr *ctors_addrp;
+	Elf_Size *ctors_sizep;
 	caddr_t modptr, baseptr, sizeptr;
 	elf_file_t ef;
 	char *modname;
@@ -393,7 +411,11 @@ link_elf_init(void* arg)
 
 	ef = (elf_file_t) linker_kernel_file;
 	ef->preloaded = 1;
+#ifdef __powerpc__
+	ef->address = (caddr_t) (__startkernel - KERNBASE);
+#else
 	ef->address = 0;
+#endif
 #ifdef SPARSE_MAPPING
 	ef->object = 0;
 #endif
@@ -401,7 +423,7 @@ link_elf_init(void* arg)
 
 	if (dp != NULL)
 		parse_dynamic(ef);
-	linker_kernel_file->address = (caddr_t) KERNBASE;
+	linker_kernel_file->address += KERNBASE;
 	linker_kernel_file->size = -(intptr_t)linker_kernel_file->address;
 
 	if (modptr != NULL) {
@@ -412,6 +434,15 @@ link_elf_init(void* arg)
 		sizeptr = preload_search_info(modptr, MODINFO_SIZE);
 		if (sizeptr != NULL)
 			linker_kernel_file->size = *(size_t *)sizeptr;
+		ctors_addrp = (Elf_Addr *)preload_search_info(modptr,
+			MODINFO_METADATA | MODINFOMD_CTORS_ADDR);
+		ctors_sizep = (Elf_Size *)preload_search_info(modptr,
+			MODINFO_METADATA | MODINFOMD_CTORS_SIZE);
+		if (ctors_addrp != NULL && ctors_sizep != NULL) {
+			linker_kernel_file->ctors_addr = ef->address +
+			    *ctors_addrp;
+			linker_kernel_file->ctors_size = *ctors_sizep;
+		}
 	}
 	(void)link_elf_preload_parse_symbols(ef);
 
@@ -639,6 +670,8 @@ static int
 link_elf_link_preload(linker_class_t cls,
     const char* filename, linker_file_t *result)
 {
+	Elf_Addr *ctors_addrp;
+	Elf_Size *ctors_sizep;
 	caddr_t modptr, baseptr, sizeptr, dynptr;
 	char *type;
 	elf_file_t ef;
@@ -678,6 +711,15 @@ link_elf_link_preload(linker_class_t cls,
 	ef->dynamic = (Elf_Dyn *)dp;
 	lf->address = ef->address;
 	lf->size = *(size_t *)sizeptr;
+
+	ctors_addrp = (Elf_Addr *)preload_search_info(modptr,
+	    MODINFO_METADATA | MODINFOMD_CTORS_ADDR);
+	ctors_sizep = (Elf_Size *)preload_search_info(modptr,
+	    MODINFO_METADATA | MODINFOMD_CTORS_SIZE);
+	if (ctors_addrp != NULL && ctors_sizep != NULL) {
+		lf->ctors_addr = ef->address + *ctors_addrp;
+		lf->ctors_size = *ctors_sizep;
+	}
 
 	error = parse_dynamic(ef);
 	if (error == 0)
@@ -738,11 +780,14 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	Elf_Shdr *shdr;
 	int symtabindex;
 	int symstrindex;
+	int shstrindex;
 	int symcnt;
 	int strcnt;
+	char *shstrs;
 
 	shdr = NULL;
 	lf = NULL;
+	shstrs = NULL;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, td);
 	flags = FREAD;
@@ -981,12 +1026,31 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	    &resid, td);
 	if (error != 0)
 		goto out;
+
+	/* Read section string table */
+	shstrindex = hdr->e_shstrndx;
+	if (shstrindex != 0 && shdr[shstrindex].sh_type == SHT_STRTAB &&
+	    shdr[shstrindex].sh_size != 0) {
+		nbytes = shdr[shstrindex].sh_size;
+		shstrs = malloc(nbytes, M_LINKER, M_WAITOK | M_ZERO);
+		error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)shstrs, nbytes,
+		    shdr[shstrindex].sh_offset, UIO_SYSSPACE, IO_NODELOCKED,
+		    td->td_ucred, NOCRED, &resid, td);
+		if (error)
+			goto out;
+	}
+
 	symtabindex = -1;
 	symstrindex = -1;
 	for (i = 0; i < hdr->e_shnum; i++) {
 		if (shdr[i].sh_type == SHT_SYMTAB) {
 			symtabindex = i;
 			symstrindex = shdr[i].sh_link;
+		} else if (shstrs != NULL && shdr[i].sh_name != 0 &&
+		    strcmp(shstrs + shdr[i].sh_name, ".ctors") == 0) {
+			/* Record relocated address and size of .ctors. */
+			lf->ctors_addr = mapbase + shdr[i].sh_addr - base_vaddr;
+			lf->ctors_size = shdr[i].sh_size;
 		}
 	}
 	if (symtabindex < 0 || symstrindex < 0)
@@ -1031,6 +1095,8 @@ out:
 		free(shdr, M_LINKER);
 	if (firstpage != NULL)
 		free(firstpage, M_LINKER);
+	if (shstrs != NULL)
+		free(shstrs, M_LINKER);
 
 	return (error);
 }
@@ -1453,21 +1519,6 @@ link_elf_each_function_nameval(linker_file_t file,
 	}
 	return (0);
 }
-
-#ifdef __ia64__
-/*
- * Each KLD has its own GP. The GP value for each load module is given by
- * DT_PLTGOT on ia64. We need GP to construct function descriptors, but
- * don't have direct access to the ELF file structure. The link_elf_get_gp()
- * function returns the GP given a pointer to a generic linker file struct.
- */
-Elf_Addr
-link_elf_get_gp(linker_file_t lf)
-{
-	elf_file_t ef = (elf_file_t)lf;
-	return ((Elf_Addr)ef->got);
-}
-#endif
 
 const Elf_Sym *
 elf_get_sym(linker_file_t lf, Elf_Size symidx)

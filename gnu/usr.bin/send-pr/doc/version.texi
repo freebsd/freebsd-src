@@ -1,3 +1,0 @@
-@c $FreeBSD$
-
-@set VERSION 3.113

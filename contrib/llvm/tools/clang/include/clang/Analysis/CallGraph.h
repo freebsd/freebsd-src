@@ -14,8 +14,8 @@
 //  edges to all externally available functions.
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ANALYSIS_CALLGRAPH
-#define LLVM_CLANG_ANALYSIS_CALLGRAPH
+#ifndef LLVM_CLANG_ANALYSIS_CALLGRAPH_H
+#define LLVM_CLANG_ANALYSIS_CALLGRAPH_H
 
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/RecursiveASTVisitor.h"
@@ -144,8 +144,8 @@ private:
 public:
   CallGraphNode(Decl *D) : FD(D) {}
 
-  typedef SmallVector<CallRecord, 5>::iterator iterator;
-  typedef SmallVector<CallRecord, 5>::const_iterator const_iterator;
+  typedef SmallVectorImpl<CallRecord>::iterator iterator;
+  typedef SmallVectorImpl<CallRecord>::const_iterator const_iterator;
 
   /// Iterators through all the callees/children of the node.
   inline iterator begin() { return CalledFunctions.begin(); }

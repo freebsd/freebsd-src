@@ -16,9 +16,8 @@
 #ifdef _WIN32
 #include "lldb/Host/windows/windows.h"
 #include <winsock2.h>
-#include <WS2tcpip.h>
+#include <ws2tcpip.h>
 typedef ADDRESS_FAMILY sa_family_t;
-typedef USHORT in_port_t;
 #else
 #include <sys/socket.h>
 #include <netdb.h>
@@ -83,7 +82,7 @@ public:
     GetLength () const;
 
     //------------------------------------------------------------------
-    // Get the mex length for the the largest socket address supported.
+    // Get the max length for the largest socket address supported.
     //------------------------------------------------------------------
     static socklen_t
     GetMaxLength ();
@@ -103,7 +102,7 @@ public:
     //------------------------------------------------------------------
     // Get the port if the socket address for the family has a port
     //------------------------------------------------------------------
-    in_port_t
+    uint16_t
     GetPort () const;
 
     //------------------------------------------------------------------
@@ -111,7 +110,7 @@ public:
     // The family must be set correctly prior to calling this function.
     //------------------------------------------------------------------
     bool
-    SetPort (in_port_t port);
+    SetPort (uint16_t port);
 
     //------------------------------------------------------------------
     // Set the socket address according to the first match from a call
@@ -121,10 +120,12 @@ public:
     // address.
     //------------------------------------------------------------------
     bool
-    SetAddress (const struct addrinfo *hints_ptr,   // Optional hints where the family, protocol and other things can be specified.
-                const char *host,                   // Hostname ("foo.bar.com" or "foo" or IP address string ("123.234.12.1" or "2001:0db8:85a3:0000:0000:8a2e:0370:7334")
-                const char *service,                // Protocol name ("tcp", "http", etc) or a raw port number string ("81")
-                struct addrinfo *addr_info_ptr);    // If non-NULL, this will get filled in with the match
+    getaddrinfo (const char *host,          // Hostname ("foo.bar.com" or "foo" or IP address string ("123.234.12.1" or "2001:0db8:85a3:0000:0000:8a2e:0370:7334")
+                 const char *service,       // Protocol name ("tcp", "http", etc) or a raw port number string ("81")
+                 int ai_family = PF_UNSPEC,
+                 int ai_socktype = 0,
+                 int ai_protocol = 0,
+                 int ai_flags = 0);
 
     //------------------------------------------------------------------
     // Quick way to set the SocketAddress to localhost given the family.
@@ -133,7 +134,11 @@ public:
     //------------------------------------------------------------------
     bool
     SetToLocalhost (sa_family_t family, 
-                    in_port_t port);
+                    uint16_t port);
+
+    bool
+    SetToAnyAddress (sa_family_t family,
+                     uint16_t port);
 
     //------------------------------------------------------------------
     // Returns true if there is a valid socket address in this object.
@@ -198,7 +203,7 @@ public:
     // Conversion operators to allow getting the contents of this class
     // as a pointer to the appropriate structure. This allows an instance
     // of this class to be used in calls that take one of the sockaddr
-    // structure variants without having to manally use the correct
+    // structure variants without having to manually use the correct
     // accessor function.
     //------------------------------------------------------------------
     

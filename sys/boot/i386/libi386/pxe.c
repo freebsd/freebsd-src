@@ -301,10 +301,6 @@ pxe_open(struct open_file *f, ...)
 			bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i])+1);
 			bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);
 		}
-		printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));
-		printf("pxe_open: server path: %s\n", rootpath);
-		printf("pxe_open: gateway ip:  %s\n", inet_ntoa(gateip));
-
 		setenv("boot.netif.ip", inet_ntoa(myip), 1);
 		setenv("boot.netif.netmask", intoa(netmask), 1);
 		setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
@@ -312,9 +308,24 @@ pxe_open(struct open_file *f, ...)
 		    sprintf(temp, "%6D", bootplayer.CAddr, ":");
 		    setenv("boot.netif.hwaddr", temp, 1);
 		}
+#ifdef LOADER_NFS_SUPPORT
+		printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));
+		printf("pxe_open: server path: %s\n", rootpath);
+		printf("pxe_open: gateway ip:  %s\n", inet_ntoa(gateip));
+
 		setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
 		setenv("boot.nfsroot.path", rootpath, 1);
+#else
+		setenv("boot.netif.server", inet_ntoa(rootip), 1);
+#endif
 		setenv("dhcp.host-name", hostname, 1);
+
+		sprintf(temp, "%08X", ntohl(myip.s_addr));
+		setenv("pxeboot.ip", temp, 1);
+		if (bootplayer.Hardware == ETHER_TYPE) {
+		    sprintf(temp, "%6D", bootplayer.CAddr, "-");
+		    setenv("pxeboot.hwaddr", temp, 1);
+		}
 	}
     }
     pxe_opens++;
@@ -693,4 +704,27 @@ readudp(struct iodesc *h, void *pkt, size_t len, time_t timeout)
 	bcopy(data_buffer, pkt, udpread_p->buffer_size);
 	uh->uh_sport = udpread_p->s_port;
 	return udpread_p->buffer_size;
+}
+
+char *
+pxe_default_rc(void)
+{
+	char *rc;
+	size_t count, rcsz;
+
+	/* XXX It may not be a good idea to modify the PXE boot file. */
+	rc = (char *)bootplayer.bootfile;
+	rcsz = sizeof(bootplayer.bootfile);
+
+	/* Ignore how we define rc and rcsz above -- it can change. */
+	if (rcsz < 6)
+		return (NULL);
+	if (*rc == '\0') {
+		strncpy(rc, "pxeboot", rcsz);
+		rc[rcsz - 1] = '\0';
+	}
+	count = strlen(rc);
+	strncat(rc, ".4th", rcsz - count - 1);
+	printf("PXE: loading Forth from %s\n", rc);
+	return (rc);
 }

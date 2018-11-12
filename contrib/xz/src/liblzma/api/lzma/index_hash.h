@@ -37,7 +37,7 @@ typedef struct lzma_index_hash_s lzma_index_hash;
  * pointer than the index_hash that was given as an argument.
  */
 extern LZMA_API(lzma_index_hash *) lzma_index_hash_init(
-		lzma_index_hash *index_hash, lzma_allocator *allocator)
+		lzma_index_hash *index_hash, const lzma_allocator *allocator)
 		lzma_nothrow lzma_attr_warn_unused_result;
 
 
@@ -45,7 +45,7 @@ extern LZMA_API(lzma_index_hash *) lzma_index_hash_init(
  * \brief       Deallocate lzma_index_hash structure
  */
 extern LZMA_API(void) lzma_index_hash_end(
-		lzma_index_hash *index_hash, lzma_allocator *allocator)
+		lzma_index_hash *index_hash, const lzma_allocator *allocator)
 		lzma_nothrow;
 
 

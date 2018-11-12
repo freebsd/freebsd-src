@@ -10,8 +10,8 @@
 // This file defines the interface of a subengine of the CoreEngine.
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_CLANG_GR_SUBENGINE_H
-#define LLVM_CLANG_GR_SUBENGINE_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_SUBENGINE_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_SUBENGINE_H
 
 #include "clang/Analysis/ProgramPoint.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
@@ -72,6 +72,16 @@ public:
                              const CFGBlock *DstT,
                              const CFGBlock *DstF) = 0;
 
+  /// Called by CoreEngine.
+  /// Used to generate successor nodes for temporary destructors depending
+  /// on whether the corresponding constructor was visited.
+  virtual void processCleanupTemporaryBranch(const CXXBindTemporaryExpr *BTE,
+                                             NodeBuilderContext &BldCtx,
+                                             ExplodedNode *Pred,
+                                             ExplodedNodeSet &Dst,
+                                             const CFGBlock *DstT,
+                                             const CFGBlock *DstF) = 0;
+
   /// Called by CoreEngine.  Used to processing branching behavior
   /// at static initalizers.
   virtual void processStaticInitializer(const DeclStmt *DS,
@@ -122,7 +132,7 @@ public:
   inline ProgramStateRef 
   processRegionChange(ProgramStateRef state,
                       const MemRegion* MR) {
-    return processRegionChanges(state, 0, MR, MR, 0);
+    return processRegionChanges(state, nullptr, MR, MR, nullptr);
   }
 
   virtual ProgramStateRef
@@ -134,7 +144,7 @@ public:
                            ArrayRef<const MemRegion *> ExplicitRegions,
                            ArrayRef<const MemRegion *> Regions,
                            const CallEvent *Call,
-                           bool IsConst = false) = 0;
+                           RegionAndSymbolInvalidationTraits &HTraits) = 0;
 
   /// printState - Called by ProgramStateManager to print checker-specific data.
   virtual void printState(raw_ostream &Out, ProgramStateRef State,

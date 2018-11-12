@@ -30,8 +30,8 @@
 
 #ifndef __T4_TOM_H__
 #define __T4_TOM_H__
+#include <sys/vmem.h>
 
-#define KTR_CXGBE	KTR_SPARE3
 #define LISTEN_HASH_SIZE 32
 
 /*
@@ -81,18 +81,12 @@ struct ofld_tx_sdesc {
 	uint8_t tx_credits;	/* firmware tx credits (unit is 16B) */
 };
 
-struct ppod_region {
-	TAILQ_ENTRY(ppod_region) link;
-	int used;	/* # of pods used by this region */
-	int free;	/* # of contiguous pods free right after this region */
-};
-
 struct ddp_buffer {
 	uint32_t tag;	/* includes color, page pod addr, and DDP page size */
+	u_int ppod_addr;
 	int nppods;
 	int offset;
 	int len;
-	struct ppod_region ppod_region;
 	int npages;
 	vm_page_t *pages;
 };
@@ -180,8 +174,6 @@ struct listen_ctx {
 	TAILQ_HEAD(, synq_entry) synq;
 };
 
-TAILQ_HEAD(ppod_head, ppod_region);
-
 struct clip_entry {
 	TAILQ_ENTRY(clip_entry) link;
 	struct in6_addr lip;	/* local IPv6 address */
@@ -201,15 +193,17 @@ struct tom_data {
 	u_long listen_mask;
 	int lctx_count;		/* # of lctx in the hash table */
 
-	struct mtx ppod_lock;
-	int nppods;
-	int nppods_free;	/* # of available ppods */
-	int nppods_free_head;	/* # of available ppods at the begining */
-	struct ppod_head ppods;
+	u_int ppod_start;
+	vmem_t *ppod_arena;
 
 	struct mtx clip_table_lock;
 	struct clip_head clip_table;
 	int clip_gen;
+
+	/* WRs that will not be sent to the chip because L2 resolution failed */
+	struct mtx unsent_wr_lock;
+	STAILQ_HEAD(, wrqe) unsent_wr_list;
+	struct task reclaim_wr_resources;
 };
 
 static inline struct tom_data *
@@ -252,6 +246,7 @@ void release_lip(struct tom_data *, struct clip_entry *);
 void t4_init_connect_cpl_handlers(struct adapter *);
 int t4_connect(struct toedev *, struct socket *, struct rtentry *,
     struct sockaddr *);
+void act_open_failure_cleanup(struct adapter *, u_int, u_int);
 
 /* t4_listen.c */
 void t4_init_listen_cpl_handlers(struct adapter *);
@@ -279,14 +274,32 @@ int t4_send_fin(struct toedev *, struct tcpcb *);
 int t4_send_rst(struct toedev *, struct tcpcb *);
 void t4_set_tcb_field(struct adapter *, struct toepcb *, int, uint16_t,
     uint64_t, uint64_t);
+void t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop);
 
 /* t4_ddp.c */
 void t4_init_ddp(struct adapter *, struct tom_data *);
 void t4_uninit_ddp(struct adapter *, struct tom_data *);
 int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
     struct mbuf **, struct mbuf **, int *);
-struct mbuf *get_ddp_mbuf(int);
 void enable_ddp(struct adapter *, struct toepcb *toep);
 void release_ddp_resources(struct toepcb *toep);
+void handle_ddp_close(struct toepcb *, struct tcpcb *, struct sockbuf *,
+    uint32_t);
 void insert_ddp_data(struct toepcb *, uint32_t);
+
+/* ULP related */
+#define CXGBE_ISCSI_MBUF_TAG          50
+int t4tom_cpl_handler_registered(struct adapter *, unsigned int);
+void t4tom_register_cpl_iscsi_callback(void (*fp)(struct tom_data *,
+    struct socket *, void *, unsigned int));
+void t4tom_register_queue_iscsi_callback(struct mbuf *(*fp)(struct socket *,
+    unsigned int, int *));
+void t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int);
+int t4_cpl_iscsi_callback(struct tom_data *, struct toepcb *, void *, uint32_t);
+struct mbuf *t4_queue_iscsi_callback(struct socket *, struct toepcb *, uint32_t,
+    int *);
+extern void (*tom_cpl_iscsi_callback)(struct tom_data *, struct socket *,
+    void *, unsigned int);
+extern struct mbuf *(*tom_queue_iscsi_callback)(struct socket*, unsigned int,
+    int *);
 #endif

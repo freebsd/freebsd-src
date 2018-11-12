@@ -158,12 +158,6 @@ typedef	struct lpte lpte_t;
 #define	ISSRR1_PROTECT	0x08000000
 #define	ISSRR1_SEGMENT	0x00200000
 
-#ifdef	_KERNEL
-#ifndef	LOCORE
-extern u_int dsisr(void);
-#endif	/* _KERNEL */
-#endif	/* LOCORE */
-
 #else /* BOOKE */
 
 #include <machine/tlb.h>

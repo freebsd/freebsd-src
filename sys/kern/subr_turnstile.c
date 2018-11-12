@@ -1151,7 +1151,7 @@ DB_SHOW_COMMAND(lockchain, db_show_lockchain)
 
 	/* Figure out which thread to start with. */
 	if (have_addr)
-		td = db_lookup_thread(addr, TRUE);
+		td = db_lookup_thread(addr, true);
 	else
 		td = kdb_thread;
 
@@ -1236,7 +1236,7 @@ DB_SHOW_COMMAND(sleepchain, db_show_sleepchain)
 
 	/* Figure out which thread to start with. */
 	if (have_addr)
-		td = db_lookup_thread(addr, TRUE);
+		td = db_lookup_thread(addr, true);
 	else
 		td = kdb_thread;
 

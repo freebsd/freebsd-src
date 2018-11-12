@@ -33,14 +33,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2012
+.Dd May 6, 2015
 .Dt NAMEI 9
 .Os
 .Sh NAME
 .Nm namei ,
 .Nm NDINIT ,
 .Nm NDFREE ,
-.Nm NDHASGIANT
 .Nd pathname translation and lookup operations
 .Sh SYNOPSIS
 .In sys/param.h
@@ -55,8 +54,6 @@
 .Fc
 .Ft void
 .Fn NDFREE "struct nameidata *ndp" "const uint flags"
-.Ft int
-.Fn NDHASGIANT "struct nameidata *ndp"
 .Sh DESCRIPTION
 The
 .Nm
@@ -73,16 +70,6 @@ or
 depending on whether the
 .Dv LOCKLEAF
 flag was specified or not.
-If the
-.Va Giant
-lock is required,
-.Nm
-will acquire it if the caller indicates it is
-.Dv MPSAFE ,
-in which case the caller must later release
-.Va Giant
-based on the results of
-.Fn NDHASGIANT .
 .Pp
 The
 .Fn NDINIT
@@ -347,9 +334,9 @@ An attempt is made to modify a file or directory on a read-only file system.
 .Sh AUTHORS
 .An -nosplit
 This manual page was written by
-.An Eivind Eklund Aq eivind@FreeBSD.org
+.An Eivind Eklund Aq Mt eivind@FreeBSD.org
 and later significantly revised by
-.An Hiten M. Pandya Aq hmp@FreeBSD.org .
+.An Hiten M. Pandya Aq Mt hmp@FreeBSD.org .
 .Sh BUGS
 The
 .Dv LOCKPARENT
@@ -362,6 +349,3 @@ In order to solve this for the cases where both
 and
 .Dv LOCKLEAF
 are used, it is necessary to resort to recursive locking.
-.Pp
-Non-MPSAFE file systems exist, requiring callers to conditionally unlock
-.Va Giant .

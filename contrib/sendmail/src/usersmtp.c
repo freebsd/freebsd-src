@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.488 2013/11/22 20:51:57 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.488 2013-11-22 20:51:57 ca Exp $")
 
 #include <sysexits.h>
 

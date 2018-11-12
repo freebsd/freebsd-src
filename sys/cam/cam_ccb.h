@@ -347,8 +347,8 @@ struct ccb_getdevstats {
 	struct	ccb_hdr	ccb_h;
 	int	dev_openings;	/* Space left for more work on device*/	
 	int	dev_active;	/* Transactions running on the device */
-	int	devq_openings;	/* Space left for more queued work */
-	int	devq_queued;	/* Transactions queued to be sent */
+	int	allocated;	/* CCBs allocated for the device */
+	int	queued;		/* CCBs queued to be sent to the device */
 	int	held;		/*
 				 * CCBs held by peripheral drivers
 				 * for this device
@@ -1140,6 +1140,7 @@ struct ccb_eng_exec {	/* This structure must match SCSIIO size */
 struct ccb_dev_advinfo {
 	struct ccb_hdr ccb_h;
 	uint32_t flags;
+#define	CDAI_FLAG_NONE		0x0	/* No flags set */
 #define	CDAI_FLAG_STORE		0x1	/* If set, action becomes store */
 	uint32_t buftype;		/* IN: Type of data being requested */
 	/* NB: buftype is interpreted on a per-transport basis */
@@ -1147,6 +1148,7 @@ struct ccb_dev_advinfo {
 #define	CDAI_TYPE_SERIAL_NUM	2
 #define	CDAI_TYPE_PHYS_PATH	3
 #define	CDAI_TYPE_RCAPLONG	4
+#define	CDAI_TYPE_EXT_INQ	5
 	off_t bufsiz;			/* IN: Size of external buffer */
 #define	CAM_SCSI_DEVID_MAXLEN	65536	/* length in buffer is an uint16_t */
 	off_t provsiz;			/* OUT: Size required/used */

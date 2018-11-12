@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: map.h,v 8.4 2013/11/22 20:51:56 ca Exp $
+ *	$Id: map.h,v 8.4 2013-11-22 20:51:56 ca Exp $
  */
 
 #ifndef _MAP_H

@@ -1,4 +1,4 @@
-# $Id: Makefile.am 660 2013-03-11 15:08:52Z des $
+# $Id: Makefile.am 807 2014-09-09 09:41:32Z des $
 
 NULL =
 
@@ -18,6 +18,7 @@ noinst_HEADERS = \
 	openpam_strlcat.h \
 	openpam_strlcmp.h \
 	openpam_strlcpy.h \
+	openpam_strlset.h \
 	openpam_vasprintf.h
 
 libpam_la_SOURCES = \
@@ -44,9 +45,10 @@ libpam_la_SOURCES = \
 	openpam_set_option.c \
 	openpam_set_feature.c \
 	openpam_static.c \
+	openpam_straddch.c \
 	openpam_strlcat.c \
 	openpam_strlcpy.c \
-	openpam_straddch.c \
+	openpam_strlset.c \
 	openpam_subst.c \
 	openpam_vasprintf.c \
 	openpam_ttyconv.c \

@@ -1,7 +1,8 @@
-.\"	$Id: man.7,v 1.113 2012/01/03 15:16:24 kristaps Exp $
+.\"	$Id: man.7,v 1.132 2015/01/29 00:33:57 schwarze Exp $
 .\"
-.\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2011-2015 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010 Joerg Sonnenberger <joerg@netbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +16,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 3 2012 $
+.Dd $Mdocdate: January 29 2015 $
 .Dt MAN 7
 .Os
 .Sh NAME
@@ -97,30 +98,32 @@ file for a utility
 .Bd -literal -offset indent
 \&.TH PROGNAME 1 2009-10-10
 \&.SH NAME
-\efBprogname\efR \e(en a description goes here
+\efBprogname\efR \e(en one line about what it does
 \&.\e\(dq .SH LIBRARY
-\&.\e\(dq For sections 2 & 3 only.
+\&.\e\(dq For sections 2, 3, and 9 only.
 \&.\e\(dq Not used in OpenBSD.
 \&.SH SYNOPSIS
-\efBprogname\efR [\efB\e-options\efR] arguments...
+\efBprogname\efR [\efB\e-options\efR] \efIfile ...\efR
 \&.SH DESCRIPTION
-The \efBfoo\efR utility processes files...
+The \efBfoo\efR utility processes files ...
+\&.\e\(dq .Sh CONTEXT
+\&.\e\(dq For section 9 functions only.
 \&.\e\(dq .SH IMPLEMENTATION NOTES
 \&.\e\(dq Not used in OpenBSD.
 \&.\e\(dq .SH RETURN VALUES
-\&.\e\(dq For sections 2, 3, & 9 only.
+\&.\e\(dq For sections 2, 3, and 9 function return values only.
 \&.\e\(dq .SH ENVIRONMENT
-\&.\e\(dq For sections 1, 6, 7, & 8 only.
+\&.\e\(dq For sections 1, 6, 7, and 8 only.
 \&.\e\(dq .SH FILES
 \&.\e\(dq .SH EXIT STATUS
-\&.\e\(dq For sections 1, 6, & 8 only.
+\&.\e\(dq For sections 1, 6, and 8 only.
 \&.\e\(dq .SH EXAMPLES
 \&.\e\(dq .SH DIAGNOSTICS
-\&.\e\(dq For sections 1, 4, 6, 7, & 8 only.
+\&.\e\(dq For sections 1, 4, 6, 7, 8, and 9 printf/stderr messages only.
 \&.\e\(dq .SH ERRORS
-\&.\e\(dq For sections 2, 3, & 9 only.
+\&.\e\(dq For sections 2, 3, 4, and 9 errno settings only.
 \&.\e\(dq .SH SEE ALSO
-\&.\e\(dq .BR foo ( 1 )
+\&.\e\(dq .BR foobar ( 1 )
 \&.\e\(dq .SH STANDARDS
 \&.\e\(dq .SH HISTORY
 \&.\e\(dq .SH AUTHORS
@@ -170,6 +173,9 @@ This expands upon the brief, one-line description in
 .Em NAME .
 It usually contains a break-down of the options (if documenting a
 command).
+.It Em CONTEXT
+This section lists the contexts in which functions can be called in section 9.
+The contexts are autoconf, process, or interrupt.
 .It Em IMPLEMENTATION NOTES
 Implementation-specific notes should be kept here.
 This is useful when implementing standard functions that may have side
@@ -196,13 +202,19 @@ well-tested invocations.
 Make sure that examples work properly!
 .It Em DIAGNOSTICS
 Documents error conditions.
-This is most useful in section 4 manuals.
+In section 4 and 9 manuals, these are usually messages
+printed by the kernel to the console and to the kernel log.
+In section 1, 6, 7, and 8, these are usually messages
+printed by userland programs to the standard error output.
+.Pp
 Historically, this section was used in place of
 .Em EXIT STATUS
 for manuals in sections 1, 6, and 8; however, this practise is
 discouraged.
 .It Em ERRORS
-Documents error handling in sections 2, 3, and 9.
+Documents
+.Xr errno 2
+settings in sections 2, 3, 4, and 9.
 .It Em SEE ALSO
 References other manuals with related topics.
 This section should exist for most manuals.
@@ -253,6 +265,7 @@ in the alphabetical reference below.
 .It Sx IP Ta indented paragraph: Op Ar head Op Ar width
 .It Sx TP Ta tagged paragraph: Op Ar width
 .It Sx HP Ta hanged paragraph: Op Ar width
+.It Sx PD Ta set vertical paragraph distance: Op Ar height
 .It Sx \&br Ta force output line break in text mode (no arguments)
 .It Sx \&sp Ta force vertical space: Op Ar height
 .It Sx fi , nf Ta fill mode and no-fill mode (no arguments)
@@ -272,10 +285,6 @@ in the alphabetical reference below.
 .It Sx RB Ta alternate between roman and boldface fonts
 .It Sx RI Ta alternate between roman and italic fonts
 .El
-.Ss Semantic markup
-.Bl -column "PP, LP, P" description
-.It Sx OP Ta optional arguments
-.El
 .Sh MACRO REFERENCE
 This section is a canonical reference to all macros, arranged
 alphabetically.
@@ -283,7 +292,7 @@ For the scoping of individual macros, see
 .Sx MACRO SYNTAX .
 .Ss \&AT
 Sets the volume for the footer for compatibility with man pages from
-.Tn AT&T UNIX
+.At
 releases.
 The optional arguments specify which release it is from.
 .Ss \&B
@@ -343,18 +352,31 @@ and
 .Ss \&DT
 Has no effect.
 Included for compatibility.
+.Ss \&EE
+This is a non-standard GNU extension, included only for compatibility.
+In
+.Xr mandoc 1 ,
+it does the same as
+.Sx \&fi .
+.Ss \&EX
+This is a non-standard GNU extension, included only for compatibility.
+In
+.Xr mandoc 1 ,
+it does the same as
+.Sx \&nf .
 .Ss \&HP
 Begin a paragraph whose initial output line is left-justified, but
 subsequent output lines are indented, with the following syntax:
 .Bd -filled -offset indent
 .Pf \. Sx \&HP
-.Op Cm width
+.Op Ar width
 .Ed
 .Pp
 The
-.Cm width
-argument must conform to
-.Sx Scaling Widths .
+.Ar width
+argument is a
+.Xr roff 7
+scaling width.
 If specified, it's saved for later paragraph left-margins; if unspecified, the
 saved or default width is used.
 .Pp
@@ -391,18 +413,19 @@ and
 Begin an indented paragraph with the following syntax:
 .Bd -filled -offset indent
 .Pf \. Sx \&IP
-.Op Cm head Op Cm width
+.Op Ar head Op Ar width
 .Ed
 .Pp
 The
-.Cm width
-argument defines the width of the left margin and is defined by
-.Sx Scaling Widths .
+.Ar width
+argument is a
+.Xr roff 7
+scaling width defining the left margin.
 It's saved for later paragraph left-margins; if unspecified, the saved or
 default width is used.
 .Pp
 The
-.Cm head
+.Ar head
 argument is used as a leading term, flushed to the left margin.
 This is useful for bulleted paragraphs and so on.
 .Pp
@@ -443,16 +466,17 @@ and
 .Sx \&TP .
 .Ss \&OP
 Optional command-line argument.
-This has the following syntax:
+This is a non-standard GNU extension, included only for compatibility.
+It has the following syntax:
 .Bd -filled -offset indent
 .Pf \. Sx \&OP
-.Cm key Op Cm value
+.Ar key Op Ar value
 .Ed
 .Pp
 The
-.Cm key
+.Ar key
 is usually a command-line flag and
-.Cm value
+.Ar value
 its argument.
 .Ss \&P
 Synonym for
@@ -463,6 +487,36 @@ See also
 .Sx \&IP ,
 .Sx \&LP ,
 .Sx \&PP ,
+and
+.Sx \&TP .
+.Ss \&PD
+Specify the vertical space to be inserted before each new paragraph.
+.br
+The syntax is as follows:
+.Bd -filled -offset indent
+.Pf \. Sx \&PD
+.Op Ar height
+.Ed
+.Pp
+The
+.Ar height
+argument is a
+.Xr roff 7
+scaling width.
+It defaults to
+.Cm 1v .
+If the unit is omitted,
+.Cm v
+is assumed.
+.Pp
+This macro affects the spacing before any subsequent instances of
+.Sx \&HP ,
+.Sx \&IP ,
+.Sx \&LP ,
+.Sx \&P ,
+.Sx \&PP ,
+.Sx \&SH ,
+.Sx \&SS ,
 and
 .Sx \&TP .
 .Ss \&PP
@@ -501,9 +555,29 @@ and
 .Ss \&RE
 Explicitly close out the scope of a prior
 .Sx \&RS .
-The default left margin is restored to the state of the original
+The default left margin is restored to the state before that
 .Sx \&RS
 invocation.
+.Pp
+The syntax is as follows:
+.Bd -filled -offset indent
+.Pf \. Sx \&RE
+.Op Ar level
+.Ed
+.Pp
+Without an argument, the most recent
+.Sx \&RS
+block is closed out.
+If
+.Ar level
+is 1, all open
+.Sx \&RS
+blocks are closed out.
+Otherwise,
+.Ar level No \(mi 1
+nested
+.Sx \&RS
+blocks remain open.
 .Ss \&RI
 Text is rendered alternately in roman (the default font) and italics.
 Whitespace between arguments is omitted in output.
@@ -524,13 +598,14 @@ Temporarily reset the default left margin.
 This has the following syntax:
 .Bd -filled -offset indent
 .Pf \. Sx \&RS
-.Op Cm width
+.Op Ar width
 .Ed
 .Pp
 The
-.Cm width
-argument must conform to
-.Sx Scaling Widths .
+.Ar width
+argument is a
+.Xr roff 7
+scaling width.
 If not specified, the saved or default width is used.
 .Pp
 See also
@@ -552,7 +627,8 @@ The scope of a sub-section is closed by a subsequent sub-section,
 section, or end of file.
 The paragraph left-margin width is reset to the default.
 .Ss \&TH
-Sets the title of the manual page with the following syntax:
+Sets the title of the manual page for use in the page header
+and footer with the following syntax:
 .Bd -filled -offset indent
 .Pf \. Sx \&TH
 .Ar title section date
@@ -574,6 +650,11 @@ is empty or not specified, the current date is used.
 The optional
 .Ar source
 string specifies the organisation providing the utility.
+When unspecified,
+.Xr mandoc 1
+uses its
+.Fl Ios
+argument.
 The
 .Ar volume
 string replaces the default rendered volume, which is dictated by the
@@ -590,13 +671,14 @@ Subsequent output lines are indented.
 The syntax is as follows:
 .Bd -filled -offset indent
 .Pf \. Sx \&TP
-.Op Cm width
+.Op Ar width
 .Ed
 .Pp
 The
-.Cm width
-argument must conform to
-.Sx Scaling Widths .
+.Ar width
+argument is a
+.Xr roff 7
+scaling width.
 If specified, it's saved for later paragraph left-margins; if
 unspecified, the saved or default width is used.
 .Pp
@@ -609,8 +691,23 @@ and
 .Sx \&PP .
 .Ss \&UC
 Sets the volume for the footer for compatibility with man pages from
-BSD releases.
+.Bx
+releases.
 The optional first argument specifies which release it is from.
+.Ss \&UE
+End a uniform resource identifier block.
+This is a non-standard GNU extension, included only for compatibility.
+See
+.Sx \&UE .
+.Ss \&UR
+Begin a uniform resource identifier block.
+This is a non-standard GNU extension, included only for compatibility.
+It has the following syntax:
+.Bd -literal -offset indent
+.Pf \. Sx \&UR Ar uri
+link description to be shown
+.Pf \. Sx UE
+.Ed
 .Ss \&br
 Breaks the current line.
 Consecutive invocations have no further effect.
@@ -620,23 +717,16 @@ See also
 .Ss \&fi
 End literal mode begun by
 .Sx \&nf .
-.Ss \&ft
-Change the current font mode.
-See
-.Sx Text Decoration
-for a listing of available font modes.
 .Ss \&in
 Indent relative to the current indentation:
 .Pp
-.D1 Pf \. Sx \&in Op Cm width
+.D1 Pf \. Sx \&in Op Ar width
 .Pp
 If
-.Cm width
+.Ar width
 is signed, the new offset is relative.
 Otherwise, it is absolute.
 This value is reset upon the next paragraph, section, or sub-section.
-.Ss \&na
-Don't align to the right margin.
 .Ss \&nf
 Begin literal mode: all subsequent free-form lines have their end of
 line boundaries preserved.
@@ -650,13 +740,13 @@ or
 Insert vertical spaces into output with the following syntax:
 .Bd -filled -offset indent
 .Pf \. Sx \&sp
-.Op Cm height
+.Op Ar height
 .Ed
 .Pp
-Insert
-.Cm height
-spaces, which must conform to
-.Sx Scaling Widths .
+The
+.Ar height
+argument is a scaling width as described in
+.Xr roff 7 .
 If 0, this is equivalent to the
 .Sx \&br
 macro.
@@ -688,10 +778,9 @@ is equivalent to
 If next-line macros are invoked consecutively, only the last is used.
 If a next-line macro is followed by a non-next-line macro, an error is
 raised, except for
-.Sx \&br ,
-.Sx \&sp ,
+.Sx \&br
 and
-.Sx \&na .
+.Sx \&sp .
 .Pp
 The syntax is as follows:
 .Bd -literal -offset indent
@@ -705,10 +794,13 @@ The syntax is as follows:
 .It Sx \&BI  Ta    n         Ta    current   Ta    \&
 .It Sx \&BR  Ta    n         Ta    current   Ta    \&
 .It Sx \&DT  Ta    0         Ta    current   Ta    \&
+.It Sx \&EE  Ta    0         Ta    current   Ta    compat
+.It Sx \&EX  Ta    0         Ta    current   Ta    compat
 .It Sx \&I   Ta    n         Ta    next-line Ta    \&
 .It Sx \&IB  Ta    n         Ta    current   Ta    \&
 .It Sx \&IR  Ta    n         Ta    current   Ta    \&
 .It Sx \&OP  Ta    0, 1      Ta    current   Ta    compat
+.It Sx \&PD  Ta    1         Ta    current   Ta    \&
 .It Sx \&R   Ta    n         Ta    next-line Ta    \&
 .It Sx \&RB  Ta    n         Ta    current   Ta    \&
 .It Sx \&RI  Ta    n         Ta    current   Ta    \&
@@ -718,9 +810,7 @@ The syntax is as follows:
 .It Sx \&UC  Ta    <=1       Ta    current   Ta    \&
 .It Sx \&br  Ta    0         Ta    current   Ta    compat
 .It Sx \&fi  Ta    0         Ta    current   Ta    compat
-.It Sx \&ft  Ta    1         Ta    current   Ta    compat
 .It Sx \&in  Ta    1         Ta    current   Ta    compat
-.It Sx \&na  Ta    0         Ta    current   Ta    compat
 .It Sx \&nf  Ta    0         Ta    current   Ta    compat
 .It Sx \&sp  Ta    1         Ta    current   Ta    compat
 .El
@@ -778,6 +868,8 @@ implicitly closed, is syntactically incorrect.
 .It Sx \&SH  Ta    >0        Ta    next-line  Ta    section     Ta    \&
 .It Sx \&SS  Ta    >0        Ta    next-line  Ta    sub-section Ta    \&
 .It Sx \&TP  Ta    n         Ta    next-line  Ta    paragraph   Ta    \&
+.It Sx \&UE  Ta    0         Ta    current    Ta    none        Ta    compat
+.It Sx \&UR  Ta    1         Ta    current    Ta    part        Ta    compat
 .El
 .Pp
 Macros marked
@@ -802,82 +894,6 @@ until the end of the macro scope.
 Note that macros like
 .Sx \&BR
 open and close a font scope for each argument.
-.Sh COMPATIBILITY
-This section documents areas of questionable portability between
-implementations of the
-.Nm
-language.
-.Pp
-.Bl -dash -compact
-.It
-Do not depend on
-.Sx \&SH
-or
-.Sx \&SS
-to close out a literal context opened with
-.Sx \&nf .
-This behaviour may not be portable.
-.It
-In quoted literals, GNU troff allowed pair-wise double-quotes to produce
-a standalone double-quote in formatted output.
-It is not known whether this behaviour is exhibited by other formatters.
-.It
-troff suppresses a newline before
-.Sq \(aq
-macro output; in mandoc, it is an alias for the standard
-.Sq \&.
-control character.
-.It
-The
-.Sq \eh
-.Pq horizontal position ,
-.Sq \ev
-.Pq vertical position ,
-.Sq \em
-.Pq text colour ,
-.Sq \eM
-.Pq text filling colour ,
-.Sq \ez
-.Pq zero-length character ,
-.Sq \ew
-.Pq string length ,
-.Sq \ek
-.Pq horizontal position marker ,
-.Sq \eo
-.Pq text overstrike ,
-and
-.Sq \es
-.Pq text size
-escape sequences are all discarded in mandoc.
-.It
-The
-.Sq \ef
-scaling unit is accepted by mandoc, but rendered as the default unit.
-.It
-The
-.Sx \&sp
-macro does not accept negative values in mandoc.
-In GNU troff, this would result in strange behaviour.
-.It
-In page header lines, GNU troff versions up to and including 1.21
-only print
-.Ar volume
-names explicitly specified in the
-.Sx \&TH
-macro; mandoc and newer groff print the default volume name
-corresponding to the
-.Ar section
-number when no
-.Ar volume
-is given, like in
-.Xr mdoc 7 .
-.El
-.Pp
-The
-.Sx OP
-macro is part of the extended
-.Nm
-macro set, and may not be portable to non-GNU troff implementations.
 .Sh SEE ALSO
 .Xr man 1 ,
 .Xr mandoc 1 ,
@@ -904,8 +920,7 @@ utility written by Kristaps Dzonsons appeared in
 This
 .Nm
 reference was written by
-.An Kristaps Dzonsons ,
-.Mt kristaps@bsd.lv .
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .
 .Sh CAVEATS
 Do not use this language.
 Use

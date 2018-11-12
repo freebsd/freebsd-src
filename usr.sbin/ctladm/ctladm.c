@@ -95,6 +95,7 @@ typedef enum {
 	CTLADM_CMD_READ,
 	CTLADM_CMD_WRITE,
 	CTLADM_CMD_PORT,
+	CTLADM_CMD_PORTLIST,
 	CTLADM_CMD_READCAPACITY,
 	CTLADM_CMD_MODESENSE,
 	CTLADM_CMD_DUMPOOA,
@@ -120,7 +121,8 @@ typedef enum {
 	CTLADM_CMD_MODIFY,
 	CTLADM_CMD_ISLIST,
 	CTLADM_CMD_ISLOGOUT,
-	CTLADM_CMD_ISTERMINATE
+	CTLADM_CMD_ISTERMINATE,
+	CTLADM_CMD_LUNMAP
 } ctladm_cmdfunction;
 
 typedef enum {
@@ -147,7 +149,7 @@ typedef enum {
 	CTLADM_ARG_ONOFFLINE	= 0x0080000,
 	CTLADM_ARG_ONESHOT	= 0x0100000,
 	CTLADM_ARG_TIMEOUT	= 0x0200000,
-	CTLADM_ARG_INITIATOR 	= 0x0400000,
+	CTLADM_ARG_INITIATOR	= 0x0400000,
 	CTLADM_ARG_NOCOPY	= 0x0800000,
 	CTLADM_ARG_NEED_TL	= 0x1000000
 } ctladm_cmdargs;
@@ -187,9 +189,11 @@ static struct ctladm_opts option_table[] = {
 	{"islogout", CTLADM_CMD_ISLOGOUT, CTLADM_ARG_NONE, "ac:i:p:"},
 	{"isterminate", CTLADM_CMD_ISTERMINATE, CTLADM_ARG_NONE, "ac:i:p:"},
 	{"lunlist", CTLADM_CMD_LUNLIST, CTLADM_ARG_NONE, NULL},
+	{"lunmap", CTLADM_CMD_LUNMAP, CTLADM_ARG_NONE, "p:l:L:"},
 	{"modesense", CTLADM_CMD_MODESENSE, CTLADM_ARG_NEED_TL, "P:S:dlm:c:"},
 	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:s:"},
 	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "lo:p:qt:w:W:x"},
+	{"portlist", CTLADM_CMD_PORTLIST, CTLADM_ARG_NONE, "f:ilp:qvx"},
 	{"prin", CTLADM_CMD_PRES_IN, CTLADM_ARG_NEED_TL, "a:"},
 	{"prout", CTLADM_CMD_PRES_OUT, CTLADM_ARG_NEED_TL, "a:k:r:s:"},
 	{"read", CTLADM_CMD_READ, CTLADM_ARG_NEED_TL, rw_opts},
@@ -235,7 +239,7 @@ static int cctl_sync_cache(int fd, int target, int lun, int iid, int retries,
 			   int argc, char **argv, char *combinedopt);
 static int cctl_start_stop(int fd, int target, int lun, int iid, int retries,
 			   int start, int argc, char **argv, char *combinedopt);
-static int cctl_mode_sense(int fd, int target, int lun, int iid, int retries, 
+static int cctl_mode_sense(int fd, int target, int lun, int iid, int retries,
 			   int argc, char **argv, char *combinedopt);
 static int cctl_read_capacity(int fd, int target, int lun, int iid,
 			      int retries, int argc, char **argv,
@@ -256,7 +260,7 @@ static int cctl_req_sense(int fd, int target, int lun, int iid, int retries);
 static int cctl_persistent_reserve_in(int fd, int target, int lun,
 				      int initiator, int argc, char **argv,
 				      char *combinedopt, int retry_count);
-static int cctl_persistent_reserve_out(int fd, int target, int lun, 
+static int cctl_persistent_reserve_out(int fd, int target, int lun,
 				       int initiator, int argc, char **argv,
 				       char *combinedopt, int retry_count);
 static int cctl_create_lun(int fd, int argc, char **argv, char *combinedopt);
@@ -392,7 +396,7 @@ retry:
 		cmd_latency = ts.tv_sec * 1000;
 		if (ts.tv_nsec > 0)
 			cmd_latency += ts.tv_nsec / 1000000;
-		
+
 		fprintf(stdout, "LUN %jd tag 0x%04x%s%s%s%s%s: %s. CDB: %s "
 			"(%0.0Lf ms)\n",
 			(intmax_t)entry->lun_num, entry->tag_num,
@@ -498,6 +502,9 @@ retry:
 		case CTL_PORT_ISCSI:
 			type = "ISCSI";
 			break;
+		case CTL_PORT_SAS:
+			type = "SAS";
+			break;
 		default:
 			type = "UNKNOWN";
 			break;
@@ -588,6 +595,7 @@ static struct ctladm_opts cctl_fe_table[] = {
 	{"scsi", CTL_PORT_SCSI, CTLADM_ARG_NONE, NULL},
 	{"internal", CTL_PORT_INTERNAL, CTLADM_ARG_NONE, NULL},
 	{"iscsi", CTL_PORT_ISCSI, CTLADM_ARG_NONE, NULL},
+	{"sas", CTL_PORT_SAS, CTLADM_ARG_NONE, NULL},
 	{"all", CTL_PORT_ALL, CTLADM_ARG_NONE, NULL},
 	{NULL, 0, 0, NULL}
 };
@@ -616,7 +624,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		case 'o':
 			if (port_mode != CCTL_PORT_MODE_NONE)
 				goto bailout_badarg;
-			
+
 			if (strcasecmp(optarg, "on") == 0)
 				port_mode = CCTL_PORT_MODE_ON;
 			else if (strcasecmp(optarg, "off") == 0)
@@ -1035,7 +1043,7 @@ static struct ctladm_opts cctl_err_patterns[] = {
 };
 
 static int
-cctl_error_inject(int fd, uint32_t target, uint32_t lun, int argc, char **argv, 
+cctl_error_inject(int fd, uint32_t target, uint32_t lun, int argc, char **argv,
 		  char *combinedopt)
 {
 	int retval = 0;
@@ -1200,12 +1208,12 @@ cctl_error_inject(int fd, uint32_t target, uint32_t lun, int argc, char **argv,
         if (fd_sense == 1) {
 		ssize_t amt_read;
 		int amt_to_read = sense_len;
- 		u_int8_t *buf_ptr = (uint8_t *)&err_desc.custom_sense;
+		u_int8_t *buf_ptr = (uint8_t *)&err_desc.custom_sense;
 
 		for (amt_read = 0; amt_to_read > 0;
 		     amt_read = read(STDIN_FILENO, buf_ptr, amt_to_read)) {
 			if (amt_read == -1) {
-         			warn("error reading sense data from stdin");
+				warn("error reading sense data from stdin");
 				retval = 1;
 				goto bailout;
 			}
@@ -1611,7 +1619,7 @@ cctl_startup_shutdown(int fd, int target, int lun, int iid,
 			}
 
 			if (ooa_info.status != CTL_OOA_SUCCESS) {
-				printf("%s CTL_CHECK_OOA returned status %d\n", 
+				printf("%s CTL_CHECK_OOA returned status %d\n",
 				       scsi_path, ooa_info.status);
 				continue;
 			}
@@ -1623,7 +1631,7 @@ cctl_startup_shutdown(int fd, int target, int lun, int iid,
 				continue;
 			}
 		}
-		
+
 		ctl_scsi_start_stop(/*io*/ io,
 				    /*start*/(command == CTLADM_CMD_STARTUP) ?
 					      1 : 0,
@@ -1676,7 +1684,7 @@ cctl_sync_cache(int fd, int target, int lun, int iid, int retries,
 	int retval;
 	uint64_t our_lba = 0;
 	uint32_t our_block_count = 0;
-	int reladr = 0, immed = 0; 
+	int reladr = 0, immed = 0;
 	int c;
 
 	id.id = iid;
@@ -1824,7 +1832,7 @@ bailout:
 }
 
 static int
-cctl_mode_sense(int fd, int target, int lun, int iid, int retries, 
+cctl_mode_sense(int fd, int target, int lun, int iid, int retries,
 		int argc, char **argv, char *combinedopt)
 {
 	union ctl_io *io;
@@ -2042,8 +2050,8 @@ bailout:
 }
 
 static int
-cctl_read_capacity(int fd, int target, int lun, int iid, int retries, 
-           	   int argc, char **argv, char *combinedopt)
+cctl_read_capacity(int fd, int target, int lun, int iid, int retries,
+		   int argc, char **argv, char *combinedopt)
 {
 	union ctl_io *io;
 	struct ctl_id id;
@@ -2512,7 +2520,7 @@ cctl_tur(int fd, int target, int lun, int iid, int retries)
 }
 
 static int
-cctl_get_inquiry(int fd, int target, int lun, int iid, int retries, 
+cctl_get_inquiry(int fd, int target, int lun, int iid, int retries,
 		 char *path_str, int path_len,
 		 struct scsi_inquiry_data *inq_data)
 {
@@ -2663,7 +2671,7 @@ cctl_report_target_port_group(int fd, int target, int lun, int initiator)
 	dataptr = (uint8_t *)malloc(datalen);
 	if (dataptr == NULL) {
 		warn("%s: can't allocate %d bytes", __func__, datalen);
-	    	retval = 1;
+		retval = 1;
 		goto bailout;
 	}
 
@@ -2731,7 +2739,7 @@ cctl_inquiry_vpd_devid(int fd, int target, int lun, int initiator)
 	dataptr = (uint8_t *)malloc(datalen);
 	if (dataptr == NULL) {
 		warn("%s: can't allocate %d bytes", __func__, datalen);
-	    	retval = 1;
+		retval = 1;
 		goto bailout;
 	}
 
@@ -2778,7 +2786,7 @@ bailout:
 }
 
 static int
-cctl_persistent_reserve_in(int fd, int target, int lun, int initiator, 
+cctl_persistent_reserve_in(int fd, int target, int lun, int initiator,
                            int argc, char **argv, char *combinedopt,
 			   int retry_count)
 {
@@ -2821,7 +2829,7 @@ cctl_persistent_reserve_in(int fd, int target, int lun, int initiator,
 	dataptr = (uint8_t *)malloc(datalen);
 	if (dataptr == NULL) {
 		warn("%s: can't allocate %d bytes", __func__, datalen);
-	    	retval = 1;
+		retval = 1;
 		goto bailout;
 	}
 
@@ -2884,8 +2892,8 @@ bailout:
 }
 
 static int
-cctl_persistent_reserve_out(int fd, int target, int lun, int initiator, 
-			    int argc, char **argv, char *combinedopt, 
+cctl_persistent_reserve_out(int fd, int target, int lun, int initiator,
+			    int argc, char **argv, char *combinedopt,
 			    int retry_count)
 {
 	union ctl_io *io;
@@ -3168,14 +3176,18 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 		goto bailout;
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		warnx("%s: error returned from LUN creation request:\n%s",
-		      __func__, req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		warnx("LUN creation error: %s", req.error_str);
 		retval = 1;
 		goto bailout;
-	} else if (req.status != CTL_LUN_OK) {
-		warnx("%s: unknown LUN creation request status %d",
-		      __func__, req.status);
+	case CTL_LUN_WARNING:
+		warnx("LUN creation warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		warnx("unknown LUN creation status: %d", req.status);
 		retval = 1;
 		goto bailout;
 	}
@@ -3314,19 +3326,23 @@ cctl_rm_lun(int fd, int argc, char **argv, char *combinedopt)
 		goto bailout;
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		warnx("%s: error returned from LUN removal request:\n%s",
-		      __func__, req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		warnx("LUN removal error: %s", req.error_str);
 		retval = 1;
 		goto bailout;
-	} else if (req.status != CTL_LUN_OK) {
-		warnx("%s: unknown LUN removal request status %d",
-		      __func__, req.status);
+	case CTL_LUN_WARNING:
+		warnx("LUN removal warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		warnx("unknown LUN removal status: %d", req.status);
 		retval = 1;
 		goto bailout;
 	}
 
-	printf("LUN %d deleted successfully\n", lun_id);
+	printf("LUN %d removed successfully\n", lun_id);
 
 bailout:
 	return (retval);
@@ -3391,14 +3407,18 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 		goto bailout;
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		warnx("%s: error returned from LUN modification request:\n%s",
-		      __func__, req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		warnx("LUN modification error: %s", req.error_str);
 		retval = 1;
 		goto bailout;
-	} else if (req.status != CTL_LUN_OK) {
-		warnx("%s: unknown LUN modification request status %d",
-		      __func__, req.status);
+	case CTL_LUN_WARNING:
+		warnx("LUN modification warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		warnx("unknown LUN modification status: %d", req.status);
 		retval = 1;
 		goto bailout;
 	}
@@ -3419,6 +3439,7 @@ struct cctl_islist_conn {
 	char *header_digest;
 	char *data_digest;
 	char *max_data_segment_length;;
+	char *offload;;
 	int immediate_data;
 	int iser;
 	STAILQ_ENTRY(cctl_islist_conn) links;
@@ -3522,6 +3543,7 @@ cctl_islist_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "target_alias") == 0) {
 		cur_conn->target_alias = str;
 		str = NULL;
+	} else if (strcmp(name, "target_portal_group_tag") == 0) {
 	} else if (strcmp(name, "header_digest") == 0) {
 		cur_conn->header_digest = str;
 		str = NULL;
@@ -3531,6 +3553,9 @@ cctl_islist_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "max_data_segment_length") == 0) {
 		cur_conn->max_data_segment_length = str;
 		str = NULL;
+	} else if (strcmp(name, "offload") == 0) {
+		cur_conn->offload = str;
+		str = NULL;
 	} else if (strcmp(name, "immediate_data") == 0) {
 		cur_conn->immediate_data = atoi(str);
 	} else if (strcmp(name, "iser") == 0) {
@@ -3538,8 +3563,12 @@ cctl_islist_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "connection") == 0) {
 		islist->cur_conn = NULL;
 	} else if (strcmp(name, "ctlislist") == 0) {
-	} else
-		errx(1, "unknown element %s", name);
+		/* Nothing. */
+	} else {
+		/*
+		 * Unknown element; ignore it for forward compatiblity.
+		 */
+	}
 
 	free(str);
 }
@@ -3625,11 +3654,14 @@ retry:
 	XML_SetCharacterDataHandler(parser, cctl_islist_char_handler);
 
 	retval = XML_Parse(parser, conn_str, strlen(conn_str), 1);
-	XML_ParserFree(parser);
 	if (retval != 1) {
+		warnx("%s: Unable to parse XML: Error %d", __func__,
+		    XML_GetErrorCode(parser));
+		XML_ParserFree(parser);
 		retval = 1;
 		goto bailout;
 	}
+	XML_ParserFree(parser);
 
 	if (verbose != 0) {
 		STAILQ_FOREACH(conn, &islist.conn_list, links) {
@@ -3644,6 +3676,7 @@ retry:
 			printf("DataSegmentLen:   %s\n", conn->max_data_segment_length);
 			printf("ImmediateData:    %s\n", conn->immediate_data ? "Yes" : "No");
 			printf("iSER (RDMA):      %s\n", conn->iser ? "Yes" : "No");
+			printf("Offload driver:   %s\n", conn->offload);
 			printf("\n");
 		}
 	} else {
@@ -3817,7 +3850,7 @@ struct cctl_lun_nv {
 };
 
 /*
- * Backend LUN information.  
+ * Backend LUN information.
  */
 struct cctl_lun {
 	uint64_t lun_id;
@@ -3933,7 +3966,7 @@ cctl_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "lun") == 0) {
 		devlist->cur_lun = NULL;
 	} else if (strcmp(name, "ctllunlist") == 0) {
-		
+		/* Nothing. */
 	} else {
 		struct cctl_lun_nv *nv;
 
@@ -4040,11 +4073,14 @@ retry:
 	XML_SetCharacterDataHandler(parser, cctl_char_handler);
 
 	retval = XML_Parse(parser, lun_str, strlen(lun_str), 1);
-	XML_ParserFree(parser);
 	if (retval != 1) {
+		warnx("%s: Unable to parse XML: Error %d", __func__,
+		    XML_GetErrorCode(parser));
+		XML_ParserFree(parser);
 		retval = 1;
 		goto bailout;
 	}
+	XML_ParserFree(parser);
 
 	printf("LUN Backend  %18s %4s %-16s %-16s\n", "Size (Blocks)", "BS",
 	       "Serial Number", "Device ID");
@@ -4069,6 +4105,359 @@ retry:
 	}
 bailout:
 	free(lun_str);
+
+	return (retval);
+}
+
+/*
+ * Port information.
+ */
+struct cctl_port {
+	uint64_t port_id;
+	char *online;
+	char *frontend_type;
+	char *name;
+	int pp, vp;
+	char *target, *port, *lun_map;
+	STAILQ_HEAD(,cctl_lun_nv) init_list;
+	STAILQ_HEAD(,cctl_lun_nv) lun_list;
+	STAILQ_HEAD(,cctl_lun_nv) attr_list;
+	STAILQ_ENTRY(cctl_port) links;
+};
+
+struct cctl_portlist_data {
+	int num_ports;
+	STAILQ_HEAD(,cctl_port) port_list;
+	struct cctl_port *cur_port;
+	int level;
+	uint64_t cur_id;
+	struct sbuf *cur_sb[32];
+};
+
+static void
+cctl_start_pelement(void *user_data, const char *name, const char **attr)
+{
+	int i;
+	struct cctl_portlist_data *portlist;
+	struct cctl_port *cur_port;
+
+	portlist = (struct cctl_portlist_data *)user_data;
+	cur_port = portlist->cur_port;
+	portlist->level++;
+	if ((u_int)portlist->level >= (sizeof(portlist->cur_sb) /
+	    sizeof(portlist->cur_sb[0])))
+		errx(1, "%s: too many nesting levels, %zd max", __func__,
+		     sizeof(portlist->cur_sb) / sizeof(portlist->cur_sb[0]));
+
+	portlist->cur_sb[portlist->level] = sbuf_new_auto();
+	if (portlist->cur_sb[portlist->level] == NULL)
+		err(1, "%s: Unable to allocate sbuf", __func__);
+
+	portlist->cur_id = 0;
+	for (i = 0; attr[i] != NULL; i += 2) {
+		if (strcmp(attr[i], "id") == 0) {
+			portlist->cur_id = strtoull(attr[i+1], NULL, 0);
+			break;
+		}
+	}
+
+	if (strcmp(name, "targ_port") == 0) {
+		if (cur_port != NULL)
+			errx(1, "%s: improper port element nesting", __func__);
+
+		cur_port = calloc(1, sizeof(*cur_port));
+		if (cur_port == NULL)
+			err(1, "%s: cannot allocate %zd bytes", __func__,
+			    sizeof(*cur_port));
+
+		portlist->num_ports++;
+		portlist->cur_port = cur_port;
+
+		STAILQ_INIT(&cur_port->init_list);
+		STAILQ_INIT(&cur_port->lun_list);
+		STAILQ_INIT(&cur_port->attr_list);
+		cur_port->port_id = portlist->cur_id;
+		STAILQ_INSERT_TAIL(&portlist->port_list, cur_port, links);
+	}
+}
+
+static void
+cctl_end_pelement(void *user_data, const char *name)
+{
+	struct cctl_portlist_data *portlist;
+	struct cctl_port *cur_port;
+	char *str;
+
+	portlist = (struct cctl_portlist_data *)user_data;
+	cur_port = portlist->cur_port;
+
+	if ((cur_port == NULL)
+	 && (strcmp(name, "ctlportlist") != 0))
+		errx(1, "%s: cur_port == NULL! (name = %s)", __func__, name);
+
+	if (portlist->cur_sb[portlist->level] == NULL)
+		errx(1, "%s: no valid sbuf at level %d (name %s)", __func__,
+		     portlist->level, name);
+
+	if (sbuf_finish(portlist->cur_sb[portlist->level]) != 0)
+		err(1, "%s: sbuf_finish", __func__);
+	str = strdup(sbuf_data(portlist->cur_sb[portlist->level]));
+	if (str == NULL)
+		err(1, "%s can't allocate %zd bytes for string", __func__,
+		    sbuf_len(portlist->cur_sb[portlist->level]));
+
+	if (strlen(str) == 0) {
+		free(str);
+		str = NULL;
+	}
+
+	sbuf_delete(portlist->cur_sb[portlist->level]);
+	portlist->cur_sb[portlist->level] = NULL;
+	portlist->level--;
+
+	if (strcmp(name, "frontend_type") == 0) {
+		cur_port->frontend_type = str;
+		str = NULL;
+	} else if (strcmp(name, "port_name") == 0) {
+		cur_port->name = str;
+		str = NULL;
+	} else if (strcmp(name, "online") == 0) {
+		cur_port->online = str;
+		str = NULL;
+	} else if (strcmp(name, "physical_port") == 0) {
+		cur_port->pp = strtoull(str, NULL, 0);
+	} else if (strcmp(name, "virtual_port") == 0) {
+		cur_port->vp = strtoull(str, NULL, 0);
+	} else if (strcmp(name, "target") == 0) {
+		cur_port->target = str;
+		str = NULL;
+	} else if (strcmp(name, "port") == 0) {
+		cur_port->port = str;
+		str = NULL;
+	} else if (strcmp(name, "lun_map") == 0) {
+		cur_port->lun_map = str;
+		str = NULL;
+	} else if (strcmp(name, "targ_port") == 0) {
+		portlist->cur_port = NULL;
+	} else if (strcmp(name, "ctlportlist") == 0) {
+		/* Nothing. */
+	} else {
+		struct cctl_lun_nv *nv;
+
+		nv = calloc(1, sizeof(*nv));
+		if (nv == NULL)
+			err(1, "%s: can't allocate %zd bytes for nv pair",
+			    __func__, sizeof(*nv));
+
+		if (strcmp(name, "initiator") == 0 ||
+		    strcmp(name, "lun") == 0)
+			asprintf(&nv->name, "%ju", portlist->cur_id);
+		else
+			nv->name = strdup(name);
+		if (nv->name == NULL)
+			err(1, "%s: can't allocated %zd bytes for string",
+			    __func__, strlen(name));
+
+		nv->value = str;
+		str = NULL;
+		if (strcmp(name, "initiator") == 0)
+			STAILQ_INSERT_TAIL(&cur_port->init_list, nv, links);
+		else if (strcmp(name, "lun") == 0)
+			STAILQ_INSERT_TAIL(&cur_port->lun_list, nv, links);
+		else
+			STAILQ_INSERT_TAIL(&cur_port->attr_list, nv, links);
+	}
+
+	free(str);
+}
+
+static void
+cctl_char_phandler(void *user_data, const XML_Char *str, int len)
+{
+	struct cctl_portlist_data *portlist;
+
+	portlist = (struct cctl_portlist_data *)user_data;
+
+	sbuf_bcat(portlist->cur_sb[portlist->level], str, len);
+}
+
+static int
+cctl_portlist(int fd, int argc, char **argv, char *combinedopt)
+{
+	struct ctl_lun_list list;
+	struct cctl_portlist_data portlist;
+	struct cctl_port *port;
+	XML_Parser parser;
+	char *port_str;
+	int port_len;
+	int dump_xml = 0;
+	int retval, c;
+	char *frontend = NULL;
+	uint64_t portarg = UINT64_MAX;
+	int verbose = 0, init = 0, lun = 0, quiet = 0;
+
+	retval = 0;
+	port_len = 4096;
+
+	bzero(&portlist, sizeof(portlist));
+	STAILQ_INIT(&portlist.port_list);
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'f':
+			frontend = strdup(optarg);
+			break;
+		case 'i':
+			init++;
+			break;
+		case 'l':
+			lun++;
+			break;
+		case 'p':
+			portarg = strtoll(optarg, NULL, 0);
+			break;
+		case 'q':
+			quiet++;
+			break;
+		case 'v':
+			verbose++;
+			break;
+		case 'x':
+			dump_xml = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+retry:
+	port_str = malloc(port_len);
+
+	bzero(&list, sizeof(list));
+	list.alloc_len = port_len;
+	list.status = CTL_LUN_LIST_NONE;
+	list.lun_xml = port_str;
+
+	if (ioctl(fd, CTL_PORT_LIST, &list) == -1) {
+		warn("%s: error issuing CTL_PORT_LIST ioctl", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	if (list.status == CTL_LUN_LIST_ERROR) {
+		warnx("%s: error returned from CTL_PORT_LIST ioctl:\n%s",
+		      __func__, list.error_str);
+	} else if (list.status == CTL_LUN_LIST_NEED_MORE_SPACE) {
+		port_len = port_len << 1;
+		goto retry;
+	}
+
+	if (dump_xml != 0) {
+		printf("%s", port_str);
+		goto bailout;
+	}
+
+	parser = XML_ParserCreate(NULL);
+	if (parser == NULL) {
+		warn("%s: Unable to create XML parser", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	XML_SetUserData(parser, &portlist);
+	XML_SetElementHandler(parser, cctl_start_pelement, cctl_end_pelement);
+	XML_SetCharacterDataHandler(parser, cctl_char_phandler);
+
+	retval = XML_Parse(parser, port_str, strlen(port_str), 1);
+	if (retval != 1) {
+		warnx("%s: Unable to parse XML: Error %d", __func__,
+		    XML_GetErrorCode(parser));
+		XML_ParserFree(parser);
+		retval = 1;
+		goto bailout;
+	}
+	XML_ParserFree(parser);
+
+	if (quiet == 0)
+		printf("Port Online Frontend Name     pp vp\n");
+	STAILQ_FOREACH(port, &portlist.port_list, links) {
+		struct cctl_lun_nv *nv;
+
+		if ((frontend != NULL)
+		 && (strcmp(port->frontend_type, frontend) != 0))
+			continue;
+
+		if ((portarg != UINT64_MAX) && (portarg != port->port_id))
+			continue;
+
+		printf("%-4ju %-6s %-8s %-8s %-2d %-2d %s\n",
+		    (uintmax_t)port->port_id, port->online,
+		    port->frontend_type, port->name, port->pp, port->vp,
+		    port->port ? port->port : "");
+
+		if (init || verbose) {
+			if (port->target)
+				printf("  Target: %s\n", port->target);
+			STAILQ_FOREACH(nv, &port->init_list, links) {
+				printf("  Initiator %s: %s\n",
+				    nv->name, nv->value);
+			}
+		}
+
+		if (lun || verbose) {
+			if (port->lun_map) {
+				STAILQ_FOREACH(nv, &port->lun_list, links)
+					printf("  LUN %s: %s\n",
+					    nv->name, nv->value);
+				if (STAILQ_EMPTY(&port->lun_list))
+					printf("  No LUNs mapped\n");
+			} else
+				printf("  All LUNs mapped\n");
+		}
+
+		if (verbose) {
+			STAILQ_FOREACH(nv, &port->attr_list, links) {
+				printf("      %s=%s\n", nv->name, nv->value);
+			}
+		}
+	}
+bailout:
+	free(port_str);
+
+	return (retval);
+}
+
+static int
+cctl_lunmap(int fd, int argc, char **argv, char *combinedopt)
+{
+	struct ctl_lun_map lm;
+	int retval = 0, c;
+
+	retval = 0;
+	lm.port = UINT32_MAX;
+	lm.plun = UINT32_MAX;
+	lm.lun = UINT32_MAX;
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'p':
+			lm.port = strtoll(optarg, NULL, 0);
+			break;
+		case 'l':
+			lm.plun = strtoll(optarg, NULL, 0);
+			break;
+		case 'L':
+			lm.lun = strtoll(optarg, NULL, 0);
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (ioctl(fd, CTL_LUN_MAP, &lm) == -1) {
+		warn("%s: error issuing CTL_LUN_MAP ioctl", __func__);
+		retval = 1;
+	}
 
 	return (retval);
 }
@@ -4104,12 +4493,13 @@ usage(int error)
 "                            [-S serial_num] [-t dev_type]\n"
 "         ctladm remove      <-b backend> <-l lun_id> [-o name=value]\n"
 "         ctladm modify      <-b backend> <-l lun_id> <-s size_bytes>\n"
-"         ctladm devlist     [-b][-v][-x]\n"
+"         ctladm devlist     [-b backend] [-v] [-x]\n"
 "         ctladm shutdown\n"
 "         ctladm startup\n"
 "         ctladm hardstop\n"
 "         ctladm hardstart\n"
 "         ctladm lunlist\n"
+"         ctladm lunmap      -p targ_port [-l pLUN] [-L cLUN]\n"
 "         ctladm bbrread     [dev_id] <-l lba> <-d datalen>\n"
 "         ctladm delay       [dev_id] <-l datamove|done> [-T oneshot|cont]\n"
 "                            [-t secs]\n"
@@ -4120,6 +4510,7 @@ usage(int error)
 "                            [-s len fmt [args]] [-c] [-d delete_id]\n"
 "         ctladm port        <-l | -o <on|off> | [-w wwnn][-W wwpn]>\n"
 "                            [-p targ_port] [-t port_type] [-q] [-x]\n"
+"         ctladm portlist    [-f frontend] [-i] [-p targ_port] [-q] [-v] [-x]\n"
 "         ctladm islist      [-v | -x]\n"
 "         ctladm islogout    <-a | -c connection-id | -i name | -p portal>\n"
 "         ctladm isterminate <-a | -c connection-id | -i name | -p portal>\n"
@@ -4205,6 +4596,18 @@ usage(int error)
 "-p targ_port             : specify target port number\n"
 "-q                       : omit header in list output\n"
 "-x                       : output port list in XML format\n"
+"portlist options:\n"
+"-f fronetnd              : specify frontend type\n"
+"-i                       : report target and initiators addresses\n"
+"-l                       : report LUN mapping\n"
+"-p targ_port             : specify target port number\n"
+"-q                       : omit header in list output\n"
+"-v                       : verbose output (report all port options)\n"
+"-x                       : output port list in XML format\n"
+"lunmap options:\n"
+"-p targ_port             : specify target port number\n"
+"-L pLUN                  : specify port-visible LUN\n"
+"-L cLUN                  : specify CTL LUN\n"
 "bbrread options:\n"
 "-l lba                   : starting LBA\n"
 "-d datalen               : length, in bytes, to read\n",
@@ -4261,7 +4664,7 @@ main(int argc, char **argv)
 	}
 
 	if (cmdargs & CTLADM_ARG_NEED_TL) {
-	 	if ((argc < 3)
+		if ((argc < 3)
 		 || (!isdigit(argv[2][0]))) {
 			warnx("option %s requires a target:lun argument",
 			      argv[1]);
@@ -4429,6 +4832,12 @@ main(int argc, char **argv)
 	case CTLADM_CMD_PORT:
 		retval = cctl_port(fd, argc, argv, combinedopt);
 		break;
+	case CTLADM_CMD_PORTLIST:
+		retval = cctl_portlist(fd, argc, argv, combinedopt);
+		break;
+	case CTLADM_CMD_LUNMAP:
+		retval = cctl_lunmap(fd, argc, argv, combinedopt);
+		break;
 	case CTLADM_CMD_READCAPACITY:
 		retval = cctl_read_capacity(fd, target, lun, initid, retries,
 					    argc, argv, combinedopt);
@@ -4485,12 +4894,12 @@ main(int argc, char **argv)
 		retval = cctl_dump_structs(fd, cmdargs);
 		break;
 	case CTLADM_CMD_PRES_IN:
-		retval = cctl_persistent_reserve_in(fd, target, lun, initid, 
+		retval = cctl_persistent_reserve_in(fd, target, lun, initid,
 		                                    argc, argv, combinedopt,
 						    retries);
 		break;
 	case CTLADM_CMD_PRES_OUT:
-		retval = cctl_persistent_reserve_out(fd, target, lun, initid, 
+		retval = cctl_persistent_reserve_out(fd, target, lun, initid,
 						     argc, argv, combinedopt,
 						     retries);
 		break;

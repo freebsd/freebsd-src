@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2008 The NetBSD Foundation, Inc.
+/* Copyright (c) 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,8 +21,9 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
+
+#include "atf-c/macros.h"
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -41,10 +39,10 @@
 
 #include <atf-c.h>
 
-#include "detail/fs.h"
-#include "detail/process.h"
-#include "detail/test_helpers.h"
-#include "detail/text.h"
+#include "atf-c/detail/fs.h"
+#include "atf-c/detail/process.h"
+#include "atf-c/detail/test_helpers.h"
+#include "atf-c/detail/text.h"
 
 /* ---------------------------------------------------------------------
  * Auxiliary functions.
@@ -837,17 +835,35 @@ ATF_TC_BODY(msg_embedded_fmt, tc)
  * Tests cases for the header file.
  * --------------------------------------------------------------------- */
 
-HEADER_TC(include, "atf-c/macros.h");
 BUILD_TC(use, "macros_h_test.c",
          "Tests that the macros provided by the atf-c/macros.h file "
          "do not cause syntax errors when used",
          "Build of macros_h_test.c failed; some macros in atf-c/macros.h "
          "are broken");
-BUILD_TC_FAIL(detect_unused_tests, "unused_test.c",
-         "Tests that defining an unused test case raises a warning (and thus "
-         "an error)",
-         "Build of unused_test.c passed; unused test cases are not properly "
-         "detected");
+
+ATF_TC(detect_unused_tests);
+ATF_TC_HEAD(detect_unused_tests, tc)
+{
+    atf_tc_set_md_var(tc, "descr",
+                      "Tests that defining an unused test case raises a "
+                      "warning (and thus an error)");
+}
+ATF_TC_BODY(detect_unused_tests, tc)
+{
+    const char* validate_compiler =
+        "struct test_struct { int dummy; };\n"
+        "#define define_unused static struct test_struct unused\n"
+        "define_unused;\n";
+
+    atf_utils_create_file("compiler_test.c", "%s", validate_compiler);
+    if (build_check_c_o("compiler_test.c"))
+        atf_tc_expect_fail("Compiler does not raise a warning on an unused "
+                           "static global variable declared by a macro");
+
+    if (build_check_c_o_srcdir(tc, "unused_test.c"))
+        atf_tc_fail("Build of unused_test.c passed; unused test cases are "
+                    "not properly detected");
+}
 
 /* ---------------------------------------------------------------------
  * Main.
@@ -870,7 +886,6 @@ ATF_TP_ADD_TCS(tp)
     ATF_TP_ADD_TC(tp, msg_embedded_fmt);
 
     /* Add the test cases for the header file. */
-    ATF_TP_ADD_TC(tp, include);
     ATF_TP_ADD_TC(tp, use);
     ATF_TP_ADD_TC(tp, detect_unused_tests);
 

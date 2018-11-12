@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <machine/disassem.h>
 #include <machine/armreg.h>
+#include <machine/acle-compat.h>
 #include <ddb/ddb.h>
 
 /*
@@ -130,7 +131,7 @@ static const struct arm32_insn arm32_i[] = {
     { 0x0c500000, 0x04100000, "ldr",	"daW" },
     { 0x0c500000, 0x04400000, "strb",	"daW" },
     { 0x0c500000, 0x04500000, "ldrb",	"daW" },
-#if defined(__FreeBSD_ARCH_armv6__)  || (defined(__ARM_ARCH) && __ARM_ARCH >= 6)
+#if __ARM_ARCH >= 6
     { 0xffffffff, 0xf57ff01f, "clrex",	"c" },
     { 0x0ff00ff0, 0x01800f90, "strex",	"dmo" },
     { 0x0ff00fff, 0x01900f9f, "ldrex",	"do" },
@@ -288,7 +289,7 @@ static void disassemble_printaddr(u_int address);
 vm_offset_t
 disasm(const disasm_interface_t *di, vm_offset_t loc, int altfmt)
 {
-	struct arm32_insn *i_ptr = (struct arm32_insn *)&arm32_i;
+	const struct arm32_insn *i_ptr = arm32_i;
 
 	u_int insn;
 	int matchp;

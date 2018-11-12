@@ -74,8 +74,7 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, super_owner, CTLFLAG_RW, &zfs_super_owner, 0,
     "File system owner can perform privileged operation on his file systems");
 
 int zfs_debug_level;
-TUNABLE_INT("vfs.zfs.debug", &zfs_debug_level);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, debug, CTLFLAG_RW, &zfs_debug_level, 0,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, debug, CTLFLAG_RWTUN, &zfs_debug_level, 0,
     "Debug level");
 
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, version, CTLFLAG_RD, 0, "ZFS versions");
@@ -131,6 +130,13 @@ zfs_sync(vfs_t *vfsp, int waitfor)
 	 * writing to the storage pool, so we never sync during panic.
 	 */
 	if (panicstr)
+		return (0);
+
+	/*
+	 * Ignore the system syncher.  ZFS already commits async data
+	 * at zfs_txg_timeout intervals.
+	 */
+	if (waitfor == MNT_LAZY)
 		return (0);
 
 	if (vfsp != NULL) {
@@ -271,10 +277,9 @@ static void
 blksz_changed_cb(void *arg, uint64_t newval)
 {
 	zfsvfs_t *zfsvfs = arg;
-
-	if (newval < SPA_MINBLOCKSIZE ||
-	    newval > SPA_MAXBLOCKSIZE || !ISP2(newval))
-		newval = SPA_MAXBLOCKSIZE;
+	ASSERT3U(newval, <=, spa_maxblocksize(dmu_objset_spa(zfsvfs->z_os)));
+	ASSERT3U(newval, >=, SPA_MINBLOCKSIZE);
+	ASSERT(ISP2(newval));
 
 	zfsvfs->z_max_blksz = newval;
 	zfsvfs->z_vfs->mnt_stat.f_iosize = newval;
@@ -871,6 +876,17 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 	int i, error;
 	uint64_t sa_obj;
 
+	/*
+	 * XXX: Fix struct statfs so this isn't necessary!
+	 *
+	 * The 'osname' is used as the filesystem's special node, which means
+	 * it must fit in statfs.f_mntfromname, or else it can't be
+	 * enumerated, so libzfs_mnttab_find() returns NULL, which causes
+	 * 'zfs unmount' to think it's not mounted when it is.
+	 */
+	if (strlen(osname) >= MNAMELEN)
+		return (SET_ERROR(ENAMETOOLONG));
+
 	zfsvfs = kmem_zalloc(sizeof (zfsvfs_t), KM_SLEEP);
 
 	/*
@@ -890,7 +906,7 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 	 */
 	zfsvfs->z_vfs = NULL;
 	zfsvfs->z_parent = zfsvfs;
-	zfsvfs->z_max_blksz = SPA_MAXBLOCKSIZE;
+	zfsvfs->z_max_blksz = SPA_OLD_MAXBLOCKSIZE;
 	zfsvfs->z_show_ctldir = ZFS_SNAPDIR_VISIBLE;
 	zfsvfs->z_os = os;
 
@@ -988,7 +1004,7 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 	mutex_init(&zfsvfs->z_lock, NULL, MUTEX_DEFAULT, NULL);
 	list_create(&zfsvfs->z_all_znodes, sizeof (znode_t),
 	    offsetof(znode_t, z_link_node));
-	rrw_init(&zfsvfs->z_teardown_lock, B_FALSE);
+	rrm_init(&zfsvfs->z_teardown_lock, B_FALSE);
 	rw_init(&zfsvfs->z_teardown_inactive_lock, NULL, RW_DEFAULT, NULL);
 	rw_init(&zfsvfs->z_fuid_lock, NULL, RW_DEFAULT, NULL);
 	for (i = 0; i != ZFS_OBJ_MTX_SZ; i++)
@@ -1104,7 +1120,7 @@ zfsvfs_free(zfsvfs_t *zfsvfs)
 	mutex_destroy(&zfsvfs->z_znodes_lock);
 	mutex_destroy(&zfsvfs->z_lock);
 	list_destroy(&zfsvfs->z_all_znodes);
-	rrw_destroy(&zfsvfs->z_teardown_lock);
+	rrm_destroy(&zfsvfs->z_teardown_lock);
 	rw_destroy(&zfsvfs->z_teardown_inactive_lock);
 	rw_destroy(&zfsvfs->z_fuid_lock);
 	for (i = 0; i != ZFS_OBJ_MTX_SZ; i++)
@@ -1223,9 +1239,6 @@ zfs_domount(vfs_t *vfsp, char *osname)
 	}
 
 	vfs_mountedfrom(vfsp, osname);
-	/* Grab extra reference. */
-	VERIFY(VFS_ROOT(vfsp, LK_EXCLUSIVE, &vp) == 0);
-	VOP_UNLOCK(vp, 0);
 
 	if (!zfsvfs->z_issnap)
 		zfsctl_create(zfsvfs);
@@ -1234,7 +1247,7 @@ out:
 		dmu_objset_disown(zfsvfs->z_os, zfsvfs);
 		zfsvfs_free(zfsvfs);
 	} else {
-		atomic_add_32(&zfs_active_fs_count, 1);
+		atomic_inc_32(&zfs_active_fs_count);
 	}
 
 	return (error);
@@ -1626,13 +1639,13 @@ zfs_mount(vfs_t *vfsp)
 	 * can be interrogated.
 	 */
 	if ((uap->flags & MS_DATA) && uap->datalen > 0)
-#else
+#else	/* !illumos */
 	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_ZFS))
 		return (SET_ERROR(EPERM));
 
 	if (vfs_getopt(vfsp->mnt_optnew, "from", (void **)&osname, NULL))
 		return (SET_ERROR(EINVAL));
-#endif	/* ! illumos */
+#endif	/* illumos */
 
 	/*
 	 * If full-owner-access is enabled and delegated administration is
@@ -1725,14 +1738,14 @@ zfs_mount(vfs_t *vfsp)
 	error = zfs_domount(vfsp, osname);
 	PICKUP_GIANT();
 
-#ifdef sun
+#ifdef illumos
 	/*
 	 * Add an extra VFS_HOLD on our parent vfs so that it can't
 	 * disappear due to a forced unmount.
 	 */
 	if (error == 0 && ((zfsvfs_t *)vfsp->vfs_data)->z_issnap)
 		VFS_HOLD(mvp->v_vfsp);
-#endif	/* sun */
+#endif
 
 out:
 	return (error);
@@ -1803,7 +1816,7 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 	znode_t *rootzp;
 	int error;
 
-	ZFS_ENTER_NOERROR(zfsvfs);
+	ZFS_ENTER(zfsvfs);
 
 	error = zfs_zget(zfsvfs, zfsvfs->z_root, &rootzp);
 	if (error == 0)
@@ -1833,7 +1846,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 {
 	znode_t	*zp;
 
-	rrw_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
+	rrm_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
 
 	if (!unmounting) {
 		/*
@@ -1866,7 +1879,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	 */
 	if (!unmounting && (zfsvfs->z_unmounted || zfsvfs->z_os == NULL)) {
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
-		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
+		rrm_exit(&zfsvfs->z_teardown_lock, FTAG);
 		return (SET_ERROR(EIO));
 	}
 
@@ -1893,7 +1906,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	 */
 	if (unmounting) {
 		zfsvfs->z_unmounted = B_TRUE;
-		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
+		rrm_exit(&zfsvfs->z_teardown_lock, FTAG);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
 	}
 
@@ -1970,15 +1983,15 @@ zfs_umount(vfs_t *vfsp, int fflag)
 		 * vflush(FORCECLOSE). This way we ensure no future vnops
 		 * will be called and risk operating on DOOMED vnodes.
 		 */
-		rrw_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
+		rrm_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
 		zfsvfs->z_unmounted = B_TRUE;
-		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
+		rrm_exit(&zfsvfs->z_teardown_lock, FTAG);
 	}
 
 	/*
 	 * Flush all the files.
 	 */
-	ret = vflush(vfsp, 1, (fflag & MS_FORCE) ? FORCECLOSE : 0, td);
+	ret = vflush(vfsp, 0, (fflag & MS_FORCE) ? FORCECLOSE : 0, td);
 	if (ret != 0) {
 		if (!zfsvfs->z_issnap) {
 			zfsctl_create(zfsvfs);
@@ -1987,7 +2000,7 @@ zfs_umount(vfs_t *vfsp, int fflag)
 		return (ret);
 	}
 
-#ifdef sun
+#ifdef illumos
 	if (!(fflag & MS_FORCE)) {
 		/*
 		 * Check the number of active vnodes in the file system.
@@ -2076,8 +2089,6 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 		err = vn_lock(*vpp, flags);
 	if (err != 0)
 		*vpp = NULL;
-	else
-		(*vpp)->v_hash = ino;
 	return (err);
 }
 
@@ -2240,7 +2251,7 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, const char *osname)
 	znode_t *zp;
 	uint64_t sa_obj = 0;
 
-	ASSERT(RRW_WRITE_HELD(&zfsvfs->z_teardown_lock));
+	ASSERT(RRM_WRITE_HELD(&zfsvfs->z_teardown_lock));
 	ASSERT(RW_WRITE_HELD(&zfsvfs->z_teardown_inactive_lock));
 
 	/*
@@ -2296,15 +2307,17 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, const char *osname)
 bail:
 	/* release the VOPs */
 	rw_exit(&zfsvfs->z_teardown_inactive_lock);
-	rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
+	rrm_exit(&zfsvfs->z_teardown_lock, FTAG);
 
 	if (err) {
 		/*
 		 * Since we couldn't setup the sa framework, try to force
 		 * unmount this file system.
 		 */
-		if (vn_vfswlock(zfsvfs->z_vfs->vfs_vnodecovered) == 0)
+		if (vn_vfswlock(zfsvfs->z_vfs->vfs_vnodecovered) == 0) {
+			vfs_ref(zfsvfs->z_vfs);
 			(void) dounmount(zfsvfs->z_vfs, MS_FORCE, curthread);
+		}
 	}
 	return (err);
 }
@@ -2314,7 +2327,7 @@ zfs_freevfs(vfs_t *vfsp)
 {
 	zfsvfs_t *zfsvfs = vfsp->vfs_data;
 
-#ifdef sun
+#ifdef illumos
 	/*
 	 * If this is a snapshot, we have an extra VFS_HOLD on our parent
 	 * from zfs_mount().  Release it here.  If we came through
@@ -2323,11 +2336,11 @@ zfs_freevfs(vfs_t *vfsp)
 	 */
 	if (zfsvfs->z_issnap && (vfsp != rootvfs))
 		VFS_RELE(zfsvfs->z_parent->z_vfs);
-#endif	/* sun */
+#endif
 
 	zfsvfs_free(zfsvfs);
 
-	atomic_add_32(&zfs_active_fs_count, -1);
+	atomic_dec_32(&zfs_active_fs_count);
 }
 
 #ifdef __i386__
@@ -2347,7 +2360,7 @@ zfs_vnodes_adjust(void)
 	 * vntblinit(). If it is equal to desiredvnodes, it means that
 	 * it wasn't tuned by the administrator and we can tune it down.
 	 */
-	newdesiredvnodes = min(maxproc + cnt.v_page_count / 4, 2 *
+	newdesiredvnodes = min(maxproc + vm_cnt.v_page_count / 4, 2 *
 	    vm_kmem_size / (5 * (sizeof(struct vm_object) +
 	    sizeof(struct vnode))));
 	if (newdesiredvnodes == desiredvnodes)

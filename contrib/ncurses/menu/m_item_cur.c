@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_cur.c,v 1.17 2004/12/25 21:57:38 tom Exp $")
+MODULE_ID("$Id: m_item_cur.c,v 1.18 2010/01/23 21:20:10 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -50,7 +50,7 @@ MODULE_ID("$Id: m_item_cur.c,v 1.17 2004/12/25 21:57:38 tom Exp $")
 NCURSES_EXPORT(int)
 set_current_item(MENU * menu, ITEM * item)
 {
-  T((T_CALLED("set_current_item(%p,%p)"), menu, item));
+  T((T_CALLED("set_current_item(%p,%p)"), (void *)menu, (void *)item));
 
   if (menu && item && (item->imenu == menu))
     {
@@ -91,7 +91,7 @@ set_current_item(MENU * menu, ITEM * item)
 NCURSES_EXPORT(ITEM *)
 current_item(const MENU * menu)
 {
-  T((T_CALLED("current_item(%p)"), menu));
+  T((T_CALLED("current_item(%p)"), (const void *)menu));
   returnItem((menu && menu->items) ? menu->curitem : (ITEM *) 0);
 }
 
@@ -106,7 +106,7 @@ current_item(const MENU * menu)
 NCURSES_EXPORT(int)
 item_index(const ITEM * item)
 {
-  T((T_CALLED("item_index(%p)"), item));
+  T((T_CALLED("item_index(%p)"), (const void *)item));
   returnCode((item && item->imenu) ? item->index : ERR);
 }
 

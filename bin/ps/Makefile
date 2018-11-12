@@ -11,7 +11,6 @@ SRCS=	fmt.c keyword.c nlist.c print.c ps.c
 # on large systems.
 #
 CFLAGS+=-DLAZY_PS
-DPADD=	${LIBM} ${LIBKVM}
-LDADD=	-lm -lkvm
+LIBADD=	m kvm jail xo
 
 .include <bsd.prog.mk>

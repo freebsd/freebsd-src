@@ -164,6 +164,12 @@ static int overcommit = 0;
 SYSCTL_INT(_vm, OID_AUTO, overcommit, CTLFLAG_RW, &overcommit, 0,
     "Configure virtual memory overcommit behavior. See tuning(7) "
     "for details.");
+static unsigned long swzone;
+SYSCTL_ULONG(_vm, OID_AUTO, swzone, CTLFLAG_RD, &swzone, 0,
+    "Actual size of swap metadata zone");
+static unsigned long swap_maxpages;
+SYSCTL_ULONG(_vm, OID_AUTO, swap_maxpages, CTLFLAG_RD, &swap_maxpages, 0,
+    "Maximum amount of swap supported");
 
 /* bits from overcommit */
 #define	SWAP_RESERVE_FORCE_ON		(1 << 0)
@@ -192,18 +198,20 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 		panic("swap_reserve: & PAGE_MASK");
 
 #ifdef RACCT
-	PROC_LOCK(curproc);
-	error = racct_add(curproc, RACCT_SWAP, incr);
-	PROC_UNLOCK(curproc);
-	if (error != 0)
-		return (0);
+	if (racct_enable) {
+		PROC_LOCK(curproc);
+		error = racct_add(curproc, RACCT_SWAP, incr);
+		PROC_UNLOCK(curproc);
+		if (error != 0)
+			return (0);
+	}
 #endif
 
 	res = 0;
 	mtx_lock(&sw_dev_mtx);
 	r = swap_reserved + incr;
 	if (overcommit & SWAP_RESERVE_ALLOW_NONWIRED) {
-		s = cnt.v_page_count - cnt.v_free_reserved - cnt.v_wire_count;
+		s = vm_cnt.v_page_count - vm_cnt.v_free_reserved - vm_cnt.v_wire_count;
 		s *= PAGE_SIZE;
 	} else
 		s = 0;
@@ -320,16 +328,15 @@ static int nsw_wcount_async;	/* limit write buffers / asynchronous	*/
 static int nsw_wcount_async_max;/* assigned maximum			*/
 static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
 
+static int sysctl_swap_async_max(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vm, OID_AUTO, swap_async_max, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, sysctl_swap_async_max, "I", "Maximum running async swap ops");
+
 static struct swblock **swhash;
 static int swhash_mask;
 static struct mtx swhash_mtx;
 
-static int swap_async_max = 4;	/* maximum in-progress async I/O's	*/
 static struct sx sw_alloc_sx;
-
-
-SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
-	CTLFLAG_RW, &swap_async_max, 0, "Maximum running async swap ops");
 
 /*
  * "named" and "unnamed" anon region objects.  Try to reduce the overhead
@@ -355,6 +362,8 @@ static vm_object_t
 		    vm_prot_t prot, vm_ooffset_t offset, struct ucred *);
 static void	swap_pager_dealloc(vm_object_t object);
 static int	swap_pager_getpages(vm_object_t, vm_page_t *, int, int);
+static int	swap_pager_getpages_async(vm_object_t, vm_page_t *, int, int,
+    pgo_getpages_iodone_t, void *);
 static void	swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
 static boolean_t
 		swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
@@ -367,6 +376,7 @@ struct pagerops swappagerops = {
 	.pgo_alloc =	swap_pager_alloc,	/* allocate an OBJT_SWAP object		*/
 	.pgo_dealloc =	swap_pager_dealloc,	/* deallocate an OBJT_SWAP object	*/
 	.pgo_getpages =	swap_pager_getpages,	/* pagein				*/
+	.pgo_getpages_async = swap_pager_getpages_async, /* pagein (async)		*/
 	.pgo_putpages =	swap_pager_putpages,	/* pageout				*/
 	.pgo_haspage =	swap_pager_haspage,	/* get backing store status for page	*/
 	.pgo_pageunswapped = swap_pager_unswapped,	/* remove swap related to page		*/
@@ -506,7 +516,7 @@ swap_pager_init(void)
 void
 swap_pager_swap_init(void)
 {
-	int n, n2;
+	unsigned long n, n2;
 
 	/*
 	 * Number of in-transit swap bp operations.  Don't
@@ -542,10 +552,10 @@ swap_pager_swap_init(void)
 	/*
 	 * Initialize our zone.  Right now I'm just guessing on the number
 	 * we need based on the number of pages in the system.  Each swblock
-	 * can hold 16 pages, so this is probably overkill.  This reservation
+	 * can hold 32 pages, so this is probably overkill.  This reservation
 	 * is typically limited to around 32MB by default.
 	 */
-	n = cnt.v_page_count / 2;
+	n = vm_cnt.v_page_count / 2;
 	if (maxswzone && n > maxswzone / sizeof(struct swblock))
 		n = maxswzone / sizeof(struct swblock);
 	n2 = n;
@@ -563,7 +573,9 @@ swap_pager_swap_init(void)
 		n -= ((n + 2) / 3);
 	} while (n > 0);
 	if (n2 != n)
-		printf("Swap zone entries reduced from %d to %d.\n", n2, n);
+		printf("Swap zone entries reduced from %lu to %lu.\n", n2, n);
+	swap_maxpages = n * SWAP_META_PAGES;
+	swzone = n * sizeof(struct swblock);
 	n2 = n;
 
 	/*
@@ -685,6 +697,8 @@ swap_pager_dealloc(vm_object_t object)
 	 * if paging is still in progress on some objects.
 	 */
 	swp_pager_meta_free_all(object);
+	object->handle = NULL;
+	object->type = OBJT_DEAD;
 }
 
 /************************************************************************
@@ -1249,6 +1263,39 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 }
 
 /*
+ * 	swap_pager_getpages_async():
+ *
+ *	Right now this is emulation of asynchronous operation on top of
+ *	swap_pager_getpages().
+ */
+static int
+swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
+    int reqpage, pgo_getpages_iodone_t iodone, void *arg)
+{
+	int r, error;
+
+	r = swap_pager_getpages(object, m, count, reqpage);
+	VM_OBJECT_WUNLOCK(object);
+	switch (r) {
+	case VM_PAGER_OK:
+		error = 0;
+		break;
+	case VM_PAGER_ERROR:
+		error = EIO;
+		break;
+	case VM_PAGER_FAIL:
+		error = EINVAL;
+		break;
+	default:
+		panic("unhandled swap_pager_getpages() error %d", r);
+	}
+	(iodone)(arg, m, count, error);
+	VM_OBJECT_WLOCK(object);
+
+	return (r);
+}
+
+/*
  *	swap_pager_putpages:
  *
  *	Assign swap (if necessary) and initiate I/O on the specified pages.
@@ -1272,10 +1319,10 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
  */
 void
 swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
-    boolean_t sync, int *rtvals)
+    int flags, int *rtvals)
 {
-	int i;
-	int n = 0;
+	int i, n;
+	boolean_t sync;
 
 	if (count && m[0]->object != object) {
 		panic("swap_pager_putpages: object mismatch %p/%p",
@@ -1295,44 +1342,14 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
 	VM_OBJECT_WUNLOCK(object);
 
+	n = 0;
 	if (curproc != pageproc)
 		sync = TRUE;
+	else
+		sync = (flags & VM_PAGER_PUT_SYNC) != 0;
 
 	/*
 	 * Step 2
-	 *
-	 * Update nsw parameters from swap_async_max sysctl values.
-	 * Do not let the sysop crash the machine with bogus numbers.
-	 */
-	mtx_lock(&pbuf_mtx);
-	if (swap_async_max != nsw_wcount_async_max) {
-		int n;
-
-		/*
-		 * limit range
-		 */
-		if ((n = swap_async_max) > nswbuf / 2)
-			n = nswbuf / 2;
-		if (n < 1)
-			n = 1;
-		swap_async_max = n;
-
-		/*
-		 * Adjust difference ( if possible ).  If the current async
-		 * count is too low, we may not be able to make the adjustment
-		 * at this time.
-		 */
-		n -= nsw_wcount_async_max;
-		if (nsw_wcount_async + n >= 0) {
-			nsw_wcount_async += n;
-			nsw_wcount_async_max += n;
-			wakeup(&nsw_wcount_async);
-		}
-	}
-	mtx_unlock(&pbuf_mtx);
-
-	/*
-	 * Step 3
 	 *
 	 * Assign swap blocks and issue I/O.  We reallocate swap on the fly.
 	 * The page is left dirty until the pageout operation completes
@@ -1713,7 +1730,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	vm_object_pip_add(object, 1);
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (m->valid == VM_PAGE_BITS_ALL) {
-		vm_object_pip_subtract(object, 1);
+		vm_object_pip_wakeup(object);
 		vm_page_dirty(m);
 		vm_page_lock(m);
 		vm_page_activate(m);
@@ -1725,7 +1742,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 
 	if (swap_pager_getpages(object, &m, 1, 0) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
-	vm_object_pip_subtract(object, 1);
+	vm_object_pip_wakeup(object);
 	vm_page_dirty(m);
 	vm_page_lock(m);
 	vm_page_deactivate(m);
@@ -2316,7 +2333,7 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 	 * of data we will have to page back in, plus an epsilon so
 	 * the system doesn't become critically low on swap space.
 	 */
-	if (cnt.v_free_count + cnt.v_cache_count + swap_pager_avail <
+	if (vm_cnt.v_free_count + vm_cnt.v_cache_count + swap_pager_avail <
 	    nblks + nswap_lowat) {
 		return (ENOMEM);
 	}
@@ -2516,17 +2533,39 @@ DECLARE_GEOM_CLASS(g_swap_class, g_class);
 
 
 static void
+swapgeom_close_ev(void *arg, int flags)
+{
+	struct g_consumer *cp;
+
+	cp = arg;
+	g_access(cp, -1, -1, 0);
+	g_detach(cp);
+	g_destroy_consumer(cp);
+}
+
+static void
 swapgeom_done(struct bio *bp2)
 {
+	struct swdevt *sp;
 	struct buf *bp;
+	struct g_consumer *cp;
 
 	bp = bp2->bio_caller2;
+	cp = bp2->bio_from;
 	bp->b_ioflags = bp2->bio_flags;
 	if (bp2->bio_error)
 		bp->b_ioflags |= BIO_ERROR;
 	bp->b_resid = bp->b_bcount - bp2->bio_completed;
 	bp->b_error = bp2->bio_error;
 	bufdone(bp);
+	mtx_lock(&sw_dev_mtx);
+	if ((--cp->index) == 0 && cp->private) {
+		if (g_post_event(swapgeom_close_ev, cp, M_NOWAIT, NULL) == 0) {
+			sp = bp2->bio_caller1;
+			sp->sw_id = NULL;
+		}
+	}
+	mtx_unlock(&sw_dev_mtx);
 	g_destroy_bio(bp2);
 }
 
@@ -2536,13 +2575,17 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 	struct bio *bio;
 	struct g_consumer *cp;
 
+	mtx_lock(&sw_dev_mtx);
 	cp = sp->sw_id;
 	if (cp == NULL) {
+		mtx_unlock(&sw_dev_mtx);
 		bp->b_error = ENXIO;
 		bp->b_ioflags |= BIO_ERROR;
 		bufdone(bp);
 		return;
 	}
+	cp->index++;
+	mtx_unlock(&sw_dev_mtx);
 	if (bp->b_iocmd == BIO_WRITE)
 		bio = g_new_bio();
 	else
@@ -2554,6 +2597,7 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 		return;
 	}
 
+	bio->bio_caller1 = sp;
 	bio->bio_caller2 = bp;
 	bio->bio_cmd = bp->b_iocmd;
 	bio->bio_offset = (bp->b_blkno - sp->sw_first) * PAGE_SIZE;
@@ -2577,31 +2621,36 @@ static void
 swapgeom_orphan(struct g_consumer *cp)
 {
 	struct swdevt *sp;
+	int destroy;
 
 	mtx_lock(&sw_dev_mtx);
-	TAILQ_FOREACH(sp, &swtailq, sw_list)
-		if (sp->sw_id == cp)
+	TAILQ_FOREACH(sp, &swtailq, sw_list) {
+		if (sp->sw_id == cp) {
 			sp->sw_flags |= SW_CLOSING;
+			break;
+		}
+	}
+	cp->private = (void *)(uintptr_t)1;
+	destroy = ((sp != NULL) && (cp->index == 0));
+	if (destroy)
+		sp->sw_id = NULL;
 	mtx_unlock(&sw_dev_mtx);
-}
-
-static void
-swapgeom_close_ev(void *arg, int flags)
-{
-	struct g_consumer *cp;
-
-	cp = arg;
-	g_access(cp, -1, -1, 0);
-	g_detach(cp);
-	g_destroy_consumer(cp);
+	if (destroy)
+		swapgeom_close_ev(cp, 0);
 }
 
 static void
 swapgeom_close(struct thread *td, struct swdevt *sw)
 {
+	struct g_consumer *cp;
 
+	mtx_lock(&sw_dev_mtx);
+	cp = sw->sw_id;
+	sw->sw_id = NULL;
+	mtx_unlock(&sw_dev_mtx);
 	/* XXX: direct call when Giant untangled */
-	g_waitfor_event(swapgeom_close_ev, sw->sw_id, M_WAITOK, NULL);
+	if (cp != NULL)
+		g_waitfor_event(swapgeom_close_ev, cp, M_WAITOK, NULL);
 }
 
 
@@ -2642,6 +2691,8 @@ swapongeom_ev(void *arg, int flags)
 	if (gp == NULL)
 		gp = g_new_geomf(&g_swap_class, "swap");
 	cp = g_new_consumer(gp);
+	cp->index = 0;		/* Number of active I/Os. */
+	cp->private = NULL;	/* Orphanization flag */
 	g_attach(cp, pp);
 	/*
 	 * XXX: Everytime you think you can improve the margin for
@@ -2750,5 +2801,42 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 
 	swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
 	    NODEV, 0);
+	return (0);
+}
+
+static int
+sysctl_swap_async_max(SYSCTL_HANDLER_ARGS)
+{
+	int error, new, n;
+
+	new = nsw_wcount_async_max;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (new > nswbuf / 2 || new < 1)
+		return (EINVAL);
+
+	mtx_lock(&pbuf_mtx);
+	while (nsw_wcount_async_max != new) {
+		/*
+		 * Adjust difference.  If the current async count is too low,
+		 * we will need to sqeeze our update slowly in.  Sleep with a
+		 * higher priority than getpbuf() to finish faster.
+		 */
+		n = new - nsw_wcount_async_max;
+		if (nsw_wcount_async + n >= 0) {
+			nsw_wcount_async += n;
+			nsw_wcount_async_max += n;
+			wakeup(&nsw_wcount_async);
+		} else {
+			nsw_wcount_async_max -= nsw_wcount_async;
+			nsw_wcount_async = 0;
+			msleep(&nsw_wcount_async, &pbuf_mtx, PSWP,
+			    "swpsysctl", 0);
+		}
+	}
+	mtx_unlock(&pbuf_mtx);
+
 	return (0);
 }

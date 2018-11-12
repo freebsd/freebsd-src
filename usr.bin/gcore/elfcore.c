@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/procfs.h>
 #include <sys/ptrace.h>
@@ -46,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,6 +75,22 @@ struct sseg_closure {
 	size_t size;		/* Total size of all writable segments. */
 };
 
+#ifdef ELFCORE_COMPAT_32
+typedef struct fpreg32 elfcore_fpregset_t;
+typedef struct reg32   elfcore_gregset_t;
+typedef struct prpsinfo32 elfcore_prpsinfo_t;
+typedef struct prstatus32 elfcore_prstatus_t;
+static void elf_convert_gregset(elfcore_gregset_t *rd, struct reg *rs);
+static void elf_convert_fpregset(elfcore_fpregset_t *rd, struct fpreg *rs);
+#else
+typedef fpregset_t elfcore_fpregset_t;
+typedef gregset_t  elfcore_gregset_t;
+typedef prpsinfo_t elfcore_prpsinfo_t;
+typedef prstatus_t elfcore_prstatus_t;
+#define elf_convert_gregset(d,s)	*d = *s
+#define elf_convert_fpregset(d,s)	*d = *s
+#endif
+
 typedef void* (*notefunc_t)(void *, size_t *);
 
 static void cb_put_phdr(vm_map_entry_t, void *);
@@ -84,6 +102,12 @@ static void *elf_note_fpregset(void *, size_t *);
 static void *elf_note_prpsinfo(void *, size_t *);
 static void *elf_note_prstatus(void *, size_t *);
 static void *elf_note_thrmisc(void *, size_t *);
+#if defined(__i386__) || defined(__amd64__)
+static void *elf_note_x86_xstate(void *, size_t *);
+#endif
+#if defined(__powerpc__)
+static void *elf_note_powerpc_vmx(void *, size_t *);
+#endif
 static void *elf_note_procstat_auxv(void *, size_t *);
 static void *elf_note_procstat_files(void *, size_t *);
 static void *elf_note_procstat_groups(void *, size_t *);
@@ -108,13 +132,28 @@ elf_ident(int efd, pid_t pid __unused, char *binfile __unused)
 {
 	Elf_Ehdr hdr;
 	int cnt;
+	uint16_t machine;
 
 	cnt = read(efd, &hdr, sizeof(hdr));
 	if (cnt != sizeof(hdr))
 		return (0);
-	if (IS_ELF(hdr))
-		return (1);
-	return (0);
+	if (!IS_ELF(hdr))
+		return (0);
+	switch (hdr.e_ident[EI_DATA]) {
+	case ELFDATA2LSB:
+		machine = le16toh(hdr.e_machine);
+		break;
+	case ELFDATA2MSB:
+		machine = be16toh(hdr.e_machine);
+		break;
+	default:
+		return (0);
+	}
+	if (!ELF_MACHINE_OK(machine))
+		return (0);
+
+	/* Looks good. */
+	return (1);
 }
 
 static void
@@ -194,7 +233,7 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 		uintmax_t nleft = php->p_filesz;
 
 		iorequest.piod_op = PIOD_READ_D;
-		iorequest.piod_offs = (caddr_t)php->p_vaddr;
+		iorequest.piod_offs = (caddr_t)(uintptr_t)php->p_vaddr;
 		while (nleft > 0) {
 			char buf[8*1024];
 			size_t nwant;
@@ -309,8 +348,15 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 		elf_putnote(NT_PRSTATUS, elf_note_prstatus, tids + i, sb);
 		elf_putnote(NT_FPREGSET, elf_note_fpregset, tids + i, sb);
 		elf_putnote(NT_THRMISC, elf_note_thrmisc, tids + i, sb);
+#if defined(__i386__) || defined(__amd64__)
+		elf_putnote(NT_X86_XSTATE, elf_note_x86_xstate, tids + i, sb);
+#endif
+#if defined(__powerpc__)
+		elf_putnote(NT_PPC_VMX, elf_note_powerpc_vmx, tids + i, sb);
+#endif
 	}
 
+#ifndef ELFCORE_COMPAT_32
 	elf_putnote(NT_PROCSTAT_PROC, elf_note_procstat_proc, &pid, sb);
 	elf_putnote(NT_PROCSTAT_FILES, elf_note_procstat_files, &pid, sb);
 	elf_putnote(NT_PROCSTAT_VMMAP, elf_note_procstat_vmmap, &pid, sb);
@@ -321,6 +367,7 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 	elf_putnote(NT_PROCSTAT_PSSTRINGS, elf_note_procstat_psstrings, &pid,
 	    sb);
 	elf_putnote(NT_PROCSTAT_AUXV, elf_note_procstat_auxv, &pid, sb);
+#endif
 
 	size = sbuf_end_section(sb, old_len, 1, 0);
 	if (size == -1)
@@ -464,7 +511,8 @@ readmap(pid_t pid)
 		    ((pflags & PFLAGS_FULL) == 0 &&
 		    kve->kve_type != KVME_TYPE_DEFAULT &&
 		    kve->kve_type != KVME_TYPE_VNODE &&
-		    kve->kve_type != KVME_TYPE_SWAP))
+		    kve->kve_type != KVME_TYPE_SWAP &&
+		    kve->kve_type != KVME_TYPE_PHYS))
 			continue;
 
 		ent = calloc(1, sizeof(*ent));
@@ -491,7 +539,7 @@ static void *
 elf_note_prpsinfo(void *arg, size_t *sizep)
 {
 	pid_t pid;
-	prpsinfo_t *psinfo;
+	elfcore_prpsinfo_t *psinfo;
 	struct kinfo_proc kip;
 	size_t len;
 	int name[4];
@@ -501,7 +549,7 @@ elf_note_prpsinfo(void *arg, size_t *sizep)
 	if (psinfo == NULL)
 		errx(1, "out of memory");
 	psinfo->pr_version = PRPSINFO_VERSION;
-	psinfo->pr_psinfosz = sizeof(prpsinfo_t);
+	psinfo->pr_psinfosz = sizeof(*psinfo);
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
@@ -523,19 +571,21 @@ static void *
 elf_note_prstatus(void *arg, size_t *sizep)
 {
 	lwpid_t tid;
-	prstatus_t *status;
+	elfcore_prstatus_t *status;
+	struct reg greg;
 
 	tid = *(lwpid_t *)arg;
 	status = calloc(1, sizeof(*status));
 	if (status == NULL)
 		errx(1, "out of memory");
 	status->pr_version = PRSTATUS_VERSION;
-	status->pr_statussz = sizeof(prstatus_t);
-	status->pr_gregsetsz = sizeof(gregset_t);
-	status->pr_fpregsetsz = sizeof(fpregset_t);
+	status->pr_statussz = sizeof(*status);
+	status->pr_gregsetsz = sizeof(elfcore_gregset_t);
+	status->pr_fpregsetsz = sizeof(elfcore_fpregset_t);
 	status->pr_osreldate = __FreeBSD_version;
 	status->pr_pid = tid;
-	ptrace(PT_GETREGS, tid, (void *)&status->pr_reg, 0);
+	ptrace(PT_GETREGS, tid, (void *)&greg, 0);
+	elf_convert_gregset(&status->pr_reg, &greg);
 
 	*sizep = sizeof(*status);
 	return (status);
@@ -545,13 +595,15 @@ static void *
 elf_note_fpregset(void *arg, size_t *sizep)
 {
 	lwpid_t tid;
-	prfpregset_t *fpregset;
+	elfcore_fpregset_t *fpregset;
+	fpregset_t fpreg;
 
 	tid = *(lwpid_t *)arg;
 	fpregset = calloc(1, sizeof(*fpregset));
 	if (fpregset == NULL)
 		errx(1, "out of memory");
-	ptrace(PT_GETFPREGS, tid, (void *)fpregset, 0);
+	ptrace(PT_GETFPREGS, tid, (void *)&fpreg, 0);
+	elf_convert_fpregset(fpregset, &fpreg);
 
 	*sizep = sizeof(*fpregset);
 	return (fpregset);
@@ -577,10 +629,64 @@ elf_note_thrmisc(void *arg, size_t *sizep)
 	return (thrmisc);
 }
 
+#if defined(__i386__) || defined(__amd64__)
+static void *
+elf_note_x86_xstate(void *arg, size_t *sizep)
+{
+	lwpid_t tid;
+	char *xstate;
+	static bool xsave_checked = false;
+	static struct ptrace_xstate_info info;
+
+	tid = *(lwpid_t *)arg;
+	if (!xsave_checked) {
+		if (ptrace(PT_GETXSTATE_INFO, tid, (void *)&info,
+		    sizeof(info)) != 0)
+			info.xsave_len = 0;
+		xsave_checked = true;
+	}
+	if (info.xsave_len == 0) {
+		*sizep = 0;
+		return (NULL);
+	}
+	xstate = calloc(1, info.xsave_len);
+	ptrace(PT_GETXSTATE, tid, xstate, 0);
+	*(uint64_t *)(xstate + X86_XSTATE_XCR0_OFFSET) = info.xsave_mask;
+	*sizep = info.xsave_len;
+	return (xstate);
+}
+#endif
+
+#if defined(__powerpc__)
+static void *
+elf_note_powerpc_vmx(void *arg, size_t *sizep)
+{
+	lwpid_t tid;
+	struct vmxreg *vmx;
+	static bool has_vmx = true;
+	struct vmxreg info;
+
+	tid = *(lwpid_t *)arg;
+	if (has_vmx) {
+		if (ptrace(PT_GETVRREGS, tid, (void *)&info,
+		    sizeof(info)) != 0)
+			has_vmx = false;
+	}
+	if (!has_vmx) {
+		*sizep = 0;
+		return (NULL);
+	}
+	vmx = calloc(1, sizeof(*vmx));
+	memcpy(vmx, &info, sizeof(*vmx));
+	*sizep = sizeof(*vmx);
+	return (vmx);
+}
+#endif
+
 static void *
 procstat_sysctl(void *arg, int what, size_t structsz, size_t *sizep)
 {
-	size_t len, oldlen;
+	size_t len;
 	pid_t pid;
 	int name[4], structsize;
 	void *buf, *p;
@@ -700,5 +806,5 @@ elf_note_procstat_rlimit(void *arg, size_t *sizep)
 	return (buf);
 }
 
-struct dumpers elfdump = { elf_ident, elf_coredump };
-TEXT_SET(dumpset, elfdump);
+struct dumpers __elfN(dump) = { elf_ident, elf_coredump };
+TEXT_SET(dumpset, __elfN(dump));

@@ -31,7 +31,7 @@
  */
 
 /**
- *      Cortex-A15 (and probably A7) Generic Timer
+ *      Cortex-A7, Cortex-A15, ARMv8 and later Generic Timer
  */
 
 #include <sys/cdefs.h>
@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #define	GT_CTRL_ENABLE		(1 << 0)
 #define	GT_CTRL_INT_MASK	(1 << 1)
@@ -67,21 +66,29 @@ __FBSDID("$FreeBSD$");
 
 #define	GT_CNTKCTL_PL0PTEN	(1 << 9) /* PL0 Physical timer reg access */
 #define	GT_CNTKCTL_PL0VTEN	(1 << 8) /* PL0 Virtual timer reg access */
-#define	GT_CNTKCTL_EVNTI	(1 << 4) /* Virtual counter event bits */
+#define	GT_CNTKCTL_EVNTI	(0xf << 4) /* Virtual counter event bits */
 #define	GT_CNTKCTL_EVNTDIR	(1 << 3) /* Virtual counter event transition */
 #define	GT_CNTKCTL_EVNTEN	(1 << 2) /* Enables virtual counter events */
 #define	GT_CNTKCTL_PL0VCTEN	(1 << 1) /* PL0 CNTVCT and CNTFRQ access */
 #define	GT_CNTKCTL_PL0PCTEN	(1 << 0) /* PL0 CNTPCT and CNTFRQ access */
 
-#define	GT_CNTPSIRQ	29
-
 struct arm_tmr_softc {
-	struct resource		*irq_res;
+	struct resource		*res[4];
+	void			*ihl[4];
 	uint32_t		clkfreq;
 	struct eventtimer	et;
+	bool			physical;
 };
 
 static struct arm_tmr_softc *arm_tmr_sc = NULL;
+
+static struct resource_spec timer_spec[] = {
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE },	/* Secure */
+	{ SYS_RES_IRQ,		1,	RF_ACTIVE },	/* Non-secure */
+	{ SYS_RES_IRQ,		2,	RF_ACTIVE },	/* Virt */
+	{ SYS_RES_IRQ,		3,	RF_ACTIVE | RF_OPTIONAL	}, /* Hyp */
+	{ -1, 0 }
+};
 
 static timecounter_get_t arm_tmr_get_timecount;
 
@@ -94,89 +101,86 @@ static struct timecounter arm_tmr_timecount = {
 	.tc_quality        = 1000,
 };
 
-static inline int
+#ifdef __arm__
+#define	get_el0(x)	cp15_## x ##_get()
+#define	get_el1(x)	cp15_## x ##_get()
+#define	set_el0(x, val)	cp15_## x ##_set(val)
+#define	set_el1(x, val)	cp15_## x ##_set(val)
+#else /* __aarch64__ */
+#define	get_el0(x)	READ_SPECIALREG(x ##_el0)
+#define	get_el1(x)	READ_SPECIALREG(x ##_el1)
+#define	set_el0(x, val)	WRITE_SPECIALREG(x ##_el0, val)
+#define	set_el1(x, val)	WRITE_SPECIALREG(x ##_el1, val)
+#endif
+
+static int
 get_freq(void)
 {
-	uint32_t val;
-
-	__asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (val));
-
-	return (val);
+	return (get_el0(cntfrq));
 }
 
-static inline int
-set_freq(uint32_t val)
-{
-
-	__asm volatile("mcr p15, 0, %[val], c14, c0, 0" : :
-	    [val] "r" (val));
-	isb();
-
-	return (val);
-}
-
-
-static inline long
-get_cntpct(void)
+static long
+get_cntxct(bool physical)
 {
 	uint64_t val;
 
-	__asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (val));
+	isb();
+	if (physical)
+		val = get_el0(cntpct);
+	else
+		val = get_el0(cntvct);
 
 	return (val);
 }
 
-static inline int
-set_ctrl(uint32_t val)
+static int
+set_ctrl(uint32_t val, bool physical)
 {
 
-	__asm volatile("mcr p15, 0, %[val], c14, c2, 1" : :
-	    [val] "r" (val));
+	if (physical)
+		set_el0(cntp_ctl, val);
+	else
+		set_el0(cntv_ctl, val);
 	isb();
 
 	return (0);
 }
 
-static inline int
-set_tval(uint32_t val)
+static int
+set_tval(uint32_t val, bool physical)
 {
 
-	__asm volatile("mcr p15, 0, %[val], c14, c2, 0" : :
-	    [val] "r" (val));
+	if (physical)
+		set_el0(cntp_tval, val);
+	else
+		set_el0(cntv_tval, val);
 	isb();
 
 	return (0);
 }
 
-static inline int
-get_ctrl(void)
+static int
+get_ctrl(bool physical)
 {
 	uint32_t val;
 
-	__asm volatile("mrc p15, 0, %0, c14, c2, 1" : "=r" (val));
+	if (physical)
+		val = get_el0(cntp_ctl);
+	else
+		val = get_el0(cntv_ctl);
 
 	return (val);
 }
 
-static inline int
-get_tval(void)
-{
-	uint32_t val;
-
-	__asm volatile("mrc p15, 0, %0, c14, c2, 0" : "=r" (val));
-
-	return (val);
-}
-
-static inline void
+static void
 disable_user_access(void)
 {
 	uint32_t cntkctl;
 
-	__asm volatile("mrc p15, 0, %0, c14, c1, 0" : "=r" (cntkctl));
+	cntkctl = get_el1(cntkctl);
 	cntkctl &= ~(GT_CNTKCTL_PL0PTEN | GT_CNTKCTL_PL0VTEN |
 	    GT_CNTKCTL_EVNTEN | GT_CNTKCTL_PL0VCTEN | GT_CNTKCTL_PL0PCTEN);
-	__asm volatile("mcr p15, 0, %0, c14, c1, 0" : : "r" (cntkctl));
+	set_el1(cntkctl, cntkctl);
 	isb();
 }
 
@@ -184,7 +188,7 @@ static unsigned
 arm_tmr_get_timecount(struct timecounter *tc)
 {
 
-	return (get_cntpct());
+	return (get_cntxct(arm_tmr_sc->physical));
 }
 
 static int
@@ -197,11 +201,11 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 
 	if (first != 0) {
 		counts = ((uint32_t)et->et_frequency * first) >> 32;
-		ctrl = get_ctrl();
+		ctrl = get_ctrl(sc->physical);
 		ctrl &= ~GT_CTRL_INT_MASK;
 		ctrl |= GT_CTRL_ENABLE;
-		set_tval(counts);
-		set_ctrl(ctrl);
+		set_tval(counts, sc->physical);
+		set_ctrl(ctrl, sc->physical);
 		return (0);
 	}
 
@@ -212,11 +216,14 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 static int
 arm_tmr_stop(struct eventtimer *et)
 {
+	struct arm_tmr_softc *sc;
 	int ctrl;
 
-	ctrl = get_ctrl();
+	sc = (struct arm_tmr_softc *)et->et_priv;
+
+	ctrl = get_ctrl(sc->physical);
 	ctrl &= GT_CTRL_ENABLE;
-	set_ctrl(ctrl);
+	set_ctrl(ctrl, sc->physical);
 
 	return (0);
 }
@@ -228,10 +235,10 @@ arm_tmr_intr(void *arg)
 	int ctrl;
 
 	sc = (struct arm_tmr_softc *)arg;
-	ctrl = get_ctrl();
+	ctrl = get_ctrl(sc->physical);
 	if (ctrl & GT_CTRL_INT_STAT) {
 		ctrl |= GT_CTRL_INT_MASK;
-		set_ctrl(ctrl);
+		set_ctrl(ctrl, sc->physical);
 	}
 
 	if (sc->et.et_active)
@@ -244,11 +251,18 @@ static int
 arm_tmr_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "arm,armv7-timer"))
+	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	device_set_desc(dev, "ARMv7 Generic Timer");
-	return (BUS_PROBE_DEFAULT);
+	if (ofw_bus_is_compatible(dev, "arm,armv7-timer")) {
+		device_set_desc(dev, "ARMv7 Generic Timer");
+		return (BUS_PROBE_DEFAULT);
+	} else if (ofw_bus_is_compatible(dev, "arm,armv8-timer")) {
+		device_set_desc(dev, "ARMv8 Generic Timer");
+		return (BUS_PROBE_DEFAULT);
+	}
+
+	return (ENXIO);
 }
 
 
@@ -258,9 +272,8 @@ arm_tmr_attach(device_t dev)
 	struct arm_tmr_softc *sc;
 	phandle_t node;
 	pcell_t clock;
-	void *ihl;
-	int rid;
 	int error;
+	int i;
 
 	sc = device_get_softc(dev);
 	if (arm_tmr_sc)
@@ -269,29 +282,43 @@ arm_tmr_attach(device_t dev)
 	/* Get the base clock frequency */
 	node = ofw_bus_get_node(dev);
 	error = OF_getprop(node, "clock-frequency", &clock, sizeof(clock));
-	if (error <= 0) {
-		device_printf(dev, "missing clock-frequency "
-		    "attribute in FDT\n");
+	if (error > 0) {
+		sc->clkfreq = fdt32_to_cpu(clock);
+	}
+
+	if (sc->clkfreq == 0) {
+		/* Try to get clock frequency from timer */
+		sc->clkfreq = get_freq();
+	}
+
+	if (sc->clkfreq == 0) {
+		device_printf(dev, "No clock frequency specified\n");
 		return (ENXIO);
 	}
-	sc->clkfreq = fdt32_to_cpu(clock);
 
-	rid = 0;
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-	    GT_CNTPSIRQ, GT_CNTPSIRQ,
-	    1, RF_SHAREABLE | RF_ACTIVE);
+	if (bus_alloc_resources(dev, timer_spec, sc->res)) {
+		device_printf(dev, "could not allocate resources\n");
+		return (ENXIO);
+	}
+
+#ifdef __arm__
+	sc->physical = true;
+#else /* __aarch64__ */
+	sc->physical = false;
+#endif
 
 	arm_tmr_sc = sc;
 
-	/* Setup and enable the timer */
-	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CLK, arm_tmr_intr,
-		NULL, sc, &ihl) != 0) {
-		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->irq_res);
-		device_printf(dev, "Unable to setup the CLK irq handler.\n");
-		return (ENXIO);
+	/* Setup secure, non-secure and virtual IRQs handler */
+	for (i = 0; i < 3; i++) {
+		error = bus_setup_intr(dev, sc->res[i], INTR_TYPE_CLK,
+		    arm_tmr_intr, NULL, sc, &sc->ihl[i]);
+		if (error) {
+			device_printf(dev, "Unable to alloc int resource.\n");
+			return (ENXIO);
+		}
 	}
 
-	set_freq(sc->clkfreq);
 	disable_user_access();
 
 	arm_tmr_timecount.tc_frequency = sc->clkfreq;
@@ -326,17 +353,10 @@ static driver_t arm_tmr_driver = {
 
 static devclass_t arm_tmr_devclass;
 
-DRIVER_MODULE(timer, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
-
-void
-cpu_initclocks(void)
-{
-
-	if (PCPU_GET(cpuid) == 0)
-		cpu_initclocks_bsp();
-	else
-		cpu_initclocks_ap();
-}
+EARLY_DRIVER_MODULE(timer, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, ofwbus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 void
 DELAY(int usec)
@@ -352,7 +372,7 @@ DELAY(int usec)
 		for (; usec > 0; usec--)
 			for (counts = 200; counts > 0; counts--)
 				/*
-				 * Prevent gcc from optimizing
+				 * Prevent the compiler from optimizing
 				 * out the loop
 				 */
 				cpufunc_nullop();
@@ -373,10 +393,10 @@ DELAY(int usec)
 	else
 		counts = usec * counts_per_usec;
 
-	first = get_cntpct();
+	first = get_cntxct(arm_tmr_sc->physical);
 
 	while (counts > 0) {
-		last = get_cntpct();
+		last = get_cntxct(arm_tmr_sc->physical);
 		counts -= (int32_t)(last - first);
 		first = last;
 	}

@@ -464,47 +464,6 @@ vnet_data_copy(void *start, int size)
 }
 
 /*
- * Variants on sysctl_handle_foo that know how to handle virtualized global
- * variables: if 'arg1' is a pointer, then we transform it to the local vnet
- * offset.
- */
-int
-vnet_sysctl_handle_int(SYSCTL_HANDLER_ARGS)
-{
-
-	if (arg1 != NULL)
-		arg1 = (void *)(curvnet->vnet_data_base + (uintptr_t)arg1);
-	return (sysctl_handle_int(oidp, arg1, arg2, req));
-}
-
-int
-vnet_sysctl_handle_opaque(SYSCTL_HANDLER_ARGS)
-{
-
-	if (arg1 != NULL)
-		arg1 = (void *)(curvnet->vnet_data_base + (uintptr_t)arg1);
-	return (sysctl_handle_opaque(oidp, arg1, arg2, req));
-}
-
-int
-vnet_sysctl_handle_string(SYSCTL_HANDLER_ARGS)
-{
-
-	if (arg1 != NULL)
-		arg1 = (void *)(curvnet->vnet_data_base + (uintptr_t)arg1);
-	return (sysctl_handle_string(oidp, arg1, arg2, req));
-}
-
-int
-vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS)
-{
-
-	if (arg1 != NULL)
-		arg1 = (void *)(curvnet->vnet_data_base + (uintptr_t)arg1);
-	return (sysctl_handle_int(oidp, arg1, arg2, req));
-}
-
-/*
  * Support for special SYSINIT handlers registered via VNET_SYSINIT()
  * and VNET_SYSUNINIT().
  */

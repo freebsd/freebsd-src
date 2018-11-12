@@ -119,6 +119,7 @@ drm_pci_free(struct drm_device *dev, drm_dma_handle_t *dmah)
 	if (dmah == NULL)
 		return;
 
+	bus_dmamap_unload(dmah->tag, dmah->map);
 	bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
 	bus_dma_tag_destroy(dmah->tag);
 

@@ -68,16 +68,16 @@ struct if_stat {
 	struct	ifmibdata if_mib;
 	struct	timeval tv;
 	struct	timeval tv_lastchanged;
-	u_long	if_in_curtraffic;
-	u_long	if_out_curtraffic;
-	u_long	if_in_traffic_peak;
-	u_long	if_out_traffic_peak;
-	u_long	if_in_curpps;
-	u_long	if_out_curpps;
-	u_long	if_in_pps_peak;
-	u_long	if_out_pps_peak;
+	uint64_t if_in_curtraffic;
+	uint64_t if_out_curtraffic;
+	uint64_t if_in_traffic_peak;
+	uint64_t if_out_traffic_peak;
+	uint64_t if_in_curpps;
+	uint64_t if_out_curpps;
+	uint64_t if_in_pps_peak;
+	uint64_t if_out_pps_peak;
 	u_int	if_row;			/* Index into ifmib sysctl */
-	u_int	if_ypos;		/* 0 if not being displayed */
+	int 	if_ypos;		/* -1 if not being displayed */
 	u_int	display;
 	u_int	match;
 };
@@ -210,13 +210,19 @@ showifstat(void)
 	struct	if_stat *ifp = NULL;
 	
 	SLIST_FOREACH(ifp, &curlist, link) {
-		if (ifp->display == 0 || (ifp->match == 0) ||
-			ifp->if_ypos > LINES - 3 - 1)
-			continue;
-		PUTNAME(ifp);
-		PUTRATE(col2, ifp->if_ypos);
-		PUTRATE(col3, ifp->if_ypos);
-		PUTTOTAL(col4, ifp->if_ypos);
+		if (ifp->if_ypos < LINES - 3 && ifp->if_ypos != -1)
+			if (ifp->display == 0 || ifp->match == 0) {
+					wmove(wnd, ifp->if_ypos, 0);
+					wclrtoeol(wnd);
+					wmove(wnd, ifp->if_ypos + 1, 0);
+					wclrtoeol(wnd);
+			}
+			else {
+				PUTNAME(ifp);
+				PUTRATE(col2, ifp->if_ypos);
+				PUTRATE(col3, ifp->if_ypos);
+				PUTTOTAL(col4, ifp->if_ypos);
+			}
 	}
 
 	return;
@@ -263,8 +269,8 @@ fetchifstat(void)
 	struct	if_stat *ifp = NULL;
 	struct	timeval tv, new_tv, old_tv;
 	double	elapsed = 0.0;
-	u_int	new_inb, new_outb, old_inb, old_outb = 0;
-	u_int	new_inp, new_outp, old_inp, old_outp = 0;
+	uint64_t new_inb, new_outb, old_inb, old_outb = 0;
+	uint64_t new_inp, new_outp, old_inp, old_outp = 0;
 
 	SLIST_FOREACH(ifp, &curlist, link) {
 		/*
@@ -425,6 +431,8 @@ sort_interface_list(void)
 			ifp->if_ypos = y;
 			y += ROW_SPACING;
 		}
+		else
+			ifp->if_ypos = -1;
 	}
 	
 	needsort = 0;
@@ -476,14 +484,13 @@ cmdifstat(const char *cmd, const char *args)
 	retval = ifcmd(cmd, args);
 	/* ifcmd() returns 1 on success */
 	if (retval == 1) {
-		showifstat();
-		refresh();
 		if (needclear) {
+			showifstat();
+			refresh();
 			werase(wnd);
 			labelifstat();
 			needclear = 0;
 		}
 	}
-
 	return (retval);
 }

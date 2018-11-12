@@ -25,9 +25,8 @@
  * $FreeBSD$
  */
 
-/* Where to look for libexec and games */
+/* Where to look for libexec */
 #define PATH_LIBEXEC "/usr/libexec"
-#define PATH_GAMES "/usr/games"
 
 /* Where to look for sources. */
 #define PATH_SOURCES					\

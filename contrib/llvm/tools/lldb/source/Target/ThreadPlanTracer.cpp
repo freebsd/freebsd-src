@@ -23,11 +23,13 @@
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/State.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Symbol/TypeList.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 
 using namespace lldb;
@@ -61,7 +63,7 @@ ThreadPlanTracer::GetLogStream ()
     {
         TargetSP target_sp (m_thread.CalculateTarget());
         if (target_sp)
-            return &target_sp->GetDebugger().GetOutputStream();
+            return target_sp->GetDebugger().GetOutputFile().get();
     }
     return NULL;
 }
@@ -164,17 +166,6 @@ ThreadPlanAssemblyTracer::TracingEnded ()
     m_register_values.clear();
 }
 
-static void
-PadOutTo (StreamString &stream, int target)
-{
-    stream.Flush();
-
-    int length = stream.GetString().length();
-
-    if (length + 1 < target)
-        stream.Printf("%*s", target - (length + 1) + 1, "");
-}
-
 void 
 ThreadPlanAssemblyTracer::Log ()
 {
@@ -221,11 +212,15 @@ ThreadPlanAssemblyTracer::Log ()
                 const bool show_bytes = true;
                 const bool show_address = true;
                 Instruction *instruction = instruction_list.GetInstructionAtIndex(0).get();
+                const char *disassemble_format = "${addr-file-or-load}: ";
                 instruction->Dump (stream,
                                    max_opcode_byte_size,
                                    show_address,
                                    show_bytes,
-                                   NULL);
+                                   NULL,
+                                   NULL,
+                                   NULL,
+                                   disassemble_format);
             }
         }
     }

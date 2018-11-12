@@ -74,7 +74,7 @@ MDXFileChunk(const char *filename, char *buf, off_t ofs, off_t len)
 			i = read(f, buffer, sizeof(buffer));
 		else
 			i = read(f, buffer, n);
-		if (i < 0) 
+		if (i <= 0) 
 			break;
 		MDXUpdate(&ctx, buffer, i);
 		n -= i;
@@ -96,3 +96,18 @@ MDXData (const void *data, unsigned int len, char *buf)
 	MDXUpdate(&ctx,data,len);
 	return (MDXEnd(&ctx, buf));
 }
+
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
+#undef MDXEnd
+__weak_reference(_libmd_MDXEnd, MDXEnd);
+#undef MDXFile
+__weak_reference(_libmd_MDXFile, MDXFile);
+#undef MDXFileChunk
+__weak_reference(_libmd_MDXFileChunk, MDXFileChunk);
+#undef MDXData
+__weak_reference(_libmd_MDXData, MDXData);
+#endif

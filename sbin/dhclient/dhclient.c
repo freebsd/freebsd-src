@@ -56,12 +56,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
-
 #include "dhcpd.h"
 #include "privsep.h"
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 #include <net80211/ieee80211_freebsd.h>
 
@@ -393,7 +391,7 @@ main(int argc, char *argv[])
 		if (path_dhclient_pidfile == NULL)
 			error("asprintf");
 	}
-	pidfile = pidfile_open(path_dhclient_pidfile, 0600, &otherpid);
+	pidfile = pidfile_open(path_dhclient_pidfile, 0644, &otherpid);
 	if (pidfile == NULL) {
 		if (errno == EEXIST)
 			error("dhclient already running, pid: %d.", otherpid);
@@ -494,7 +492,7 @@ main(int argc, char *argv[])
 		add_protocol("AF_ROUTE", routefd, routehandler, ifi);
 	if (shutdown(routefd, SHUT_WR) < 0)
 		error("can't shutdown route socket: %m");
-	cap_rights_init(&rights, CAP_POLL_EVENT, CAP_READ);
+	cap_rights_init(&rights, CAP_EVENT, CAP_READ);
 	if (cap_rights_limit(routefd, &rights) < 0 && errno != ENOSYS)
 		error("can't limit route socket: %m");
 
@@ -1847,11 +1845,15 @@ rewrite_client_leases(void)
 		leaseFile = fopen(path_dhclient_db, "w");
 		if (!leaseFile)
 			error("can't create %s: %m", path_dhclient_db);
-		cap_rights_init(&rights, CAP_FSTAT, CAP_FSYNC, CAP_FTRUNCATE,
-		    CAP_SEEK, CAP_WRITE);
+		cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_FSYNC,
+		    CAP_FTRUNCATE, CAP_SEEK, CAP_WRITE);
 		if (cap_rights_limit(fileno(leaseFile), &rights) < 0 &&
 		    errno != ENOSYS) {
 			error("can't limit lease descriptor: %m");
+		}
+		if (cap_fcntls_limit(fileno(leaseFile), CAP_FCNTL_GETFL) < 0 &&
+		    errno != ENOSYS) {
+			error("can't limit lease descriptor fcntls: %m");
 		}
 	} else {
 		fflush(leaseFile);

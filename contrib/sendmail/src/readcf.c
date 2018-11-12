@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.692 2013/11/22 20:51:56 ca Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.692 2013-11-22 20:51:56 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -124,6 +124,11 @@ readcf(cfname, safe, e)
 		| SSL_OP_NO_TICKET
 #endif
 		;
+# ifdef SSL_OP_TLSEXT_PADDING
+	/* SSL_OP_TLSEXT_PADDING breaks compatibility with some sites */
+	Srv_SSL_Options &= ~SSL_OP_TLSEXT_PADDING;
+	Clt_SSL_Options &= ~SSL_OP_TLSEXT_PADDING;
+# endif /* SSL_OP_TLSEXT_PADDING */
 #endif /* STARTTLS */
 	if (DontLockReadFiles)
 		sff |= SFF_NOLOCK;
@@ -2405,6 +2410,9 @@ static struct ssl_options
 #endif
 #ifdef SSL_OP_CRYPTOPRO_TLSEXT_BUG
 	{ "SSL_OP_CRYPTOPRO_TLSEXT_BUG",	SSL_OP_CRYPTOPRO_TLSEXT_BUG	},
+#endif
+#ifdef SSL_OP_TLSEXT_PADDING
+	{ "SSL_OP_TLSEXT_PADDING",	SSL_OP_TLSEXT_PADDING	},
 #endif
 	{ NULL,		0		}
 };

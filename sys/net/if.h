@@ -74,32 +74,45 @@ struct if_clonereq {
  */
 struct if_data {
 	/* generic interface information */
-	u_char	ifi_type;		/* ethernet, tokenring, etc */
-	u_char	ifi_physical;		/* e.g., AUI, Thinnet, 10base-T, etc */
-	u_char	ifi_addrlen;		/* media address length */
-	u_char	ifi_hdrlen;		/* media header length */
-	u_char	ifi_link_state;		/* current link state */
-	u_char	ifi_vhid;		/* carp vhid */
-	u_char	ifi_baudrate_pf;	/* baudrate power factor */
-	u_char	ifi_datalen;		/* length of this data struct */
-	u_long	ifi_mtu;		/* maximum transmission unit */
-	u_long	ifi_metric;		/* routing metric (external only) */
-	u_long	ifi_baudrate;		/* linespeed */
+	uint8_t	ifi_type;		/* ethernet, tokenring, etc */
+	uint8_t	ifi_physical;		/* e.g., AUI, Thinnet, 10base-T, etc */
+	uint8_t	ifi_addrlen;		/* media address length */
+	uint8_t	ifi_hdrlen;		/* media header length */
+	uint8_t	ifi_link_state;		/* current link state */
+	uint8_t	ifi_vhid;		/* carp vhid */
+	uint16_t	ifi_datalen;	/* length of this data struct */
+	uint32_t	ifi_mtu;	/* maximum transmission unit */
+	uint32_t	ifi_metric;	/* routing metric (external only) */
+	uint64_t	ifi_baudrate;	/* linespeed */
 	/* volatile statistics */
-	u_long	ifi_ipackets;		/* packets received on interface */
-	u_long	ifi_ierrors;		/* input errors on interface */
-	u_long	ifi_opackets;		/* packets sent on interface */
-	u_long	ifi_oerrors;		/* output errors on interface */
-	u_long	ifi_collisions;		/* collisions on csma interfaces */
-	u_long	ifi_ibytes;		/* total number of octets received */
-	u_long	ifi_obytes;		/* total number of octets sent */
-	u_long	ifi_imcasts;		/* packets received via multicast */
-	u_long	ifi_omcasts;		/* packets sent via multicast */
-	u_long	ifi_iqdrops;		/* dropped on input, this interface */
-	u_long	ifi_noproto;		/* destined for unsupported protocol */
-	uint64_t ifi_hwassist;		/* HW offload capabilities, see IFCAP */
-	time_t	ifi_epoch;		/* uptime at attach or stat reset */
-	struct	timeval ifi_lastchange;	/* time of last administrative change */
+	uint64_t	ifi_ipackets;	/* packets received on interface */
+	uint64_t	ifi_ierrors;	/* input errors on interface */
+	uint64_t	ifi_opackets;	/* packets sent on interface */
+	uint64_t	ifi_oerrors;	/* output errors on interface */
+	uint64_t	ifi_collisions;	/* collisions on csma interfaces */
+	uint64_t	ifi_ibytes;	/* total number of octets received */
+	uint64_t	ifi_obytes;	/* total number of octets sent */
+	uint64_t	ifi_imcasts;	/* packets received via multicast */
+	uint64_t	ifi_omcasts;	/* packets sent via multicast */
+	uint64_t	ifi_iqdrops;	/* dropped on input */
+	uint64_t	ifi_oqdrops;	/* dropped on output */
+	uint64_t	ifi_noproto;	/* destined for unsupported protocol */
+	uint64_t	ifi_hwassist;	/* HW offload capabilities, see IFCAP */
+
+	/* Unions are here to make sizes MI. */
+	union {				/* uptime at attach or stat reset */
+		time_t		tt;
+		uint64_t	ph;
+	} __ifi_epoch;
+#define	ifi_epoch	__ifi_epoch.tt
+	union {				/* time of last administrative change */
+		struct timeval	tv;
+		struct {
+			uint64_t ph1;
+			uint64_t ph2;
+		} ph;
+	} __ifi_lastchange;
+#define	ifi_lastchange	__ifi_lastchange.tv
 };
 
 /*-
@@ -291,7 +304,7 @@ struct ifa_msghdr {
 	int	ifam_addrs;	/* like rtm_addrs */
 	int	ifam_flags;	/* value of ifa_flags */
 	u_short	ifam_index;	/* index for associated ifp */
-	int	ifam_metric;	/* value of ifa_metric */
+	int	ifam_metric;	/* value of ifa_ifp->if_metric */
 };
 
 /*
@@ -316,7 +329,7 @@ struct ifa_msghdrl {
 	u_short _ifam_spare1;	/* spare space to grow if_index, see if_var.h */
 	u_short	ifam_len;	/* length of ifa_msghdrl incl. if_data */
 	u_short	ifam_data_off;	/* offset of if_data from beginning */
-	int	ifam_metric;	/* value of ifa_metric */
+	int	ifam_metric;	/* value of ifa_ifp->if_metric */
 	struct	if_data ifam_data;/* statistics and other data about if or
 				 * address */
 };
@@ -496,6 +509,19 @@ struct ifgroupreq {
 #define ifgr_group	ifgr_ifgru.ifgru_group
 #define ifgr_groups	ifgr_ifgru.ifgru_groups
 };
+
+/*
+ * Structure used to request i2c data
+ * from interface transceivers.
+ */
+struct ifi2creq {
+	uint8_t dev_addr;	/* i2c address (0xA0, 0xA2) */
+	uint8_t offset;		/* read offset */
+	uint8_t len;		/* read length */
+	uint8_t spare0;
+	uint32_t spare1;
+	uint8_t data[8];	/* read buffer */
+}; 
 
 #endif /* __BSD_VISIBLE */
 

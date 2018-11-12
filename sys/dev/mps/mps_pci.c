@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* PCI/PCI-X/PCIe bus interface for the LSI MPT2 controllers */
+/* PCI/PCI-X/PCIe bus interface for the Avago Tech (LSI) MPT2 controllers */
 
 /* TODO Move headers to mpsvar */
 #include <sys/types.h>
@@ -98,33 +98,33 @@ struct mps_ident {
 	const char	*desc;
 } mps_identifiers[] = {
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2004,
-	    0xffff, 0xffff, 0, "LSI SAS2004" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2004" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2008,
-	    0xffff, 0xffff, 0, "LSI SAS2008" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2008" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2108_1,
-	    0xffff, 0xffff, 0, "LSI SAS2108" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2108" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2108_2,
-	    0xffff, 0xffff, 0, "LSI SAS2108" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2108" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2108_3,
-	    0xffff, 0xffff, 0, "LSI SAS2108" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2108" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2116_1,
-	    0xffff, 0xffff, 0, "LSI SAS2116" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2116" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2116_2,
-	    0xffff, 0xffff, 0, "LSI SAS2116" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2116" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_1,
-	    0xffff, 0xffff, 0, "LSI SAS2208" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2208" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_2,
-	    0xffff, 0xffff, 0, "LSI SAS2208" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2208" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_3,
-	    0xffff, 0xffff, 0, "LSI SAS2208" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2208" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_4,
-	    0xffff, 0xffff, 0, "LSI SAS2208" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2208" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_5,
-	    0xffff, 0xffff, 0, "LSI SAS2208" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2208" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_6,
-	    0xffff, 0xffff, 0, "LSI SAS2208" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2208" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_1,
-	    0xffff, 0xffff, 0, "LSI SAS2308" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2308" },
 	// Add Customer specific vender/subdevice id before generic
 	// (0xffff) vender/subdevice id.
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,
@@ -136,11 +136,11 @@ struct mps_ident {
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,
 	    0x8086, 0x3519, 0, "Intel(R) Integrated RAID Module RMS25KB040" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,
-	    0xffff, 0xffff, 0, "LSI SAS2308" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2308" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_3,
-	    0xffff, 0xffff, 0, "LSI SAS2308" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SAS2308" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SSS6200,
-	    0xffff, 0xffff, MPS_FLAGS_WD_AVAILABLE, "LSI SSS6200" },
+	    0xffff, 0xffff, 0, "Avago Technologies (LSI) SSS6200" },
 	{ 0, 0, 0, 0, 0, NULL }
 };
 

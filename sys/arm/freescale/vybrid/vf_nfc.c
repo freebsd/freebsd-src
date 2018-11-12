@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/nand/nandbus.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include "nfc_if.h"
 
@@ -170,6 +169,9 @@ DRIVER_MODULE(vf_nand, simplebus, vf_nand_driver, vf_nand_devclass, 0, 0);
 static int
 vf_nand_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "fsl,mvf600-nand"))
 		return (ENXIO);

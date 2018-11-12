@@ -2061,6 +2061,13 @@ jemalloc_postfork_child(void)
 	ctl_postfork_child();
 }
 
+void
+_malloc_first_thread(void)
+{
+
+	(void)malloc_mutex_first_thread();
+}
+
 /******************************************************************************/
 /*
  * The following functions are used for TLS allocation/deallocation in static
@@ -2081,7 +2088,7 @@ a0alloc(size_t size, bool zero)
 	if (size <= arena_maxclass)
 		return (arena_malloc(arenas[0], size, zero, false));
 	else
-		return (huge_malloc(size, zero));
+		return (huge_malloc(size, zero, huge_dss_prec_get(arenas[0])));
 }
 
 void *

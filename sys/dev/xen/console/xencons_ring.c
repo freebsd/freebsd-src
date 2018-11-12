@@ -32,9 +32,10 @@ __FBSDID("$FreeBSD$");
 
 #define console_evtchn	console.domU.evtchn
 xen_intr_handle_t console_handle;
-extern char *console_page;
 extern struct mtx              cn_mtx;
 extern device_t xencons_dev;
+extern bool cnsl_evt_reg;
+#define DOM0_BUFFER_SIZE	16
 
 static inline struct xencons_interface *
 xencons_interface(void)
@@ -48,6 +49,18 @@ xencons_has_input(void)
 {
 	struct xencons_interface *intf; 
 
+	if (xen_initial_domain()) {
+		/*
+		 * Since the Dom0 console works with hypercalls
+		 * there's no way to know if there's input unless
+		 * we actually try to retrieve it, so always return
+		 * like there's pending data. Then if the hypercall
+		 * returns no input, we can handle it without problems
+		 * in xencons_handle_input().
+		 */
+		return 1;
+	}
+
 	intf = xencons_interface();		
 
 	return (intf->in_cons != intf->in_prod);
@@ -60,6 +73,9 @@ xencons_ring_send(const char *data, unsigned len)
 	struct xencons_interface *intf; 
 	XENCONS_RING_IDX cons, prod;
 	int sent;
+	struct evtchn_send send = {
+		.port = HYPERVISOR_start_info->console_evtchn
+	};
 
 	intf = xencons_interface();
 	cons = intf->out_cons;
@@ -76,7 +92,10 @@ xencons_ring_send(const char *data, unsigned len)
 	wmb();
 	intf->out_prod = prod;
 
-	xen_intr_signal(console_handle);
+	if (cnsl_evt_reg)
+		xen_intr_signal(console_handle);
+	else
+		HYPERVISOR_event_channel_op(EVTCHNOP_send, &send);
 
 	return sent;
 
@@ -92,6 +111,19 @@ xencons_handle_input(void *unused)
 	XENCONS_RING_IDX cons, prod;
 
 	CN_LOCK(cn_mtx);
+
+	if (xen_initial_domain()) {
+		static char rbuf[DOM0_BUFFER_SIZE];
+		int         l;
+
+		while ((l = HYPERVISOR_console_io(CONSOLEIO_read,
+		    DOM0_BUFFER_SIZE, rbuf)) > 0)
+			xencons_rx(rbuf, l);
+
+		CN_UNLOCK(cn_mtx);
+		return;
+	}
+
 	intf = xencons_interface();
 
 	cons = intf->in_cons;
@@ -125,11 +157,11 @@ xencons_ring_init(void)
 {
 	int err;
 
-	if (!xen_start_info->console_evtchn)
+	if (HYPERVISOR_start_info->console_evtchn == 0)
 		return 0;
 
 	err = xen_intr_bind_local_port(xencons_dev,
-	    xen_start_info->console_evtchn, NULL, xencons_handle_input, NULL,
+	    HYPERVISOR_start_info->console_evtchn, NULL, xencons_handle_input, NULL,
 	    INTR_TYPE_MISC | INTR_MPSAFE, &console_handle);
 	if (err) {
 		return err;
@@ -145,7 +177,7 @@ void
 xencons_suspend(void)
 {
 
-	if (!xen_start_info->console_evtchn)
+	if (HYPERVISOR_start_info->console_evtchn == 0)
 		return;
 
 	xen_intr_unbind(&console_handle);

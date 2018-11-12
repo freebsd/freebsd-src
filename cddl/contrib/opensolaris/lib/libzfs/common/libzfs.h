@@ -42,6 +42,7 @@
 #include <sys/fs/zfs.h>
 #include <sys/avl.h>
 #include <sys/zfs_ioctl.h>
+#include <libzfs_core.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -270,7 +271,7 @@ extern int zpool_label_disk(libzfs_handle_t *, zpool_handle_t *, const char *);
  */
 extern int zpool_set_prop(zpool_handle_t *, const char *, const char *);
 extern int zpool_get_prop(zpool_handle_t *, zpool_prop_t, char *,
-    size_t proplen, zprop_source_t *);
+    size_t proplen, zprop_source_t *, boolean_t);
 extern uint64_t zpool_get_prop_int(zpool_handle_t *, zpool_prop_t,
     zprop_source_t *);
 
@@ -607,13 +608,19 @@ typedef struct sendflags {
 
 	/* show progress (ie. -v) */
 	boolean_t progress;
+
+	/* large blocks (>128K) are permitted */
+	boolean_t largeblock;
+
+	/* WRITE_EMBEDDED records of type DATA are permitted */
+	boolean_t embed_data;
 } sendflags_t;
 
 typedef boolean_t (snapfilter_cb_t)(zfs_handle_t *, void *);
 
 extern int zfs_send(zfs_handle_t *, const char *, const char *,
     sendflags_t *, int, snapfilter_cb_t, void *, nvlist_t **);
-extern int zfs_send_one(zfs_handle_t *, const char *, int);
+extern int zfs_send_one(zfs_handle_t *, const char *, int, enum lzc_send_flags);
 
 extern int zfs_promote(zfs_handle_t *);
 extern int zfs_hold(zfs_handle_t *, const char *, const char *,
@@ -782,10 +789,10 @@ extern boolean_t libzfs_fru_compare(libzfs_handle_t *, const char *,
 extern boolean_t libzfs_fru_notself(libzfs_handle_t *, const char *);
 extern int zpool_fru_set(zpool_handle_t *, uint64_t, const char *);
 
-#ifndef sun
+#ifndef illumos
 extern int zmount(const char *, const char *, int, char *, char *, int, char *,
     int);
-#endif	/* !sun */
+#endif
 
 #ifdef	__cplusplus
 }

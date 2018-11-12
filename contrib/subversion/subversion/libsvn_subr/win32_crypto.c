@@ -436,8 +436,9 @@ windows_ssl_server_trust_first_credentials(void **credentials,
                                            const char *realmstring,
                                            apr_pool_t *pool)
 {
-  apr_uint32_t *failures = svn_hash_gets(parameters,
-                                         SVN_AUTH_PARAM_SSL_SERVER_FAILURES);
+  apr_uint32_t *failure_ptr = svn_hash_gets(parameters,
+                                            SVN_AUTH_PARAM_SSL_SERVER_FAILURES);
+  apr_uint32_t failures = *failure_ptr;
   const svn_auth_ssl_server_cert_info_t *cert_info =
     svn_hash_gets(parameters, SVN_AUTH_PARAM_SSL_SERVER_CERT_INFO);
 
@@ -445,7 +446,7 @@ windows_ssl_server_trust_first_credentials(void **credentials,
   *iter_baton = NULL;
 
   /* We can accept only unknown certificate authority. */
-  if (*failures & SVN_AUTH_SSL_UNKNOWNCA)
+  if (failures & SVN_AUTH_SSL_UNKNOWNCA)
     {
       svn_boolean_t ok;
 
@@ -455,15 +456,16 @@ windows_ssl_server_trust_first_credentials(void **credentials,
       if (ok)
         {
           /* Clear failure flag. */
-          *failures &= ~SVN_AUTH_SSL_UNKNOWNCA;
+          failures &= ~SVN_AUTH_SSL_UNKNOWNCA;
         }
     }
 
   /* If all failures are cleared now, we return the creds */
-  if (! *failures)
+  if (! failures)
     {
       svn_auth_cred_ssl_server_trust_t *creds =
         apr_pcalloc(pool, sizeof(*creds));
+      creds->accepted_failures = *failure_ptr & ~failures;
       creds->may_save = FALSE; /* No need to save it. */
       *credentials = creds;
     }
@@ -488,5 +490,25 @@ svn_auth_get_windows_ssl_server_trust_provider
   po->vtable = &windows_server_trust_provider;
   *provider = po;
 }
+
+static const svn_auth_provider_t windows_server_authority_provider = {
+    SVN_AUTH_CRED_SSL_SERVER_AUTHORITY,
+    windows_ssl_server_trust_first_credentials,
+    NULL,
+    NULL,
+};
+
+/* Public API */
+void
+svn_auth__get_windows_ssl_server_authority_provider(
+                            svn_auth_provider_object_t **provider,
+                            apr_pool_t *pool)
+{
+    svn_auth_provider_object_t *po = apr_pcalloc(pool, sizeof(*po));
+
+    po->vtable = &windows_server_authority_provider;
+    *provider = po;
+}
+
 
 #endif /* WIN32 */

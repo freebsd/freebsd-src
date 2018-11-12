@@ -170,7 +170,7 @@ static devclass_t fsl_pcib_devclass;
 
 DEFINE_CLASS_1(pcib, fsl_pcib_driver, fsl_pcib_methods,
     sizeof(struct fsl_pcib_softc), ofw_pci_driver);
-DRIVER_MODULE(pcib, nexus, fsl_pcib_driver, fsl_pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, ofwbus, fsl_pcib_driver, fsl_pcib_devclass, 0, 0);
 
 static int
 fsl_pcib_probe(device_t dev)
@@ -570,10 +570,19 @@ fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int maxslot)
 			subclass = fsl_pcib_read_config(sc->sc_dev, bus, slot,
 			    func, PCIR_SUBCLASS, 1);
 
+			/*
+			 * The PCI Root Complex comes up as a Processor/PowerPC,
+			 * but is a bridge.
+			 */
 			/* Allow only proper PCI-PCI briges */
-			if (class != PCIC_BRIDGE)
+			if (class != PCIC_BRIDGE && class != PCIC_PROCESSOR)
 				continue;
-			if (subclass != PCIS_BRIDGE_PCI)
+			if (subclass != PCIS_BRIDGE_PCI &&
+			    subclass != PCIS_PROCESSOR_POWERPC)
+				continue;
+
+			if (subclass == PCIS_PROCESSOR_POWERPC &&
+			    hdrtype != PCIM_HDRTYPE_BRIDGE)
 				continue;
 
 			secbus++;
@@ -825,4 +834,3 @@ fsl_pcib_decode_win(phandle_t node, struct fsl_pcib_softc *sc)
 
 	return (0);
 }
-

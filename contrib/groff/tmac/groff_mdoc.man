@@ -1,3 +1,4 @@
+.\" t
 .\" groff_mdoc.man
 .\"
 .\"   A complete reference of the mdoc macro package for GNU troff.
@@ -613,10 +614,10 @@ These commands identify the page and are discussed below in
 The remaining items in the template are section headers
 .Pf ( Li .Sh ) ;
 of which
-.Sx NAME ,
-.Sx SYNOPSIS ,
+.Em NAME ,
+.Em SYNOPSIS ,
 and
-.Sx DESCRIPTION
+.Em DESCRIPTION
 are mandatory.
 The headers are discussed in
 .Sx "PAGE STRUCTURE DOMAIN" ,
@@ -723,34 +724,36 @@ Under
 .Tn \*[operating-system] ,
 the following sections are defined:
 .Pp
-.Bl -column LOCAL -offset indent -compact
-.It Li 1   Ta "\*[volume-operating-system] \*[volume-ds-1]"
-.It Li 2   Ta "\*[volume-operating-system] \*[volume-ds-2]"
-.It Li 3   Ta "\*[volume-operating-system] \*[volume-ds-3]"
-.It Li 4   Ta "\*[volume-operating-system] \*[volume-ds-4]"
-.It Li 5   Ta "\*[volume-operating-system] \*[volume-ds-5]"
-.It Li 6   Ta "\*[volume-operating-system] \*[volume-ds-6]"
-.It Li 7   Ta "\*[volume-operating-system] \*[volume-ds-7]"
-.It Li 8   Ta "\*[volume-operating-system] \*[volume-ds-8]"
-.It Li 9   Ta "\*[volume-operating-system] \*[volume-ds-9]"
-.El
+.TS
+l l l.
+1	\*[volume-operating-system] \*[volume-ds-1]
+2	\*[volume-operating-system] \*[volume-ds-2]
+3	\*[volume-operating-system] \*[volume-ds-3]
+4	\*[volume-operating-system] \*[volume-ds-4]
+5	\*[volume-operating-system] \*[volume-ds-5]
+6	\*[volume-operating-system] \*[volume-ds-6]
+7	\*[volume-operating-system] \*[volume-ds-7]
+8	\*[volume-operating-system] \*[volume-ds-8]
+9	\*[volume-operating-system] \*[volume-ds-9]
+.TE
 .Pp
 .
 A volume name may be arbitrary or one of the following:
 .
 .Pp
-.Bl -column LOCAL -offset indent -compact
-.It Li USD   Ta "\*[volume-ds-USD]"
-.It Li PS1   Ta "\*[volume-ds-PS1]"
-.It Li AMD   Ta "\*[volume-ds-AMD]"
-.It Li SMM   Ta "\*[volume-ds-SMM]"
-.It Li URM   Ta "\*[volume-ds-URM]"
-.It Li PRM   Ta "\*[volume-ds-PRM]"
-.It Li KM    Ta "\*[volume-ds-KM]"
-.It Li IND   Ta "\*[volume-ds-IND]"
-.It Li LOCAL Ta "\*[volume-ds-LOCAL]"
-.It Li CON   Ta "\*[volume-ds-CON]"
-.El
+.TS
+l l.
+USD	\*[volume-ds-USD]
+PS1	\*[volume-ds-PS1]
+AMD	\*[volume-ds-AMD]
+SMM	\*[volume-ds-SMM]
+URM	\*[volume-ds-URM]
+PRM	\*[volume-ds-PRM]
+KM 	\*[volume-ds-KM]
+IND	\*[volume-ds-IND]
+LOCAL	\*[volume-ds-LOCAL]
+CON	\*[volume-ds-CON]
+.TE
 .Pp
 .
 For compatibility,
@@ -1208,7 +1211,7 @@ documented, or the name of the author of the actual manual page.
 The default width is 12n.
 .Pp
 In the
-.Sx AUTHORS
+.Em AUTHORS
 section, the
 .Ql .An
 command causes a line break allowing each new name to appear on its own
@@ -1834,7 +1837,7 @@ then denotes the keyword to be used with the
 macro.
 .Pp
 In the
-.Sx LIBRARY
+.Em LIBRARY
 section an
 .Ql .Lb
 command causes a line break before and after its arguments are printed.
@@ -1882,7 +1885,7 @@ section.
 Note: A section two or three document function name is addressed with the
 .Ql .Nm
 in the
-.Sx NAME
+.Em NAME
 section, and with
 .Ql .Fn
 in the
@@ -2398,20 +2401,20 @@ respectively.
 .if t \
 .  ne 10
 .
-.Bd -filled -offset 4n
-.Bl -column "quote" "close" "open" "Angle Bracket Enclosure" "`string' or string"
-.Em Quote Ta Em Open Ta Em Close Ta Em Function               Ta Em Result
-.No .Aq   Ta    .Ao  Ta    .Ac   Ta "Angle Bracket Enclosure" Ta Ao string Ac
-.No .Bq   Ta    .Bo  Ta    .Bc   Ta "Bracket Enclosure"       Ta Bo string Bc
-.No .Brq  Ta    .Bro Ta    .Brc  Ta "Brace Enclosure"         Ta Bro string Brc
-.No .Dq   Ta    .Do  Ta    .Dc   Ta "Double Quote"            Ta Do string Dc
-.No .Eq   Ta    .Eo  Ta    .Ec   Ta "Enclose String (in XX)"  Ta XXstringXX
-.No .Pq   Ta    .Po  Ta    .Pc   Ta "Parenthesis Enclosure"   Ta Po string Pc
-.No .Ql   Ta         Ta          Ta "Quoted Literal"          Ta So string Sc or Li string
-.No .Qq   Ta    .Qo  Ta    .Qc   Ta "Straight Double Quote"   Ta Qo string Qc
-.No .Sq   Ta    .So  Ta    .Sc   Ta "Single Quote"            Ta So string Sc
-.El
-.Ed
+.TS
+lb lb lb lb lb
+l l l l l.
+Quote	Open	Close	Function	Result
+\&.Aq	.Ao	.Ac	Angle Bracket Enclosure	<string>
+\&.Bq	.Bo	.Bc	Bracket Enclosure	[string]
+\&.Brq	.Bro	.Brc	Brace Enclosure	{string}
+\&.Dq	.Do	.Dc	Double Quote	"string"
+\&.Eq	.Eo	.Ec	Enclose String (in XX)	XXstring
+\&.Pq	.Po	.Pc	Parenthesis Enclosure	(string)
+\&.Ql			Quoted Literal	\*[Lq]string\*[Rq] or string
+\&.Qq	.Qo	.Qc	Straight Double Quote	"string"
+\&.Sq	.So	.Sc	Single Quote	'string'
+.TE
 .Pp
 All macros ending with
 .Sq q
@@ -2634,7 +2637,7 @@ Reference author name; one name per invocation.
 .It Li .%B
 Book title.
 .It Li .%C
-City/place (not implemented yet).
+City/place.
 .It Li .%D
 Date.
 .It Li .%I
@@ -2681,7 +2684,8 @@ Example:
 \&.%A "John Foo"
 \&.%T "Implementation Notes on foobar(1)"
 \&.%R "Technical Report ABC\-DE\-12\-345"
-\&.%Q "Drofnats College, Nowhere"
+\&.%Q "Drofnats College"
+\&.%C "Nowhere"
 \&.%D "April 1991"
 \&.Re
 .Ed
@@ -2694,7 +2698,8 @@ produces
 .%A "John Foo"
 .%T "Implementation Notes on foobar(1)"
 .%R "Technical Report ABC-DE-12-345"
-.%Q "Drofnats College, Nowhere"
+.%Q "Drofnats College"
+.%C "Nowhere"
 .%D "April 1991"
 .Re
 .Ed
@@ -2839,7 +2844,7 @@ macro is mandatory.
 If not specified, headers, footers and page layout defaults will not be set
 and things will be rather unpleasant.
 The
-.Sx NAME
+.Em NAME
 section consists of at least three items.
 The first is the
 .Ql .Nm
@@ -2949,7 +2954,7 @@ They are listed in the order in which they would be used.
 .Bl -tag -width ".Li .Sh\ COMPATIBILITY"
 .It Li ".Sh ENVIRONMENT"
 The
-.Sx ENVIRONMENT
+.Em ENVIRONMENT
 section should reveal any related environment variables and clues to their
 behavior and/or usage.
 .
@@ -2964,7 +2969,7 @@ section.
 .It Li ".Sh EXAMPLES"
 There are several ways to create examples.
 See the
-.Sx EXAMPLES
+.Em EXAMPLES
 section below for details.
 .
 .It Li ".Sh DIAGNOSTICS"
@@ -3019,7 +3024,7 @@ or
 this should be noted here.
 If the command does not adhere to any standard, its history should be noted
 in the
-.Sx HISTORY
+.Em HISTORY
 section.
 .
 .It Li ".Sh HISTORY"
@@ -4045,28 +4050,30 @@ It is neither callable nor parsed and takes no arguments.
 .
 The following strings are predefined:
 .Pp
-.Bl -column String infinity "Troff " "straight double quote" -offset indent
-.It Sy String Ta Sy Nroff Ta Sy Troff Ta Sy Meaning
-.It Li <=     Ta <=       Ta \*[<=]   Ta "less equal"
-.It Li >=     Ta >=       Ta \*[>=]   Ta "greater equal"
-.It Li Rq     Ta ''       Ta \*[Rq]   Ta "right double quote"
-.It Li Lq     Ta ``       Ta \*[Lq]   Ta "left double quote"
-.It Li ua     Ta ^        Ta \*[ua]   Ta "upwards arrow"
-.It Li aa     Ta \'       Ta \*[aa]   Ta "acute accent"
-.It Li ga     Ta \`       Ta \*[ga]   Ta "grave accent"
-.It Li q      Ta \&"      Ta \*[q]    Ta "straight double quote"
-.It Li Pi     Ta pi       Ta \*[Pi]   Ta "greek pi"
-.It Li Ne     Ta !=       Ta \*[Ne]   Ta "not equal"
-.It Li Le     Ta <=       Ta \*[Le]   Ta "less equal"
-.It Li Ge     Ta >=       Ta \*[Ge]   Ta "greater equal"
-.It Li Lt     Ta <        Ta \*[Lt]   Ta "less than"
-.It Li Gt     Ta >        Ta \*[Gt]   Ta "greater than"
-.It Li Pm     Ta +\-      Ta \*[Pm]   Ta "plus minus"
-.It Li If     Ta infinity Ta \*[If]   Ta "infinity"
-.It Li Am     Ta \*[Am]   Ta \*[Am]   Ta "ampersand"
-.It Li Na     Ta \*[Na]   Ta \*[Na]   Ta "not a number"
-.It Li Ba     Ta \*[Ba]   Ta \*[Ba]   Ta "vertical bar"
-.El
+.TS
+lb lb lb lb
+l l l l.
+String	Nroff	Troff	Meaning
+<=	<=  	\*[<=]	less equal
+>=	>=  	\*[>=]	greater equal
+Rq	''  	\*[Rq]	right double quote
+Lq	``  	\*[Lq]	left double quote
+ua	^   	\*[ua]	upwards arrow
+aa	\'  	\*[aa]	acute accent
+ga	\`  	\*[ga]	grave accent
+q 	\&" 	\*[q] 	straight double quote
+Pi	pi  	\*[Pi]	greek pi
+Ne	!=  	\*[Ne]	not equal
+Le	<=  	\*[Le]	less equal
+Ge	>=  	\*[Ge]	greater equal
+Lt	<   	\*[Lt]	less than
+Gt	>   	\*[Gt]	greater than
+Pm	+\- 	\*[Pm]	plus minus
+If	infinity	\*[If]	infinity
+Am	\*[Am]	\*[Am]	ampersand
+Na	\*[Na]	\*[Na]	not a number
+Ba	\*[Ba]	\*[Ba]	vertical bar
+.TE
 .Pp
 The names of the columns
 .Sy Nroff
@@ -4212,7 +4219,7 @@ Section 3f has not been added to the header routines.
 .Pp
 .Ql \&.Nm
 font should be changed in
-.Sx NAME
+.Em NAME
 section.
 .Pp
 .Ql \&.Fn

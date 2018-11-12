@@ -42,6 +42,8 @@
 .Ft int
 .Fn scandir "const char *dirname" "struct dirent ***namelist" "int \*(lp*select\*(rp\*(lpconst struct dirent *\*(rp" "int \*(lp*compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
 .Ft int
+.Fn scandir_b "const char *dirname" "struct dirent ***namelist" "int \*(lp*select\^(rp\*(lpconst struct dirent *\*(rp" "int \*(lp^compar\*(rp\*(lpconst struct dirent **, const struct dirent **\*(rp"
+.Ft int
 .Fn alphasort "const struct dirent **d1" "const struct dirent **d2"
 .Sh DESCRIPTION
 The
@@ -87,6 +89,15 @@ argument to sort the array alphabetically using
 The memory allocated for the array can be deallocated with
 .Xr free 3 ,
 by freeing each pointer in the array and then the array itself.
+.Pp
+The
+.Fn scandir_b
+function behaves in the same way as
+.Fn scandir ,
+but takes blocks as arguments instead of function pointers and calls
+.Fn qsort_b
+rather than
+.Fn qsort .
 .Sh DIAGNOSTICS
 Returns \-1 if the directory cannot be opened for reading or if
 .Xr malloc 3
@@ -95,8 +106,8 @@ cannot allocate enough memory to hold all the data structures.
 .Xr directory 3 ,
 .Xr malloc 3 ,
 .Xr qsort 3 ,
-.Xr dir 5 ,
-.Xr strcoll 3
+.Xr strcoll 3 ,
+.Xr dir 5
 .Sh HISTORY
 The
 .Fn scandir

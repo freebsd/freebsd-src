@@ -140,6 +140,26 @@ out:
 	kobj_close_file(file);
 }
 
+static void
+spa_config_clean(nvlist_t *nvl)
+{
+	nvlist_t **child;
+	nvlist_t *nvroot = NULL;
+	uint_t c, children;
+
+	if (nvlist_lookup_nvlist_array(nvl, ZPOOL_CONFIG_CHILDREN, &child,
+	    &children) == 0) {
+		for (c = 0; c < children; c++)
+			spa_config_clean(child[c]);
+	}
+
+	if (nvlist_lookup_nvlist(nvl, ZPOOL_CONFIG_VDEV_TREE, &nvroot) == 0)
+		spa_config_clean(nvroot);
+
+	nvlist_remove(nvl, ZPOOL_CONFIG_VDEV_STATS, DATA_TYPE_UINT64_ARRAY);
+	nvlist_remove(nvl, ZPOOL_CONFIG_SCAN_STATS, DATA_TYPE_UINT64_ARRAY);
+}
+
 static int
 spa_config_write(spa_config_dirent_t *dp, nvlist_t *nvl)
 {
@@ -233,6 +253,7 @@ spa_config_sync(spa_t *target, boolean_t removing, boolean_t postsysevent)
 		 */
 		nvl = NULL;
 		while ((spa = spa_next(spa)) != NULL) {
+			nvlist_t *nvroot = NULL;
 			/*
 			 * Skip over our own pool if we're about to remove
 			 * ourselves from the spa namespace or any pool that
@@ -241,7 +262,8 @@ spa_config_sync(spa_t *target, boolean_t removing, boolean_t postsysevent)
 			 * we don't allow them to be written to the cache file.
 			 */
 			if ((spa == target && removing) ||
-			    !spa_writeable(spa))
+			    (spa_state(spa) == POOL_STATE_ACTIVE &&
+			    !spa_writeable(spa)))
 				continue;
 
 			mutex_enter(&spa->spa_props_lock);
@@ -260,6 +282,9 @@ spa_config_sync(spa_t *target, boolean_t removing, boolean_t postsysevent)
 			VERIFY(nvlist_add_nvlist(nvl, spa->spa_name,
 			    spa->spa_config) == 0);
 			mutex_exit(&spa->spa_props_lock);
+
+			if (nvlist_lookup_nvlist(nvl, spa->spa_name, &nvroot) == 0)
+				spa_config_clean(nvroot);
 		}
 
 		error = spa_config_write(dp, nvl);
@@ -536,8 +561,7 @@ spa_config_update(spa_t *spa, int what)
 	/*
 	 * Update the global config cache to reflect the new mosconfig.
 	 */
-	if (!spa->spa_is_root)
-		spa_config_sync(spa, B_FALSE, what != SPA_CONFIG_UPDATE_POOL);
+	spa_config_sync(spa, B_FALSE, what != SPA_CONFIG_UPDATE_POOL);
 
 	if (what == SPA_CONFIG_UPDATE_POOL)
 		spa_config_update(spa, SPA_CONFIG_UPDATE_VDEVS);

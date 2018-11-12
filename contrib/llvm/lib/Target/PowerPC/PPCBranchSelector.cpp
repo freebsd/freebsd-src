@@ -15,7 +15,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "ppc-branch-select"
 #include "PPC.h"
 #include "MCTargetDesc/PPCPredicates.h"
 #include "PPCInstrBuilder.h"
@@ -24,7 +23,10 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "ppc-branch-select"
 
 STATISTIC(NumExpanded, "Number of branches expanded to long format");
 
@@ -42,9 +44,9 @@ namespace {
     /// BlockSizes - The sizes of the basic blocks in the function.
     std::vector<unsigned> BlockSizes;
 
-    virtual bool runOnMachineFunction(MachineFunction &Fn);
+    bool runOnMachineFunction(MachineFunction &Fn) override;
 
-    virtual const char *getPassName() const {
+    const char *getPassName() const override {
       return "PowerPC Branch Selector";
     }
   };
@@ -63,16 +65,41 @@ FunctionPass *llvm::createPPCBranchSelectionPass() {
 
 bool PPCBSel::runOnMachineFunction(MachineFunction &Fn) {
   const PPCInstrInfo *TII =
-                static_cast<const PPCInstrInfo*>(Fn.getTarget().getInstrInfo());
+      static_cast<const PPCInstrInfo *>(Fn.getSubtarget().getInstrInfo());
   // Give the blocks of the function a dense, in-order, numbering.
   Fn.RenumberBlocks();
   BlockSizes.resize(Fn.getNumBlockIDs());
+
+  auto GetAlignmentAdjustment =
+    [TII](MachineBasicBlock &MBB, unsigned Offset) -> unsigned {
+    unsigned Align = MBB.getAlignment();
+    if (!Align)
+      return 0;
+
+    unsigned AlignAmt = 1 << Align;
+    unsigned ParentAlign = MBB.getParent()->getAlignment();
+
+    if (Align <= ParentAlign)
+      return OffsetToAlignment(Offset, AlignAmt);
+
+    // The alignment of this MBB is larger than the function's alignment, so we
+    // can't tell whether or not it will insert nops. Assume that it will.
+    return AlignAmt + OffsetToAlignment(Offset, AlignAmt);
+  };
 
   // Measure each MBB and compute a size for the entire function.
   unsigned FuncSize = 0;
   for (MachineFunction::iterator MFI = Fn.begin(), E = Fn.end(); MFI != E;
        ++MFI) {
     MachineBasicBlock *MBB = MFI;
+
+    // The end of the previous block may have extra nops if this block has an
+    // alignment requirement.
+    if (MBB->getNumber() > 0) {
+      unsigned AlignExtra = GetAlignmentAdjustment(*MBB, FuncSize);
+      BlockSizes[MBB->getNumber()-1] += AlignExtra;
+      FuncSize += AlignExtra;
+    }
 
     unsigned BlockSize = 0;
     for (MachineBasicBlock::iterator MBBI = MBB->begin(), EE = MBB->end();
@@ -112,9 +139,12 @@ bool PPCBSel::runOnMachineFunction(MachineFunction &Fn) {
       unsigned MBBStartOffset = 0;
       for (MachineBasicBlock::iterator I = MBB.begin(), E = MBB.end();
            I != E; ++I) {
-        MachineBasicBlock *Dest = 0;
+        MachineBasicBlock *Dest = nullptr;
         if (I->getOpcode() == PPC::BCC && !I->getOperand(2).isImm())
           Dest = I->getOperand(2).getMBB();
+        else if ((I->getOpcode() == PPC::BC || I->getOpcode() == PPC::BCn) &&
+                 !I->getOperand(1).isImm())
+          Dest = I->getOperand(1).getMBB();
         else if ((I->getOpcode() == PPC::BDNZ8 || I->getOpcode() == PPC::BDNZ ||
                   I->getOpcode() == PPC::BDZ8  || I->getOpcode() == PPC::BDZ) &&
                  !I->getOperand(0).isImm())
@@ -166,6 +196,12 @@ bool PPCBSel::runOnMachineFunction(MachineFunction &Fn) {
           // Jump over the uncond branch inst (i.e. $PC+8) on opposite condition.
           BuildMI(MBB, I, dl, TII->get(PPC::BCC))
             .addImm(PPC::InvertPredicate(Pred)).addReg(CRReg).addImm(2);
+        } else if (I->getOpcode() == PPC::BC) {
+          unsigned CRBit = I->getOperand(0).getReg();
+          BuildMI(MBB, I, dl, TII->get(PPC::BCn)).addReg(CRBit).addImm(2);
+        } else if (I->getOpcode() == PPC::BCn) {
+          unsigned CRBit = I->getOperand(0).getReg();
+          BuildMI(MBB, I, dl, TII->get(PPC::BC)).addReg(CRBit).addImm(2);
         } else if (I->getOpcode() == PPC::BDNZ) {
           BuildMI(MBB, I, dl, TII->get(PPC::BDZ)).addImm(2);
         } else if (I->getOpcode() == PPC::BDNZ8) {

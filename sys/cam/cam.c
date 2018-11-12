@@ -116,7 +116,6 @@ SYSCTL_NODE(_kern, OID_AUTO, cam, CTLFLAG_RD, 0, "CAM Subsystem");
 #endif
 
 int cam_sort_io_queues = CAM_DEFAULT_SORT_IO_QUEUES;
-TUNABLE_INT("kern.cam.sort_io_queues", &cam_sort_io_queues);
 SYSCTL_INT(_kern_cam, OID_AUTO, sort_io_queues, CTLFLAG_RWTUN,
     &cam_sort_io_queues, 0, "Sort IO queues to try and optimise disk access patterns");
 #endif

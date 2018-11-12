@@ -1,11 +1,9 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
 .include "Makefile.inc"
 
 SUBDIR=		dtmalloc	\
 		dtnfscl		\
-		dtnfsclient	\
 		dtrace		\
 		dtraceall	\
 		dtrace_test	\
@@ -24,5 +22,7 @@ SUBDIR+=	fbt fasttrap
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
 SUBDIR+=	systrace_freebsd32
 .endif
-
+.if ${MACHINE_CPUARCH} == "arm"
+SUBDIR+=	fbt
+.endif
 .include <bsd.subdir.mk>

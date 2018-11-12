@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_VDEV_IMPL_H
@@ -60,7 +60,7 @@ typedef int	vdev_open_func_t(vdev_t *vd, uint64_t *size, uint64_t *max_size,
     uint64_t *logical_ashift, uint64_t *physical_ashift);
 typedef void	vdev_close_func_t(vdev_t *vd);
 typedef uint64_t vdev_asize_func_t(vdev_t *vd, uint64_t psize);
-typedef int	vdev_io_start_func_t(zio_t *zio);
+typedef void	vdev_io_start_func_t(zio_t *zio);
 typedef void	vdev_io_done_func_t(zio_t *zio);
 typedef void	vdev_state_change_func_t(vdev_t *vd, int, int);
 typedef void	vdev_hold_func_t(vdev_t *vd);
@@ -253,8 +253,11 @@ struct vdev {
 #define	VDEV_PHYS_SIZE		(112 << 10)
 #define	VDEV_UBERBLOCK_RING	(128 << 10)
 
+/* The largest uberblock we support is 8k. */
+#define	MAX_UBERBLOCK_SHIFT (13)
 #define	VDEV_UBERBLOCK_SHIFT(vd)	\
-	MAX((vd)->vdev_top->vdev_ashift, UBERBLOCK_SHIFT)
+	MIN(MAX((vd)->vdev_top->vdev_ashift, UBERBLOCK_SHIFT), \
+	    MAX_UBERBLOCK_SHIFT)
 #define	VDEV_UBERBLOCK_COUNT(vd)	\
 	(VDEV_UBERBLOCK_RING >> VDEV_UBERBLOCK_SHIFT(vd))
 #define	VDEV_UBERBLOCK_OFFSET(vd, n)	\

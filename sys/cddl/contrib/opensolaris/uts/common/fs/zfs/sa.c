@@ -500,7 +500,7 @@ sa_resize_spill(sa_handle_t *hdl, uint32_t size, dmu_tx_t *tx)
 
 	if (size == 0) {
 		blocksize = SPA_MINBLOCKSIZE;
-	} else if (size > SPA_MAXBLOCKSIZE) {
+	} else if (size > SPA_OLD_MAXBLOCKSIZE) {
 		ASSERT(0);
 		return (SET_ERROR(EFBIG));
 	} else {
@@ -675,7 +675,7 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 	hdrsize = sa_find_sizes(sa, attr_desc, attr_count, hdl->sa_bonus,
 	    SA_BONUS, &i, &used, &spilling);
 
-	if (used > SPA_MAXBLOCKSIZE)
+	if (used > SPA_OLD_MAXBLOCKSIZE)
 		return (SET_ERROR(EFBIG));
 
 	VERIFY(0 == dmu_set_bonus(hdl->sa_bonus, spilling ?
@@ -699,7 +699,7 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 		    attr_count - i, hdl->sa_spill, SA_SPILL, &i,
 		    &spill_used, &dummy);
 
-		if (spill_used > SPA_MAXBLOCKSIZE)
+		if (spill_used > SPA_OLD_MAXBLOCKSIZE)
 			return (SET_ERROR(EFBIG));
 
 		buf_space = hdl->sa_spill->db_size - spillhdrsize;
@@ -1111,6 +1111,9 @@ fail:
 	if (sa->sa_user_table)
 		kmem_free(sa->sa_user_table, sa->sa_user_table_sz);
 	mutex_exit(&sa->sa_lock);
+	avl_destroy(&sa->sa_layout_hash_tree);
+	avl_destroy(&sa->sa_layout_num_tree);
+	mutex_destroy(&sa->sa_lock);
 	kmem_free(sa, sizeof (sa_os_t));
 	return ((error == ECKSUM) ? EIO : error);
 }
@@ -1146,6 +1149,7 @@ sa_tear_down(objset_t *os)
 
 	avl_destroy(&sa->sa_layout_hash_tree);
 	avl_destroy(&sa->sa_layout_num_tree);
+	mutex_destroy(&sa->sa_lock);
 
 	kmem_free(sa, sizeof (sa_os_t));
 	os->os_sa = NULL;
@@ -1344,7 +1348,7 @@ sa_handle_destroy(sa_handle_t *hdl)
 {
 	mutex_enter(&hdl->sa_lock);
 	(void) dmu_buf_update_user((dmu_buf_t *)hdl->sa_bonus, hdl,
-	    NULL, NULL, NULL);
+	    NULL, NULL);
 
 	if (hdl->sa_bonus_tab) {
 		sa_idx_tab_rele(hdl->sa_os, hdl->sa_bonus_tab);
@@ -1391,8 +1395,7 @@ sa_handle_get_from_db(objset_t *os, dmu_buf_t *db, void *userp,
 
 		error = sa_build_index(handle, SA_BONUS);
 		newhandle = (hdl_type == SA_HDL_SHARED) ?
-		    dmu_buf_set_user_ie(db, handle,
-		    NULL, sa_evict) : NULL;
+		    dmu_buf_set_user_ie(db, handle, sa_evict) : NULL;
 
 		if (newhandle != NULL) {
 			kmem_cache_free(sa_cache, handle);
@@ -1917,7 +1920,7 @@ void
 sa_update_user(sa_handle_t *newhdl, sa_handle_t *oldhdl)
 {
 	(void) dmu_buf_update_user((dmu_buf_t *)newhdl->sa_bonus,
-	    oldhdl, newhdl, NULL, sa_evict);
+	    oldhdl, newhdl, sa_evict);
 	oldhdl->sa_bonus = NULL;
 }
 

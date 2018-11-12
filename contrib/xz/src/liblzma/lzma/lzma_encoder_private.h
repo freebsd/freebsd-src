@@ -64,7 +64,7 @@ typedef struct {
 	uint32_t pos_prev;  // pos_next;
 	uint32_t back_prev;
 
-	uint32_t backs[REP_DISTANCES];
+	uint32_t backs[REPS];
 
 } lzma_optimal;
 
@@ -77,7 +77,7 @@ struct lzma_coder_s {
 	lzma_lzma_state state;
 
 	/// The four most recent match distances
-	uint32_t reps[REP_DISTANCES];
+	uint32_t reps[REPS];
 
 	/// Array of match candidates
 	lzma_match matches[MATCH_LEN_MAX + 1];
@@ -112,9 +112,9 @@ struct lzma_coder_s {
 	probability is_rep1[STATES];
 	probability is_rep2[STATES];
 	probability is_rep0_long[STATES][POS_STATES_MAX];
-	probability pos_slot[LEN_TO_POS_STATES][POS_SLOTS];
-	probability pos_special[FULL_DISTANCES - END_POS_MODEL_INDEX];
-	probability pos_align[ALIGN_TABLE_SIZE];
+	probability dist_slot[DIST_STATES][DIST_SLOTS];
+	probability dist_special[FULL_DISTANCES - DIST_MODEL_END];
+	probability dist_align[ALIGN_SIZE];
 
 	// These are the same as in lzma_decoder.c except that the encoders
 	// include also price tables.
@@ -122,12 +122,12 @@ struct lzma_coder_s {
 	lzma_length_encoder rep_len_encoder;
 
 	// Price tables
-	uint32_t pos_slot_prices[LEN_TO_POS_STATES][POS_SLOTS];
-	uint32_t distances_prices[LEN_TO_POS_STATES][FULL_DISTANCES];
+	uint32_t dist_slot_prices[DIST_STATES][DIST_SLOTS];
+	uint32_t dist_prices[DIST_STATES][FULL_DISTANCES];
 	uint32_t dist_table_size;
 	uint32_t match_price_count;
 
-	uint32_t align_prices[ALIGN_TABLE_SIZE];
+	uint32_t align_prices[ALIGN_SIZE];
 	uint32_t align_price_count;
 
 	// Optimal

@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_attr.3x,v 1.31 2007/03/17 20:30:33 tom Exp $
+.\" $Id: curs_attr.3x,v 1.39 2013/09/21 20:39:49 Sven.Joachim Exp $
 .TH curs_attr 3X ""
 .na
 .hy 0
@@ -56,7 +56,7 @@
 \fBwchgat\fR,
 \fBmvchgat\fR,
 \fBmvwchgat\fR,
-\fBPAIR_NUMBER\fR - \fBcurses\fR character and window attribute control routines
+\fBPAIR_NUMBER\fR \- \fBcurses\fR character and window attribute control routines
 .ad
 .hy
 .SH SYNOPSIS
@@ -152,7 +152,7 @@ rather than \fBint\fR.
 .PP
 The routine \fBchgat\fR changes the attributes of a given number of characters
 starting at the current cursor location of \fBstdscr\fR.  It does not update
-the cursor and does not perform wrapping.  A character count of -1 or greater
+the cursor and does not perform wrapping.  A character count of \-1 or greater
 than the remaining window width means to change attributes all the way to the
 end of the current line.  The \fBwchgat\fR function generalizes this to any
 window; the \fBmvwchgat\fR function does a cursor move before acting.  In these
@@ -164,9 +164,12 @@ The following video attributes, defined in \fB<curses.h>\fR, can be passed to
 the routines \fBattron\fR, \fBattroff\fR, and \fBattrset\fR, or OR'd with the
 characters passed to \fBaddch\fR.
 .PP
+.RS
 .TS
-center ;
+l l 
+_ _ _
 l l .
+\fIName\fR	\fIDescription\fR
 \fBA_NORMAL\fR	Normal display (no highlight)
 \fBA_STANDOUT\fR	Best highlighting mode of the terminal.
 \fBA_UNDERLINE\fR	Underlining
@@ -177,9 +180,30 @@ l l .
 \fBA_PROTECT\fR	Protected mode
 \fBA_INVIS\fR	Invisible or blank mode
 \fBA_ALTCHARSET\fR	Alternate character set
+\fBA_ITALIC\fR	Italics (non-X/Open extension)
 \fBA_CHARTEXT\fR	Bit-mask to extract a character
 \fBCOLOR_PAIR(\fR\fIn\fR\fB)\fR	Color-pair number \fIn\fR
 .TE
+.RE
+.PP
+These video attributes are supported by \fBattr_on\fP and related functions
+(which also support the attributes recognized by \fBattron\fP, etc.):
+.RS
+.TS
+l l 
+_ _ _
+l l .
+\fIName\fR	\fIDescription\fR
+\fBWA_HORIZONTAL\fR	Horizontal highlight
+\fBWA_LEFT\fR	Left highlight
+\fBWA_LOW\fR	Low highlight
+\fBWA_RIGHT\fR	Right highlight
+\fBWA_TOP\fR	Top highlight
+\fBWA_VERTICAL\fR	Vertical highlight
+.TE
+.RE
+.PP
+For consistency
 .PP
 The following macro is the reverse of \fBCOLOR_PAIR(\fR\fIn\fR\fB)\fR:
 .PP
@@ -214,18 +238,27 @@ The XSI Curses standard states that whether the traditional functions
 SVr4 curses, these functions correctly manipulate all other highlights
 (specifically, \fBA_ALTCHARSET\fR, \fBA_PROTECT\fR, and \fBA_INVIS\fR).
 .PP
+This implementation provides the \fBA_ITALIC\fP attribute for terminals
+which have the \fIenter_italics_mode\fP (sitm) and \fIexit_italics_mode\fP (ritm) capabilities.
+Italics are not mentioned in X/Open Curses.
+Unlike the other video attributes, \fBI_ITALIC\fP is unrelated
+to the \fIset_attributes\fP capabilities.
+This implementation makes the assumption that
+\fIexit_attribute_mode\fP may also reset italics.
+.PP
 XSI Curses added the new entry points, \fBattr_get\fR, \fBattr_on\fR,
 \fBattr_off\fR, \fBattr_set\fR, \fBwattr_on\fR, \fBwattr_off\fR,
 \fBwattr_get\fR, \fBwattr_set\fR.  These are intended to work with
 a new series of highlight macros prefixed with \fBWA_\fR.
+The older macros have direct counterparts in the newer set of names:
 .PP
-Older versions of this library did not force an update of the screen
-when changing the attributes.
-Use \fBtouchwin\fR to force the screen to match the updated attributes.
-.PP
+.RS
+.ne 9
 .TS
-center ;
+l l 
+_ _ _
 l l .
+\fIName\fR	\fIDescription\fR
 \fBWA_NORMAL\fR	Normal display (no highlight)
 \fBWA_STANDOUT\fR	Best highlighting mode of the terminal.
 \fBWA_UNDERLINE\fR	Underlining
@@ -235,6 +268,11 @@ l l .
 \fBWA_BOLD\fR	Extra bright or bold
 \fBWA_ALTCHARSET\fR	Alternate character set
 .TE
+.RE
+.PP
+Older versions of this library did not force an update of the screen
+when changing the attributes.
+Use \fBtouchwin\fR to force the screen to match the updated attributes.
 .PP
 The XSI curses standard specifies that each pair of corresponding \fBA_\fR
 and \fBWA_\fR-using functions operates on the same current-highlight
@@ -242,8 +280,10 @@ information.
 .PP
 The XSI standard extended conformance level adds new highlights
 \fBA_HORIZONTAL\fR, \fBA_LEFT\fR, \fBA_LOW\fR, \fBA_RIGHT\fR, \fBA_TOP\fR,
-\fBA_VERTICAL\fR (and corresponding \fBWA_\fR macros for each) which this
-implementation does not yet support.
+\fBA_VERTICAL\fR (and corresponding \fBWA_\fR macros for each).
+As of August 2013,
+no known terminal provides these highlights
+(i.e., via the \fBsgr1\fP capability).
 .SH RETURN VALUE
 All routines return the integer \fBOK\fR on success, or \fBERR\fP on failure.
 .PP
@@ -252,19 +292,18 @@ X/Open does not define any error conditions.
 This implementation returns an error
 if the window pointer is null.
 The \fBwcolor_set\fP function returns an error if the color pair parameter
-is outside the range 0..COLOR_PAIRS-1.
+is outside the range 0..COLOR_PAIRS\-1.
 This implementation also provides
 \fBgetattrs\fR
 for compatibility with older versions of curses.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_addch\fR(3X),
 \fBcurs_addstr\fR(3X),
 \fBcurs_bkgd\fR(3X),
-\fBcurs_printw\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+\fBcurs_printw\fR(3X),
+\fBcurs_variables\fR(3X)

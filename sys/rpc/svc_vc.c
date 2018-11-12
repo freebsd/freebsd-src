@@ -143,7 +143,7 @@ SVCXPRT *
 svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
     size_t recvsize)
 {
-	SVCXPRT *xprt;
+	SVCXPRT *xprt = NULL;
 	struct sockaddr* sa;
 	int error;
 
@@ -177,7 +177,7 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 
 	xprt_register(xprt);
 
-	solisten(so, SOMAXCONN, curthread);
+	solisten(so, -1, curthread);
 
 	SOCKBUF_LOCK(&so->so_rcv);
 	xprt->xp_upcallset = 1;
@@ -546,7 +546,7 @@ svc_vc_ack(SVCXPRT *xprt, uint32_t *ack)
 {
 
 	*ack = atomic_load_acq_32(&xprt->xp_snt_cnt);
-	*ack -= xprt->xp_socket->so_snd.sb_cc;
+	*ack -= sbused(&xprt->xp_socket->so_snd);
 	return (TRUE);
 }
 
@@ -654,6 +654,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	struct socket* so = xprt->xp_socket;
 	XDR xdrs;
 	int error, rcvflag;
+	uint32_t xid_plus_direction[2];
 
 	/*
 	 * Serialise access to the socket and our own record parsing
@@ -671,6 +672,32 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 		/* Process and return complete request in cd->mreq. */
 		if (cd->mreq != NULL && cd->resid == 0 && cd->eor) {
+
+			/*
+			 * Now, check for a backchannel reply.
+			 * The XID is in the first uint32_t of the reply
+			 * and the message direction is the second one.
+			 */
+			if ((cd->mreq->m_len >= sizeof(xid_plus_direction) ||
+			    m_length(cd->mreq, NULL) >=
+			    sizeof(xid_plus_direction)) &&
+			    xprt->xp_p2 != NULL) {
+				m_copydata(cd->mreq, 0,
+				    sizeof(xid_plus_direction),
+				    (char *)xid_plus_direction);
+				xid_plus_direction[0] =
+				    ntohl(xid_plus_direction[0]);
+				xid_plus_direction[1] =
+				    ntohl(xid_plus_direction[1]);
+				/* Check message direction. */
+				if (xid_plus_direction[1] == REPLY) {
+					clnt_bck_svccall(xprt->xp_p2,
+					    cd->mreq,
+					    xid_plus_direction[0]);
+					cd->mreq = NULL;
+					continue;
+				}
+			}
 
 			xdrmbuf_create(&xdrs, cd->mreq, XDR_DECODE);
 			cd->mreq = NULL;
@@ -848,7 +875,6 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 	}
 
 	XDR_DESTROY(&xdrs);
-	xprt->xp_p2 = NULL;
 
 	return (stat);
 }

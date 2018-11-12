@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2013
+.Dd May 22, 2015
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -192,6 +192,20 @@
 .Op Fl t Ar fe_type
 .Op Fl q
 .Op Fl x
+.Nm
+.Ic portlist
+.Op Fl f Ar frontend
+.Op Fl i
+.Op Fl l
+.Op Fl p Ar targ_port
+.Op Fl q
+.Op Fl v
+.Op Fl x
+.Nm
+.Ic lunmap
+.Aq Fl p Ar targ_port
+.Op Fl l Ar pLUN
+.Op Fl L Ar cLUN
 .Nm
 .Ic dumpooa
 .Nm
@@ -499,7 +513,7 @@ Specify relative addressing for the starting LBA.  CTL does not support
 relative addressing, since it only works for linked commands, and CTL
 does not support linked commands.
 .It Fl i
-Tell the target to return status immediately after issuing the SYHCHRONIZE CACHE
+Tell the target to return status immediately after issuing the SYNCHRONIZE CACHE
 command rather than waiting for the cache to finish syncing.  CTL does not
 support this bit.
 .It Fl c Ar cdbsize
@@ -768,6 +782,49 @@ As a general rule, the WWPN must be different for every port in the system.
 .It Fl x
 Output the port list in XML format.
 .El
+.It Ic portlist
+List CTL frontend ports.
+.Bl -tag -width 12n
+.It Fl f Ar frontend
+Specify the frontend type.
+.It Fl i
+Report target and connected initiators addresses.
+.It Fl l
+Report LUN mapping.
+.It Fl p Ar targ_port
+Specify the frontend port number.
+.It Fl q
+Omit the header in the port list output.
+.It Fl v
+Enable verbose output (report all port options).
+.It Fl x
+Output the port list in XML format.
+.El
+.It Ic lunmap
+Change LUN mapping for specified port.
+If both
+.Ar pLUN
+and
+.Ar cLUN
+are specified -- LUN will be mapped.
+If
+.Ar pLUN
+is specified, but
+.Ar cLUN
+is not -- LUN will be unmapped.
+If neither
+.Ar pLUN
+nor
+.Ar cLUN
+are specified -- LUN mapping will be disabled, exposing all CTL LUNs.
+.Bl -tag -width 12n
+.It Fl p Ar targ_port
+Specify the frontend port number.
+.It Fl l Ar pLUN
+LUN number visible by specified port.
+.It Fl L Ar cLUN
+CTL LUN number.
+.El
 .It Ic dumpooa
 Dump the OOA (Order Of Arrival) queue for each LUN registered with CTL.
 .It Ic dumpstructs
@@ -933,6 +990,86 @@ Display
 .Nm
 usage information.
 .El
+.Sh OPTIONS
+Number of additional configuration options may be specified for LUNs.
+Some options are global, others are backend-specific.
+.Pp
+Global options:
+.Bl -tag -width 12n
+.It Va vendor
+Specifies LUN vendor string up to 8 chars.
+.It Va product
+Specifies LUN product string up to 16 chars.
+.It Va revision
+Specifies LUN revision string up to 4 chars.
+.It Va scsiname
+Specifies LUN SCSI name string.
+.It Va eui
+Specifies LUN EUI-64 identifier.
+.It Va naa
+Specifies LUN NAA identifier.
+Either EUI or NAA identifier should be set to UNIQUE value to allow
+EXTENDED COPY command access the LUN.
+Non-unique LUN identifiers may lead to data corruption.
+.It Va insecure_tpc
+Setting to "on" allows EXTENDED COPY command sent to this LUN access
+other LUNs on this host, not accessible otherwise.
+This allows to offload copying between different iSCSI targets residing
+on the same host in trusted environments.
+.It Va readcache
+Set to "off", disables read caching for the LUN, if supported by the backend.
+.It Va readonly
+Set to "on", blocks all media write operations to the LUN, reporting it
+as write protected.
+.It Va reordering
+Set to "unrestricted", allows target to process commands with SIMPLE task
+attribute in arbitrary order.  Any data integrity exposures related to
+command sequence order shall be explicitly handled by the application
+client through the selection of appropriate commands and task attributes.
+The default value is "restricted".  It improves data integrity, but may
+introduce some additional delays.
+.It Va serseq
+Set to "on" to serialize conseсutive reads/writes.
+Set to "read" to serialize conseсutive reads.
+Set to "off" to allow them be issued in parallel.
+Parallel issue of consecutive operations may confuse logic of the
+backing file system, hurting performance; but it may improve performance
+of backing stores without prefetch/write-back.
+.It Va pblocksize
+.It Va pblockoffset
+Specify physical block size and offset of the device.
+.It Va ublocksize
+.It Va ublockoffset
+Specify UNMAP block size and offset of the device.
+.It Va rpm
+.It Va rpm
+Specifies medium rotation rate of the device: 0 -- not reported,
+1 -- non-rotating (SSD), >1024 -- value in revolutions per minute.
+.It Va formfactor
+Specifies nominal form factor of the device: 0 -- not reported, 1 -- 5.25",
+2 -- 3.5", 3 -- 2.5", 4 -- 1.8", 5 -- less then 1.8".
+.It Va unmap
+Set to "on", enables UNMAP support for the LUN, if supported by the backend.
+.It Va avail-threshold
+.It Va used-threshold
+.It Va pool-avail-threshold
+.It Va pool-used-threshold
+Set per-LUN/-pool thin provisioning soft thresholds.
+LUN will establish UNIT ATTENTION condition if its or pool available space
+get below configured avail values, or its or pool used space get above
+configured used values.
+Pool thresholds are working only for ZVOL-backed LUNs.
+.It Va writecache
+Set to "off", disables write caching for the LUN, if supported by the backend.
+.El
+.Pp
+Options specific for block backend:
+.Bl -tag -width 12n
+.It Va file
+Specifies file or device name to use for backing store.
+.It Va num_threads
+Specifies number of backend threads to use for this LUN.
+.El
 .Sh EXAMPLES
 .Dl ctladm tur 0:1
 .Pp
@@ -1023,11 +1160,12 @@ This will result in a sense key of NOT READY (0x02), and an ASC/ASCQ of
 .Xr ctl 4 ,
 .Xr xpt 4 ,
 .Xr camcontrol 8 ,
-.Xr ctld 8
+.Xr ctld 8 ,
+.Xr ctlstat 8
 .Sh HISTORY
 The
 .Nm
 utility was originally written during the Winter/Spring of 2003 as an
 interface to CTL.
 .Sh AUTHORS
-.An Ken Merry Aq ken@FreeBSD.org
+.An Ken Merry Aq Mt ken@FreeBSD.org

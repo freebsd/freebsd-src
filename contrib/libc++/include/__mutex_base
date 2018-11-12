@@ -20,17 +20,9 @@
 #pragma GCC system_header
 #endif
 
-#ifdef _LIBCPP_SHARED_LOCK
-
-namespace ting {
-template <class _Mutex> class shared_lock;
-template <class _Mutex> class upgrade_lock;
-}
-
-#endif  // _LIBCPP_SHARED_LOCK
-
-
 _LIBCPP_BEGIN_NAMESPACE_STD
+
+#ifndef _LIBCPP_HAS_NO_THREADS
 
 class _LIBCPP_TYPE_VIS mutex
 {
@@ -77,7 +69,7 @@ constexpr adopt_lock_t  adopt_lock  = adopt_lock_t();
 #endif
 
 template <class _Mutex>
-class _LIBCPP_TYPE_VIS lock_guard
+class _LIBCPP_TYPE_VIS_ONLY lock_guard
 {
 public:
     typedef _Mutex mutex_type;
@@ -101,7 +93,7 @@ private:
 };
 
 template <class _Mutex>
-class _LIBCPP_TYPE_VIS unique_lock
+class _LIBCPP_TYPE_VIS_ONLY unique_lock
 {
 public:
     typedef _Mutex mutex_type;
@@ -161,27 +153,6 @@ public:
             __u.__owns_ = false;
             return *this;
         }
-
-#ifdef _LIBCPP_SHARED_LOCK
-
-    unique_lock(ting::shared_lock<mutex_type>&&, try_to_lock_t);
-    template <class _Clock, class _Duration>
-        unique_lock(ting::shared_lock<mutex_type>&&,
-                    const chrono::time_point<_Clock, _Duration>&);
-    template <class _Rep, class _Period>
-        unique_lock(ting::shared_lock<mutex_type>&&,
-                    const chrono::duration<_Rep, _Period>&);
-
-    explicit unique_lock(ting::upgrade_lock<mutex_type>&&);
-    unique_lock(ting::upgrade_lock<mutex_type>&&, try_to_lock_t);
-    template <class _Clock, class _Duration>
-        unique_lock(ting::upgrade_lock<mutex_type>&&,
-                    const chrono::time_point<_Clock, _Duration>&);
-    template <class _Rep, class _Period>
-        unique_lock(ting::upgrade_lock<mutex_type>&&,
-                    const chrono::duration<_Rep, _Period>&);
-
-#endif  // _LIBCPP_SHARED_LOCK
 
 #endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
 
@@ -285,19 +256,13 @@ void
 swap(unique_lock<_Mutex>& __x, unique_lock<_Mutex>& __y) _NOEXCEPT
     {__x.swap(__y);}
 
-struct _LIBCPP_TYPE_VIS cv_status
+//enum class cv_status
+_LIBCPP_DECLARE_STRONG_ENUM(cv_status)
 {
-    enum __lx {
-        no_timeout,
-        timeout
-    };
-
-    __lx __v_;
-
-    _LIBCPP_INLINE_VISIBILITY cv_status(__lx __v) : __v_(__v) {}
-    _LIBCPP_INLINE_VISIBILITY operator int() const {return __v_;}
-
+    no_timeout,
+    timeout
 };
+_LIBCPP_DECLARE_STRONG_ENUM_EPILOG(cv_status)
 
 class _LIBCPP_TYPE_VIS condition_variable
 {
@@ -319,7 +284,7 @@ public:
     void notify_one() _NOEXCEPT;
     void notify_all() _NOEXCEPT;
 
-    void wait(unique_lock<mutex>& __lk);
+    void wait(unique_lock<mutex>& __lk) _NOEXCEPT;
     template <class _Predicate>
         void wait(unique_lock<mutex>& __lk, _Predicate __pred);
 
@@ -350,8 +315,9 @@ public:
 
 private:
     void __do_timed_wait(unique_lock<mutex>& __lk,
-                 chrono::time_point<chrono::system_clock, chrono::nanoseconds>);
+       chrono::time_point<chrono::system_clock, chrono::nanoseconds>) _NOEXCEPT;
 };
+#endif // !_LIBCPP_HAS_NO_THREADS
 
 template <class _To, class _Rep, class _Period>
 inline _LIBCPP_INLINE_VISIBILITY
@@ -369,6 +335,7 @@ __ceil(chrono::duration<_Rep, _Period> __d)
     return __r;
 }
 
+#ifndef _LIBCPP_HAS_NO_THREADS
 template <class _Predicate>
 void
 condition_variable::wait(unique_lock<mutex>& __lk, _Predicate __pred)
@@ -432,6 +399,8 @@ condition_variable::wait_for(unique_lock<mutex>& __lk,
     return wait_until(__lk, chrono::steady_clock::now() + __d,
                       _VSTD::move(__pred));
 }
+
+#endif // !_LIBCPP_HAS_NO_THREADS
 
 _LIBCPP_END_NAMESPACE_STD
 

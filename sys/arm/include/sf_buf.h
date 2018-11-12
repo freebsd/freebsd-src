@@ -29,58 +29,22 @@
 #ifndef _MACHINE_SF_BUF_H_
 #define _MACHINE_SF_BUF_H_
 
-
-struct vm_page;
-
-#ifdef ARM_USE_SMALL_ALLOC
-
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-
-struct sf_buf;
-
-static __inline vm_offset_t
-sf_buf_kva(struct sf_buf *sf)
+static inline void
+sf_buf_map(struct sf_buf *sf, int flags)
 {
-	return arm_ptovirt(VM_PAGE_TO_PHYS((vm_page_t)sf));
-}
 
-static __inline vm_page_t
-sf_buf_page(struct sf_buf *sf)
-{
-	return ((vm_page_t)sf);
-}
-
+#ifdef ARM_NEW_PMAP
+	pmap_qenter(sf->kva, &(sf->m), 1);
 #else
-
-#include <sys/queue.h>
-
-struct sf_buf {
-	LIST_ENTRY(sf_buf) list_entry;	/* list of buffers */
-	TAILQ_ENTRY(sf_buf) free_entry;	/* list of buffers */
-	struct		vm_page *m;	/* currently mapped page */
-	vm_offset_t	kva;		/* va of mapping */
-	int		ref_count;	/* usage of this mapping */
-};
-
-static __inline vm_offset_t
-sf_buf_kva(struct sf_buf *sf)
-{
-
-	return (sf->kva);
-}
-
-static __inline struct vm_page *
-sf_buf_page(struct sf_buf *sf)
-{
-
-	return (sf->m);
-}
-
+	pmap_kenter(sf->kva, VM_PAGE_TO_PHYS(sf->m));
 #endif
+}
 
-struct sf_buf *	sf_buf_alloc(struct vm_page *m, int flags);
-void sf_buf_free(struct sf_buf *sf);
+static inline int
+sf_buf_unmap(struct sf_buf *sf)
+{
 
+	pmap_kremove(sf->kva);
+	return (1);
+}
 #endif /* !_MACHINE_SF_BUF_H_ */

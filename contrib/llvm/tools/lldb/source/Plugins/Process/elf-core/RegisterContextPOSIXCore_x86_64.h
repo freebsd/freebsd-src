@@ -10,14 +10,14 @@
 #ifndef liblldb_RegisterContextCorePOSIX_x86_64_H_
 #define liblldb_RegisterContextCorePOSIX_x86_64_H_
 
-#include "Plugins/Process/POSIX/RegisterContextPOSIX_x86.h"
+#include "Plugins/Process/Utility/RegisterContextPOSIX_x86.h"
 
 class RegisterContextCorePOSIX_x86_64 :
     public RegisterContextPOSIX_x86
 {
 public:
     RegisterContextCorePOSIX_x86_64 (lldb_private::Thread &thread,
-                                     RegisterInfoInterface *register_info,
+                                     lldb_private::RegisterInfoInterface *register_info,
                                      const lldb_private::DataExtractor &gpregset,
                                      const lldb_private::DataExtractor &fpregset);
 

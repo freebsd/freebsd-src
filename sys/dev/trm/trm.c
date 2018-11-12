@@ -473,10 +473,6 @@ trm_ExecuteSRB(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		return;
 	}
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
-#if 0
-	/* XXX Need a timeout handler */
-	ccb->ccb_h.timeout_ch = timeout(trmtimeout, (caddr_t)srb, (ccb->ccb_h.timeout * hz) / 1000);
-#endif
 	trm_SendSRB(pACB, pSRB);
 	splx(flags);
 	return;
@@ -2944,12 +2940,11 @@ trm_destroySRB(PACB pACB)
 
 	pSRB = pACB->pFreeSRB;
 	while (pSRB) {
-		if (pSRB->sg_dmamap) {
+		if (pSRB->SRBSGPhyAddr)
 			bus_dmamap_unload(pACB->sg_dmat, pSRB->sg_dmamap);
+		if (pSRB->pSRBSGL)
 			bus_dmamem_free(pACB->sg_dmat, pSRB->pSRBSGL,
 			    pSRB->sg_dmamap);
-			bus_dmamap_destroy(pACB->sg_dmat, pSRB->sg_dmamap);
-		}
 		if (pSRB->dmamap)
 			bus_dmamap_destroy(pACB->buffer_dmat, pSRB->dmamap);
 		pSRB = pSRB->pNextSRB;
@@ -3386,7 +3381,7 @@ trm_init(u_int16_t unit, device_t dev)
 	/*highaddr*/	BUS_SPACE_MAXADDR,
 	/*filter*/	NULL, 
 	/*filterarg*/	NULL,
-	/*maxsize*/	MAXBSIZE,
+	/*maxsize*/	TRM_MAXPHYS,
 	/*nsegments*/	TRM_NSEG,
 	/*maxsegsz*/	TRM_MAXTRANSFER_SIZE,
 	/*flags*/	BUS_DMA_ALLOCNOW,
@@ -3494,7 +3489,6 @@ bad:
 		bus_dmamap_unload(pACB->sense_dmat, pACB->sense_dmamap);
 		bus_dmamem_free(pACB->sense_dmat, pACB->sense_buffers,
 		    pACB->sense_dmamap);
-		bus_dmamap_destroy(pACB->sense_dmat, pACB->sense_dmamap);
 	}
 	if (pACB->sense_dmat)
 		bus_dma_tag_destroy(pACB->sense_dmat);
@@ -3502,11 +3496,10 @@ bad:
 		trm_destroySRB(pACB);
 		bus_dma_tag_destroy(pACB->sg_dmat);
 	}
-	if (pACB->srb_dmamap) {
+	if (pACB->pFreeSRB) {
 		bus_dmamap_unload(pACB->srb_dmat, pACB->srb_dmamap);
 		bus_dmamem_free(pACB->srb_dmat, pACB->pFreeSRB, 
 		    pACB->srb_dmamap);
-		bus_dmamap_destroy(pACB->srb_dmat, pACB->srb_dmamap);
 	}
 	if (pACB->srb_dmat)
 		bus_dma_tag_destroy(pACB->srb_dmat);
@@ -3618,19 +3611,17 @@ bad:
 		bus_dma_tag_destroy(pACB->sg_dmat);
 	}
 	
-	if (pACB->srb_dmamap) {
+	if (pACB->pFreeSRB) {
 		bus_dmamap_unload(pACB->srb_dmat, pACB->srb_dmamap);
 		bus_dmamem_free(pACB->srb_dmat, pACB->pFreeSRB, 
 		    pACB->srb_dmamap);
-		bus_dmamap_destroy(pACB->srb_dmat, pACB->srb_dmamap);
 	}
 	if (pACB->srb_dmat)
 		bus_dma_tag_destroy(pACB->srb_dmat);
-	if (pACB->sense_dmamap) {
+	if (pACB->sense_buffers) {
 	  	  bus_dmamap_unload(pACB->sense_dmat, pACB->sense_dmamap);
 		  bus_dmamem_free(pACB->sense_dmat, pACB->sense_buffers,
 		      pACB->sense_dmamap);
-		  bus_dmamap_destroy(pACB->sense_dmat, pACB->sense_dmamap);
 	}
 	if (pACB->sense_dmat)
 		bus_dma_tag_destroy(pACB->sense_dmat);		
@@ -3680,12 +3671,10 @@ trm_detach(device_t dev)
 	bus_dmamap_unload(pACB->srb_dmat, pACB->srb_dmamap);
 	bus_dmamem_free(pACB->srb_dmat, pACB->pFreeSRB,
 	    pACB->srb_dmamap);
-	bus_dmamap_destroy(pACB->srb_dmat, pACB->srb_dmamap);
 	bus_dma_tag_destroy(pACB->srb_dmat);	
 	bus_dmamap_unload(pACB->sense_dmat, pACB->sense_dmamap);
 	bus_dmamem_free(pACB->sense_dmat, pACB->sense_buffers,
 	    pACB->sense_dmamap);
-	bus_dmamap_destroy(pACB->sense_dmat, pACB->sense_dmamap);
 	bus_dma_tag_destroy(pACB->sense_dmat);				      
 	bus_dma_tag_destroy(pACB->buffer_dmat);
 	bus_teardown_intr(dev, pACB->irq, pACB->ih);

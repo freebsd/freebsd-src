@@ -404,9 +404,16 @@ struct sctp_inpcb {
 	uint32_t sctp_frag_point;
 	uint32_t partial_delivery_point;
 	uint32_t sctp_context;
+	uint32_t max_cwnd;
 	uint8_t local_strreset_support;
 	uint32_t sctp_cmt_on_off;
-	uint32_t sctp_ecn_enable;
+	uint8_t ecn_supported;
+	uint8_t prsctp_supported;
+	uint8_t auth_supported;
+	uint8_t asconf_supported;
+	uint8_t reconfig_supported;
+	uint8_t nrsack_supported;
+	uint8_t pktdrop_supported;
 	struct sctp_nonpad_sndrcvinfo def_send;
 	/*-
 	 * These three are here for the sosend_dgram

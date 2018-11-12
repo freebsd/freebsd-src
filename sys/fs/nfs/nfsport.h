@@ -638,6 +638,9 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSUNLOCKSOCKREQ(r)	mtx_unlock(&((r)->nr_mtx))
 #define	NFSLOCKDS(d)		mtx_lock(&((d)->nfsclds_mtx))
 #define	NFSUNLOCKDS(d)		mtx_unlock(&((d)->nfsclds_mtx))
+#define	NFSSESSIONMUTEXPTR(s)	(&((s)->mtx))
+#define	NFSLOCKSESSION(s)	mtx_lock(&((s)->mtx))
+#define	NFSUNLOCKSESSION(s)	mtx_unlock(&((s)->mtx))
 
 /*
  * Use these macros to initialize/free a mutex.
@@ -733,6 +736,7 @@ MALLOC_DECLARE(M_NEWNFSDEVINFO);
 MALLOC_DECLARE(M_NEWNFSSOCKREQ);
 MALLOC_DECLARE(M_NEWNFSCLDS);
 MALLOC_DECLARE(M_NEWNFSLAYRECALL);
+MALLOC_DECLARE(M_NEWNFSDSESSION);
 #define	M_NFSRVCACHE	M_NEWNFSRVCACHE
 #define	M_NFSDCLIENT	M_NEWNFSDCLIENT
 #define	M_NFSDSTATE	M_NEWNFSDSTATE
@@ -758,6 +762,7 @@ MALLOC_DECLARE(M_NEWNFSLAYRECALL);
 #define	M_NFSSOCKREQ	M_NEWNFSSOCKREQ
 #define	M_NFSCLDS	M_NEWNFSCLDS
 #define	M_NFSLAYRECALL	M_NEWNFSLAYRECALL
+#define	M_NFSDSESSION	M_NEWNFSDSESSION
 
 #define	NFSINT_SIGMASK(set) 						\
 	(SIGISMEMBER(set, SIGINT) || SIGISMEMBER(set, SIGTERM) ||	\
@@ -925,24 +930,6 @@ void nfsd_mntinit(void);
 
 int newnfs_iosize(struct nfsmount *);
 
-#ifdef NFS_DEBUG
-
-extern int nfs_debug;
-#define	NFS_DEBUG_ASYNCIO	1 /* asynchronous i/o */
-#define	NFS_DEBUG_WG		2 /* server write gathering */
-#define	NFS_DEBUG_RC		4 /* server request caching */
-
-#define	NFS_DPF(cat, args)					\
-	do {							\
-		if (nfs_debug & NFS_DEBUG_##cat) printf args;	\
-	} while (0)
-
-#else
-
-#define	NFS_DPF(cat, args)
-
-#endif
-
 int newnfs_vncmpf(struct vnode *, void *);
 
 #ifndef NFS_MINDIRATTRTIMO
@@ -963,7 +950,7 @@ struct nfsreq {
 };
 
 #ifndef NFS_MAXBSIZE
-#define	NFS_MAXBSIZE	MAXBSIZE
+#define	NFS_MAXBSIZE	MAXBCACHEBUF
 #endif
 
 /*

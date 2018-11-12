@@ -34,12 +34,17 @@
 int read_random(void *, int);
 
 /*
- * Note: if you add or remove members of esource, remember to also update the
- * KASSERT regarding what valid members are in random_harvest_internal().
+ * Note: if you add or remove members of random_entropy_source, remember to also update the
+ * KASSERT regarding what valid members are in random_harvest_internal(), and remember the
+ * strings in the static array random_source_descr[] in random_harvestq.c.
+ *
+ * NOTE: complain loudly to markm@ or on the lists if this enum gets more than 32
+ * distinct values (0-31)! ENTROPYSOURCE may be == 32, but not > 32.
  */
-enum esource {
+enum random_entropy_source {
 	RANDOM_START = 0,
 	RANDOM_CACHED = 0,
+	/* Environmental sources */
 	RANDOM_ATTACH,
 	RANDOM_KEYBOARD,
 	RANDOM_MOUSE,
@@ -48,6 +53,9 @@ enum esource {
 	RANDOM_NET_NG,
 	RANDOM_INTERRUPT,
 	RANDOM_SWI,
+	RANDOM_UMA_ALLOC,
+	RANDOM_ENVIRONMENTAL_END, /* This one is wasted */
+	/* High-quality HW RNGs from here on. */
 	RANDOM_PURE_OCTEON,
 	RANDOM_PURE_SAFE,
 	RANDOM_PURE_GLXSB,
@@ -59,20 +67,7 @@ enum esource {
 	RANDOM_PURE_VIRTIO,
 	ENTROPYSOURCE
 };
-void random_harvest(const void *, u_int, u_int, enum esource);
-
-/* Allow the sysadmin to select the broad category of
- * entropy types to harvest
- */
-struct harvest_select {
-	int ethernet;
-	int point_to_point;
-	int interrupt;
-	int swi;
-	int namei;
-};
-
-extern struct harvest_select harvest;
+void random_harvest(const void *, u_int, u_int, enum random_entropy_source);
 
 #endif /* _KERNEL */
 

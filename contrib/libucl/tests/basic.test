@@ -1,0 +1,26 @@
+#!/bin/sh
+
+PROG=${TEST_BINARY_DIR}/test_basic
+
+for _tin in ${TEST_DIR}/basic/*.in ; do
+	_t=`echo $_tin | sed -e 's/.in$//'`
+	_out=${TEST_OUT_DIR}/basic.out
+	$PROG $_t.in $_out
+	if [ $? -ne 0 ] ; then
+		echo "Test: $_t failed, output:"
+		cat $_out
+		rm $_out
+		exit 1
+	fi
+	if [ -f $_t.res ] ; then
+	diff -s $_out $_t.res -u 2>/dev/null
+		if [ $? -ne 0 ] ; then
+			rm $_out
+			echo "Test: $_t output missmatch"
+			exit 1
+		fi
+	fi
+	rm $_out
+done
+
+

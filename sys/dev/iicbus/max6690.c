@@ -340,6 +340,10 @@ max6690_sensor_read(struct max6690_sensor *sens)
 	}
 
 	err = max6690_read(sc->sc_dev, sc->sc_addr, reg_int, &integer);
+
+	if (err < 0)
+		return (-1);
+
 	err = max6690_read(sc->sc_dev, sc->sc_addr, reg_ext, &fraction);
 
 	if (err < 0)

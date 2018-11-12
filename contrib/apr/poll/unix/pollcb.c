@@ -66,6 +66,7 @@ static apr_pollcb_provider_t *pollcb_provider(apr_pollset_method_e method)
 #endif
         break;
         case APR_POLLSET_SELECT:
+        case APR_POLLSET_AIO_MSGQ:
         case APR_POLLSET_DEFAULT:
         break;
     }

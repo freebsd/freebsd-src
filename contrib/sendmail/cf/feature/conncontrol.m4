@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: conncontrol.m4,v 1.5 2013/11/22 20:51:11 ca Exp $')
+VERSIONID(`$Id: conncontrol.m4,v 1.5 2013-11-22 20:51:11 ca Exp $')
 
 divert(-1)
 ifdef(`_ACCESS_TABLE_', `

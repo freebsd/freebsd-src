@@ -123,7 +123,7 @@ static int lge_detach(device_t);
 static int lge_alloc_jumbo_mem(struct lge_softc *);
 static void lge_free_jumbo_mem(struct lge_softc *);
 static void *lge_jalloc(struct lge_softc *);
-static int lge_jfree(struct mbuf *, void *, void *);
+static void lge_jfree(struct mbuf *, void *, void *);
 
 static int lge_newbuf(struct lge_softc *, struct lge_rx_desc *, struct mbuf *);
 static int lge_encap(struct lge_softc *, struct mbuf *, u_int32_t *);
@@ -847,7 +847,7 @@ lge_jalloc(sc)
 /*
  * Release a jumbo buffer.
  */
-static int
+static void
 lge_jfree(struct mbuf *m, void *buf, void *args)
 {
 	struct lge_softc	*sc;
@@ -873,8 +873,6 @@ lge_jfree(struct mbuf *m, void *buf, void *args)
 	entry->slot = i;
 	SLIST_REMOVE_HEAD(&sc->lge_jinuse_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc->lge_jfree_listhead, entry, jpool_entries);
-
-	return (EXT_FREE_OK);
 }
 
 /*
@@ -918,7 +916,7 @@ lge_rxeof(sc, cnt)
 	 	 * comes up in the ring.
 		 */
 		if (rxctl & LGE_RXCTL_ERRMASK) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			lge_newbuf(sc, &LGE_RXTAIL(sc), m);
 			continue;
 		}
@@ -930,7 +928,7 @@ lge_rxeof(sc, cnt)
 			if (m0 == NULL) {
 				device_printf(sc->lge_dev, "no receive buffers "
 				    "available -- packet dropped!\n");
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				continue;
 			}
 			m = m0;
@@ -939,7 +937,7 @@ lge_rxeof(sc, cnt)
 			m->m_pkthdr.len = m->m_len = total_len;
 		}
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 		/* Do IP checksum checking. */
 		if (rxsts & LGE_RXSTS_ISIP)
@@ -1005,7 +1003,7 @@ lge_txeof(sc)
 	while (idx != sc->lge_cdata.lge_tx_prod && txdone) {
 		cur_tx = &sc->lge_ldata->lge_tx_list[idx];
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if (cur_tx->lge_mbuf != NULL) {
 			m_freem(cur_tx->lge_mbuf);
 			cur_tx->lge_mbuf = NULL;
@@ -1038,9 +1036,9 @@ lge_tick(xsc)
 	LGE_LOCK_ASSERT(sc);
 
 	CSR_WRITE_4(sc, LGE_STATSIDX, LGE_STATS_SINGLE_COLL_PKTS);
-	ifp->if_collisions += CSR_READ_4(sc, LGE_STATSVAL);
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, CSR_READ_4(sc, LGE_STATSVAL));
 	CSR_WRITE_4(sc, LGE_STATSIDX, LGE_STATS_MULTI_COLL_PKTS);
-	ifp->if_collisions += CSR_READ_4(sc, LGE_STATSVAL);
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, CSR_READ_4(sc, LGE_STATSVAL));
 
 	if (!sc->lge_link) {
 		mii = device_get_softc(sc->lge_miibus);
@@ -1506,7 +1504,7 @@ lge_watchdog(sc)
 	LGE_LOCK_ASSERT(sc);
 	ifp = sc->lge_ifp;
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 
 	lge_stop(sc);

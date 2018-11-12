@@ -50,7 +50,7 @@ extern "C" {
  */
 
 #include <sys/dtrace.h>
-#if !defined(sun)
+#ifndef illumos
 #ifdef __sparcv9
 typedef uint32_t		pc_t;
 #else
@@ -934,6 +934,7 @@ typedef struct dtrace_mstate {
 	uintptr_t dtms_strtok;			/* saved strtok() pointer */
 	uint32_t dtms_access;			/* memory access rights */
 	dtrace_difo_t *dtms_difo;		/* current dif object */
+	file_t *dtms_getf;			/* cached rval of getf() */
 } dtrace_mstate_t;
 
 #define	DTRACE_COND_OWNER	0x1
@@ -1121,7 +1122,7 @@ typedef struct dtrace_cred {
  * dtrace_state structure.
  */
 struct dtrace_state {
-#if defined(sun)
+#ifdef illumos
 	dev_t dts_dev;				/* device */
 #else
 	struct cdev *dts_dev;			/* device */
@@ -1139,7 +1140,7 @@ struct dtrace_state {
 	int dts_nspeculations;			/* number of speculations */
 	int dts_naggregations;			/* number of aggregations */
 	dtrace_aggregation_t **dts_aggregations; /* aggregation array */
-#if defined(sun)
+#ifdef illumos
 	vmem_t *dts_aggid_arena;		/* arena for aggregation IDs */
 #else
 	struct unrhdr *dts_aggid_arena;		/* arena for aggregation IDs */
@@ -1151,7 +1152,7 @@ struct dtrace_state {
 	uint32_t dts_dblerrors;			/* errors in ERROR probes */
 	uint32_t dts_reserve;			/* space reserved for END */
 	hrtime_t dts_laststatus;		/* time of last status */
-#if defined(sun)
+#ifdef illumos
 	cyclic_id_t dts_cleaner;		/* cleaning cyclic */
 	cyclic_id_t dts_deadman;		/* deadman cyclic */
 #else
@@ -1166,6 +1167,7 @@ struct dtrace_state {
 	dtrace_optval_t dts_options[DTRACEOPT_MAX]; /* options */
 	dtrace_cred_t dts_cred;			/* credentials */
 	size_t dts_nretained;			/* number of retained enabs */
+	int dts_getf;				/* number of getf() calls */
 };
 
 struct dtrace_provider {
@@ -1268,7 +1270,11 @@ typedef struct dtrace_toxrange {
 	uintptr_t	dtt_limit;		/* limit of toxic range */
 } dtrace_toxrange_t;
 
+#ifdef illumos
 extern uint64_t dtrace_getarg(int, int);
+#else
+extern uint64_t __noinline dtrace_getarg(int, int);
+#endif
 extern greg_t dtrace_getfp(void);
 extern int dtrace_getipl(void);
 extern uintptr_t dtrace_caller(int);
@@ -1294,7 +1300,7 @@ extern void dtrace_probe_error(dtrace_state_t *, dtrace_epid_t, int, int,
     int, uintptr_t);
 extern int dtrace_assfail(const char *, const char *, int);
 extern int dtrace_attached(void);
-#if defined(sun)
+#ifdef illumos
 extern hrtime_t dtrace_gethrestime(void);
 #endif
 

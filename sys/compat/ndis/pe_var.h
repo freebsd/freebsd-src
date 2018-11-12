@@ -111,7 +111,6 @@ typedef struct image_file_header image_file_header;
 #define	IMAGE_FILE_MACHINE_AM33         0x01d3
 #define	IMAGE_FILE_MACHINE_POWERPC      0x01f0
 #define	IMAGE_FILE_MACHINE_POWERPCFP    0x01f1
-#define	IMAGE_FILE_MACHINE_IA64         0x0200
 #define	IMAGE_FILE_MACHINE_MIPS16       0x0266
 #define	IMAGE_FILE_MACHINE_ALPHA64      0x0284
 #define	IMAGE_FILE_MACHINE_MIPSFPU      0x0366
@@ -333,7 +332,6 @@ typedef struct image_base_reloc image_base_reloc;
 #define	IMAGE_REL_BASED_SECTION			6
 #define	IMAGE_REL_BASED_REL			7
 #define	IMAGE_REL_BASED_MIPS_JMPADDR16		9
-#define	IMAGE_REL_BASED_IA64_IMM64		9 /* yes, 9 too */
 #define	IMAGE_REL_BASED_DIR64			10
 #define	IMAGE_REL_BASED_HIGH3ADJ		11
 

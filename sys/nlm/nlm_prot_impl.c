@@ -295,7 +295,7 @@ nlm_init(void *dummy)
 	TAILQ_INIT(&nlm_hosts);
 
 	error = syscall_register(&nlm_syscall_offset, &nlm_syscall_sysent,
-	    &nlm_syscall_prev_sysent);
+	    &nlm_syscall_prev_sysent, SY_THR_STATIC_KLD);
 	if (error)
 		NLM_ERR("Can't register NLM syscall\n");
 	else
@@ -1072,7 +1072,7 @@ nlm_find_host_by_addr(const struct sockaddr *addr, int vers)
 		break;
 #endif
 	default:
-		strcmp(tmp, "<unknown>");
+		strlcpy(tmp, "<unknown>", sizeof(tmp));
 	}
 
 

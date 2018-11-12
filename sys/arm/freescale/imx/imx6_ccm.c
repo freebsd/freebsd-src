@@ -45,13 +45,15 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
-#include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx6_ccmreg.h>
+#include <arm/freescale/imx/imx_machdep.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
 
-
-/* XXX temp kludge for imx51_get_clock. */
-#include <arm/freescale/imx/imx51_ccmvar.h>
-#include <arm/freescale/imx/imx51_ccmreg.h>
+#ifndef CCGR_CLK_MODE_ALWAYS
+#define	CCGR_CLK_MODE_OFF		0
+#define	CCGR_CLK_MODE_RUNMODE		1
+#define	CCGR_CLK_MODE_ALWAYS		3
+#endif
 
 struct ccm_softc {
 	device_t	dev;
@@ -74,6 +76,28 @@ WR4(struct ccm_softc *sc, bus_size_t off, uint32_t val)
 	bus_write_4(sc->mem_res, off, val);
 }
 
+/*
+ * Until we have a fully functional ccm driver which implements the fdt_clock
+ * interface, use the age-old workaround of unconditionally enabling the clocks
+ * for devices we might need to use.  The SoC defaults to most clocks enabled,
+ * but the rom boot code and u-boot disable a few of them.  We turn on only
+ * what's needed to run the chip plus devices we have drivers for, and turn off
+ * devices we don't yet have drivers for.  (Note that USB is not turned on here
+ * because that is one we do when the driver asks for it.)
+ */
+static void
+ccm_init_gates(struct ccm_softc *sc)
+{
+                                        /* Turns on... */
+	WR4(sc, CCM_CCGR0, 0x0000003f); /* ahpbdma, aipstz 1 & 2 busses */
+	WR4(sc, CCM_CCGR1, 0x00300c00); /* gpt, enet */
+	WR4(sc, CCM_CCGR2, 0x0fffffc0); /* ipmux & ipsync (bridges), iomux, i2c */
+	WR4(sc, CCM_CCGR3, 0x3ff00000); /* DDR memory controller */
+	WR4(sc, CCM_CCGR4, 0x0000f300); /* pl301 bus crossbar */
+	WR4(sc, CCM_CCGR5, 0x0ffc00c0); /* uarts, ssi, sdma */
+	WR4(sc, CCM_CCGR6, 0x000000ff); /* usdhc 1-4 */
+}
+
 static int
 ccm_detach(device_t dev)
 {
@@ -92,6 +116,7 @@ ccm_attach(device_t dev)
 {
 	struct ccm_softc *sc;
 	int err, rid;
+	uint32_t reg;
 
 	sc = device_get_softc(dev);
 	err = 0;
@@ -107,6 +132,28 @@ ccm_attach(device_t dev)
 	}
 
 	ccm_sc = sc;
+
+	/*
+	 * Configure the Low Power Mode setting to leave the ARM core power on
+	 * when a WFI instruction is executed.  This lets the MPCore timers and
+	 * GIC continue to run, which is helpful when the only thing that can
+	 * wake you up is an MPCore Private Timer interrupt delivered via GIC.
+	 *
+	 * XXX Based on the docs, setting CCM_CGPR_INT_MEM_CLK_LPM shouldn't be
+	 * required when the LPM bits are set to LPM_RUN.  But experimentally
+	 * I've experienced a fairly rare lockup when not setting it.  I was
+	 * unable to prove conclusively that the lockup was related to power
+	 * management or that this definitively fixes it.  Revisit this.
+	 */
+	reg = RD4(sc, CCM_CGPR);
+	reg |= CCM_CGPR_INT_MEM_CLK_LPM;
+	WR4(sc, CCM_CGPR, reg);
+	reg = RD4(sc, CCM_CLPCR);
+	reg = (reg & ~CCM_CLPCR_LPM_MASK) | CCM_CLPCR_LPM_RUN;
+	WR4(sc, CCM_CLPCR, reg);
+
+	ccm_init_gates(sc);
+
 	err = 0;
 
 out:
@@ -121,12 +168,67 @@ static int
 ccm_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
         if (ofw_bus_is_compatible(dev, "fsl,imx6q-ccm") == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale i.MX6 Clock Control Module");
 
 	return (BUS_PROBE_DEFAULT);
+}
+
+void
+imx_ccm_ssi_configure(device_t _ssidev)
+{
+	struct ccm_softc *sc;
+	uint32_t reg;
+
+	sc = ccm_sc;
+
+	/*
+	 * Select PLL4 (Audio PLL) clock multiplexer as source.
+	 * PLL output frequency = Fref * (DIV_SELECT + NUM/DENOM).
+	 */
+
+	reg = RD4(sc, CCM_CSCMR1);
+	reg &= ~(SSI_CLK_SEL_M << SSI1_CLK_SEL_S);
+	reg |= (SSI_CLK_SEL_PLL4 << SSI1_CLK_SEL_S);
+	reg &= ~(SSI_CLK_SEL_M << SSI2_CLK_SEL_S);
+	reg |= (SSI_CLK_SEL_PLL4 << SSI2_CLK_SEL_S);
+	reg &= ~(SSI_CLK_SEL_M << SSI3_CLK_SEL_S);
+	reg |= (SSI_CLK_SEL_PLL4 << SSI3_CLK_SEL_S);
+	WR4(sc, CCM_CSCMR1, reg);
+
+	/*
+	 * Ensure we have set hardware-default values
+	 * for pre and post dividers.
+	 */
+
+	/* SSI1 and SSI3 */
+	reg = RD4(sc, CCM_CS1CDR);
+	/* Divide by 2 */
+	reg &= ~(SSI_CLK_PODF_MASK << SSI1_CLK_PODF_SHIFT);
+	reg &= ~(SSI_CLK_PODF_MASK << SSI3_CLK_PODF_SHIFT);
+	reg |= (0x1 << SSI1_CLK_PODF_SHIFT);
+	reg |= (0x1 << SSI3_CLK_PODF_SHIFT);
+	/* Divide by 4 */
+	reg &= ~(SSI_CLK_PRED_MASK << SSI1_CLK_PRED_SHIFT);
+	reg &= ~(SSI_CLK_PRED_MASK << SSI3_CLK_PRED_SHIFT);
+	reg |= (0x3 << SSI1_CLK_PRED_SHIFT);
+	reg |= (0x3 << SSI3_CLK_PRED_SHIFT);
+	WR4(sc, CCM_CS1CDR, reg);
+
+	/* SSI2 */
+	reg = RD4(sc, CCM_CS2CDR);
+	/* Divide by 2 */
+	reg &= ~(SSI_CLK_PODF_MASK << SSI2_CLK_PODF_SHIFT);
+	reg |= (0x1 << SSI2_CLK_PODF_SHIFT);
+	/* Divide by 4 */
+	reg &= ~(SSI_CLK_PRED_MASK << SSI2_CLK_PRED_SHIFT);
+	reg |= (0x3 << SSI2_CLK_PRED_SHIFT);
+	WR4(sc, CCM_CS2CDR, reg);
 }
 
 void
@@ -184,24 +286,52 @@ imx_ccm_usbphy_enable(device_t _phydev)
 #endif
 }
 
-
-
-
-
-// XXX Fix this.  This has to be here for other code to link,
-// but it doesn't have to return anything useful for imx6 right now.
-u_int
-imx51_get_clock(enum imx51_clock clk)
+uint32_t
+imx_ccm_ipg_hz(void)
 {
-	switch (clk)
-	{
-	case IMX51CLK_IPG_CLK_ROOT:
-		return 66000000;
-	default:
-		printf("imx51_get_clock() on imx6 doesn't know about clock %d\n", clk);
-		break;
-	}
-	return 0;
+
+	return (66000000);
+}
+
+uint32_t
+imx_ccm_perclk_hz(void)
+{
+
+	return (66000000);
+}
+
+uint32_t
+imx_ccm_sdhci_hz(void)
+{
+
+	return (200000000);
+}
+
+uint32_t
+imx_ccm_uart_hz(void)
+{
+
+	return (80000000);
+}
+
+uint32_t
+imx_ccm_ahb_hz(void)
+{
+	return (132000000);
+}
+
+uint32_t
+imx_ccm_get_cacrr(void)
+{
+
+	return (RD4(ccm_sc, CCM_CACCR));
+}
+
+void
+imx_ccm_set_cacrr(uint32_t divisor)
+{
+
+	WR4(ccm_sc, CCM_CACCR, divisor);
 }
 
 static device_method_t ccm_methods[] = {
@@ -221,5 +351,6 @@ static driver_t ccm_driver = {
 
 static devclass_t ccm_devclass;
 
-DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0);
+EARLY_DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0, 
+    BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);
 

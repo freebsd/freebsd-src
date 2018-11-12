@@ -13,7 +13,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "livestacks"
 #include "llvm/CodeGen/LiveStackAnalysis.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
@@ -21,8 +20,11 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <limits>
 using namespace llvm;
+
+#define DEBUG_TYPE "livestacks"
 
 char LiveStacks::ID = 0;
 INITIALIZE_PASS_BEGIN(LiveStacks, "livestacks",
@@ -48,7 +50,7 @@ void LiveStacks::releaseMemory() {
 }
 
 bool LiveStacks::runOnMachineFunction(MachineFunction &MF) {
-  TRI = MF.getTarget().getRegisterInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
   // FIXME: No analysis is being done right now. We are relying on the
   // register allocators to provide the information.
   return false;
@@ -79,7 +81,7 @@ void LiveStacks::print(raw_ostream &OS, const Module*) const {
     int Slot = I->first;
     const TargetRegisterClass *RC = getIntervalRegClass(Slot);
     if (RC)
-      OS << " [" << RC->getName() << "]\n";
+      OS << " [" << TRI->getRegClassName(RC) << "]\n";
     else
       OS << " [Unknown]\n";
   }

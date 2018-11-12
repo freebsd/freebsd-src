@@ -255,31 +255,9 @@ ffs_mount(struct mount *mp)
 			 */
 			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
 				return (error);
-			for (;;) {
-				vn_finished_write(mp);
-				if ((error = vfs_write_suspend(mp, 0)) != 0)
-					return (error);
-				MNT_ILOCK(mp);
-				if (mp->mnt_kern_flag & MNTK_SUSPENDED) {
-					/*
-					 * Allow the secondary writes
-					 * to proceed.
-					 */
-					mp->mnt_kern_flag &= ~(MNTK_SUSPENDED |
-					    MNTK_SUSPEND2);
-					wakeup(&mp->mnt_flag);
-					MNT_IUNLOCK(mp);
-					/*
-					 * Allow the curthread to
-					 * ignore the suspension to
-					 * synchronize on-disk state.
-					 */
-					td->td_pflags |= TDP_IGNSUSP;
-					break;
-				}
-				MNT_IUNLOCK(mp);
-				vn_start_write(NULL, &mp, V_WAIT);
-			}
+			error = vfs_write_suspend_umnt(mp);
+			if (error != 0)
+				return (error);
 			/*
 			 * Check for and optionally get rid of files open
 			 * for writing.
@@ -1077,7 +1055,8 @@ ffs_mountfs(devvp, mp, td)
 	 */
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
-	    MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS;
+	    MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS | MNTK_SUSPENDABLE |
+	    MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
@@ -1235,7 +1214,7 @@ ffs_unmount(mp, mntflags)
 	susp = 0;
 	if (mntflags & MNT_FORCE) {
 		flags |= FORCECLOSE;
-		susp = fs->fs_ronly != 0;
+		susp = fs->fs_ronly == 0;
 	}
 #ifdef UFS_EXTATTR
 	if ((error = ufs_extattr_stop(mp, td))) {
@@ -1250,25 +1229,9 @@ ffs_unmount(mp, mntflags)
 	}
 #endif
 	if (susp) {
-		/*
-		 * dounmount already called vn_start_write().
-		 */
-		for (;;) {
-			vn_finished_write(mp);
-			if ((error = vfs_write_suspend(mp, 0)) != 0)
-				return (error);
-			MNT_ILOCK(mp);
-			if (mp->mnt_kern_flag & MNTK_SUSPENDED) {
-				mp->mnt_kern_flag &= ~(MNTK_SUSPENDED |
-				    MNTK_SUSPEND2);
-				wakeup(&mp->mnt_flag);
-				MNT_IUNLOCK(mp);
-				td->td_pflags |= TDP_IGNSUSP;
-				break;
-			}
-			MNT_IUNLOCK(mp);
-			vn_start_write(NULL, &mp, V_WAIT);
-		}
+		error = vfs_write_suspend_umnt(mp);
+		if (error != 0)
+			goto fail1;
 	}
 	if (MOUNTEDSOFTDEP(mp))
 		error = softdep_flushfiles(mp, flags, td);
@@ -1331,6 +1294,7 @@ ffs_unmount(mp, mntflags)
 fail:
 	if (susp)
 		vfs_write_resume(mp, VR_START_WRITE);
+fail1:
 #ifdef UFS_EXTATTR
 	if (e_restart) {
 		ufs_extattr_uepm_init(&ump->um_extattr);
@@ -1522,7 +1486,7 @@ ffs_sync(mp, waitfor)
 	struct inode *ip;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
-	int error, count, wait, lockreq, allerror = 0;
+	int error, count, lockreq, allerror = 0;
 	int suspend;
 	int suspended;
 	int secondary_writes;
@@ -1531,7 +1495,6 @@ ffs_sync(mp, waitfor)
 	int softdep_accdeps;
 	struct bufobj *bo;
 
-	wait = 0;
 	suspend = 0;
 	suspended = 0;
 	td = curthread;
@@ -1539,8 +1502,11 @@ ffs_sync(mp, waitfor)
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0 && ump->um_fsckpid == 0)
 		panic("%s: ffs_sync: modification on read-only filesystem",
 		    fs->fs_fsmnt);
-	if (waitfor == MNT_LAZY)
-		return (ffs_sync_lazy(mp));
+	if (waitfor == MNT_LAZY) {
+		if (!rebooting)
+			return (ffs_sync_lazy(mp));
+		waitfor = MNT_NOWAIT;
+	}
 
 	/*
 	 * Write back each (modified) inode.
@@ -1550,10 +1516,8 @@ ffs_sync(mp, waitfor)
 		suspend = 1;
 		waitfor = MNT_WAIT;
 	}
-	if (waitfor == MNT_WAIT) {
-		wait = 1;
+	if (waitfor == MNT_WAIT)
 		lockreq = LK_EXCLUSIVE;
-	}
 	lockreq |= LK_INTERLOCK | LK_SLEEPFAIL;
 loop:
 	/* Grab snapshot of secondary write counts */
@@ -1597,7 +1561,7 @@ loop:
 	/*
 	 * Force stale filesystem control information to be flushed.
 	 */
-	if (waitfor == MNT_WAIT) {
+	if (waitfor == MNT_WAIT || rebooting) {
 		if ((error = softdep_flushworklist(ump->um_mountp, &count, td)))
 			allerror = error;
 		/* Flushed work items may create new vnodes to clean */
@@ -1614,9 +1578,12 @@ loop:
 	if (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0) {
 		BO_UNLOCK(bo);
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
-		if ((error = VOP_FSYNC(devvp, waitfor, td)) != 0)
-			allerror = error;
+		error = VOP_FSYNC(devvp, waitfor, td);
 		VOP_UNLOCK(devvp, 0);
+		if (MOUNTEDSOFTDEP(mp) && (error == 0 || error == EAGAIN))
+			error = ffs_sbupdate(ump, waitfor, 0);
+		if (error != 0)
+			allerror = error;
 		if (allerror == 0 && waitfor == MNT_WAIT)
 			goto loop;
 	} else if (suspend != 0) {
@@ -1677,7 +1644,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	/*
 	 * We must promote to an exclusive lock for vnode creation.  This
 	 * can happen if lookup is passed LOCKSHARED.
- 	 */
+	 */
 	if ((flags & LK_TYPE_MASK) == LK_SHARED) {
 		flags &= ~LK_TYPE_MASK;
 		flags |= LK_EXCLUSIVE;
@@ -1718,6 +1685,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	ip->i_dev = dev;
 	ip->i_number = ino;
 	ip->i_ea_refs = 0;
+	ip->i_nextclustercg = -1;
 #ifdef QUOTA
 	{
 		int i;
@@ -1931,13 +1899,13 @@ ffs_sbupdate(ump, waitfor, suspended)
 	}
 	bp = sbbp;
 	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_sblockloc != SBLOCK_UFS1 &&
-	    (fs->fs_flags & FS_FLAGS_UPDATED) == 0) {
+	    (fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
 		printf("WARNING: %s: correcting fs_sblockloc from %jd to %d\n",
 		    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS1);
 		fs->fs_sblockloc = SBLOCK_UFS1;
 	}
 	if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_sblockloc != SBLOCK_UFS2 &&
-	    (fs->fs_flags & FS_FLAGS_UPDATED) == 0) {
+	    (fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
 		printf("WARNING: %s: correcting fs_sblockloc from %jd to %d\n",
 		    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS2);
 		fs->fs_sblockloc = SBLOCK_UFS2;
@@ -2053,15 +2021,12 @@ static int
 ffs_bufwrite(struct buf *bp)
 {
 	struct buf *newbp;
-	int oldflags;
 
 	CTR3(KTR_BUF, "bufwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
 		return (0);
 	}
-
-	oldflags = bp->b_flags;
 
 	if (!BUF_ISLOCKED(bp))
 		panic("bufwrite: buffer is not busy???");

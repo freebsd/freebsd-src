@@ -19,7 +19,9 @@
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Section.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
+
 
 using namespace lldb;
 using namespace lldb_private;
@@ -39,12 +41,12 @@ BreakpointLocationList::~BreakpointLocationList()
 }
 
 BreakpointLocationSP
-BreakpointLocationList::Create (const Address &addr)
+BreakpointLocationList::Create (const Address &addr, bool resolve_indirect_symbols)
 {
     Mutex::Locker locker (m_mutex);
     // The location ID is just the size of the location list + 1
     lldb::break_id_t bp_loc_id = ++m_next_id;
-    BreakpointLocationSP bp_loc_sp (new BreakpointLocation (bp_loc_id, m_owner, addr, LLDB_INVALID_THREAD_ID, m_owner.IsHardware()));
+    BreakpointLocationSP bp_loc_sp (new BreakpointLocation (bp_loc_id, m_owner, addr, LLDB_INVALID_THREAD_ID, m_owner.IsHardware(), resolve_indirect_symbols));
     m_locations.push_back (bp_loc_sp);
     m_address_to_location[addr] = bp_loc_sp;
     return bp_loc_sp;
@@ -150,7 +152,7 @@ BreakpointLocationList::FindByAddress (const Address &addr) const
 void
 BreakpointLocationList::Dump (Stream *s) const
 {
-    s->Printf("%p: ", this);
+    s->Printf("%p: ", static_cast<const void*>(this));
     //s->Indent();
     Mutex::Locker locker (m_mutex);
     s->Printf("BreakpointLocationList with %" PRIu64 " BreakpointLocations:\n", (uint64_t)m_locations.size());
@@ -245,7 +247,7 @@ BreakpointLocationList::GetDescription (Stream *s, lldb::DescriptionLevel level)
 }
 
 BreakpointLocationSP
-BreakpointLocationList::AddLocation (const Address &addr, bool *new_location)
+BreakpointLocationList::AddLocation (const Address &addr, bool resolve_indirect_symbols, bool *new_location)
 {
     Mutex::Locker locker (m_mutex);
 
@@ -254,7 +256,7 @@ BreakpointLocationList::AddLocation (const Address &addr, bool *new_location)
     BreakpointLocationSP bp_loc_sp (FindByAddress(addr));
     if (!bp_loc_sp)
 	{
-		bp_loc_sp = Create (addr);
+		bp_loc_sp = Create (addr, resolve_indirect_symbols);
 		if (bp_loc_sp)
 		{
 	    	bp_loc_sp->ResolveBreakpointSite();
@@ -269,6 +271,20 @@ BreakpointLocationList::AddLocation (const Address &addr, bool *new_location)
 	}
     return bp_loc_sp;
 }
+
+void
+BreakpointLocationList::SwapLocation (BreakpointLocationSP to_location_sp, BreakpointLocationSP from_location_sp)
+{
+    if (!from_location_sp || !to_location_sp)
+        return;
+    
+    m_address_to_location.erase(to_location_sp->GetAddress());
+    to_location_sp->SwapLocation(from_location_sp);
+    RemoveLocation(from_location_sp);
+    m_address_to_location[to_location_sp->GetAddress()] = to_location_sp;
+    to_location_sp->ResolveBreakpointSite();
+}
+
 
 bool
 BreakpointLocationList::RemoveLocation (const lldb::BreakpointLocationSP &bp_loc_sp)
@@ -343,3 +359,16 @@ BreakpointLocationList::StopRecordingNewLocations ()
     m_new_location_recorder = NULL;
 }
 
+void
+BreakpointLocationList::Compact()
+{
+    lldb::break_id_t highest_id = 0;
+    
+    for (BreakpointLocationSP loc_sp : m_locations)
+    {
+        lldb::break_id_t cur_id = loc_sp->GetID();
+        if (cur_id > highest_id)
+            highest_id = cur_id;
+    }
+    m_next_id = highest_id;
+}

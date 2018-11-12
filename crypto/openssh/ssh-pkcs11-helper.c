@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-helper.c,v 1.6 2013/05/17 00:13:14 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11-helper.c,v 1.7 2013/12/02 02:56:17 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -127,7 +127,8 @@ process_add(void)
 		buffer_put_char(&msg, SSH2_AGENT_IDENTITIES_ANSWER);
 		buffer_put_int(&msg, nkeys);
 		for (i = 0; i < nkeys; i++) {
-			key_to_blob(keys[i], &blob, &blen);
+			if (key_to_blob(keys[i], &blob, &blen) == 0)
+				continue;
 			buffer_put_string(&msg, blob, blen);
 			buffer_put_cstring(&msg, name);
 			free(blob);

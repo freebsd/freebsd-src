@@ -127,29 +127,29 @@ public:
 
 class PropertyRewriteTraverser : public ASTTraverser {
 public:
-  virtual void traverseObjCImplementation(ObjCImplementationContext &ImplCtx);
+  void traverseObjCImplementation(ObjCImplementationContext &ImplCtx) override;
 };
 
 class BlockObjCVariableTraverser : public ASTTraverser {
 public:
-  virtual void traverseBody(BodyContext &BodyCtx);
+  void traverseBody(BodyContext &BodyCtx) override;
 };
 
 class ProtectedScopeTraverser : public ASTTraverser {
 public:
-  virtual void traverseBody(BodyContext &BodyCtx);
+  void traverseBody(BodyContext &BodyCtx) override;
 };
 
 // GC transformations
 
 class GCAttrsTraverser : public ASTTraverser {
 public:
-  virtual void traverseTU(MigrationContext &MigrateCtx);
+  void traverseTU(MigrationContext &MigrateCtx) override;
 };
 
 class GCCollectableCallsTraverser : public ASTTraverser {
 public:
-  virtual void traverseBody(BodyContext &BodyCtx);
+  void traverseBody(BodyContext &BodyCtx) override;
 };
 
 //===----------------------------------------------------------------------===//
@@ -167,13 +167,15 @@ bool isPlusOne(const Expr *E);
 /// immediately after the semicolon following the statement.
 /// If no semicolon is found or the location is inside a macro, the returned
 /// source location will be invalid.
-SourceLocation findLocationAfterSemi(SourceLocation loc, ASTContext &Ctx);
+SourceLocation findLocationAfterSemi(SourceLocation loc, ASTContext &Ctx,
+                                     bool IsDecl = false);
 
 /// \brief 'Loc' is the end of a statement range. This returns the location
 /// of the semicolon following the statement.
 /// If no semicolon is found or the location is inside a macro, the returned
 /// source location will be invalid.
-SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext &Ctx);
+SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext &Ctx,
+                                     bool IsDecl = false);
 
 bool hasSideEffects(Expr *E, ASTContext &Ctx);
 bool isGlobalVar(Expr *E);
@@ -187,7 +189,7 @@ class BodyTransform : public RecursiveASTVisitor<BodyTransform<BODY_TRANS> > {
 
   typedef RecursiveASTVisitor<BodyTransform<BODY_TRANS> > base;
 public:
-  BodyTransform(MigrationPass &pass) : Pass(pass), ParentD(0) { }
+  BodyTransform(MigrationPass &pass) : Pass(pass), ParentD(nullptr) { }
 
   bool TraverseStmt(Stmt *rootS) {
     if (rootS)

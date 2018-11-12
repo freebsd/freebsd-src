@@ -24,25 +24,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2013
+.Dd May 18, 2015
 .Dt LIBPROCSTAT 3
 .Os
 .Sh NAME
-.Nm procstat_open_core ,
-.Nm procstat_open_kvm ,
-.Nm procstat_open_sysctl ,
 .Nm procstat_close ,
-.Nm procstat_getargv ,
-.Nm procstat_getauxv ,
-.Nm procstat_getenvv ,
-.Nm procstat_getfiles ,
-.Nm procstat_getgroups ,
-.Nm procstat_getkstack ,
-.Nm procstat_getosrel ,
-.Nm procstat_getpathname ,
-.Nm procstat_getprocs ,
-.Nm procstat_getumask ,
-.Nm procstat_getvmmap ,
 .Nm procstat_freeargv ,
 .Nm procstat_freeauxv ,
 .Nm procstat_freeenvv ,
@@ -56,7 +42,22 @@
 .Nm procstat_get_sem_info ,
 .Nm procstat_get_shm_info ,
 .Nm procstat_get_socket_info ,
-.Nm procstat_get_vnode_info
+.Nm procstat_get_vnode_info ,
+.Nm procstat_getargv ,
+.Nm procstat_getauxv ,
+.Nm procstat_getenvv ,
+.Nm procstat_getfiles ,
+.Nm procstat_getgroups ,
+.Nm procstat_getkstack ,
+.Nm procstat_getosrel ,
+.Nm procstat_getpathname ,
+.Nm procstat_getprocs ,
+.Nm procstat_getrlimit ,
+.Nm procstat_getumask ,
+.Nm procstat_getvmmap ,
+.Nm procstat_open_core ,
+.Nm procstat_open_kvm ,
+.Nm procstat_open_sysctl
 .Nd library interface for file and process information retrieval
 .Sh LIBRARY
 .Lb libprocstat
@@ -175,24 +176,17 @@
 .Fa "struct kinfo_proc *kp"
 .Fa "unsigned int *count"
 .Fc
-.Ft int
-.Fo procstat_getosrel
-.Fa "struct procstat *procstat"
-.Fa "struct kinfo_proc *kp"
-.Fa "int *osrelp"
-.Fc
 .Ft "struct kinfo_kstack *"
 .Fo procstat_getkstack
 .Fa "struct procstat *procstat"
 .Fa "struct kinfo_proc *kp"
 .Fa "unsigned int *count"
 .Fc
-.Ft "struct kinfo_proc *"
-.Fo procstat_getprocs
+.Ft int
+.Fo procstat_getosrel
 .Fa "struct procstat *procstat"
-.Fa "int what"
-.Fa "int arg"
-.Fa "unsigned int *count"
+.Fa "struct kinfo_proc *kp"
+.Fa "int *osrelp"
 .Fc
 .Ft "int"
 .Fo procstat_getpathname
@@ -200,6 +194,13 @@
 .Fa "struct kinfo_proc *kp"
 .Fa "char *pathname"
 .Fa "size_t maxlen"
+.Fc
+.Ft "struct kinfo_proc *"
+.Fo procstat_getprocs
+.Fa "struct procstat *procstat"
+.Fa "int what"
+.Fa "int arg"
+.Fa "unsigned int *count"
 .Fc
 .Ft "int"
 .Fo procstat_getrlimit
@@ -543,7 +544,7 @@ library appeared in
 The
 .Nm libprocstat
 library was written by
-.An Stanislav Sedov Aq stas@FreeBSD.org .
+.An Stanislav Sedov Aq Mt stas@FreeBSD.org .
 .Pp
 This manual page was written by
-.An Sergey Kandaurov Aq pluknet@FreeBSD.org .
+.An Sergey Kandaurov Aq Mt pluknet@FreeBSD.org .

@@ -1,5 +1,3 @@
-@(#) $Header: /tcpdump/master/libpcap/README,v 1.34 2008-12-14 19:44:14 guy Exp $ (LBL)
-
 LIBPCAP 1.x.y
 
 www.tcpdump.org
@@ -10,18 +8,15 @@ Please send inquiries/comments/reports to:
 Anonymous Git is available via:
 	git clone git://bpf.tcpdump.org/libpcap
 
-Version 1.x.y of LIBPCAP can be retrieved with the CVS tag "libpcap_1_{x}rel{y}":
-	cvs -d :pserver:tcpdump@cvs.tcpdump.org:/tcpdump/master checkout -r libpcap_1_{x}rel{y} libpcap
-
 Please submit patches by forking the branch on GitHub at
 
-	http://github.com/mcr/libpcap/tree/master
+	http://github.com/the-tcpdump-group/libpcap/tree/master
 
 and issuing a pull request.
 
 formerly from 	Lawrence Berkeley National Laboratory
 		Network Research Group <libpcap@ee.lbl.gov>
-		ftp://ftp.ee.lbl.gov/libpcap.tar.Z (0.4)
+		ftp://ftp.ee.lbl.gov/old/libpcap-0.4a7.tar.Z
 
 This directory contains source code for libpcap, a system-independent
 interface for user-level packet capture.  libpcap provides a portable
@@ -97,12 +92,12 @@ to the address "tcpdump-workers@lists.tcpdump.org".  Bugs, support
 requests, and feature requests may also be submitted on the GitHub issue
 tracker for libpcap at
 
-	https://github.com/mcr/libpcap/issues
+	https://github.com/the-tcpdump-group/libpcap/issues
 
 Source code contributions, etc. should be sent to the email address
 above or submitted by forking the branch on GitHub at
 
-	http://github.com/mcr/libpcap/tree/master
+	http://github.com/the-tcpdump-group/libpcap/tree/master
 
 and issuing a pull request.
 

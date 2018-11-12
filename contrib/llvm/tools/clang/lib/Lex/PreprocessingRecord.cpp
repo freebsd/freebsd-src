@@ -40,7 +40,7 @@ InclusionDirective::InclusionDirective(PreprocessingRecord &PPRec,
 
 PreprocessingRecord::PreprocessingRecord(SourceManager &SM)
   : SourceMgr(SM),
-    ExternalSource(0) {
+    ExternalSource(nullptr) {
 }
 
 /// \brief Returns a pair of [Begin, End) iterators of preprocessed entities
@@ -334,7 +334,7 @@ PreprocessedEntity *PreprocessingRecord::getPreprocessedEntity(PPEntityID PPID){
   }
 
   if (PPID.ID == 0)
-    return 0;
+    return nullptr;
   unsigned Index = PPID.ID - 1;
   assert(Index < PreprocessedEntities.size() &&
          "Out-of bounds local preprocessed entity");
@@ -361,7 +361,7 @@ MacroDefinition *PreprocessingRecord::findMacroDefinition(const MacroInfo *MI) {
   llvm::DenseMap<const MacroInfo *, MacroDefinition *>::iterator Pos
     = MacroDefinitions.find(MI);
   if (Pos == MacroDefinitions.end())
-    return 0;
+    return nullptr;
 
   return Pos->second;
 }
@@ -398,11 +398,16 @@ void PreprocessingRecord::Ifndef(SourceLocation Loc, const Token &MacroNameTok,
 }
 
 void PreprocessingRecord::Defined(const Token &MacroNameTok,
-                                  const MacroDirective *MD) {
+                                  const MacroDirective *MD,
+                                  SourceRange Range) {
   // This is not actually a macro expansion but record it as a macro reference.
   if (MD)
     addMacroExpansion(MacroNameTok, MD->getMacroInfo(),
                       MacroNameTok.getLocation());
+}
+
+void PreprocessingRecord::SourceRangeSkipped(SourceRange Range) {
+  SkippedRanges.push_back(Range);
 }
 
 void PreprocessingRecord::MacroExpands(const Token &Id,const MacroDirective *MD,

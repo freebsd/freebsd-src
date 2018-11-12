@@ -4,13 +4,14 @@
 .error bsd.files.mk cannot be included directly.
 .endif
 
+.if !target(__<bsd.files.mk>__)
+__<bsd.files.mk>__:
+
 FILESGROUPS?=	FILES
 
-.if !target(buildfiles)
 .for group in ${FILESGROUPS}
 buildfiles: ${${group}}
 .endfor
-.endif
 
 all: buildfiles
 
@@ -65,3 +66,5 @@ _${group}INS: ${_${group}FILES}
 
 realinstall: installfiles
 .ORDER: beforeinstall installfiles
+
+.endif # !target(__<bsd.files.mk>__)

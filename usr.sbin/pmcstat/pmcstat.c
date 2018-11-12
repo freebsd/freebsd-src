@@ -116,11 +116,10 @@ struct pmcstat_args args;
 static void
 pmcstat_clone_event_descriptor(struct pmcstat_ev *ev, const cpuset_t *cpumask)
 {
-	int cpu, mcpu;
+	int cpu;
 	struct pmcstat_ev *ev_clone;
 
-	mcpu = sizeof(*cpumask) * NBBY;
-	for (cpu = 0; cpu < mcpu; cpu++) {
+	for (cpu = 0; cpu < CPU_SETSIZE; cpu++) {
 		if (!CPU_ISSET(cpu, cpumask))
 			continue;
 
@@ -161,6 +160,7 @@ pmcstat_get_cpumask(const char *cpuspec, cpuset_t *cpumask)
 		CPU_SET(cpu, cpumask);
 		s = end + strspn(end, ", \t");
 	} while (*s);
+	assert(!CPU_EMPTY(cpumask));
 }
 
 void
@@ -503,11 +503,13 @@ pmcstat_show_usage(void)
 	    "\t -S spec\t allocate a system-wide sampling PMC\n"
 	    "\t -T\t\t start in top mode\n"
 	    "\t -W\t\t (toggle) show counts per context switch\n"
+	    "\t -a file\t print sampled PCs and callgraph to \"file\"\n"
 	    "\t -c cpu-list\t set cpus for subsequent system-wide PMCs\n"
 	    "\t -d\t\t (toggle) track descendants\n"
 	    "\t -f spec\t pass \"spec\" to as plugin option\n"
 	    "\t -g\t\t produce gprof(1) compatible profiles\n"
 	    "\t -k dir\t\t set the path to the kernel\n"
+	    "\t -l secs\t set duration time\n"
 	    "\t -m file\t print sampled PCs to \"file\"\n"
 	    "\t -n rate\t set sampling rate\n"
 	    "\t -o file\t send print output to \"file\"\n"
@@ -548,13 +550,14 @@ pmcstat_topexit(void)
 int
 main(int argc, char **argv)
 {
-	cpuset_t cpumask;
+	cpuset_t cpumask, rootmask;
 	double interval;
-	int hcpu, option, npmc, ncpu;
+	double duration;
+	int option, npmc;
 	int c, check_driver_stats, current_sampling_count;
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
 	int do_print, do_read;
-	size_t dummy;
+	size_t len;
 	int graphdepth;
 	int pipefd[2], rfd;
 	int use_cumulative_counts;
@@ -583,7 +586,6 @@ main(int argc, char **argv)
 	args.pa_verbosity	= 1;
 	args.pa_logfd		= -1;
 	args.pa_fsroot		= "";
-	args.pa_kernel		= strdup("/boot/kernel");
 	args.pa_samplesdir	= ".";
 	args.pa_printfile	= stderr;
 	args.pa_graphdepth	= DEFAULT_CALLGRAPH_DEPTH;
@@ -599,6 +601,7 @@ main(int argc, char **argv)
 	args.pa_toptty		= 0;
 	args.pa_topcolor	= 0;
 	args.pa_mergepmc	= 0;
+	args.pa_duration	= 0.0;
 	STAILQ_INIT(&args.pa_events);
 	SLIST_INIT(&args.pa_targets);
 	bzero(&ds_start, sizeof(ds_start));
@@ -606,30 +609,41 @@ main(int argc, char **argv)
 	ev = NULL;
 	CPU_ZERO(&cpumask);
 
+	/* Default to using the running system kernel. */
+	len = 0;
+	if (sysctlbyname("kern.bootfile", NULL, &len, NULL, 0) == -1)
+		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
+	args.pa_kernel = malloc(len + 1);
+	if (sysctlbyname("kern.bootfile", args.pa_kernel, &len, NULL, 0) == -1)
+		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
+
 	/*
-	 * The initial CPU mask specifies all non-halted CPUS in the
-	 * system.
+	 * The initial CPU mask specifies the root mask of this process
+	 * which is usually all CPUs in the system.
 	 */
-	dummy = sizeof(int);
-	if (sysctlbyname("hw.ncpu", &ncpu, &dummy, NULL, 0) < 0)
-		err(EX_OSERR, "ERROR: Cannot determine the number of CPUs");
-	for (hcpu = 0; hcpu < ncpu; hcpu++)
-		CPU_SET(hcpu, &cpumask);
+	if (cpuset_getaffinity(CPU_LEVEL_ROOT, CPU_WHICH_PID, -1,
+	    sizeof(rootmask), &rootmask) == -1)
+		err(EX_OSERR, "ERROR: Cannot determine the root set of CPUs");
+	CPU_COPY(&rootmask, &cpumask);
 
 	while ((option = getopt(argc, argv,
-	    "CD:EF:G:M:NO:P:R:S:TWc:df:gk:m:n:o:p:qr:s:t:vw:z:")) != -1)
+	    "CD:EF:G:M:NO:P:R:S:TWa:c:df:gk:l:m:n:o:p:qr:s:t:vw:z:")) != -1)
 		switch (option) {
+		case 'a':	/* Annotate + callgraph */
+			args.pa_flags |= FLAG_DO_ANNOTATE;
+			args.pa_plugin = PMCSTAT_PL_ANNOTATE_CG;
+			graphfilename  = optarg;
+			break;
+
 		case 'C':	/* cumulative values */
 			use_cumulative_counts = !use_cumulative_counts;
 			args.pa_required |= FLAG_HAS_COUNTING_PMCS;
 			break;
 
 		case 'c':	/* CPU */
-
-			if (optarg[0] == '*' && optarg[1] == '\0') {
-				for (hcpu = 0; hcpu < ncpu; hcpu++)
-					CPU_SET(hcpu, &cpumask);
-			} else
+			if (optarg[0] == '*' && optarg[1] == '\0')
+				CPU_COPY(&rootmask, &cpumask);
+			else
 				pmcstat_get_cpumask(optarg, &cpumask);
 
 			args.pa_flags	 |= FLAGS_HAS_CPUMASK;
@@ -683,6 +697,15 @@ main(int argc, char **argv)
 			args.pa_kernel = strdup(optarg);
 			args.pa_required |= FLAG_DO_ANALYSIS;
 			args.pa_flags    |= FLAG_HAS_KERNELPATH;
+			break;
+
+		case 'l':	/* time duration in seconds */
+			duration = strtod(optarg, &end);
+			if (*end != '\0' || duration <= 0)
+				errx(EX_USAGE, "ERROR: Illegal duration time "
+				    "value \"%s\".", optarg);
+			args.pa_flags |= FLAG_HAS_DURATION;
+			args.pa_duration = duration;
 			break;
 
 		case 'm':
@@ -745,13 +768,9 @@ main(int argc, char **argv)
 			else
 				ev->ev_count = -1;
 
-			if (option == 'S' || option == 's') {
-				hcpu = sizeof(cpumask) * NBBY;
-				for (hcpu--; hcpu >= 0; hcpu--)
-					if (CPU_ISSET(hcpu, &cpumask))
-						break;
-				ev->ev_cpu = hcpu;
-			} else
+			if (option == 'S' || option == 's')
+				ev->ev_cpu = CPU_FFS(&cpumask);
+			else
 				ev->ev_cpu = PMC_CPU_ANY;
 
 			ev->ev_flags = 0;
@@ -778,11 +797,9 @@ main(int argc, char **argv)
 			STAILQ_INSERT_TAIL(&args.pa_events, ev, ev_next);
 
 			if (option == 's' || option == 'S') {
-				hcpu = CPU_ISSET(ev->ev_cpu, &cpumask);
 				CPU_CLR(ev->ev_cpu, &cpumask);
 				pmcstat_clone_event_descriptor(ev, &cpumask);
-				if (hcpu != 0)
-					CPU_SET(ev->ev_cpu, &cpumask);
+				CPU_SET(ev->ev_cpu, &cpumask);
 			}
 
 			break;
@@ -915,9 +932,16 @@ main(int argc, char **argv)
 		errx(EX_USAGE,
 		    "ERROR: options -O and -R are mutually exclusive.");
 
-	/* -m option is allowed with -R only. */
+	/* disallow -T and -l together */
+	if ((args.pa_flags & FLAG_HAS_DURATION) &&
+	    (args.pa_flags & FLAG_DO_TOP))
+		errx(EX_USAGE, "ERROR: options -T and -l are mutually "
+		    "exclusive.");
+
+	/* -a and -m require -R */
 	if (args.pa_flags & FLAG_DO_ANNOTATE && args.pa_inputpath == NULL)
-		errx(EX_USAGE, "ERROR: option -m requires an input file");
+		errx(EX_USAGE, "ERROR: option %s requires an input file",
+		    args.pa_plugin == PMCSTAT_PL_ANNOTATE ? "-m" : "-a");
 
 	/* -m option is not allowed combined with -g or -G. */
 	if (args.pa_flags & FLAG_DO_ANNOTATE &&
@@ -1035,33 +1059,31 @@ main(int argc, char **argv)
 		    );
 
 	/*
-	 * Check if "-k kerneldir" was specified, and if whether
-	 * 'kerneldir' actually refers to a file.  If so, use
-	 * `dirname path` to determine the kernel directory.
+	 * Check if 'kerneldir' refers to a file rather than a
+	 * directory.  If so, use `dirname path` to determine the
+	 * kernel directory.
 	 */
-	if (args.pa_flags & FLAG_HAS_KERNELPATH) {
-		(void) snprintf(buffer, sizeof(buffer), "%s%s", args.pa_fsroot,
-		    args.pa_kernel);
+	(void) snprintf(buffer, sizeof(buffer), "%s%s", args.pa_fsroot,
+	    args.pa_kernel);
+	if (stat(buffer, &sb) < 0)
+		err(EX_OSERR, "ERROR: Cannot locate kernel \"%s\"",
+		    buffer);
+	if (!S_ISREG(sb.st_mode) && !S_ISDIR(sb.st_mode))
+		errx(EX_USAGE, "ERROR: \"%s\": Unsupported file type.",
+		    buffer);
+	if (!S_ISDIR(sb.st_mode)) {
+		tmp = args.pa_kernel;
+		args.pa_kernel = strdup(dirname(args.pa_kernel));
+		free(tmp);
+		(void) snprintf(buffer, sizeof(buffer), "%s%s",
+		    args.pa_fsroot, args.pa_kernel);
 		if (stat(buffer, &sb) < 0)
-			err(EX_OSERR, "ERROR: Cannot locate kernel \"%s\"",
+			err(EX_OSERR, "ERROR: Cannot stat \"%s\"",
 			    buffer);
-		if (!S_ISREG(sb.st_mode) && !S_ISDIR(sb.st_mode))
-			errx(EX_USAGE, "ERROR: \"%s\": Unsupported file type.",
+		if (!S_ISDIR(sb.st_mode))
+			errx(EX_USAGE,
+			    "ERROR: \"%s\" is not a directory.",
 			    buffer);
-		if (!S_ISDIR(sb.st_mode)) {
-			tmp = args.pa_kernel;
-			args.pa_kernel = strdup(dirname(args.pa_kernel));
-			free(tmp);
-			(void) snprintf(buffer, sizeof(buffer), "%s%s",
-			    args.pa_fsroot, args.pa_kernel);
-			if (stat(buffer, &sb) < 0)
-				err(EX_OSERR, "ERROR: Cannot stat \"%s\"",
-				    buffer);
-			if (!S_ISDIR(sb.st_mode))
-				errx(EX_USAGE,
-				    "ERROR: \"%s\" is not a directory.",
-				    buffer);
-		}
 	}
 
 	/*
@@ -1271,6 +1293,20 @@ main(int argc, char **argv)
 			    "ERROR: Cannot register kevent for timer");
 	}
 
+	/*
+	 * Setup a duration timer if we have sampling mode PMCs and
+	 * a duration time is set
+	 */
+	if ((args.pa_flags & FLAG_HAS_SAMPLING_PMCS) &&
+	    (args.pa_flags & FLAG_HAS_DURATION)) {
+		EV_SET(&kev, 0, EVFILT_TIMER, EV_ADD, 0,
+		    args.pa_duration * 1000, NULL);
+
+		if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
+			err(EX_OSERR, "ERROR: Cannot register kevent for "
+			    "time duration");
+	}
+
 	/* attach PMCs to the target process, starting it if specified */
 	if (args.pa_flags & FLAG_HAS_COMMANDLINE)
 		pmcstat_create_process();
@@ -1347,7 +1383,7 @@ main(int argc, char **argv)
 
 	/*
 	 * loop till either the target process (if any) exits, or we
-	 * are killed by a SIGINT.
+	 * are killed by a SIGINT or we reached the time duration.
 	 */
 	runstate = PMCSTAT_RUNNING;
 	do_print = do_read = 0;
@@ -1414,7 +1450,13 @@ main(int argc, char **argv)
 
 			break;
 
-		case EVFILT_TIMER: /* print out counting PMCs */
+		case EVFILT_TIMER:
+			/* time duration reached, exit */
+			if (args.pa_flags & FLAG_HAS_DURATION) {
+				runstate = PMCSTAT_FINISHED;
+				break;
+			}
+			/* print out counting PMCs */
 			if ((args.pa_flags & FLAG_DO_TOP) &&
 			     pmc_flush_logfile() == 0)
 				do_read = 1;

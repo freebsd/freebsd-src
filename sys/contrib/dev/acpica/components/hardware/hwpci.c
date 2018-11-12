@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __HWPCI_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -142,7 +140,7 @@ AcpiHwDerivePciId (
     ACPI_HANDLE             PciRegion)
 {
     ACPI_STATUS             Status;
-    ACPI_PCI_DEVICE         *ListHead = NULL;
+    ACPI_PCI_DEVICE         *ListHead;
 
 
     ACPI_FUNCTION_TRACE (HwDerivePciId);
@@ -161,11 +159,12 @@ AcpiHwDerivePciId (
         /* Walk the list, updating the PCI device/function/bus numbers */
 
         Status = AcpiHwProcessPciList (PciId, ListHead);
+
+        /* Delete the list */
+
+        AcpiHwDeletePciList (ListHead);
     }
 
-    /* Always delete the list */
-
-    AcpiHwDeletePciList (ListHead);
     return_ACPI_STATUS (Status);
 }
 
@@ -199,7 +198,6 @@ AcpiHwBuildPciList (
     ACPI_HANDLE             ParentDevice;
     ACPI_STATUS             Status;
     ACPI_PCI_DEVICE         *ListElement;
-    ACPI_PCI_DEVICE         *ListHead = NULL;
 
 
     /*
@@ -207,12 +205,16 @@ AcpiHwBuildPciList (
      * a list of device nodes. Loop will exit when either the PCI device is
      * found, or the root of the namespace is reached.
      */
+    *ReturnListHead = NULL;
     CurrentDevice = PciRegion;
     while (1)
     {
         Status = AcpiGetParent (CurrentDevice, &ParentDevice);
         if (ACPI_FAILURE (Status))
         {
+            /* Must delete the list before exit */
+
+            AcpiHwDeletePciList (*ReturnListHead);
             return (Status);
         }
 
@@ -220,21 +222,23 @@ AcpiHwBuildPciList (
 
         if (ParentDevice == RootPciDevice)
         {
-            *ReturnListHead = ListHead;
             return (AE_OK);
         }
 
         ListElement = ACPI_ALLOCATE (sizeof (ACPI_PCI_DEVICE));
         if (!ListElement)
         {
+            /* Must delete the list before exit */
+
+            AcpiHwDeletePciList (*ReturnListHead);
             return (AE_NO_MEMORY);
         }
 
         /* Put new element at the head of the list */
 
-        ListElement->Next = ListHead;
+        ListElement->Next = *ReturnListHead;
         ListElement->Device = ParentDevice;
-        ListHead = ListElement;
+        *ReturnListHead = ListElement;
 
         CurrentDevice = ParentDevice;
     }

@@ -60,17 +60,17 @@
 /*
  * Maximum number of LUNs we support at the moment.  MUST be a power of 2.
  */
-#define	CTL_MAX_LUNS		256
+#define	CTL_MAX_LUNS		1024
 
 /*
  * Maximum number of initiators per port.
  */
-#define	CTL_MAX_INIT_PER_PORT	2048 // Was 16
+#define	CTL_MAX_INIT_PER_PORT	2048
 
 /*
  * Maximum number of ports registered at one time.
  */
-#define	CTL_MAX_PORTS		32
+#define	CTL_MAX_PORTS		256
 
 /*
  * Maximum number of initiators we support.
@@ -363,7 +363,8 @@ struct ctl_port_list {
 typedef enum {
 	CTL_LUN_NOSTATUS,
 	CTL_LUN_OK,
-	CTL_LUN_ERROR
+	CTL_LUN_ERROR,
+	CTL_LUN_WARNING
 } ctl_lun_status;
 
 #define	CTL_ERROR_STR_LEN	160
@@ -595,6 +596,45 @@ struct ctl_lun_list {
 };
 
 /*
+ * Port request interface:
+ *
+ * driver:		This is required, and is NUL-terminated a string
+ *			that is the name of the frontend, like "iscsi" .
+ *
+ * reqtype:		The type of request, CTL_REQ_CREATE to create a
+ *			port, CTL_REQ_REMOVE to delete a port.
+ *
+ * num_be_args:		This is the number of frontend-specific arguments
+ *			in the be_args array.
+ *
+ * be_args:		This is an array of frontend-specific arguments.
+ *			See above for a description of the fields in this
+ *			structure.
+ *
+ * status:		Status of the request.
+ *
+ * error_str:		If the status is CTL_LUN_ERROR, this will
+ *			contain a string describing the error.
+ *
+ * kern_be_args:	For kernel use only.
+ */
+typedef enum {
+	CTL_REQ_CREATE,
+	CTL_REQ_REMOVE,
+	CTL_REQ_MODIFY,
+} ctl_req_type;
+
+struct ctl_req {
+	char			driver[CTL_DRIVER_NAME_LEN];
+	ctl_req_type		reqtype;
+	int			num_args;
+	struct ctl_be_arg	*args;
+	ctl_lun_status		status;
+	char			error_str[CTL_ERROR_STR_LEN];
+	struct ctl_be_arg	*kern_args;
+};
+
+/*
  * iSCSI status
  *
  * OK:			Request completed successfully.
@@ -617,12 +657,16 @@ typedef enum {
 	CTL_ISCSI_LIST,
 	CTL_ISCSI_LOGOUT,
 	CTL_ISCSI_TERMINATE,
-#ifdef ICL_KERNEL_PROXY
+	CTL_ISCSI_LIMITS,
+#if defined(ICL_KERNEL_PROXY) || 1
+	/*
+	 * We actually need those in all cases, but leave the ICL_KERNEL_PROXY,
+	 * to remember to remove them along with rest of proxy code, eventually.
+	 */
 	CTL_ISCSI_LISTEN,
 	CTL_ISCSI_ACCEPT,
 	CTL_ISCSI_SEND,
 	CTL_ISCSI_RECEIVE,
-	CTL_ISCSI_CLOSE,
 #endif
 } ctl_iscsi_type;
 
@@ -634,21 +678,15 @@ typedef enum {
 #define	CTL_ISCSI_NAME_LEN	224	/* 223 bytes, by RFC 3720, + '\0' */
 #define	CTL_ISCSI_ADDR_LEN	47	/* INET6_ADDRSTRLEN + '\0' */
 #define	CTL_ISCSI_ALIAS_LEN	128	/* Arbitrary. */
+#define	CTL_ISCSI_OFFLOAD_LEN	8	/* Arbitrary. */
 
 struct ctl_iscsi_handoff_params {
 	char			initiator_name[CTL_ISCSI_NAME_LEN];
 	char			initiator_addr[CTL_ISCSI_ADDR_LEN];
 	char			initiator_alias[CTL_ISCSI_ALIAS_LEN];
+	uint8_t			initiator_isid[6];
 	char			target_name[CTL_ISCSI_NAME_LEN];
-#ifdef ICL_KERNEL_PROXY
-	int			connection_id;
-	/*
-	 * XXX
-	 */
 	int			socket;
-#else
-	int			socket;
-#endif
 	int			portal_group_tag;
 	
 	/*
@@ -662,7 +700,13 @@ struct ctl_iscsi_handoff_params {
 	uint32_t		max_burst_length;
 	uint32_t		first_burst_length;
 	uint32_t		immediate_data;
-	int			spare[4];
+	char			offload[CTL_ISCSI_OFFLOAD_LEN];
+#ifdef ICL_KERNEL_PROXY
+	int			connection_id;
+	int			spare[1];
+#else
+	int			spare[2];
+#endif
 };
 
 struct ctl_iscsi_list_params {
@@ -692,6 +736,14 @@ struct ctl_iscsi_terminate_params {
 	int			spare[4];
 };
 
+struct ctl_iscsi_limits_params {
+	char			offload[CTL_ISCSI_OFFLOAD_LEN];
+						/* passed to kernel */
+	size_t			data_segment_limit;
+						/* passed to userland */
+	int			spare[4];
+};
+
 #ifdef ICL_KERNEL_PROXY
 struct ctl_iscsi_listen_params {
 	int				iser;
@@ -700,11 +752,15 @@ struct ctl_iscsi_listen_params {
 	int				protocol;
 	struct sockaddr			*addr;
 	socklen_t			addrlen;
+	int				portal_id;
 	int				spare[4];
 };
 
 struct ctl_iscsi_accept_params {
 	int				connection_id;
+	int				portal_id;
+	struct sockaddr			*initiator_addr;
+	socklen_t			initiator_addrlen;
 	int				spare[4];
 };
 
@@ -715,7 +771,7 @@ struct ctl_iscsi_send_params {
 	void				*spare2;
 	size_t				data_segment_len;
 	void				*data_segment;
-	int				spare[4];
+	int				spare3[4];
 };
 
 struct ctl_iscsi_receive_params {
@@ -725,13 +781,9 @@ struct ctl_iscsi_receive_params {
 	void				*spare2;
 	size_t				data_segment_len;
 	void				*data_segment;
-	int				spare[4];
+	int				spare3[4];
 };
 
-struct ctl_iscsi_close_params {
-	int				connection_id;
-	int				spare[4];
-};
 #endif /* ICL_KERNEL_PROXY */
 
 union ctl_iscsi_data {
@@ -739,12 +791,12 @@ union ctl_iscsi_data {
 	struct ctl_iscsi_list_params		list;
 	struct ctl_iscsi_logout_params		logout;
 	struct ctl_iscsi_terminate_params	terminate;
+	struct ctl_iscsi_limits_params		limits;
 #ifdef ICL_KERNEL_PROXY
 	struct ctl_iscsi_listen_params		listen;
 	struct ctl_iscsi_accept_params		accept;
 	struct ctl_iscsi_send_params		send;
 	struct ctl_iscsi_receive_params		receive;
-	struct ctl_iscsi_close_params		close;
 #endif
 };
 
@@ -763,6 +815,12 @@ struct ctl_iscsi {
 	ctl_iscsi_status	status;		/* passed to userland */
 	char			error_str[CTL_ERROR_STR_LEN];
 						/* passed to userland */
+};
+
+struct ctl_lun_map {
+	uint32_t		port;
+	uint32_t		plun;
+	uint32_t		lun;
 };
 
 #define	CTL_IO			_IOWR(CTL_MINOR, 0x00, union ctl_io)
@@ -790,6 +848,9 @@ struct ctl_iscsi {
 #define	CTL_ERROR_INJECT_DELETE	_IOW(CTL_MINOR, 0x23, struct ctl_error_desc)
 #define	CTL_SET_PORT_WWNS	_IOW(CTL_MINOR, 0x24, struct ctl_port_entry)
 #define	CTL_ISCSI		_IOWR(CTL_MINOR, 0x25, struct ctl_iscsi)
+#define	CTL_PORT_REQ		_IOWR(CTL_MINOR, 0x26, struct ctl_req)
+#define	CTL_PORT_LIST		_IOWR(CTL_MINOR, 0x27, struct ctl_lun_list)
+#define	CTL_LUN_MAP		_IOW(CTL_MINOR, 0x28, struct ctl_lun_map)
 
 #endif /* _CTL_IOCTL_H_ */
 

@@ -87,8 +87,8 @@
 
 ------------------------------------------------------------------------ */
 
-#ifndef CLANG_BASIC_CONVERTUTF_H
-#define CLANG_BASIC_CONVERTUTF_H
+#ifndef LLVM_SUPPORT_CONVERTUTF_H
+#define LLVM_SUPPORT_CONVERTUTF_H
 
 /* ---------------------------------------------------------------------
     The following 4 definitions are compiler-specific.
@@ -112,6 +112,9 @@ typedef unsigned char   Boolean; /* 0 or 1 */
 
 #define UNI_MAX_UTF8_BYTES_PER_CODE_POINT 4
 
+#define UNI_UTF16_BYTE_ORDER_MARK_NATIVE  0xFEFF
+#define UNI_UTF16_BYTE_ORDER_MARK_SWAPPED 0xFFFE
+
 typedef enum {
   conversionOK,           /* conversion successful */
   sourceExhausted,        /* partial character in source, but hit end */
@@ -133,7 +136,19 @@ ConversionResult ConvertUTF8toUTF16 (
   const UTF8** sourceStart, const UTF8* sourceEnd,
   UTF16** targetStart, UTF16* targetEnd, ConversionFlags flags);
 
-ConversionResult ConvertUTF8toUTF32 (
+/**
+ * Convert a partial UTF8 sequence to UTF32.  If the sequence ends in an
+ * incomplete code unit sequence, returns \c sourceExhausted.
+ */
+ConversionResult ConvertUTF8toUTF32Partial(
+  const UTF8** sourceStart, const UTF8* sourceEnd,
+  UTF32** targetStart, UTF32* targetEnd, ConversionFlags flags);
+
+/**
+ * Convert a partial UTF8 sequence to UTF32.  If the sequence ends in an
+ * incomplete code unit sequence, returns \c sourceIllegal.
+ */
+ConversionResult ConvertUTF8toUTF32(
   const UTF8** sourceStart, const UTF8* sourceEnd,
   UTF32** targetStart, UTF32* targetEnd, ConversionFlags flags);
 
@@ -165,6 +180,7 @@ unsigned getNumBytesForUTF8(UTF8 firstByte);
 /*************************************************************************/
 /* Below are LLVM-specific wrappers of the functions above. */
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
@@ -219,6 +235,22 @@ static inline ConversionResult convertUTF8Sequence(const UTF8 **source,
     return sourceExhausted;
   return ConvertUTF8toUTF32(source, *source + size, &target, target + 1, flags);
 }
+
+/**
+ * Returns true if a blob of text starts with a UTF-16 big or little endian byte
+ * order mark.
+ */
+bool hasUTF16ByteOrderMark(ArrayRef<char> SrcBytes);
+
+/**
+ * Converts a stream of raw bytes assumed to be UTF16 into a UTF8 std::string.
+ *
+ * \param [in] SrcBytes A buffer of what is assumed to be UTF-16 encoded text.
+ * \param [out] Out Converted UTF-8 is stored here on success.
+ * \returns true on success
+ */
+bool convertUTF16ToUTF8String(ArrayRef<char> SrcBytes, std::string &Out);
+
 } /* end namespace llvm */
 
 #endif

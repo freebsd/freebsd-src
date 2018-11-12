@@ -103,6 +103,14 @@ vmcs_field_encoding(int ident)
 		return (VMCS_GUEST_LDTR_SELECTOR);
 	case VM_REG_GUEST_EFER:
 		return (VMCS_GUEST_IA32_EFER);
+	case VM_REG_GUEST_PDPTE0:
+		return (VMCS_GUEST_PDPTE0);
+	case VM_REG_GUEST_PDPTE1:
+		return (VMCS_GUEST_PDPTE1);
+	case VM_REG_GUEST_PDPTE2:
+		return (VMCS_GUEST_PDPTE2);
+	case VM_REG_GUEST_PDPTE3:
+		return (VMCS_GUEST_PDPTE3);
 	default:
 		return (-1);
 	}
@@ -231,7 +239,7 @@ vmcs_setreg(struct vmcs *vmcs, int running, int ident, uint64_t val)
 }
 
 int
-vmcs_setdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
+vmcs_setdesc(struct vmcs *vmcs, int running, int seg, struct seg_desc *desc)
 {
 	int error;
 	uint32_t base, limit, access;
@@ -240,7 +248,8 @@ vmcs_setdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
 	if (error != 0)
 		panic("vmcs_setdesc: invalid segment register %d", seg);
 
-	VMPTRLD(vmcs);
+	if (!running)
+		VMPTRLD(vmcs);
 	if ((error = vmwrite(base, desc->base)) != 0)
 		goto done;
 
@@ -252,12 +261,13 @@ vmcs_setdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
 			goto done;
 	}
 done:
-	VMCLEAR(vmcs);
+	if (!running)
+		VMCLEAR(vmcs);
 	return (error);
 }
 
 int
-vmcs_getdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
+vmcs_getdesc(struct vmcs *vmcs, int running, int seg, struct seg_desc *desc)
 {
 	int error;
 	uint32_t base, limit, access;
@@ -267,7 +277,8 @@ vmcs_getdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
 	if (error != 0)
 		panic("vmcs_getdesc: invalid segment register %d", seg);
 
-	VMPTRLD(vmcs);
+	if (!running)
+		VMPTRLD(vmcs);
 	if ((error = vmread(base, &u64)) != 0)
 		goto done;
 	desc->base = u64;
@@ -282,7 +293,8 @@ vmcs_getdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
 		desc->access = u64;
 	}
 done:
-	VMCLEAR(vmcs);
+	if (!running)
+		VMCLEAR(vmcs);
 	return (error);
 }
 
@@ -320,7 +332,6 @@ vmcs_init(struct vmcs *vmcs)
 	int error, codesel, datasel, tsssel;
 	u_long cr0, cr4, efer;
 	uint64_t pat, fsbase, idtrbase;
-	uint32_t exc_bitmap;
 
 	codesel = vmm_get_host_codesel();
 	datasel = vmm_get_host_datasel();
@@ -330,18 +341,6 @@ vmcs_init(struct vmcs *vmcs)
 	 * Make sure we have a "current" VMCS to work with.
 	 */
 	VMPTRLD(vmcs);
-
-	/* Initialize guest IA32_PAT MSR with the default value */
-	pat = PAT_VALUE(0, PAT_WRITE_BACK)	|
-	      PAT_VALUE(1, PAT_WRITE_THROUGH)	|
-	      PAT_VALUE(2, PAT_UNCACHED)	|
-	      PAT_VALUE(3, PAT_UNCACHEABLE)	|
-	      PAT_VALUE(4, PAT_WRITE_BACK)	|
-	      PAT_VALUE(5, PAT_WRITE_THROUGH)	|
-	      PAT_VALUE(6, PAT_UNCACHED)	|
-	      PAT_VALUE(7, PAT_UNCACHEABLE);
-	if ((error = vmwrite(VMCS_GUEST_IA32_PAT, pat)) != 0)
-		goto done;
 
 	/* Host state */
 
@@ -403,11 +402,6 @@ vmcs_init(struct vmcs *vmcs)
 
 	/* instruction pointer */
 	if ((error = vmwrite(VMCS_HOST_RIP, (u_long)vmx_exit_guest)) != 0)
-		goto done;
-
-	/* exception bitmap */
-	exc_bitmap = 1 << IDT_MC;
-	if ((error = vmwrite(VMCS_EXCEPTION_BITMAP, exc_bitmap)) != 0)
 		goto done;
 
 	/* link pointer */

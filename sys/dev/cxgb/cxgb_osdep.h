@@ -39,6 +39,8 @@ $FreeBSD$
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
+#include <sys/kdb.h>
+
 #include <dev/mii/mii.h>
 
 #ifndef _CXGB_OSDEP_H_
@@ -91,8 +93,6 @@ struct t3_mbuf_hdr {
 #endif
 #endif
 
-#define __read_mostly __attribute__((__section__(".data.read_mostly")))
-
 /*
  * Workaround for weird Chelsio issue
  */
@@ -130,10 +130,8 @@ void prefetch(void *x)
 #define smp_mb() mb()
 
 #define L1_CACHE_BYTES 128
-extern void kdb_backtrace(void);
-
 #define WARN_ON(condition) do { \
-       if (__predict_false((condition)!=0)) {  \
+	if (__predict_false((condition)!=0)) {  \
                 log(LOG_WARNING, "BUG: warning at %s:%d/%s()\n", __FILE__, __LINE__, __FUNCTION__); \
                 kdb_backtrace(); \
         } \

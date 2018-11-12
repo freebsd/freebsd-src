@@ -375,6 +375,7 @@ static void
 ar934x_chip_reset_wmac(void)
 {
 
+	/* XXX TODO */
 }
 
 static void
@@ -389,6 +390,62 @@ ar934x_chip_init_gmac(void)
 		    (long) gmac_cfg);
 		ar934x_configure_gmac((uint32_t) gmac_cfg);
 	}
+}
+
+/*
+ * Reset the NAND Flash Controller.
+ *
+ * + active=1 means "make it active".
+ * + active=0 means "make it inactive".
+ */
+static void
+ar934x_chip_reset_nfc(int active)
+{
+
+	if (active) {
+		ar71xx_device_start(AR934X_RESET_NANDF);
+		DELAY(100);
+
+		ar71xx_device_start(AR934X_RESET_ETH_SWITCH_ANALOG);
+		DELAY(250);
+	} else {
+		ar71xx_device_stop(AR934X_RESET_ETH_SWITCH_ANALOG);
+		DELAY(250);
+
+		ar71xx_device_stop(AR934X_RESET_NANDF);
+		DELAY(100);
+	}
+}
+
+/*
+ * Configure the GPIO output mux setup.
+ *
+ * The AR934x introduced an output mux which allowed
+ * certain functions to be configured on any pin.
+ * Specifically, the switch PHY link LEDs and
+ * WMAC external RX LNA switches are not limited to
+ * a specific GPIO pin.
+ */
+static void
+ar934x_chip_gpio_output_configure(int gpio, uint8_t func)
+{
+	uint32_t reg, s;
+	uint32_t t;
+
+	if (gpio > AR934X_GPIO_COUNT)
+		return;
+
+	reg = AR934X_GPIO_REG_OUT_FUNC0 + 4 * (gpio / 4);
+	s = 8 * (gpio % 4);
+
+	/* read-modify-write */
+	t = ATH_READ_REG(AR71XX_GPIO_BASE + reg);
+	t &= ~(0xff << s);
+	t |= func << s;
+	ATH_WRITE_REG(AR71XX_GPIO_BASE + reg, t);
+
+	/* flush write */
+	ATH_READ_REG(AR71XX_GPIO_BASE + reg);
 }
 
 struct ar71xx_cpu_def ar934x_chip_def = {
@@ -407,4 +464,6 @@ struct ar71xx_cpu_def ar934x_chip_def = {
 	&ar934x_chip_reset_ethernet_switch,
 	&ar934x_chip_reset_wmac,
 	&ar934x_chip_init_gmac,
+	&ar934x_chip_reset_nfc,
+	&ar934x_chip_gpio_output_configure,
 };

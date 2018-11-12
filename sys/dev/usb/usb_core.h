@@ -44,6 +44,9 @@
 #define	USB_BUS_LOCK(_b)		mtx_lock(&(_b)->bus_mtx)
 #define	USB_BUS_UNLOCK(_b)		mtx_unlock(&(_b)->bus_mtx)
 #define	USB_BUS_LOCK_ASSERT(_b, _t)	mtx_assert(&(_b)->bus_mtx, _t)
+#define	USB_BUS_SPIN_LOCK(_b)		mtx_lock_spin(&(_b)->bus_spin_lock)
+#define	USB_BUS_SPIN_UNLOCK(_b)		mtx_unlock_spin(&(_b)->bus_spin_lock)
+#define	USB_BUS_SPIN_LOCK_ASSERT(_b, _t)	mtx_assert(&(_b)->bus_spin_lock, _t)
 #define	USB_XFER_LOCK(_x)		mtx_lock((_x)->xroot->xfer_mtx)
 #define	USB_XFER_UNLOCK(_x)		mtx_unlock((_x)->xroot->xfer_mtx)
 #define	USB_XFER_LOCK_ASSERT(_x, _t)	mtx_assert((_x)->xroot->xfer_mtx, _t)
@@ -98,6 +101,7 @@ struct usb_xfer_flags_int {
 					 * sent */
 	uint8_t	control_act:1;		/* set if control transfer is active */
 	uint8_t	control_stall:1;	/* set if control transfer should be stalled */
+	uint8_t control_did_data:1;	/* set if control DATA has been transferred */
 
 	uint8_t	short_frames_ok:1;	/* filtered version */
 	uint8_t	short_xfer_ok:1;	/* filtered version */
@@ -114,6 +118,8 @@ struct usb_xfer_flags_int {
 	uint8_t	can_cancel_immed:1;	/* set if USB transfer can be
 					 * cancelled immediately */
 	uint8_t	doing_callback:1;	/* set if executing the callback */
+	uint8_t maxp_was_clamped:1;	/* set if the max packet size 
+					 * was outside its allowed range */
 };
 
 /*

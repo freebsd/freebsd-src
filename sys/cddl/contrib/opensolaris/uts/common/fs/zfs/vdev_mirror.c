@@ -24,7 +24,7 @@
  */
 
 /*
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -74,32 +74,26 @@ static SYSCTL_NODE(_vfs_zfs_vdev, OID_AUTO, mirror, CTLFLAG_RD, 0,
 
 /* Rotating media load calculation configuration. */
 static int rotating_inc = 0;
-TUNABLE_INT("vfs.zfs.vdev.mirror.rotating_inc", &rotating_inc);
-SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_inc, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_inc, CTLFLAG_RWTUN,
     &rotating_inc, 0, "Rotating media load increment for non-seeking I/O's");
 
 static int rotating_seek_inc = 5;
-TUNABLE_INT("vfs.zfs.vdev.mirror.rotating_seek_inc", &rotating_seek_inc);
-SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_seek_inc, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_seek_inc, CTLFLAG_RWTUN,
     &rotating_seek_inc, 0, "Rotating media load increment for seeking I/O's");
 
 static int rotating_seek_offset = 1 * 1024 * 1024;
-TUNABLE_INT("vfs.zfs.vdev.mirror.rotating_seek_offset", &rotating_seek_offset);
-SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_seek_offset, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_seek_offset, CTLFLAG_RWTUN,
     &rotating_seek_offset, 0, "Offset in bytes from the last I/O which "
     "triggers a reduced rotating media seek increment");
 
 /* Non-rotating media load calculation configuration. */
 static int non_rotating_inc = 0;
-TUNABLE_INT("vfs.zfs.vdev.mirror.non_rotating_inc", &non_rotating_inc);
-SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, non_rotating_inc, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, non_rotating_inc, CTLFLAG_RWTUN,
     &non_rotating_inc, 0,
     "Non-rotating media load increment for non-seeking I/O's");
 
 static int non_rotating_seek_inc = 1;
-TUNABLE_INT("vfs.zfs.vdev.mirror.non_rotating_seek_inc",
-     &non_rotating_seek_inc);
-SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, non_rotating_seek_inc, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, non_rotating_seek_inc, CTLFLAG_RWTUN,
     &non_rotating_seek_inc, 0,
     "Non-rotating media load increment for seeking I/O's");
 
@@ -431,7 +425,7 @@ vdev_mirror_child_select(zio_t *zio)
 	return (-1);
 }
 
-static int
+static void
 vdev_mirror_io_start(zio_t *zio)
 {
 	mirror_map_t *mm;
@@ -441,7 +435,8 @@ vdev_mirror_io_start(zio_t *zio)
 	mm = vdev_mirror_map_init(zio);
 
 	if (zio->io_type == ZIO_TYPE_READ) {
-		if ((zio->io_flags & ZIO_FLAG_SCRUB) && !mm->mm_replacing) {
+		if ((zio->io_flags & ZIO_FLAG_SCRUB) && !mm->mm_replacing &&
+		    mm->mm_children > 1) {
 			/*
 			 * For scrubbing reads we need to allocate a read
 			 * buffer for each child and issue reads to all
@@ -456,7 +451,8 @@ vdev_mirror_io_start(zio_t *zio)
 				    zio->io_type, zio->io_priority, 0,
 				    vdev_mirror_scrub_done, mc));
 			}
-			return (ZIO_PIPELINE_CONTINUE);
+			zio_execute(zio);
+			return;
 		}
 		/*
 		 * For normal reads just pick one child.
@@ -483,7 +479,7 @@ vdev_mirror_io_start(zio_t *zio)
 		c++;
 	}
 
-	return (ZIO_PIPELINE_CONTINUE);
+	zio_execute(zio);
 }
 
 static int

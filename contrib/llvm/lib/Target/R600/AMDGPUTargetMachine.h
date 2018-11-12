@@ -12,59 +12,60 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef AMDGPU_TARGET_MACHINE_H
-#define AMDGPU_TARGET_MACHINE_H
+#ifndef LLVM_LIB_TARGET_R600_AMDGPUTARGETMACHINE_H
+#define LLVM_LIB_TARGET_R600_AMDGPUTARGETMACHINE_H
 
 #include "AMDGPUFrameLowering.h"
 #include "AMDGPUInstrInfo.h"
+#include "AMDGPUIntrinsicInfo.h"
 #include "AMDGPUSubtarget.h"
-#include "AMDILIntrinsicInfo.h"
 #include "R600ISelLowering.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/IR/DataLayout.h"
 
 namespace llvm {
 
-MCAsmInfo* createMCAsmInfo(const Target &T, StringRef TT);
+//===----------------------------------------------------------------------===//
+// AMDGPU Target Machine (R600+)
+//===----------------------------------------------------------------------===//
 
 class AMDGPUTargetMachine : public LLVMTargetMachine {
-
+protected:
+  TargetLoweringObjectFile *TLOF;
   AMDGPUSubtarget Subtarget;
-  const DataLayout Layout;
-  AMDGPUFrameLowering FrameLowering;
   AMDGPUIntrinsicInfo IntrinsicInfo;
-  const AMDGPUInstrInfo * InstrInfo;
-  AMDGPUTargetLowering * TLInfo;
-  const InstrItineraryData* InstrItins;
 
 public:
-   AMDGPUTargetMachine(const Target &T, StringRef TT, StringRef FS,
-                       StringRef CPU,
-                       TargetOptions Options,
-                       Reloc::Model RM, CodeModel::Model CM,
-                       CodeGenOpt::Level OL);
-   ~AMDGPUTargetMachine();
-   virtual const AMDGPUFrameLowering* getFrameLowering() const {
-     return &FrameLowering;
-   }
-   virtual const AMDGPUIntrinsicInfo* getIntrinsicInfo() const {
-     return &IntrinsicInfo;
-   }
-   virtual const AMDGPUInstrInfo *getInstrInfo() const {return InstrInfo;}
-   virtual const AMDGPUSubtarget *getSubtargetImpl() const {return &Subtarget; }
-   virtual const AMDGPURegisterInfo *getRegisterInfo() const {
-      return &InstrInfo->getRegisterInfo();
-   }
-   virtual AMDGPUTargetLowering * getTargetLowering() const {
-      return TLInfo;
-   }
-   virtual const InstrItineraryData* getInstrItineraryData() const {
-      return InstrItins;
-   }
-   virtual const DataLayout* getDataLayout() const { return &Layout; }
-   virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
+  AMDGPUTargetMachine(const Target &T, StringRef TT, StringRef FS,
+                      StringRef CPU, TargetOptions Options, Reloc::Model RM,
+                      CodeModel::Model CM, CodeGenOpt::Level OL);
+  ~AMDGPUTargetMachine();
+  const AMDGPUSubtarget *getSubtargetImpl() const override {
+    return &Subtarget;
+  }
+  const AMDGPUIntrinsicInfo *getIntrinsicInfo() const override {
+    return &IntrinsicInfo;
+  }
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+
+  /// \brief Register R600 analysis passes with a pass manager.
+  void addAnalysisPasses(PassManagerBase &PM) override;
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF;
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// GCN Target Machine (SI+)
+//===----------------------------------------------------------------------===//
+
+class GCNTargetMachine : public AMDGPUTargetMachine {
+
+public:
+  GCNTargetMachine(const Target &T, StringRef TT, StringRef FS,
+                    StringRef CPU, TargetOptions Options, Reloc::Model RM,
+                    CodeModel::Model CM, CodeGenOpt::Level OL);
 };
 
 } // End namespace llvm
 
-#endif // AMDGPU_TARGET_MACHINE_H
+#endif

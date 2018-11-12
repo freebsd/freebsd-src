@@ -29,6 +29,8 @@
 
 #include <sys/endian.h>
 
+#include <machine/float.h>
+
 #include <math.h>
 #include <stdint.h>
 
@@ -84,10 +86,18 @@ __fpclassifyl(long double e)
 		return (FP_SUBNORMAL);
 	}
 	mask_nbit_l(u);		/* Mask normalization bit if applicable. */
+#if LDBL_MANT_DIG == 53
+	if (u.bits.exp == 2047) {
+		if ((u.bits.manl | u.bits.manh) == 0)
+			return (FP_INFINITE);
+		return (FP_NAN);
+	}
+#else
 	if (u.bits.exp == 32767) {
 		if ((u.bits.manl | u.bits.manh) == 0)
 			return (FP_INFINITE);
 		return (FP_NAN);
 	}
+#endif
 	return (FP_NORMAL);
 }

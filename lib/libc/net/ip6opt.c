@@ -45,6 +45,18 @@ __FBSDID("$FreeBSD$");
 static int ip6optlen(u_int8_t *opt, u_int8_t *lim);
 static void inet6_insert_padopt(u_char *p, int len);
 
+#ifndef IPV6_2292HOPOPTS
+#define	IPV6_2292HOPOPTS	22
+#endif
+#ifndef IPV6_2292DSTOPTS
+#define	IPV6_2292DSTOPTS	23
+#endif
+
+#define	is_ipv6_hopopts(x)	\
+	((x) == IPV6_HOPOPTS || (x) == IPV6_2292HOPOPTS)
+#define	is_ipv6_dstopts(x)	\
+	((x) == IPV6_DSTOPTS || (x) == IPV6_2292DSTOPTS)
+
 /*
  * This function returns the number of bytes required to hold an option
  * when it is stored as ancillary data, including the cmsghdr structure
@@ -72,9 +84,9 @@ inet6_option_init(void *bp, struct cmsghdr **cmsgp, int type)
 	struct cmsghdr *ch = (struct cmsghdr *)bp;
 
 	/* argument validation */
-	if (type != IPV6_HOPOPTS && type != IPV6_DSTOPTS)
+	if (!is_ipv6_hopopts(type) && !is_ipv6_dstopts(type))
 		return(-1);
-	
+
 	ch->cmsg_level = IPPROTO_IPV6;
 	ch->cmsg_type = type;
 	ch->cmsg_len = CMSG_LEN(0);
@@ -234,8 +246,8 @@ inet6_option_next(const struct cmsghdr *cmsg, u_int8_t **tptrp)
 	u_int8_t *lim;
 
 	if (cmsg->cmsg_level != IPPROTO_IPV6 ||
-	    (cmsg->cmsg_type != IPV6_HOPOPTS &&
-	     cmsg->cmsg_type != IPV6_DSTOPTS))
+	    (!is_ipv6_hopopts(cmsg->cmsg_type) &&
+	     !is_ipv6_dstopts(cmsg->cmsg_type)))
 		return(-1);
 
 	/* message length validation */
@@ -290,8 +302,8 @@ inet6_option_find(const struct cmsghdr *cmsg, u_int8_t **tptrp, int type)
 	u_int8_t *optp, *lim;
 
 	if (cmsg->cmsg_level != IPPROTO_IPV6 ||
-	    (cmsg->cmsg_type != IPV6_HOPOPTS &&
-	     cmsg->cmsg_type != IPV6_DSTOPTS))
+	    (!is_ipv6_hopopts(cmsg->cmsg_type) &&
+	     !is_ipv6_dstopts(cmsg->cmsg_type)))
 		return(-1);
 
 	/* message length validation */
@@ -381,11 +393,8 @@ inet6_opt_init(void *extbuf, socklen_t extlen)
 {
 	struct ip6_ext *ext = (struct ip6_ext *)extbuf;
 
-	if (extlen < 0 || (extlen % 8))
-		return(-1);
-
 	if (ext) {
-		if (extlen == 0)
+		if (extlen <= 0 || (extlen % 8))
 			return(-1);
 		ext->ip6e_len = (extlen >> 3) - 1;
 	}
@@ -410,7 +419,7 @@ inet6_opt_append(void *extbuf, socklen_t extlen, int offset, u_int8_t type,
 	 * The option data length must have a value between 0 and 255,
 	 * inclusive, and is the length of the option data that follows.
 	 */
-	if (len < 0 || len > 255)
+	if (len > 255 || len < 0 )
 		return(-1);
 
 	/*

@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
-#define	BPF_INTERNAL
 #include <net/bpf.h>
 #include <net/bpf_buffer.h>
 #ifdef BPF_JITTER
@@ -89,6 +88,20 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
+
+struct bpf_if {
+#define	bif_next	bif_ext.bif_next
+#define	bif_dlist	bif_ext.bif_dlist
+	struct bpf_if_ext bif_ext;	/* public members */
+	u_int		bif_dlt;	/* link layer type */
+	u_int		bif_hdrlen;	/* length of link header */
+	struct ifnet	*bif_ifp;	/* corresponding interface */
+	struct rwlock	bif_lock;	/* interface lock */
+	LIST_HEAD(, bpf_d) bif_wlist;	/* writer-only list */
+	int		bif_flags;	/* Interface flags */
+};
+
+CTASSERT(offsetof(struct bpf_if, bif_ext) == 0);
 
 #if defined(DEV_BPF) || defined(NETGRAPH_BPF)
 
@@ -180,8 +193,8 @@ static SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
 
 static VNET_DEFINE(int, bpf_optimize_writers) = 0;
 #define	V_bpf_optimize_writers VNET(bpf_optimize_writers)
-SYSCTL_VNET_INT(_net_bpf, OID_AUTO, optimize_writers,
-    CTLFLAG_RW, &VNET_NAME(bpf_optimize_writers), 0,
+SYSCTL_INT(_net_bpf, OID_AUTO, optimize_writers, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(bpf_optimize_writers), 0,
     "Do not send packets until BPF program is set");
 
 static	d_open_t	bpfopen;
@@ -601,7 +614,7 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 	 * Save sysctl value to protect from sysctl change
 	 * between reads
 	 */
-	op_w = V_bpf_optimize_writers;
+	op_w = V_bpf_optimize_writers || d->bd_writer;
 
 	if (d->bd_bif != NULL)
 		bpf_detachd_locked(d);
@@ -640,6 +653,67 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 
 	if (op_w == 0)
 		EVENTHANDLER_INVOKE(bpf_track, bp->bif_ifp, bp->bif_dlt, 1);
+}
+
+/*
+ * Check if we need to upgrade our descriptor @d from write-only mode.
+ */
+static int
+bpf_check_upgrade(u_long cmd, struct bpf_d *d, struct bpf_insn *fcode, int flen)
+{
+	int is_snap, need_upgrade;
+
+	/*
+	 * Check if we've already upgraded or new filter is empty.
+	 */
+	if (d->bd_writer == 0 || fcode == NULL)
+		return (0);
+
+	need_upgrade = 0;
+
+	/*
+	 * Check if cmd looks like snaplen setting from
+	 * pcap_bpf.c:pcap_open_live().
+	 * Note we're not checking .k value here:
+	 * while pcap_open_live() definitely sets to to non-zero value,
+	 * we'd prefer to treat k=0 (deny ALL) case the same way: e.g.
+	 * do not consider upgrading immediately
+	 */
+	if (cmd == BIOCSETF && flen == 1 && fcode[0].code == (BPF_RET | BPF_K))
+		is_snap = 1;
+	else
+		is_snap = 0;
+
+	if (is_snap == 0) {
+		/*
+		 * We're setting first filter and it doesn't look like
+		 * setting snaplen.  We're probably using bpf directly.
+		 * Upgrade immediately.
+		 */
+		need_upgrade = 1;
+	} else {
+		/*
+		 * Do not require upgrade by first BIOCSETF
+		 * (used to set snaplen) by pcap_open_live().
+		 */
+
+		if (--d->bd_writer == 0) {
+			/*
+			 * First snaplen filter has already
+			 * been set. This is probably catch-all
+			 * filter
+			 */
+			need_upgrade = 1;
+		}
+	}
+
+	CTR5(KTR_NET,
+	    "%s: filter function set by pid %d, "
+	    "bd_writer counter %d, snap %d upgrade %d",
+	    __func__, d->bd_pid, d->bd_writer,
+	    is_snap, need_upgrade);
+
+	return (need_upgrade);
 }
 
 /*
@@ -803,6 +877,8 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 * particular buffer method.
 	 */
 	bpf_buffer_init(d);
+	if ((flags & FREAD) == 0)
+		d->bd_writer = 2;
 	d->bd_hbuf_in_use = 0;
 	d->bd_bufmode = BPF_BUFMODE_BUFFER;
 	d->bd_sig = SIGIO;
@@ -1131,7 +1207,6 @@ reset_d(struct bpf_d *d)
 
 /*
  *  FIONREAD		Check for read packet available.
- *  SIOCGIFADDR		Get interface address - convenient hook to driver.
  *  BIOCGBLEN		Get buffer len [for read()].
  *  BIOCSETF		Set read filter.
  *  BIOCSETFNR		Set read filter without resetting descriptor.
@@ -1258,19 +1333,6 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			BPFD_UNLOCK(d);
 
 			*(int *)addr = n;
-			break;
-		}
-
-	case SIOCGIFADDR:
-		{
-			struct ifnet *ifp;
-
-			if (d->bd_bif == NULL)
-				error = EINVAL;
-			else {
-				ifp = d->bd_bif->bif_ifp;
-				error = (*ifp->if_ioctl)(ifp, cmd, addr);
-			}
 			break;
 		}
 
@@ -1802,17 +1864,7 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 		if (cmd == BIOCSETF)
 			reset_d(d);
 
-		if (fcode != NULL) {
-			/*
-			 * Do not require upgrade by first BIOCSETF
-			 * (used to set snaplen) by pcap_open_live().
-			 */
-			if (d->bd_writer != 0 && --d->bd_writer == 0)
-				need_upgrade = 1;
-			CTR4(KTR_NET, "%s: filter function set by pid %d, "
-			    "bd_writer counter %d, need_upgrade %d",
-			    __func__, d->bd_pid, d->bd_writer, need_upgrade);
-		}
+		need_upgrade = bpf_check_upgrade(cmd, d, fcode, flen);
 	}
 	BPFD_UNLOCK(d);
 	if (d->bd_bif != NULL)
@@ -1825,7 +1877,7 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 #endif
 
 	/* Move d to active readers list. */
-	if (need_upgrade)
+	if (need_upgrade != 0)
 		bpf_upgraded(d);
 
 	BPF_UNLOCK();
@@ -1853,7 +1905,7 @@ bpf_setif(struct bpf_d *d, struct ifreq *ifr)
 
 	/* Check if interface is not being detached from BPF */
 	BPFIF_RLOCK(bp);
-	if (bp->flags & BPFIF_FLAG_DYING) {
+	if (bp->bif_flags & BPFIF_FLAG_DYING) {
 		BPFIF_RUNLOCK(bp);
 		return (ENXIO);
 	}
@@ -2522,7 +2574,7 @@ bpfdetach(struct ifnet *ifp)
 		 * Mark bp as detached to restrict new consumers.
 		 */
 		BPFIF_WLOCK(bp);
-		bp->flags |= BPFIF_FLAG_DYING;
+		bp->bif_flags |= BPFIF_FLAG_DYING;
 		BPFIF_WUNLOCK(bp);
 
 		CTR4(KTR_NET, "%s: sheduling free for encap %d (%p) for if %p",
@@ -2756,7 +2808,8 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 static int
 bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct xbpf_d *xbdbuf, *xbd, zerostats;
+	static const struct xbpf_d zerostats;
+	struct xbpf_d *xbdbuf, *xbd, tempstats;
 	int index, error;
 	struct bpf_if *bp;
 	struct bpf_d *bd;
@@ -2776,11 +2829,13 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	 * as we aren't allowing the user to set the counters currently.
 	 */
 	if (req->newptr != NULL) {
-		if (req->newlen != sizeof(zerostats))
+		if (req->newlen != sizeof(tempstats))
 			return (EINVAL);
-		bzero(&zerostats, sizeof(zerostats));
-		xbd = req->newptr;
-		if (bcmp(xbd, &zerostats, sizeof(*xbd)) != 0)
+		memset(&tempstats, 0, sizeof(tempstats));
+		error = SYSCTL_IN(req, &tempstats, sizeof(tempstats));
+		if (error)
+			return (error);
+		if (bcmp(&tempstats, &zerostats, sizeof(tempstats)) != 0)
 			return (EINVAL);
 		bpf_zero_counters();
 		return (0);

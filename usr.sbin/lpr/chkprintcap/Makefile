@@ -8,7 +8,6 @@ SRCS=	chkprintcap.c skimprintcap.c
 
 CFLAGS+= -I${.CURDIR}/../common_source
 
-DPADD=	${LIBLPR}
-LDADD=	${LIBLPR}
+LIBADD=	lpr
 
 .include <bsd.prog.mk>

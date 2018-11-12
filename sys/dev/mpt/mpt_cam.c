@@ -1630,7 +1630,7 @@ out:
 
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
-		mpt_req_timeout(req, (ccb->ccb_h.timeout * hz) / 1000,
+		mpt_req_timeout(req, SBT_1MS * ccb->ccb_h.timeout,
 		    mpt_timeout, ccb);
 	}
 	if (mpt->verbose > MPT_PRT_DEBUG) {
@@ -2016,7 +2016,7 @@ out:
 
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
-		mpt_req_timeout(req, (ccb->ccb_h.timeout * hz) / 1000,
+		mpt_req_timeout(req, SBT_1MS * ccb->ccb_h.timeout,
 		    mpt_timeout, ccb);
 	}
 	if (mpt->verbose > MPT_PRT_DEBUG) {
@@ -2449,8 +2449,11 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 
 		pqf = (PTR_EVENT_DATA_QUEUE_FULL)msg->Data;
 		pqf->CurrentDepth = le16toh(pqf->CurrentDepth);
-		mpt_prt(mpt, "QUEUE FULL EVENT: Bus 0x%02x Target 0x%02x Depth "
-		    "%d\n", pqf->Bus, pqf->TargetID, pqf->CurrentDepth);
+		if (bootverbose) {
+		    mpt_prt(mpt, "QUEUE FULL EVENT: Bus 0x%02x Target 0x%02x "
+			"Depth %d\n",
+			pqf->Bus, pqf->TargetID, pqf->CurrentDepth);
+		}
 		if (mpt->phydisk_sim && mpt_is_raid_member(mpt,
 		    pqf->TargetID) != 0) {
 			sim = mpt->phydisk_sim;
@@ -4749,7 +4752,7 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 	    req->serno, tgt->resid);
 	if (ccb) {
 		ccb->ccb_h.status = CAM_SIM_QUEUED | CAM_REQ_INPROG;
-		mpt_req_timeout(req, 60 * hz, mpt_timeout, ccb);
+		mpt_req_timeout(req, SBT_1S * 60, mpt_timeout, ccb);
 	}
 	mpt_send_cmd(mpt, req);
 }

@@ -13,11 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -59,7 +55,7 @@ The include file
 .In stdarg.h
 declares a type
 .Pq Em va_list
-and defines three macros for stepping
+and defines four macros for stepping
 through a list of arguments whose number and types are not known to
 the called function.
 .Pp
@@ -77,7 +73,8 @@ The
 macro initializes
 .Fa ap
 for subsequent use by
-.Fn va_arg
+.Fn va_arg ,
+.Fn va_copy ,
 and
 .Fn va_end ,
 and must be called first.
@@ -93,10 +90,6 @@ macro, it should not be declared as a register variable, or as a
 function or an array type.
 .Pp
 The
-.Fn va_start
-macro returns no value.
-.Pp
-The
 .Fn va_arg
 macro expands to an expression that has the type and value of the next
 argument in the call.
@@ -105,7 +98,9 @@ The parameter
 is the
 .Em va_list Fa ap
 initialized by
-.Fn va_start .
+.Fn va_start
+or
+.Fn va_copy .
 Each call to
 .Fn va_arg
 modifies
@@ -152,18 +147,28 @@ the same number of times as called with
 .Fa src .
 .Pp
 The
+.Fn va_end
+macro cleans up any state associated with the variable argument list
+.Fa ap .
+.Pp
+Each invocation of
+.Fn va_start
+or
 .Fn va_copy
-macro returns no value.
+must be paired with a corresponding invocation of
+.Fn va_end
+in the same function.
+.Sh RETURN VALUES
+The
+.Fn va_arg
+macro returns the value of the next argument.
 .Pp
 The
+.Fn va_start ,
+.Fn va_copy ,
+and
 .Fn va_end
-macro handles a normal return from the function whose variable argument
-list was initialized by
-.Fn va_start .
-.Pp
-The
-.Fn va_end
-macro returns no value.
+macros return no value.
 .Sh EXAMPLES
 The function
 .Em foo

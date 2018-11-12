@@ -44,19 +44,16 @@ static const char sccsid[] = "@(#)regexp.c	8.1 (Berkeley) 6/6/93";
 
 #include <ctype.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "extern.h"
 
-#define FALSE	0
-#define TRUE	!(FALSE)
-#define NIL	0
-
 static void	expconv(void);
 
-boolean	 _escaped;	/* true if we are currently _escaped */
+bool	 _escaped;	/* true if we are currently x_escaped */
 char	*s_start;	/* start of string */
-boolean	 l_onecase;	/* true if upper and lower equivalent */
+bool	 l_onecase;	/* true if upper and lower equivalent */
 
 #define makelower(c) (isupper((c)) ? tolower((c)) : (c))
 
@@ -66,9 +63,7 @@ boolean	 l_onecase;	/* true if upper and lower equivalent */
  */
 
 int
-STRNCMP(s1, s2, len)
-	register char *s1,*s2;
-	register int len;
+STRNCMP(register char *s1, register char *s2, register int len)
 {
 	if (l_onecase) {
 	    do
@@ -147,18 +142,18 @@ STRNCMP(s1, s2, len)
 static char *ccre;	/* pointer to current position in converted exp*/
 static char *ure;	/* pointer current position in unconverted exp */
 
+/* re: unconverted irregular expression */
 char *
-convexp(re)
-    char *re;		/* unconverted irregular expression */
+convexp(char *re)
 {
     register char *cre;		/* pointer to converted regular expression */
 
     /* allocate room for the converted expression */
-    if (re == NIL)
-	return (NIL);
+    if (re == NULL)
+	return (NULL);
     if (*re == '\0')
-	return (NIL);
-    cre = malloc (4 * strlen(re) + 3);
+	return (NULL);
+    cre = malloc(4 * strlen(re) + 3);
     ccre = cre;
     ure = re;
 
@@ -182,9 +177,9 @@ expconv()
     register int temp;
 
     /* let the conversion begin */
-    acs = NIL;
-    cs = NIL;
-    while (*ure != NIL) {
+    acs = NULL;
+    cs = NULL;
+    while (*ure) {
 	switch (c = *ure++) {
 
 	case '\\':
@@ -192,7 +187,7 @@ expconv()
 
 	    /* escaped characters are just characters */
 	    default:
-		if (cs == NIL || (*cs & STR) == 0) {
+		if (cs == NULL || (*cs & STR) == 0) {
 		    cs = ccre;
 		    *cs = STR;
 		    SCNT(cs) = 1;
@@ -207,13 +202,13 @@ expconv()
 	    case 'd':
 	    case 'e':
 	    case 'p':
-		if (acs != NIL && acs != cs) {
+		if (acs != NULL && acs != cs) {
 		    do {
 			temp = OCNT(acs);
 			OCNT(acs) = ccre - acs;
 			acs -= temp;
 		    } while (temp != 0);
-		    acs = NIL;
+		    acs = NULL;
 		}
 		cs = ccre;
 		*cs = META;
@@ -226,13 +221,13 @@ expconv()
 	/* just put the symbol in */
 	case '^':
 	case '$':
-	    if (acs != NIL && acs != cs) {
+	    if (acs != NULL && acs != cs) {
 		do {
 		    temp = OCNT(acs);
 		    OCNT(acs) = ccre - acs;
 		    acs -= temp;
 		} while (temp != 0);
-		acs = NIL;
+		acs = NULL;
 	    }
 	    cs = ccre;
 	    *cs = META;
@@ -248,31 +243,31 @@ expconv()
 
 	/* recurse and define a subexpression */
 	case '(':
-	    if (acs != NIL && acs != cs) {
+	    if (acs != NULL && acs != cs) {
 		do {
 		    temp = OCNT(acs);
 		    OCNT(acs) = ccre - acs;
 		    acs -= temp;
 		} while (temp != 0);
-		acs = NIL;
+		acs = NULL;
 	    }
 	    cs = ccre;
 	    *cs = OPER;
 	    OSYM(cs) = '(';
 	    ccre = ONEXT(cs);
-	    expconv ();
+	    expconv();
 	    OCNT(cs) = ccre - cs;		/* offset to next symbol */
 	    break;
 
 	/* return from a recursion */
 	case ')':
-	    if (acs != NIL) {
+	    if (acs != NULL) {
 		do {
 		    temp = OCNT(acs);
 		    OCNT(acs) = ccre - acs;
 		    acs -= temp;
 		} while (temp != 0);
-		acs = NIL;
+		acs = NULL;
 	    }
 	    cs = ccre;
 	    *cs = META;
@@ -284,7 +279,7 @@ expconv()
 	/* the third byte will contain an offset to jump over the */
 	/* alternate match in case the first did not fail */
 	case '|':
-	    if (acs != NIL && acs != cs)
+	    if (acs != NULL && acs != cs)
 		OCNT(ccre) = ccre - acs;	/* make a back pointer */
 	    else
 		OCNT(ccre) = 0;
@@ -298,7 +293,7 @@ expconv()
 
 	/* if its not a metasymbol just build a scharacter string */
 	default:
-	    if (cs == NIL || (*cs & STR) == 0) {
+	    if (cs == NULL || (*cs & STR) == 0) {
 		cs = ccre;
 		*cs = STR;
 		SCNT(cs) = 1;
@@ -309,13 +304,13 @@ expconv()
 	    break;
 	}
     }
-    if (acs != NIL) {
+    if (acs != NULL) {
 	do {
 	    temp = OCNT(acs);
 	    OCNT(acs) = ccre - acs;
 	    acs -= temp;
 	} while (temp != 0);
-	acs = NIL;
+	acs = NULL;
     }
     return;
 }
@@ -344,21 +339,23 @@ expconv()
  *	character matched.
  */
 
+/*
+ *  s: string to check for a match in
+ *  re: a converted irregular expression
+ *  mstring: where to put whatever matches a \p
+ */
 char *
-expmatch (s, re, mstring)
-    register char *s;		/* string to check for a match in */
-    register char *re;		/* a converted irregular expression */
-    register char *mstring;	/* where to put whatever matches a \p */
+expmatch (register char *s, register char *re, register char *mstring)
 {
     register char *cs;		/* the current symbol */
     register char *ptr,*s1;	/* temporary pointer */
-    boolean matched;		/* a temporary boolean */
+    bool matched;	/* a temporary bool */
 
     /* initial conditions */
-    if (re == NIL)
-	return (NIL);
+    if (re == NULL)
+	return (NULL);
     cs = re;
-    matched = FALSE;
+    matched = false;
 
     /* loop till expression string is exhausted (or at least pretty tired) */
     while (*cs) {
@@ -384,7 +381,7 @@ expmatch (s, re, mstring)
 	    } else {
 
 		/* no match, error return */
-		return (NIL);
+		return (NULL);
 	    }
 	    break;
 
@@ -406,8 +403,8 @@ expmatch (s, re, mstring)
 
 	    /* this is a grouping, recurse */
 	    case '(':
-		ptr = expmatch (s, ONEXT(cs), mstring);
-		if (ptr != NIL) {
+		ptr = expmatch(s, ONEXT(cs), mstring);
+		if (ptr != NULL) {
 
 		    /* the subexpression matched */
 		    matched = 1;
@@ -423,7 +420,7 @@ expmatch (s, re, mstring)
 		} else {
 
 		    /* no match, error return */
-		    return (NIL);
+		    return (NULL);
 		}
 		cs = OPTR(cs);
 		break;
@@ -443,35 +440,35 @@ expmatch (s, re, mstring)
 		 */
 		s1 = s;
 		do {
-		    ptr = expmatch (s1, MNEXT(cs), mstring);
-		    if (ptr != NIL && s1 != s) {
+		    ptr = expmatch(s1, MNEXT(cs), mstring);
+		    if (ptr != NULL && s1 != s) {
 
 			/* we have a match, remember the match */
 			strncpy (mstring, s, s1 - s);
 			mstring[s1 - s] = '\0';
 			return (ptr);
-		    } else if (ptr != NIL && (*cs & OPT)) {
+		    } else if (ptr != NULL && (*cs & OPT)) {
 
 			/* it was aoptional so no match is ok */
 			return (ptr);
-		    } else if (ptr != NIL) {
+		    } else if (ptr != NULL) {
 
 			/* not optional and we still matched */
-			return (NIL);
+			return (NULL);
 		    }
 		    if (!(isalnum(*s1) || *s1 == '_' ||
 			  /* C++ destructor */
 			  *s1 == '~' ||
 			  /* C++ scope operator */
 			  (strlen(s1) > 1 && *s1 == ':' && s1[1] == ':' &&
-			   (s1++, TRUE))))
-			return (NIL);
+			   (s1++, true))))
+			return (NULL);
 		    if (*s1 == '\\')
-			_escaped = _escaped ? FALSE : TRUE;
+			_escaped = _escaped ? false : true;
 		    else
-			_escaped = FALSE;
+			_escaped = false;
 		} while (*s1++);
-		return (NIL);
+		return (NULL);
 
 	    /* try to match anything */
 	    case 'a':
@@ -482,31 +479,31 @@ expmatch (s, re, mstring)
 		 */
 		s1 = s;
 		do {
-		    ptr = expmatch (s1, MNEXT(cs), mstring);
-		    if (ptr != NIL && s1 != s) {
+		    ptr = expmatch(s1, MNEXT(cs), mstring);
+		    if (ptr != NULL && s1 != s) {
 
 			/* we have a match */
 			return (ptr);
-		    } else if (ptr != NIL && (*cs & OPT)) {
+		    } else if (ptr != NULL && (*cs & OPT)) {
 
 			/* it was aoptional so no match is ok */
 			return (ptr);
-		    } else if (ptr != NIL) {
+		    } else if (ptr != NULL) {
 
 			/* not optional and we still matched */
-			return (NIL);
+			return (NULL);
 		    }
 		    if (*s1 == '\\')
-			_escaped = _escaped ? FALSE : TRUE;
+			_escaped = _escaped ? false : true;
 		    else
-			_escaped = FALSE;
+			_escaped = false;
 		} while (*s1++);
-		return (NIL);
+		return (NULL);
 
 	    /* fail if we are currently _escaped */
 	    case 'e':
 		if (_escaped)
-		    return(NIL);
+		    return(NULL);
 		cs = MNEXT(cs);
 		break;
 
@@ -538,7 +535,7 @@ expmatch (s, re, mstring)
 		} else
 
 		    /* no match, error return */
-		    return (NIL);
+		    return (NULL);
 		break;
 
 	    /* check for end of line */
@@ -562,7 +559,7 @@ expmatch (s, re, mstring)
 		} else
 
 		    /* no match, error return */
-		    return (NIL);
+		    return (NULL);
 		break;
 
 	    /* check for start of line */
@@ -585,7 +582,7 @@ expmatch (s, re, mstring)
 		} else
 
 		    /* no match, error return */
-		    return (NIL);
+		    return (NULL);
 		break;
 
 	    /* end of a subexpression, return success */

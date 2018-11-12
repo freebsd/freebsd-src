@@ -528,7 +528,7 @@ rn_addmask(void *n_arg, struct radix_node_head *maskhead, int search, int skip)
 	R_Zalloc(x, struct radix_node *, RADIX_MAX_KEY_LEN + 2 * sizeof (*x));
 	if ((saved_x = x) == 0)
 		return (0);
-	netmask = cp = (caddr_t)(x + 2);
+	netmask = cp = (unsigned char *)(x + 2);
 	bcopy(addmask_key, cp, mlen);
 	x = rn_insert(cp, maskhead, &maskduplicated, x);
 	if (maskduplicated) {
@@ -971,6 +971,8 @@ rn_walktree_from(struct radix_node_head *h, void *a, void *m,
 	int stopping = 0;
 	int lastb;
 
+	KASSERT(m != NULL, ("%s: mask needs to be specified", __func__));
+
 	/*
 	 * rn_search_m is sort-of-open-coded here. We cannot use the
 	 * function because we need to keep track of the last node seen.
@@ -994,11 +996,11 @@ rn_walktree_from(struct radix_node_head *h, void *a, void *m,
 	/*
 	 * Two cases: either we stepped off the end of our mask,
 	 * in which case last == rn, or we reached a leaf, in which
-	 * case we want to start from the last node we looked at.
-	 * Either way, last is the node we want to start from.
+	 * case we want to start from the leaf.
 	 */
-	rn = last;
-	lastb = rn->rn_bit;
+	if (rn->rn_bit >= 0)
+		rn = last;
+	lastb = last->rn_bit;
 
 	/* printf("rn %p, lastb %d\n", rn, lastb);*/
 
@@ -1120,9 +1122,6 @@ rn_inithead_internal(void **head, int off)
 	R_Zalloc(rnh, struct radix_node_head *, sizeof (*rnh));
 	if (rnh == 0)
 		return (0);
-#ifdef _KERNEL
-	RADIX_NODE_HEAD_LOCK_INIT(rnh);
-#endif
 	*head = rnh;
 	t = rn_newpair(rn_zeros, off, rnh->rnh_nodes);
 	ttt = rnh->rnh_nodes + 2;
@@ -1179,6 +1178,18 @@ rn_inithead(void **head, int off)
 	return (1);
 }
 
+static int
+rn_freeentry(struct radix_node *rn, void *arg)
+{
+	struct radix_node_head * const rnh = arg;
+	struct radix_node *x;
+
+	x = (struct radix_node *)rn_delete(rn + 2, NULL, rnh);
+	if (x != NULL)
+		Free(x);
+	return (0);
+}
+
 int
 rn_detachhead(void **head)
 {
@@ -1189,6 +1200,7 @@ rn_detachhead(void **head)
 
 	rnh = *head;
 
+	rn_walktree(rnh->rnh_masks, rn_freeentry, rnh->rnh_masks);
 	rn_detachhead_internal((void **)&rnh->rnh_masks);
 	rn_detachhead_internal(head);
 	return (1);

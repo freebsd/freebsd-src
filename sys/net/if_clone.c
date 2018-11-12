@@ -103,15 +103,14 @@ static int     ifc_simple_match(struct if_clone *, const char *);
 static int     ifc_simple_create(struct if_clone *, char *, size_t, caddr_t);
 static int     ifc_simple_destroy(struct if_clone *, struct ifnet *);
 
-static struct mtx	if_cloners_mtx;
+static struct mtx if_cloners_mtx;
+MTX_SYSINIT(if_cloners_lock, &if_cloners_mtx, "if_cloners lock", MTX_DEF);
 static VNET_DEFINE(int, if_cloners_count);
 VNET_DEFINE(LIST_HEAD(, if_clone), if_cloners);
 
 #define	V_if_cloners_count	VNET(if_cloners_count)
 #define	V_if_cloners		VNET(if_cloners)
 
-#define IF_CLONERS_LOCK_INIT()		\
-    mtx_init(&if_cloners_mtx, "if_cloners lock", NULL, MTX_DEF)
 #define IF_CLONERS_LOCK_ASSERT()	mtx_assert(&if_cloners_mtx, MA_OWNED)
 #define IF_CLONERS_LOCK()		mtx_lock(&if_cloners_mtx)
 #define IF_CLONERS_UNLOCK()		mtx_unlock(&if_cloners_mtx)
@@ -167,13 +166,6 @@ vnet_if_clone_init(void)
 {
 
 	LIST_INIT(&V_if_cloners);
-}
-
-void
-if_clone_init(void)
-{
-
-	IF_CLONERS_LOCK_INIT();
 }
 
 /*
@@ -523,6 +515,49 @@ done:
 	if (outbuf != NULL)
 		free(outbuf, M_CLONE);
 	return (err);
+}
+
+/*
+ * if_clone_findifc() looks up ifnet from the current
+ * cloner list, and returns ifc if found.  Note that ifc_refcnt
+ * is incremented.
+ */
+struct if_clone *
+if_clone_findifc(struct ifnet *ifp)
+{
+	struct if_clone *ifc, *ifc0;
+	struct ifnet *ifcifp;
+
+	ifc0 = NULL;
+	IF_CLONERS_LOCK();
+	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
+		IF_CLONE_LOCK(ifc);
+		LIST_FOREACH(ifcifp, &ifc->ifc_iflist, if_clones) {
+			if (ifp == ifcifp) {
+				ifc0 = ifc;
+				IF_CLONE_ADDREF_LOCKED(ifc);
+				break;
+			}
+		}
+		IF_CLONE_UNLOCK(ifc);
+		if (ifc0 != NULL)
+			break;
+	}
+	IF_CLONERS_UNLOCK();
+
+	return (ifc0);
+}
+
+/*
+ * if_clone_addgroup() decrements ifc_refcnt because it is called after
+ * if_clone_findifc().
+ */
+void
+if_clone_addgroup(struct ifnet *ifp, struct if_clone *ifc)
+{
+
+	if_addgroup(ifp, ifc->ifc_name);
+	IF_CLONE_REMREF(ifc);
 }
 
 /*

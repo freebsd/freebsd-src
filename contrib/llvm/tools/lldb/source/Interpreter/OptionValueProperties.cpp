@@ -35,6 +35,7 @@ OptionValueProperties::OptionValueProperties (const ConstString &name) :
 
 OptionValueProperties::OptionValueProperties (const OptionValueProperties &global_properties) :
     OptionValue (global_properties),
+    std::enable_shared_from_this<OptionValueProperties> (),
     m_name (global_properties.m_name),
     m_properties (global_properties.m_properties),
     m_name_to_index (global_properties.m_name_to_index)
@@ -46,7 +47,7 @@ OptionValueProperties::OptionValueProperties (const OptionValueProperties &globa
     const size_t num_properties = m_properties.size();
     for (size_t i=0; i<num_properties; ++i)
     {
-        // Duplicate any values that are not global when contructing properties from
+        // Duplicate any values that are not global when constructing properties from
         // a global copy
         if (m_properties[i].IsGlobal() == false)
         {
@@ -77,6 +78,16 @@ OptionValueProperties::Initialize (const PropertyDefinition *defs)
         m_properties.push_back(property);
     }
     m_name_to_index.Sort();
+}
+
+void
+OptionValueProperties::SetValueChangedCallback (uint32_t property_idx,
+                                                OptionValueChangedCallback callback,
+                                                void *baton)
+{
+    Property *property = ProtectedGetPropertyAtIndex (property_idx);
+    if (property)
+        property->SetValueChangedCallback (callback, baton);
 }
 
 void
@@ -135,7 +146,7 @@ OptionValueProperties::GetSubValue (const ExecutionContext *exe_ctx,
     
     if (name && name[0])
     {
-        const char *sub_name = NULL;
+        const char *sub_name = nullptr;
         ConstString key;
         size_t key_len = ::strcspn (name, ".[{");
         
@@ -163,7 +174,7 @@ OptionValueProperties::GetSubValue (const ExecutionContext *exe_ctx,
                 // OptionValueProperties for a lldb_private::Target might implement:
                 // "target.run-args{arch==i386}"   -- only set run args if the arch is i386
                 // "target.run-args{path=/tmp/a/b/c/a.out}" -- only set run args if the path matches
-                // "target.run-args{basename==test&&arch==x86_64}" -- only set run args if exectable basename is "test" and arch is "x86_64"
+                // "target.run-args{basename==test&&arch==x86_64}" -- only set run args if executable basename is "test" and arch is "x86_64"
                 if (sub_name[1])
                 {
                     const char *predicate_start = sub_name + 1;
@@ -218,7 +229,7 @@ OptionValueProperties::SetSubValue (const ExecutionContext *exe_ctx,
         error = value_sp->SetValueFromCString(value, op);
     else
     {
-        if (error.AsCString() == NULL)
+        if (error.AsCString() == nullptr)
             error.SetErrorStringWithFormat("invalid value path '%s'", name);
     }
     return error;
@@ -228,7 +239,7 @@ OptionValueProperties::SetSubValue (const ExecutionContext *exe_ctx,
 ConstString
 OptionValueProperties::GetPropertyNameAtIndex (uint32_t idx) const
 {
-    const Property *property = GetPropertyAtIndex(NULL, false, idx);
+    const Property *property = GetPropertyAtIndex(nullptr, false, idx);
     if (property)
         return property->GetName();
     return ConstString();
@@ -238,10 +249,10 @@ OptionValueProperties::GetPropertyNameAtIndex (uint32_t idx) const
 const char *
 OptionValueProperties::GetPropertyDescriptionAtIndex (uint32_t idx) const
 {
-    const Property *property = GetPropertyAtIndex(NULL, false, idx);
+    const Property *property = GetPropertyAtIndex(nullptr, false, idx);
     if (property)
         return property->GetDescription();
-    return NULL;
+    return nullptr;
 }
 
 uint32_t
@@ -279,7 +290,7 @@ OptionValueProperties::GetPropertyAtIndexAsOptionValuePathMappings (const Execut
     OptionValueSP value_sp(GetPropertyValueAtIndex (exe_ctx, will_modify, idx));
     if (value_sp)
         return value_sp->GetAsPathMappings();
-    return NULL;
+    return nullptr;
 }
 
 OptionValueFileSpecList *
@@ -288,7 +299,7 @@ OptionValueProperties::GetPropertyAtIndexAsOptionValueFileSpecList (const Execut
     OptionValueSP value_sp(GetPropertyValueAtIndex (exe_ctx, will_modify, idx));
     if (value_sp)
         return value_sp->GetAsFileSpecList();
-    return NULL;    
+    return nullptr;
 }
 
 OptionValueArch *
@@ -297,7 +308,7 @@ OptionValueProperties::GetPropertyAtIndexAsOptionValueArch (const ExecutionConte
     const Property *property = GetPropertyAtIndex (exe_ctx, false, idx);
     if (property)
         return property->GetValue()->GetAsArch();
-    return NULL;
+    return nullptr;
 }
 
 bool
@@ -381,7 +392,7 @@ OptionValueProperties::GetPropertyAtIndexAsOptionValueDictionary (const Executio
     const Property *property = GetPropertyAtIndex (exe_ctx, false, idx);
     if (property)
         return property->GetValue()->GetAsDictionary();
-    return NULL;
+    return nullptr;
 }
 
 int64_t
@@ -421,7 +432,7 @@ OptionValueProperties::GetPropertyAtIndexAsOptionValueFileSpec (const ExecutionC
         if (value)
             return value->GetAsFileSpec();
     }
-    return NULL;
+    return nullptr;
 }
 
 
@@ -462,7 +473,7 @@ OptionValueProperties::GetPropertyAtIndexAsOptionValueRegex (const ExecutionCont
         if (value)
             return value->GetRegexValue();
     }
-    return NULL;
+    return nullptr;
 }
 
 OptionValueSInt64 *
@@ -475,7 +486,7 @@ OptionValueProperties::GetPropertyAtIndexAsOptionValueSInt64 (const ExecutionCon
         if (value)
             return value->GetAsSInt64();
     }
-    return NULL;
+    return nullptr;
 }
 
 int64_t
@@ -536,7 +547,7 @@ OptionValueProperties::GetPropertyAtIndexAsOptionValueString (const ExecutionCon
     OptionValueSP value_sp(GetPropertyValueAtIndex (exe_ctx, will_modify, idx));
     if (value_sp)
         return value_sp->GetAsString();
-    return NULL;
+    return nullptr;
 }
 
 
@@ -659,10 +670,10 @@ OptionValueProperties::GetPropertyAtPath (const ExecutionContext *exe_ctx,
                                           bool will_modify,
                                           const char *name) const
 {
-    const Property *property = NULL;
+    const Property *property = nullptr;
     if (name && name[0])
     {
-        const char *sub_name = NULL;
+        const char *sub_name = nullptr;
         ConstString key;
         size_t key_len = ::strcspn (name, ".[{");
         
@@ -683,7 +694,7 @@ OptionValueProperties::GetPropertyAtPath (const ExecutionContext *exe_ctx,
                 if (sub_properties)
                     return sub_properties->GetPropertyAtPath(exe_ctx, will_modify, sub_name + 1);
             }
-            property = NULL;
+            property = nullptr;
         }
     }
     return property;

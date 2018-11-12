@@ -60,13 +60,14 @@ namespace {
 class UnbridgedCastRewriter : public RecursiveASTVisitor<UnbridgedCastRewriter>{
   MigrationPass &Pass;
   IdentifierInfo *SelfII;
-  OwningPtr<ParentMap> StmtMap;
+  std::unique_ptr<ParentMap> StmtMap;
   Decl *ParentD;
   Stmt *Body;
-  mutable OwningPtr<ExprSet> Removables;
+  mutable std::unique_ptr<ExprSet> Removables;
 
 public:
-  UnbridgedCastRewriter(MigrationPass &pass) : Pass(pass), ParentD(0), Body(0) {
+  UnbridgedCastRewriter(MigrationPass &pass)
+    : Pass(pass), ParentD(nullptr), Body(nullptr) {
     SelfII = &Pass.Ctx.Idents.get("self");
   }
 
@@ -75,6 +76,13 @@ public:
     Body = body;
     StmtMap.reset(new ParentMap(body));
     TraverseStmt(body);
+  }
+
+  bool TraverseBlockDecl(BlockDecl *D) {
+    // ParentMap does not enter into a BlockDecl to record its stmts, so use a
+    // new UnbridgedCastRewriter to handle the block.
+    UnbridgedCastRewriter(Pass).transformBody(D->getBody(), D);
+    return true;
   }
 
   bool VisitCastExpr(CastExpr *E) {
@@ -126,11 +134,11 @@ private:
     Expr *inner = E->IgnoreParenCasts();
     if (CallExpr *callE = dyn_cast<CallExpr>(inner)) {
       if (FunctionDecl *FD = callE->getDirectCallee()) {
-        if (FD->getAttr<CFReturnsRetainedAttr>()) {
+        if (FD->hasAttr<CFReturnsRetainedAttr>()) {
           castToObjCObject(E, /*retained=*/true);
           return;
         }
-        if (FD->getAttr<CFReturnsNotRetainedAttr>()) {
+        if (FD->hasAttr<CFReturnsNotRetainedAttr>()) {
           castToObjCObject(E, /*retained=*/false);
           return;
         }
@@ -148,7 +156,7 @@ private:
             if (FD->getName() == "CFRetain" && 
                 FD->getNumParams() == 1 &&
                 FD->getParent()->isTranslationUnit() &&
-                FD->hasExternalLinkage()) {
+                FD->isExternallyVisible()) {
               Expr *Arg = callE->getArg(0);
               if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(Arg)) {
                 const Expr *sub = ICE->getSubExpr();
@@ -276,7 +284,7 @@ private:
     SourceLocation Loc = E->getExprLoc();
     assert(Loc.isMacroID());
     SourceLocation MacroBegin, MacroEnd;
-    llvm::tie(MacroBegin, MacroEnd) = SM.getImmediateExpansionRange(Loc);
+    std::tie(MacroBegin, MacroEnd) = SM.getImmediateExpansionRange(Loc);
     SourceRange SubRange = E->getSubExpr()->IgnoreParenImpCasts()->getSourceRange();
     SourceLocation InnerBegin = SM.getImmediateMacroCallerLoc(SubRange.getBegin());
     SourceLocation InnerEnd = SM.getImmediateMacroCallerLoc(SubRange.getEnd());
@@ -413,7 +421,7 @@ private:
             FD = dyn_cast_or_null<FunctionDecl>(callE->getCalleeDecl()))
         if (FD->getName() == "CFRetain" && FD->getNumParams() == 1 &&
             FD->getParent()->isTranslationUnit() &&
-            FD->hasExternalLinkage())
+            FD->isExternallyVisible())
           return true;
 
     return false;
@@ -432,7 +440,7 @@ private:
         }
         if (i < callE->getNumArgs() && i < FD->getNumParams()) {
           ParmVarDecl *PD = FD->getParamDecl(i);
-          if (PD->getAttr<CFConsumedAttr>()) {
+          if (PD->hasAttr<CFConsumedAttr>()) {
             isConsumed = true;
             return true;
           }

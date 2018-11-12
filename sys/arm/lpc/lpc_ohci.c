@@ -98,6 +98,10 @@ static void lpc_isp3101_configure(device_t dev, struct ohci_softc *);
 static int
 lpc_ohci_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "lpc,usb-ohci"))
 		return (ENXIO);
 
@@ -118,6 +122,7 @@ lpc_ohci_attach(device_t dev)
 	sc->sc_bus.parent = dev;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = OHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	if (usb_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(dev),
 	    &ohci_iterate_hw_softc))

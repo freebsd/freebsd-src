@@ -43,3 +43,4 @@ ENTRY(alloca)
 	sub	sp, sp, r0		/* Adjust the stack pointer */
 	mov	r0, sp			/* r0 = base of new space */
 	RET
+END(alloca)

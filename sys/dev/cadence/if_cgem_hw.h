@@ -90,6 +90,7 @@
 #define   CGEM_NET_CFG_PCS_SEL			(1<<11)
 #define   CGEM_NET_CFG_GIGE_EN			(1<<10)
 #define   CGEM_NET_CFG_EXT_ADDR_MATCH_EN	(1<<9)
+#define   CGEM_NET_CFG_1536RXEN			(1<<8)
 #define   CGEM_NET_CFG_UNI_HASH_EN		(1<<7)
 #define   CGEM_NET_CFG_MULTI_HASH_EN		(1<<6)
 #define   CGEM_NET_CFG_NO_BCAST			(1<<5)
@@ -260,8 +261,8 @@
 #define CGEM_FRAMES_256_511B_RX		0x174	/* 256-511 Byte Frames Rx'd */
 #define CGEM_FRAMES_512_1023B_RX	0x178	/* 512-1023 Byte Frames Rx'd */
 #define CGEM_FRAMES_1024_1518B_RX	0x17C	/* 1024-1518 Byte Frames Rx'd*/
-#define CGEM_UNDERSZ_RX			0x180	/* Undersize Frames Rx'd */
-#define CGEM_OVERSZ_RX			0x184	/* Oversize Frames Rx'd */
+#define CGEM_UNDERSZ_RX			0x184	/* Undersize Frames Rx'd */
+#define CGEM_OVERSZ_RX			0x188	/* Oversize Frames Rx'd */
 #define CGEM_JABBERS_RX			0x18C	/* Jabbers received */
 #define CGEM_FCS_ERRS			0x190	/* Frame Check Sequence Errs */
 #define CGEM_LENGTH_FIELD_ERRS		0x194	/* Length Firled Frame Errs */

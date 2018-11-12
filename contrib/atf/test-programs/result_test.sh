@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,21 +22,20 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
-atf_test_case atf_run_warnings
-atf_run_warnings_head()
+atf_test_case runtime_warnings
+runtime_warnings_head()
 {
     # The fact that this test case is in this test program is an abuse.
     atf_set "descr" "Tests that the test case prints a warning because" \
-                    "it is not being run by atf-run"
+                    "it is being run outside of a runtime engine"
 }
-atf_run_warnings_body()
+runtime_warnings_body()
 {
     unset __RUNNING_INSIDE_ATF_RUN
     srcdir="$(atf_get_srcdir)"
     for h in $(get_helpers); do
-        atf_check -s eq:0 -o match:"passed" -e match:"WARNING.*atf-run" \
+        atf_check -s eq:0 -o match:"passed" -e match:"WARNING.*kyua" \
             "${h}" -s "${srcdir}" result_pass
     done
 }
@@ -122,14 +118,14 @@ result_exception_head()
 result_exception_body()
 {
     for h in $(get_helpers cpp_helpers); do
-        atf_check -s exit:1 -o match:'failed: .*This is unhandled' \
-            "${h}" -s "${srcdir}" result_exception
+        atf_check -s signal -o not-match:'failed: .*This is unhandled' \
+            -e ignore "${h}" -s "${srcdir}" result_exception
     done
 }
 
 atf_init_test_cases()
 {
-    atf_add_test_case atf_run_warnings
+    atf_add_test_case runtime_warnings
     atf_add_test_case result_on_stdout
     atf_add_test_case result_to_file
     atf_add_test_case result_to_file_fail

@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: a-ux.m4,v 8.3 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: a-ux.m4,v 8.3 2013-11-22 20:51:15 ca Exp $')
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
 ifdef(`UUCP_MAILER_PATH',, `define(`UUCP_MAILER_PATH', /usr/bin/uux)')dnl
 _DEFIFNOT(`LOCAL_MAILER_FLAGS', `mn9')dnl

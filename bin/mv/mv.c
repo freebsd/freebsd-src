@@ -273,11 +273,12 @@ do_move(const char *from, const char *to)
 static int
 fastcopy(const char *from, const char *to, struct stat *sbp)
 {
-	struct timeval tval[2];
+	struct timespec ts[2];
 	static u_int blen = MAXPHYS;
 	static char *bp = NULL;
 	mode_t oldmode;
 	int nread, from_fd, to_fd;
+	struct stat tsb;
 
 	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
 		warn("fastcopy: open() failed (from): %s", from);
@@ -336,15 +337,22 @@ err:		if (unlink(to))
 	 * if the server supports flags and we were trying to *remove* flags
 	 * on a file that we copied, i.e., that we didn't create.)
 	 */
-	errno = 0;
-	if (fchflags(to_fd, sbp->st_flags))
-		if (errno != EOPNOTSUPP || sbp->st_flags != 0)
-			warn("%s: set flags (was: 0%07o)", to, sbp->st_flags);
+	if (fstat(to_fd, &tsb) == 0) {
+		if ((sbp->st_flags  & ~UF_ARCHIVE) !=
+		    (tsb.st_flags & ~UF_ARCHIVE)) {
+			if (fchflags(to_fd,
+			    sbp->st_flags | (tsb.st_flags & UF_ARCHIVE)))
+				if (errno != EOPNOTSUPP ||
+				    ((sbp->st_flags & ~UF_ARCHIVE) != 0))
+					warn("%s: set flags (was: 0%07o)",
+					    to, sbp->st_flags);
+		}
+	} else
+		warn("%s: cannot stat", to);
 
-	tval[0].tv_sec = sbp->st_atime;
-	tval[1].tv_sec = sbp->st_mtime;
-	tval[0].tv_usec = tval[1].tv_usec = 0;
-	if (utimes(to, tval))
+	ts[0] = sbp->st_atim;
+	ts[1] = sbp->st_mtim;
+	if (futimens(to_fd, ts))
 		warn("%s: set times", to);
 
 	if (close(to_fd)) {

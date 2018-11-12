@@ -106,7 +106,7 @@ i80321_splx(int new)
 
 	hwpend = (i80321_ipending & ICU_INT_HWMASK) & ~new;
 	if (hwpend != 0) {
-		oldirqstate = disable_interrupts(I32_bit);
+		oldirqstate = disable_interrupts(PSR_I);
 		intr_enabled |= hwpend;
 		i80321_set_intrmask();
 		restore_interrupts(oldirqstate);

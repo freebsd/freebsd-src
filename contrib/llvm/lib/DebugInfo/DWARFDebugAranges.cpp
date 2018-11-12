@@ -7,224 +7,123 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "DWARFDebugAranges.h"
-#include "DWARFCompileUnit.h"
-#include "DWARFContext.h"
+#include "llvm/DebugInfo/DWARFDebugAranges.h"
+#include "llvm/DebugInfo/DWARFCompileUnit.h"
+#include "llvm/DebugInfo/DWARFContext.h"
+#include "llvm/DebugInfo/DWARFDebugArangeSet.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
+#include <set>
 using namespace llvm;
 
-// Compare function DWARFDebugAranges::Range structures
-static bool RangeLessThan(const DWARFDebugAranges::Range &range1,
-                          const DWARFDebugAranges::Range &range2) {
-  return range1.LoPC < range2.LoPC;
-}
+void DWARFDebugAranges::extract(DataExtractor DebugArangesData) {
+  if (!DebugArangesData.isValidOffset(0))
+    return;
+  uint32_t Offset = 0;
+  DWARFDebugArangeSet Set;
 
-namespace {
-  class CountArangeDescriptors {
-  public:
-    CountArangeDescriptors(uint32_t &count_ref) : Count(count_ref) {}
-    void operator()(const DWARFDebugArangeSet &Set) {
-      Count += Set.getNumDescriptors();
+  while (Set.extract(DebugArangesData, &Offset)) {
+    uint32_t CUOffset = Set.getCompileUnitDIEOffset();
+    for (const auto &Desc : Set.descriptors()) {
+      uint64_t LowPC = Desc.Address;
+      uint64_t HighPC = Desc.getEndAddress();
+      appendRange(CUOffset, LowPC, HighPC);
     }
-    uint32_t &Count;
-  };
-
-  class AddArangeDescriptors {
-  public:
-    AddArangeDescriptors(DWARFDebugAranges::RangeColl &Ranges,
-                         DWARFDebugAranges::ParsedCUOffsetColl &CUOffsets)
-      : RangeCollection(Ranges),
-        CUOffsetCollection(CUOffsets) {}
-    void operator()(const DWARFDebugArangeSet &Set) {
-      DWARFDebugAranges::Range Range;
-      Range.Offset = Set.getCompileUnitDIEOffset();
-      CUOffsetCollection.insert(Range.Offset);
-
-      for (uint32_t i = 0, n = Set.getNumDescriptors(); i < n; ++i) {
-        const DWARFDebugArangeSet::Descriptor *ArangeDescPtr =
-            Set.getDescriptor(i);
-        Range.LoPC = ArangeDescPtr->Address;
-        Range.Length = ArangeDescPtr->Length;
-
-        // Insert each item in increasing address order so binary searching
-        // can later be done!
-        DWARFDebugAranges::RangeColl::iterator InsertPos =
-          std::lower_bound(RangeCollection.begin(), RangeCollection.end(),
-                           Range, RangeLessThan);
-        RangeCollection.insert(InsertPos, Range);
-      }
-
-    }
-    DWARFDebugAranges::RangeColl &RangeCollection;
-    DWARFDebugAranges::ParsedCUOffsetColl &CUOffsetCollection;
-  };
-}
-
-bool DWARFDebugAranges::extract(DataExtractor debug_aranges_data) {
-  if (debug_aranges_data.isValidOffset(0)) {
-    uint32_t offset = 0;
-
-    typedef std::vector<DWARFDebugArangeSet> SetCollection;
-    SetCollection sets;
-
-    DWARFDebugArangeSet set;
-    Range range;
-    while (set.extract(debug_aranges_data, &offset))
-      sets.push_back(set);
-
-    uint32_t count = 0;
-
-    std::for_each(sets.begin(), sets.end(), CountArangeDescriptors(count));
-
-    if (count > 0) {
-      Aranges.reserve(count);
-      AddArangeDescriptors range_adder(Aranges, ParsedCUOffsets);
-      std::for_each(sets.begin(), sets.end(), range_adder);
-    }
+    ParsedCUOffsets.insert(CUOffset);
   }
-  return false;
 }
 
-bool DWARFDebugAranges::generate(DWARFContext *ctx) {
-  if (ctx) {
-    const uint32_t num_compile_units = ctx->getNumCompileUnits();
-    for (uint32_t cu_idx = 0; cu_idx < num_compile_units; ++cu_idx) {
-      if (DWARFCompileUnit *cu = ctx->getCompileUnitAtIndex(cu_idx)) {
-        uint32_t CUOffset = cu->getOffset();
-        if (ParsedCUOffsets.insert(CUOffset).second)
-          cu->buildAddressRangeTable(this, true);
+void DWARFDebugAranges::generate(DWARFContext *CTX) {
+  clear();
+  if (!CTX)
+    return;
+
+  // Extract aranges from .debug_aranges section.
+  DataExtractor ArangesData(CTX->getARangeSection(), CTX->isLittleEndian(), 0);
+  extract(ArangesData);
+
+  // Generate aranges from DIEs: even if .debug_aranges section is present,
+  // it may describe only a small subset of compilation units, so we need to
+  // manually build aranges for the rest of them.
+  for (const auto &CU : CTX->compile_units()) {
+    uint32_t CUOffset = CU->getOffset();
+    if (ParsedCUOffsets.insert(CUOffset).second) {
+      DWARFAddressRangesVector CURanges;
+      CU->collectAddressRanges(CURanges);
+      for (const auto &R : CURanges) {
+        appendRange(CUOffset, R.first, R.second);
       }
     }
   }
-  sort(true, /* overlap size */ 0);
-  return !isEmpty();
+
+  construct();
 }
 
-void DWARFDebugAranges::dump(raw_ostream &OS) const {
-  const uint32_t num_ranges = getNumRanges();
-  for (uint32_t i = 0; i < num_ranges; ++i) {
-    const Range &range = Aranges[i];
-    OS << format("0x%8.8x: [0x%8.8" PRIx64 " - 0x%8.8" PRIx64 ")\n",
-                 range.Offset, (uint64_t)range.LoPC, (uint64_t)range.HiPC());
-  }
+void DWARFDebugAranges::clear() {
+  Endpoints.clear();
+  Aranges.clear();
+  ParsedCUOffsets.clear();
 }
 
-void DWARFDebugAranges::Range::dump(raw_ostream &OS) const {
-  OS << format("{0x%8.8x}: [0x%8.8" PRIx64 " - 0x%8.8" PRIx64 ")\n",
-               Offset, LoPC, HiPC());
+void DWARFDebugAranges::appendRange(uint32_t CUOffset, uint64_t LowPC,
+                                    uint64_t HighPC) {
+  if (LowPC >= HighPC)
+    return;
+  Endpoints.emplace_back(LowPC, CUOffset, true);
+  Endpoints.emplace_back(HighPC, CUOffset, false);
 }
 
-void DWARFDebugAranges::appendRange(uint32_t offset, uint64_t low_pc,
-                                    uint64_t high_pc) {
-  if (!Aranges.empty()) {
-    if (Aranges.back().Offset == offset && Aranges.back().HiPC() == low_pc) {
-      Aranges.back().setHiPC(high_pc);
-      return;
+void DWARFDebugAranges::construct() {
+  std::multiset<uint32_t> ValidCUs;  // Maintain the set of CUs describing
+                                     // a current address range.
+  std::sort(Endpoints.begin(), Endpoints.end());
+  uint64_t PrevAddress = -1ULL;
+  for (const auto &E : Endpoints) {
+    if (PrevAddress < E.Address && ValidCUs.size() > 0) {
+      // If the address range between two endpoints is described by some
+      // CU, first try to extend the last range in Aranges. If we can't
+      // do it, start a new range.
+      if (!Aranges.empty() && Aranges.back().HighPC() == PrevAddress &&
+          ValidCUs.find(Aranges.back().CUOffset) != ValidCUs.end()) {
+        Aranges.back().setHighPC(E.Address);
+      } else {
+        Aranges.emplace_back(PrevAddress, E.Address, *ValidCUs.begin());
+      }
     }
-  }
-  Aranges.push_back(Range(low_pc, high_pc, offset));
-}
-
-void DWARFDebugAranges::sort(bool minimize, uint32_t n) {
-  const size_t orig_arange_size = Aranges.size();
-  // Size of one? If so, no sorting is needed
-  if (orig_arange_size <= 1)
-    return;
-  // Sort our address range entries
-  std::stable_sort(Aranges.begin(), Aranges.end(), RangeLessThan);
-
-  if (!minimize)
-    return;
-
-  // Most address ranges are contiguous from function to function
-  // so our new ranges will likely be smaller. We calculate the size
-  // of the new ranges since although std::vector objects can be resized,
-  // the will never reduce their allocated block size and free any excesss
-  // memory, so we might as well start a brand new collection so it is as
-  // small as possible.
-
-  // First calculate the size of the new minimal arange vector
-  // so we don't have to do a bunch of re-allocations as we
-  // copy the new minimal stuff over to the new collection.
-  size_t minimal_size = 1;
-  for (size_t i = 1; i < orig_arange_size; ++i) {
-    if (!Range::SortedOverlapCheck(Aranges[i-1], Aranges[i], n))
-      ++minimal_size;
-  }
-
-  // If the sizes are the same, then no consecutive aranges can be
-  // combined, we are done.
-  if (minimal_size == orig_arange_size)
-    return;
-
-  // Else, make a new RangeColl that _only_ contains what we need.
-  RangeColl minimal_aranges;
-  minimal_aranges.resize(minimal_size);
-  uint32_t j = 0;
-  minimal_aranges[j] = Aranges[0];
-  for (size_t i = 1; i < orig_arange_size; ++i) {
-    if(Range::SortedOverlapCheck (minimal_aranges[j], Aranges[i], n)) {
-      minimal_aranges[j].setHiPC (Aranges[i].HiPC());
+    // Update the set of valid CUs.
+    if (E.IsRangeStart) {
+      ValidCUs.insert(E.CUOffset);
     } else {
-      // Only increment j if we aren't merging
-      minimal_aranges[++j] = Aranges[i];
+      auto CUPos = ValidCUs.find(E.CUOffset);
+      assert(CUPos != ValidCUs.end());
+      ValidCUs.erase(CUPos);
     }
+    PrevAddress = E.Address;
   }
-  assert (j+1 == minimal_size);
+  assert(ValidCUs.empty());
 
-  // Now swap our new minimal aranges into place. The local
-  // minimal_aranges will then contian the old big collection
-  // which will get freed.
-  minimal_aranges.swap(Aranges);
+  // Endpoints are not needed now.
+  std::vector<RangeEndpoint> EmptyEndpoints;
+  EmptyEndpoints.swap(Endpoints);
 }
 
-uint32_t DWARFDebugAranges::findAddress(uint64_t address) const {
+uint32_t DWARFDebugAranges::findAddress(uint64_t Address) const {
   if (!Aranges.empty()) {
-    Range range(address);
+    Range range(Address);
     RangeCollIterator begin = Aranges.begin();
     RangeCollIterator end = Aranges.end();
-    RangeCollIterator pos = std::lower_bound(begin, end, range, RangeLessThan);
+    RangeCollIterator pos =
+        std::lower_bound(begin, end, range);
 
-    if (pos != end && pos->LoPC <= address && address < pos->HiPC()) {
-      return pos->Offset;
+    if (pos != end && pos->containsAddress(Address)) {
+      return pos->CUOffset;
     } else if (pos != begin) {
       --pos;
-      if (pos->LoPC <= address && address < pos->HiPC())
-        return (*pos).Offset;
+      if (pos->containsAddress(Address))
+        return pos->CUOffset;
     }
   }
   return -1U;
-}
-
-bool
-DWARFDebugAranges::allRangesAreContiguous(uint64_t &LoPC, uint64_t &HiPC) const{
-  if (Aranges.empty())
-    return false;
-
-  uint64_t next_addr = 0;
-  RangeCollIterator begin = Aranges.begin();
-  for (RangeCollIterator pos = begin, end = Aranges.end(); pos != end;
-       ++pos) {
-    if (pos != begin && pos->LoPC != next_addr)
-      return false;
-    next_addr = pos->HiPC();
-  }
-  // We checked for empty at the start of function so front() will be valid.
-  LoPC = Aranges.front().LoPC;
-  // We checked for empty at the start of function so back() will be valid.
-  HiPC = Aranges.back().HiPC();
-  return true;
-}
-
-bool DWARFDebugAranges::getMaxRange(uint64_t &LoPC, uint64_t &HiPC) const {
-  if (Aranges.empty())
-    return false;
-  // We checked for empty at the start of function so front() will be valid.
-  LoPC = Aranges.front().LoPC;
-  // We checked for empty at the start of function so back() will be valid.
-  HiPC = Aranges.back().HiPC();
-  return true;
 }

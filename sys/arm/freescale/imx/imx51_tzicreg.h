@@ -57,7 +57,7 @@
  */
 
 #ifndef _IMX51_TZICREG_H_
-#define	_IMX51_TZICRREG_H_
+#define	_IMX51_TZICREG_H_
 
 #include <sys/cdefs.h>
 

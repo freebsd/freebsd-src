@@ -11,30 +11,31 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "mips-isel"
 #include "MipsISelDAGToDAG.h"
-#include "Mips16ISelDAGToDAG.h"
-#include "MipsSEISelDAGToDAG.h"
-#include "Mips.h"
 #include "MCTargetDesc/MipsBaseInfo.h"
+#include "Mips.h"
+#include "Mips16ISelDAGToDAG.h"
 #include "MipsMachineFunction.h"
 #include "MipsRegisterInfo.h"
+#include "MipsSEISelDAGToDAG.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Type.h"
-#include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "mips-isel"
 
 //===----------------------------------------------------------------------===//
 // Instruction Selector Implementation
@@ -46,6 +47,7 @@ using namespace llvm;
 //===----------------------------------------------------------------------===//
 
 bool MipsDAGToDAGISel::runOnMachineFunction(MachineFunction &MF) {
+  Subtarget = &TM.getSubtarget<MipsSubtarget>();
   bool Ret = SelectionDAGISel::runOnMachineFunction(MF);
 
   processFunctionAfterISel(MF);
@@ -57,12 +59,19 @@ bool MipsDAGToDAGISel::runOnMachineFunction(MachineFunction &MF) {
 /// GOT address into a register.
 SDNode *MipsDAGToDAGISel::getGlobalBaseReg() {
   unsigned GlobalBaseReg = MF->getInfo<MipsFunctionInfo>()->getGlobalBaseReg();
-  return CurDAG->getRegister(GlobalBaseReg, TLI.getPointerTy()).getNode();
+  return CurDAG->getRegister(GlobalBaseReg,
+                             getTargetLowering()->getPointerTy()).getNode();
 }
 
 /// ComplexPattern used on MipsInstrInfo
 /// Used on Mips Load/Store instructions
 bool MipsDAGToDAGISel::selectAddrRegImm(SDValue Addr, SDValue &Base,
+                                        SDValue &Offset) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectAddrRegReg(SDValue Addr, SDValue &Base,
                                         SDValue &Offset) const {
   llvm_unreachable("Unimplemented function.");
   return false;
@@ -80,8 +89,85 @@ bool MipsDAGToDAGISel::selectIntAddr(SDValue Addr, SDValue &Base,
   return false;
 }
 
+bool MipsDAGToDAGISel::selectIntAddrMM(SDValue Addr, SDValue &Base,
+                                       SDValue &Offset) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectIntAddrMSA(SDValue Addr, SDValue &Base,
+                                        SDValue &Offset) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
 bool MipsDAGToDAGISel::selectAddr16(SDNode *Parent, SDValue N, SDValue &Base,
                                     SDValue &Offset, SDValue &Alias) {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplat(SDNode *N, APInt &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatUimm1(SDValue N, SDValue &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatUimm2(SDValue N, SDValue &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatUimm3(SDValue N, SDValue &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatUimm4(SDValue N, SDValue &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatUimm5(SDValue N, SDValue &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatUimm6(SDValue N, SDValue &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatUimm8(SDValue N, SDValue &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatSimm5(SDValue N, SDValue &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatUimmPow2(SDValue N, SDValue &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatUimmInvPow2(SDValue N, SDValue &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatMaskL(SDValue N, SDValue &Imm) const {
+  llvm_unreachable("Unimplemented function.");
+  return false;
+}
+
+bool MipsDAGToDAGISel::selectVSplatMaskR(SDValue N, SDValue &Imm) const {
   llvm_unreachable("Unimplemented function.");
   return false;
 }
@@ -98,7 +184,7 @@ SDNode* MipsDAGToDAGISel::Select(SDNode *Node) {
   if (Node->isMachineOpcode()) {
     DEBUG(errs() << "== "; Node->dump(CurDAG); errs() << "\n");
     Node->setNodeId(-1);
-    return NULL;
+    return nullptr;
   }
 
   // See if subclasses can handle this node.
@@ -117,8 +203,9 @@ SDNode* MipsDAGToDAGISel::Select(SDNode *Node) {
 #ifndef NDEBUG
   case ISD::LOAD:
   case ISD::STORE:
-    assert(cast<MemSDNode>(Node)->getMemoryVT().getSizeInBits() / 8 <=
-           cast<MemSDNode>(Node)->getAlignment() &&
+    assert((Subtarget->systemSupportsUnalignedAccess() ||
+            cast<MemSDNode>(Node)->getMemoryVT().getSizeInBits() / 8 <=
+            cast<MemSDNode>(Node)->getAlignment()) &&
            "Unexpected unaligned loads/stores.");
     break;
 #endif
@@ -128,7 +215,7 @@ SDNode* MipsDAGToDAGISel::Select(SDNode *Node) {
   SDNode *ResNode = SelectCode(Node);
 
   DEBUG(errs() << "=> ");
-  if (ResNode == NULL || ResNode == Node)
+  if (ResNode == nullptr || ResNode == Node)
     DEBUG(Node->dump(CurDAG));
   else
     DEBUG(ResNode->dump(CurDAG));

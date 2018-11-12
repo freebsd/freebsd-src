@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
@@ -24,7 +25,7 @@ using namespace ento;
 namespace {
 class UndefinedArraySubscriptChecker
   : public Checker< check::PreStmt<ArraySubscriptExpr> > {
-  mutable OwningPtr<BugType> BT;
+  mutable std::unique_ptr<BugType> BT;
 
 public:
   void checkPreStmt(const ArraySubscriptExpr *A, CheckerContext &C) const;
@@ -42,14 +43,14 @@ UndefinedArraySubscriptChecker::checkPreStmt(const ArraySubscriptExpr *A,
   // Don't warn if we're in an implicitly-generated constructor.
   const Decl *D = C.getLocationContext()->getDecl();
   if (const CXXConstructorDecl *Ctor = dyn_cast<CXXConstructorDecl>(D))
-    if (Ctor->isImplicitlyDefined())
+    if (Ctor->isDefaulted())
       return;
 
   ExplodedNode *N = C.generateSink();
   if (!N)
     return;
   if (!BT)
-    BT.reset(new BuiltinBug("Array subscript is undefined"));
+    BT.reset(new BuiltinBug(this, "Array subscript is undefined"));
 
   // Generate a report for this bug.
   BugReport *R = new BugReport(*BT, BT->getName(), N);

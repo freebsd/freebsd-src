@@ -1,6 +1,9 @@
 /* opensslconf.h */
 /* WARNING: Generated automatically from opensslconf.h.in by Configure. */
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
 /* OpenSSL was configured with the following options: */
 #ifndef OPENSSL_DOING_MAKEDEPEND
 
@@ -31,6 +34,9 @@
 #endif
 #ifndef OPENSSL_NO_STORE
 # define OPENSSL_NO_STORE
+#endif
+#ifndef OPENSSL_NO_UNIT_TEST
+# define OPENSSL_NO_UNIT_TEST
 #endif
 
 #endif /* OPENSSL_DOING_MAKEDEPEND */
@@ -70,6 +76,9 @@
 # endif
 # if defined(OPENSSL_NO_STORE) && !defined(NO_STORE)
 #  define NO_STORE
+# endif
+# if defined(OPENSSL_NO_UNIT_TEST) && !defined(NO_UNIT_TEST)
+#  define NO_UNIT_TEST
 # endif
 #endif
 
@@ -227,3 +236,6 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 
 #endif /* DES_DEFAULT_OPTIONS */
 #endif /* HEADER_DES_LOCL_H */
+#ifdef  __cplusplus
+}
+#endif

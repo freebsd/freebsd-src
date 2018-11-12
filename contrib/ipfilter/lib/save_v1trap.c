@@ -178,7 +178,7 @@ snmpv1_parse(char **strings)
 		if (ctx->fd >= 0) {
 			ctx->sin.sin_family = AF_INET;
 			ctx->sin.sin_port = htons(162);
-			if (connect(ctx->fd, &ctx->sin,
+			if (connect(ctx->fd, (struct sockaddr *)&ctx->sin,
 				    sizeof(ctx->sin)) != 0) {
 					snmpv1_destroy(ctx);
 					return NULL;

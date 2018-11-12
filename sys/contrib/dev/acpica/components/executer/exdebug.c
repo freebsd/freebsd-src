@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __EXDEBUG_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -82,6 +80,7 @@ AcpiExDoDebugObject (
     UINT32                  Index)
 {
     UINT32                  i;
+    UINT32                  Timer;
 
 
     ACPI_FUNCTION_TRACE_PTR (ExDoDebugObject, SourceDesc);
@@ -96,12 +95,20 @@ AcpiExDoDebugObject (
     }
 
     /*
+     * We will emit the current timer value (in microseconds) with each
+     * debug output. Only need the lower 26 bits. This allows for 67
+     * million microseconds or 67 seconds before rollover.
+     */
+    Timer = ((UINT32) AcpiOsGetTimer () / 10); /* (100 nanoseconds to microseconds) */
+    Timer &= 0x03FFFFFF;
+
+    /*
      * Print line header as long as we are not in the middle of an
      * object display
      */
     if (!((Level > 0) && Index == 0))
     {
-        AcpiOsPrintf ("[ACPI Debug] %*s", Level, " ");
+        AcpiOsPrintf ("[ACPI Debug %.8u] %*s", Timer, Level, " ");
     }
 
     /* Display the index for package output only */

@@ -11,8 +11,7 @@ GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c \
 	yppasswd_private.h yppasswd_private_clnt.c yppasswd_private_xdr.c
 CFLAGS+=-Wall
 
-DPADD=	${LIBCRYPT} ${LIBUTIL}
-LDADD=	-lcrypt -lutil
+LIBADD=	crypt util
 .PATH:  ${.CURDIR}/../../../../usr.bin/chpass \
 #	${.CURDIR}/../../../../usr.sbin/vipw \
 #	${.CURDIR}/../../../../usr.bin/passwd

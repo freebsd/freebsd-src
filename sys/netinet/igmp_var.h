@@ -46,24 +46,6 @@
  * MULTICAST Revision: 3.5.1.3
  */
 
-#ifndef BURN_BRIDGES
-/*
- * Pre-IGMPV3 igmpstat structure.
- */
-struct oigmpstat {
-	u_int igps_rcv_total;		/* total IGMP messages received */
-	u_int igps_rcv_tooshort;	/* received with too few bytes */
-	u_int igps_rcv_badsum;		/* received with bad checksum */
-	u_int igps_rcv_queries;		/* received membership queries */
-	u_int igps_rcv_badqueries;	/* received invalid queries */
-	u_int igps_rcv_reports;		/* received membership reports */
-	u_int igps_rcv_badreports;	/* received invalid reports */
-	u_int igps_rcv_ourreports;	/* received reports for our groups */
-	u_int igps_snd_reports;		/* sent membership reports */
-	u_int igps_rcv_toolong;		/* received with too many bytes */
-};
-#endif
-
 /*
  * IGMPv3 protocol statistics.
  */
@@ -105,19 +87,16 @@ struct igmpstat {
 };
 #define IGPS_VERSION_3	3		/* as of FreeBSD 8.x */
 #define IGPS_VERSION3_LEN		168
-
-#ifdef _KERNEL
-#define	IGMPSTAT_ADD(name, val)		V_igmpstat.name += (val)
-#define	IGMPSTAT_INC(name)		IGMPSTAT_ADD(name, 1)
-#endif
-
 #ifdef CTASSERT
-CTASSERT(sizeof(struct igmpstat) == 168);
+CTASSERT(sizeof(struct igmpstat) == IGPS_VERSION3_LEN);
 #endif
 
-#ifdef _KERNEL
-#define IGMP_RANDOM_DELAY(X) (random() % (X) + 1)
+/*
+ * Identifiers for IGMP sysctl nodes
+ */
+#define IGMPCTL_STATS		1	/* statistics (read-only) */
 
+#define IGMP_RANDOM_DELAY(X) (random() % (X) + 1)
 #define IGMP_MAX_STATE_CHANGES		24 /* Max pending changes per group */
 
 /*
@@ -186,6 +165,27 @@ CTASSERT(sizeof(struct igmpstat) == 168);
 	(sizeof(struct ip) + RAOPT_LEN + sizeof(struct igmp_report))
 
 /*
+ * Structure returned by net.inet.igmp.ifinfo sysctl.
+ */
+struct igmp_ifinfo {
+	uint32_t igi_version;	/* IGMPv3 Host Compatibility Mode */
+	uint32_t igi_v1_timer;	/* IGMPv1 Querier Present timer (s) */
+	uint32_t igi_v2_timer;	/* IGMPv2 Querier Present timer (s) */
+	uint32_t igi_v3_timer;	/* IGMPv3 General Query (interface) timer (s)*/
+	uint32_t igi_flags;	/* IGMP per-interface flags */
+#define IGIF_SILENT	0x00000001	/* Do not use IGMP on this ifp */
+#define IGIF_LOOPBACK	0x00000002	/* Send IGMP reports to loopback */
+	uint32_t igi_rv;	/* IGMPv3 Robustness Variable */
+	uint32_t igi_qi;	/* IGMPv3 Query Interval (s) */
+	uint32_t igi_qri;	/* IGMPv3 Query Response Interval (s) */
+	uint32_t igi_uri;	/* IGMPv3 Unsolicited Report Interval (s) */
+};
+
+#ifdef _KERNEL
+#define	IGMPSTAT_ADD(name, val)		V_igmpstat.name += (val)
+#define	IGMPSTAT_INC(name)		IGMPSTAT_ADD(name, 1)
+
+/*
  * Subsystem lock macros.
  * The IGMP lock is only taken with IGMP. Currently it is system-wide.
  * VIMAGE: The lock could be pushed to per-VIMAGE granularity in future.
@@ -197,25 +197,35 @@ CTASSERT(sizeof(struct igmpstat) == 168);
 #define	IGMP_UNLOCK()		mtx_unlock(&igmp_mtx)
 #define	IGMP_UNLOCK_ASSERT()	mtx_assert(&igmp_mtx, MA_NOTOWNED)
 
-struct igmp_ifinfo;
+/*
+ * Per-interface IGMP router version information.
+ */
+struct igmp_ifsoftc {
+	LIST_ENTRY(igmp_ifsoftc) igi_link;
+	struct ifnet *igi_ifp;	/* pointer back to interface */
+	uint32_t igi_version;	/* IGMPv3 Host Compatibility Mode */
+	uint32_t igi_v1_timer;	/* IGMPv1 Querier Present timer (s) */
+	uint32_t igi_v2_timer;	/* IGMPv2 Querier Present timer (s) */
+	uint32_t igi_v3_timer;	/* IGMPv3 General Query (interface) timer (s)*/
+	uint32_t igi_flags;	/* IGMP per-interface flags */
+	uint32_t igi_rv;	/* IGMPv3 Robustness Variable */
+	uint32_t igi_qi;	/* IGMPv3 Query Interval (s) */
+	uint32_t igi_qri;	/* IGMPv3 Query Response Interval (s) */
+	uint32_t igi_uri;	/* IGMPv3 Unsolicited Report Interval (s) */
+	SLIST_HEAD(,in_multi)	igi_relinmhead; /* released groups */
+	struct mbufq	igi_gq;		/* general query responses queue */
+};
 
 int	igmp_change_state(struct in_multi *);
 void	igmp_fasttimo(void);
-struct igmp_ifinfo *
+struct igmp_ifsoftc *
 	igmp_domifattach(struct ifnet *);
 void	igmp_domifdetach(struct ifnet *);
 void	igmp_ifdetach(struct ifnet *);
-void	igmp_input(struct mbuf *, int);
+int	igmp_input(struct mbuf **, int *, int);
 void	igmp_slowtimo(void);
 
 SYSCTL_DECL(_net_inet_igmp);
 
 #endif /* _KERNEL */
-
-/*
- * Names for IGMP sysctl objects
- */
-#define IGMPCTL_STATS		1	/* statistics (read-only) */
-#define IGMPCTL_MAXID		2
-
 #endif

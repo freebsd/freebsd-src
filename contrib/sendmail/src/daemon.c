@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include "map.h"
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.698 2013/11/22 20:51:55 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.698 2013-11-22 20:51:55 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1

@@ -1,4 +1,4 @@
-//===- ProvenanceAnalysis.h - ObjC ARC Optimization ---*- mode: c++ -*-----===//
+//===- ProvenanceAnalysis.h - ObjC ARC Optimization ---*- C++ -*-----------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -22,8 +22,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_OBJCARC_PROVENANCEANALYSIS_H
-#define LLVM_TRANSFORMS_OBJCARC_PROVENANCEANALYSIS_H
+#ifndef LLVM_LIB_TRANSFORMS_OBJCARC_PROVENANCEANALYSIS_H
+#define LLVM_LIB_TRANSFORMS_OBJCARC_PROVENANCEANALYSIS_H
 
 #include "llvm/ADT/DenseMap.h"
 
@@ -77,4 +77,4 @@ public:
 } // end namespace objcarc
 } // end namespace llvm
 
-#endif // LLVM_TRANSFORMS_OBJCARC_PROVENANCEANALYSIS_H
+#endif

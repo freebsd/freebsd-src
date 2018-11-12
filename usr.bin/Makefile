@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -9,10 +9,10 @@
 # Moved to secure: bdes
 #
 
-SUBDIR=	alias \
+SUBDIR=	${_addr2line} \
+	alias \
 	apply \
 	asa \
-	${_atf} \
 	awk \
 	banner \
 	basename \
@@ -36,25 +36,23 @@ SUBDIR=	alias \
 	csplit \
 	ctlstat \
 	cut \
+	${_cxxfilt} \
 	dirname \
-	dtc \
+	dpv \
 	du \
-	ee \
 	elf2aout \
+	${_elfcopy} \
 	elfdump \
 	enigma \
 	env \
 	expand \
 	false \
 	fetch \
-	file \
 	find \
-	finger \
 	fmt \
 	fold \
 	fstat \
 	fsync \
-	ftp \
 	gcore \
 	gencat \
 	getconf \
@@ -68,7 +66,6 @@ SUBDIR=	alias \
 	id \
 	ipcrm \
 	ipcs \
-	iscsictl \
 	join \
 	jot \
 	${_kdump} \
@@ -107,6 +104,7 @@ SUBDIR=	alias \
 	mkdep \
 	${_mkesdb} \
 	mkfifo \
+	mkimg \
 	mklocale \
 	mktemp \
 	mkulzma \
@@ -118,6 +116,7 @@ SUBDIR=	alias \
 	nfsstat \
 	nice \
 	nl \
+	${_nm} \
 	nohup \
 	opieinfo \
 	opiekey \
@@ -134,6 +133,7 @@ SUBDIR=	alias \
 	procstat \
 	protect \
 	rctl \
+	${_readelf} \
 	renice \
 	rev \
 	revoke \
@@ -144,25 +144,28 @@ SUBDIR=	alias \
 	rwall \
 	script \
 	sed \
+	send-pr \
 	seq \
 	shar \
 	showmount \
+	${_size} \
 	sockstat \
+	soelim \
 	sort \
 	split \
 	stat \
 	stdbuf \
+	${_strings} \
 	su \
 	systat \
 	tabs \
 	tail \
-	talk \
 	tar \
 	tcopy \
 	tee \
 	${_tests} \
-	tftp \
 	time \
+	timeout \
 	tip \
 	top \
 	touch \
@@ -182,7 +185,6 @@ SUBDIR=	alias \
 	unvis \
 	uudecode \
 	uuencode \
-	vi \
 	vis \
 	vmstat \
 	w \
@@ -195,11 +197,9 @@ SUBDIR=	alias \
 	write \
 	xargs \
 	xinstall \
-	${_xlint} \
-	${_xstr} \
+	xo \
 	xz \
 	xzdec \
-	${_yacc} \
 	yes \
 	${_ypcat} \
 	${_ypmatch} \
@@ -231,6 +231,40 @@ SUBDIR+=	calendar
 _clang=		clang
 .endif
 
+.if ${MK_EE} != "no"
+SUBDIR+=	ee
+.endif
+
+.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+_addr2line=	addr2line
+_cxxfilt=	cxxfilt
+_elfcopy=	elfcopy
+_nm=		nm
+_readelf=	readelf
+_size=		size
+_strings=	strings
+.endif
+
+.if ${MK_FILE} != "no"
+SUBDIR+=	file
+.endif
+
+.if ${MK_FINGER} != "no"
+SUBDIR+=	finger
+.endif
+
+.if ${MK_FMAKE} != "no"
+SUBDIR+=	make
+.endif
+
+.if ${MK_FTP} != "no"
+SUBDIR+=	ftp
+.endif
+
+.if ${MK_GPL_DTC} != "yes"
+SUBDIR+=	dtc
+.endif
+
 .if ${MK_GROFF} != "no"
 SUBDIR+=	vgrind
 .endif
@@ -245,9 +279,15 @@ _mkcsmapper=	mkcsmapper
 _mkesdb=	mkesdb
 .endif
 
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscsictl
+.endif
+
 .if ${MK_KDUMP} != "no"
 SUBDIR+=        kdump
+.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO truss does not build
 SUBDIR+=        truss
+.endif
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
@@ -257,10 +297,6 @@ SUBDIR+=	compile_et
 .if ${MK_LDNS_UTILS} != "no"
 SUBDIR+=	drill
 SUBDIR+=	host
-.endif
-
-.if ${MK_LIBTHR} != "no"
-SUBDIR+=	csup
 .endif
 
 .if ${MK_LOCATE} != "no"
@@ -276,16 +312,14 @@ SUBDIR+=	msgs
 .endif
 
 .if ${MK_MAKE} != "no"
-.if ${MK_BMAKE} != "no"
 SUBDIR+=	bmake
-.else
-SUBDIR+=	make
-.endif
 .endif
 
 .if ${MK_MAN_UTILS} != "no"
 SUBDIR+=	catman
+.if ${MK_MANDOCDB} == "no"
 _makewhatis=	makewhatis
+.endif
 _man=		man
 .endif
 
@@ -325,12 +359,15 @@ SUBDIR+=	rwho
 SUBDIR+=	vacation
 .endif
 
+.if ${MK_TALK} != "no"
+SUBDIR+=	talk
+.endif
+
 .if ${MK_TELNET} != "no"
 SUBDIR+=	telnet
 .endif
 
 .if ${MK_TESTS} != "no"
-_atf=		atf
 _tests=		tests
 .endif
 
@@ -340,21 +377,37 @@ SUBDIR+=	colcrt
 SUBDIR+=	ul
 .endif
 
+.if ${MK_TFTP} != "no"
+SUBDIR+=	tftp
+.endif
+
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	ar
 SUBDIR+=	c89
 SUBDIR+=	c99
 SUBDIR+=	ctags
 SUBDIR+=	file2c
+.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO gprof does not build
 SUBDIR+=	gprof
+.endif
 SUBDIR+=	indent
 SUBDIR+=	lex
 SUBDIR+=	mkstr
 SUBDIR+=	rpcgen
 SUBDIR+=	unifdef
+.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO xlint does not build
 SUBDIR+=	xlint
+.endif
 SUBDIR+=	xstr
 SUBDIR+=	yacc
+.endif
+
+.if ${MK_VI} != "no"
+SUBDIR+=	vi
+.endif
+
+.if ${MK_VT} != "no"
+SUBDIR+=	vtfontcvt
 .endif
 
 .if ${MK_USB} != "no"
@@ -375,5 +428,7 @@ SUBDIR+=	svn
 .include <bsd.arch.inc.mk>
 
 SUBDIR:=	${SUBDIR:O}
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

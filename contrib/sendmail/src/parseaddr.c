@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.407 2013/11/22 20:51:56 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.407 2013-11-22 20:51:56 ca Exp $")
 
 #include <sm/sendmail.h>
 #include "map.h"

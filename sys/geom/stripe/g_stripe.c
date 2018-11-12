@@ -71,11 +71,9 @@ SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, stripe, CTLFLAG_RW, 0,
     "GEOM_STRIPE stuff");
 static u_int g_stripe_debug = 0;
-TUNABLE_INT("kern.geom.stripe.debug", &g_stripe_debug);
-SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RW, &g_stripe_debug, 0,
+SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RWTUN, &g_stripe_debug, 0,
     "Debug level");
 static int g_stripe_fast = 0;
-TUNABLE_INT("kern.geom.stripe.fast", &g_stripe_fast);
 static int
 g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
 {
@@ -87,11 +85,10 @@ g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
 		g_stripe_fast = fast;
 	return (error);
 }
-SYSCTL_PROC(_kern_geom_stripe, OID_AUTO, fast, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_kern_geom_stripe, OID_AUTO, fast, CTLTYPE_INT | CTLFLAG_RWTUN,
     NULL, 0, g_sysctl_stripe_fast, "I", "Fast, but memory-consuming, mode");
 static u_int g_stripe_maxmem = MAXPHYS * 100;
-TUNABLE_INT("kern.geom.stripe.maxmem", &g_stripe_maxmem);
-SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, maxmem, CTLFLAG_RD, &g_stripe_maxmem,
+SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, maxmem, CTLFLAG_RDTUN, &g_stripe_maxmem,
     0, "Maximum memory that can be allocated in \"fast\" mode (in bytes)");
 static u_int g_stripe_fast_failed = 0;
 SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, fast_failed, CTLFLAG_RD,
@@ -472,9 +469,10 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 
 	/* offset -= offset % stripesize; */
 	offset -= offset & (stripesize - 1);
-	addr += length;
+	if (bp->bio_cmd != BIO_DELETE)
+		addr += length;
 	length = bp->bio_length - length;
-	for (no++; length > 0; no++, length -= stripesize, addr += stripesize) {
+	for (no++; length > 0; no++, length -= stripesize) {
 		if (no > sc->sc_ndisks - 1) {
 			no = 0;
 			offset += stripesize;
@@ -506,6 +504,9 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 			cbp->bio_data = addr;
 
 		cbp->bio_caller2 = sc->sc_disks[no];
+
+		if (bp->bio_cmd != BIO_DELETE)
+			addr += stripesize;
 	}
 	/*
 	 * Fire off all allocated requests!
@@ -632,10 +633,13 @@ g_stripe_start(struct bio *bp)
 	 *    a provider, so there is nothing to optmize.
 	 * and
 	 * 4. Request is not unmapped.
+	 * and
+	 * 5. It is not a BIO_DELETE.
 	 */
 	if (g_stripe_fast && bp->bio_length <= MAXPHYS &&
 	    bp->bio_length >= stripesize * sc->sc_ndisks &&
-	    (bp->bio_flags & BIO_UNMAPPED) == 0) {
+	    (bp->bio_flags & BIO_UNMAPPED) == 0 &&
+	    bp->bio_cmd != BIO_DELETE) {
 		fast = 1;
 	}
 	error = 0;

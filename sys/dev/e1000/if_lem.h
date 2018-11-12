@@ -295,7 +295,7 @@ struct em_int_delay_info {
 
 /* Our adapter structure */
 struct adapter {
-	struct ifnet	*ifp;
+	if_t		ifp;
 #if __FreeBSD_version >= 800000
 	struct buf_ring	*br;
 #endif

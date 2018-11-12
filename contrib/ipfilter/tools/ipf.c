@@ -296,7 +296,7 @@ static void packetlogon(opt)
 			printf("set log flag: nomatch\n");
 		change = 1;
 	}
-	if (strstr(opt, "block") || index(opt, 'd')) {
+	if (strstr(opt, "block") || strchr(opt, 'd')) {
 		flag |= FF_LOGBLOCK;
 		if (opts & OPT_VERBOSE)
 			printf("set log flag: block\n");

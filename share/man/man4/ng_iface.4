@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_iface.8,v 1.5 1999/01/25 23:46:26 archie Exp $
 .\"
-.Dd October 28, 2005
+.Dd January 12, 2015
 .Dt NG_IFACE 4
 .Os
 .Sh NAME
@@ -70,8 +70,7 @@ Packets transmitted via the interface flow out the corresponding
 protocol-specific hook.
 Similarly, packets received on a hook appear on the interface as
 packets received into the corresponding protocol stack.
-The currently supported protocols are IP, IPv6, AppleTalk, IPX, ATM,
-NATM, and NS.
+The currently supported protocols are IP, IPv6, ATM, NATM, and NS.
 .Pp
 An
 .Nm iface
@@ -88,10 +87,6 @@ This node type supports the following hooks:
 Transmission and reception of IP packets.
 .It Va inet6
 Transmission and reception of IPv6 packets.
-.It Va atalk
-Transmission and reception of AppleTalk packets.
-.It Va ipx
-Transmission and reception of IPX packets.
 .It Va atm
 Transmission and reception of ATM packets.
 .It Va natm
@@ -116,12 +111,6 @@ The interface must not currently be up.
 .It Dv NGM_IFACE_BROADCAST Pq Ic broadcast
 Set the interface to broadcast mode.
 The interface must not currently be up.
-.It Dv NGM_CISCO_GET_IPADDR Pq Ic getipaddr
-This message is defined by the
-.Xr ng_cisco 4
-node type; see
-.Xr ng_cisco 4
-for a description.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
@@ -168,4 +157,4 @@ The
 node type was implemented in
 .Fx 4.0 .
 .Sh AUTHORS
-.An Archie Cobbs Aq archie@FreeBSD.org
+.An Archie Cobbs Aq Mt archie@FreeBSD.org

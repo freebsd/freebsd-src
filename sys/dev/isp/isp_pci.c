@@ -1741,6 +1741,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 bad:
 	while (--cmap >= 0) {
 		struct isp_fc *fc = ISP_FC_PC(isp, cmap);
+		bus_dmamap_unload(fc->tdmat, fc->tdmap);
 		bus_dmamem_free(fc->tdmat, base, fc->tdmap);
 		bus_dma_tag_destroy(fc->tdmat);
 		while (fc->nexus_free_list) {
@@ -1749,6 +1750,8 @@ bad:
 			free(n, M_DEVBUF);
 		}
 	}
+	if (isp->isp_rquest_dma != 0)
+		bus_dmamap_unload(isp->isp_osinfo.cdmat, isp->isp_osinfo.cdmap);
 	bus_dmamem_free(isp->isp_osinfo.cdmat, base, isp->isp_osinfo.cdmap);
 	bus_dma_tag_destroy(isp->isp_osinfo.cdmat);
 	free(isp->isp_xflist, M_DEVBUF);

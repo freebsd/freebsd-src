@@ -47,7 +47,7 @@ struct freebsd32_ps_strings {
 	int	ps_nenvstr;	/* the number of environment strings */
 };
 
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 #include <compat/ia32/ia32_util.h>
 #endif
 
@@ -98,10 +98,10 @@ SYSCALL32_MODULE(syscallname,                           \
 }
 
 int    syscall32_register(int *offset, struct sysent *new_sysent,
-	    struct sysent *old_sysent);
+	    struct sysent *old_sysent, int flags);
 int    syscall32_deregister(int *offset, struct sysent *old_sysent);
 int    syscall32_module_handler(struct module *mod, int what, void *arg);
-int    syscall32_helper_register(struct syscall_helper_data *sd);
+int    syscall32_helper_register(struct syscall_helper_data *sd, int flags);
 int    syscall32_helper_unregister(struct syscall_helper_data *sd);
 
 struct iovec32;

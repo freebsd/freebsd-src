@@ -18,19 +18,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_LIVEDEBUGVARIABLES_H
-#define LLVM_CODEGEN_LIVEDEBUGVARIABLES_H
+#ifndef LLVM_LIB_CODEGEN_LIVEDEBUGVARIABLES_H
+#define LLVM_LIB_CODEGEN_LIVEDEBUGVARIABLES_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/IR/DebugInfo.h"
 
 namespace llvm {
 
 class LiveInterval;
+class LiveIntervals;
 class VirtRegMap;
 
 class LiveDebugVariables : public MachineFunctionPass {
   void *pImpl;
+  DenseMap<const Function*, DISubprogram> FunctionDIs;
 public:
   static char ID; // Pass identification, replacement for typeid
 
@@ -47,7 +50,8 @@ public:
   /// splitRegister - Move any user variables in OldReg to the live ranges in
   /// NewRegs where they are live. Mark the values as unavailable where no new
   /// register is live.
-  void splitRegister(unsigned OldReg, ArrayRef<LiveInterval*> NewRegs);
+  void splitRegister(unsigned OldReg, ArrayRef<unsigned> NewRegs,
+                     LiveIntervals &LIS);
 
   /// emitDebugValues - Emit new DBG_VALUE instructions reflecting the changes
   /// that happened during register allocation.
@@ -59,12 +63,13 @@ public:
 
 private:
 
-  virtual bool runOnMachineFunction(MachineFunction &);
-  virtual void releaseMemory();
-  virtual void getAnalysisUsage(AnalysisUsage &) const;
+  bool runOnMachineFunction(MachineFunction &) override;
+  void releaseMemory() override;
+  void getAnalysisUsage(AnalysisUsage &) const override;
+  bool doInitialization(Module &) override;
 
 };
 
 } // namespace llvm
 
-#endif // LLVM_CODEGEN_LIVEDEBUGVARIABLES_H
+#endif

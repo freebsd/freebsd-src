@@ -91,7 +91,7 @@ pci_uart_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	struct uart_softc *sc;
 
 	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, UART_IO_BAR_SIZE);
-	pci_lintr_request(pi, -1);
+	pci_lintr_request(pi);
 
 	/* initialize config space */
 	pci_set_cfgdata16(pi, PCIR_DEVICE, COM_DEV);

@@ -249,9 +249,9 @@ inline _LIBCPP_INLINE_VISIBILITY
 _LIBCPP_CONSTEXPR
 __bitset<_N_words, _Size>::__bitset(unsigned long long __v) _NOEXCEPT
 #ifndef _LIBCPP_HAS_NO_CONSTEXPR
-#if __SIZE_WIDTH__ == 64
+#if __SIZEOF_SIZE_T__ == 8
     : __first_{__v}
-#elif __SIZE_WIDTH__ == 32
+#elif __SIZEOF_SIZE_T__ == 4
     : __first_{__v, __v >> __bits_per_word}
 #else
 #error This constructor has not been ported to this platform
@@ -632,11 +632,11 @@ __bitset<0, 0>::__bitset(unsigned long long) _NOEXCEPT
 {
 }
 
-template <size_t _Size> class _LIBCPP_TYPE_VIS bitset;
-template <size_t _Size> struct _LIBCPP_TYPE_VIS hash<bitset<_Size> >;
+template <size_t _Size> class _LIBCPP_TYPE_VIS_ONLY bitset;
+template <size_t _Size> struct _LIBCPP_TYPE_VIS_ONLY hash<bitset<_Size> >;
 
 template <size_t _Size>
-class _LIBCPP_TYPE_VIS bitset
+class _LIBCPP_TYPE_VIS_ONLY bitset
     : private __bitset<_Size == 0 ? 0 : (_Size - 1) / (sizeof(size_t) * CHAR_BIT) + 1, _Size>
 {
 public:
@@ -1060,7 +1060,7 @@ operator^(const bitset<_Size>& __x, const bitset<_Size>& __y) _NOEXCEPT
 }
 
 template <size_t _Size>
-struct _LIBCPP_TYPE_VIS hash<bitset<_Size> >
+struct _LIBCPP_TYPE_VIS_ONLY hash<bitset<_Size> >
     : public unary_function<bitset<_Size>, size_t>
 {
     _LIBCPP_INLINE_VISIBILITY

@@ -50,12 +50,8 @@
  *
  */
 
-#ifndef _REFCLOCK_PALISADE_H
-#define _REFCLOCK_PALISADE_H
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#ifndef REFCLOCK_PALISADE_H
+#define REFCLOCK_PALISADE_H
 
 #if defined HAVE_SYS_MODEM_H
 #include <sys/modem.h>
@@ -71,6 +67,7 @@
 #  define _SVID3
 # endif
 # include <termios.h>
+# include <sys/stat.h>
 # ifdef TERMIOS_NEEDS__SVID3
 #  undef _SVID3
 # endif
@@ -108,9 +105,22 @@
 #define LENCODE_8F0B	74	/* Length of TSIP 8F-0B Packet & header */
 #define LENCODE_NTP     22	/* Length of Palisade NTP Packet */
 
+#define LENCODE_8FAC    68      /* Length of Thunderbolt 8F-AC Position Packet*/
+#define LENCODE_8FAB    17      /* Length of Thunderbolt Primary Timing Packet*/
+
 /* Allowed Sub-Packet ID's */
 #define PACKET_8F0B	0x0B
 #define PACKET_NTP	0xAD
+
+/* Thunderbolt Packets */
+#define PACKET_8FAC     0xAC	/* Supplementary Thunderbolt Time Packet */
+#define PACKET_8FAB     0xAB	/* Primary Thunderbolt Time Packet */
+#define PACKET_6D	0x6D	/* Supplementary Thunderbolt Tracking Stats */
+#define PACKET_41	0x41	/* Thunderbolt I dont know what this packet is, it's not documented on my manual*/
+
+/* Acutime Packets */
+#define PACKET_41A      0x41    /* GPS time */
+#define PACKET_46       0x46    /* Receiver Health */
 
 #define DLE 0x10
 #define ETX 0x03
@@ -139,6 +149,16 @@
 #define	R2D		(180.0/GPS_PI)
 
 /*
+ * Structure for build data packets for send (thunderbolt uses it only)
+ * taken from Markus Prosch
+ */
+struct packettx
+{
+	short	size;
+	u_char *data;
+};
+
+/*
  * Palisade unit control structure.
  */
 struct palisade_unit {
@@ -147,24 +167,36 @@ struct palisade_unit {
 	char		leap_status;	/* leap second flag */
 	char		rpt_status;	/* TSIP Parser State */
 	short 		rpt_cnt;	/* TSIP packet length so far */
-	char 		rpt_buf[BMAX]; 	 /* packet assembly buffer */
+	char 		rpt_buf[BMAX]; 	/* packet assembly buffer */
 	int		type;		/* Clock mode type */
+	int		month;		/* for LEAP filter */
 };
 
 /*
  * Function prototypes
  */
 
-static	int	palisade_start		P((int, struct peer *));
-static	void	palisade_shutdown	P((int, struct peer *));
-static	void	palisade_receive	P((struct peer *));
-static	void	palisade_poll		P((int, struct peer *));
-static  void 	palisade_io		P((struct recvbuf *));
-int 		palisade_configure	P((int, struct peer *));
-int 		TSIP_decode		P((struct peer *));
-long		HW_poll			P((struct refclockproc *));
-float 		getfloat		P((u_char *)); 
-double 		getdbl 			P((u_char *));
-short  		getint 			P((u_char *));
+static	int	palisade_start		(int, struct peer *);
+static	void	palisade_shutdown	(int, struct peer *);
+static	void	palisade_receive	(struct peer *);
+static	void	palisade_poll		(int, struct peer *);
+static	void 	palisade_io		(struct recvbuf *);
+int 		palisade_configure	(int, struct peer *);
+int 		TSIP_decode		(struct peer *);
+long		HW_poll			(struct refclockproc *);
+static	double	getdbl 			(u_char *);
+static	short	getint 			(u_char *);
+static	int32	getlong			(u_char *);
 
-#endif /* PALISADE_H */
+
+#ifdef PALISADE_SENDCMD_RESURRECTED
+static  void	sendcmd			(struct packettx *buffer, int c);
+#endif
+static  void	sendsupercmd		(struct packettx *buffer, int c1, int c2);
+static  void	sendbyte		(struct packettx *buffer, int b);
+static  void	sendint			(struct packettx *buffer, int a);
+static  int	sendetx			(struct packettx *buffer, int fd);
+static  void	init_thunderbolt	(int fd);
+static  void	init_acutime		(int fd);
+
+#endif /* REFCLOCK_PALISADE_H */

@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2010
+.Dd May 7, 2015
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -40,8 +40,8 @@
 .Nd display or set date and time
 .Sh SYNOPSIS
 .Nm
-.Op Fl ju
-.Op Fl r Ar seconds
+.Op Fl jRu
+.Op Fl r Ar seconds | Ar filename
 .Oo
 .Fl v
 .Sm off
@@ -58,7 +58,7 @@
 .Ar MM Op Ar .ss
 .Sm on
 .Nm
-.Op Fl jnu
+.Op Fl jnRu
 .Fl f Ar input_fmt new_date
 .Op Cm + Ns Ar output_fmt
 .Nm
@@ -130,6 +130,16 @@ The
 .Fl n
 option suppresses this behavior and causes the time to be set only on the
 current machine.
+.It Fl R
+Use RFC 2822 date and time output format. This is equivalent to use
+.Dq Li %a, %d %b %Y \&%T %z
+as
+.Ar output_fmt
+while
+.Ev LC_TIME
+is set to the
+.Dq C
+locale .
 .It Fl r Ar seconds
 Print the date and time represented by
 .Ar seconds ,
@@ -140,6 +150,9 @@ is the number of seconds since the Epoch
 see
 .Xr time 3 ) ,
 and can be specified in decimal, octal, or hex.
+.It Fl r Ar filename
+Print the date and time of the last modification of
+.Ar filename .
 .It Fl t Ar minutes_west
 Set the system's value for minutes west of
 .Tn GMT .

@@ -82,7 +82,7 @@ Possible keywords may include:
 .Bl -column ".Va retry_count" ".Sy Section"
 .It Sy "Keyword	Section	Comment"
 .It Sy "	A B C D"
-.It Va addr        Ta "- + - -" Ta "IP or IPX address of SMB server"
+.It Va addr        Ta "- + - -" Ta "IP address of SMB server"
 .It Va charsets    Ta "- + + +" Ta "local:remote charset pair"
 .It Va nbns        Ta "+ + - -" Ta "address of NetBIOS name server (WINS)"
 .It Va nbscope     Ta "+ + - -" Ta "NetBIOS scope"
@@ -141,19 +141,12 @@ used on a password:
 .Bd -literal -offset indent
 smbutil crypt
 .Ed
-.Sh COMPATIBILITY
-At the time of this writing, the
-.Tn IPX
-protocol remains unsupported.
-Future
-.Fx
-releases are expected to support this.
 .Sh SEE ALSO
 .Xr smbutil 1 ,
 .Xr mount_smbfs 8
 .Sh AUTHORS
 This manual page was written by
 .An -nosplit
-.An Sergey Osokin Aq osa@FreeBSD.org
+.An Sergey Osokin Aq Mt osa@FreeBSD.org
 and
-.An Tom Rhodes Aq trhodes@FreeBSD.org .
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org .

@@ -43,13 +43,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -71,6 +64,7 @@
 #include <sys/serial.h>
 #include <sys/fcntl.h>
 #include <sys/sysctl.h>
+#include <sys/timepps.h>
 
 /* Module interface related macros */
 #define	UCOM_MODVER	1
@@ -162,6 +156,8 @@ struct ucom_softc {
 	struct ucom_cfg_task	sc_line_state_task[2];
 	struct ucom_cfg_task	sc_status_task[2];
 	struct ucom_param_task	sc_param_task[2];
+	/* pulse capturing support, PPS */
+	struct pps_state	sc_pps;
 	/* Used to set "UCOM_FLAG_GP_DATA" flag: */
 	struct usb_proc_msg	*sc_last_start_xfer;
 	const struct ucom_callback *sc_callback;
@@ -202,7 +198,7 @@ struct ucom_softc {
 #define	UCOM_MTX_LOCK(sc) mtx_lock((sc)->sc_mtx)
 #define	UCOM_MTX_UNLOCK(sc) mtx_unlock((sc)->sc_mtx)
 #define	UCOM_UNLOAD_DRAIN(x) \
-SYSUNINIT(var, SI_SUB_KLD - 3, SI_ORDER_ANY, ucom_drain_all, 0)
+SYSUNINIT(var, SI_SUB_KLD - 2, SI_ORDER_ANY, ucom_drain_all, 0)
 
 #define	ucom_cfg_do_request(udev,com,req,ptr,flags,timo) \
     usbd_do_request_proc(udev,&(com)->sc_super->sc_tq,req,ptr,flags,NULL,timo)

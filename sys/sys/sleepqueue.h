@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -48,13 +45,6 @@
  * If the thread only wishes to sleep for a limited amount of time, it can
  * call sleepq_set_timeout() after sleepq_add() to setup a timeout.  It
  * should then use one of the sleepq_timedwait() functions to block.
- *
- * If the thread wants the sleep to be interruptible by signals, it can
- * call sleepq_catch_signals() after sleepq_add().  It should then use
- * one of the sleepq_wait_sig() functions to block.  After the thread has
- * been resumed, it should call sleepq_calc_signal_retval() to determine
- * if it should return EINTR or ERESTART passing in the value returned from
- * the earlier call to sleepq_catch_signals().
  *
  * A thread is normally resumed from a sleep queue by either the
  * sleepq_signal() or sleepq_broadcast() functions.  Sleepq_signal() wakes

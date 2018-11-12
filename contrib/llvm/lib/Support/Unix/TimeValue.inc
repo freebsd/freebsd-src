@@ -22,29 +22,26 @@ namespace llvm {
   using namespace sys;
 
 std::string TimeValue::str() const {
-  char buffer[32];
-
-  time_t ourTime = time_t(this->toEpochTime());
-#ifdef __hpux
-// note that the following line needs -D_REENTRANT on HP-UX to be picked up
-  asctime_r(localtime(&ourTime), buffer);
-#else
-  ::asctime_r(::localtime(&ourTime), buffer);
-#endif
-
-  std::string result(buffer);
-  return result.substr(0,24);
+  time_t OurTime = time_t(this->toEpochTime());
+  struct tm Storage;
+  struct tm *LT = ::localtime_r(&OurTime, &Storage);
+  assert(LT);
+  char Buffer1[sizeof("YYYY-MM-DD HH:MM:SS")];
+  strftime(Buffer1, sizeof(Buffer1), "%Y-%m-%d %H:%M:%S", LT);
+  char Buffer2[sizeof("YYYY-MM-DD HH:MM:SS.MMMUUUNNN")];
+  snprintf(Buffer2, sizeof(Buffer2), "%s.%.9u", Buffer1, this->nanoseconds());
+  return std::string(Buffer2);
 }
 
 TimeValue TimeValue::now() {
   struct timeval the_time;
   timerclear(&the_time);
-  if (0 != ::gettimeofday(&the_time,0)) {
+  if (0 != ::gettimeofday(&the_time,nullptr)) {
     // This is *really* unlikely to occur because the only gettimeofday
     // errors concern the timezone parameter which we're passing in as 0.
     // In the unlikely case it does happen, just return MinTime, no error
     // message needed.
-    return MinTime;
+    return MinTime();
   }
 
   return TimeValue(

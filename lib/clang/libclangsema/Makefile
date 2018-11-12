@@ -18,6 +18,7 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	Sema.cpp \
 	SemaAccess.cpp \
 	SemaAttr.cpp \
+	SemaCUDA.cpp \
 	SemaCXXScopeSpec.cpp \
 	SemaCast.cpp \
 	SemaChecking.cpp \
@@ -49,13 +50,15 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	SemaTemplateInstantiateDecl.cpp \
 	SemaTemplateVariadic.cpp \
 	SemaType.cpp \
-	TargetAttributesSema.cpp
+	TypeLocBuilder.cpp
 
 TGHDRS=	AttrList \
+	AttrParsedAttrImpl \
 	AttrParsedAttrKinds \
 	AttrParsedAttrList \
 	AttrSpellingListIndex \
 	AttrTemplateInstantiate \
+	AttrVisitor \
 	Attrs \
 	CommentCommandList \
 	CommentNodes \

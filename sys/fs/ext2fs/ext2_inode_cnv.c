@@ -41,6 +41,7 @@
 #define XTIME_TO_NSEC(x)	((x & EXT3_NSEC_MASK) >> 2)
 #define NSEC_TO_XTIME(t)	(le32toh(t << 2) & EXT3_NSEC_MASK)
 
+#ifdef EXT2FS_DEBUG
 void
 ext2_print_inode(struct inode *in)
 {
@@ -75,6 +76,7 @@ ext2_print_inode(struct inode *in)
 	    ep->e_len, ep->e_start_lo, ep->e_start_hi);
 	printf("\n");
 }
+#endif	/* EXT2FS_DEBUG */
 
 /*
  *	raw ext2 inode to inode
@@ -82,7 +84,7 @@ ext2_print_inode(struct inode *in)
 void
 ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 {
-        int i;
+	int i;
 
 	ip->i_nlink = ei->e2di_nlink;
 	/* Godmar thinks - if the link count is zero, then the inode is

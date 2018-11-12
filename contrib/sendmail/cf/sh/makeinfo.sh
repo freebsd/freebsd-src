@@ -11,7 +11,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: makeinfo.sh,v 8.15 2013/11/22 20:51:17 ca Exp $
+#	$Id: makeinfo.sh,v 8.15 2013-11-22 20:51:17 ca Exp $
 #
 # $FreeBSD$
 #

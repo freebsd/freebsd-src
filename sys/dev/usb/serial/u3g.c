@@ -68,22 +68,15 @@
 static int u3g_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
-SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RWTUN,
     &u3g_debug, 0, "Debug level");
 #endif
 
 #define	U3G_MAXPORTS		12
 #define	U3G_CONFIG_INDEX	0
 #define	U3G_BSIZE		2048
-
-#define	U3GSP_GPRS		0
-#define	U3GSP_EDGE		1
-#define	U3GSP_CDMA		2
-#define	U3GSP_UMTS		3
-#define	U3GSP_HSDPA		4
-#define	U3GSP_HSUPA		5
-#define	U3GSP_HSPA		6
-#define	U3GSP_MAX		7
+#define	U3G_TXSIZE		(U3G_BSIZE / U3G_TXFRAMES)
+#define	U3G_TXFRAMES		4
 
 /* Eject methods; See also usb_quirks.h:UQ_MSC_EJECT_* */
 #define	U3GINIT_HUAWEI		1	/* Requires Huawei init command */
@@ -95,7 +88,8 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3GINIT_WAIT		7	/* Device reappears after a delay */
 #define	U3GINIT_SAEL_M460	8	/* Requires vendor init */
 #define	U3GINIT_HUAWEISCSI	9	/* Requires Huawei SCSI init command */
-#define	U3GINIT_TCT		10	/* Requires TCT Mobile init command */
+#define	U3GINIT_HUAWEISCSI2	10	/* Requires Huawei SCSI init command (2) */
+#define	U3GINIT_TCT		11	/* Requires TCT Mobile init command */
 
 enum {
 	U3G_BULK_WR,
@@ -153,6 +147,7 @@ static const struct usb_config u3g_config[U3G_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = U3G_BSIZE,/* bytes */
+		.frames = U3G_TXFRAMES,
 		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
 		.callback = &u3g_write_callback,
 	},
@@ -244,9 +239,13 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(DELL, U740, 0),
 	U3G_DEV(DLINK, DWR510_CD, U3GINIT_SCSIEJECT),
 	U3G_DEV(DLINK, DWR510, 0),
+	U3G_DEV(DLINK, DWM157_CD, U3GINIT_SCSIEJECT),
+	U3G_DEV(DLINK, DWM157, 0),
 	U3G_DEV(DLINK3, DWM652, 0),
 	U3G_DEV(HP, EV2200, 0),
 	U3G_DEV(HP, HS2300, 0),
+	U3G_DEV(HP, UN2420_QDL, 0),
+	U3G_DEV(HP, UN2420, 0),
 	U3G_DEV(HUAWEI, E1401, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E1402, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E1403, U3GINIT_HUAWEI),
@@ -320,6 +319,8 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(HUAWEI, MOBILE, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E1752, U3GINIT_HUAWEISCSI),
 	U3G_DEV(HUAWEI, E1820, U3GINIT_HUAWEISCSI),
+	U3G_DEV(HUAWEI, K3772, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, K3772_INIT, U3GINIT_HUAWEISCSI2),
 	U3G_DEV(HUAWEI, K3765, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, K3765_INIT, U3GINIT_HUAWEISCSI),
 	U3G_DEV(HUAWEI, K3770, U3GINIT_HUAWEI),
@@ -343,7 +344,9 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(NOVATEL, EU870D, 0),
 	U3G_DEV(NOVATEL, MC760, 0),
 	U3G_DEV(NOVATEL, MC547, 0),
+	U3G_DEV(NOVATEL, MC679, 0),
 	U3G_DEV(NOVATEL, MC950D, 0),
+	U3G_DEV(NOVATEL, MC990D, 0),
 	U3G_DEV(NOVATEL, MIFI2200, U3GINIT_SCSIEJECT),
 	U3G_DEV(NOVATEL, MIFI2200V, U3GINIT_SCSIEJECT),
 	U3G_DEV(NOVATEL, U720, 0),
@@ -396,10 +399,15 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(QUALCOMM2, AC8700, 0),
 	U3G_DEV(QUALCOMM2, MF330, 0),
 	U3G_DEV(QUALCOMM2, SIM5218, 0),
+	U3G_DEV(QUALCOMM2, WM620, 0),
 	U3G_DEV(QUALCOMM2, VW110L, U3GINIT_SCSIEJECT),
 	U3G_DEV(QUALCOMM2, GOBI2000_QDL, 0),
 	U3G_DEV(QUALCOMM2, GOBI2000, 0),
+	U3G_DEV(QUALCOMM2, VT80N, 0),
+	U3G_DEV(QUALCOMM3, VFAST2, 0),
 	U3G_DEV(QUALCOMMINC, AC2726, 0),
+	U3G_DEV(QUALCOMMINC, AC682_INIT, U3GINIT_SCSIEJECT),
+	U3G_DEV(QUALCOMMINC, AC682, 0),
 	U3G_DEV(QUALCOMMINC, AC8700, 0),
 	U3G_DEV(QUALCOMMINC, AC8710, 0),
 	U3G_DEV(QUALCOMMINC, CDMA_MSM, U3GINIT_SCSIEJECT),
@@ -467,10 +475,15 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(QUALCOMMINC, SURFSTICK, 0),
 	U3G_DEV(QUALCOMMINC, E2002, 0),
 	U3G_DEV(QUALCOMMINC, E2003, 0),
-	U3G_DEV(QUALCOMMINC, K3772_Z, U3GINIT_SCSIEJECT),
+	U3G_DEV(QUALCOMMINC, K3772_Z, 0),
+	U3G_DEV(QUALCOMMINC, K3772_Z_INIT, U3GINIT_SCSIEJECT),
+	U3G_DEV(QUALCOMMINC, MF195E, 0),
+	U3G_DEV(QUALCOMMINC, MF195E_INIT, U3GINIT_SCSIEJECT),
 	U3G_DEV(QUALCOMMINC, MF626, 0),
 	U3G_DEV(QUALCOMMINC, MF628, 0),
 	U3G_DEV(QUALCOMMINC, MF633R, 0),
+	/* the following is a RNDIS device, no modem features */
+	U3G_DEV(QUALCOMMINC, ZTE_MF730M, U3GINIT_SCSIEJECT),
 	U3G_DEV(QUANTA, GKE, 0),
 	U3G_DEV(QUANTA, GLE, 0),
 	U3G_DEV(QUANTA, GLX, 0),
@@ -509,6 +522,7 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(SIERRA, MC5727, 0),
 	U3G_DEV(SIERRA, MC5727_2, 0),
 	U3G_DEV(SIERRA, MC5728, 0),
+	U3G_DEV(SIERRA, MC7354, 0),
 	U3G_DEV(SIERRA, MC8700, 0),
 	U3G_DEV(SIERRA, MC8755, 0),
 	U3G_DEV(SIERRA, MC8755_2, 0),
@@ -727,6 +741,8 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 		method = U3GINIT_WAIT;
 	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_HUAWEISCSI))
 		method = U3GINIT_HUAWEISCSI;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_HUAWEISCSI2))
+		method = U3GINIT_HUAWEISCSI2;
 	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_TCT))
 		method = U3GINIT_TCT;
 	else if (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa) == 0)
@@ -747,6 +763,9 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 		case U3GINIT_HUAWEISCSI:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI);
 			break;
+		case U3GINIT_HUAWEISCSI2:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI2);
+			break;
 		case U3GINIT_SCSIEJECT:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);
 			break;
@@ -755,7 +774,8 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 			break;
 		case U3GINIT_ZTESTOR:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);
-			error |= usb_msc_eject(udev, 0, MSC_EJECT_ZTESTOR);
+			if (error == 0)
+			    error = usb_msc_eject(udev, 0, MSC_EJECT_ZTESTOR);
 			break;
 		case U3GINIT_CMOTECH:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_CMOTECH);
@@ -889,7 +909,7 @@ u3g_attach(device_t dev)
 		sc->sc_iface[nports] = id->bInterfaceNumber;
 
 		if (bootverbose && sc->sc_xfer[nports][U3G_INTR]) {
-			device_printf(dev, "port %d supports modem control",
+			device_printf(dev, "port %d supports modem control\n",
 				      nports);
 		}
 
@@ -1011,14 +1031,22 @@ u3g_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct ucom_softc *ucom = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
 	uint32_t actlen;
+	uint32_t frame;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 tr_setup:
-		pc = usbd_xfer_get_frame(xfer, 0);
-		if (ucom_get_data(ucom, pc, 0, U3G_BSIZE, &actlen)) {
-			usbd_xfer_set_frame_len(xfer, 0, actlen);
+		for (frame = 0; frame != U3G_TXFRAMES; frame++) {
+			usbd_xfer_set_frame_offset(xfer, frame * U3G_TXSIZE, frame);
+
+			pc = usbd_xfer_get_frame(xfer, frame);
+			if (ucom_get_data(ucom, pc, 0, U3G_TXSIZE, &actlen) == 0)
+				break;
+			usbd_xfer_set_frame_len(xfer, frame, actlen);
+		}
+		if (frame != 0) {
+			usbd_xfer_set_frames(xfer, frame);
 			usbd_transfer_submit(xfer);
 		}
 		break;

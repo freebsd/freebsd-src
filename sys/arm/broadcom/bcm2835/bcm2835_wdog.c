@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/machdep.h>
-#include <machine/fdt.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_wdog.h>
 
@@ -84,6 +83,9 @@ static void bcmwd_watchdog_fn(void *private, u_int cmd, int *error);
 static int
 bcmwd_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-wdt")) {
 		device_set_desc(dev, "BCM2708/2835 Watchdog");
@@ -139,14 +141,13 @@ bcmwd_watchdog_fn(void *private, u_int cmd, int *error)
 
 	if (cmd > 0) {
 		sec = ((uint64_t)1 << (cmd & WD_INTERVAL)) / 1000000000;
-		ticks = (sec << 16) & BCM2835_WDOG_TIME_MASK;
-		if (ticks == 0) {
+		if (sec == 0 || sec > 15) {
 			/* 
 			 * Can't arm
 			 * disable watchdog as watchdog(9) requires
 			 */
 			device_printf(sc->dev,
-			    "Can't arm, timeout is less than 1 second\n");
+			    "Can't arm, timeout must be between 1-15 seconds\n");
 			WRITE(sc, BCM2835_RSTC_REG, 
 			    (BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT) |
 			    BCM2835_RSTC_RESET);
@@ -154,6 +155,7 @@ bcmwd_watchdog_fn(void *private, u_int cmd, int *error)
 			return;
 		}
 
+		ticks = (sec << 16) & BCM2835_WDOG_TIME_MASK;
 		reg = (BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT) | ticks;
 		WRITE(sc, BCM2835_WDOG_REG, reg);
 

@@ -12,17 +12,7 @@ CFLAGS+= -DNEWDB -DNOT_SENDMAIL
 
 WARNS?=	2
 
-LIBSMDIR=	${.OBJDIR}/../../lib/libsm
-LIBSM=		${LIBSMDIR}/libsm.a
-
-LIBSMDBDIR=	${.OBJDIR}/../../lib/libsmdb
-LIBSMDB=	${LIBSMDBDIR}/libsmdb.a
-
-LIBSMUTILDIR=	${.OBJDIR}/../../lib/libsmutil
-LIBSMUTIL=	${LIBSMUTILDIR}/libsmutil.a
-
-DPADD=	${LIBSMDB} ${LIBSMUTIL} ${LIBSM}
-LDADD=	${LIBSMDB} ${LIBSMUTIL} ${LIBSM}
+LIBADD=	smdb smutil sm
 
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h

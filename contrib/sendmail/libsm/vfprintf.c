@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: vfprintf.c,v 1.55 2013/11/22 20:51:44 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: vfprintf.c,v 1.55 2013-11-22 20:51:44 ca Exp $")
 
 /*
 **  Overall:

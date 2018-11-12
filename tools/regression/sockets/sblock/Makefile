@@ -3,7 +3,7 @@
 #
 
 PROG=	sblock
-NO_MAN=
-WARNS?=	2
+MAN=
+WARNS?=	6
 
 .include <bsd.prog.mk>

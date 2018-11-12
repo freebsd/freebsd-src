@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -54,6 +54,7 @@
 #endif /* _KERNEL */
 
 #include <sys/dmu.h>
+#include <sys/dmu_objset.h>
 #include <sys/refcount.h>
 #include <sys/stat.h>
 #include <sys/zap.h>
@@ -67,8 +68,8 @@
 #include "zfs_comutil.h"
 
 /* Used by fstat(1). */
-SYSCTL_INT(_debug_sizeof, OID_AUTO, znode, CTLFLAG_RD, 0, sizeof(znode_t),
-    "sizeof(znode_t)");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, znode, CTLFLAG_RD,
+    SYSCTL_NULL_INT_PTR, sizeof(znode_t), "sizeof(znode_t)");
 
 /*
  * Define ZNODE_STATS to turn on statistic gathering. By default, it is only
@@ -171,7 +172,7 @@ static struct {
 } znode_move_stats;
 #endif	/* ZNODE_STATS */
 
-#ifdef sun
+#ifdef illumos
 static void
 zfs_znode_move_impl(znode_t *ozp, znode_t *nzp)
 {
@@ -276,7 +277,7 @@ zfs_znode_move(void *buf, void *newbuf, size_t size, void *arg)
 	 * can safely ensure that the filesystem is not and will not be
 	 * unmounted. The next statement is equivalent to ZFS_ENTER().
 	 */
-	rrw_enter(&zfsvfs->z_teardown_lock, RW_READER, FTAG);
+	rrm_enter(&zfsvfs->z_teardown_lock, RW_READER, FTAG);
 	if (zfsvfs->z_unmounted) {
 		ZFS_EXIT(zfsvfs);
 		rw_exit(&zfsvfs_lock);
@@ -342,7 +343,7 @@ zfs_znode_move(void *buf, void *newbuf, size_t size, void *arg)
 
 	return (KMEM_CBRC_YES);
 }
-#endif /* sun */
+#endif /* illumos */
 
 void
 zfs_znode_init(void)
@@ -361,12 +362,12 @@ zfs_znode_init(void)
 void
 zfs_znode_fini(void)
 {
-#ifdef sun
+#ifdef illumos
 	/*
 	 * Cleanup vfs & vnode ops
 	 */
 	zfs_remove_op_tables();
-#endif	/* sun */
+#endif
 
 	/*
 	 * Cleanup zcache
@@ -377,7 +378,7 @@ zfs_znode_fini(void)
 	rw_destroy(&zfsvfs_lock);
 }
 
-#ifdef sun
+#ifdef illumos
 struct vnodeops *zfs_dvnodeops;
 struct vnodeops *zfs_fvnodeops;
 struct vnodeops *zfs_symvnodeops;
@@ -469,7 +470,7 @@ zfs_create_op_tables()
 
 	return (error);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 int
 zfs_create_share_dir(zfsvfs_t *zfsvfs, dmu_tx_t *tx)
@@ -688,7 +689,7 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	case VDIR:
 		zp->z_zn_prefetch = B_TRUE; /* z_prefetch default is enabled */
 		break;
-#ifdef sun
+#ifdef illumos
 	case VBLK:
 	case VCHR:
 		{
@@ -699,12 +700,12 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 			vp->v_rdev = zfs_cmpldev(rdev);
 		}
 		break;
-#endif	/* sun */
+#endif
 	case VFIFO:
-#ifdef sun
+#ifdef illumos
 	case VSOCK:
 	case VDOOR:
-#endif	/* sun */
+#endif
 		vp->v_op = &zfs_fifoops;
 		break;
 	case VREG:
@@ -713,14 +714,14 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 			vp->v_op = &zfs_shareops;
 		}
 		break;
-#ifdef sun
+#ifdef illumos
 	case VLNK:
 		vn_setops(vp, zfs_symvnodeops);
 		break;
 	default:
 		vn_setops(vp, zfs_evnodeops);
 		break;
-#endif	/* sun */
+#endif
 	}
 
 	mutex_enter(&zfsvfs->z_znodes_lock);
@@ -793,7 +794,7 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 		gen = vap->va_nblocks;		/* ditto */
 	} else {
 		obj = 0;
-		gethrestime(&now);
+		vfs_timestamp(&now);
 		gen = dmu_tx_get_txg(tx);
 	}
 
@@ -1228,9 +1229,10 @@ again:
 		vnode_t *vp = ZTOV(zp);
 
 		err = insmntque(vp, zfsvfs->z_vfs);
-		if (err == 0)
+		if (err == 0) {
+			vp->v_hash = obj_num;
 			VOP_UNLOCK(vp, 0);
-		else {
+		} else {
 			zp->z_vnode = NULL;
 			zfs_znode_dmu_fini(zp);
 			zfs_znode_free(zp);
@@ -1318,15 +1320,25 @@ zfs_rezget(znode_t *zp)
 	}
 
 	/*
-	 * XXXPJD: Not sure how is that possible, but under heavy
-	 * zfs recv -F load it happens that z_gen is the same, but
-	 * vnode type is different than znode type. This would mean
-	 * that for example regular file was replaced with directory
-	 * which has the same object number.
+	 * It is highly improbable but still quite possible that two
+	 * objects in different datasets are created with the same
+	 * object numbers and in transaction groups with the same
+	 * numbers.  znodes corresponding to those objects would
+	 * have the same z_id and z_gen, but their other attributes
+	 * may be different.
+	 * zfs recv -F may replace one of such objects with the other.
+	 * As a result file properties recorded in the replaced
+	 * object's vnode may no longer match the received object's
+	 * properties.  At present the only cached property is the
+	 * files type recorded in v_type.
+	 * So, handle this case by leaving the old vnode and znode
+	 * disassociated from the actual object.  A new vnode and a
+	 * znode will be created if the object is accessed
+	 * (e.g. via a look-up).  The old vnode and znode will be
+	 * recycled when the last vnode reference is dropped.
 	 */
 	vp = ZTOV(zp);
-	if (vp != NULL &&
-	    vp->v_type != IFTOVT((mode_t)zp->z_mode)) {
+	if (vp != NULL && vp->v_type != IFTOVT((mode_t)zp->z_mode)) {
 		zfs_znode_dmu_fini(zp);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 		return (EIO);
@@ -1424,7 +1436,7 @@ zfs_tstamp_update_setup(znode_t *zp, uint_t flag, uint64_t mtime[2],
 {
 	timestruc_t	now;
 
-	gethrestime(&now);
+	vfs_timestamp(&now);
 
 	if (have_tx) {	/* will sa_bulk_update happen really soon? */
 		zp->z_atime_dirty = 0;
@@ -1488,7 +1500,7 @@ zfs_grow_blocksize(znode_t *zp, uint64_t size, dmu_tx_t *tx)
 	dmu_object_size_from_db(sa_get_db(zp->z_sa_hdl), &zp->z_blksz, &dummy);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * This is a dummy interface used when pvn_vplist_dirty() should *not*
  * be calling back into the fs for a putpage().  E.g.: when truncating
@@ -1502,7 +1514,7 @@ zfs_no_putpage(vnode_t *vp, page_t *pp, u_offset_t *offp, size_t *lenp,
 	ASSERT(0);
 	return (0);
 }
-#endif	/* sun */
+#endif
 
 /*
  * Increase the file length
@@ -1510,7 +1522,7 @@ zfs_no_putpage(vnode_t *vp, page_t *pp, u_offset_t *offp, size_t *lenp,
  *	IN:	zp	- znode of file to free data in.
  *		end	- new end-of-file
  *
- * 	RETURN:	0 on success, error code on failure
+ *	RETURN:	0 on success, error code on failure
  */
 static int
 zfs_extend(znode_t *zp, uint64_t end)
@@ -1542,8 +1554,13 @@ zfs_extend(znode_t *zp, uint64_t end)
 		 * We are growing the file past the current block size.
 		 */
 		if (zp->z_blksz > zp->z_zfsvfs->z_max_blksz) {
+			/*
+			 * File's blocksize is already larger than the
+			 * "recordsize" property.  Only let it grow to
+			 * the next power of 2.
+			 */
 			ASSERT(!ISP2(zp->z_blksz));
-			newblksz = MIN(end, SPA_MAXBLOCKSIZE);
+			newblksz = MIN(end, 1 << highbit64(zp->z_blksz));
 		} else {
 			newblksz = MIN(end, zp->z_zfsvfs->z_max_blksz);
 		}
@@ -1583,7 +1600,7 @@ zfs_extend(znode_t *zp, uint64_t end)
  *		off	- start of section to free.
  *		len	- length of section to free.
  *
- * 	RETURN:	0 on success, error code on failure
+ *	RETURN:	0 on success, error code on failure
  */
 static int
 zfs_free_range(znode_t *zp, uint64_t off, uint64_t len)
@@ -1630,7 +1647,7 @@ zfs_free_range(znode_t *zp, uint64_t off, uint64_t len)
  *	IN:	zp	- znode of file to free data in.
  *		end	- new end-of-file.
  *
- * 	RETURN:	0 on success, error code on failure
+ *	RETURN:	0 on success, error code on failure
  */
 static int
 zfs_trunc(znode_t *zp, uint64_t end)
@@ -1664,6 +1681,7 @@ zfs_trunc(znode_t *zp, uint64_t end)
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
 	zfs_sa_upgrade_txholds(tx, zp);
+	dmu_tx_mark_netfree(tx);
 	error = dmu_tx_assign(tx, TXG_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
@@ -1706,7 +1724,7 @@ zfs_trunc(znode_t *zp, uint64_t end)
  *		flag	- current file open mode flags.
  *		log	- TRUE if this action should be logged
  *
- * 	RETURN:	0 on success, error code on failure
+ *	RETURN:	0 on success, error code on failure
  */
 int
 zfs_freesp(znode_t *zp, uint64_t off, uint64_t len, int flag, boolean_t log)

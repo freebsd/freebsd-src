@@ -11,17 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "ssaupdater"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/Support/AlignOf.h"
-#include "llvm/Support/Allocator.h"
-#include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -30,22 +27,22 @@
 
 using namespace llvm;
 
+#define DEBUG_TYPE "ssaupdater"
+
 typedef DenseMap<BasicBlock*, Value*> AvailableValsTy;
 static AvailableValsTy &getAvailableVals(void *AV) {
   return *static_cast<AvailableValsTy*>(AV);
 }
 
 SSAUpdater::SSAUpdater(SmallVectorImpl<PHINode*> *NewPHI)
-  : AV(0), ProtoType(0), ProtoName(), InsertedPHIs(NewPHI) {}
+  : AV(nullptr), ProtoType(nullptr), ProtoName(), InsertedPHIs(NewPHI) {}
 
 SSAUpdater::~SSAUpdater() {
   delete static_cast<AvailableValsTy*>(AV);
 }
 
-/// Initialize - Reset this object to get ready for a new set of SSA
-/// updates with type 'Ty'.  PHI nodes get a name based on 'Name'.
 void SSAUpdater::Initialize(Type *Ty, StringRef Name) {
-  if (AV == 0)
+  if (!AV)
     AV = new AvailableValsTy();
   else
     getAvailableVals(AV).clear();
@@ -53,25 +50,19 @@ void SSAUpdater::Initialize(Type *Ty, StringRef Name) {
   ProtoName = Name;
 }
 
-/// HasValueForBlock - Return true if the SSAUpdater already has a value for
-/// the specified block.
 bool SSAUpdater::HasValueForBlock(BasicBlock *BB) const {
   return getAvailableVals(AV).count(BB);
 }
 
-/// AddAvailableValue - Indicate that a rewritten value is available in the
-/// specified block with the specified value.
 void SSAUpdater::AddAvailableValue(BasicBlock *BB, Value *V) {
-  assert(ProtoType != 0 && "Need to initialize SSAUpdater");
+  assert(ProtoType && "Need to initialize SSAUpdater");
   assert(ProtoType == V->getType() &&
          "All rewritten values must have the same type");
   getAvailableVals(AV)[BB] = V;
 }
 
-/// IsEquivalentPHI - Check if PHI has the same incoming value as specified
-/// in ValueMapping for each predecessor block.
 static bool IsEquivalentPHI(PHINode *PHI,
-                            DenseMap<BasicBlock*, Value*> &ValueMapping) {
+                          SmallDenseMap<BasicBlock*, Value*, 8> &ValueMapping) {
   unsigned PHINumValues = PHI->getNumIncomingValues();
   if (PHINumValues != ValueMapping.size())
     return false;
@@ -86,32 +77,11 @@ static bool IsEquivalentPHI(PHINode *PHI,
   return true;
 }
 
-/// GetValueAtEndOfBlock - Construct SSA form, materializing a value that is
-/// live at the end of the specified block.
 Value *SSAUpdater::GetValueAtEndOfBlock(BasicBlock *BB) {
   Value *Res = GetValueAtEndOfBlockInternal(BB);
   return Res;
 }
 
-/// GetValueInMiddleOfBlock - Construct SSA form, materializing a value that
-/// is live in the middle of the specified block.
-///
-/// GetValueInMiddleOfBlock is the same as GetValueAtEndOfBlock except in one
-/// important case: if there is a definition of the rewritten value after the
-/// 'use' in BB.  Consider code like this:
-///
-///      X1 = ...
-///   SomeBB:
-///      use(X)
-///      X2 = ...
-///      br Cond, SomeBB, OutBB
-///
-/// In this case, there are two values (X1 and X2) added to the AvailableVals
-/// set by the client of the rewriter, and those values are both live out of
-/// their respective blocks.  However, the use of X happens in the *middle* of
-/// a block.  Because of this, we need to insert a new PHI node in SomeBB to
-/// merge the appropriate values, and this value isn't live out of the block.
-///
 Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
   // If there is no definition of the renamed variable in this block, just use
   // GetValueAtEndOfBlock to do our work.
@@ -121,7 +91,7 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
   // Otherwise, we have the hard case.  Get the live-in values for each
   // predecessor.
   SmallVector<std::pair<BasicBlock*, Value*>, 8> PredValues;
-  Value *SingularValue = 0;
+  Value *SingularValue = nullptr;
 
   // We can get our predecessor info by walking the pred_iterator list, but it
   // is relatively slow.  If we already have PHI nodes in this block, walk one
@@ -136,7 +106,7 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
       if (i == 0)
         SingularValue = PredVal;
       else if (PredVal != SingularValue)
-        SingularValue = 0;
+        SingularValue = nullptr;
     }
   } else {
     bool isFirstPred = true;
@@ -150,7 +120,7 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
         SingularValue = PredVal;
         isFirstPred = false;
       } else if (PredVal != SingularValue)
-        SingularValue = 0;
+        SingularValue = nullptr;
     }
   }
 
@@ -159,14 +129,14 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
     return UndefValue::get(ProtoType);
 
   // Otherwise, if all the merged values are the same, just use it.
-  if (SingularValue != 0)
+  if (SingularValue)
     return SingularValue;
 
   // Otherwise, we do need a PHI: check to see if we already have one available
   // in this block that produces the right value.
   if (isa<PHINode>(BB->begin())) {
-    DenseMap<BasicBlock*, Value*> ValueMapping(PredValues.begin(),
-                                               PredValues.end());
+    SmallDenseMap<BasicBlock*, Value*, 8> ValueMapping(PredValues.begin(),
+                                                       PredValues.end());
     PHINode *SomePHI;
     for (BasicBlock::iterator It = BB->begin();
          (SomePHI = dyn_cast<PHINode>(It)); ++It) {
@@ -203,8 +173,6 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
   return InsertedPHI;
 }
 
-/// RewriteUse - Rewrite a use of the symbolic value.  This handles PHI nodes,
-/// which use their value in the corresponding predecessor.
 void SSAUpdater::RewriteUse(Use &U) {
   Instruction *User = cast<Instruction>(U.getUser());
 
@@ -222,10 +190,6 @@ void SSAUpdater::RewriteUse(Use &U) {
   U.set(V);
 }
 
-/// RewriteUseAfterInsertions - Rewrite a use, just like RewriteUse.  However,
-/// this version of the method can rewrite uses in the same block as a
-/// definition, because it assumes that all uses of a value are below any
-/// inserted values.
 void SSAUpdater::RewriteUseAfterInsertions(Use &U) {
   Instruction *User = cast<Instruction>(U.getUser());
   
@@ -238,8 +202,6 @@ void SSAUpdater::RewriteUseAfterInsertions(Use &U) {
   U.set(V);
 }
 
-/// SSAUpdaterTraits<SSAUpdater> - Traits for the SSAUpdaterImpl template,
-/// specialized for SSAUpdater.
 namespace llvm {
 template<>
 class SSAUpdaterTraits<SSAUpdater> {
@@ -330,7 +292,7 @@ public:
     PHINode *PHI = ValueIsPHI(Val, Updater);
     if (PHI && PHI->getNumIncomingValues() == 0)
       return PHI;
-    return 0;
+    return nullptr;
   }
 
   /// GetPHIValue - For the specified PHI instruction, return the value
@@ -342,10 +304,9 @@ public:
 
 } // End llvm namespace
 
-/// GetValueAtEndOfBlockInternal - Check to see if AvailableVals has an entry
-/// for the specified BB and if so, return it.  If not, construct SSA form by
-/// first calculating the required placement of PHIs and then inserting new
-/// PHIs where needed.
+/// Check to see if AvailableVals has an entry for the specified BB and if so,
+/// return it.  If not, construct SSA form by first calculating the required
+/// placement of PHIs and then inserting new PHIs where needed.
 Value *SSAUpdater::GetValueAtEndOfBlockInternal(BasicBlock *BB) {
   AvailableValsTy &AvailableVals = getAvailableVals(AV);
   if (Value *V = AvailableVals[BB])
@@ -441,7 +402,7 @@ run(const SmallVectorImpl<Instruction*> &Insts) const {
     // the order of these instructions in the block.  If the first use in the
     // block is a load, then it uses the live in value.  The last store defines
     // the live out value.  We handle this by doing a linear scan of the block.
-    Value *StoredValue = 0;
+    Value *StoredValue = nullptr;
     for (BasicBlock::iterator II = BB->begin(), E = BB->end(); II != E; ++II) {
       if (LoadInst *L = dyn_cast<LoadInst>(II)) {
         // If this is a load from an unrelated pointer, ignore it.

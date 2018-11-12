@@ -3,8 +3,13 @@
  * Copyright (c) 2010 Konstantin Belousov <kib@FreeBSD.org>
  * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * Copyright 2012-2013 John-Mark Gurney <jmg@FreeBSD.org>
+ * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
  *
+ * Portions of this software were developed by John-Mark Gurney
+ * under sponsorship of the FreeBSD Foundation and
+ * Rubicon Communications, LLC (Netgate).
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -29,15 +34,18 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
- 
+
 #include <sys/param.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <crypto/aesni/aesni.h>
- 
+
+#include <opencrypto/gmac.h>
+
 #include "aesencdec.h"
+#include <smmintrin.h>
 
 MALLOC_DECLARE(M_AESNI);
 
@@ -173,6 +181,104 @@ aesni_decrypt_ecb(int rounds, const void *key_schedule, size_t len,
 		_mm_storeu_si128((__m128i *)to, tot);
 		from += AES_BLOCK_LEN;
 		to += AES_BLOCK_LEN;
+	}
+}
+
+/*
+ * mixed endian increment, low 64bits stored in hi word to be compatible
+ * with _icm's BSWAP.
+ */
+static inline __m128i
+nextc(__m128i x)
+{
+	const __m128i ONE = _mm_setr_epi32(0, 0, 1, 0);
+	const __m128i ZERO = _mm_setzero_si128();
+
+	x = _mm_add_epi64(x, ONE);
+	__m128i t = _mm_cmpeq_epi64(x, ZERO);
+	t = _mm_unpackhi_epi64(t, ZERO);
+	x = _mm_sub_epi64(x, t);
+
+	return x;
+}
+
+void
+aesni_encrypt_icm(int rounds, const void *key_schedule, size_t len,
+    const uint8_t *from, uint8_t *to, const uint8_t iv[AES_BLOCK_LEN])
+{
+	__m128i tot;
+	__m128i tmp1, tmp2, tmp3, tmp4;
+	__m128i tmp5, tmp6, tmp7, tmp8;
+	__m128i ctr1, ctr2, ctr3, ctr4;
+	__m128i ctr5, ctr6, ctr7, ctr8;
+	__m128i BSWAP_EPI64;
+	__m128i tout[8];
+	struct blocks8 *top;
+	const struct blocks8 *blks;
+	size_t i, cnt;
+
+	BSWAP_EPI64 = _mm_set_epi8(8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7);
+
+	ctr1 = _mm_loadu_si128((__m128i*)iv);
+	ctr1 = _mm_shuffle_epi8(ctr1, BSWAP_EPI64);
+
+	cnt = len / AES_BLOCK_LEN / 8;
+	for (i = 0; i < cnt; i++) {
+		tmp1 = _mm_shuffle_epi8(ctr1, BSWAP_EPI64);
+		ctr2 = nextc(ctr1);
+		tmp2 = _mm_shuffle_epi8(ctr2, BSWAP_EPI64);
+		ctr3 = nextc(ctr2);
+		tmp3 = _mm_shuffle_epi8(ctr3, BSWAP_EPI64);
+		ctr4 = nextc(ctr3);
+		tmp4 = _mm_shuffle_epi8(ctr4, BSWAP_EPI64);
+		ctr5 = nextc(ctr4);
+		tmp5 = _mm_shuffle_epi8(ctr5, BSWAP_EPI64);
+		ctr6 = nextc(ctr5);
+		tmp6 = _mm_shuffle_epi8(ctr6, BSWAP_EPI64);
+		ctr7 = nextc(ctr6);
+		tmp7 = _mm_shuffle_epi8(ctr7, BSWAP_EPI64);
+		ctr8 = nextc(ctr7);
+		tmp8 = _mm_shuffle_epi8(ctr8, BSWAP_EPI64);
+		ctr1 = nextc(ctr8);
+
+		blks = (const struct blocks8 *)from;
+		top = (struct blocks8 *)to;
+		aesni_enc8(rounds - 1, key_schedule, tmp1, tmp2, tmp3, tmp4,
+		    tmp5, tmp6, tmp7, tmp8, tout);
+
+		top->blk[0] = blks->blk[0] ^ tout[0];
+		top->blk[1] = blks->blk[1] ^ tout[1];
+		top->blk[2] = blks->blk[2] ^ tout[2];
+		top->blk[3] = blks->blk[3] ^ tout[3];
+		top->blk[4] = blks->blk[4] ^ tout[4];
+		top->blk[5] = blks->blk[5] ^ tout[5];
+		top->blk[6] = blks->blk[6] ^ tout[6];
+		top->blk[7] = blks->blk[7] ^ tout[7];
+
+		from += AES_BLOCK_LEN * 8;
+		to += AES_BLOCK_LEN * 8;
+	}
+	i *= 8;
+	cnt = len / AES_BLOCK_LEN;
+	for (; i < cnt; i++) {
+		tmp1 = _mm_shuffle_epi8(ctr1, BSWAP_EPI64);
+		ctr1 = nextc(ctr1);
+
+		tot = aesni_enc(rounds - 1, key_schedule, tmp1);
+
+		tot = tot ^ _mm_loadu_si128((const __m128i *)from);
+		_mm_storeu_si128((__m128i *)to, tot);
+
+		from += AES_BLOCK_LEN;
+		to += AES_BLOCK_LEN;
+	}
+
+	/* handle remaining partial round */
+	if (len % AES_BLOCK_LEN != 0) {
+		tmp1 = _mm_shuffle_epi8(ctr1, BSWAP_EPI64);
+		tot = aesni_enc(rounds - 1, key_schedule, tmp1);
+		tot = tot ^ _mm_loadu_si128((const __m128i *)from);
+		memcpy(to, &tot, len % AES_BLOCK_LEN);
 	}
 }
 
@@ -329,12 +435,19 @@ aesni_decrypt_xts(int rounds, const void *data_schedule,
 	    iv, 0);
 }
 
-static int
+int
 aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
     int keylen)
 {
+	int decsched;
+
+	decsched = 1;
 
 	switch (ses->algo) {
+	case CRYPTO_AES_ICM:
+	case CRYPTO_AES_NIST_GCM_16:
+		decsched = 0;
+		/* FALLTHROUGH */
 	case CRYPTO_AES_CBC:
 		switch (keylen) {
 		case 128:
@@ -347,6 +460,7 @@ aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
 			ses->rounds = AES256_ROUNDS;
 			break;
 		default:
+			CRYPTDEB("invalid CBC/ICM/GCM key length");
 			return (EINVAL);
 		}
 		break;
@@ -359,6 +473,7 @@ aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
 			ses->rounds = AES256_ROUNDS;
 			break;
 		default:
+			CRYPTDEB("invalid XTS key length");
 			return (EINVAL);
 		}
 		break;
@@ -367,112 +482,13 @@ aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
 	}
 
 	aesni_set_enckey(key, ses->enc_schedule, ses->rounds);
-	aesni_set_deckey(ses->enc_schedule, ses->dec_schedule, ses->rounds);
-	if (ses->algo == CRYPTO_AES_CBC)
-		arc4rand(ses->iv, sizeof(ses->iv), 0);
-	else /* if (ses->algo == CRYPTO_AES_XTS) */ {
+	if (decsched)
+		aesni_set_deckey(ses->enc_schedule, ses->dec_schedule,
+		    ses->rounds);
+
+	if (ses->algo == CRYPTO_AES_XTS)
 		aesni_set_enckey(key + keylen / 16, ses->xts_schedule,
 		    ses->rounds);
-	}
 
 	return (0);
-}
-
-int
-aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini)
-{
-	struct thread *td;
-	int error, saved_ctx;
-
-	td = curthread;
-	if (!is_fpu_kern_thread(0)) {
-		error = fpu_kern_enter(td, ses->fpu_ctx, FPU_KERN_NORMAL);
-		saved_ctx = 1;
-	} else {
-		error = 0;
-		saved_ctx = 0;
-	}
-	if (error == 0) {
-		error = aesni_cipher_setup_common(ses, encini->cri_key,
-		    encini->cri_klen);
-		if (saved_ctx)
-			fpu_kern_leave(td, ses->fpu_ctx);
-	}
-	return (error);
-}
-
-int
-aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
-    struct cryptop *crp)
-{
-	struct thread *td;
-	uint8_t *buf;
-	int error, allocated, saved_ctx;
-
-	buf = aesni_cipher_alloc(enccrd, crp, &allocated);
-	if (buf == NULL)
-		return (ENOMEM);
-
-	td = curthread;
-	if (!is_fpu_kern_thread(0)) {
-		error = fpu_kern_enter(td, ses->fpu_ctx, FPU_KERN_NORMAL);
-		if (error != 0)
-			goto out;
-		saved_ctx = 1;
-	} else {
-		saved_ctx = 0;
-		error = 0;
-	}
-
-	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
-		error = aesni_cipher_setup_common(ses, enccrd->crd_key,
-		    enccrd->crd_klen);
-		if (error != 0)
-			goto out;
-	}
-
-	if ((enccrd->crd_flags & CRD_F_ENCRYPT) != 0) {
-		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
-			bcopy(enccrd->crd_iv, ses->iv, AES_BLOCK_LEN);
-		if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0)
-			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    enccrd->crd_inject, AES_BLOCK_LEN, ses->iv);
-		if (ses->algo == CRYPTO_AES_CBC) {
-			aesni_encrypt_cbc(ses->rounds, ses->enc_schedule,
-			    enccrd->crd_len, buf, buf, ses->iv);
-		} else /* if (ses->algo == CRYPTO_AES_XTS) */ {
-			aesni_encrypt_xts(ses->rounds, ses->enc_schedule,
-			    ses->xts_schedule, enccrd->crd_len, buf, buf,
-			    ses->iv);
-		}
-	} else {
-		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
-			bcopy(enccrd->crd_iv, ses->iv, AES_BLOCK_LEN);
-		else
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    enccrd->crd_inject, AES_BLOCK_LEN, ses->iv);
-		if (ses->algo == CRYPTO_AES_CBC) {
-			aesni_decrypt_cbc(ses->rounds, ses->dec_schedule,
-			    enccrd->crd_len, buf, ses->iv);
-		} else /* if (ses->algo == CRYPTO_AES_XTS) */ {
-			aesni_decrypt_xts(ses->rounds, ses->dec_schedule,
-			    ses->xts_schedule, enccrd->crd_len, buf, buf,
-			    ses->iv);
-		}
-	}
-	if (saved_ctx)
-		fpu_kern_leave(td, ses->fpu_ctx);
-	if (allocated)
-		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
-		    enccrd->crd_len, buf);
-	if ((enccrd->crd_flags & CRD_F_ENCRYPT) != 0)
-		crypto_copydata(crp->crp_flags, crp->crp_buf,
-		    enccrd->crd_skip + enccrd->crd_len - AES_BLOCK_LEN,
-		    AES_BLOCK_LEN, ses->iv);
- out:
-	if (allocated) {
-		bzero(buf, enccrd->crd_len);
-		free(buf, M_AESNI);
-	}
-	return (error);
 }

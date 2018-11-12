@@ -36,6 +36,9 @@
 static HAL_BOOL ar9300ClrMulticastFilterIndex(struct ath_hal *ah, uint32_t ix);
 static HAL_BOOL ar9300SetMulticastFilterIndex(struct ath_hal *ah, uint32_t ix);
 
+static void ar9300_beacon_set_beacon_timers(struct ath_hal *ah,
+    const HAL_BEACON_TIMERS *bt);
+
 static void
 ar9300SetChainMasks(struct ath_hal *ah, uint32_t tx_chainmask,
     uint32_t rx_chainmask)
@@ -60,13 +63,43 @@ ar9300_freebsd_set_tx_power_limit(struct ath_hal *ah, uint32_t limit)
 	return (ar9300_set_tx_power_limit(ah, limit, 0, 0));
 }
 
+static uint64_t
+ar9300_get_next_tbtt(struct ath_hal *ah)
+{
+	return (OS_REG_READ(ah, AR_NEXT_TBTT_TIMER));
+}
+
+
+/*
+ * TODO: implement the antenna diversity control for AR9485 and
+ * other LNA mixing based NICs.
+ *
+ * For now we'll just go with the HAL default and make these no-ops.
+ */
+static HAL_ANT_SETTING
+ar9300_freebsd_get_antenna_switch(struct ath_hal *ah)
+{
+
+	return (HAL_ANT_VARIABLE);
+}
+
+static HAL_BOOL
+ar9300_freebsd_set_antenna_switch(struct ath_hal *ah, HAL_ANT_SETTING setting)
+{
+
+	return (AH_TRUE);
+}
+
+static u_int
+ar9300_freebsd_get_cts_timeout(struct ath_hal *ah)
+{
+    u_int clks = MS(OS_REG_READ(ah, AR_TIME_OUT), AR_TIME_OUT_CTS);
+    return ath_hal_mac_usec(ah, clks);      /* convert from system clocks */
+}
 
 void
 ar9300_attach_freebsd_ops(struct ath_hal *ah)
 {
-
-	/* stub everything first */
-	ar9300_set_stub_functions(ah);
 
 	/* Global functions */
 	ah->ah_detach		= ar9300_detach;
@@ -154,8 +187,8 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_getRfGain		= ar9300_get_rfgain;
 	ah->ah_getDefAntenna	= ar9300_get_def_antenna;
 	ah->ah_setDefAntenna	= ar9300_set_def_antenna;
-	// ah->ah_getAntennaSwitch	= ar9300_get_antenna_switch;
-	// ah->ah_setAntennaSwitch	= ar9300_set_antenna_switch;
+	ah->ah_getAntennaSwitch	= ar9300_freebsd_get_antenna_switch;
+	ah->ah_setAntennaSwitch	= ar9300_freebsd_set_antenna_switch;
 	// ah->ah_setSifsTime		= ar9300_set_sifs_time;
 	// ah->ah_getSifsTime		= ar9300_get_sifs_time;
 	ah->ah_setSlotTime		= ar9300_set_slot_time;
@@ -164,6 +197,7 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_setAckTimeout	= ar9300_set_ack_timeout;
 	// XXX ack/ctsrate
 	// XXX CTS timeout
+	ah->ah_getCTSTimeout = ar9300_freebsd_get_cts_timeout;
 	// XXX decompmask
 	// coverageclass
 	ah->ah_setQuiet		= ar9300_set_quiet;
@@ -191,10 +225,10 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	/* Beacon functions */
 	/* ah_setBeaconTimers */
 	ah->ah_beaconInit		= ar9300_freebsd_beacon_init;
-	/* ah_setBeaconTimers */
+	ah->ah_setBeaconTimers		= ar9300_beacon_set_beacon_timers;
 	ah->ah_setStationBeaconTimers = ar9300_set_sta_beacon_timers;
 	/* ah_resetStationBeaconTimers */
-	/* ah_getNextTBTT */
+	ah->ah_getNextTBTT = ar9300_get_next_tbtt;
 
 	/* Interrupt functions */
 	ah->ah_isInterruptPending	= ar9300_is_interrupt_pending;
@@ -246,12 +280,21 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_btCoexDisable		= ar9300_bt_coex_disable;
 	ah->ah_btCoexEnable		= ar9300_bt_coex_enable;
 
+	/* MCI bluetooth functions */
+	if (AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah)) {
+		ah->ah_btCoexSetWeights = ar9300_mci_bt_coex_set_weights;
+		ah->ah_btCoexDisable = ar9300_mci_bt_coex_disable;
+		ah->ah_btCoexEnable = ar9300_mci_bt_coex_enable;
+	}
+	ah->ah_btMciSetup		= ar9300_mci_setup;
+	ah->ah_btMciSendMessage		= ar9300_mci_send_message;
+	ah->ah_btMciGetInterrupt	= ar9300_mci_get_interrupt;
+	ah->ah_btMciGetState		= ar9300_mci_state;
+	ah->ah_btMciDetach		= ar9300_mci_detach;
+
 	/* LNA diversity functions */
 	ah->ah_divLnaConfGet = ar9300_ant_div_comb_get_config;
 	ah->ah_divLnaConfSet = ar9300_ant_div_comb_set_config;
-
-	/* Setup HAL configuration defaults */
-	ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable = 0x000bbb88;
 }
 
 HAL_BOOL
@@ -323,11 +366,26 @@ ar9300_ani_poll_freebsd(struct ath_hal *ah,
 
 	HAL_NODE_STATS stats;
 	HAL_ANISTATS anistats;
+	HAL_SURVEY_SAMPLE survey;
 
 	OS_MEMZERO(&stats, sizeof(stats));
 	OS_MEMZERO(&anistats, sizeof(anistats));
+	OS_MEMZERO(&survey, sizeof(survey));
 
 	ar9300_ani_ar_poll(ah, &stats, chan, &anistats);
+
+	/*
+	 * If ANI stats are valid, use them to update the
+	 * channel survey.
+	 */
+	if (anistats.valid) {
+		survey.cycle_count = anistats.cyclecnt_diff;
+		survey.chan_busy = anistats.rxclr_cnt;
+		survey.ext_chan_busy = anistats.extrxclr_cnt;
+		survey.tx_busy = anistats.txframecnt_diff;
+		survey.rx_busy = anistats.rxframecnt_diff;
+		ath_hal_survey_add_sample(ah, &survey);
+	}
 }
 
 /*
@@ -335,9 +393,11 @@ ar9300_ani_poll_freebsd(struct ath_hal *ah,
  * wants.
  */
 void
-ar9300_config_defaults_freebsd(struct ath_hal *ah)
+ar9300_config_defaults_freebsd(struct ath_hal *ah, HAL_OPS_CONFIG *ah_config)
 {
 
+	/* Until FreeBSD's HAL does this by default - just copy */
+	OS_MEMCPY(&ah->ah_config, ah_config, sizeof(HAL_OPS_CONFIG));
 	ah->ah_config.ath_hal_enable_ani = AH_TRUE;
 }
 
@@ -465,11 +525,13 @@ ar9300_freebsd_setup_x_tx_desc(struct ath_hal *ah, struct ath_desc *ds,
     u_int txRate3, u_int txTries3)
 {
 
+#if 0
 	ath_hal_printf(ah, "%s: called, 0x%x/%d, 0x%x/%d, 0x%x/%d\n",
 	    __func__,
 	    txRate1, txTries1,
 	    txRate2, txTries2,
 	    txRate3, txTries3);
+#endif
 
 	/* XXX should only be called during probe */
 	return (AH_TRUE);
@@ -590,8 +652,8 @@ ar9300_freebsd_beacon_init(struct ath_hal *ah, uint32_t next_beacon,
     uint32_t beacon_period)
 {
 
-	ar9300_beacon_init(ah, AH_PRIVATE(ah)->ah_opmode,
-	    next_beacon, beacon_period);
+	ar9300_beacon_init(ah, next_beacon, beacon_period, 0,
+	    AH_PRIVATE(ah)->ah_opmode);
 }
 
 HAL_BOOL
@@ -652,6 +714,55 @@ ar9300SetMulticastFilterIndex(struct ath_hal *ah, uint32_t ix)
 	}
 	return (AH_TRUE);
 }
+
+#define	TU_TO_USEC(_tu) ((_tu) << 10)
+#define	ONE_EIGHTH_TU_TO_USEC(_tu8) ((_tu8) << 7)
+
+/*
+ * Initializes all of the hardware registers used to
+ * send beacons.  Note that for station operation the
+ * driver calls ar9300_set_sta_beacon_timers instead.
+ */
+static void
+ar9300_beacon_set_beacon_timers(struct ath_hal *ah,
+    const HAL_BEACON_TIMERS *bt)
+{
+	uint32_t bperiod;
+
+#if 0
+    HALASSERT(opmode == HAL_M_IBSS || opmode == HAL_M_HOSTAP);
+    if (opmode == HAL_M_IBSS) {
+        OS_REG_SET_BIT(ah, AR_TXCFG, AR_TXCFG_ADHOC_BEACON_ATIM_TX_POLICY);
+    }
+#endif
+
+	/* XXX TODO: should migrate the HAL code to always use ONE_EIGHTH_TU */
+	OS_REG_WRITE(ah, AR_NEXT_TBTT_TIMER, TU_TO_USEC(bt->bt_nexttbtt));
+	OS_REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT, ONE_EIGHTH_TU_TO_USEC(bt->bt_nextdba));
+	OS_REG_WRITE(ah, AR_NEXT_SWBA, ONE_EIGHTH_TU_TO_USEC(bt->bt_nextswba));
+	OS_REG_WRITE(ah, AR_NEXT_NDP_TIMER, TU_TO_USEC(bt->bt_nextatim));
+
+	bperiod = TU_TO_USEC(bt->bt_intval & HAL_BEACON_PERIOD);
+	/* XXX TODO! */
+//        ahp->ah_beaconInterval = bt->bt_intval & HAL_BEACON_PERIOD;
+	OS_REG_WRITE(ah, AR_BEACON_PERIOD, bperiod);
+	OS_REG_WRITE(ah, AR_DMA_BEACON_PERIOD, bperiod);
+	OS_REG_WRITE(ah, AR_SWBA_PERIOD, bperiod);
+	OS_REG_WRITE(ah, AR_NDP_PERIOD, bperiod);
+
+	/*
+	 * Reset TSF if required.
+	 */
+	if (bt->bt_intval & HAL_BEACON_RESET_TSF)
+		ar9300_reset_tsf(ah);
+
+	/* enable timers */
+	/* NB: flags == 0 handled specially for backwards compatibility */
+	OS_REG_SET_BIT(ah, AR_TIMER_MODE,
+	    bt->bt_flags != 0 ? bt->bt_flags :
+	    AR_TBTT_TIMER_EN | AR_DBA_TIMER_EN | AR_SWBA_TIMER_EN);
+}
+
 
 /*
  * RF attach stubs

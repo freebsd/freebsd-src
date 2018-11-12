@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_DIAGNOSTIC_RENDERER_H_
-#define LLVM_CLANG_FRONTEND_DIAGNOSTIC_RENDERER_H_
+#ifndef LLVM_CLANG_FRONTEND_DIAGNOSTICRENDERER_H
+#define LLVM_CLANG_FRONTEND_DIAGNOSTICRENDERER_H
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
@@ -83,9 +83,7 @@ protected:
                                  DiagnosticsEngine::Level Level,
                                  ArrayRef<CharSourceRange> Ranges,
                                  const SourceManager &SM) = 0;
-  
-  virtual void emitBasicNote(StringRef Message) = 0;
-  
+
   virtual void emitCodeContext(SourceLocation Loc,
                                DiagnosticsEngine::Level Level,
                                SmallVectorImpl<CharSourceRange>& Ranges,
@@ -108,6 +106,7 @@ protected:
 
   
 private:
+  void emitBasicNote(StringRef Message);
   void emitIncludeStack(SourceLocation Loc, PresumedLoc PLoc,
                         DiagnosticsEngine::Level Level, const SourceManager &SM);
   void emitIncludeStackRecursively(SourceLocation Loc, const SourceManager &SM);
@@ -144,7 +143,7 @@ public:
                       StringRef Message, ArrayRef<CharSourceRange> Ranges,
                       ArrayRef<FixItHint> FixItHints,
                       const SourceManager *SM,
-                      DiagOrStoredDiag D = (Diagnostic *)0);
+                      DiagOrStoredDiag D = (Diagnostic *)nullptr);
 
   void emitStoredDiagnostic(StoredDiagnostic &Diag);
 };
@@ -158,20 +157,17 @@ public:
     : DiagnosticRenderer(LangOpts, DiagOpts) {}
   
   virtual ~DiagnosticNoteRenderer();
-  
-  virtual void emitBasicNote(StringRef Message);
-    
-  virtual void emitIncludeLocation(SourceLocation Loc,
-                                   PresumedLoc PLoc,
-                                   const SourceManager &SM);
 
-  virtual void emitImportLocation(SourceLocation Loc, PresumedLoc PLoc,
+  void emitIncludeLocation(SourceLocation Loc, PresumedLoc PLoc,
+                           const SourceManager &SM) override;
+
+  void emitImportLocation(SourceLocation Loc, PresumedLoc PLoc,
+                          StringRef ModuleName,
+                          const SourceManager &SM) override;
+
+  void emitBuildingModuleLocation(SourceLocation Loc, PresumedLoc PLoc,
                                   StringRef ModuleName,
-                                  const SourceManager &SM);
-
-  virtual void emitBuildingModuleLocation(SourceLocation Loc, PresumedLoc PLoc,
-                                          StringRef ModuleName,
-                                          const SourceManager &SM);
+                                  const SourceManager &SM) override;
 
   virtual void emitNote(SourceLocation Loc, StringRef Message,
                         const SourceManager *SM) = 0;

@@ -39,6 +39,7 @@
  * Machine State Register (MSR) - All cores
  */
 #define	PSL_VEC		0x02000000UL	/* AltiVec/SPE vector unit available */
+#define	PSL_VSX		0x00800000UL	/* Vector-Scalar unit available */
 #define	PSL_EE		0x00008000UL	/* external interrupt enable */
 #define	PSL_PR		0x00004000UL	/* privilege mode (1 == user) */
 #define	PSL_FP		0x00002000UL	/* floating point enable */
@@ -86,17 +87,20 @@
 /* Initial kernel MSR, use IS=1 ad DS=1. */
 #define PSL_KERNSET_INIT	(PSL_IS | PSL_DS)
 #define PSL_KERNSET		(PSL_CE | PSL_ME | PSL_EE)
+#define PSL_SRR1_MASK	0x00000000UL	/* No mask on Book-E */
 #elif defined(BOOKE_PPC4XX)
 #define PSL_KERNSET	(PSL_CE | PSL_ME | PSL_EE | PSL_FP)
+#define PSL_SRR1_MASK	0x00000000UL	/* No mask on Book-E */
 #elif defined(AIM)
 #ifdef __powerpc64__
 #define	PSL_KERNSET	(PSL_SF | PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI)
 #else
 #define	PSL_KERNSET	(PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI)
 #endif
+#define PSL_SRR1_MASK	0x783f0000UL	/* Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64) */
 #endif
 
 #define	PSL_USERSET	(PSL_KERNSET | PSL_PR)
-#define	PSL_USERSTATIC	~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1)
+#define	PSL_USERSTATIC	(~(PSL_VEC | PSL_FP | PSL_FE0 | PSL_FE1) & ~PSL_SRR1_MASK)
 
 #endif	/* _MACHINE_PSL_H_ */

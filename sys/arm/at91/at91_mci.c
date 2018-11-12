@@ -25,6 +25,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -61,6 +63,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #include "mmcbr_if.h"
 
@@ -342,7 +350,10 @@ at91_mci_fini(device_t dev)
 static int
 at91_mci_probe(device_t dev)
 {
-
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "atmel,hsmci"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "MCI mmc/sd host bridge");
 	return (0);
 }
@@ -1199,10 +1210,11 @@ at91_mci_intr(void *arg)
 		 */
 		if (cmd->opcode != 8) {
 			device_printf(sc->dev,
-			    "IO error; status MCI_SR = 0x%x cmd opcode = %d%s\n",
-			    sr, cmd->opcode,
+			    "IO error; status MCI_SR = 0x%b cmd opcode = %d%s\n",
+			    sr, MCI_SR_BITSTRING, cmd->opcode,
 			    (cmd->opcode != 12) ? "" :
 			    (sc->flags & CMD_MULTIREAD) ? " after read" : " after write");
+			/* XXX not sure RTOE needs a full reset, just a retry */
 			at91_mci_reset(sc);
 		}
 		at91_mci_next_operation(sc);
@@ -1393,5 +1405,10 @@ static driver_t at91_mci_driver = {
 
 static devclass_t at91_mci_devclass;
 
+#ifdef FDT
+DRIVER_MODULE(at91_mci, simplebus, at91_mci_driver, at91_mci_devclass, NULL,
+    NULL);
+#else
 DRIVER_MODULE(at91_mci, atmelarm, at91_mci_driver, at91_mci_devclass, NULL,
     NULL);
+#endif

@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: dwarf.3 2075 2011-10-27 03:47:28Z jkoshy $
+.\" $Id: dwarf.3 3195 2015-05-12 17:22:19Z emaste $
 .\"
-.Dd September 17, 2011
+.Dd December 21, 2014
 .Os
 .Dt DWARF 3
 .Sh NAME
@@ -44,7 +44,7 @@ is defined by the DWARF standard, see
 .Xr dwarf 4 .
 .Pp
 The
-.Xr DWARF 3 
+.Xr DWARF 3
 API has two parts:
 .Bl -bullet
 .It
@@ -217,6 +217,8 @@ attribute.
 Retrieve an attribute descriptor.
 .It Fn dwarf_attrlist
 Retrieve attribute descriptors for a debugging information entry.
+.It Fn dwarf_attroffset
+Retrieve the section-relative offset of an attribute descriptor.
 .It Fn dwarf_attrval_flag
 Retrieve a
 .Dv DW_AT_FORM_flag
@@ -309,10 +311,17 @@ Retrieve range information from an FDE descriptor.
 .El
 .It Compilation Units
 .Bl -tag -compact
-.It Fn dwarf_get_cu_die_offset_given_cu_header_offset
+.It Xo
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset ,
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset_b
+.Xc
 Retrieve the offset of the debugging information entry for a
-compilation unit.
-.It Fn dwarf_next_cu_header , Fn dwarf_next_cu_header_b
+compilation or type unit.
+.It Xo
+.Fn dwarf_next_cu_header ,
+.Fn dwarf_next_cu_header_b ,
+.Fn dwarf_next_cu_header_c
+.Xc
 Step through compilation units in a debug context.
 .El
 .It Debugging Information Entries
@@ -329,16 +338,18 @@ Returns the
 attribute for a debugging information entry.
 .It Fn dwarf_dieoffset
 Retrieves the offset for a debugging information entry.
-.It Fn dwarf_highpc
+.It Fn dwarf_get_die_infotypes_flag
+Indicate the originating section for a debugging information entry.
+.It Fn dwarf_highpc , Fn dwarf_highpc_b
 Return the highest PC value for a debugging information entry.
 .It Fn dwarf_lowpc
 Return the lowest PC value for a debugging information entry.
-.It Fn dwarf_offdie
+.It Fn dwarf_offdie , Fn dwarf_offdie_b
 Retrieve a debugging information entry given an offset.
-.It Fn dwarf_siblingof
+.It Fn dwarf_siblingof , Fn dwarf_siblingof_b
 Retrieve the sibling descriptor for a debugging information entry.
 .It Fn dwarf_srclang
-Retrive the source language attribute for a debugging information
+Retrieve the source language attribute for a debugging information
 entry.
 .It Fn dwarf_tag
 Retrieve the tag for a debugging information entry.
@@ -416,7 +427,11 @@ Return line number information for a compilation unit.
 Retrieve a location list entry.
 .It Fn dwarf_loclist , Fn dwarf_loclist_n
 Retrieve location expressions.
-.It Fn dwarf_loclist_from_expr , Fn dwarf_loclist_from_expr_a
+.It Xo
+.Fn dwarf_loclist_from_expr ,
+.Fn dwarf_loclist_from_expr_a ,
+.Fn dwarf_loclist_from_expr_b
+.Xc
 Translate a location expression into a location descriptor.
 .El
 .It Error Handling
@@ -513,6 +528,10 @@ and
 .Bl -tag -compact
 .It Fn dwarf_get_pubtypes , Fn dwarf_get_types
 Retrieve descriptors for user-defined types.
+.It Fn dwarf_next_types_section
+Step through
+.Dq \&.debug_types
+sections in a debug context.
 .It Fn dwarf_pubtype_cu_offset , Fn dwarf_type_cu_offset
 Return the offset for the compilation unit for a type.
 .It Fn dwarf_pubtype_die_offset , Fn dwarf_type_die_offset
@@ -699,9 +718,16 @@ addition to the per-debug context handlers supported by the SGI/GNU
 API, see the subsection
 .Sx Error Handling
 above.
+.El
+.Ss Extensions
+The following APIs are extensions specific to this implementation:
+.Bl -bullet -compact
 .It
-The following API is an extension:
-.Fn dwarf_producer_set_isa .
+.Fn dwarf_attroffset
+.It
+.Fn dwarf_next_types_section
+.It
+.Fn dwarf_producer_set_isa
 .El
 .Sh SEE ALSO
 .Xr elf 3
@@ -716,12 +742,12 @@ The DWARF standard is defined by
 The DWARF(3) API originated at Silicon Graphics Inc.
 .Pp
 A BSD-licensed implementation of a subset of the API was written by
-.An "John Birrell" Aq jb@FreeBSD.org
+.An John Birrell Aq Mt jb@FreeBSD.org
 for the FreeBSD project.
 The implementation was subsequently revised and completed by
-.An "Kai Wang" Aq kaiwang27@users.sourceforge.net .
+.An Kai Wang Aq Mt kaiwang27@users.sourceforge.net .
 .Pp
 Manual pages for this implementation were written by
-.An "Joseph Koshy" Aq jkoshy@users.sourceforge.net
+.An Joseph Koshy Aq Mt jkoshy@users.sourceforge.net
 and
-.An "Kai Wang" Aq kaiwang27@users.sourceforge.net .
+.An Kai Wang Aq Mt kaiwang27@users.sourceforge.net .

@@ -80,22 +80,41 @@ StringExtractorGDBRemote::GetServerPacketType () const
         return eServerPacketType_A;
             
     case 'Q':
+
         switch (packet_cstr[1])
         {
         case 'E':
-            if (PACKET_STARTS_WITH ("QEnvironment:"))           return eServerPacketType_QEnvironment; 
+            if (PACKET_STARTS_WITH ("QEnvironment:"))           return eServerPacketType_QEnvironment;
+            if (PACKET_STARTS_WITH ("QEnvironmentHexEncoded:")) return eServerPacketType_QEnvironmentHexEncoded;
             break;
 
         case 'S':
-            if (PACKET_MATCHES ("QStartNoAckMode"))             return eServerPacketType_QStartNoAckMode;
-            else if (PACKET_STARTS_WITH ("QSetDisableASLR:"))   return eServerPacketType_QSetDisableASLR;
-            else if (PACKET_STARTS_WITH ("QSetSTDIN:"))         return eServerPacketType_QSetSTDIN;
-            else if (PACKET_STARTS_WITH ("QSetSTDOUT:"))        return eServerPacketType_QSetSTDOUT;
-            else if (PACKET_STARTS_WITH ("QSetSTDERR:"))        return eServerPacketType_QSetSTDERR;
-            else if (PACKET_STARTS_WITH ("QSetWorkingDir:"))    return eServerPacketType_QSetWorkingDir;
+            if (PACKET_MATCHES ("QStartNoAckMode"))               return eServerPacketType_QStartNoAckMode;
+            if (PACKET_STARTS_WITH ("QSaveRegisterState"))        return eServerPacketType_QSaveRegisterState;
+            if (PACKET_STARTS_WITH ("QSetDisableASLR:"))          return eServerPacketType_QSetDisableASLR;
+            if (PACKET_STARTS_WITH ("QSetDetachOnError:"))        return eServerPacketType_QSetDetachOnError;
+            if (PACKET_STARTS_WITH ("QSetSTDIN:"))                return eServerPacketType_QSetSTDIN;
+            if (PACKET_STARTS_WITH ("QSetSTDOUT:"))               return eServerPacketType_QSetSTDOUT;
+            if (PACKET_STARTS_WITH ("QSetSTDERR:"))               return eServerPacketType_QSetSTDERR;
+            if (PACKET_STARTS_WITH ("QSetWorkingDir:"))           return eServerPacketType_QSetWorkingDir;
+            if (PACKET_STARTS_WITH ("QSetLogging:"))              return eServerPacketType_QSetLogging;
+            if (PACKET_STARTS_WITH ("QSetMaxPacketSize:"))        return eServerPacketType_QSetMaxPacketSize;
+            if (PACKET_STARTS_WITH ("QSetMaxPayloadSize:"))       return eServerPacketType_QSetMaxPayloadSize;
+            if (PACKET_STARTS_WITH ("QSetEnableAsyncProfiling;")) return eServerPacketType_QSetEnableAsyncProfiling;
+            if (PACKET_STARTS_WITH ("QSyncThreadState:"))         return eServerPacketType_QSyncThreadState;
             break;
+
         case 'L':
-            if (PACKET_STARTS_WITH ("QLaunchArch:"))            return eServerPacketType_QLaunchArch;
+            if (PACKET_STARTS_WITH ("QLaunchArch:"))              return eServerPacketType_QLaunchArch;
+            if (PACKET_MATCHES("QListThreadsInStopReply"))        return eServerPacketType_QListThreadsInStopReply;
+            break;
+
+        case 'R':
+            if (PACKET_STARTS_WITH ("QRestoreRegisterState:"))    return eServerPacketType_QRestoreRegisterState;
+            break;
+
+        case 'T':
+            if (PACKET_MATCHES ("QThreadSuffixSupported"))        return eServerPacketType_QThreadSuffixSupported;
             break;
         }
         break;
@@ -105,10 +124,12 @@ StringExtractorGDBRemote::GetServerPacketType () const
         {
         case 's':
             if (PACKET_MATCHES ("qsProcessInfo"))               return eServerPacketType_qsProcessInfo;
+            if (PACKET_MATCHES ("qsThreadInfo"))                return eServerPacketType_qsThreadInfo;
             break;
 
         case 'f':
             if (PACKET_STARTS_WITH ("qfProcessInfo"))           return eServerPacketType_qfProcessInfo;
+            if (PACKET_STARTS_WITH ("qfThreadInfo"))            return eServerPacketType_qfThreadInfo;
             break;
 
         case 'C':
@@ -118,6 +139,9 @@ StringExtractorGDBRemote::GetServerPacketType () const
         case 'G':
             if (PACKET_STARTS_WITH ("qGroupName:"))             return eServerPacketType_qGroupName;
             if (PACKET_MATCHES ("qGetWorkingDir"))              return eServerPacketType_qGetWorkingDir;
+            if (PACKET_MATCHES ("qGetPid"))                     return eServerPacketType_qGetPid;
+            if (PACKET_STARTS_WITH ("qGetProfileData;"))        return eServerPacketType_qGetProfileData;
+            if (PACKET_MATCHES ("qGDBServerVersion"))           return eServerPacketType_qGDBServerVersion;
             break;
 
         case 'H':
@@ -133,20 +157,52 @@ StringExtractorGDBRemote::GetServerPacketType () const
             if (PACKET_MATCHES ("qLaunchSuccess"))              return eServerPacketType_qLaunchSuccess;
             break;
             
+        case 'M':
+            if (PACKET_STARTS_WITH ("qMemoryRegionInfo:"))      return eServerPacketType_qMemoryRegionInfo;
+            if (PACKET_MATCHES ("qMemoryRegionInfo"))           return eServerPacketType_qMemoryRegionInfoSupported;
+            break;
+
         case 'P':
             if (PACKET_STARTS_WITH ("qProcessInfoPID:"))        return eServerPacketType_qProcessInfoPID;
-            if (PACKET_STARTS_WITH ("qPlatform_shell:"))   return eServerPacketType_qPlatform_shell;
+            if (PACKET_STARTS_WITH ("qPlatform_shell:"))        return eServerPacketType_qPlatform_shell;
             if (PACKET_STARTS_WITH ("qPlatform_mkdir:"))        return eServerPacketType_qPlatform_mkdir;
             if (PACKET_STARTS_WITH ("qPlatform_chmod:"))        return eServerPacketType_qPlatform_chmod;
+            if (PACKET_MATCHES ("qProcessInfo"))                return eServerPacketType_qProcessInfo;
             break;
                 
+        case 'R':
+            if (PACKET_STARTS_WITH ("qRcmd,"))                  return eServerPacketType_qRcmd;
+            if (PACKET_STARTS_WITH ("qRegisterInfo"))           return eServerPacketType_qRegisterInfo;
+            break;
 
         case 'S':
             if (PACKET_STARTS_WITH ("qSpeedTest:"))             return eServerPacketType_qSpeedTest;
+            if (PACKET_MATCHES ("qShlibInfoAddr"))              return eServerPacketType_qShlibInfoAddr;
+            if (PACKET_MATCHES ("qStepPacketSupported"))        return eServerPacketType_qStepPacketSupported;
+            if (PACKET_STARTS_WITH ("qSupported"))              return eServerPacketType_qSupported;
+            if (PACKET_MATCHES ("qSyncThreadStateSupported"))   return eServerPacketType_qSyncThreadStateSupported;
+            break;
+
+        case 'T':
+            if (PACKET_STARTS_WITH ("qThreadExtraInfo,"))       return eServerPacketType_qThreadExtraInfo;
+            if (PACKET_STARTS_WITH ("qThreadStopInfo"))         return eServerPacketType_qThreadStopInfo;
             break;
 
         case 'U':
             if (PACKET_STARTS_WITH ("qUserName:"))              return eServerPacketType_qUserName;
+            break;
+
+        case 'V':
+            if (PACKET_MATCHES ("qVAttachOrWaitSupported"))     return eServerPacketType_qVAttachOrWaitSupported;
+            break;
+
+        case 'W':
+            if (PACKET_STARTS_WITH ("qWatchpointSupportInfo:")) return eServerPacketType_qWatchpointSupportInfo;
+            if (PACKET_MATCHES ("qWatchpointSupportInfo"))      return eServerPacketType_qWatchpointSupportInfoSupported;
+            break;
+
+        case 'X':
+            if (PACKET_STARTS_WITH ("qXfer:auxv:read::"))       return eServerPacketType_qXfer_auxv_read;
             break;
         }
         break;
@@ -165,8 +221,85 @@ StringExtractorGDBRemote::GetServerPacketType () const
                 else if (PACKET_STARTS_WITH("vFile:symlink"))   return eServerPacketType_vFile_symlink;
                 else if (PACKET_STARTS_WITH("vFile:unlink"))    return eServerPacketType_vFile_unlink;
 
+            } else {
+              if (PACKET_STARTS_WITH ("vAttach;"))              return eServerPacketType_vAttach;
+              if (PACKET_STARTS_WITH ("vAttachWait;"))          return eServerPacketType_vAttachWait;
+              if (PACKET_STARTS_WITH ("vAttachOrWait;"))        return eServerPacketType_vAttachOrWait;
+              if (PACKET_STARTS_WITH ("vAttachName;"))          return eServerPacketType_vAttachName;
+              if (PACKET_STARTS_WITH("vCont;"))                 return eServerPacketType_vCont;
+              if (PACKET_MATCHES ("vCont?"))                    return eServerPacketType_vCont_actions;
             }
             break;
+      case '_':
+        switch (packet_cstr[1])
+        {
+        case 'M':
+            return eServerPacketType__M;
+
+        case 'm':
+            return eServerPacketType__m;
+        }
+        break;
+
+      case '?':
+        if (packet_size == 1) return eServerPacketType_stop_reason;
+        break;
+
+      case 'c':
+        return eServerPacketType_c;
+
+      case 'C':
+        return eServerPacketType_C;
+
+      case 'D':
+        if (packet_size == 1) return eServerPacketType_D;
+        break;
+
+      case 'g':
+        if (packet_size == 1) return eServerPacketType_g;
+        break;
+
+      case 'G':
+        return eServerPacketType_G;
+
+      case 'H':
+        return eServerPacketType_H;
+
+      case 'k':
+        if (packet_size == 1) return eServerPacketType_k;
+        break;
+
+      case 'm':
+        return eServerPacketType_m;
+
+      case 'M':
+        return eServerPacketType_M;
+
+      case 'p':
+        return eServerPacketType_p;
+
+      case 'P':
+        return eServerPacketType_P;
+
+      case 's':
+        if (packet_size == 1) return eServerPacketType_s;
+        break;
+
+      case 'S':
+        return eServerPacketType_S;
+
+      case 'T':
+        return eServerPacketType_T;
+
+      case 'z':
+        if (packet_cstr[1] >= '0' && packet_cstr[1] <= '4')
+          return eServerPacketType_z;
+        break;
+
+      case 'Z':
+        if (packet_cstr[1] >= '0' && packet_cstr[1] <= '4')
+          return eServerPacketType_Z;
+        break;
     }
     return eServerPacketType_unimplemented;
 }
@@ -213,14 +346,15 @@ StringExtractorGDBRemote::GetError ()
 size_t
 StringExtractorGDBRemote::GetEscapedBinaryData (std::string &str)
 {
+    // Just get the data bytes in the string as GDBRemoteCommunication::CheckForPacket()
+    // already removes any 0x7d escaped characters. If any 0x7d characters are left in
+    // the packet, then they are supposed to be there...
     str.clear();
-    char ch;
-    while (GetBytesLeft())
+    const size_t bytes_left = GetBytesLeft();
+    if (bytes_left > 0)
     {
-        ch = GetChar();
-        if (ch == 0x7d)
-            ch = (GetChar() ^ 0x20);
-        str.append(1,ch);
+        str.assign(m_packet, m_index, bytes_left);
+        m_index += bytes_left;
     }
     return str.size();
 }

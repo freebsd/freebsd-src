@@ -2946,10 +2946,11 @@ ipf_nat_newrdr(fin, nat, ni)
 	 */
 	if (np->in_flags & IPN_SPLIT) {
 		in.s_addr = np->in_dnip;
+		inb.s_addr = htonl(in.s_addr);
 
 		if ((np->in_flags & (IPN_ROUNDR|IPN_STICKY)) == IPN_STICKY) {
 			hm = ipf_nat_hostmap(softn, NULL, fin->fin_src,
-					     fin->fin_dst, in, (u_32_t)dport);
+					     fin->fin_dst, inb, (u_32_t)dport);
 			if (hm != NULL) {
 				in.s_addr = hm->hm_ndstip.s_addr;
 				move = 0;
@@ -3050,13 +3051,14 @@ ipf_nat_newrdr(fin, nat, ni)
 		return -1;
 	}
 
+	inb.s_addr = htonl(in.s_addr);
 	nat->nat_ndstaddr = htonl(in.s_addr);
 	nat->nat_odstip = fin->fin_dst;
 	nat->nat_nsrcip = fin->fin_src;
 	nat->nat_osrcip = fin->fin_src;
 	if ((nat->nat_hm == NULL) && ((np->in_flags & IPN_STICKY) != 0))
 		nat->nat_hm = ipf_nat_hostmap(softn, np, fin->fin_src,
-					      fin->fin_dst, in, (u_32_t)dport);
+					      fin->fin_dst, inb, (u_32_t)dport);
 
 	if (flags & IPN_TCPUDP) {
 		nat->nat_odport = dport;
@@ -5219,7 +5221,7 @@ ipf_nat_out(fin, nat, natadd, nflags)
 		}
 
 		ip = MTOD(m, ip_t *);
-		ip->ip_id = htons(ipf_nextipid(fin));
+		ip_fillid(ip);
 		s2 = ntohs(ip->ip_id);
 
 		s1 = ip->ip_len;
@@ -5664,7 +5666,7 @@ ipf_nat_in(fin, nat, natadd, nflags)
 		}
 
 		ip = MTOD(m, ip_t *);
-		ip->ip_id = htons(ipf_nextipid(fin));
+		ip_fillid(ip);
 		sum1 = ntohs(ip->ip_len);
 		ip->ip_len = ntohs(ip->ip_len);
 		ip->ip_len += fin->fin_plen;

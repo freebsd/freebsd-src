@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -78,6 +78,10 @@
  *	... same as async for non-threaded
  *	... the callbacks are called in the thread that calls process(ctx)
  *
+ * Openssl needs to have locking in place, and the application must set
+ * it up, because a mere library cannot do this, use the calls
+ * CRYPTO_set_id_callback and CRYPTO_set_locking_callback.
+ *
  * If no threading is compiled in, the above async example uses fork(2) to
  * create a process to perform the work. The forked process exits when the 
  * calling process exits, or ctx_delete() is called.
@@ -96,6 +100,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/** the version of this header file */
+#define UNBOUND_VERSION_MAJOR @UNBOUND_VERSION_MAJOR@
+#define UNBOUND_VERSION_MINOR @UNBOUND_VERSION_MINOR@
+#define UNBOUND_VERSION_MICRO @UNBOUND_VERSION_MICRO@
 
 /**
  * The validation context is created to hold the resolver status,
@@ -348,6 +357,21 @@ int ub_ctx_add_ta(struct ub_ctx* ctx, const char* ta);
 int ub_ctx_add_ta_file(struct ub_ctx* ctx, const char* fname);
 
 /**
+ * Add trust anchor to the given context that is tracked with RFC5011
+ * automated trust anchor maintenance.  The file is written to when the
+ * trust anchor is changed.
+ * Pass the name of a file that was output from eg. unbound-anchor,
+ * or you can start it by providing a trusted DNSKEY or DS record on one
+ * line in the file.
+ * @param ctx: context.
+ *	At this time it is only possible to add trusted keys before the
+ *	first resolve is done.
+ * @param fname: filename of file with trust anchor.
+ * @return 0 if OK, else error.
+ */
+int ub_ctx_add_ta_autr(struct ub_ctx* ctx, const char* fname);
+
+/**
  * Add trust anchors to the given context.
  * Pass the name of a bind-style config file with trusted-keys{}.
  * @param ctx: context.
@@ -499,7 +523,7 @@ void ub_resolve_free(struct ub_result* result);
 
 /** 
  * Convert error value to a human readable string.
- * @param err: error code from one of the ub_val* functions.
+ * @param err: error code from one of the libunbound functions.
  * @return pointer to constant text string, zero terminated.
  */
 const char* ub_strerror(int err);
@@ -520,7 +544,8 @@ int ub_ctx_print_local_zones(struct ub_ctx* ctx);
  * @param zone_type: type of the zone (like for unbound.conf) in text.
  * @return 0 if OK, else error.
  */
-int ub_ctx_zone_add(struct ub_ctx* ctx, char *zone_name, char *zone_type);
+int ub_ctx_zone_add(struct ub_ctx* ctx, const char *zone_name, 
+	const char *zone_type);
 
 /**
  * Remove zone from local authority info of the library.
@@ -529,7 +554,7 @@ int ub_ctx_zone_add(struct ub_ctx* ctx, char *zone_name, char *zone_type);
  *	If it does not exist, nothing happens.
  * @return 0 if OK, else error.
  */
-int ub_ctx_zone_remove(struct ub_ctx* ctx, char *zone_name);
+int ub_ctx_zone_remove(struct ub_ctx* ctx, const char *zone_name);
 
 /**
  * Add localdata to the library local authority info.
@@ -539,7 +564,7 @@ int ub_ctx_zone_remove(struct ub_ctx* ctx, char *zone_name);
  *	"www.example.com IN A 127.0.0.1"
  * @return 0 if OK, else error.
  */
-int ub_ctx_data_add(struct ub_ctx* ctx, char *data);
+int ub_ctx_data_add(struct ub_ctx* ctx, const char *data);
 
 /**
  * Remove localdata from the library local authority info.
@@ -547,7 +572,7 @@ int ub_ctx_data_add(struct ub_ctx* ctx, char *data);
  * @param data: the name to delete all data from, like "www.example.com".
  * @return 0 if OK, else error.
  */
-int ub_ctx_data_remove(struct ub_ctx* ctx, char *data);
+int ub_ctx_data_remove(struct ub_ctx* ctx, const char *data);
 
 /**
  * Get a version string from the libunbound implementation.

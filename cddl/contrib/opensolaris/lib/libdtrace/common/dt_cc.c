@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, Joyent Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -663,6 +663,8 @@ dt_action_printflike(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp,
 static void
 dt_action_trace(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 {
+	int ctflib;
+
 	dtrace_actdesc_t *ap = dt_stmt_action(dtp, sdp);
 	boolean_t istrace = (dnp->dn_ident->di_id == DT_ACT_TRACE);
 	const char *act = istrace ?  "trace" : "print";
@@ -694,7 +696,10 @@ dt_action_trace(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 	 * like arrays and function pointers that can't be resolved by
 	 * ctf_type_lookup().  This is later processed by dtrace_dof_create()
 	 * and turned into a reference into the string table so that we can
-	 * get the type information when we process the data after the fact.
+	 * get the type information when we process the data after the fact.  In
+	 * the case where we are referring to userland CTF data, we also need to
+	 * to identify which ctf container in question we care about and encode
+	 * that within the name.
 	 */
 	if (dnp->dn_ident->di_id == DT_ACT_PRINT) {
 		dt_node_t *dret;
@@ -705,11 +710,27 @@ dt_action_trace(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 		dmp = dt_module_lookup_by_ctf(dtp, dret->dn_ctfp);
 
 		n = snprintf(NULL, 0, "%s`%ld", dmp->dm_name, dret->dn_type) + 1;
+		if (dmp->dm_pid != 0) {
+			ctflib = dt_module_getlibid(dtp, dmp, dret->dn_ctfp);
+			assert(ctflib >= 0);
+			n = snprintf(NULL, 0, "%s`%d`%ld", dmp->dm_name,
+			    ctflib, dret->dn_type) + 1;
+		} else {
+			n = snprintf(NULL, 0, "%s`%ld", dmp->dm_name,
+			    dret->dn_type) + 1;
+		}
 		sdp->dtsd_strdata = dt_alloc(dtp, n);
 		if (sdp->dtsd_strdata == NULL)
 			longjmp(yypcb->pcb_jmpbuf, EDT_NOMEM);
 		(void) snprintf(sdp->dtsd_strdata, n, "%s`%ld", dmp->dm_name,
 		    dret->dn_type);
+		if (dmp->dm_pid != 0) {
+			(void) snprintf(sdp->dtsd_strdata, n, "%s`%d`%ld",
+			    dmp->dm_name, ctflib, dret->dn_type);
+		} else {
+			(void) snprintf(sdp->dtsd_strdata, n, "%s`%ld",
+			    dmp->dm_name, dret->dn_type);
+		}
 	}
 
 	ap->dtad_difo = dt_as(yypcb);
@@ -1867,7 +1888,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 	char **argv = malloc(sizeof (char *) * (argc + 5));
 	FILE *ofp = tmpfile();
 
-#if defined(sun)
+#ifdef illumos
 	char ipath[20], opath[20]; /* big enough for /dev/fd/ + INT_MAX + \0 */
 #endif
 	char verdef[32]; /* big enough for -D__SUNW_D_VERSION=0x%08x + \0 */
@@ -1877,7 +1898,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 
 	int wstat, estat;
 	pid_t pid;
-#if defined(sun)
+#ifdef illumos
 	off64_t off;
 #else
 	off_t off = 0;
@@ -1908,7 +1929,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 		(void) fseeko64(ifp, off, SEEK_SET);
 	}
 
-#if defined(sun)
+#ifdef illumos
 	(void) snprintf(ipath, sizeof (ipath), "/dev/fd/%d", fileno(ifp));
 	(void) snprintf(opath, sizeof (opath), "/dev/fd/%d", fileno(ofp));
 #endif
@@ -1919,7 +1940,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 	    "-D__SUNW_D_VERSION=0x%08x", dtp->dt_vmax);
 	argv[argc++] = verdef;
 
-#if defined(sun)
+#ifdef illumos
 	switch (dtp->dt_stdcmode) {
 	case DT_STDC_XA:
 	case DT_STDC_XT:
@@ -1961,7 +1982,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 	}
 
 	if (pid == 0) {
-#if !defined(sun)
+#ifndef illumos
 		if (isatty(fileno(ifp)) == 0)
 			lseek(fileno(ifp), off, SEEK_SET);
 		dup2(fileno(ifp), 0);
@@ -2268,12 +2289,15 @@ dt_load_libs_dir(dtrace_hdl_t *dtp, const char *path)
 			dt_dprintf("skipping library %s, already processed "
 			    "library with the same name: %s", dp->d_name,
 			    dld->dtld_library);
+			(void) fclose(fp);
 			continue;
 		}
 
 		dtp->dt_filetag = fname;
-		if (dt_lib_depend_add(dtp, &dtp->dt_lib_dep, fname) != 0)
+		if (dt_lib_depend_add(dtp, &dtp->dt_lib_dep, fname) != 0) {
+			(void) fclose(fp);
 			return (-1); /* preserve dt_errno */
+		}
 
 		rv = dt_compile(dtp, DT_CTX_DPROG,
 		    DTRACE_PROBESPEC_NAME, NULL,
@@ -2281,8 +2305,10 @@ dt_load_libs_dir(dtrace_hdl_t *dtp, const char *path)
 
 		if (rv != NULL && dtp->dt_errno &&
 		    (dtp->dt_errno != EDT_COMPILER ||
-		    dtp->dt_errtag != dt_errtag(D_PRAGMA_DEPEND)))
+		    dtp->dt_errtag != dt_errtag(D_PRAGMA_DEPEND))) {
+			(void) fclose(fp);
 			return (-1); /* preserve dt_errno */
+		}
 
 		if (dtp->dt_errno)
 			dt_dprintf("error parsing library %s: %s\n",

@@ -2,35 +2,80 @@
 # $FreeBSD$
 
 # sys sources
-.PATH: ${.CURDIR}/${LIBC_ARCH}/sys ${.CURDIR}/sys
+.PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/sys ${LIBC_SRCTOP}/sys
 
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
-.include "${.CURDIR}/../../sys/sys/syscall.mk"
+.include "${LIBC_SRCTOP}/../../sys/sys/syscall.mk"
 
 # Include machine dependent definitions.
 #
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
 #
-.sinclude "${.CURDIR}/${LIBC_ARCH}/sys/Makefile.inc"
+.sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/sys/Makefile.inc"
 
 SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
 NOASM+=  clock_gettime.o gettimeofday.o
 PSEUDO+= _clock_gettime.o _gettimeofday.o
 
 # Sources common to both syscall interfaces:
-SRCS+=	stack_protector.c stack_protector_compat.c __error.c
-.if !defined(WITHOUT_SYSCALL_COMPAT)
-SYSCALL_COMPAT_SRCS=	fcntl.c ftruncate.c lseek.c mmap.c pread.c \
-	pwrite.c truncate.c
-SRCS+=	${SYSCALL_COMPAT_SRCS}
-NOASM+=	${SYSCALL_COMPAT_SRCS:S/.c/.o/}
-PSEUDO+= _fcntl.o
+SRCS+=	\
+	stack_protector.c \
+	stack_protector_compat.c \
+	__error.c \
+	interposing_table.c
+
+SRCS+= futimens.c utimensat.c
+NOASM+= futimens.o utimensat.o
+PSEUDO+= _futimens.o _utimensat.o
+
+INTERPOSED = \
+	accept \
+	accept4 \
+	aio_suspend \
+	close \
+	connect \
+	fcntl \
+	fsync \
+	fork \
+	kevent \
+	msync \
+	nanosleep \
+	open \
+	openat \
+	poll \
+	ppoll \
+	pselect \
+	read \
+	readv \
+	recvfrom \
+	recvmsg \
+	select \
+	sendmsg \
+	sendto \
+	setcontext \
+	sigprocmask \
+	sigsuspend \
+	sigtimedwait \
+	sigwait \
+	sigwaitinfo \
+	swapcontext \
+	wait4 \
+	wait6 \
+	write \
+	writev
+
+.if ${MACHINE_CPUARCH} == "sparc64"
+SRCS+=	sigaction.c
+NOASM+=	sigaction.o
+.else
+INTERPOSED+= sigaction
 .endif
-SRCS+= sigwait.c
-NOASM+= sigwait.o
-PSEUDO+= _sigwait.o
+
+SRCS+=	${INTERPOSED:S/$/.c/}
+NOASM+=	${INTERPOSED:S/$/.o/}
+PSEUDO+=	${INTERPOSED:C/^.*$/_&.o/}
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
@@ -55,7 +100,7 @@ SPSEUDO= ${PSEUDO:S/.o/.S/}
 
 SRCS+=	${SASM} ${SPSEUDO}
 
-SYM_MAPS+=	${.CURDIR}/sys/Symbol.map
+SYM_MAPS+=	${LIBC_SRCTOP}/sys/Symbol.map
 
 # Generated files
 CLEANFILES+=	${SASM} ${SPSEUDO}
@@ -266,6 +311,7 @@ MAN+=	sctp_generic_recvmsg.2 \
 	umask.2 \
 	undelete.2 \
 	unlink.2 \
+	utimensat.2 \
 	utimes.2 \
 	utrace.2 \
 	uuidgen.2 \
@@ -356,6 +402,7 @@ MLINKS+=pdfork.2 pdgetpid.2\
 	pdfork.2 pdkill.2 \
 	pdfork.2 pdwait4.2
 MLINKS+=pipe.2 pipe2.2
+MLINKS+=poll.2 ppoll.2
 MLINKS+=read.2 pread.2 \
 	read.2 preadv.2 \
 	read.2 readv.2
@@ -397,6 +444,7 @@ MLINKS+=timer_settime.2 timer_getoverrun.2 \
 	timer_settime.2 timer_gettime.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=unlink.2 unlinkat.2
+MLINKS+=utimensat.2 futimens.2
 MLINKS+=utimes.2 futimes.2 \
 	utimes.2 futimesat.2 \
 	utimes.2 lutimes.2

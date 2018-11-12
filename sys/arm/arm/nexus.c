@@ -39,6 +39,8 @@
  * and I/O memory address space.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -60,14 +62,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include "opt_platform.h"
-
 #ifdef FDT
-#include <dev/ofw/ofw_nexus.h>
-#include <dev/fdt/fdt_common.h>
 #include <machine/fdt.h>
 #include "ofw_bus_if.h"
-#else
+#endif
+
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
 struct nexus_device {
@@ -84,12 +83,13 @@ static	int nexus_print_child(device_t, device_t);
 static	device_t nexus_add_child(device_t, u_int, const char *, int);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
     u_long, u_long, u_long, u_int);
-#endif
 static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
 static int nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol);
 static	int nexus_deactivate_resource(device_t, device_t, int, int,
+    struct resource *);
+static int nexus_release_resource(device_t, device_t, int, int,
     struct resource *);
 
 static int nexus_setup_intr(device_t dev, device_t child, struct resource *res,
@@ -98,11 +98,10 @@ static int nexus_teardown_intr(device_t, device_t, struct resource *, void *);
 
 #ifdef FDT
 static int nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent,
-    int irq);
+    int icells, pcell_t *intr);
 #endif
 
 static device_method_t nexus_methods[] = {
-#ifndef FDT
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_probe),
 	DEVMETHOD(device_attach,	nexus_attach),
@@ -110,10 +109,10 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_print_child,	nexus_print_child),
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
-#endif
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
+	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 #ifdef FDT
@@ -123,19 +122,14 @@ static device_method_t nexus_methods[] = {
 };
 
 static devclass_t nexus_devclass;
-#ifndef FDT
 static driver_t nexus_driver = {
 	"nexus",
 	nexus_methods,
 	1			/* no softc */
 };
-#else
-DEFINE_CLASS_1(nexus, nexus_driver, nexus_methods,
-    sizeof(struct ofw_nexus_softc), ofw_nexus_driver);
-#endif
-DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_EARLY);
 
-#ifndef FDT
 static int
 nexus_probe(device_t dev)
 {
@@ -209,6 +203,8 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman *rm;
 	int needactivate = flags & RF_ACTIVE;
 
+	flags &= ~RF_ACTIVE;
+
 	switch (type) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
@@ -216,15 +212,14 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 
 	default:
-		return (0);
+		return (NULL);
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == 0)
-		return (0);
+		return (NULL);
 
 	rman_set_rid(rv, *rid);
-	rman_set_bushandle(rv, rman_get_start(rv));
 
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
@@ -235,7 +230,20 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	return (rv);
 }
-#endif
+
+static int
+nexus_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+	int error;
+
+	if (rman_get_flags(res) & RF_ACTIVE) {
+		error = bus_deactivate_resource(child, type, rid, res);
+		if (error)
+			return (error);
+	}
+	return (rman_release_resource(res));
+}
 
 static int
 nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
@@ -339,31 +347,10 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 #ifdef FDT
 static int
-nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int irq)
+nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
+    pcell_t *intr)
 {
-	pcell_t intr[2];
-	fdt_pic_decode_t intr_decode;
-	phandle_t intr_offset;
-	int i, rv, interrupt, trig, pol;
 
-	intr_offset = OF_xref_phandle(iparent);
-	intr[0] = cpu_to_fdt32(irq);
-
-	for (i = 0; fdt_pic_table[i] != NULL; i++) {
-		intr_decode = fdt_pic_table[i];
-		rv = intr_decode(intr_offset, intr, &interrupt, &trig, &pol);
-
-		if (rv == 0) {
-			/* This was recognized as our PIC and decoded. */
-			interrupt = FDT_MAP_IRQ(intr_parent, interrupt);
-			return (interrupt);
-		}
-	}
-
-	/* Not in table, so guess */
-	interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(*intr));
-
-	return (interrupt);
+	return (arm_fdt_map_irq(iparent, intr, icells));
 }
 #endif
- 

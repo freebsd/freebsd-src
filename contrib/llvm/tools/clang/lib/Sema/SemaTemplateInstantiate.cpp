@@ -14,6 +14,7 @@
 #include "TreeTransform.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/ASTLambda.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/LangOptions.h"
@@ -61,7 +62,34 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
   DeclContext *Ctx = dyn_cast<DeclContext>(D);
   if (!Ctx) {
     Ctx = D->getDeclContext();
-    
+
+    // Add template arguments from a variable template instantiation.
+    if (VarTemplateSpecializationDecl *Spec =
+            dyn_cast<VarTemplateSpecializationDecl>(D)) {
+      // We're done when we hit an explicit specialization.
+      if (Spec->getSpecializationKind() == TSK_ExplicitSpecialization &&
+          !isa<VarTemplatePartialSpecializationDecl>(Spec))
+        return Result;
+
+      Result.addOuterTemplateArguments(&Spec->getTemplateInstantiationArgs());
+
+      // If this variable template specialization was instantiated from a
+      // specialized member that is a variable template, we're done.
+      assert(Spec->getSpecializedTemplate() && "No variable template?");
+      llvm::PointerUnion<VarTemplateDecl*,
+                         VarTemplatePartialSpecializationDecl*> Specialized
+                             = Spec->getSpecializedTemplateOrPartial();
+      if (VarTemplatePartialSpecializationDecl *Partial =
+              Specialized.dyn_cast<VarTemplatePartialSpecializationDecl *>()) {
+        if (Partial->isMemberSpecialization())
+          return Result;
+      } else {
+        VarTemplateDecl *Tmpl = Specialized.get<VarTemplateDecl *>();
+        if (Tmpl->isMemberSpecialization())
+          return Result;
+      }
+    }
+
     // If we have a template template parameter with translation unit context,
     // then we're performing substitution into a default template argument of
     // this template template parameter before we've constructed the template
@@ -72,7 +100,7 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
       if (TemplateTemplateParmDecl *TTP 
                                       = dyn_cast<TemplateTemplateParmDecl>(D)) {
         for (unsigned I = 0, N = TTP->getDepth() + 1; I != N; ++I)
-          Result.addOuterTemplateArguments(0, 0);
+          Result.addOuterTemplateArguments(None);
         return Result;
       }
     }
@@ -113,12 +141,15 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
         assert(Function->getPrimaryTemplate() && "No function template?");
         if (Function->getPrimaryTemplate()->isMemberSpecialization())
           break;
+
+        // If this function is a generic lambda specialization, we are done.
+        if (isGenericLambdaCallOperatorSpecialization(Function))
+          break;
+
       } else if (FunctionTemplateDecl *FunTmpl
                                    = Function->getDescribedFunctionTemplate()) {
         // Add the "injected" template arguments.
-        std::pair<const TemplateArgument *, unsigned>
-          Injected = FunTmpl->getInjectedTemplateArgs();
-        Result.addOuterTemplateArguments(Injected.first, Injected.second);
+        Result.addOuterTemplateArguments(FunTmpl->getInjectedTemplateArgs());
       }
       
       // If this is a friend declaration and it declares an entity at
@@ -135,9 +166,10 @@ Sema::getTemplateInstantiationArgs(NamedDecl *D,
     } else if (CXXRecordDecl *Rec = dyn_cast<CXXRecordDecl>(Ctx)) {
       if (ClassTemplateDecl *ClassTemplate = Rec->getDescribedClassTemplate()) {
         QualType T = ClassTemplate->getInjectedClassNameSpecialization();
-        const TemplateSpecializationType *TST
-          = cast<TemplateSpecializationType>(Context.getCanonicalType(T));
-        Result.addOuterTemplateArguments(TST->getArgs(), TST->getNumArgs());
+        const TemplateSpecializationType *TST =
+            cast<TemplateSpecializationType>(Context.getCanonicalType(T));
+        Result.addOuterTemplateArguments(
+            llvm::makeArrayRef(TST->getArgs(), TST->getNumArgs()));
         if (ClassTemplate->isMemberSpecialization())
           break;
       }
@@ -168,50 +200,49 @@ bool Sema::ActiveTemplateInstantiation::isInstantiationRecord() const {
   llvm_unreachable("Invalid InstantiationKind!");
 }
 
+void Sema::InstantiatingTemplate::Initialize(
+    ActiveTemplateInstantiation::InstantiationKind Kind,
+    SourceLocation PointOfInstantiation, SourceRange InstantiationRange,
+    Decl *Entity, NamedDecl *Template, ArrayRef<TemplateArgument> TemplateArgs,
+    sema::TemplateDeductionInfo *DeductionInfo) {
+  SavedInNonInstantiationSFINAEContext =
+      SemaRef.InNonInstantiationSFINAEContext;
+  Invalid = CheckInstantiationDepth(PointOfInstantiation, InstantiationRange);
+  if (!Invalid) {
+    ActiveTemplateInstantiation Inst;
+    Inst.Kind = Kind;
+    Inst.PointOfInstantiation = PointOfInstantiation;
+    Inst.Entity = Entity;
+    Inst.Template = Template;
+    Inst.TemplateArgs = TemplateArgs.data();
+    Inst.NumTemplateArgs = TemplateArgs.size();
+    Inst.DeductionInfo = DeductionInfo;
+    Inst.InstantiationRange = InstantiationRange;
+    SemaRef.InNonInstantiationSFINAEContext = false;
+    SemaRef.ActiveTemplateInstantiations.push_back(Inst);
+    if (!Inst.isInstantiationRecord())
+      ++SemaRef.NonInstantiationEntries;
+  }
+}
+
 Sema::InstantiatingTemplate::
 InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
                       Decl *Entity,
                       SourceRange InstantiationRange)
-  : SemaRef(SemaRef),
-    SavedInNonInstantiationSFINAEContext(
-                                        SemaRef.InNonInstantiationSFINAEContext)
+  : SemaRef(SemaRef)
 {
-  Invalid = CheckInstantiationDepth(PointOfInstantiation,
-                                    InstantiationRange);
-  if (!Invalid) {
-    ActiveTemplateInstantiation Inst;
-    Inst.Kind = ActiveTemplateInstantiation::TemplateInstantiation;
-    Inst.PointOfInstantiation = PointOfInstantiation;
-    Inst.Entity = Entity;
-    Inst.TemplateArgs = 0;
-    Inst.NumTemplateArgs = 0;
-    Inst.InstantiationRange = InstantiationRange;
-    SemaRef.InNonInstantiationSFINAEContext = false;
-    SemaRef.ActiveTemplateInstantiations.push_back(Inst);
-  }
+  Initialize(ActiveTemplateInstantiation::TemplateInstantiation,
+             PointOfInstantiation, InstantiationRange, Entity);
 }
 
 Sema::InstantiatingTemplate::
 InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
                       FunctionDecl *Entity, ExceptionSpecification,
                       SourceRange InstantiationRange)
-  : SemaRef(SemaRef),
-    SavedInNonInstantiationSFINAEContext(
-                                        SemaRef.InNonInstantiationSFINAEContext)
+  : SemaRef(SemaRef)
 {
-  Invalid = CheckInstantiationDepth(PointOfInstantiation,
-                                    InstantiationRange);
-  if (!Invalid) {
-    ActiveTemplateInstantiation Inst;
-    Inst.Kind = ActiveTemplateInstantiation::ExceptionSpecInstantiation;
-    Inst.PointOfInstantiation = PointOfInstantiation;
-    Inst.Entity = Entity;
-    Inst.TemplateArgs = 0;
-    Inst.NumTemplateArgs = 0;
-    Inst.InstantiationRange = InstantiationRange;
-    SemaRef.InNonInstantiationSFINAEContext = false;
-    SemaRef.ActiveTemplateInstantiations.push_back(Inst);
-  }
+  Initialize(ActiveTemplateInstantiation::ExceptionSpecInstantiation,
+             PointOfInstantiation, InstantiationRange, Entity);
 }
 
 Sema::InstantiatingTemplate::
@@ -219,24 +250,11 @@ InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
                       TemplateDecl *Template,
                       ArrayRef<TemplateArgument> TemplateArgs,
                       SourceRange InstantiationRange)
-  : SemaRef(SemaRef),
-    SavedInNonInstantiationSFINAEContext(
-                                     SemaRef.InNonInstantiationSFINAEContext)
+  : SemaRef(SemaRef)
 {
-  Invalid = CheckInstantiationDepth(PointOfInstantiation,
-                                    InstantiationRange);
-  if (!Invalid) {
-    ActiveTemplateInstantiation Inst;
-    Inst.Kind
-      = ActiveTemplateInstantiation::DefaultTemplateArgumentInstantiation;
-    Inst.PointOfInstantiation = PointOfInstantiation;
-    Inst.Entity = Template;
-    Inst.TemplateArgs = TemplateArgs.data();
-    Inst.NumTemplateArgs = TemplateArgs.size();
-    Inst.InstantiationRange = InstantiationRange;
-    SemaRef.InNonInstantiationSFINAEContext = false;
-    SemaRef.ActiveTemplateInstantiations.push_back(Inst);
-  }
+  Initialize(ActiveTemplateInstantiation::DefaultTemplateArgumentInstantiation,
+             PointOfInstantiation, InstantiationRange,
+             Template, nullptr, TemplateArgs);
 }
 
 Sema::InstantiatingTemplate::
@@ -246,26 +264,10 @@ InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
                       ActiveTemplateInstantiation::InstantiationKind Kind,
                       sema::TemplateDeductionInfo &DeductionInfo,
                       SourceRange InstantiationRange)
-  : SemaRef(SemaRef),
-    SavedInNonInstantiationSFINAEContext(
-                                     SemaRef.InNonInstantiationSFINAEContext)
+  : SemaRef(SemaRef)
 {
-  Invalid = CheckInstantiationDepth(PointOfInstantiation, InstantiationRange);
-  if (!Invalid) {
-    ActiveTemplateInstantiation Inst;
-    Inst.Kind = Kind;
-    Inst.PointOfInstantiation = PointOfInstantiation;
-    Inst.Entity = FunctionTemplate;
-    Inst.TemplateArgs = TemplateArgs.data();
-    Inst.NumTemplateArgs = TemplateArgs.size();
-    Inst.DeductionInfo = &DeductionInfo;
-    Inst.InstantiationRange = InstantiationRange;
-    SemaRef.InNonInstantiationSFINAEContext = false;
-    SemaRef.ActiveTemplateInstantiations.push_back(Inst);
-    
-    if (!Inst.isInstantiationRecord())
-      ++SemaRef.NonInstantiationEntries;
-  }
+  Initialize(Kind, PointOfInstantiation, InstantiationRange,
+             FunctionTemplate, nullptr, TemplateArgs, &DeductionInfo);
 }
 
 Sema::InstantiatingTemplate::
@@ -274,23 +276,23 @@ InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
                       ArrayRef<TemplateArgument> TemplateArgs,
                       sema::TemplateDeductionInfo &DeductionInfo,
                       SourceRange InstantiationRange)
-  : SemaRef(SemaRef),
-    SavedInNonInstantiationSFINAEContext(
-                                     SemaRef.InNonInstantiationSFINAEContext)
+  : SemaRef(SemaRef)
 {
-  Invalid = CheckInstantiationDepth(PointOfInstantiation, InstantiationRange);
-  if (!Invalid) {
-    ActiveTemplateInstantiation Inst;
-    Inst.Kind = ActiveTemplateInstantiation::DeducedTemplateArgumentSubstitution;
-    Inst.PointOfInstantiation = PointOfInstantiation;
-    Inst.Entity = PartialSpec;
-    Inst.TemplateArgs = TemplateArgs.data();
-    Inst.NumTemplateArgs = TemplateArgs.size();
-    Inst.DeductionInfo = &DeductionInfo;
-    Inst.InstantiationRange = InstantiationRange;
-    SemaRef.InNonInstantiationSFINAEContext = false;
-    SemaRef.ActiveTemplateInstantiations.push_back(Inst);
-  }
+  Initialize(ActiveTemplateInstantiation::DeducedTemplateArgumentSubstitution,
+             PointOfInstantiation, InstantiationRange,
+             PartialSpec, nullptr, TemplateArgs, &DeductionInfo);
+}
+
+Sema::InstantiatingTemplate::InstantiatingTemplate(
+    Sema &SemaRef, SourceLocation PointOfInstantiation,
+    VarTemplatePartialSpecializationDecl *PartialSpec,
+    ArrayRef<TemplateArgument> TemplateArgs,
+    sema::TemplateDeductionInfo &DeductionInfo, SourceRange InstantiationRange)
+  : SemaRef(SemaRef)
+{
+  Initialize(ActiveTemplateInstantiation::DeducedTemplateArgumentSubstitution,
+             PointOfInstantiation, InstantiationRange,
+             PartialSpec, nullptr, TemplateArgs, &DeductionInfo);
 }
 
 Sema::InstantiatingTemplate::
@@ -298,47 +300,24 @@ InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
                       ParmVarDecl *Param,
                       ArrayRef<TemplateArgument> TemplateArgs,
                       SourceRange InstantiationRange)
-  : SemaRef(SemaRef),
-    SavedInNonInstantiationSFINAEContext(
-                                     SemaRef.InNonInstantiationSFINAEContext)
+  : SemaRef(SemaRef)
 {
-  Invalid = CheckInstantiationDepth(PointOfInstantiation, InstantiationRange);
-  if (!Invalid) {
-    ActiveTemplateInstantiation Inst;
-    Inst.Kind
-      = ActiveTemplateInstantiation::DefaultFunctionArgumentInstantiation;
-    Inst.PointOfInstantiation = PointOfInstantiation;
-    Inst.Entity = Param;
-    Inst.TemplateArgs = TemplateArgs.data();
-    Inst.NumTemplateArgs = TemplateArgs.size();
-    Inst.InstantiationRange = InstantiationRange;
-    SemaRef.InNonInstantiationSFINAEContext = false;
-    SemaRef.ActiveTemplateInstantiations.push_back(Inst);
-  }
+  Initialize(ActiveTemplateInstantiation::DefaultFunctionArgumentInstantiation,
+             PointOfInstantiation, InstantiationRange,
+             Param, nullptr, TemplateArgs);
 }
+
 
 Sema::InstantiatingTemplate::
 InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
                       NamedDecl *Template, NonTypeTemplateParmDecl *Param,
                       ArrayRef<TemplateArgument> TemplateArgs,
                       SourceRange InstantiationRange)
-  : SemaRef(SemaRef),
-    SavedInNonInstantiationSFINAEContext(
-                                     SemaRef.InNonInstantiationSFINAEContext)
+  : SemaRef(SemaRef)
 {
-  Invalid = CheckInstantiationDepth(PointOfInstantiation, InstantiationRange);
-  if (!Invalid) {
-    ActiveTemplateInstantiation Inst;
-    Inst.Kind = ActiveTemplateInstantiation::PriorTemplateArgumentSubstitution;
-    Inst.PointOfInstantiation = PointOfInstantiation;
-    Inst.Template = Template;
-    Inst.Entity = Param;
-    Inst.TemplateArgs = TemplateArgs.data();
-    Inst.NumTemplateArgs = TemplateArgs.size();
-    Inst.InstantiationRange = InstantiationRange;
-    SemaRef.InNonInstantiationSFINAEContext = false;
-    SemaRef.ActiveTemplateInstantiations.push_back(Inst);
-  }
+  Initialize(ActiveTemplateInstantiation::PriorTemplateArgumentSubstitution,
+             PointOfInstantiation, InstantiationRange,
+             Param, Template, TemplateArgs);
 }
 
 Sema::InstantiatingTemplate::
@@ -346,23 +325,11 @@ InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
                       NamedDecl *Template, TemplateTemplateParmDecl *Param,
                       ArrayRef<TemplateArgument> TemplateArgs,
                       SourceRange InstantiationRange)
-  : SemaRef(SemaRef),
-    SavedInNonInstantiationSFINAEContext(
-                                     SemaRef.InNonInstantiationSFINAEContext)
+  : SemaRef(SemaRef)
 {
-  Invalid = CheckInstantiationDepth(PointOfInstantiation, InstantiationRange);
-  if (!Invalid) {
-    ActiveTemplateInstantiation Inst;
-    Inst.Kind = ActiveTemplateInstantiation::PriorTemplateArgumentSubstitution;
-    Inst.PointOfInstantiation = PointOfInstantiation;
-    Inst.Template = Template;
-    Inst.Entity = Param;
-    Inst.TemplateArgs = TemplateArgs.data();
-    Inst.NumTemplateArgs = TemplateArgs.size();
-    Inst.InstantiationRange = InstantiationRange;
-    SemaRef.InNonInstantiationSFINAEContext = false;
-    SemaRef.ActiveTemplateInstantiations.push_back(Inst);
-  }
+  Initialize(ActiveTemplateInstantiation::PriorTemplateArgumentSubstitution,
+             PointOfInstantiation, InstantiationRange,
+             Param, Template, TemplateArgs);
 }
 
 Sema::InstantiatingTemplate::
@@ -370,25 +337,11 @@ InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
                       TemplateDecl *Template, NamedDecl *Param,
                       ArrayRef<TemplateArgument> TemplateArgs,
                       SourceRange InstantiationRange)
-  : SemaRef(SemaRef),
-    SavedInNonInstantiationSFINAEContext(
-                                     SemaRef.InNonInstantiationSFINAEContext)
+  : SemaRef(SemaRef)
 {
-  Invalid = false;
-  
-  ActiveTemplateInstantiation Inst;
-  Inst.Kind = ActiveTemplateInstantiation::DefaultTemplateArgumentChecking;
-  Inst.PointOfInstantiation = PointOfInstantiation;
-  Inst.Template = Template;
-  Inst.Entity = Param;
-  Inst.TemplateArgs = TemplateArgs.data();
-  Inst.NumTemplateArgs = TemplateArgs.size();
-  Inst.InstantiationRange = InstantiationRange;
-  SemaRef.InNonInstantiationSFINAEContext = false;
-  SemaRef.ActiveTemplateInstantiations.push_back(Inst);
-  
-  assert(!Inst.isInstantiationRecord());
-  ++SemaRef.NonInstantiationEntries;
+  Initialize(ActiveTemplateInstantiation::DefaultTemplateArgumentChecking,
+             PointOfInstantiation, InstantiationRange,
+             Param, Template, TemplateArgs);
 }
 
 void Sema::InstantiatingTemplate::Clear() {
@@ -399,6 +352,18 @@ void Sema::InstantiatingTemplate::Clear() {
     }
     SemaRef.InNonInstantiationSFINAEContext
       = SavedInNonInstantiationSFINAEContext;
+
+    // Name lookup no longer looks in this template's defining module.
+    assert(SemaRef.ActiveTemplateInstantiations.size() >=
+           SemaRef.ActiveTemplateInstantiationLookupModules.size() &&
+           "forgot to remove a lookup module for a template instantiation");
+    if (SemaRef.ActiveTemplateInstantiations.size() ==
+        SemaRef.ActiveTemplateInstantiationLookupModules.size()) {
+      if (Module *M = SemaRef.ActiveTemplateInstantiationLookupModules.back())
+        SemaRef.LookupModulesCache.erase(M);
+      SemaRef.ActiveTemplateInstantiationLookupModules.pop_back();
+    }
+
     SemaRef.ActiveTemplateInstantiations.pop_back();
     Invalid = true;
   }
@@ -436,7 +401,7 @@ void Sema::PrintInstantiationStack() {
 
   // FIXME: In all of these cases, we need to show the template arguments
   unsigned InstantiationIdx = 0;
-  for (SmallVector<ActiveTemplateInstantiation, 16>::reverse_iterator
+  for (SmallVectorImpl<ActiveTemplateInstantiation>::reverse_iterator
          Active = ActiveTemplateInstantiations.rbegin(),
          ActiveEnd = ActiveTemplateInstantiations.rend();
        Active != ActiveEnd;
@@ -473,7 +438,9 @@ void Sema::PrintInstantiationStack() {
           << Active->InstantiationRange;
       } else if (VarDecl *VD = dyn_cast<VarDecl>(D)) {
         Diags.Report(Active->PointOfInstantiation,
-                     diag::note_template_static_data_member_def_here)
+                     VD->isStaticDataMember()?
+                       diag::note_template_static_data_member_def_here
+                     : diag::note_template_variable_def_here)
           << VD
           << Active->InstantiationRange;
       } else if (EnumDecl *ED = dyn_cast<EnumDecl>(D)) {
@@ -481,6 +448,10 @@ void Sema::PrintInstantiationStack() {
                      diag::note_template_enum_def_here)
           << ED
           << Active->InstantiationRange;
+      } else if (FieldDecl *FD = dyn_cast<FieldDecl>(D)) {
+        Diags.Report(Active->PointOfInstantiation,
+                     diag::note_template_nsdmi_here)
+            << FD << Active->InstantiationRange;
       } else {
         Diags.Report(Active->PointOfInstantiation,
                      diag::note_template_type_alias_instantiation_here)
@@ -565,8 +536,8 @@ void Sema::PrintInstantiationStack() {
       std::string Name;
       if (!Parm->getName().empty())
         Name = std::string(" '") + Parm->getName().str() + "'";
-                    
-      TemplateParameterList *TemplateParams = 0;
+
+      TemplateParameterList *TemplateParams = nullptr;
       if (TemplateDecl *Template = dyn_cast<TemplateDecl>(Active->Template))
         TemplateParams = Template->getTemplateParameters();
       else
@@ -585,7 +556,7 @@ void Sema::PrintInstantiationStack() {
     }
 
     case ActiveTemplateInstantiation::DefaultTemplateArgumentChecking: {
-      TemplateParameterList *TemplateParams = 0;
+      TemplateParameterList *TemplateParams = nullptr;
       if (TemplateDecl *Template = dyn_cast<TemplateDecl>(Active->Template))
         TemplateParams = Template->getTemplateParameters();
       else
@@ -614,9 +585,9 @@ void Sema::PrintInstantiationStack() {
 
 Optional<TemplateDeductionInfo *> Sema::isSFINAEContext() const {
   if (InNonInstantiationSFINAEContext)
-    return Optional<TemplateDeductionInfo *>(0);
+    return Optional<TemplateDeductionInfo *>(nullptr);
 
-  for (SmallVector<ActiveTemplateInstantiation, 16>::const_reverse_iterator
+  for (SmallVectorImpl<ActiveTemplateInstantiation>::const_reverse_iterator
          Active = ActiveTemplateInstantiations.rbegin(),
          ActiveEnd = ActiveTemplateInstantiations.rend();
        Active != ActiveEnd;
@@ -708,9 +679,8 @@ namespace {
 
     bool TryExpandParameterPacks(SourceLocation EllipsisLoc,
                                  SourceRange PatternRange,
-                             llvm::ArrayRef<UnexpandedParameterPack> Unexpanded,
-                                 bool &ShouldExpand,
-                                 bool &RetainExpansion,
+                                 ArrayRef<UnexpandedParameterPack> Unexpanded,
+                                 bool &ShouldExpand, bool &RetainExpansion,
                                  Optional<unsigned> &NumExpansions) {
       return getSema().CheckParameterPacksForExpansion(EllipsisLoc, 
                                                        PatternRange, Unexpanded,
@@ -731,7 +701,7 @@ namespace {
         MultiLevelTemplateArgumentList &TemplateArgs
           = const_cast<MultiLevelTemplateArgumentList &>(this->TemplateArgs);
         unsigned Depth, Index;
-        llvm::tie(Depth, Index) = getDepthAndIndex(PartialPack);
+        std::tie(Depth, Index) = getDepthAndIndex(PartialPack);
         if (TemplateArgs.hasTemplateArgument(Depth, Index)) {
           Result = TemplateArgs(Depth, Index);
           TemplateArgs.setArgument(Depth, Index, TemplateArgument());
@@ -750,7 +720,7 @@ namespace {
         MultiLevelTemplateArgumentList &TemplateArgs
         = const_cast<MultiLevelTemplateArgumentList &>(this->TemplateArgs);
         unsigned Depth, Index;
-        llvm::tie(Depth, Index) = getDepthAndIndex(PartialPack);
+        std::tie(Depth, Index) = getDepthAndIndex(PartialPack);
         TemplateArgs.setArgument(Depth, Index, Arg);
       }
     }
@@ -795,11 +765,13 @@ namespace {
                                    NestedNameSpecifierLoc QualifierLoc,
                                    QualType T);
 
-    TemplateName TransformTemplateName(CXXScopeSpec &SS,
-                                       TemplateName Name,
-                                       SourceLocation NameLoc,                                     
-                                       QualType ObjectType = QualType(),
-                                       NamedDecl *FirstQualifierInScope = 0);
+    TemplateName
+    TransformTemplateName(CXXScopeSpec &SS, TemplateName Name,
+                          SourceLocation NameLoc,
+                          QualType ObjectType = QualType(),
+                          NamedDecl *FirstQualifierInScope = nullptr);
+
+    const LoopHintAttr *TransformLoopHintAttr(const LoopHintAttr *LH);
 
     ExprResult TransformPredefinedExpr(PredefinedExpr *E);
     ExprResult TransformDeclRefExpr(DeclRefExpr *E);
@@ -823,11 +795,17 @@ namespace {
     ExprResult TransformFunctionParmPackExpr(FunctionParmPackExpr *E);
 
     QualType TransformFunctionProtoType(TypeLocBuilder &TLB,
-                                        FunctionProtoTypeLoc TL);
+                                        FunctionProtoTypeLoc TL) {
+      // Call the base version; it will forward to our overridden version below.
+      return inherited::TransformFunctionProtoType(TLB, TL);
+    }
+
+    template<typename Fn>
     QualType TransformFunctionProtoType(TypeLocBuilder &TLB,
                                         FunctionProtoTypeLoc TL,
                                         CXXRecordDecl *ThisContext,
-                                        unsigned ThisTypeQuals);
+                                        unsigned ThisTypeQuals,
+                                        Fn TransformExceptionSpec);
 
     ParmVarDecl *TransformFunctionTypeParam(ParmVarDecl *OldParm,
                                             int indexAdjustment,
@@ -859,13 +837,36 @@ namespace {
     }
 
     ExprResult TransformLambdaScope(LambdaExpr *E,
-                                    CXXMethodDecl *CallOperator) {
-      CallOperator->setInstantiationOfMemberFunction(E->getCallOperator(),
-                                                     TSK_ImplicitInstantiation);
-      return TreeTransform<TemplateInstantiator>::
-         TransformLambdaScope(E, CallOperator);
+        CXXMethodDecl *NewCallOperator, 
+        ArrayRef<InitCaptureInfoTy> InitCaptureExprsAndTypes) {
+      CXXMethodDecl *const OldCallOperator = E->getCallOperator();   
+      // In the generic lambda case, we set the NewTemplate to be considered
+      // an "instantiation" of the OldTemplate.
+      if (FunctionTemplateDecl *const NewCallOperatorTemplate = 
+            NewCallOperator->getDescribedFunctionTemplate()) {
+        
+        FunctionTemplateDecl *const OldCallOperatorTemplate = 
+                              OldCallOperator->getDescribedFunctionTemplate();
+        NewCallOperatorTemplate->setInstantiatedFromMemberTemplate(
+                                                     OldCallOperatorTemplate);
+      } else 
+        // For a non-generic lambda we set the NewCallOperator to 
+        // be an instantiation of the OldCallOperator.
+        NewCallOperator->setInstantiationOfMemberFunction(OldCallOperator,
+                                                    TSK_ImplicitInstantiation);
+      
+      return inherited::TransformLambdaScope(E, NewCallOperator, 
+          InitCaptureExprsAndTypes);
     }
-
+    TemplateParameterList *TransformTemplateParameterList(
+                              TemplateParameterList *OrigTPL)  {
+      if (!OrigTPL || !OrigTPL->size()) return OrigTPL;
+         
+      DeclContext *Owner = OrigTPL->getParam(0)->getDeclContext();
+      TemplateDeclInstantiator  DeclInstantiator(getSema(), 
+                        /* DeclContext *Owner */ Owner, TemplateArgs);
+      return DeclInstantiator.SubstTemplateParams(OrigTPL); 
+    }
   private:
     ExprResult transformNonTypeTemplateParmRef(NonTypeTemplateParmDecl *parm,
                                                SourceLocation loc,
@@ -884,9 +885,19 @@ bool TemplateInstantiator::AlreadyTransformed(QualType T) {
   return true;
 }
 
+static TemplateArgument
+getPackSubstitutedTemplateArgument(Sema &S, TemplateArgument Arg) {
+  assert(S.ArgumentPackSubstitutionIndex >= 0);        
+  assert(S.ArgumentPackSubstitutionIndex < (int)Arg.pack_size());
+  Arg = Arg.pack_begin()[S.ArgumentPackSubstitutionIndex];
+  if (Arg.isPackExpansion())
+    Arg = Arg.getPackExpansionPattern();
+  return Arg;
+}
+
 Decl *TemplateInstantiator::TransformDecl(SourceLocation Loc, Decl *D) {
   if (!D)
-    return 0;
+    return nullptr;
 
   if (TemplateTemplateParmDecl *TTP = dyn_cast<TemplateTemplateParmDecl>(D)) {
     if (TTP->getDepth() < TemplateArgs.getNumLevels()) {
@@ -903,10 +914,7 @@ Decl *TemplateInstantiator::TransformDecl(SourceLocation Loc, Decl *D) {
       if (TTP->isParameterPack()) {
         assert(Arg.getKind() == TemplateArgument::Pack && 
                "Missing argument pack");
-        
-        assert(getSema().ArgumentPackSubstitutionIndex >= 0);        
-        assert(getSema().ArgumentPackSubstitutionIndex < (int)Arg.pack_size());
-        Arg = Arg.pack_begin()[getSema().ArgumentPackSubstitutionIndex];
+        Arg = getPackSubstitutedTemplateArgument(getSema(), Arg);
       }
 
       TemplateName Template = Arg.getAsTemplate();
@@ -925,7 +933,7 @@ Decl *TemplateInstantiator::TransformDecl(SourceLocation Loc, Decl *D) {
 Decl *TemplateInstantiator::TransformDefinition(SourceLocation Loc, Decl *D) {
   Decl *Inst = getSema().SubstDecl(D, getSema().CurContext, TemplateArgs);
   if (!Inst)
-    return 0;
+    return nullptr;
 
   getSema().CurrentInstantiationScope->InstantiatedLocal(D, Inst);
   return Inst;
@@ -949,10 +957,9 @@ TemplateInstantiator::TransformFirstQualifierInScope(NamedDecl *D,
                "Missing argument pack");
         
         if (getSema().ArgumentPackSubstitutionIndex == -1)
-          return 0;
-        
-        assert(getSema().ArgumentPackSubstitutionIndex < (int)Arg.pack_size());
-        Arg = Arg.pack_begin()[getSema().ArgumentPackSubstitutionIndex];
+          return nullptr;
+
+        Arg = getPackSubstitutedTemplateArgument(getSema(), Arg);
       }
 
       QualType T = Arg.getAsType();
@@ -964,7 +971,7 @@ TemplateInstantiator::TransformFirstQualifierInScope(NamedDecl *D,
       
       // The resulting type is not a tag; complain.
       getSema().Diag(Loc, diag::err_nested_name_spec_non_tag) << T;
-      return 0;
+      return nullptr;
     }
   }
   
@@ -1028,7 +1035,7 @@ TemplateInstantiator::RebuildElaboratedType(SourceLocation KeywordLoc,
 
 TemplateName TemplateInstantiator::TransformTemplateName(CXXScopeSpec &SS,
                                                          TemplateName Name,
-                                                         SourceLocation NameLoc,                                     
+                                                         SourceLocation NameLoc,
                                                          QualType ObjectType,
                                              NamedDecl *FirstQualifierInScope) {
   if (TemplateTemplateParmDecl *TTP
@@ -1054,9 +1061,8 @@ TemplateName TemplateInstantiator::TransformTemplateName(CXXScopeSpec &SS,
           // keep the entire argument pack.
           return getSema().Context.getSubstTemplateTemplateParmPack(TTP, Arg);
         }
-        
-        assert(getSema().ArgumentPackSubstitutionIndex < (int)Arg.pack_size());
-        Arg = Arg.pack_begin()[getSema().ArgumentPackSubstitutionIndex];
+
+        Arg = getPackSubstitutedTemplateArgument(getSema(), Arg);
       }
       
       TemplateName Template = Arg.getAsTemplate();
@@ -1078,11 +1084,9 @@ TemplateName TemplateInstantiator::TransformTemplateName(CXXScopeSpec &SS,
     if (getSema().ArgumentPackSubstitutionIndex == -1)
       return Name;
     
-    const TemplateArgument &ArgPack = SubstPack->getArgumentPack();
-    assert(getSema().ArgumentPackSubstitutionIndex < (int)ArgPack.pack_size() &&
-           "Pack substitution index out-of-range");
-    return ArgPack.pack_begin()[getSema().ArgumentPackSubstitutionIndex]
-    .getAsTemplate();
+    TemplateArgument Arg = SubstPack->getArgumentPack();
+    Arg = getPackSubstitutedTemplateArgument(getSema(), Arg);
+    return Arg.getAsTemplate();
   }
   
   return inherited::TransformTemplateName(SS, Name, NameLoc, ObjectType, 
@@ -1092,27 +1096,9 @@ TemplateName TemplateInstantiator::TransformTemplateName(CXXScopeSpec &SS,
 ExprResult 
 TemplateInstantiator::TransformPredefinedExpr(PredefinedExpr *E) {
   if (!E->isTypeDependent())
-    return SemaRef.Owned(E);
+    return E;
 
-  FunctionDecl *currentDecl = getSema().getCurFunctionDecl();
-  assert(currentDecl && "Must have current function declaration when "
-                        "instantiating.");
-
-  PredefinedExpr::IdentType IT = E->getIdentType();
-
-  unsigned Length = PredefinedExpr::ComputeName(IT, currentDecl).length();
-
-  llvm::APInt LengthI(32, Length + 1);
-  QualType ResTy;
-  if (IT == PredefinedExpr::LFunction)
-    ResTy = getSema().Context.WCharTy.withConst();
-  else
-    ResTy = getSema().Context.CharTy.withConst();
-  ResTy = getSema().Context.getConstantArrayType(ResTy, LengthI, 
-                                                 ArrayType::Normal, 0);
-  PredefinedExpr *PE =
-    new (getSema().Context) PredefinedExpr(E->getLocation(), ResTy, IT);
-  return getSema().Owned(PE);
+  return getSema().BuildPredefinedExpr(E->getLocation(), E->getIdentType());
 }
 
 ExprResult
@@ -1124,7 +1110,7 @@ TemplateInstantiator::TransformTemplateParmRefExpr(DeclRefExpr *E,
   // arguments left unspecified.
   if (!TemplateArgs.hasTemplateArgument(NTTP->getDepth(),
                                         NTTP->getPosition()))
-    return SemaRef.Owned(E);
+    return E;
 
   TemplateArgument Arg = TemplateArgs(NTTP->getDepth(), NTTP->getPosition());
   if (NTTP->isParameterPack()) {
@@ -1147,11 +1133,28 @@ TemplateInstantiator::TransformTemplateParmRefExpr(DeclRefExpr *E,
                                                                     Arg);
     }
     
-    assert(getSema().ArgumentPackSubstitutionIndex < (int)Arg.pack_size());
-    Arg = Arg.pack_begin()[getSema().ArgumentPackSubstitutionIndex];
+    Arg = getPackSubstitutedTemplateArgument(getSema(), Arg);
   }
 
   return transformNonTypeTemplateParmRef(NTTP, E->getLocation(), Arg);
+}
+
+const LoopHintAttr *
+TemplateInstantiator::TransformLoopHintAttr(const LoopHintAttr *LH) {
+  Expr *TransformedExpr = getDerived().TransformExpr(LH->getValue()).get();
+
+  if (TransformedExpr == LH->getValue())
+    return LH;
+
+  // Generate error if there is a problem with the value.
+  if (getSema().CheckLoopHintExpr(TransformedExpr, LH->getLocation()))
+    return LH;
+
+  // Create new LoopHintValueAttr with integral expression in place of the
+  // non-type template parameter.
+  return LoopHintAttr::CreateImplicit(
+      getSema().Context, LH->getSemanticSpelling(), LH->getOption(),
+      LH->getState(), TransformedExpr, LH->getRange());
 }
 
 ExprResult TemplateInstantiator::transformNonTypeTemplateParmRef(
@@ -1161,19 +1164,11 @@ ExprResult TemplateInstantiator::transformNonTypeTemplateParmRef(
   ExprResult result;
   QualType type;
 
-  // If the argument is a pack expansion, the parameter must actually be a
-  // parameter pack, and we should substitute the pattern itself, producing
-  // an expression which contains an unexpanded parameter pack.
-  if (arg.isPackExpansion()) {
-    assert(parm->isParameterPack() && "pack expansion for non-pack");
-    arg = arg.getPackExpansionPattern();
-  }
-
   // The template argument itself might be an expression, in which
   // case we just return that expression.
   if (arg.getKind() == TemplateArgument::Expression) {
     Expr *argExpr = arg.getAsExpr();
-    result = SemaRef.Owned(argExpr);
+    result = argExpr;
     type = argExpr->getType();
 
   } else if (arg.getKind() == TemplateArgument::Declaration ||
@@ -1190,7 +1185,7 @@ ExprResult TemplateInstantiator::transformNonTypeTemplateParmRef(
         return ExprError();
     } else {
       // Propagate NULL template argument.
-      VD = 0;
+      VD = nullptr;
     }
     
     // Derive the type we want the substituted decl to have.  This had
@@ -1220,11 +1215,9 @@ ExprResult TemplateInstantiator::transformNonTypeTemplateParmRef(
   }
   if (result.isInvalid()) return ExprError();
 
-  Expr *resultExpr = result.take();
-  return SemaRef.Owned(new (SemaRef.Context)
-                SubstNonTypeTemplateParmExpr(type,
-                                             resultExpr->getValueKind(),
-                                             loc, parm, resultExpr));
+  Expr *resultExpr = result.get();
+  return new (SemaRef.Context) SubstNonTypeTemplateParmExpr(
+      type, resultExpr->getValueKind(), loc, parm, resultExpr);
 }
                                                    
 ExprResult 
@@ -1232,14 +1225,11 @@ TemplateInstantiator::TransformSubstNonTypeTemplateParmPackExpr(
                                           SubstNonTypeTemplateParmPackExpr *E) {
   if (getSema().ArgumentPackSubstitutionIndex == -1) {
     // We aren't expanding the parameter pack, so just return ourselves.
-    return getSema().Owned(E);
+    return E;
   }
-  
-  const TemplateArgument &ArgPack = E->getArgumentPack();
-  unsigned Index = (unsigned)getSema().ArgumentPackSubstitutionIndex;
-  assert(Index < ArgPack.pack_size() && "Substitution index out-of-range");
-  
-  const TemplateArgument &Arg = ArgPack.pack_begin()[Index];
+
+  TemplateArgument Arg = E->getArgumentPack();
+  Arg = getPackSubstitutedTemplateArgument(getSema(), Arg);
   return transformNonTypeTemplateParmRef(E->getParameterPack(),
                                          E->getParameterPackLocation(),
                                          Arg);
@@ -1295,8 +1285,8 @@ TemplateInstantiator::TransformFunctionParmPackRefExpr(DeclRefExpr *E,
 
   Decl *TransformedDecl;
   if (DeclArgumentPack *Pack = Found->dyn_cast<DeclArgumentPack *>()) {
-    // If this is a reference to a function parameter pack which we can substitute
-    // but can't yet expand, build a FunctionParmPackExpr for it.
+    // If this is a reference to a function parameter pack which we can
+    // substitute but can't yet expand, build a FunctionParmPackExpr for it.
     if (getSema().ArgumentPackSubstitutionIndex == -1) {
       QualType T = TransformType(E->getType());
       if (T.isNull())
@@ -1347,21 +1337,16 @@ ExprResult TemplateInstantiator::TransformCXXDefaultArgExpr(
                                         E->getParam());
 }
 
-QualType TemplateInstantiator::TransformFunctionProtoType(TypeLocBuilder &TLB,
-                                                      FunctionProtoTypeLoc TL) {
-  // We need a local instantiation scope for this function prototype.
-  LocalInstantiationScope Scope(SemaRef, /*CombineWithOuterScope=*/true);
-  return inherited::TransformFunctionProtoType(TLB, TL);
-}
-
+template<typename Fn>
 QualType TemplateInstantiator::TransformFunctionProtoType(TypeLocBuilder &TLB,
                                  FunctionProtoTypeLoc TL,
                                  CXXRecordDecl *ThisContext,
-                                 unsigned ThisTypeQuals) {
+                                 unsigned ThisTypeQuals,
+                                 Fn TransformExceptionSpec) {
   // We need a local instantiation scope for this function prototype.
   LocalInstantiationScope Scope(SemaRef, /*CombineWithOuterScope=*/true);
-  return inherited::TransformFunctionProtoType(TLB, TL, ThisContext, 
-                                               ThisTypeQuals);  
+  return inherited::TransformFunctionProtoType(
+      TLB, TL, ThisContext, ThisTypeQuals, TransformExceptionSpec);
 }
 
 ParmVarDecl *
@@ -1410,8 +1395,7 @@ TemplateInstantiator::TransformTemplateTypeParmType(TypeLocBuilder &TLB,
         return Result;
       }
       
-      assert(getSema().ArgumentPackSubstitutionIndex < (int)Arg.pack_size());
-      Arg = Arg.pack_begin()[getSema().ArgumentPackSubstitutionIndex];
+      Arg = getPackSubstitutedTemplateArgument(getSema(), Arg);
     }
     
     assert(Arg.getKind() == TemplateArgument::Type &&
@@ -1432,7 +1416,7 @@ TemplateInstantiator::TransformTemplateTypeParmType(TypeLocBuilder &TLB,
   // the template parameter list of a member template inside the
   // template we are instantiating). Create a new template type
   // parameter with the template "level" reduced by one.
-  TemplateTypeParmDecl *NewTTPDecl = 0;
+  TemplateTypeParmDecl *NewTTPDecl = nullptr;
   if (TemplateTypeParmDecl *OldTTPDecl = T->getDecl())
     NewTTPDecl = cast_or_null<TemplateTypeParmDecl>(
                                   TransformDecl(TL.getNameLoc(), OldTTPDecl));
@@ -1459,12 +1443,11 @@ TemplateInstantiator::TransformSubstTemplateTypeParmPackType(
     NewTL.setNameLoc(TL.getNameLoc());
     return TL.getType();
   }
-  
-  const TemplateArgument &ArgPack = TL.getTypePtr()->getArgumentPack();
-  unsigned Index = (unsigned)getSema().ArgumentPackSubstitutionIndex;
-  assert(Index < ArgPack.pack_size() && "Substitution index out-of-range");
-  
-  QualType Result = ArgPack.pack_begin()[Index].getAsType();
+
+  TemplateArgument Arg = TL.getTypePtr()->getArgumentPack();
+  Arg = getPackSubstitutedTemplateArgument(getSema(), Arg);
+  QualType Result = Arg.getAsType();
+
   Result = getSema().Context.getSubstTemplateTypeParmType(
                                       TL.getTypePtr()->getReplacedParameter(),
                                                           Result);
@@ -1526,7 +1509,7 @@ TypeSourceInfo *Sema::SubstType(TypeLoc TL,
          "instantiation stack");
   
   if (TL.getType().isNull())
-    return 0;
+    return nullptr;
 
   if (!TL.getType()->isInstantiationDependentType() && 
       !TL.getType()->isVariablyModifiedType()) {
@@ -1542,7 +1525,7 @@ TypeSourceInfo *Sema::SubstType(TypeLoc TL,
   TLB.reserve(TL.getFullDataSize());
   QualType Result = Instantiator.TransformType(TLB, TL);
   if (Result.isNull())
-    return 0;
+    return nullptr;
 
   return TLB.getTypeSourceInfo(Context, Result);
 }
@@ -1574,8 +1557,11 @@ static bool NeedsInstantiationAsFunctionType(TypeSourceInfo *T) {
     return false;
 
   FunctionProtoTypeLoc FP = TL.castAs<FunctionProtoTypeLoc>();
-  for (unsigned I = 0, E = FP.getNumArgs(); I != E; ++I) {
-    ParmVarDecl *P = FP.getArg(I);
+  for (unsigned I = 0, E = FP.getNumParams(); I != E; ++I) {
+    ParmVarDecl *P = FP.getParam(I);
+
+    // This must be synthesized from a typedef.
+    if (!P) continue;
 
     // The parameter's type as written might be dependent even if the
     // decayed type was not dependent.
@@ -1595,7 +1581,8 @@ static bool NeedsInstantiationAsFunctionType(TypeSourceInfo *T) {
 
 /// A form of SubstType intended specifically for instantiating the
 /// type of a FunctionDecl.  Its purpose is solely to force the
-/// instantiation of default-argument expressions.
+/// instantiation of default-argument expressions and to avoid
+/// instantiating an exception-specification.
 TypeSourceInfo *Sema::SubstFunctionDeclType(TypeSourceInfo *T,
                                 const MultiLevelTemplateArgumentList &Args,
                                 SourceLocation Loc,
@@ -1618,16 +1605,44 @@ TypeSourceInfo *Sema::SubstFunctionDeclType(TypeSourceInfo *T,
 
   QualType Result;
 
-  if (FunctionProtoTypeLoc Proto = TL.getAs<FunctionProtoTypeLoc>()) {
-    Result = Instantiator.TransformFunctionProtoType(TLB, Proto, ThisContext,
-                                                     ThisTypeQuals);
+  if (FunctionProtoTypeLoc Proto =
+          TL.IgnoreParens().getAs<FunctionProtoTypeLoc>()) {
+    // Instantiate the type, other than its exception specification. The
+    // exception specification is instantiated in InitFunctionInstantiation
+    // once we've built the FunctionDecl.
+    // FIXME: Set the exception specification to EST_Uninstantiated here,
+    // instead of rebuilding the function type again later.
+    Result = Instantiator.TransformFunctionProtoType(
+        TLB, Proto, ThisContext, ThisTypeQuals,
+        [](FunctionProtoType::ExceptionSpecInfo &ESI,
+           bool &Changed) { return false; });
   } else {
     Result = Instantiator.TransformType(TLB, TL);
   }
   if (Result.isNull())
-    return 0;
+    return nullptr;
 
   return TLB.getTypeSourceInfo(Context, Result);
+}
+
+void Sema::SubstExceptionSpec(FunctionDecl *New, const FunctionProtoType *Proto,
+                              const MultiLevelTemplateArgumentList &Args) {
+  FunctionProtoType::ExceptionSpecInfo ESI =
+      Proto->getExtProtoInfo().ExceptionSpec;
+  assert(ESI.Type != EST_Uninstantiated);
+
+  TemplateInstantiator Instantiator(*this, Args, New->getLocation(),
+                                    New->getDeclName());
+
+  SmallVector<QualType, 4> ExceptionStorage;
+  bool Changed = false;
+  if (Instantiator.TransformExceptionSpec(
+          New->getTypeSourceInfo()->getTypeLoc().getLocEnd(), ESI,
+          ExceptionStorage, Changed))
+    // On error, recover by dropping the exception specification.
+    ESI.Type = EST_None;
+
+  UpdateExceptionSpec(New, ESI);
 }
 
 ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm, 
@@ -1636,8 +1651,8 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
                                     Optional<unsigned> NumExpansions,
                                     bool ExpectParameterPack) {
   TypeSourceInfo *OldDI = OldParm->getTypeSourceInfo();
-  TypeSourceInfo *NewDI = 0;
-  
+  TypeSourceInfo *NewDI = nullptr;
+
   TypeLoc OldTL = OldDI->getTypeLoc();
   if (PackExpansionTypeLoc ExpansionTL = OldTL.getAs<PackExpansionTypeLoc>()) {
 
@@ -1646,8 +1661,8 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
     NewDI = SubstType(ExpansionTL.getPatternLoc(), TemplateArgs, 
                       OldParm->getLocation(), OldParm->getDeclName());
     if (!NewDI)
-      return 0;
-        
+      return nullptr;
+
     if (NewDI->getType()->containsUnexpandedParameterPack()) {
       // We still have unexpanded parameter packs, which means that
       // our function parameter is still a function parameter pack.
@@ -1662,7 +1677,7 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
       Diag(OldParm->getLocation(), 
            diag::err_function_parameter_pack_without_parameter_packs)
         << NewDI->getType();
-      return 0;
+      return nullptr;
     } 
   } else {
     NewDI = SubstType(OldDI, TemplateArgs, OldParm->getLocation(), 
@@ -1670,11 +1685,11 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
   }
   
   if (!NewDI)
-    return 0;
+    return nullptr;
 
   if (NewDI->getType()->isVoidType()) {
     Diag(OldParm->getLocation(), diag::err_param_with_void_type);
-    return 0;
+    return nullptr;
   }
 
   ParmVarDecl *NewParm = CheckParameter(Context.getTranslationUnitDecl(),
@@ -1684,8 +1699,8 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
                                         NewDI->getType(), NewDI,
                                         OldParm->getStorageClass());
   if (!NewParm)
-    return 0;
-                                                
+    return nullptr;
+
   // Mark the (new) default argument as uninstantiated (if any).
   if (OldParm->hasUninstantiatedDefaultArg()) {
     Expr *Arg = OldParm->getUninstantiatedDefaultArg();
@@ -1735,8 +1750,9 @@ bool Sema::SubstParmTypes(SourceLocation Loc,
   
   TemplateInstantiator Instantiator(*this, TemplateArgs, Loc, 
                                     DeclarationName());
-  return Instantiator.TransformFunctionTypeParams(Loc, Params, NumParams, 0,
-                                                  ParamTypes, OutParams);
+  return Instantiator.TransformFunctionTypeParams(Loc, Params, NumParams,
+                                                  nullptr, ParamTypes,
+                                                  OutParams);
 }
 
 /// \brief Perform substitution on the base class specifiers of the
@@ -1751,27 +1767,29 @@ Sema::SubstBaseSpecifiers(CXXRecordDecl *Instantiation,
                           const MultiLevelTemplateArgumentList &TemplateArgs) {
   bool Invalid = false;
   SmallVector<CXXBaseSpecifier*, 4> InstantiatedBases;
-  for (ClassTemplateSpecializationDecl::base_class_iterator
-         Base = Pattern->bases_begin(), BaseEnd = Pattern->bases_end();
-       Base != BaseEnd; ++Base) {
-    if (!Base->getType()->isDependentType()) {
-      InstantiatedBases.push_back(new (Context) CXXBaseSpecifier(*Base));
+  for (const auto Base : Pattern->bases()) {
+    if (!Base.getType()->isDependentType()) {
+      if (const CXXRecordDecl *RD = Base.getType()->getAsCXXRecordDecl()) {
+        if (RD->isInvalidDecl())
+          Instantiation->setInvalidDecl();
+      }
+      InstantiatedBases.push_back(new (Context) CXXBaseSpecifier(Base));
       continue;
     }
 
     SourceLocation EllipsisLoc;
     TypeSourceInfo *BaseTypeLoc;
-    if (Base->isPackExpansion()) {
+    if (Base.isPackExpansion()) {
       // This is a pack expansion. See whether we should expand it now, or
       // wait until later.
       SmallVector<UnexpandedParameterPack, 2> Unexpanded;
-      collectUnexpandedParameterPacks(Base->getTypeSourceInfo()->getTypeLoc(),
+      collectUnexpandedParameterPacks(Base.getTypeSourceInfo()->getTypeLoc(),
                                       Unexpanded);
       bool ShouldExpand = false;
       bool RetainExpansion = false;
       Optional<unsigned> NumExpansions;
-      if (CheckParameterPacksForExpansion(Base->getEllipsisLoc(), 
-                                          Base->getSourceRange(),
+      if (CheckParameterPacksForExpansion(Base.getEllipsisLoc(), 
+                                          Base.getSourceRange(),
                                           Unexpanded,
                                           TemplateArgs, ShouldExpand, 
                                           RetainExpansion,
@@ -1785,9 +1803,9 @@ Sema::SubstBaseSpecifiers(CXXRecordDecl *Instantiation,
         for (unsigned I = 0; I != *NumExpansions; ++I) {
             Sema::ArgumentPackSubstitutionIndexRAII SubstIndex(*this, I);
           
-          TypeSourceInfo *BaseTypeLoc = SubstType(Base->getTypeSourceInfo(),
+          TypeSourceInfo *BaseTypeLoc = SubstType(Base.getTypeSourceInfo(),
                                                   TemplateArgs,
-                                              Base->getSourceRange().getBegin(),
+                                              Base.getSourceRange().getBegin(),
                                                   DeclarationName());
           if (!BaseTypeLoc) {
             Invalid = true;
@@ -1796,9 +1814,9 @@ Sema::SubstBaseSpecifiers(CXXRecordDecl *Instantiation,
           
           if (CXXBaseSpecifier *InstantiatedBase
                 = CheckBaseSpecifier(Instantiation,
-                                     Base->getSourceRange(),
-                                     Base->isVirtual(),
-                                     Base->getAccessSpecifierAsWritten(),
+                                     Base.getSourceRange(),
+                                     Base.isVirtual(),
+                                     Base.getAccessSpecifierAsWritten(),
                                      BaseTypeLoc,
                                      SourceLocation()))
             InstantiatedBases.push_back(InstantiatedBase);
@@ -1810,16 +1828,16 @@ Sema::SubstBaseSpecifiers(CXXRecordDecl *Instantiation,
       }
       
       // The resulting base specifier will (still) be a pack expansion.
-      EllipsisLoc = Base->getEllipsisLoc();
+      EllipsisLoc = Base.getEllipsisLoc();
       Sema::ArgumentPackSubstitutionIndexRAII SubstIndex(*this, -1);
-      BaseTypeLoc = SubstType(Base->getTypeSourceInfo(),
+      BaseTypeLoc = SubstType(Base.getTypeSourceInfo(),
                               TemplateArgs,
-                              Base->getSourceRange().getBegin(),
+                              Base.getSourceRange().getBegin(),
                               DeclarationName());
     } else {
-      BaseTypeLoc = SubstType(Base->getTypeSourceInfo(),
+      BaseTypeLoc = SubstType(Base.getTypeSourceInfo(),
                               TemplateArgs,
-                              Base->getSourceRange().getBegin(),
+                              Base.getSourceRange().getBegin(),
                               DeclarationName());
     }
     
@@ -1830,9 +1848,9 @@ Sema::SubstBaseSpecifiers(CXXRecordDecl *Instantiation,
 
     if (CXXBaseSpecifier *InstantiatedBase
           = CheckBaseSpecifier(Instantiation,
-                               Base->getSourceRange(),
-                               Base->isVirtual(),
-                               Base->getAccessSpecifierAsWritten(),
+                               Base.getSourceRange(),
+                               Base.isVirtual(),
+                               Base.getAccessSpecifierAsWritten(),
                                BaseTypeLoc,
                                EllipsisLoc))
       InstantiatedBases.push_back(InstantiatedBase);
@@ -1884,7 +1902,7 @@ static bool DiagnoseUninstantiableTemplate(Sema &S,
     S.Diag(PointOfInstantiation,
            diag::err_implicit_instantiate_member_undefined)
       << S.Context.getTypeDeclType(Instantiation);
-    S.Diag(Pattern->getLocation(), diag::note_member_of_template_here);
+    S.Diag(Pattern->getLocation(), diag::note_member_declared_at);
   } else {
     S.Diag(PointOfInstantiation, diag::err_template_instantiate_undefined)
       << (TSK != TSK_ImplicitInstantiation)
@@ -1947,9 +1965,9 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
     Spec->setTemplateSpecializationKind(TSK);
     Spec->setPointOfInstantiation(PointOfInstantiation);
   }
-  
+
   InstantiatingTemplate Inst(*this, PointOfInstantiation, Instantiation);
-  if (Inst)
+  if (Inst.isInvalid())
     return true;
 
   // Enter the scope of this instantiation. We don't use
@@ -1969,7 +1987,12 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
 
   // Start the definition of this instantiation.
   Instantiation->startDefinition();
-  
+
+  // The instantiation is visible here, even if it was first declared in an
+  // unimported module.
+  Instantiation->setHidden(false);
+
+  // FIXME: This loses the as-written tag kind for an explicit instantiation.
   Instantiation->setTagKind(Pattern->getTagKind());
 
   // Do substitution on the base class specifiers.
@@ -1978,15 +2001,11 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
 
   TemplateDeclInstantiator Instantiator(*this, Instantiation, TemplateArgs);
   SmallVector<Decl*, 4> Fields;
-  SmallVector<std::pair<FieldDecl*, FieldDecl*>, 4>
-    FieldsWithMemberInitializers;
   // Delay instantiation of late parsed attributes.
   LateInstantiatedAttrVec LateAttrs;
   Instantiator.enableLateAttributeInstantiation(&LateAttrs);
 
-  for (RecordDecl::decl_iterator Member = Pattern->decls_begin(),
-         MemberEnd = Pattern->decls_end();
-       Member != MemberEnd; ++Member) {
+  for (auto *Member : Pattern->decls()) {
     // Don't instantiate members not belonging in this semantic context.
     // e.g. for:
     // @code
@@ -1996,22 +2015,18 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
     // @endcode
     // 'class B' has the template as lexical context but semantically it is
     // introduced in namespace scope.
-    if ((*Member)->getDeclContext() != Pattern)
+    if (Member->getDeclContext() != Pattern)
       continue;
 
-    if ((*Member)->isInvalidDecl()) {
+    if (Member->isInvalidDecl()) {
       Instantiation->setInvalidDecl();
       continue;
     }
 
-    Decl *NewMember = Instantiator.Visit(*Member);
+    Decl *NewMember = Instantiator.Visit(Member);
     if (NewMember) {
       if (FieldDecl *Field = dyn_cast<FieldDecl>(NewMember)) {
         Fields.push_back(Field);
-        FieldDecl *OldField = cast<FieldDecl>(*Member);
-        if (OldField->getInClassInitializer())
-          FieldsWithMemberInitializers.push_back(std::make_pair(OldField,
-                                                                Field));
       } else if (EnumDecl *Enum = dyn_cast<EnumDecl>(NewMember)) {
         // C++11 [temp.inst]p1: The implicit instantiation of a class template
         // specialization causes the implicit instantiation of the definitions
@@ -2044,43 +2059,24 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
   }
 
   // Finish checking fields.
-  ActOnFields(0, Instantiation->getLocation(), Instantiation, Fields, 
-              SourceLocation(), SourceLocation(), 0);
+  ActOnFields(nullptr, Instantiation->getLocation(), Instantiation, Fields,
+              SourceLocation(), SourceLocation(), nullptr);
   CheckCompletedCXXClass(Instantiation);
 
-  // Attach any in-class member initializers now the class is complete.
-  // FIXME: We are supposed to defer instantiating these until they are needed.
-  if (!FieldsWithMemberInitializers.empty()) {
-    // C++11 [expr.prim.general]p4:
-    //   Otherwise, if a member-declarator declares a non-static data member 
-    //  (9.2) of a class X, the expression this is a prvalue of type "pointer
-    //  to X" within the optional brace-or-equal-initializer. It shall not 
-    //  appear elsewhere in the member-declarator.
-    CXXThisScopeRAII ThisScope(*this, Instantiation, (unsigned)0);
-    
-    for (unsigned I = 0, N = FieldsWithMemberInitializers.size(); I != N; ++I) {
-      FieldDecl *OldField = FieldsWithMemberInitializers[I].first;
-      FieldDecl *NewField = FieldsWithMemberInitializers[I].second;
-      Expr *OldInit = OldField->getInClassInitializer();
-
-      ExprResult NewInit = SubstInitializer(OldInit, TemplateArgs,
-                                            /*CXXDirectInit=*/false);
-      if (NewInit.isInvalid())
-        NewField->setInvalidDecl();
-      else {
-        Expr *Init = NewInit.take();
-        assert(Init && "no-argument initializer in class");
-        assert(!isa<ParenListExpr>(Init) && "call-style init in class");
-        ActOnCXXInClassMemberInitializer(NewField, Init->getLocStart(), Init);
-      }
-    }
-  }
   // Instantiate late parsed attributes, and attach them to their decls.
   // See Sema::InstantiateAttrs
   for (LateInstantiatedAttrVec::iterator I = LateAttrs.begin(),
        E = LateAttrs.end(); I != E; ++I) {
     assert(CurrentInstantiationScope == Instantiator.getStartingScope());
     CurrentInstantiationScope = I->Scope;
+
+    // Allow 'this' within late-parsed attributes.
+    NamedDecl *ND = dyn_cast<NamedDecl>(I->NewDecl);
+    CXXRecordDecl *ThisContext =
+        dyn_cast_or_null<CXXRecordDecl>(ND->getDeclContext());
+    CXXThisScopeRAII ThisScope(*this, ThisContext, /*TypeQuals*/0,
+                               ND && ND->isCXXInstanceMember());
+
     Attr *NewAttr =
       instantiateTemplateAttribute(I->TmplAttr, Context, *this, TemplateArgs);
     I->NewDecl->addAttr(NewAttr);
@@ -2092,6 +2088,8 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
 
   ActOnFinishDelayedMemberInitializers(Instantiation);
 
+  // FIXME: We should do something similar for explicit instantiations so they
+  // end up in the right module.
   if (TSK == TSK_ImplicitInstantiation) {
     Instantiation->setLocation(Pattern->getLocation());
     Instantiation->setLocStart(Pattern->getInnerLocStart());
@@ -2104,13 +2102,25 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
 
     // Instantiate any out-of-line class template partial
     // specializations now.
-    for (TemplateDeclInstantiator::delayed_partial_spec_iterator 
+    for (TemplateDeclInstantiator::delayed_partial_spec_iterator
               P = Instantiator.delayed_partial_spec_begin(),
            PEnd = Instantiator.delayed_partial_spec_end();
          P != PEnd; ++P) {
       if (!Instantiator.InstantiateClassTemplatePartialSpecialization(
-                                                                P->first,
-                                                                P->second)) {
+              P->first, P->second)) {
+        Instantiation->setInvalidDecl();
+        break;
+      }
+    }
+
+    // Instantiate any out-of-line variable template partial
+    // specializations now.
+    for (TemplateDeclInstantiator::delayed_var_partial_spec_iterator
+              P = Instantiator.delayed_var_partial_spec_begin(),
+           PEnd = Instantiator.delayed_var_partial_spec_end();
+         P != PEnd; ++P) {
+      if (!Instantiator.InstantiateVarTemplatePartialSpecialization(
+              P->first, P->second)) {
         Instantiation->setInvalidDecl();
         break;
       }
@@ -2166,8 +2176,12 @@ bool Sema::InstantiateEnum(SourceLocation PointOfInstantiation,
   }
 
   InstantiatingTemplate Inst(*this, PointOfInstantiation, Instantiation);
-  if (Inst)
+  if (Inst.isInvalid())
     return true;
+
+  // The instantiation is visible here, even if it was first declared in an
+  // unimported module.
+  Instantiation->setHidden(false);
 
   // Enter the scope of this instantiation. We don't use
   // PushDeclContext because we don't have a scope.
@@ -2189,6 +2203,80 @@ bool Sema::InstantiateEnum(SourceLocation PointOfInstantiation,
   return Instantiation->isInvalidDecl();
 }
 
+
+/// \brief Instantiate the definition of a field from the given pattern.
+///
+/// \param PointOfInstantiation The point of instantiation within the
+///        source code.
+/// \param Instantiation is the declaration whose definition is being
+///        instantiated. This will be a class of a class temploid
+///        specialization, or a local enumeration within a function temploid
+///        specialization.
+/// \param Pattern The templated declaration from which the instantiation
+///        occurs.
+/// \param TemplateArgs The template arguments to be substituted into
+///        the pattern.
+///
+/// \return \c true if an error occurred, \c false otherwise.
+bool Sema::InstantiateInClassInitializer(
+    SourceLocation PointOfInstantiation, FieldDecl *Instantiation,
+    FieldDecl *Pattern, const MultiLevelTemplateArgumentList &TemplateArgs) {
+  // If there is no initializer, we don't need to do anything.
+  if (!Pattern->hasInClassInitializer())
+    return false;
+
+  assert(Instantiation->getInClassInitStyle() ==
+             Pattern->getInClassInitStyle() &&
+         "pattern and instantiation disagree about init style");
+
+  // Error out if we haven't parsed the initializer of the pattern yet because
+  // we are waiting for the closing brace of the outer class.
+  Expr *OldInit = Pattern->getInClassInitializer();
+  if (!OldInit) {
+    RecordDecl *PatternRD = Pattern->getParent();
+    RecordDecl *OutermostClass = PatternRD->getOuterLexicalRecordContext();
+    if (OutermostClass == PatternRD) {
+      Diag(Pattern->getLocEnd(), diag::err_in_class_initializer_not_yet_parsed)
+          << PatternRD << Pattern;
+    } else {
+      Diag(Pattern->getLocEnd(),
+           diag::err_in_class_initializer_not_yet_parsed_outer_class)
+          << PatternRD << OutermostClass << Pattern;
+    }
+    Instantiation->setInvalidDecl();
+    return true;
+  }
+
+  InstantiatingTemplate Inst(*this, PointOfInstantiation, Instantiation);
+  if (Inst.isInvalid())
+    return true;
+
+  // Enter the scope of this instantiation. We don't use PushDeclContext because
+  // we don't have a scope.
+  ContextRAII SavedContext(*this, Instantiation->getParent());
+  EnterExpressionEvaluationContext EvalContext(*this,
+                                               Sema::PotentiallyEvaluated);
+
+  LocalInstantiationScope Scope(*this);
+
+  // Instantiate the initializer.
+  ActOnStartCXXInClassMemberInitializer();
+  CXXThisScopeRAII ThisScope(*this, Instantiation->getParent(), /*TypeQuals=*/0);
+
+  ExprResult NewInit = SubstInitializer(OldInit, TemplateArgs,
+                                        /*CXXDirectInit=*/false);
+  Expr *Init = NewInit.get();
+  assert((!Init || !isa<ParenListExpr>(Init)) && "call-style init in class");
+  ActOnFinishCXXInClassMemberInitializer(
+      Instantiation, Init ? Init->getLocStart() : SourceLocation(), Init);
+
+  // Exit the scope of this instantiation.
+  SavedContext.pop();
+
+  // Return true if the in-class initializer is still missing.
+  return !Instantiation->getInClassInitializer();
+}
+
 namespace {
   /// \brief A partial specialization whose template arguments have matched
   /// a given template-id.
@@ -2198,12 +2286,10 @@ namespace {
   };
 }
 
-bool
-Sema::InstantiateClassTemplateSpecialization(
-                           SourceLocation PointOfInstantiation,
-                           ClassTemplateSpecializationDecl *ClassTemplateSpec,
-                           TemplateSpecializationKind TSK,
-                           bool Complain) {
+bool Sema::InstantiateClassTemplateSpecialization(
+    SourceLocation PointOfInstantiation,
+    ClassTemplateSpecializationDecl *ClassTemplateSpec,
+    TemplateSpecializationKind TSK, bool Complain) {
   // Perform the actual instantiation on the canonical declaration.
   ClassTemplateSpec = cast<ClassTemplateSpecializationDecl>(
                                          ClassTemplateSpec->getCanonicalDecl());
@@ -2238,7 +2324,7 @@ Sema::InstantiateClassTemplateSpecialization(
     return true;
   
   ClassTemplateDecl *Template = ClassTemplateSpec->getSpecializedTemplate();
-  CXXRecordDecl *Pattern = 0;
+  CXXRecordDecl *Pattern = nullptr;
 
   // C++ [temp.class.spec.match]p1:
   //   When a class template is used in a context that requires an
@@ -2252,15 +2338,18 @@ Sema::InstantiateClassTemplateSpecialization(
   SmallVector<MatchResult, 4> Matched;
   SmallVector<ClassTemplatePartialSpecializationDecl *, 4> PartialSpecs;
   Template->getPartialSpecializations(PartialSpecs);
+  TemplateSpecCandidateSet FailedCandidates(PointOfInstantiation);
   for (unsigned I = 0, N = PartialSpecs.size(); I != N; ++I) {
     ClassTemplatePartialSpecializationDecl *Partial = PartialSpecs[I];
-    TemplateDeductionInfo Info(PointOfInstantiation);
+    TemplateDeductionInfo Info(FailedCandidates.getLocation());
     if (TemplateDeductionResult Result
           = DeduceTemplateArguments(Partial,
                                     ClassTemplateSpec->getTemplateArgs(),
                                     Info)) {
-      // FIXME: Store the failed-deduction information for use in
-      // diagnostics, later.
+      // Store the failed-deduction information for use in diagnostics, later.
+      // TODO: Actually use the failed-deduction info?
+      FailedCandidates.addCandidate()
+          .set(Partial, MakeDeductionFailureInfo(Context, Result, Info));
       (void)Result;
     } else {
       Matched.push_back(PartialSpecMatchResult());
@@ -2272,10 +2361,9 @@ Sema::InstantiateClassTemplateSpecialization(
   // If we're dealing with a member template where the template parameters
   // have been instantiated, this provides the original template parameters
   // from which the member template's parameters were instantiated.
-  SmallVector<const NamedDecl *, 4> InstantiatedTemplateParameters;
-  
+
   if (Matched.size() >= 1) {
-    SmallVector<MatchResult, 4>::iterator Best = Matched.begin();
+    SmallVectorImpl<MatchResult>::iterator Best = Matched.begin();
     if (Matched.size() == 1) {
       //   -- If exactly one matching specialization is found, the
       //      instantiation is generated from that specialization.
@@ -2288,8 +2376,8 @@ Sema::InstantiateClassTemplateSpecialization(
       //      specialized than all of the other matching
       //      specializations, then the use of the class template is
       //      ambiguous and the program is ill-formed.
-      for (SmallVector<MatchResult, 4>::iterator P = Best + 1,
-                                                    PEnd = Matched.end();
+      for (SmallVectorImpl<MatchResult>::iterator P = Best + 1,
+                                               PEnd = Matched.end();
            P != PEnd; ++P) {
         if (getMoreSpecializedPartialSpecialization(P->Partial, Best->Partial,
                                                     PointOfInstantiation) 
@@ -2300,8 +2388,8 @@ Sema::InstantiateClassTemplateSpecialization(
       // Determine if the best partial specialization is more specialized than
       // the others.
       bool Ambiguous = false;
-      for (SmallVector<MatchResult, 4>::iterator P = Matched.begin(),
-                                                    PEnd = Matched.end();
+      for (SmallVectorImpl<MatchResult>::iterator P = Matched.begin(),
+                                               PEnd = Matched.end();
            P != PEnd; ++P) {
         if (P != Best &&
             getMoreSpecializedPartialSpecialization(P->Partial, Best->Partial,
@@ -2319,8 +2407,8 @@ Sema::InstantiateClassTemplateSpecialization(
           << ClassTemplateSpec;
         
         // Print the matching partial specializations.
-        for (SmallVector<MatchResult, 4>::iterator P = Matched.begin(),
-                                                      PEnd = Matched.end();
+        for (SmallVectorImpl<MatchResult>::iterator P = Matched.begin(),
+                                                 PEnd = Matched.end();
              P != PEnd; ++P)
           Diag(P->Partial->getLocation(), diag::note_partial_spec_match)
             << getTemplateArgumentBindingsText(
@@ -2377,11 +2465,17 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
                               CXXRecordDecl *Instantiation,
                         const MultiLevelTemplateArgumentList &TemplateArgs,
                               TemplateSpecializationKind TSK) {
-  for (DeclContext::decl_iterator D = Instantiation->decls_begin(),
-                               DEnd = Instantiation->decls_end();
-       D != DEnd; ++D) {
+  // FIXME: We need to notify the ASTMutationListener that we did all of these
+  // things, in case we have an explicit instantiation definition in a PCM, a
+  // module, or preamble, and the declaration is in an imported AST.
+  assert(
+      (TSK == TSK_ExplicitInstantiationDefinition ||
+       TSK == TSK_ExplicitInstantiationDeclaration ||
+       (TSK == TSK_ImplicitInstantiation && Instantiation->isLocalClass())) &&
+      "Unexpected template specialization kind!");
+  for (auto *D : Instantiation->decls()) {
     bool SuppressNew = false;
-    if (FunctionDecl *Function = dyn_cast<FunctionDecl>(*D)) {
+    if (auto *Function = dyn_cast<FunctionDecl>(D)) {
       if (FunctionDecl *Pattern
             = Function->getInstantiatedFromMemberFunction()) {
         MemberSpecializationInfo *MSInfo 
@@ -2398,28 +2492,33 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
                                                    SuppressNew) ||
             SuppressNew)
           continue;
-        
-        if (Function->isDefined())
+
+        // C++11 [temp.explicit]p8:
+        //   An explicit instantiation definition that names a class template
+        //   specialization explicitly instantiates the class template
+        //   specialization and is only an explicit instantiation definition
+        //   of members whose definition is visible at the point of
+        //   instantiation.
+        if (TSK == TSK_ExplicitInstantiationDefinition && !Pattern->isDefined())
           continue;
 
-        if (TSK == TSK_ExplicitInstantiationDefinition) {
-          // C++0x [temp.explicit]p8:
-          //   An explicit instantiation definition that names a class template
-          //   specialization explicitly instantiates the class template 
-          //   specialization and is only an explicit instantiation definition 
-          //   of members whose definition is visible at the point of 
-          //   instantiation.
-          if (!Pattern->isDefined())
-            continue;
-        
-          Function->setTemplateSpecializationKind(TSK, PointOfInstantiation);
-                      
+        Function->setTemplateSpecializationKind(TSK, PointOfInstantiation);
+
+        if (Function->isDefined()) {
+          // Let the ASTConsumer know that this function has been explicitly
+          // instantiated now, and its linkage might have changed.
+          Consumer.HandleTopLevelDecl(DeclGroupRef(Function));
+        } else if (TSK == TSK_ExplicitInstantiationDefinition) {
           InstantiateFunctionDefinition(PointOfInstantiation, Function);
-        } else {
-          Function->setTemplateSpecializationKind(TSK, PointOfInstantiation);
+        } else if (TSK == TSK_ImplicitInstantiation) {
+          PendingLocalImplicitInstantiations.push_back(
+              std::make_pair(Function, PointOfInstantiation));
         }
       }
-    } else if (VarDecl *Var = dyn_cast<VarDecl>(*D)) {
+    } else if (auto *Var = dyn_cast<VarDecl>(D)) {
+      if (isa<VarTemplateSpecializationDecl>(Var))
+        continue;
+
       if (Var->isStaticDataMember()) {
         MemberSpecializationInfo *MSInfo = Var->getMemberSpecializationInfo();
         assert(MSInfo && "No member specialization information?");
@@ -2452,11 +2551,14 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
           Var->setTemplateSpecializationKind(TSK, PointOfInstantiation);
         }
       }      
-    } else if (CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(*D)) {
+    } else if (auto *Record = dyn_cast<CXXRecordDecl>(D)) {
       // Always skip the injected-class-name, along with any
       // redeclarations of nested classes, since both would cause us
       // to try to instantiate the members of a class twice.
-      if (Record->isInjectedClassName() || Record->getPreviousDecl())
+      // Skip closure types; they'll get instantiated when we instantiate
+      // the corresponding lambda-expression.
+      if (Record->isInjectedClassName() || Record->getPreviousDecl() ||
+          Record->isLambda())
         continue;
       
       MemberSpecializationInfo *MSInfo = Record->getMemberSpecializationInfo();
@@ -2509,7 +2611,7 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
       if (Pattern)
         InstantiateClassMembers(PointOfInstantiation, Pattern, TemplateArgs, 
                                 TSK);
-    } else if (EnumDecl *Enum = dyn_cast<EnumDecl>(*D)) {
+    } else if (auto *Enum = dyn_cast<EnumDecl>(D)) {
       MemberSpecializationInfo *MSInfo = Enum->getMemberSpecializationInfo();
       assert(MSInfo && "No member specialization information?");
 
@@ -2539,6 +2641,19 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
         MSInfo->setTemplateSpecializationKind(TSK);
         MSInfo->setPointOfInstantiation(PointOfInstantiation);
       }
+    } else if (auto *Field = dyn_cast<FieldDecl>(D)) {
+      // No need to instantiate in-class initializers during explicit
+      // instantiation.
+      if (Field->hasInClassInitializer() && TSK == TSK_ImplicitInstantiation) {
+        CXXRecordDecl *ClassPattern =
+            Instantiation->getTemplateInstantiationPattern();
+        DeclContext::lookup_result Lookup =
+            ClassPattern->lookup(Field->getDeclName());
+        assert(Lookup.size() == 1);
+        FieldDecl *Pattern = cast<FieldDecl>(Lookup[0]);
+        InstantiateInClassInitializer(PointOfInstantiation, Field, Pattern,
+                                      TemplateArgs);
+      }
     }
   }
 }
@@ -2567,7 +2682,7 @@ Sema::InstantiateClassTemplateSpecializationMembers(
 StmtResult
 Sema::SubstStmt(Stmt *S, const MultiLevelTemplateArgumentList &TemplateArgs) {
   if (!S)
-    return Owned(S);
+    return S;
 
   TemplateInstantiator Instantiator(*this, TemplateArgs,
                                     SourceLocation(),
@@ -2578,7 +2693,7 @@ Sema::SubstStmt(Stmt *S, const MultiLevelTemplateArgumentList &TemplateArgs) {
 ExprResult
 Sema::SubstExpr(Expr *E, const MultiLevelTemplateArgumentList &TemplateArgs) {
   if (!E)
-    return Owned(E);
+    return E;
 
   TemplateInstantiator Instantiator(*this, TemplateArgs,
                                     SourceLocation(),
@@ -2647,8 +2762,7 @@ bool Sema::Subst(const TemplateArgumentLoc *Args, unsigned NumArgs,
   return Instantiator.TransformTemplateArguments(Args, NumArgs, Result);
 }
 
-
-static const Decl* getCanonicalParmVarDecl(const Decl *D) {
+static const Decl *getCanonicalParmVarDecl(const Decl *D) {
   // When storing ParmVarDecls in the local instantiation scope, we always
   // want to use the ParmVarDecl from the canonical function declaration,
   // since the map is then valid for any redeclaration or definition of that
@@ -2656,7 +2770,10 @@ static const Decl* getCanonicalParmVarDecl(const Decl *D) {
   if (const ParmVarDecl *PV = dyn_cast<ParmVarDecl>(D)) {
     if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(PV->getDeclContext())) {
       unsigned i = PV->getFunctionScopeIndex();
-      return FD->getCanonicalDecl()->getParamDecl(i);
+      // This parameter might be from a freestanding function type within the
+      // function and isn't necessarily referring to one of FD's parameters.
+      if (FD->getParamDecl(i) == PV)
+        return FD->getCanonicalDecl()->getParamDecl(i);
     }
   }
   return D;
@@ -2681,7 +2798,7 @@ LocalInstantiationScope::findInstantiationOf(const Decl *D) {
       if (const TagDecl *Tag = dyn_cast<TagDecl>(CheckD))
         CheckD = Tag->getPreviousDecl();
       else
-        CheckD = 0;
+        CheckD = nullptr;
     } while (CheckD);
     
     // If we aren't combined with our outer scope, we're done. 
@@ -2689,22 +2806,38 @@ LocalInstantiationScope::findInstantiationOf(const Decl *D) {
       break;
   }
 
+  // If we're performing a partial substitution during template argument
+  // deduction, we may not have values for template parameters yet.
+  if (isa<NonTypeTemplateParmDecl>(D) || isa<TemplateTypeParmDecl>(D) ||
+      isa<TemplateTemplateParmDecl>(D))
+    return nullptr;
+
   // If we didn't find the decl, then we either have a sema bug, or we have a
   // forward reference to a label declaration.  Return null to indicate that
   // we have an uninstantiated label.
   assert(isa<LabelDecl>(D) && "declaration not instantiated in this scope");
-  return 0;
+  return nullptr;
 }
 
 void LocalInstantiationScope::InstantiatedLocal(const Decl *D, Decl *Inst) {
   D = getCanonicalParmVarDecl(D);
   llvm::PointerUnion<Decl *, DeclArgumentPack *> &Stored = LocalDecls[D];
-  if (Stored.isNull())
+  if (Stored.isNull()) {
+#ifndef NDEBUG
+    // It should not be present in any surrounding scope either.
+    LocalInstantiationScope *Current = this;
+    while (Current->CombineWithOuterScope && Current->Outer) {
+      Current = Current->Outer;
+      assert(Current->LocalDecls.find(D) == Current->LocalDecls.end() &&
+             "Instantiated local in inner and outer scopes");
+    }
+#endif
     Stored = Inst;
-  else if (DeclArgumentPack *Pack = Stored.dyn_cast<DeclArgumentPack *>())
+  } else if (DeclArgumentPack *Pack = Stored.dyn_cast<DeclArgumentPack *>()) {
     Pack->push_back(Inst);
-  else
+  } else {
     assert(Stored.get<Decl *>() == Inst && "Already instantiated this local");
+  }
 }
 
 void LocalInstantiationScope::InstantiatedLocalPackArg(const Decl *D, 
@@ -2715,9 +2848,16 @@ void LocalInstantiationScope::InstantiatedLocalPackArg(const Decl *D,
 }
 
 void LocalInstantiationScope::MakeInstantiatedLocalArgPack(const Decl *D) {
+#ifndef NDEBUG
+  // This should be the first time we've been told about this decl.
+  for (LocalInstantiationScope *Current = this;
+       Current && Current->CombineWithOuterScope; Current = Current->Outer)
+    assert(Current->LocalDecls.find(D) == Current->LocalDecls.end() &&
+           "Creating local pack after instantiation of local");
+#endif
+
   D = getCanonicalParmVarDecl(D);
   llvm::PointerUnion<Decl *, DeclArgumentPack *> &Stored = LocalDecls[D];
-  assert(Stored.isNull() && "Already instantiated this local");
   DeclArgumentPack *Pack = new DeclArgumentPack;
   Stored = Pack;
   ArgumentPacks.push_back(Pack);
@@ -2740,7 +2880,7 @@ NamedDecl *LocalInstantiationScope::getPartiallySubstitutedPack(
                                          const TemplateArgument **ExplicitArgs,
                                               unsigned *NumExplicitArgs) const {
   if (ExplicitArgs)
-    *ExplicitArgs = 0;
+    *ExplicitArgs = nullptr;
   if (NumExplicitArgs)
     *NumExplicitArgs = 0;
   
@@ -2758,6 +2898,6 @@ NamedDecl *LocalInstantiationScope::getPartiallySubstitutedPack(
     if (!Current->CombineWithOuterScope)
       break;
   }
-  
-  return 0;
+
+  return nullptr;
 }

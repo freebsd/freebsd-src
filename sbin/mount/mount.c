@@ -114,6 +114,7 @@ static struct opt {
 	{ MNT_ACLS,		"acls" },
 	{ MNT_NFS4ACLS,		"nfsv4acls" },
 	{ MNT_GJOURNAL,		"gjournal" },
+	{ MNT_AUTOMOUNTED,	"automounted" },
 	{ 0, NULL }
 };
 
@@ -143,7 +144,7 @@ use_mountprog(const char *vfstype)
 	unsigned int i;
 	const char *fs[] = {
 	"cd9660", "mfs", "msdosfs", "nfs",
-	"nullfs", "oldnfs", "smbfs", "udf", "unionfs",
+	"nullfs", "smbfs", "udf", "unionfs",
 	NULL
 	};
 

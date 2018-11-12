@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <arm/freescale/imx/imx_machdep.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
 
@@ -159,6 +159,9 @@ out:
 static int
 usbphy_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "fsl,imx6q-usbphy") == 0)
 		return (ENXIO);

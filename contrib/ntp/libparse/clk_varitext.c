@@ -9,14 +9,14 @@
  * clk_varitext.c,v 1.5 2005/04/16 17:32:10 kardel RELEASE_20050508_A
  *
  * Varitext code variant by A.McConnell 1997/01/19
- * 
+ *
  * Supports Varitext's Radio Clock
- * 
+ *
  * Used the Meinberg/Computime clock as a template for Varitext Radio Clock
  *
  * Codebase:
  * Copyright (c) 1995-2005 by Frank Kardel <kardel <AT> ntp.org>
- * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
+ * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,7 +55,7 @@
 # include <stdio.h>
 #else
 # include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
 static const u_char VT_INITIALISED      = 0x01;
@@ -67,31 +67,31 @@ static const u_char VT_LAST_TELEGRAM_OK = 0x20;
 
 /*
  * The Varitext receiver sends a datagram in the following format every minute
- * 
- * Timestamp	T:YY:MM:MD:WD:HH:MM:SSCRLFSTXXX 
+ *
+ * Timestamp	T:YY:MM:MD:WD:HH:MM:SSCRLFSTXXX
  * Pos          0123456789012345678901 2 3 4567
  *              0000000000111111111122 2 2 2222
- * Parse        T:  :  :  :  :  :  :  \r\n    
- * 
- * T	Startcharacter "T" specifies start of the timestamp 
- * YY	Year MM	Month 1-12 
- * MD	Day of the month 
- * WD	Day of week 
- * HH	Hour 
- * MM   Minute 
- * SS   Second
- * CR   Carriage return 
- * LF   Linefeed
+ * Parse        T:  :  :  :  :  :  :  \r\n
+ *
+ * T	Startcharacter "T" specifies start of the timestamp
+ * YY	Year MM	Month 1-12
+ * MD	Day of the month
+ * WD	Day of week
+ * HH	Hour
+ * MM	Minute
+ * SS	Second
+ * CR	Carriage return
+ * LF	Linefeed
  * ST	Status character
  *	Bit 0 - Set= Initialised; Reset=Time Invalid (DO NOT USE)
- *	Bit 1 - Set= Synchronised; Reset= Unsynchronised 
- * 	Bit 2 - Set= Alarm state; Reset= No alarm
- * 	Bit 3 - Set= BST; Reset= GMT
- * 	Bit 4 - Set= Seasonal change in approx hour; Reset= No seasonal change expected
+ *	Bit 1 - Set= Synchronised; Reset= Unsynchronised
+ *	Bit 2 - Set= Alarm state; Reset= No alarm
+ *	Bit 3 - Set= BST; Reset= GMT
+ *	Bit 4 - Set= Seasonal change in approx hour; Reset= No seasonal change expected
  *	Bit 5 - Set= Last MSF telegram was OK; Reset= Last telegram was in error;
- * 	Bit 6 - Always set
+ *	Bit 6 - Always set
  *	Bit 7 - Unused
- * XXX	Checksum calculated using Fletcher's method (ignored for now). 
+ * XXX	Checksum calculated using Fletcher's method (ignored for now).
  */
 
 static struct format varitext_fmt =
@@ -105,8 +105,8 @@ static struct format varitext_fmt =
   0
 };
 
-static u_long   cvt_varitext P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static u_long   inp_varitext P((parse_t *, unsigned int, timestamp_t *));
+static parse_cvt_fnc_t cvt_varitext;
+static parse_inp_fnc_t inp_varitext;
 
 struct varitext {
   unsigned char start_found;
@@ -128,11 +128,11 @@ clockformat_t   clock_varitext =
 };
 
 /*
- * cvt_varitext
- * 
+ * parse_cvt_fnc_t cvt_varitext
+ *
  * convert simple type format
  */
-static          u_long
+static u_long
 cvt_varitext(
 	     unsigned char	*buffer,
 	     int    		size,
@@ -142,7 +142,7 @@ cvt_varitext(
 	     )
 {
 
-  if (!Strok(buffer, format->fixed_string)) { 
+  if (!Strok(buffer, format->fixed_string)) {
     return CVT_NONE;
   } else {
     if (Stoi(&buffer[format->field_offsets[O_DAY].offset], &clock_time->day,
@@ -156,7 +156,7 @@ cvt_varitext(
 	Stoi(&buffer[format->field_offsets[O_MIN].offset], &clock_time->minute,
 	     format->field_offsets[O_MIN].length) ||
 	Stoi(&buffer[format->field_offsets[O_SEC].offset], &clock_time->second,
-	     format->field_offsets[O_SEC].length)) { 
+	     format->field_offsets[O_SEC].length)) {
       return CVT_FAIL | CVT_BADFMT;
     } else {
       u_char *f = (u_char*) &buffer[format->field_offsets[O_FLAGS].offset];
@@ -170,24 +170,25 @@ cvt_varitext(
 	  clock_time->flags |= PARSEB_DST;
 	}
       /*
-	 if (!((*f) & VT_INITIALISED))  Clock not initialised 
+	 if (!((*f) & VT_INITIALISED))  Clock not initialised
 	 clock_time->flags |= PARSEB_POWERUP;
-	 
-	 if (!((*f) & VT_SYNCHRONISED))   Clock not synchronised 
+
+	 if (!((*f) & VT_SYNCHRONISED))   Clock not synchronised
 	 clock_time->flags |= PARSEB_NOSYNC;
-	 
-	 if (((*f) & VT_SEASON_CHANGE))  Seasonal change expected in the next hour 
+
+	 if (((*f) & VT_SEASON_CHANGE))  Seasonal change expected in the next hour
 	 clock_time->flags |= PARSEB_ANNOUNCE;
 	 */
-      return CVT_OK; 
+      return CVT_OK;
     }
   }
 }
 
-static u_long 
+/* parse_inp_fnc_t inp_varitext */
+static u_long
 inp_varitext(
 	     parse_t	 *parseio,
-	     unsigned int ch,
+	     char ch,
 	     timestamp_t *tstamp
 	     )
 {
@@ -196,10 +197,10 @@ inp_varitext(
 
   parseprintf(DD_PARSE, ("inp_varitext(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
 
-  if (!t) 
+  if (!t)
     return PARSE_INP_SKIP;	/* local data not allocated - sigh! */
 
-  if (ch == 'T') 
+  if (ch == 'T')
     t->tstamp = *tstamp;
 
   if ((t->previous_ch == 'T') && (ch == ':'))
@@ -224,7 +225,7 @@ inp_varitext(
 	  return rtc;
 	}
 
-      if (t->end_found) 
+      if (t->end_found)
 	{
 	  if (++(t->end_count) == 4) /* Finally found the end of the message */
 	    {
@@ -235,16 +236,16 @@ inp_varitext(
 		return parse_end(parseio);
 	      else
 		return rtc;
-	    }	
+	    }
 	}
 
-      if ((t->previous_ch == '\r') && (ch == '\n')) 
+      if ((t->previous_ch == '\r') && (ch == '\n'))
 	{
 	  t->end_found = 1;
 	}
 
     }
- 
+
   t->previous_ch = ch;
 
   return PARSE_INP_SKIP;

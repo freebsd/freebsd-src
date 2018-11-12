@@ -16,6 +16,9 @@
 
 namespace lldb_private
 {
+    class Platform;
+    class ExecutionContext;
+
     //----------------------------------------------------------------------
     // Every register is described in detail including its name, alternate
     // name (optional), encoding, size in bytes and the default display
@@ -26,12 +29,20 @@ namespace lldb_private
         const char *name;        // Name of this register, can't be NULL
         const char *alt_name;    // Alternate name of this register, can be NULL
         uint32_t byte_size;      // Size in bytes of the register
-        uint32_t byte_offset;    // The byte offset in the register context data where this register's value is found
+        uint32_t byte_offset;    // The byte offset in the register context data where this register's value is found.
+                                 // This is optional, and can be 0 if a particular RegisterContext does not need to
+                                 // address its registers by byte offset.
         lldb::Encoding encoding; // Encoding of the register bits
         lldb::Format format;     // Default display format
         uint32_t kinds[lldb::kNumRegisterKinds]; // Holds all of the various register numbers for all register kinds
-        uint32_t *value_regs;    // List of registers that must be terminated with LLDB_INVALID_REGNUM
-        uint32_t *invalidate_regs; // List of registers that must be invalidated when this register is modified, list must be terminated with LLDB_INVALID_REGNUM
+        uint32_t *value_regs;      // List of registers (terminated with LLDB_INVALID_REGNUM).  If this value is not
+                                   // null, all registers in this list will be read first, at which point the value 
+                                   // for this register will be valid.  For example, the value list for ah
+                                   // would be eax (x86) or rax (x64).
+        uint32_t *invalidate_regs; // List of registers (terminated with LLDB_INVALID_REGNUM).  If this value is not
+                                   // null, all registers in this list will be invalidateed when the value of this
+                                   // register changes.  For example, the invalidate list for eax would be rax
+                                   // ax, ah, and al.
     } RegisterInfo;
 
     //----------------------------------------------------------------------
@@ -42,7 +53,11 @@ namespace lldb_private
         const char *name;           // Name of this register set
         const char *short_name;     // A short name for this register set
         size_t num_registers;       // The number of registers in REGISTERS array below
-        const uint32_t *registers;  // An array of register numbers in this set
+        const uint32_t *registers;  // An array of register indices in this set.  The values in this array are
+                                    // *indices* (not register numbers) into a particular RegisterContext's
+                                    // register array.  For example, if eax is defined at index 4 for a
+                                    // particular RegisterContext, eax would be included in this RegisterSet
+                                    // by adding the value 4.  Not by adding the value lldb_eax_i386.
     } RegisterSet;
 
     typedef struct
@@ -51,8 +66,16 @@ namespace lldb_private
         const char *string_value;
         const char *usage;
     } OptionEnumValueElement;
+
+    struct OptionValidator
+    {
+        virtual ~OptionValidator() { }
+        virtual bool IsValid(Platform &platform, const ExecutionContext &target) const = 0;
+        virtual const char * ShortConditionString() const = 0;
+        virtual const char * LongConditionString() const = 0;
+    };
     
-    typedef struct
+    struct OptionDefinition
     {
         uint32_t usage_mask;                     // Used to mark options that can be used together.  If (1 << n & usage_mask) != 0
                                                  // then this option belongs to option set n.
@@ -60,12 +83,13 @@ namespace lldb_private
         const char *long_option;                 // Full name for this option.
         int short_option;                        // Single character for this option.
         int option_has_arg;                      // no_argument, required_argument or optional_argument
+        OptionValidator* validator;              // If non-NULL, option is valid iff |validator->IsValid()|, otherwise always valid.
         OptionEnumValueElement *enum_values;     // If non-NULL an array of enum values.
         uint32_t completion_type;                // Cookie the option class can use to do define the argument completion.
         lldb::CommandArgumentType argument_type; // Type of argument this option takes
         const char *usage_text;                  // Full text explaining what this options does and what (if any) argument to
                                                  // pass it.
-    } OptionDefinition;
+    };
 
 } // namespace lldb_private
 

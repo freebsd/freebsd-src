@@ -35,7 +35,6 @@
 #include <sys/stat.h>
 #include <assert.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -57,18 +56,18 @@ extern void	yyrestart(FILE *);
 
 %}
 
-%token ALIAS AUTH_GROUP BACKEND BLOCKSIZE CHAP CHAP_MUTUAL CLOSING_BRACKET
-%token DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP LISTEN LISTEN_ISER LUN MAXPROC NUM
-%token OPENING_BRACKET OPTION PATH PIDFILE PORTAL_GROUP SERIAL SIZE STR TARGET 
-%token TIMEOUT
+%token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
+%token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP DISCOVERY_FILTER
+%token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
+%token LISTEN LISTEN_ISER LUN MAXPROC OFFLOAD OPENING_BRACKET OPTION
+%token PATH PIDFILE PORT PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
+%token TARGET TIMEOUT 
 
 %union
 {
-	uint64_t num;
 	char *str;
 }
 
-%token <num> NUM
 %token <str> STR
 
 %%
@@ -76,43 +75,77 @@ extern void	yyrestart(FILE *);
 statements:
 	|
 	statements statement
+	|
+	statements statement SEMICOLON
 	;
 
 statement:
-	debug_statement
+	debug
 	|
-	timeout_statement
+	timeout
 	|
-	maxproc_statement
+	maxproc
 	|
-	pidfile_statement
+	pidfile
 	|
-	auth_group_definition
+	isns_server
 	|
-	portal_group_definition
+	isns_period
 	|
-	target_statement
+	isns_timeout
+	|
+	auth_group
+	|
+	portal_group
+	|
+	lun
+	|
+	target
 	;
 
-debug_statement:	DEBUG NUM
+debug:		DEBUG STR
 	{
-		conf->conf_debug = $2;
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+			
+		conf->conf_debug = tmp;
 	}
 	;
 
-timeout_statement:	TIMEOUT NUM
+timeout:	TIMEOUT STR
 	{
-		conf->conf_timeout = $2;
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		conf->conf_timeout = tmp;
 	}
 	;
 
-maxproc_statement:	MAXPROC NUM
+maxproc:	MAXPROC STR
 	{
-		conf->conf_maxproc = $2;
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		conf->conf_maxproc = tmp;
 	}
 	;
 
-pidfile_statement:	PIDFILE STR
+pidfile:	PIDFILE STR
 	{
 		if (conf->conf_pidfile_path != NULL) {
 			log_warnx("pidfile specified more than once");
@@ -123,7 +156,46 @@ pidfile_statement:	PIDFILE STR
 	}
 	;
 
-auth_group_definition:	AUTH_GROUP auth_group_name
+isns_server:	ISNS_SERVER STR
+	{
+		int error;
+
+		error = isns_new(conf, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+isns_period:	ISNS_PERIOD STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		conf->conf_isns_period = tmp;
+	}
+	;
+
+isns_timeout:	ISNS_TIMEOUT STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		conf->conf_isns_timeout = tmp;
+	}
+	;
+
+auth_group:	AUTH_GROUP auth_group_name
     OPENING_BRACKET auth_group_entries CLOSING_BRACKET
 	{
 		auth_group = NULL;
@@ -132,7 +204,17 @@ auth_group_definition:	AUTH_GROUP auth_group_name
 
 auth_group_name:	STR
 	{
-		auth_group = auth_group_new(conf, $1);
+		/*
+		 * Make it possible to redefine default
+		 * auth-group. but only once.
+		 */
+		if (strcmp($1, "default") == 0 &&
+		    conf->conf_default_ag_defined == false) {
+			auth_group = auth_group_find(conf, $1);
+			conf->conf_default_ag_defined = true;
+		} else {
+			auth_group = auth_group_new(conf, $1);
+		}
 		free($1);
 		if (auth_group == NULL)
 			return (1);
@@ -142,12 +224,31 @@ auth_group_name:	STR
 auth_group_entries:
 	|
 	auth_group_entries auth_group_entry
+	|
+	auth_group_entries auth_group_entry SEMICOLON
 	;
 
 auth_group_entry:
+	auth_group_auth_type
+	|
 	auth_group_chap
 	|
 	auth_group_chap_mutual
+	|
+	auth_group_initiator_name
+	|
+	auth_group_initiator_portal
+	;
+
+auth_group_auth_type:	AUTH_TYPE STR
+	{
+		int error;
+
+		error = auth_group_set_type(auth_group, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
 	;
 
 auth_group_chap:	CHAP STR STR
@@ -176,7 +277,29 @@ auth_group_chap_mutual:	CHAP_MUTUAL STR STR STR STR
 	}
 	;
 
-portal_group_definition:	PORTAL_GROUP portal_group_name
+auth_group_initiator_name:	INITIATOR_NAME STR
+	{
+		const struct auth_name *an;
+
+		an = auth_name_new(auth_group, $2);
+		free($2);
+		if (an == NULL)
+			return (1);
+	}
+	;
+
+auth_group_initiator_portal:	INITIATOR_PORTAL STR
+	{
+		const struct auth_portal *ap;
+
+		ap = auth_portal_new(auth_group, $2);
+		free($2);
+		if (ap == NULL)
+			return (1);
+	}
+	;
+
+portal_group:	PORTAL_GROUP portal_group_name
     OPENING_BRACKET portal_group_entries CLOSING_BRACKET
 	{
 		portal_group = NULL;
@@ -185,7 +308,17 @@ portal_group_definition:	PORTAL_GROUP portal_group_name
 
 portal_group_name:	STR
 	{
-		portal_group = portal_group_new(conf, $1);
+		/*
+		 * Make it possible to redefine default
+		 * portal-group. but only once.
+		 */
+		if (strcmp($1, "default") == 0 &&
+		    conf->conf_default_pg_defined == false) {
+			portal_group = portal_group_find(conf, $1);
+			conf->conf_default_pg_defined = true;
+		} else {
+			portal_group = portal_group_new(conf, $1);
+		}
 		free($1);
 		if (portal_group == NULL)
 			return (1);
@@ -195,14 +328,22 @@ portal_group_name:	STR
 portal_group_entries:
 	|
 	portal_group_entries portal_group_entry
+	|
+	portal_group_entries portal_group_entry SEMICOLON
 	;
 
 portal_group_entry:
 	portal_group_discovery_auth_group
 	|
+	portal_group_discovery_filter
+	|
 	portal_group_listen
 	|
 	portal_group_listen_iser
+	|
+	portal_group_offload
+	|
+	portal_group_redirect
 	;
 
 portal_group_discovery_auth_group:	DISCOVERY_AUTH_GROUP STR
@@ -222,6 +363,17 @@ portal_group_discovery_auth_group:	DISCOVERY_AUTH_GROUP STR
 			return (1);
 		}
 		free($2);
+	}
+	;
+
+portal_group_discovery_filter:	DISCOVERY_FILTER STR
+	{
+		int error;
+
+		error = portal_group_set_filter(portal_group, $2);
+		free($2);
+		if (error != 0)
+			return (1);
 	}
 	;
 
@@ -247,14 +399,52 @@ portal_group_listen_iser:	LISTEN_ISER STR
 	}
 	;
 
-target_statement:	TARGET target_iqn
+portal_group_offload:	OFFLOAD STR
+	{
+		int error;
+
+		error = portal_group_set_offload(portal_group, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+portal_group_redirect:	REDIRECT STR
+	{
+		int error;
+
+		error = portal_group_set_redirection(portal_group, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+lun:	LUN lun_name
+    OPENING_BRACKET lun_entries CLOSING_BRACKET
+	{
+		lun = NULL;
+	}
+	;
+
+lun_name:	STR
+	{
+		lun = lun_new(conf, $1);
+		free($1);
+		if (lun == NULL)
+			return (1);
+	}
+	;
+
+target:	TARGET target_name
     OPENING_BRACKET target_entries CLOSING_BRACKET
 	{
 		target = NULL;
 	}
 	;
 
-target_iqn:	STR
+target_name:	STR
 	{
 		target = target_new(conf, $1);
 		free($1);
@@ -266,64 +456,104 @@ target_iqn:	STR
 target_entries:
 	|
 	target_entries target_entry
+	|
+	target_entries target_entry SEMICOLON
 	;
 
 target_entry:
-	alias_statement
+	target_alias
 	|
-	auth_group_statement
+	target_auth_group
 	|
-	chap_statement
+	target_auth_type
 	|
-	chap_mutual_statement
+	target_chap
 	|
-	portal_group_statement
+	target_chap_mutual
 	|
-	lun_statement
+	target_initiator_name
+	|
+	target_initiator_portal
+	|
+	target_portal_group
+	|
+	target_port
+	|
+	target_redirect
+	|
+	target_lun
+	|
+	target_lun_ref
 	;
 
-alias_statement:	ALIAS STR
+target_alias:	ALIAS STR
 	{
 		if (target->t_alias != NULL) {
 			log_warnx("alias for target \"%s\" "
-			    "specified more than once", target->t_iqn);
+			    "specified more than once", target->t_name);
 			return (1);
 		}
 		target->t_alias = $2;
 	}
 	;
 
-auth_group_statement:	AUTH_GROUP STR
+target_auth_group:	AUTH_GROUP STR
 	{
 		if (target->t_auth_group != NULL) {
 			if (target->t_auth_group->ag_name != NULL)
 				log_warnx("auth-group for target \"%s\" "
-				    "specified more than once", target->t_iqn);
+				    "specified more than once", target->t_name);
 			else
-				log_warnx("cannot mix auth-group with explicit "
+				log_warnx("cannot use both auth-group and explicit "
 				    "authorisations for target \"%s\"",
-				    target->t_iqn);
+				    target->t_name);
 			return (1);
 		}
 		target->t_auth_group = auth_group_find(conf, $2);
 		if (target->t_auth_group == NULL) {
 			log_warnx("unknown auth-group \"%s\" for target "
-			    "\"%s\"", $2, target->t_iqn);
+			    "\"%s\"", $2, target->t_name);
 			return (1);
 		}
 		free($2);
 	}
 	;
 
-chap_statement:	CHAP STR STR
+target_auth_type:	AUTH_TYPE STR
+	{
+		int error;
+
+		if (target->t_auth_group != NULL) {
+			if (target->t_auth_group->ag_name != NULL) {
+				log_warnx("cannot use both auth-group and "
+				    "auth-type for target \"%s\"",
+				    target->t_name);
+				return (1);
+			}
+		} else {
+			target->t_auth_group = auth_group_new(conf, NULL);
+			if (target->t_auth_group == NULL) {
+				free($2);
+				return (1);
+			}
+			target->t_auth_group->ag_target = target;
+		}
+		error = auth_group_set_type(target->t_auth_group, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+target_chap:	CHAP STR STR
 	{
 		const struct auth *ca;
 
 		if (target->t_auth_group != NULL) {
 			if (target->t_auth_group->ag_name != NULL) {
-				log_warnx("cannot mix auth-group with explicit "
-				    "authorisations for target \"%s\"",
-				    target->t_iqn);
+				log_warnx("cannot use both auth-group and "
+				    "chap for target \"%s\"",
+				    target->t_name);
 				free($2);
 				free($3);
 				return (1);
@@ -345,15 +575,15 @@ chap_statement:	CHAP STR STR
 	}
 	;
 
-chap_mutual_statement:	CHAP_MUTUAL STR STR STR STR
+target_chap_mutual:	CHAP_MUTUAL STR STR STR STR
 	{
 		const struct auth *ca;
 
 		if (target->t_auth_group != NULL) {
 			if (target->t_auth_group->ag_name != NULL) {
-				log_warnx("cannot mix auth-group with explicit "
-				    "authorisations for target \"%s\"",
-				    target->t_iqn);
+				log_warnx("cannot use both auth-group and "
+				    "chap-mutual for target \"%s\"",
+				    target->t_name);
 				free($2);
 				free($3);
 				free($4);
@@ -382,18 +612,109 @@ chap_mutual_statement:	CHAP_MUTUAL STR STR STR STR
 	}
 	;
 
-portal_group_statement:	PORTAL_GROUP STR
+target_initiator_name:	INITIATOR_NAME STR
 	{
-		if (target->t_portal_group != NULL) {
-			log_warnx("portal-group for target \"%s\" "
-			    "specified more than once", target->t_iqn);
+		const struct auth_name *an;
+
+		if (target->t_auth_group != NULL) {
+			if (target->t_auth_group->ag_name != NULL) {
+				log_warnx("cannot use both auth-group and "
+				    "initiator-name for target \"%s\"",
+				    target->t_name);
+				free($2);
+				return (1);
+			}
+		} else {
+			target->t_auth_group = auth_group_new(conf, NULL);
+			if (target->t_auth_group == NULL) {
+				free($2);
+				return (1);
+			}
+			target->t_auth_group->ag_target = target;
+		}
+		an = auth_name_new(target->t_auth_group, $2);
+		free($2);
+		if (an == NULL)
+			return (1);
+	}
+	;
+
+target_initiator_portal:	INITIATOR_PORTAL STR
+	{
+		const struct auth_portal *ap;
+
+		if (target->t_auth_group != NULL) {
+			if (target->t_auth_group->ag_name != NULL) {
+				log_warnx("cannot use both auth-group and "
+				    "initiator-portal for target \"%s\"",
+				    target->t_name);
+				free($2);
+				return (1);
+			}
+		} else {
+			target->t_auth_group = auth_group_new(conf, NULL);
+			if (target->t_auth_group == NULL) {
+				free($2);
+				return (1);
+			}
+			target->t_auth_group->ag_target = target;
+		}
+		ap = auth_portal_new(target->t_auth_group, $2);
+		free($2);
+		if (ap == NULL)
+			return (1);
+	}
+	;
+
+target_portal_group:	PORTAL_GROUP STR STR
+	{
+		struct portal_group *tpg;
+		struct auth_group *tag;
+		struct port *tp;
+
+		tpg = portal_group_find(conf, $2);
+		if (tpg == NULL) {
+			log_warnx("unknown portal-group \"%s\" for target "
+			    "\"%s\"", $2, target->t_name);
+			free($2);
+			free($3);
+			return (1);
+		}
+		tag = auth_group_find(conf, $3);
+		if (tag == NULL) {
+			log_warnx("unknown auth-group \"%s\" for target "
+			    "\"%s\"", $3, target->t_name);
+			free($2);
+			free($3);
+			return (1);
+		}
+		tp = port_new(conf, target, tpg);
+		if (tp == NULL) {
+			log_warnx("can't link portal-group \"%s\" to target "
+			    "\"%s\"", $2, target->t_name);
 			free($2);
 			return (1);
 		}
-		target->t_portal_group = portal_group_find(conf, $2);
-		if (target->t_portal_group == NULL) {
+		tp->p_auth_group = tag;
+		free($2);
+		free($3);
+	}
+	|		PORTAL_GROUP STR
+	{
+		struct portal_group *tpg;
+		struct port *tp;
+
+		tpg = portal_group_find(conf, $2);
+		if (tpg == NULL) {
 			log_warnx("unknown portal-group \"%s\" for target "
-			    "\"%s\"", $2, target->t_iqn);
+			    "\"%s\"", $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		tp = port_new(conf, target, tpg);
+		if (tp == NULL) {
+			log_warnx("can't link portal-group \"%s\" to target "
+			    "\"%s\"", $2, target->t_name);
 			free($2);
 			return (1);
 		}
@@ -401,48 +722,128 @@ portal_group_statement:	PORTAL_GROUP STR
 	}
 	;
 
-lun_statement:	LUN lun_number
-    OPENING_BRACKET lun_statement_entries CLOSING_BRACKET
+target_port:	PORT STR
+	{
+		struct pport *pp;
+		struct port *tp;
+
+		pp = pport_find(conf, $2);
+		if (pp == NULL) {
+			log_warnx("unknown port \"%s\" for target \"%s\"",
+			    $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		if (!TAILQ_EMPTY(&pp->pp_ports)) {
+			log_warnx("can't link port \"%s\" to target \"%s\", "
+			    "port already linked to some target",
+			    $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		tp = port_new_pp(conf, target, pp);
+		if (tp == NULL) {
+			log_warnx("can't link port \"%s\" to target \"%s\"",
+			    $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		free($2);
+	}
+	;
+
+target_redirect:	REDIRECT STR
+	{
+		int error;
+
+		error = target_set_redirection(target, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+target_lun:	LUN lun_number
+    OPENING_BRACKET lun_entries CLOSING_BRACKET
 	{
 		lun = NULL;
 	}
 	;
 
-lun_number:	NUM
+lun_number:	STR
 	{
-		lun = lun_new(target, $1);
+		uint64_t tmp;
+		int ret;
+		char *name;
+
+		if (expand_number($1, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($1);
+			return (1);
+		}
+
+		ret = asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
+		if (ret <= 0)
+			log_err(1, "asprintf");
+		lun = lun_new(conf, name);
 		if (lun == NULL)
 			return (1);
+
+		lun_set_scsiname(lun, name);
+		target->t_luns[tmp] = lun;
 	}
 	;
 
-lun_statement_entries:
-	|
-	lun_statement_entries lun_statement_entry
+target_lun_ref:	LUN STR STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			free($3);
+			return (1);
+		}
+		free($2);
+
+		lun = lun_find(conf, $3);
+		free($3);
+		if (lun == NULL)
+			return (1);
+
+		target->t_luns[tmp] = lun;
+	}
 	;
 
-lun_statement_entry:
-	backend_statement
+lun_entries:
 	|
-	blocksize_statement
+	lun_entries lun_entry
 	|
-	device_id_statement
-	|
-	option_statement
-	|
-	path_statement
-	|
-	serial_statement
-	|
-	size_statement
+	lun_entries lun_entry SEMICOLON
 	;
 
-backend_statement:	BACKEND STR
+lun_entry:
+	lun_backend
+	|
+	lun_blocksize
+	|
+	lun_device_id
+	|
+	lun_option
+	|
+	lun_path
+	|
+	lun_serial
+	|
+	lun_size
+	;
+
+lun_backend:	BACKEND STR
 	{
 		if (lun->l_backend != NULL) {
-			log_warnx("backend for lun %d, target \"%s\" "
+			log_warnx("backend for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_iqn);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -451,24 +852,32 @@ backend_statement:	BACKEND STR
 	}
 	;
 
-blocksize_statement:	BLOCKSIZE NUM
+lun_blocksize:	BLOCKSIZE STR
 	{
-		if (lun->l_blocksize != 0) {
-			log_warnx("blocksize for lun %d, target \"%s\" "
-			    "specified more than once",
-			    lun->l_lun, target->t_iqn);
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
 			return (1);
 		}
-		lun_set_blocksize(lun, $2);
+
+		if (lun->l_blocksize != 0) {
+			log_warnx("blocksize for lun \"%s\" "
+			    "specified more than once",
+			    lun->l_name);
+			return (1);
+		}
+		lun_set_blocksize(lun, tmp);
 	}
 	;
 
-device_id_statement:	DEVICE_ID STR
+lun_device_id:	DEVICE_ID STR
 	{
 		if (lun->l_device_id != NULL) {
-			log_warnx("device_id for lun %d, target \"%s\" "
+			log_warnx("device_id for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_iqn);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -477,10 +886,10 @@ device_id_statement:	DEVICE_ID STR
 	}
 	;
 
-option_statement:	OPTION STR STR
+lun_option:	OPTION STR STR
 	{
 		struct lun_option *clo;
-		
+
 		clo = lun_option_new(lun, $2, $3);
 		free($2);
 		free($3);
@@ -489,12 +898,12 @@ option_statement:	OPTION STR STR
 	}
 	;
 
-path_statement:	PATH STR
+lun_path:	PATH STR
 	{
 		if (lun->l_path != NULL) {
-			log_warnx("path for lun %d, target \"%s\" "
+			log_warnx("path for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_iqn);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -503,12 +912,12 @@ path_statement:	PATH STR
 	}
 	;
 
-serial_statement:	SERIAL STR
+lun_serial:	SERIAL STR
 	{
 		if (lun->l_serial != NULL) {
-			log_warnx("serial for lun %d, target \"%s\" "
+			log_warnx("serial for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_iqn);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -517,15 +926,23 @@ serial_statement:	SERIAL STR
 	}
 	;
 
-size_statement:	SIZE NUM
+lun_size:	SIZE STR
 	{
-		if (lun->l_size != 0) {
-			log_warnx("size for lun %d, target \"%s\" "
-			    "specified more than once",
-			    lun->l_lun, target->t_iqn);
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
 			return (1);
 		}
-		lun_set_size(lun, $2);
+
+		if (lun->l_size != 0) {
+			log_warnx("size for lun \"%s\" "
+			    "specified more than once",
+			    lun->l_name);
+			return (1);
+		}
+		lun_set_size(lun, tmp);
 	}
 	;
 %%
@@ -567,29 +984,33 @@ check_perms(const char *path)
 }
 
 struct conf *
-conf_new_from_file(const char *path)
+conf_new_from_file(const char *path, struct conf *oldconf)
 {
 	struct auth_group *ag;
 	struct portal_group *pg;
+	struct pport *pp;
 	int error;
 
 	log_debugx("obtaining configuration from %s", path);
 
 	conf = conf_new();
 
+	TAILQ_FOREACH(pp, &oldconf->conf_pports, pp_next)
+		pport_copy(pp, conf);
+
+	ag = auth_group_new(conf, "default");
+	assert(ag != NULL);
+
 	ag = auth_group_new(conf, "no-authentication");
+	assert(ag != NULL);
 	ag->ag_type = AG_TYPE_NO_AUTHENTICATION;
 
-	/*
-	 * Here, the type doesn't really matter, as the group doesn't contain
-	 * any entries and thus will always deny access.
-	 */
 	ag = auth_group_new(conf, "no-access");
-	ag->ag_type = AG_TYPE_CHAP;
+	assert(ag != NULL);
+	ag->ag_type = AG_TYPE_DENY;
 
 	pg = portal_group_new(conf, "default");
-	portal_group_add_listen(pg, "0.0.0.0:3260", false);
-	portal_group_add_listen(pg, "[::]:3260", false);
+	assert(pg != NULL);
 
 	yyin = fopen(path, "r");
 	if (yyin == NULL) {
@@ -598,7 +1019,7 @@ conf_new_from_file(const char *path)
 		return (NULL);
 	}
 	check_perms(path);
-	lineno = 0;
+	lineno = 1;
 	yyrestart(yyin);
 	error = yyparse();
 	auth_group = NULL;
@@ -610,6 +1031,25 @@ conf_new_from_file(const char *path)
 		conf_delete(conf);
 		return (NULL);
 	}
+
+	if (conf->conf_default_ag_defined == false) {
+		log_debugx("auth-group \"default\" not defined; "
+		    "going with defaults");
+		ag = auth_group_find(conf, "default");
+		assert(ag != NULL);
+		ag->ag_type = AG_TYPE_DENY;
+	}
+
+	if (conf->conf_default_pg_defined == false) {
+		log_debugx("portal-group \"default\" not defined; "
+		    "going with defaults");
+		pg = portal_group_find(conf, "default");
+		assert(pg != NULL);
+		portal_group_add_listen(pg, "0.0.0.0:3260", false);
+		portal_group_add_listen(pg, "[::]:3260", false);
+	}
+
+	conf->conf_kernel_port_on = true;
 
 	error = conf_verify(conf);
 	if (error != 0) {

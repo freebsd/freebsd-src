@@ -51,7 +51,7 @@ consolectl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 {
 
 	switch (cmd) {
-	case CONS_GETVERS: 
+	case CONS_GETVERS:
 		*(int*)data = 0x200;
 		return 0;
 	case CONS_MOUSECTL: {
@@ -61,8 +61,10 @@ consolectl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		return (0);
 	}
 	default:
+#ifdef VT_CONSOLECTL_DEBUG
 		printf("consolectl: unknown ioctl: %c:%lx\n",
 		    (char)IOCGROUP(cmd), IOCBASECMD(cmd));
+#endif
 		return (ENOIOCTL);
 	}
 }
@@ -71,6 +73,8 @@ static void
 consolectl_drvinit(void *unused)
 {
 
+	if (!vty_enabled(VTY_VT))
+		return;
 	make_dev(&consolectl_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "consolectl");
 }

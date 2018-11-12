@@ -24,7 +24,7 @@
 #
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=		radius
 SRCS=		radlib.c
@@ -70,13 +70,11 @@ MLINKS+=libradius.3 rad_acct_open.3 \
 
 WARNS?=		3
 
-.if ${MK_OPENSSL} == "no"
-DPADD=		${LIBMD}
-LDADD=		-lmd
-.else
-DPADD=		${LIBCRYPTO}
-LDADD=		-lcrypto
+.if ${MK_OPENSSL} != "no"
+LIBADD+=	crypto
 CFLAGS+=	-DWITH_SSL
+.else
+LIBADD+=	md
 .endif
 
 .include <bsd.lib.mk>

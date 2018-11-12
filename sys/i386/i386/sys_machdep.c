@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -58,20 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/sysarch.h>
 
 #include <security/audit/audit.h>
-
-#ifdef XEN 
-#include <machine/xen/xenfunc.h>
-
-void i386_reset_ldt(struct proc_ldt *pldt); 
-
-void 
-i386_reset_ldt(struct proc_ldt *pldt) 
-{ 
-        xen_set_ldt((vm_offset_t)pldt->ldt_base, pldt->ldt_len); 
-} 
-#else  
-#define i386_reset_ldt(x) 
-#endif 
 
 #include <vm/vm_kern.h>		/* for kernel_map */
 
@@ -105,6 +91,7 @@ sysarch(td, uap)
 	union {
 		struct i386_ldt_args largs;
 		struct i386_ioperm_args iargs;
+		struct i386_get_xfpustate xfpu;
 	} kargs;
 	uint32_t base;
 	struct segment_descriptor sd, *sdp;
@@ -126,6 +113,7 @@ sysarch(td, uap)
 		case I386_SET_FSBASE:
 		case I386_GET_GSBASE:
 		case I386_SET_GSBASE:
+		case I386_GET_XFPUSTATE:
 			break;
 
 		case I386_SET_IOPERM:
@@ -154,6 +142,11 @@ sysarch(td, uap)
 		if (kargs.largs.num > MAX_LD || kargs.largs.num <= 0)
 			return (EINVAL);
 		break;
+	case I386_GET_XFPUSTATE:
+		if ((error = copyin(uap->parms, &kargs.xfpu,
+		    sizeof(struct i386_get_xfpustate))) != 0)
+			return (error);
+		break;
 	default:
 		break;
 	}
@@ -164,19 +157,14 @@ sysarch(td, uap)
 		break;
 	case I386_SET_LDT:
 		if (kargs.largs.descs != NULL) {
-			lp = (union descriptor *)kmem_malloc(kernel_arena,
+			lp = (union descriptor *)malloc(
 			    kargs.largs.num * sizeof(union descriptor),
-			    M_WAITOK);
-			if (lp == NULL) {
-				error = ENOMEM;
-				break;
-			}
+			    M_TEMP, M_WAITOK);
 			error = copyin(kargs.largs.descs, lp,
 			    kargs.largs.num * sizeof(union descriptor));
 			if (error == 0)
 				error = i386_set_ldt(td, &kargs.largs, lp);
-			kmem_free(kernel_arena, (vm_offset_t)lp,
-			    kargs.largs.num * sizeof(union descriptor));
+			free(lp, M_TEMP);
 		} else {
 			error = i386_set_ldt(td, &kargs.largs, NULL);
 		}
@@ -209,12 +197,7 @@ sysarch(td, uap)
 			 */
 			sd.sd_lobase = base & 0xffffff;
 			sd.sd_hibase = (base >> 24) & 0xff;
-#ifdef XEN
-			/* need to do nosegneg like Linux */
-			sd.sd_lolimit = (HYPERVISOR_VIRT_START >> 12) & 0xffff;
-#else			
 			sd.sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
-#endif
 			sd.sd_hilimit = 0xf;
 			sd.sd_type  = SDT_MEMRWA;
 			sd.sd_dpl   = SEL_UPL;
@@ -224,12 +207,7 @@ sysarch(td, uap)
 			sd.sd_gran  = 1;
 			critical_enter();
 			td->td_pcb->pcb_fsd = sd;
-#ifdef XEN
-			HYPERVISOR_update_descriptor(vtomach(&PCPU_GET(fsgs_gdt)[0]),
-			    *(uint64_t *)&sd);
-#else
 			PCPU_GET(fsgs_gdt)[0] = sd;
-#endif
 			critical_exit();
 			td->td_frame->tf_fs = GSEL(GUFS_SEL, SEL_UPL);
 		}
@@ -250,12 +228,7 @@ sysarch(td, uap)
 			sd.sd_lobase = base & 0xffffff;
 			sd.sd_hibase = (base >> 24) & 0xff;
 
-#ifdef XEN
-			/* need to do nosegneg like Linux */
-			sd.sd_lolimit = (HYPERVISOR_VIRT_START >> 12) & 0xffff;
-#else	
 			sd.sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
-#endif
 			sd.sd_hilimit = 0xf;
 			sd.sd_type  = SDT_MEMRWA;
 			sd.sd_dpl   = SEL_UPL;
@@ -265,15 +238,18 @@ sysarch(td, uap)
 			sd.sd_gran  = 1;
 			critical_enter();
 			td->td_pcb->pcb_gsd = sd;
-#ifdef XEN
-			HYPERVISOR_update_descriptor(vtomach(&PCPU_GET(fsgs_gdt)[1]),
-			    *(uint64_t *)&sd);
-#else			
 			PCPU_GET(fsgs_gdt)[1] = sd;
-#endif
 			critical_exit();
 			load_gs(GSEL(GUGS_SEL, SEL_UPL));
 		}
+		break;
+	case I386_GET_XFPUSTATE:
+		if (kargs.xfpu.len > cpu_max_ext_state_size -
+		    sizeof(union savefpu))
+			return (EINVAL);
+		npxgetregs(td);
+		error = copyout((char *)(get_pcb_user_save_td(td) + 1),
+		    kargs.xfpu.addr, kargs.xfpu.len);
 		break;
 	default:
 		error = EINVAL;
@@ -300,10 +276,7 @@ i386_extend_pcb(struct thread *td)
 	};
 
 	ext = (struct pcb_ext *)kmem_malloc(kernel_arena, ctob(IOPAGES+1),
-	    M_WAITOK);
-	if (ext == 0)
-		return (ENOMEM);
-	bzero(ext, sizeof(struct pcb_ext)); 
+	    M_WAITOK | M_ZERO);
 	/* -16 is so we can convert a trapframe into vm86trapframe inplace */
 	ext->ext_tss.tss_esp0 = td->td_kstack + ctob(KSTACK_PAGES) -
 	    sizeof(struct pcb) - 16;
@@ -427,10 +400,6 @@ set_user_ldt(struct mdproc *mdp)
 	}
 
 	pldt = mdp->md_ldt;
-#ifdef XEN
-	i386_reset_ldt(pldt);
-	PCPU_SET(currentldt, (int)pldt);
-#else	
 #ifdef SMP
 	gdt[PCPU_GET(cpuid) * NGDT + GUSERLDT_SEL].sd = pldt->ldt_sd;
 #else
@@ -438,7 +407,6 @@ set_user_ldt(struct mdproc *mdp)
 #endif
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 	PCPU_SET(currentldt, GSEL(GUSERLDT_SEL, SEL_KPL));
-#endif /* XEN */ 
 	if (dtlocked)
 		mtx_unlock_spin(&dt_lock);
 }
@@ -457,48 +425,6 @@ set_user_ldt_rv(struct vmspace *vmsp)
 }
 #endif
 
-#ifdef XEN
-
-/* 
- * dt_lock must be held. Returns with dt_lock held. 
- */ 
-struct proc_ldt * 
-user_ldt_alloc(struct mdproc *mdp, int len) 
-{ 
-        struct proc_ldt *pldt, *new_ldt; 
- 
-        mtx_assert(&dt_lock, MA_OWNED); 
-        mtx_unlock_spin(&dt_lock); 
-        new_ldt = malloc(sizeof(struct proc_ldt), 
-                M_SUBPROC, M_WAITOK); 
- 
-        new_ldt->ldt_len = len = NEW_MAX_LD(len); 
-        new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_arena, 
-                round_page(len * sizeof(union descriptor)), M_WAITOK);
-        if (new_ldt->ldt_base == NULL) { 
-                free(new_ldt, M_SUBPROC);
-		mtx_lock_spin(&dt_lock);
-                return (NULL);
-        } 
-        new_ldt->ldt_refcnt = 1; 
-        new_ldt->ldt_active = 0; 
- 
-	mtx_lock_spin(&dt_lock);
-        if ((pldt = mdp->md_ldt)) { 
-                if (len > pldt->ldt_len) 
-                        len = pldt->ldt_len; 
-                bcopy(pldt->ldt_base, new_ldt->ldt_base, 
-                    len * sizeof(union descriptor)); 
-        } else { 
-                bcopy(ldt, new_ldt->ldt_base, PAGE_SIZE); 
-        } 
-        mtx_unlock_spin(&dt_lock);  /* XXX kill once pmap locking fixed. */
-        pmap_map_readonly(kernel_pmap, (vm_offset_t)new_ldt->ldt_base, 
-                          new_ldt->ldt_len*sizeof(union descriptor)); 
-        mtx_lock_spin(&dt_lock);  /* XXX kill once pmap locking fixed. */
-        return (new_ldt);
-} 
-#else
 /*
  * dt_lock must be held. Returns with dt_lock held.
  */
@@ -514,12 +440,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 
 	new_ldt->ldt_len = len = NEW_MAX_LD(len);
 	new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_arena,
-		len * sizeof(union descriptor), M_WAITOK);
-	if (new_ldt->ldt_base == NULL) {
-		free(new_ldt, M_SUBPROC);
-		mtx_lock_spin(&dt_lock);
-		return (NULL);
-	}
+	    len * sizeof(union descriptor), M_WAITOK);
 	new_ldt->ldt_refcnt = 1;
 	new_ldt->ldt_active = 0;
 
@@ -538,7 +459,6 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 	
 	return (new_ldt);
 }
-#endif /* !XEN */
 
 /*
  * Must be called with dt_lock held.  Returns with dt_lock unheld.
@@ -556,13 +476,8 @@ user_ldt_free(struct thread *td)
 	}
 
 	if (td == curthread) {
-#ifdef XEN
-		i386_reset_ldt(&default_proc_ldt);
-		PCPU_SET(currentldt, (int)&default_proc_ldt);
-#else
 		lldt(_default_ldt);
 		PCPU_SET(currentldt, _default_ldt);
-#endif
 	}
 
 	mdp->md_ldt = NULL;
@@ -788,27 +703,7 @@ again:
 		td->td_retval[0] = uap->start;
 	return (error);
 }
-#ifdef XEN
-static int
-i386_set_ldt_data(struct thread *td, int start, int num,
-	union descriptor *descs)
-{
-	struct mdproc *mdp = &td->td_proc->p_md;
-	struct proc_ldt *pldt = mdp->md_ldt;
 
-	mtx_assert(&dt_lock, MA_OWNED);
-
-	while (num) {
-		xen_update_descriptor(
-		    &((union descriptor *)(pldt->ldt_base))[start],
-		    descs);
-		num--;
-		start++;
-		descs++;
-	}
-	return (0);
-}
-#else
 static int
 i386_set_ldt_data(struct thread *td, int start, int num,
 	union descriptor *descs)
@@ -824,7 +719,6 @@ i386_set_ldt_data(struct thread *td, int start, int num,
 	    num * sizeof(union descriptor));
 	return (0);
 }
-#endif /* !XEN */
 
 static int
 i386_ldt_grow(struct thread *td, int len) 

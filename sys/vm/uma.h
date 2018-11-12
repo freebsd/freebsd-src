@@ -33,8 +33,8 @@
  *
 */
 
-#ifndef VM_UMA_H
-#define VM_UMA_H
+#ifndef _VM_UMA_H_
+#define _VM_UMA_H_
 
 #include <sys/param.h>		/* For NULL */
 #include <sys/malloc.h>		/* For M_* */
@@ -382,7 +382,8 @@ uma_zfree(uma_zone_t zone, void *item)
  *	A pointer to the allocated memory or NULL on failure.
  */
 
-typedef void *(*uma_alloc)(uma_zone_t zone, int size, uint8_t *pflag, int wait);
+typedef void *(*uma_alloc)(uma_zone_t zone, vm_size_t size, uint8_t *pflag,
+    int wait);
 
 /*
  * Backend page free routines
@@ -395,7 +396,7 @@ typedef void *(*uma_alloc)(uma_zone_t zone, int size, uint8_t *pflag, int wait);
  * Returns:
  *	None
  */
-typedef void (*uma_free)(void *item, int size, uint8_t pflag);
+typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 
 
 
@@ -636,6 +637,12 @@ int uma_zone_exhausted(uma_zone_t zone);
 int uma_zone_exhausted_nolock(uma_zone_t zone);
 
 /*
+ * Common UMA_ZONE_PCPU zones.
+ */
+extern uma_zone_t pcpu_zone_64;
+extern uma_zone_t pcpu_zone_ptr;
+
+/*
  * Exported statistics structures to be used by user space monitoring tools.
  * Statistics stream consists of a uma_stream_header, followed by a series of
  * alternative uma_type_header and uma_type_stat structures.
@@ -683,4 +690,7 @@ struct uma_percpu_stat {
 	uint64_t	_ups_reserved[5];	/* Reserved. */
 };
 
-#endif
+void uma_reclaim_wakeup(void);
+void uma_reclaim_worker(void *);
+
+#endif	/* _VM_UMA_H_ */

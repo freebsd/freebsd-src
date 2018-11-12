@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 
 #include <dialog.h>
 
@@ -474,7 +475,7 @@ read_zones(void)
 	FILE		*fp;
 	struct continent *cont;
 	size_t		len;
-	char		*line, *tlc, *coord, *file, *descr, *p;
+	char		*line, *tlc, *file, *descr, *p;
 	int		lineno;
 
 	fp = fopen(path_zonetab, "r");
@@ -494,7 +495,7 @@ read_zones(void)
 		if (strlen(tlc) != 2)
 			errx(1, "%s:%d: invalid country code `%s'",
 			    path_zonetab, lineno, tlc);
-		coord = strsep(&line, "\t");	 /* Unused */
+		/* coord = */ strsep(&line, "\t");	 /* Unused */
 		file = strsep(&line, "\t");
 		p = strchr(file, '/');
 		if (p == 0)
@@ -910,8 +911,16 @@ main(int argc, char **argv)
 {
 	char		title[64], prompt[128];
 	int		c, fd, rv, skiputc;
+	char		vm_guest[16] = "";
+	size_t		len = sizeof(vm_guest);
 
 	skiputc = 0;
+
+	/* Default skiputc to 1 for VM guests */
+	if (sysctlbyname("kern.vm_guest", vm_guest, &len, NULL, 0) == 0 &&
+	    strcmp(vm_guest, "none") != 0)
+		skiputc = 1;
+
 	while ((c = getopt(argc, argv, "C:nrs")) != -1) {
 		switch(c) {
 		case 'C':

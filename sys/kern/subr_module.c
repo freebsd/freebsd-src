@@ -253,7 +253,7 @@ preload_fetch_size(caddr_t mod)
 	return (*mdp);
 }
 
-/* Called from locore on i386.  Convert physical pointers to kvm. Sigh. */
+/* Called from locore.  Convert physical pointers to kvm. Sigh. */
 void
 preload_bootstrap_relocate(vm_offset_t offset)
 {

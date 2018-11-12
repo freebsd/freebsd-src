@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -261,6 +258,7 @@ struct rw_args_flags {
 #define	RW_NOWITNESS	0x04
 #define	RW_QUIET	0x08
 #define	RW_RECURSE	0x10
+#define	RW_NEW		0x20
 
 /*
  * The INVARIANTS-enabled rw_assert() functionality.

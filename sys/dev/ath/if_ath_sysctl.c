@@ -108,13 +108,26 @@ static int
 ath_sysctl_slottime(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	u_int slottime = ath_hal_getslottime(sc->sc_ah);
+	u_int slottime;
 	int error;
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	slottime = ath_hal_getslottime(sc->sc_ah);
+	ATH_UNLOCK(sc);
 
 	error = sysctl_handle_int(oidp, &slottime, 0, req);
 	if (error || !req->newptr)
-		return error;
-	return !ath_hal_setslottime(sc->sc_ah, slottime) ? EINVAL : 0;
+		goto finish;
+
+	error = !ath_hal_setslottime(sc->sc_ah, slottime) ? EINVAL : 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return error;
 }
 
 static int
@@ -400,12 +413,14 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	ATH_RX_LOCK(sc);
 	for (i = 0; i < 2; i++) {
-		printf("%d: fifolen: %d/%d; head=%d; tail=%d\n",
+		printf("%d: fifolen: %d/%d; head=%d; tail=%d; m_pending=%p, m_holdbf=%p\n",
 		    i,
 		    sc->sc_rxedma[i].m_fifo_depth,
 		    sc->sc_rxedma[i].m_fifolen,
 		    sc->sc_rxedma[i].m_fifo_head,
-		    sc->sc_rxedma[i].m_fifo_tail);
+		    sc->sc_rxedma[i].m_fifo_tail,
+		    sc->sc_rxedma[i].m_rxpending,
+		    sc->sc_rxedma[i].m_holdbf);
 	}
 	i = 0;
 	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
@@ -431,7 +446,15 @@ ath_sysctl_rfsilent(SYSCTL_HANDLER_ARGS)
 		return error;
 	if (!ath_hal_setrfsilent(sc->sc_ah, rfsilent))
 		return EINVAL;
-	sc->sc_rfsilentpin = rfsilent & 0x1c;
+	/*
+	 * Earlier chips (< AR5212) have up to 8 GPIO
+	 * pins exposed.
+	 *
+	 * AR5416 and later chips have many more GPIO
+	 * pins (up to 16) so the mask is expanded to
+	 * four bits.
+	 */
+	sc->sc_rfsilentpin = rfsilent & 0x3c;
 	sc->sc_rfsilentpol = (rfsilent & 0x2) != 0;
 	return 0;
 }

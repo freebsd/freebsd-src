@@ -1,12 +1,12 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
-NO_MAN=
+MAN=
 
 # Architecture-specific loader code
 SRCS=		start.S conf.c vers.c
@@ -62,10 +62,11 @@ CFLAGS+=	-DLOADER_TFTP_SUPPORT
 CFLAGS+=	-I${.CURDIR}/../../fdt
 CFLAGS+=	-I${.OBJDIR}/../../fdt
 CFLAGS+=	-DLOADER_FDT_SUPPORT
+LIBUBOOT_FDT=	${.OBJDIR}/../../uboot/fdt/libuboot_fdt.a
 LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 .endif
 
-.if !defined(NO_FORTH)
+.if ${MK_FORTH} != "no"
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/powerpc
@@ -95,10 +96,11 @@ CFLAGS+=	-I${.CURDIR}/../../uboot/lib
 CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 
 # where to get libstand from
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} -lstand
+DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSTAND}
+LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSTAND}
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}

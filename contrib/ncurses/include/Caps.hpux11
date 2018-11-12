@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 2002-2003,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 2002-2010,2011 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,7 +28,7 @@
 #
 # Author: Thomas Dickey
 #
-# $Id: Caps.hpux11,v 1.4 2006/05/27 15:33:04 tom Exp $
+# $Id: Caps.hpux11,v 1.6 2011/10/15 23:20:04 tom Exp $
 #
 # This is an adaptation of ncurses' termcap/terminfo capability table, which
 # is designed to align with HPUX 11.x's terminfo.
@@ -746,11 +746,13 @@ alt_scancode_esc		scesa	str	S8	-		-	-----	Alternate escape for scancode emulatio
 #%.ad
 #%
 #%.in .8i
-#%The XSI Curses standard added these.  They are some post-4.1 
-#%versions of System V curses, e.g., Solaris 2.5 and IRIX 6.x.
-#%The \fBncurses\fR termcap names for them are invented; according to the
-#%XSI Curses standard, they have no termcap names.  If your compiled terminfo
-#%entries use these, they may not be binary-compatible with System V terminfo
+#%The XSI Curses standard added these hardcopy capabilities.
+#%They were used in some post-4.1 versions of System V curses,
+#%e.g., Solaris 2.5 and IRIX 6.x.
+#%Except for \fBYI\fP, the \fBncurses\fR termcap names for them are invented.
+#%According to the XSI Curses standard, they have no termcap names.
+#%If your compiled terminfo entries use these,
+#%they may not be binary-compatible with System V terminfo
 #%entries after SVr4.1; beware!
 #%
 #%.na
@@ -761,7 +763,7 @@ alt_scancode_esc		scesa	str	S8	-		-	-----	Alternate escape for scancode emulatio
 #%lw25 lw6 lw2 lw20.
 #%\fBVariable	Cap-	TCap	Description\fR
 #%\fBString	name	Code\fR
-set_pglen_inch			slength	str	sL	-		-	-----	YI Set page length to #1 hundredth of an inch
+set_pglen_inch			slength	str	YI	-		-	-----	Set page length to #1 hundredth of an inch (some implementations use sL for termcap).
 enter_horizontal_hl_mode	ehhlm	str	Xh	-		-	-----	Enter horizontal highlight mode
 enter_left_hl_mode		elhlm	str	Xl	-		-	-----	Enter left highlight mode
 enter_low_hl_mode		elohlm	str	Xo	-		-	-----	Enter low highlight mode
@@ -1270,9 +1272,3 @@ infoalias	ksel	kslt	IBM	key_select
 # kcmd, kend, khlp, and kf11...kf63.
 #
 #############################################################################
-#
-# The following sets edit modes for GNU EMACS
-# Local Variables:
-# case-fold-search:nil
-# truncate-lines:t
-# End:

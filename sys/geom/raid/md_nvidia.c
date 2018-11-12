@@ -256,23 +256,24 @@ nvidia_meta_read(struct g_consumer *cp)
 		    pp->name, error);
 		return (NULL);
 	}
-	meta = malloc(sizeof(*meta), M_MD_NVIDIA, M_WAITOK);
-	memcpy(meta, buf, min(sizeof(*meta), pp->sectorsize));
-	g_free(buf);
+	meta = (struct nvidia_raid_conf *)buf;
 
 	/* Check if this is an NVIDIA RAID struct */
 	if (strncmp(meta->nvidia_id, NVIDIA_MAGIC, strlen(NVIDIA_MAGIC))) {
 		G_RAID_DEBUG(1, "NVIDIA signature check failed on %s", pp->name);
-		free(meta, M_MD_NVIDIA);
+		g_free(buf);
 		return (NULL);
 	}
 	if (meta->config_size > 128 ||
 	    meta->config_size < 30) {
 		G_RAID_DEBUG(1, "NVIDIA metadata size looks wrong: %d",
 		    meta->config_size);
-		free(meta, M_MD_NVIDIA);
+		g_free(buf);
 		return (NULL);
 	}
+	meta = malloc(sizeof(*meta), M_MD_NVIDIA, M_WAITOK);
+	memcpy(meta, buf, min(sizeof(*meta), pp->sectorsize));
+	g_free(buf);
 
 	/* Check metadata checksum. */
 	for (checksum = 0, ptr = (uint32_t *)meta,
@@ -840,16 +841,13 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Read metadata from device. */
 	meta = NULL;
-	vendor = 0xffff;
-	if (g_access(cp, 1, 0, 0) != 0)
-		return (G_RAID_MD_TASTE_FAIL);
 	g_topology_unlock();
-	len = 2;
+	vendor = 0xffff;
+	len = sizeof(vendor);
 	if (pp->geom->rank == 1)
 		g_io_getattr("GEOM::hba_vendor", cp, &len, &vendor);
 	meta = nvidia_meta_read(cp);
 	g_topology_lock();
-	g_access(cp, -1, 0, 0);
 	if (meta == NULL) {
 		if (g_raid_aggressive_spare) {
 			if (vendor == 0x10de) {
@@ -917,6 +915,9 @@ search:
 		mdi->mdio_rootmount = root_mount_hold("GRAID-NVIDIA");
 		G_RAID_DEBUG1(1, sc, "root_mount_hold %p", mdi->mdio_rootmount);
 	}
+
+	/* There is no return after this point, so we close passed consumer. */
+	g_access(cp, -1, 0, 0);
 
 	rcp = g_new_consumer(geom);
 	rcp->flags |= G_CF_DIRECT_RECEIVE;

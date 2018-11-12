@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -46,6 +46,7 @@
 struct listen_list;
 struct config_file;
 struct addrinfo;
+struct sldns_buffer;
 
 /**
  * Listening for queries structure.
@@ -57,7 +58,7 @@ struct listen_dnsport {
 
 	/** buffer shared by UDP connections, since there is only one
 	    datagram at any time. */
-	ldns_buffer* udp_buff;
+	struct sldns_buffer* udp_buff;
 
 	/** list of comm points used to get incoming events */
 	struct listen_list* cps;
@@ -106,9 +107,13 @@ struct listen_port {
  * interfaces for IP4 and/or IP6, for UDP and/or TCP.
  * On the given port number. It creates the sockets.
  * @param cfg: settings on what ports to open.
+ * @param reuseport: set to true if you want reuseport, or NULL to not have it,
+ *   set to false on exit if reuseport failed to apply (because of no
+ *   kernel support).
  * @return: linked list of ports or NULL on error.
  */
-struct listen_port* listening_ports_open(struct config_file* cfg);
+struct listen_port* listening_ports_open(struct config_file* cfg,
+	int* reuseport);
 
 /**
  * Close and delete the (list of) listening ports.
@@ -124,6 +129,7 @@ void listening_ports_free(struct listen_port* list);
  * @param tcp_accept_count: max number of simultaneous TCP connections 
  * 	from clients.
  * @param sslctx: nonNULL if ssl context.
+ * @param dtenv: nonNULL if dnstap enabled.
  * @param cb: callback function when a request arrives. It is passed
  *	  the packet and user argument. Return true to send a reply.
  * @param cb_arg: user data argument for callback function.
@@ -131,7 +137,8 @@ void listening_ports_free(struct listen_port* list);
  */
 struct listen_dnsport* listen_create(struct comm_base* base,
 	struct listen_port* ports, size_t bufsize, int tcp_accept_count,
-	void* sslctx, comm_point_callback_t* cb, void* cb_arg);
+	void* sslctx, struct dt_env *dtenv, comm_point_callback_t* cb,
+	void* cb_arg);
 
 /**
  * delete the listening structure
@@ -178,19 +185,35 @@ void listen_start_accept(struct listen_dnsport* listen);
 	IPv6 proto (family) is not available.
  * @param rcv: set size on rcvbuf with socket option, if 0 it is not set.
  * @param snd: set size on sndbuf with socket option, if 0 it is not set.
+ * @param listen: if true, this is a listening UDP port, eg port 53, and 
+ * 	set SO_REUSEADDR on it.
+ * @param reuseport: if nonNULL and true, try to set SO_REUSEPORT on
+ * 	listening UDP port.  Set to false on return if it failed to do so.
  * @return: the socket. -1 on error.
  */
 int create_udp_sock(int family, int socktype, struct sockaddr* addr, 
 	socklen_t addrlen, int v6only, int* inuse, int* noproto, int rcv,
-	int snd);
+	int snd, int listen, int* reuseport);
 
 /**
  * Create and bind TCP listening socket
  * @param addr: address info ready to make socket.
  * @param v6only: enable ip6 only flag on ip6 sockets.
  * @param noproto: if error caused by lack of protocol support.
+ * @param reuseport: if nonNULL and true, try to set SO_REUSEPORT on
+ * 	listening UDP port.  Set to false on return if it failed to do so.
  * @return: the socket. -1 on error.
  */
-int create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto);
+int create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
+	int* reuseport);
+
+/**
+ * Create and bind local listening socket
+ * @param path: path to the socket.
+ * @param noproto: on error, this is set true if cause is that local sockets
+ *	are not supported.
+ * @return: the socket. -1 on error.
+ */
+int create_local_accept_sock(const char* path, int* noproto);
 
 #endif /* LISTEN_DNSPORT_H */

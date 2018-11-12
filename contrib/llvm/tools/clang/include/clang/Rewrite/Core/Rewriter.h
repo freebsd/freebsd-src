@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_REWRITER_H
-#define LLVM_CLANG_REWRITER_H
+#ifndef LLVM_CLANG_REWRITE_CORE_REWRITER_H
+#define LLVM_CLANG_REWRITE_CORE_REWRITER_H
 
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Rewrite/Core/DeltaTree.h"
@@ -27,7 +27,6 @@ namespace clang {
   class LangOptions;
   class Rewriter;
   class SourceManager;
-  class Stmt;
 
 /// RewriteBuffer - As code is rewritten, SourceBuffer's from the original
 /// input with modifications get a new RewriteBuffer associated with them.  The
@@ -40,20 +39,18 @@ class RewriteBuffer {
   /// Deltas - Keep track of all the deltas in the source code due to insertions
   /// and deletions.
   DeltaTree Deltas;
-
-  /// Buffer - This is the actual buffer itself.  Note that using a vector or
-  /// string is a horribly inefficient way to do this, we should use a rope
-  /// instead.
-  typedef RewriteRope BufferTy;
-  BufferTy Buffer;
+  RewriteRope Buffer;
 public:
-  typedef BufferTy::const_iterator iterator;
+  typedef RewriteRope::const_iterator iterator;
   iterator begin() const { return Buffer.begin(); }
   iterator end() const { return Buffer.end(); }
   unsigned size() const { return Buffer.size(); }
 
   /// \brief Write to \p Stream the result of applying all changes to the
   /// original buffer.
+  /// Note that it isn't safe to use this function to overwrite memory mapped
+  /// files in-place (PR17960). Consider using a higher-level utility such as
+  /// Rewriter::overwriteChangedFiles() instead.
   ///
   /// The original buffer is not actually changed.
   raw_ostream &write(raw_ostream &Stream) const;
@@ -149,10 +146,11 @@ public:
   };
 
   typedef std::map<FileID, RewriteBuffer>::iterator buffer_iterator;
+  typedef std::map<FileID, RewriteBuffer>::const_iterator const_buffer_iterator;
 
   explicit Rewriter(SourceManager &SM, const LangOptions &LO)
     : SourceMgr(&SM), LangOpts(&LO) {}
-  explicit Rewriter() : SourceMgr(0), LangOpts(0) {}
+  explicit Rewriter() : SourceMgr(nullptr), LangOpts(nullptr) {}
 
   void setSourceMgr(SourceManager &SM, const LangOptions &LO) {
     SourceMgr = &SM;
@@ -246,11 +244,6 @@ public:
   /// operation.
   bool ReplaceText(SourceRange range, SourceRange replacementRange);
 
-  /// ReplaceStmt - This replaces a Stmt/Expr with another, using the pretty
-  /// printer to generate the replacement code.  This returns true if the input
-  /// could not be rewritten, or false if successful.
-  bool ReplaceStmt(Stmt *From, Stmt *To);
-
   /// \brief Increase indentation for the lines between the given source range.
   /// To determine what the indentation should be, 'parentIndent' is used
   /// that should be at a source location with an indentation one degree
@@ -260,10 +253,6 @@ public:
     return IncreaseIndentation(CharSourceRange::getTokenRange(range),
                                parentIndent);
   }
-
-  /// ConvertToString converts statement 'From' to a string using the
-  /// pretty printer.
-  std::string ConvertToString(Stmt *From);
 
   /// getEditBuffer - This is like getRewriteBufferFor, but always returns a
   /// buffer, and allows you to write on it directly.  This is useful if you
@@ -276,16 +265,18 @@ public:
   const RewriteBuffer *getRewriteBufferFor(FileID FID) const {
     std::map<FileID, RewriteBuffer>::const_iterator I =
       RewriteBuffers.find(FID);
-    return I == RewriteBuffers.end() ? 0 : &I->second;
+    return I == RewriteBuffers.end() ? nullptr : &I->second;
   }
 
   // Iterators over rewrite buffers.
   buffer_iterator buffer_begin() { return RewriteBuffers.begin(); }
   buffer_iterator buffer_end() { return RewriteBuffers.end(); }
+  const_buffer_iterator buffer_begin() const { return RewriteBuffers.begin(); }
+  const_buffer_iterator buffer_end() const { return RewriteBuffers.end(); }
 
   /// overwriteChangedFiles - Save all changed files to disk.
   ///
-  /// Returns whether not all changes were saved successfully.
+  /// Returns true if any files were not saved successfully.
   /// Outputs diagnostics via the source manager's diagnostic engine
   /// in case of an error.
   bool overwriteChangedFiles();

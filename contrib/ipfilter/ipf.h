@@ -43,9 +43,6 @@ struct file;
 #include <sys/socket.h>
 #include <net/if.h>
 
-#define	_WANT_IFADDR
-#include <net/if_var.h>
-
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>

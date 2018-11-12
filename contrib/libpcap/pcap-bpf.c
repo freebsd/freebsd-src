@@ -20,10 +20,6 @@
  *
  * $FreeBSD$
  */
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-bpf.c,v 1.116 2008-09-16 18:42:29 guy Exp $ (LBL)";
-#endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -128,6 +124,56 @@ static int bpf_load(char *errbuf);
 #include "os-proto.h"
 #endif
 
+/*
+ * Later versions of NetBSD stick padding in front of FDDI frames
+ * to align the IP header on a 4-byte boundary.
+ */
+#if defined(__NetBSD__) && __NetBSD_Version__ > 106000000
+#define       PCAP_FDDIPAD 3
+#endif
+
+/*
+ * Private data for capturing on BPF devices.
+ */
+struct pcap_bpf {
+#ifdef PCAP_FDDIPAD
+	int fddipad;
+#endif
+
+#ifdef HAVE_ZEROCOPY_BPF
+	/*
+	 * Zero-copy read buffer -- for zero-copy BPF.  'buffer' above will
+	 * alternative between these two actual mmap'd buffers as required.
+	 * As there is a header on the front size of the mmap'd buffer, only
+	 * some of the buffer is exposed to libpcap as a whole via bufsize;
+	 * zbufsize is the true size.  zbuffer tracks the current zbuf
+	 * assocated with buffer so that it can be used to decide which the
+	 * next buffer to read will be.
+	 */
+	u_char *zbuf1, *zbuf2, *zbuffer;
+	u_int zbufsize;
+	u_int zerocopy;
+	u_int interrupted;
+	struct timespec firstsel;
+	/*
+	 * If there's currently a buffer being actively processed, then it is
+	 * referenced here; 'buffer' is also pointed at it, but offset by the
+	 * size of the header.
+	 */
+	struct bpf_zbuf_header *bzh;
+	int nonblock;		/* true if in nonblocking mode */
+#endif /* HAVE_ZEROCOPY_BPF */
+
+	char *device;		/* device name */
+	int filtering_in_kernel; /* using kernel filter */
+	int must_do_on_close;	/* stuff we must do when we close */
+};
+
+/*
+ * Stuff to do when we close.
+ */
+#define MUST_CLEAR_RFMON	0x00000001	/* clear rfmon (monitor) mode */
+
 #ifdef BIOCGDLTLIST
 # if (defined(HAVE_NET_IF_MEDIA_H) && defined(IFM_IEEE80211)) && !defined(__APPLE__)
 #define HAVE_BSD_IEEE80211
@@ -186,22 +232,17 @@ static int pcap_set_datalink_bpf(pcap_t *p, int dlt);
 
 /*
  * For zerocopy bpf, the setnonblock/getnonblock routines need to modify
- * p->md.timeout so we don't call select(2) if the pcap handle is in non-
- * blocking mode.  We preserve the timeout supplied by pcap_open functions
- * to make sure it does not get clobbered if the pcap handle moves between
- * blocking and non-blocking mode.
+ * pb->nonblock so we don't call select(2) if the pcap handle is in non-
+ * blocking mode.
  */
 static int
 pcap_getnonblock_bpf(pcap_t *p, char *errbuf)
 { 
 #ifdef HAVE_ZEROCOPY_BPF
-	if (p->md.zerocopy) {
-		/*
-		 * Use a negative value for the timeout to represent that the
-		 * pcap handle is in non-blocking mode.
-		 */
-		return (p->md.timeout < 0);
-	}
+	struct pcap_bpf *pb = p->priv;
+
+	if (pb->zerocopy)
+		return (pb->nonblock);
 #endif
 	return (pcap_getnonblock_fd(p, errbuf));
 }
@@ -210,25 +251,10 @@ static int
 pcap_setnonblock_bpf(pcap_t *p, int nonblock, char *errbuf)
 {   
 #ifdef HAVE_ZEROCOPY_BPF
-	if (p->md.zerocopy) {
-		/*
-		 * Map each value to their corresponding negation to
-		 * preserve the timeout value provided with pcap_set_timeout.
-		 * (from pcap-linux.c).
-		 */
-		if (nonblock) {
-			if (p->md.timeout >= 0) {
-				/*
-				 * Indicate that we're switching to
-				 * non-blocking mode.
-				 */
-				p->md.timeout = ~p->md.timeout;
-			}
-		} else {
-			if (p->md.timeout < 0) {
-				p->md.timeout = ~p->md.timeout;
-			}
-		}
+	struct pcap_bpf *pb = p->priv;
+
+	if (pb->zerocopy) {
+		pb->nonblock = nonblock;
 		return (0);
 	}
 #endif
@@ -248,25 +274,26 @@ pcap_setnonblock_bpf(pcap_t *p, int nonblock, char *errbuf)
 static int
 pcap_next_zbuf_shm(pcap_t *p, int *cc)
 {
+	struct pcap_bpf *pb = p->priv;
 	struct bpf_zbuf_header *bzh;
 
-	if (p->md.zbuffer == p->md.zbuf2 || p->md.zbuffer == NULL) {
-		bzh = (struct bpf_zbuf_header *)p->md.zbuf1;
+	if (pb->zbuffer == pb->zbuf2 || pb->zbuffer == NULL) {
+		bzh = (struct bpf_zbuf_header *)pb->zbuf1;
 		if (bzh->bzh_user_gen !=
 		    atomic_load_acq_int(&bzh->bzh_kernel_gen)) {
-			p->md.bzh = bzh;
-			p->md.zbuffer = (u_char *)p->md.zbuf1;
-			p->buffer = p->md.zbuffer + sizeof(*bzh);
+			pb->bzh = bzh;
+			pb->zbuffer = (u_char *)pb->zbuf1;
+			p->buffer = pb->zbuffer + sizeof(*bzh);
 			*cc = bzh->bzh_kernel_len;
 			return (1);
 		}
-	} else if (p->md.zbuffer == p->md.zbuf1) {
-		bzh = (struct bpf_zbuf_header *)p->md.zbuf2;
+	} else if (pb->zbuffer == pb->zbuf1) {
+		bzh = (struct bpf_zbuf_header *)pb->zbuf2;
 		if (bzh->bzh_user_gen !=
 		    atomic_load_acq_int(&bzh->bzh_kernel_gen)) {
-			p->md.bzh = bzh;
-			p->md.zbuffer = (u_char *)p->md.zbuf2;
-  			p->buffer = p->md.zbuffer + sizeof(*bzh);
+			pb->bzh = bzh;
+			pb->zbuffer = (u_char *)pb->zbuf2;
+  			p->buffer = pb->zbuffer + sizeof(*bzh);
 			*cc = bzh->bzh_kernel_len;
 			return (1);
 		}
@@ -285,6 +312,7 @@ pcap_next_zbuf_shm(pcap_t *p, int *cc)
 static int
 pcap_next_zbuf(pcap_t *p, int *cc)
 {
+	struct pcap_bpf *pb = p->priv;
 	struct bpf_zbuf bz;
 	struct timeval tv;
 	struct timespec cur;
@@ -308,15 +336,15 @@ pcap_next_zbuf(pcap_t *p, int *cc)
 	 * our timeout is less then or equal to zero, handle it like a
 	 * regular timeout.
 	 */
-	tmout = p->md.timeout;
+	tmout = p->opt.timeout;
 	if (tmout)
 		(void) clock_gettime(CLOCK_MONOTONIC, &cur);
-	if (p->md.interrupted && p->md.timeout) {
-		expire = TSTOMILLI(&p->md.firstsel) + p->md.timeout;
+	if (pb->interrupted && p->opt.timeout) {
+		expire = TSTOMILLI(&pb->firstsel) + p->opt.timeout;
 		tmout = expire - TSTOMILLI(&cur);
 #undef TSTOMILLI
 		if (tmout <= 0) {
-			p->md.interrupted = 0;
+			pb->interrupted = 0;
 			data = pcap_next_zbuf_shm(p, cc);
 			if (data)
 				return (data);
@@ -333,7 +361,7 @@ pcap_next_zbuf(pcap_t *p, int *cc)
 	 * the next timeout.  Note that we only call select if the handle
 	 * is in blocking mode.
 	 */
-	if (p->md.timeout >= 0) {
+	if (!pb->nonblock) {
 		FD_ZERO(&r_set);
 		FD_SET(p->fd, &r_set);
 		if (tmout != 0) {
@@ -341,11 +369,11 @@ pcap_next_zbuf(pcap_t *p, int *cc)
 			tv.tv_usec = (tmout * 1000) % 1000000;
 		}
 		r = select(p->fd + 1, &r_set, NULL, NULL,
-		    p->md.timeout != 0 ? &tv : NULL);
+		    p->opt.timeout != 0 ? &tv : NULL);
 		if (r < 0 && errno == EINTR) {
-			if (!p->md.interrupted && p->md.timeout) {
-				p->md.interrupted = 1;
-				p->md.firstsel = cur;
+			if (!pb->interrupted && p->opt.timeout) {
+				pb->interrupted = 1;
+				pb->firstsel = cur;
 			}
 			return (0);
 		} else if (r < 0) {
@@ -354,7 +382,7 @@ pcap_next_zbuf(pcap_t *p, int *cc)
 			return (PCAP_ERROR);
 		}
 	}
-	p->md.interrupted = 0;
+	pb->interrupted = 0;
 	/*
 	 * Check again for data, which may exist now that we've either been
 	 * woken up as a result of data or timed out.  Try the "there's data"
@@ -382,10 +410,11 @@ pcap_next_zbuf(pcap_t *p, int *cc)
 static int
 pcap_ack_zbuf(pcap_t *p)
 {
+	struct pcap_bpf *pb = p->priv;
 
-	atomic_store_rel_int(&p->md.bzh->bzh_user_gen,
-	    p->md.bzh->bzh_kernel_gen);
-	p->md.bzh = NULL;
+	atomic_store_rel_int(&pb->bzh->bzh_user_gen,
+	    pb->bzh->bzh_kernel_gen);
+	pb->bzh = NULL;
 	p->buffer = NULL;
 	return (0);
 }
@@ -396,7 +425,7 @@ pcap_create_interface(const char *device, char *ebuf)
 {
 	pcap_t *p;
 
-	p = pcap_create_common(device, ebuf);
+	p = pcap_create_common(device, ebuf, sizeof (struct pcap_bpf));
 	if (p == NULL)
 		return (NULL);
 
@@ -792,6 +821,7 @@ pcap_stats_bpf(pcap_t *p, struct pcap_stat *ps)
 static int
 pcap_read_bpf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 {
+	struct pcap_bpf *pb = p->priv;
 	int cc;
 	int n = 0;
 	register u_char *bp, *ep;
@@ -827,7 +857,7 @@ pcap_read_bpf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		 * buffer.
 		 */
 #ifdef HAVE_ZEROCOPY_BPF
-		if (p->md.zerocopy) {
+		if (pb->zerocopy) {
 			if (p->buffer != NULL)
 				pcap_ack_zbuf(p);
 			i = pcap_next_zbuf(p, &cc);
@@ -975,7 +1005,7 @@ pcap_read_bpf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		 * skipping that padding.
 #endif
 		 */
-		if (p->md.use_bpf ||
+		if (pb->filtering_in_kernel ||
 		    bpf_filter(p->fcode.bf_insns, datap, bhp->bh_datalen, caplen)) {
 			struct pcap_pkthdr pkthdr;
 
@@ -1005,7 +1035,7 @@ pcap_read_bpf(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 #endif
 			(*callback)(user, &pkthdr, datap);
 			bp += BPF_WORDALIGN(caplen + hdrlen);
-			if (++n >= cnt && cnt > 0) {
+			if (++n >= cnt && !PACKET_COUNT_IS_UNLIMITED(cnt)) {
 				p->bp = bp;
 				p->cc = ep - bp;
 				/*
@@ -1242,19 +1272,20 @@ bpf_load(char *errbuf)
 static void
 pcap_cleanup_bpf(pcap_t *p)
 {
+	struct pcap_bpf *pb = p->priv;
 #ifdef HAVE_BSD_IEEE80211
 	int sock;
 	struct ifmediareq req;
 	struct ifreq ifr;
 #endif
 
-	if (p->md.must_do_on_close != 0) {
+	if (pb->must_do_on_close != 0) {
 		/*
 		 * There's something we have to do when closing this
 		 * pcap_t.
 		 */
 #ifdef HAVE_BSD_IEEE80211
-		if (p->md.must_do_on_close & MUST_CLEAR_RFMON) {
+		if (pb->must_do_on_close & MUST_CLEAR_RFMON) {
 			/*
 			 * We put the interface into rfmon mode;
 			 * take it out of rfmon mode.
@@ -1271,7 +1302,7 @@ pcap_cleanup_bpf(pcap_t *p)
 				    strerror(errno));
 			} else {
 				memset(&req, 0, sizeof(req));
-				strncpy(req.ifm_name, p->md.device,
+				strncpy(req.ifm_name, pb->device,
 				    sizeof(req.ifm_name));
 				if (ioctl(sock, SIOCGIFMEDIA, &req) < 0) {
 					fprintf(stderr,
@@ -1286,7 +1317,7 @@ pcap_cleanup_bpf(pcap_t *p)
 						 */
 						memset(&ifr, 0, sizeof(ifr));
 						(void)strncpy(ifr.ifr_name,
-						    p->md.device,
+						    pb->device,
 						    sizeof(ifr.ifr_name));
 						ifr.ifr_media =
 						    req.ifm_current & ~IFM_IEEE80211_MONITOR;
@@ -1309,11 +1340,11 @@ pcap_cleanup_bpf(pcap_t *p)
 		 * have to take the interface out of some mode.
 		 */
 		pcap_remove_from_pcaps_to_close(p);
-		p->md.must_do_on_close = 0;
+		pb->must_do_on_close = 0;
 	}
 
 #ifdef HAVE_ZEROCOPY_BPF
-	if (p->md.zerocopy) {
+	if (pb->zerocopy) {
 		/*
 		 * Delete the mappings.  Note that p->buffer gets
 		 * initialized to one of the mmapped regions in
@@ -1321,17 +1352,17 @@ pcap_cleanup_bpf(pcap_t *p)
 		 * null it out so that pcap_cleanup_live_common()
 		 * doesn't try to free it.
 		 */
-		if (p->md.zbuf1 != MAP_FAILED && p->md.zbuf1 != NULL)
-			(void) munmap(p->md.zbuf1, p->md.zbufsize);
-		if (p->md.zbuf2 != MAP_FAILED && p->md.zbuf2 != NULL)
-			(void) munmap(p->md.zbuf2, p->md.zbufsize);
+		if (pb->zbuf1 != MAP_FAILED && pb->zbuf1 != NULL)
+			(void) munmap(pb->zbuf1, pb->zbufsize);
+		if (pb->zbuf2 != MAP_FAILED && pb->zbuf2 != NULL)
+			(void) munmap(pb->zbuf2, pb->zbufsize);
 		p->buffer = NULL;
 		p->buffer = NULL;
 	}
 #endif
-	if (p->md.device != NULL) {
-		free(p->md.device);
-		p->md.device = NULL;
+	if (pb->device != NULL) {
+		free(pb->device);
+		pb->device = NULL;
 	}
 	pcap_cleanup_live_common(p);
 }
@@ -1446,7 +1477,11 @@ check_setif_failure(pcap_t *p, int error)
 static int
 pcap_activate_bpf(pcap_t *p)
 {
+	struct pcap_bpf *pb = p->priv;
 	int status = 0;
+#ifdef HAVE_BSD_IEEE80211
+	int retv;
+#endif
 	int fd;
 #ifdef LIFNAMSIZ
 	char *zonesep;
@@ -1536,8 +1571,8 @@ pcap_activate_bpf(pcap_t *p)
 	}
 #endif
 
-	p->md.device = strdup(p->opt.source);
-	if (p->md.device == NULL) {
+	pb->device = strdup(p->opt.source);
+	if (pb->device == NULL) {
 		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "strdup: %s",
 		     pcap_strerror(errno));
 		status = PCAP_ERROR;
@@ -1652,7 +1687,7 @@ pcap_activate_bpf(pcap_t *p)
 		/*
 		 * We have zerocopy BPF; use it.
 		 */
-		p->md.zerocopy = 1;
+		pb->zerocopy = 1;
 
 		/*
 		 * How to pick a buffer size: first, query the maximum buffer
@@ -1666,6 +1701,7 @@ pcap_activate_bpf(pcap_t *p)
 		if (ioctl(fd, BIOCGETZMAX, (caddr_t)&zbufmax) < 0) {
 			snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "BIOCGETZMAX: %s",
 			    pcap_strerror(errno));
+			status = PCAP_ERROR;
 			goto bad;
 		}
 
@@ -1682,34 +1718,37 @@ pcap_activate_bpf(pcap_t *p)
 #ifndef roundup
 #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))  /* to any y */
 #endif
-		p->md.zbufsize = roundup(v, getpagesize());
-		if (p->md.zbufsize > zbufmax)
-			p->md.zbufsize = zbufmax;
-		p->md.zbuf1 = mmap(NULL, p->md.zbufsize, PROT_READ | PROT_WRITE,
+		pb->zbufsize = roundup(v, getpagesize());
+		if (pb->zbufsize > zbufmax)
+			pb->zbufsize = zbufmax;
+		pb->zbuf1 = mmap(NULL, pb->zbufsize, PROT_READ | PROT_WRITE,
 		    MAP_ANON, -1, 0);
-		p->md.zbuf2 = mmap(NULL, p->md.zbufsize, PROT_READ | PROT_WRITE,
+		pb->zbuf2 = mmap(NULL, pb->zbufsize, PROT_READ | PROT_WRITE,
 		    MAP_ANON, -1, 0);
-		if (p->md.zbuf1 == MAP_FAILED || p->md.zbuf2 == MAP_FAILED) {
+		if (pb->zbuf1 == MAP_FAILED || pb->zbuf2 == MAP_FAILED) {
 			snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "mmap: %s",
 			    pcap_strerror(errno));
+			status = PCAP_ERROR;
 			goto bad;
 		}
 		memset(&bz, 0, sizeof(bz)); /* bzero() deprecated, replaced with memset() */
-		bz.bz_bufa = p->md.zbuf1;
-		bz.bz_bufb = p->md.zbuf2;
-		bz.bz_buflen = p->md.zbufsize;
+		bz.bz_bufa = pb->zbuf1;
+		bz.bz_bufb = pb->zbuf2;
+		bz.bz_buflen = pb->zbufsize;
 		if (ioctl(fd, BIOCSETZBUF, (caddr_t)&bz) < 0) {
 			snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "BIOCSETZBUF: %s",
 			    pcap_strerror(errno));
+			status = PCAP_ERROR;
 			goto bad;
 		}
 		(void)strncpy(ifrname, p->opt.source, ifnamsiz);
 		if (ioctl(fd, BIOCSETIF, (caddr_t)&ifr) < 0) {
 			snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "BIOCSETIF: %s: %s",
 			    p->opt.source, pcap_strerror(errno));
+			status = PCAP_ERROR;
 			goto bad;
 		}
-		v = p->md.zbufsize - sizeof(struct bpf_zbuf_header);
+		v = pb->zbufsize - sizeof(struct bpf_zbuf_header);
 	} else
 #endif
 	{
@@ -1961,11 +2000,12 @@ pcap_activate_bpf(pcap_t *p)
 		/*
 		 * Try to put the interface into monitor mode.
 		 */
-		status = monitor_mode(p, 1);
-		if (status != 0) {
+		retv = monitor_mode(p, 1);
+		if (retv != 0) {
 			/*
 			 * We failed.
 			 */
+			status = retv;
 			goto bad;
 		}
 
@@ -2022,8 +2062,8 @@ pcap_activate_bpf(pcap_t *p)
 	if (v == DLT_FDDI)
 		p->fddipad = PCAP_FDDIPAD;
 	else
-		p->fddipad = 0;
 #endif
+		p->fddipad = 0;
 	p->linktype = v;
 
 #if defined(BIOCGHDRCMPLT) && defined(BIOCSHDRCMPLT)
@@ -2045,9 +2085,14 @@ pcap_activate_bpf(pcap_t *p)
 #endif
 	/* set timeout */
 #ifdef HAVE_ZEROCOPY_BPF
-	if (p->md.timeout != 0 && !p->md.zerocopy) {
+	/*
+	 * In zero-copy mode, we just use the timeout in select().
+	 * XXX - what if we're in non-blocking mode and the *application*
+	 * is using select() or poll() or kqueues or....?
+	 */
+	if (p->opt.timeout && !pb->zerocopy) {
 #else
-	if (p->md.timeout) {
+	if (p->opt.timeout) {
 #endif
 		/*
 		 * XXX - is this seconds/nanoseconds in AIX?
@@ -2071,8 +2116,8 @@ pcap_activate_bpf(pcap_t *p)
 		struct BPF_TIMEVAL bpf_to;
 
 		if (IOCPARM_LEN(BIOCSRTIMEOUT) != sizeof(struct timeval)) {
-			bpf_to.tv_sec = p->md.timeout / 1000;
-			bpf_to.tv_usec = (p->md.timeout * 1000) % 1000000;
+			bpf_to.tv_sec = p->opt.timeout / 1000;
+			bpf_to.tv_usec = (p->opt.timeout * 1000) % 1000000;
 			if (ioctl(p->fd, BIOCSRTIMEOUT, (caddr_t)&bpf_to) < 0) {
 				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 				    "BIOCSRTIMEOUT: %s", pcap_strerror(errno));
@@ -2081,8 +2126,8 @@ pcap_activate_bpf(pcap_t *p)
 			}
 		} else {
 #endif
-			to.tv_sec = p->md.timeout / 1000;
-			to.tv_usec = (p->md.timeout * 1000) % 1000000;
+			to.tv_sec = p->opt.timeout / 1000;
+			to.tv_usec = (p->opt.timeout * 1000) % 1000000;
 			if (ioctl(p->fd, BIOCSRTIMEOUT, (caddr_t)&to) < 0) {
 				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 				    "BIOCSRTIMEOUT: %s", pcap_strerror(errno));
@@ -2094,7 +2139,6 @@ pcap_activate_bpf(pcap_t *p)
 #endif
 	}
 
-#ifdef _AIX
 #ifdef	BIOCIMMEDIATE
 	/*
 	 * Darren Reed notes that
@@ -2106,51 +2150,38 @@ pcap_activate_bpf(pcap_t *p)
 	 *	is reducing things to only a few packets (i.e. one every
 	 *	second or so).
 	 *
-	 * so we turn BIOCIMMEDIATE mode on if this is AIX.
+	 * so we always turn BIOCIMMEDIATE mode on if this is AIX.
 	 *
-	 * We don't turn it on for other platforms, as that means we
-	 * get woken up for every packet, which may not be what we want;
-	 * in the Winter 1993 USENIX paper on BPF, they say:
+	 * For other platforms, we don't turn immediate mode on by default,
+	 * as that would mean we get woken up for every packet, which
+	 * probably isn't what you want for a packet sniffer.
 	 *
-	 *	Since a process might want to look at every packet on a
-	 *	network and the time between packets can be only a few
-	 *	microseconds, it is not possible to do a read system call
-	 *	per packet and BPF must collect the data from several
-	 *	packets and return it as a unit when the monitoring
-	 *	application does a read.
-	 *
-	 * which I infer is the reason for the timeout - it means we
-	 * wait that amount of time, in the hopes that more packets
-	 * will arrive and we'll get them all with one read.
-	 *
-	 * Setting BIOCIMMEDIATE mode on FreeBSD (and probably other
-	 * BSDs) causes the timeout to be ignored.
-	 *
-	 * On the other hand, some platforms (e.g., Linux) don't support
-	 * timeouts, they just hand stuff to you as soon as it arrives;
-	 * if that doesn't cause a problem on those platforms, it may
-	 * be OK to have BIOCIMMEDIATE mode on BSD as well.
-	 *
-	 * (Note, though, that applications may depend on the read
-	 * completing, even if no packets have arrived, when the timeout
-	 * expires, e.g. GUI applications that have to check for input
-	 * while waiting for packets to arrive; a non-zero timeout
-	 * prevents "select()" from working right on FreeBSD and
-	 * possibly other BSDs, as the timer doesn't start until a
-	 * "read()" is done, so the timer isn't in effect if the
-	 * application is blocked on a "select()", and the "select()"
-	 * doesn't get woken up for a BPF device until the buffer
-	 * fills up.)
+	 * We set immediate mode if the caller requested it by calling
+	 * pcap_set_immediate() before calling pcap_activate().
 	 */
-	v = 1;
-	if (ioctl(p->fd, BIOCIMMEDIATE, &v) < 0) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "BIOCIMMEDIATE: %s",
-		    pcap_strerror(errno));
+#ifndef _AIX
+	if (p->opt.immediate) {
+#endif /* _AIX */
+		v = 1;
+		if (ioctl(p->fd, BIOCIMMEDIATE, &v) < 0) {
+			snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "BIOCIMMEDIATE: %s", pcap_strerror(errno));
+			status = PCAP_ERROR;
+			goto bad;
+		}
+#ifndef _AIX
+	}
+#endif /* _AIX */
+#else /* BIOCIMMEDIATE */
+	if (p->opt.immediate) {
+		/*
+		 * We don't support immediate mode.  Fail.
+		 */
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "Immediate mode not supported");
 		status = PCAP_ERROR;
 		goto bad;
 	}
-#endif	/* BIOCIMMEDIATE */
-#endif	/* _AIX */
+#endif /* BIOCIMMEDIATE */
 
 	if (p->opt.promisc) {
 		/* set promiscuous mode, just warn if it fails */
@@ -2169,7 +2200,7 @@ pcap_activate_bpf(pcap_t *p)
 	}
 	p->bufsize = v;
 #ifdef HAVE_ZEROCOPY_BPF
-	if (!p->md.zerocopy) {
+	if (!pb->zerocopy) {
 #endif
 	p->buffer = (u_char *)malloc(p->bufsize);
 	if (p->buffer == NULL) {
@@ -2270,7 +2301,7 @@ pcap_activate_bpf(pcap_t *p)
 
 	return (status);
  bad:
- 	pcap_cleanup_bpf(p);
+	pcap_cleanup_bpf(p);
 	return (status);
 }
 
@@ -2284,6 +2315,7 @@ pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
 static int
 monitor_mode(pcap_t *p, int set)
 {
+	struct pcap_bpf *pb = p->priv;
 	int sock;
 	struct ifmediareq req;
 	int *media_list;
@@ -2421,7 +2453,7 @@ monitor_mode(pcap_t *p, int set)
 				return (PCAP_ERROR);
 			}
 
-			p->md.must_do_on_close |= MUST_CLEAR_RFMON;
+			pb->must_do_on_close |= MUST_CLEAR_RFMON;
 
 			/*
 			 * Add this to the list of pcaps to close when we exit.
@@ -2598,6 +2630,8 @@ remove_802_11(pcap_t *p)
 static int
 pcap_setfilter_bpf(pcap_t *p, struct bpf_program *fp)
 {
+	struct pcap_bpf *pb = p->priv;
+
 	/*
 	 * Free any user-mode filter we might happen to have installed.
 	 */
@@ -2610,7 +2644,7 @@ pcap_setfilter_bpf(pcap_t *p, struct bpf_program *fp)
 		/*
 		 * It worked.
 		 */
-		p->md.use_bpf = 1;	/* filtering in the kernel */
+		pb->filtering_in_kernel = 1;	/* filtering in the kernel */
 
 		/*
 		 * Discard any previously-received packets, as they might
@@ -2650,7 +2684,7 @@ pcap_setfilter_bpf(pcap_t *p, struct bpf_program *fp)
 	 */
 	if (install_bpf_program(p, fp) < 0)
 		return (-1);
-	p->md.use_bpf = 0;	/* filtering in userland */
+	pb->filtering_in_kernel = 0;	/* filtering in userland */
 	return (0);
 }
 

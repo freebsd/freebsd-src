@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -47,6 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91reg.h>
 #include <arm/at91/at91_pioreg.h>
 #include <arm/at91/at91_piovar.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #define	MAX_CHANGE	64
 
@@ -122,7 +130,10 @@ static int
 at91_pio_probe(device_t dev)
 {
 	const char *name;
-
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "atmel,at91rm9200-gpio"))
+		return (ENXIO);
+#endif
 	switch (device_get_unit(dev)) {
 	case 0:
 		name = "PIOA";
@@ -135,6 +146,12 @@ at91_pio_probe(device_t dev)
 		break;
 	case 3:
 		name = "PIOD";
+		break;
+	case 4:
+		name = "PIOE";
+		break;
+	case 5:
+		name = "PIOF";
 		break;
 	default:
 		name = "PIO";
@@ -574,6 +591,17 @@ at91_pio_gpio_set_deglitch(uint32_t pio, uint32_t data_mask, int use_deglitch)
 }
 
 void
+at91_pio_gpio_pullup(uint32_t pio, uint32_t data_mask, int do_pullup)
+{
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
+
+	if (do_pullup)
+		PIO[PIO_PUER / 4] = data_mask;
+	else
+		PIO[PIO_PUDR / 4] = data_mask;
+}
+
+void
 at91_pio_gpio_set_interrupt(uint32_t pio, uint32_t data_mask,
 	int enable_interrupt)
 {
@@ -594,11 +622,20 @@ at91_pio_gpio_clear_interrupt(uint32_t pio)
 	return (PIO[PIO_ISR / 4]);
 }
 
+static void
+at91_pio_new_pass(device_t dev)
+{
+
+	device_printf(dev, "Pass %d\n", bus_current_pass);
+}
+
 static device_method_t at91_pio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		at91_pio_probe),
 	DEVMETHOD(device_attach,	at91_pio_attach),
 	DEVMETHOD(device_detach,	at91_pio_detach),
+
+	DEVMETHOD(bus_new_pass,		at91_pio_new_pass),
 
 	DEVMETHOD_END
 };
@@ -609,5 +646,9 @@ static driver_t at91_pio_driver = {
 	sizeof(struct at91_pio_softc),
 };
 
-DRIVER_MODULE(at91_pio, atmelarm, at91_pio_driver, at91_pio_devclass, NULL,
-    NULL);
+#ifdef FDT
+EARLY_DRIVER_MODULE(at91_pio, at91_pinctrl, at91_pio_driver, at91_pio_devclass,
+    NULL, NULL, BUS_PASS_INTERRUPT);
+#else
+DRIVER_MODULE(at91_pio, atmelarm, at91_pio_driver, at91_pio_devclass, NULL, NULL);
+#endif

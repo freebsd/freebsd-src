@@ -107,7 +107,16 @@ static const struct {
 	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(0) | HDAA_GPIO_SET(1) },
+	{ APPLE_MACBOOKAIR31, HDA_CODEC_CS4206, HDA_MATCH_ALL,
+	    0, 0,
+	    HDAA_GPIO_SET(1) | HDAA_GPIO_SET(3) },
 	{ APPLE_MACBOOKPRO55, HDA_CODEC_CS4206, HDA_MATCH_ALL,
+	    0, 0,
+	    HDAA_GPIO_SET(1) | HDAA_GPIO_SET(3) },
+	{ APPLE_MACBOOKPRO71, HDA_CODEC_CS4206, HDA_MATCH_ALL,
+	    0, 0,
+	    HDAA_GPIO_SET(1) | HDAA_GPIO_SET(3) },
+	{ HDA_INTEL_MACBOOKPRO92, HDA_CODEC_CS4206, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(1) | HDAA_GPIO_SET(3) },
 	{ DELL_D630_SUBVENDOR, HDA_CODEC_STAC9205X, HDA_MATCH_ALL,
@@ -133,7 +142,6 @@ static const struct {
 	    0, HDAA_QUIRK_OVREF,
 	    0 }
 };
-#define HDAC_QUIRKS_LEN (sizeof(hdac_quirks) / sizeof(hdac_quirks[0]))
 
 static void
 hdac_pin_patch(struct hdaa_widget *w)
@@ -338,16 +346,27 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch = "as=1 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_CX20561 &&
+	    subid == LENOVO_T400_SUBVENDOR) {
+		switch (nid) {
+		case 22:
+			patch = "as=1 seq=15";
+			break;
+		case 26:
+			patch = "as=1 seq=0";
+			break;
+		}
 	} else if (id == HDA_CODEC_CX20590 &&
 	    (subid == LENOVO_X1_SUBVENDOR ||
 	    subid == LENOVO_X220_SUBVENDOR ||
 	    subid == LENOVO_T420_SUBVENDOR ||
-	    subid == LENOVO_T520_SUBVENDOR)) {
+	    subid == LENOVO_T520_SUBVENDOR ||
+	    subid == LENOVO_G580_SUBVENDOR)) {
 		switch (nid) {
 		case 25:
 			patch = "as=1 seq=15";
 			break;
-		/* 
+		/*
 		 * Group onboard mic and headphone mic
 		 * together.  Fixes onboard mic.
 		 */
@@ -372,6 +391,20 @@ hdac_pin_patch(struct hdaa_widget *w)
 	    subid == ASUS_UX31A_SUBVENDOR) {
 		switch (nid) {
 		case 33:
+			patch = "as=1 seq=15";
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC892 &&
+	    subid == INTEL_DH87RL_SUBVENDOR) {
+		switch (nid) {
+		case 27:
+			patch = "as=1 seq=15";
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC292 &&
+	    subid == LENOVO_X120BS_SUBVENDOR) {
+		switch (nid) {
+		case 21:
 			patch = "as=1 seq=15";
 			break;
 		}
@@ -457,7 +490,7 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 	/*
 	 * Quirks
 	 */
-	for (i = 0; i < HDAC_QUIRKS_LEN; i++) {
+	for (i = 0; i < nitems(hdac_quirks); i++) {
 		if (!(HDA_DEV_MATCH(hdac_quirks[i].model, subid) &&
 		    HDA_DEV_MATCH(hdac_quirks[i].id, id) &&
 		    HDA_DEV_MATCH(hdac_quirks[i].subsystemid, subsystemid)))

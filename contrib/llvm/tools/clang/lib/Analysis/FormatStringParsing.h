@@ -1,5 +1,5 @@
-#ifndef LLVM_CLANG_FORMAT_PARSING_H
-#define LLVM_CLANG_FORMAT_PARSING_H
+#ifndef LLVM_CLANG_LIB_ANALYSIS_FORMATSTRINGPARSING_H
+#define LLVM_CLANG_LIB_ANALYSIS_FORMATSTRINGPARSING_H
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Type.h"
@@ -53,14 +53,14 @@ template <typename T> class SpecifierResult {
   bool Stop;
 public:
   SpecifierResult(bool stop = false)
-  : Start(0), Stop(stop) {}
+  : Start(nullptr), Stop(stop) {}
   SpecifierResult(const char *start,
                   const T &fs)
   : FS(fs), Start(start), Stop(false) {}
   
   const char *getStart() const { return Start; }
   bool shouldStop() const { return Stop; }
-  bool hasValue() const { return Start != 0; }
+  bool hasValue() const { return Start != nullptr; }
   const T &getValue() const {
     assert(hasValue());
     return FS;

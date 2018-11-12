@@ -1087,8 +1087,8 @@ vtscsi_execute_scsi_cmd(struct vtscsi_softc *sc, struct vtscsi_request *req)
 
 	if (ccbh->timeout != CAM_TIME_INFINITY) {
 		req->vsr_flags |= VTSCSI_REQ_FLAG_TIMEOUT_SET;
-		callout_reset(&req->vsr_callout, ccbh->timeout * hz / 1000,
-		    vtscsi_timedout_scsi_cmd, req);
+		callout_reset_sbt(&req->vsr_callout, SBT_1MS * ccbh->timeout,
+		    0, vtscsi_timedout_scsi_cmd, req, 0);
 	}
 
 	vtscsi_dprintf_req(req, VTSCSI_TRACE, "enqueued req=%p ccb=%p\n",

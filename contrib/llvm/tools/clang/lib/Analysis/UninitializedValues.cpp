@@ -14,12 +14,12 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/StmtVisitor.h"
 #include "clang/Analysis/Analyses/PostOrderCFGView.h"
 #include "clang/Analysis/Analyses/UninitializedValues.h"
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Analysis/DomainSpecific/ObjCNoReturn.h"
-#include "clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/PackedVector.h"
@@ -34,7 +34,7 @@ using namespace clang;
 
 static bool isTrackedVar(const VarDecl *vd, const DeclContext *dc) {
   if (vd->isLocalVarDecl() && !vd->hasGlobalStorage() &&
-      !vd->isExceptionVariable() &&
+      !vd->isExceptionVariable() && !vd->isInitCapture() &&
       vd->getDeclContext() == dc) {
     QualType ty = vd->getType();
     return ty->isScalarType() || ty->isVectorType();
@@ -236,14 +236,13 @@ void DataflowWorklist::enqueueSuccessors(const clang::CFGBlock *block) {
 }
 
 const CFGBlock *DataflowWorklist::dequeue() {
-  const CFGBlock *B = 0;
+  const CFGBlock *B = nullptr;
 
   // First dequeue from the worklist.  This can represent
   // updates along backedges that we want propagated as quickly as possible.
-  if (!worklist.empty()) {
-    B = worklist.back();
-    worklist.pop_back();
-  }
+  if (!worklist.empty())
+    B = worklist.pop_back_val();
+
   // Next dequeue from the initial reverse post order.  This is the
   // theoretical ideal in the presence of no back edges.
   else if (PO_I != PO_E) {
@@ -251,7 +250,7 @@ const CFGBlock *DataflowWorklist::dequeue() {
     ++PO_I;
   }
   else {
-    return 0;
+    return nullptr;
   }
 
   assert(enqueuedBlocks[B->getBlockID()] == true);
@@ -296,7 +295,7 @@ static FindVarResult findVar(const Expr *E, const DeclContext *DC) {
     if (const VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl()))
       if (isTrackedVar(VD, DC))
         return FindVarResult(VD, DRE);
-  return FindVarResult(0, 0);
+  return FindVarResult(nullptr, nullptr);
 }
 
 /// \brief Classify each DeclRefExpr as an initialization or a use. Any
@@ -354,17 +353,32 @@ static const DeclRefExpr *getSelfInitExpr(VarDecl *VD) {
     if (DRE && DRE->getDecl() == VD)
       return DRE;
   }
-  return 0;
+  return nullptr;
 }
 
 void ClassifyRefs::classify(const Expr *E, Class C) {
   // The result of a ?: could also be an lvalue.
   E = E->IgnoreParens();
   if (const ConditionalOperator *CO = dyn_cast<ConditionalOperator>(E)) {
-    const Expr *TrueExpr = CO->getTrueExpr();
-    if (!isa<OpaqueValueExpr>(TrueExpr))
-      classify(TrueExpr, C);
+    classify(CO->getTrueExpr(), C);
     classify(CO->getFalseExpr(), C);
+    return;
+  }
+
+  if (const BinaryConditionalOperator *BCO =
+          dyn_cast<BinaryConditionalOperator>(E)) {
+    classify(BCO->getFalseExpr(), C);
+    return;
+  }
+
+  if (const OpaqueValueExpr *OVE = dyn_cast<OpaqueValueExpr>(E)) {
+    classify(OVE->getSourceExpr(), C);
+    return;
+  }
+
+  if (const BinaryOperator *BO = dyn_cast<BinaryOperator>(E)) {
+    if (BO->getOpcode() == BO_Comma)
+      classify(BO->getRHS(), C);
     return;
   }
 
@@ -374,9 +388,8 @@ void ClassifyRefs::classify(const Expr *E, Class C) {
 }
 
 void ClassifyRefs::VisitDeclStmt(DeclStmt *DS) {
-  for (DeclStmt::decl_iterator DI = DS->decl_begin(), DE = DS->decl_end();
-       DI != DE; ++DI) {
-    VarDecl *VD = dyn_cast<VarDecl>(*DI);
+  for (auto *DI : DS->decls()) {
+    VarDecl *VD = dyn_cast<VarDecl>(DI);
     if (VD && isTrackedVar(VD))
       if (const DeclRefExpr *DRE = getSelfInitExpr(VD))
         Classification[DRE] = SelfInit;
@@ -403,6 +416,17 @@ void ClassifyRefs::VisitUnaryOperator(UnaryOperator *UO) {
 }
 
 void ClassifyRefs::VisitCallExpr(CallExpr *CE) {
+  // Classify arguments to std::move as used.
+  if (CE->getNumArgs() == 1) {
+    if (FunctionDecl *FD = CE->getDirectCallee()) {
+      if (FD->isInStdNamespace() && FD->getIdentifier() &&
+          FD->getIdentifier()->isStr("move")) {
+        classify(CE->getArg(0), Use);
+        return;
+      }
+    }
+  }
+
   // If a value is passed by const reference to a function, we should not assume
   // that it is initialized by the call, and we conservatively do not assume
   // that it is used.
@@ -527,14 +551,32 @@ public:
     // of marking it as not being a candidate element of the frontier.
     SuccsVisited[block->getBlockID()] = block->succ_size();
     while (!Queue.empty()) {
-      const CFGBlock *B = Queue.back();
-      Queue.pop_back();
+      const CFGBlock *B = Queue.pop_back_val();
+
+      // If the use is always reached from the entry block, make a note of that.
+      if (B == &cfg.getEntry())
+        Use.setUninitAfterCall();
+
       for (CFGBlock::const_pred_iterator I = B->pred_begin(), E = B->pred_end();
            I != E; ++I) {
         const CFGBlock *Pred = *I;
-        if (vals.getValue(Pred, B, vd) == Initialized)
+        if (!Pred)
+          continue;
+        
+        Value AtPredExit = vals.getValue(Pred, B, vd);
+        if (AtPredExit == Initialized)
           // This block initializes the variable.
           continue;
+        if (AtPredExit == MayUninitialized &&
+            vals.getValue(B, nullptr, vd) == Uninitialized) {
+          // This block declares the variable (uninitialized), and is reachable
+          // from a block that initializes the variable. We can't guarantee to
+          // give an earlier location for the diagnostic (and it appears that
+          // this code is intended to be reachable) so give a diagnostic here
+          // and go no further down this path.
+          Use.setUninitAfterDecl();
+          continue;
+        }
 
         unsigned &SV = SuccsVisited[Pred->getBlockID()];
         if (!SV) {
@@ -616,12 +658,11 @@ void TransferFunctions::VisitObjCForCollectionStmt(ObjCForCollectionStmt *FS) {
 
 void TransferFunctions::VisitBlockExpr(BlockExpr *be) {
   const BlockDecl *bd = be->getBlockDecl();
-  for (BlockDecl::capture_const_iterator i = bd->capture_begin(),
-        e = bd->capture_end() ; i != e; ++i) {
-    const VarDecl *vd = i->getVariable();
+  for (const auto &I : bd->captures()) {
+    const VarDecl *vd = I.getVariable();
     if (!isTrackedVar(vd))
       continue;
-    if (i->isByRef()) {
+    if (I.isByRef()) {
       vals[vd] = Initialized;
       continue;
     }
@@ -677,9 +718,8 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *BO) {
 }
 
 void TransferFunctions::VisitDeclStmt(DeclStmt *DS) {
-  for (DeclStmt::decl_iterator DI = DS->decl_begin(), DE = DS->decl_end();
-       DI != DE; ++DI) {
-    VarDecl *VD = dyn_cast<VarDecl>(*DI);
+  for (auto *DI : DS->decls()) {
+    VarDecl *VD = dyn_cast<VarDecl>(DI);
     if (VD && isTrackedVar(VD)) {
       if (getSelfInitExpr(VD)) {
         // If the initializer consists solely of a reference to itself, we
@@ -737,6 +777,8 @@ static bool runOnBlock(const CFGBlock *block, const CFG &cfg,
   for (CFGBlock::const_pred_iterator I = block->pred_begin(),
        E = block->pred_end(); I != E; ++I) {
     const CFGBlock *pred = *I;
+    if (!pred)
+      continue;
     if (wasAnalyzed[pred->getBlockID()]) {
       vals.mergeIntoScratch(vals.getValueVector(pred), isFirst);
       isFirst = false;
@@ -773,8 +815,8 @@ struct PruneBlocksHandler : public UninitVariablesHandler {
   /// The current block to scribble use information.
   unsigned currentBlock;
 
-  virtual void handleUseOfUninitVariable(const VarDecl *vd,
-                                         const UninitUse &use) {
+  void handleUseOfUninitVariable(const VarDecl *vd,
+                                 const UninitUse &use) override {
     hadUse[currentBlock] = true;
     hadAnyUse = true;
   }
@@ -782,7 +824,7 @@ struct PruneBlocksHandler : public UninitVariablesHandler {
   /// Called when the uninitialized variable analysis detects the
   /// idiom 'int x = x'.  All other uses of 'x' within the initializer
   /// are handled by handleUseOfUninitVariable.
-  virtual void handleSelfInit(const VarDecl *vd) {
+  void handleSelfInit(const VarDecl *vd) override {
     hadUse[currentBlock] = true;
     hadAnyUse = true;
   }

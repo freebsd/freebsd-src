@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: sendmail.h,v 8.69 2013/11/22 20:51:30 ca Exp $
+ *	$Id: sendmail.h,v 8.69 2013-11-22 20:51:30 ca Exp $
  */
 
 /*

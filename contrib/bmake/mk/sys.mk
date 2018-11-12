@@ -1,4 +1,4 @@
-# $Id: sys.mk,v 1.35 2012/11/12 06:27:51 sjg Exp $
+# $Id: sys.mk,v 1.36 2014/05/11 00:30:19 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -77,7 +77,7 @@ M_ListToSkip= O:u:ts::S,:,:N,g:S,^,N,
 # type should be a builtin in any sh since about 1980,
 # AUTOCONF := ${autoconf:L:${M_whence}}
 M_type = @x@(type $$x 2> /dev/null); echo;@:sh:[0]:N* found*:[@]:C,[()],,g
-M_whence = ${M_type}:M/*
+M_whence = ${M_type}:M/*:[1]
 
 # convert a path to a valid shell variable
 M_P2V = tu:C,[./-],_,g

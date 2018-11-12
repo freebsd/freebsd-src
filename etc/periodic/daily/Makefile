@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 FILES=	100.clean-disks \
 	110.clean-tmps \
@@ -16,6 +16,7 @@ FILES=	100.clean-disks \
 	409.status-gconcat \
 	420.status-network \
 	450.status-security \
+	510.status-world-kernel \
 	999.local
 
 # NB: keep these sorted by MK_* knobs

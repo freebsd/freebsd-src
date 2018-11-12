@@ -19,9 +19,9 @@ options 	FFS			# Berkeley Fast Filesystem
 #options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
-options		NFSCL
-options		NFS_ROOT
-options		MSDOSFS			#MSDOS Filesystem
+options 	NFSCL
+options 	NFS_ROOT
+options 	MSDOSFS			#MSDOS Filesystem
 #
 #options 	BOOTP
 #options 	BOOTP_NFSROOT
@@ -31,8 +31,8 @@ options		MSDOSFS			#MSDOS Filesystem
 #options 	ROOTDEVNAME=\"nfs:10.1.1.8:/usr/extra/nfsroot\"
 
 options 	MD_ROOT			# MD is a potential root device
-options		MD_ROOT_SIZE=132000
-options		ROOTDEVNAME=\"ufs:md0\"
+options 	MD_ROOT_SIZE=132000
+options 	ROOTDEVNAME=\"ufs:md0\"
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	HZ=1000	
 options 	NO_SWAPPING

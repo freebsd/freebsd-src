@@ -88,6 +88,9 @@ void aesni_encrypt_ecb(int rounds, const void *key_schedule /*__aligned(16)*/,
     size_t len, const uint8_t *from, uint8_t *to);
 void aesni_decrypt_ecb(int rounds, const void *key_schedule /*__aligned(16)*/,
     size_t len, const uint8_t *from, uint8_t *to);
+void aesni_encrypt_icm(int rounds, const void *key_schedule /*__aligned(16)*/,
+    size_t len, const uint8_t *from, uint8_t *to,
+    const uint8_t iv[AES_BLOCK_LEN]);
 
 void aesni_encrypt_xts(int rounds, const void *data_schedule /*__aligned(16)*/,
     const void *tweak_schedule /*__aligned(16)*/, size_t len,
@@ -96,11 +99,18 @@ void aesni_decrypt_xts(int rounds, const void *data_schedule /*__aligned(16)*/,
     const void *tweak_schedule /*__aligned(16)*/, size_t len,
     const uint8_t *from, uint8_t *to, const uint8_t iv[AES_BLOCK_LEN]);
 
-int aesni_cipher_setup(struct aesni_session *ses,
-    struct cryptoini *encini);
-int aesni_cipher_process(struct aesni_session *ses,
-    struct cryptodesc *enccrd, struct cryptop *crp);
+/* GCM & GHASH functions */
+void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
+    const unsigned char *addt, const unsigned char *ivec,
+    unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
+    const unsigned char *key, int nr);
+int AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
+    const unsigned char *addt, const unsigned char *ivec,
+    unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
+    const unsigned char *key, int nr);
 
+int aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
+    int keylen);
 uint8_t *aesni_cipher_alloc(struct cryptodesc *enccrd, struct cryptop *crp,
     int *allocated);
 

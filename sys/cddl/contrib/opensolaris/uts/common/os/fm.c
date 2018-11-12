@@ -79,7 +79,7 @@ static const char *fm_url = "http://www.sun.com/msg";
 static const char *fm_msgid = "SUNOS-8000-0G";
 static char *volatile fm_panicstr = NULL;
 
-#ifdef sun
+#ifdef illumos
 errorq_t *ereport_errorq;
 #endif
 void *ereport_dumpbuf;
@@ -112,7 +112,7 @@ static struct erpt_kstat erpt_kstat_data = {
 	{ "payload-set-failed", KSTAT_DATA_UINT64 }
 };
 
-#ifdef sun
+#ifdef illumos
 /*ARGSUSED*/
 static void
 fm_drain(void *private, void *data, errorq_elem_t *eep)
@@ -131,7 +131,7 @@ fm_init(void)
 {
 	kstat_t *ksp;
 
-#ifdef sun
+#ifdef illumos
 	(void) sysevent_evc_bind(FM_ERROR_CHAN,
 	    &ereport_chan, EVCH_CREAT | EVCH_HOLD_PEND);
 
@@ -145,7 +145,7 @@ fm_init(void)
 	if (ereport_size == 0)
 		ereport_size = ERPT_DATA_SZ;
 
-#ifdef sun
+#ifdef illumos
 	ereport_errorq = errorq_nvcreate("fm_ereport_queue",
 	    (errorq_func_t)fm_drain, NULL, ereport_qlen, ereport_size,
 	    FM_ERR_PIL, ERRORQ_VITAL);
@@ -170,7 +170,7 @@ fm_init(void)
 	}
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Formatting utility function for fm_nvprintr.  We attempt to wrap chunks of
  * output so they aren't split across console lines, and return the end column.
@@ -379,7 +379,7 @@ fm_panic(const char *format, ...)
 {
 	va_list ap;
 
-	(void) casptr((void *)&fm_panicstr, NULL, (void *)format);
+	(void) atomic_cas_ptr((void *)&fm_panicstr, NULL, (void *)format);
 #if defined(__i386) || defined(__amd64)
 	fastreboot_disable_highpil();
 #endif /* __i386 || __amd64 */
@@ -524,20 +524,20 @@ fm_ereport_post(nvlist_t *ereport, int evc_flag)
 
 	(void) nvlist_size(ereport, &nvl_size, NV_ENCODE_NATIVE);
 	if (nvl_size > ERPT_DATA_SZ || nvl_size == 0) {
-		atomic_add_64(&erpt_kstat_data.erpt_dropped.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.erpt_dropped.value.ui64);
 		return;
 	}
 
-#ifdef sun
+#ifdef illumos
 	if (sysevent_evc_bind(FM_ERROR_CHAN, &error_chan,
 	    EVCH_CREAT|EVCH_HOLD_PEND) != 0) {
-		atomic_add_64(&erpt_kstat_data.erpt_dropped.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.erpt_dropped.value.ui64);
 		return;
 	}
 
 	if (sysevent_evc_publish(error_chan, EC_FM, ESC_FM_ERROR,
 	    SUNW_VENDOR, FM_PUB, ereport, evc_flag) != 0) {
-		atomic_add_64(&erpt_kstat_data.erpt_dropped.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.erpt_dropped.value.ui64);
 		(void) sysevent_evc_unbind(error_chan);
 		return;
 	}
@@ -803,8 +803,7 @@ fm_payload_set(nvlist_t *payload, ...)
 	va_end(ap);
 
 	if (ret)
-		atomic_add_64(
-		    &erpt_kstat_data.payload_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.payload_set_failed.value.ui64);
 }
 
 /*
@@ -837,24 +836,24 @@ fm_ereport_set(nvlist_t *ereport, int version, const char *erpt_class,
 	int ret;
 
 	if (version != FM_EREPORT_VERS0) {
-		atomic_add_64(&erpt_kstat_data.erpt_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.erpt_set_failed.value.ui64);
 		return;
 	}
 
 	(void) snprintf(ereport_class, FM_MAX_CLASS, "%s.%s",
 	    FM_EREPORT_CLASS, erpt_class);
 	if (nvlist_add_string(ereport, FM_CLASS, ereport_class) != 0) {
-		atomic_add_64(&erpt_kstat_data.erpt_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.erpt_set_failed.value.ui64);
 		return;
 	}
 
 	if (nvlist_add_uint64(ereport, FM_EREPORT_ENA, ena)) {
-		atomic_add_64(&erpt_kstat_data.erpt_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.erpt_set_failed.value.ui64);
 	}
 
 	if (nvlist_add_nvlist(ereport, FM_EREPORT_DETECTOR,
 	    (nvlist_t *)detector) != 0) {
-		atomic_add_64(&erpt_kstat_data.erpt_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.erpt_set_failed.value.ui64);
 	}
 
 	va_start(ap, detector);
@@ -863,7 +862,7 @@ fm_ereport_set(nvlist_t *ereport, int version, const char *erpt_class,
 	va_end(ap);
 
 	if (ret)
-		atomic_add_64(&erpt_kstat_data.erpt_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.erpt_set_failed.value.ui64);
 }
 
 /*
@@ -886,19 +885,19 @@ static int
 fm_fmri_hc_set_common(nvlist_t *fmri, int version, const nvlist_t *auth)
 {
 	if (version != FM_HC_SCHEME_VERSION) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return (0);
 	}
 
 	if (nvlist_add_uint8(fmri, FM_VERSION, version) != 0 ||
 	    nvlist_add_string(fmri, FM_FMRI_SCHEME, FM_FMRI_SCHEME_HC) != 0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return (0);
 	}
 
 	if (auth != NULL && nvlist_add_nvlist(fmri, FM_FMRI_AUTHORITY,
 	    (nvlist_t *)auth) != 0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return (0);
 	}
 
@@ -930,22 +929,22 @@ fm_fmri_hc_set(nvlist_t *fmri, int version, const nvlist_t *auth,
 		pairs[i] = fm_nvlist_create(nva);
 		if (nvlist_add_string(pairs[i], FM_FMRI_HC_NAME, name) != 0 ||
 		    nvlist_add_string(pairs[i], FM_FMRI_HC_ID, idstr) != 0) {
-			atomic_add_64(
-			    &erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+			atomic_inc_64(
+			    &erpt_kstat_data.fmri_set_failed.value.ui64);
 		}
 	}
 	va_end(ap);
 
 	if (nvlist_add_nvlist_array(fmri, FM_FMRI_HC_LIST, pairs, npairs) != 0)
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 
 	for (i = 0; i < npairs; i++)
 		fm_nvlist_destroy(pairs[i], FM_NVA_RETAIN);
 
 	if (snvl != NULL) {
 		if (nvlist_add_nvlist(fmri, FM_FMRI_HC_SPECIFIC, snvl) != 0) {
-			atomic_add_64(
-			    &erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+			atomic_inc_64(
+			    &erpt_kstat_data.fmri_set_failed.value.ui64);
 		}
 	}
 }
@@ -970,7 +969,7 @@ fm_fmri_dev_set(nvlist_t *fmri_dev, int version, const nvlist_t *auth,
 	int err = 0;
 
 	if (version != DEV_SCHEME_VERSION0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return;
 	}
 
@@ -991,7 +990,7 @@ fm_fmri_dev_set(nvlist_t *fmri_dev, int version, const nvlist_t *auth,
 		err |= nvlist_add_string(fmri_dev, FM_FMRI_DEV_TGTPTLUN0, tpl0);
 
 	if (err)
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 
 }
 
@@ -1016,35 +1015,35 @@ fm_fmri_cpu_set(nvlist_t *fmri_cpu, int version, const nvlist_t *auth,
 	uint64_t *failedp = &erpt_kstat_data.fmri_set_failed.value.ui64;
 
 	if (version < CPU_SCHEME_VERSION1) {
-		atomic_add_64(failedp, 1);
+		atomic_inc_64(failedp);
 		return;
 	}
 
 	if (nvlist_add_uint8(fmri_cpu, FM_VERSION, version) != 0) {
-		atomic_add_64(failedp, 1);
+		atomic_inc_64(failedp);
 		return;
 	}
 
 	if (nvlist_add_string(fmri_cpu, FM_FMRI_SCHEME,
 	    FM_FMRI_SCHEME_CPU) != 0) {
-		atomic_add_64(failedp, 1);
+		atomic_inc_64(failedp);
 		return;
 	}
 
 	if (auth != NULL && nvlist_add_nvlist(fmri_cpu, FM_FMRI_AUTHORITY,
 	    (nvlist_t *)auth) != 0)
-		atomic_add_64(failedp, 1);
+		atomic_inc_64(failedp);
 
 	if (nvlist_add_uint32(fmri_cpu, FM_FMRI_CPU_ID, cpu_id) != 0)
-		atomic_add_64(failedp, 1);
+		atomic_inc_64(failedp);
 
 	if (cpu_maskp != NULL && nvlist_add_uint8(fmri_cpu, FM_FMRI_CPU_MASK,
 	    *cpu_maskp) != 0)
-		atomic_add_64(failedp, 1);
+		atomic_inc_64(failedp);
 
 	if (serial_idp == NULL || nvlist_add_string(fmri_cpu,
 	    FM_FMRI_CPU_SERIAL_ID, (char *)serial_idp) != 0)
-			atomic_add_64(failedp, 1);
+			atomic_inc_64(failedp);
 }
 
 /*
@@ -1065,49 +1064,47 @@ fm_fmri_mem_set(nvlist_t *fmri, int version, const nvlist_t *auth,
     const char *unum, const char *serial, uint64_t offset)
 {
 	if (version != MEM_SCHEME_VERSION0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return;
 	}
 
 	if (!serial && (offset != (uint64_t)-1)) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return;
 	}
 
 	if (nvlist_add_uint8(fmri, FM_VERSION, version) != 0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return;
 	}
 
 	if (nvlist_add_string(fmri, FM_FMRI_SCHEME, FM_FMRI_SCHEME_MEM) != 0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return;
 	}
 
 	if (auth != NULL) {
 		if (nvlist_add_nvlist(fmri, FM_FMRI_AUTHORITY,
 		    (nvlist_t *)auth) != 0) {
-			atomic_add_64(
-			    &erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+			atomic_inc_64(
+			    &erpt_kstat_data.fmri_set_failed.value.ui64);
 		}
 	}
 
 	if (nvlist_add_string(fmri, FM_FMRI_MEM_UNUM, unum) != 0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 	}
 
 	if (serial != NULL) {
 		if (nvlist_add_string_array(fmri, FM_FMRI_MEM_SERIAL_ID,
 		    (char **)&serial, 1) != 0) {
-			atomic_add_64(
-			    &erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+			atomic_inc_64(
+			    &erpt_kstat_data.fmri_set_failed.value.ui64);
 		}
-		if (offset != (uint64_t)-1) {
-			if (nvlist_add_uint64(fmri, FM_FMRI_MEM_OFFSET,
-			    offset) != 0) {
-				atomic_add_64(&erpt_kstat_data.
-				    fmri_set_failed.value.ui64, 1);
-			}
+		if (offset != (uint64_t)-1 && nvlist_add_uint64(fmri,
+		    FM_FMRI_MEM_OFFSET, offset) != 0) {
+			atomic_inc_64(
+			    &erpt_kstat_data.fmri_set_failed.value.ui64);
 		}
 	}
 }
@@ -1117,28 +1114,28 @@ fm_fmri_zfs_set(nvlist_t *fmri, int version, uint64_t pool_guid,
     uint64_t vdev_guid)
 {
 	if (version != ZFS_SCHEME_VERSION0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return;
 	}
 
 	if (nvlist_add_uint8(fmri, FM_VERSION, version) != 0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return;
 	}
 
 	if (nvlist_add_string(fmri, FM_FMRI_SCHEME, FM_FMRI_SCHEME_ZFS) != 0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return;
 	}
 
 	if (nvlist_add_uint64(fmri, FM_FMRI_ZFS_POOL, pool_guid) != 0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 	}
 
 	if (vdev_guid != 0) {
 		if (nvlist_add_uint64(fmri, FM_FMRI_ZFS_VDEV, vdev_guid) != 0) {
-			atomic_add_64(
-			    &erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+			atomic_inc_64(
+			    &erpt_kstat_data.fmri_set_failed.value.ui64);
 		}
 	}
 }
@@ -1265,7 +1262,7 @@ fm_ena_time_get(uint64_t ena)
 	return (time);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Convert a getpcstack() trace to symbolic name+offset, and add the resulting
  * string array to a Fault Management ereport as FM_EREPORT_PAYLOAD_NAME_STACK.
@@ -1293,7 +1290,7 @@ fm_payload_stack_add(nvlist_t *payload, const pc_t *stack, int depth)
 }
 #endif
 
-#ifdef sun
+#ifdef illumos
 void
 print_msg_hwerr(ctid_t ct_id, proc_t *p)
 {
@@ -1322,20 +1319,20 @@ fm_fmri_hc_create(nvlist_t *fmri, int version, const nvlist_t *auth,
 	 */
 	if (nvlist_lookup_nvlist_array(bboard, FM_FMRI_HC_LIST, &hcl, &n)
 	    != 0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return;
 	}
 
 	for (i = 0; i < n; i++) {
 		if (nvlist_lookup_string(hcl[i], FM_FMRI_HC_NAME,
 		    &hcname) != 0) {
-			atomic_add_64(
-			    &erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+			atomic_inc_64(
+			    &erpt_kstat_data.fmri_set_failed.value.ui64);
 			return;
 		}
 		if (nvlist_lookup_string(hcl[i], FM_FMRI_HC_ID, &hcid) != 0) {
-			atomic_add_64(
-			    &erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+			atomic_inc_64(
+			    &erpt_kstat_data.fmri_set_failed.value.ui64);
 			return;
 		}
 
@@ -1347,8 +1344,8 @@ fm_fmri_hc_create(nvlist_t *fmri, int version, const nvlist_t *auth,
 					fm_nvlist_destroy(pairs[j],
 					    FM_NVA_RETAIN);
 			}
-			atomic_add_64(
-			    &erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+			atomic_inc_64(
+			    &erpt_kstat_data.fmri_set_failed.value.ui64);
 			return;
 		}
 	}
@@ -1372,8 +1369,8 @@ fm_fmri_hc_create(nvlist_t *fmri, int version, const nvlist_t *auth,
 					fm_nvlist_destroy(pairs[j],
 					    FM_NVA_RETAIN);
 			}
-			atomic_add_64(
-			    &erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+			atomic_inc_64(
+			    &erpt_kstat_data.fmri_set_failed.value.ui64);
 			return;
 		}
 	}
@@ -1384,7 +1381,7 @@ fm_fmri_hc_create(nvlist_t *fmri, int version, const nvlist_t *auth,
 	 */
 	if (nvlist_add_nvlist_array(fmri, FM_FMRI_HC_LIST, pairs,
 	    npairs + n) != 0) {
-		atomic_add_64(&erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+		atomic_inc_64(&erpt_kstat_data.fmri_set_failed.value.ui64);
 		return;
 	}
 
@@ -1394,8 +1391,8 @@ fm_fmri_hc_create(nvlist_t *fmri, int version, const nvlist_t *auth,
 
 	if (snvl != NULL) {
 		if (nvlist_add_nvlist(fmri, FM_FMRI_HC_SPECIFIC, snvl) != 0) {
-			atomic_add_64(
-			    &erpt_kstat_data.fmri_set_failed.value.ui64, 1);
+			atomic_inc_64(
+			    &erpt_kstat_data.fmri_set_failed.value.ui64);
 			return;
 		}
 	}

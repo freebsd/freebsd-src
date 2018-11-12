@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _libelf_config.h 2287 2011-12-04 06:45:47Z jkoshy $
+ * $Id: _libelf_config.h 3168 2015-02-24 19:17:47Z emaste $
  */
 
-#ifdef	__DragonFly__
+#if defined(__APPLE__) || defined(__DragonFly__)
 
 #if	defined(__amd64__)
 #define	LIBELF_ARCH		EM_X86_64
@@ -50,6 +50,12 @@
 #if	defined(__amd64__)
 
 #define	LIBELF_ARCH		EM_X86_64
+#define	LIBELF_BYTEORDER	ELFDATA2LSB
+#define	LIBELF_CLASS		ELFCLASS64
+
+#elif	defined(__aarch64__)
+
+#define	LIBELF_ARCH		EM_AARCH64
 #define	LIBELF_BYTEORDER	ELFDATA2LSB
 #define	LIBELF_CLASS		ELFCLASS64
 

@@ -20,6 +20,7 @@
 #include "lldb/lldb-public.h"
 #include "lldb/Core/Communication.h"
 #include "lldb/Core/Listener.h"
+#include "lldb/Host/HostThread.h"
 #include "lldb/Host/Mutex.h"
 #include "lldb/Host/Predicate.h"
 #include "lldb/Host/TimeValue.h"
@@ -35,6 +36,19 @@ public:
     {
         eBroadcastBitRunPacketSent = kLoUserBroadcastBit
     };
+    
+    enum class PacketResult
+    {
+        Success = 0,        // Success
+        ErrorSendFailed,    // Error sending the packet
+        ErrorSendAck,       // Didn't get an ack back after sending a packet
+        ErrorReplyFailed,   // Error getting the reply
+        ErrorReplyTimeout,  // Timed out waiting for reply
+        ErrorReplyInvalid,  // Got a reply but it wasn't valid for the packet that was sent
+        ErrorReplyAck,      // Sending reply ack failed
+        ErrorDisconnected,  // We were disconnected
+        ErrorNoSequenceLock // We couldn't get the sequence lock for a multi-packet request
+    };
     //------------------------------------------------------------------
     // Constructors and Destructors
     //------------------------------------------------------------------
@@ -45,7 +59,7 @@ public:
     virtual
     ~GDBRemoteCommunication();
 
-    char
+    PacketResult
     GetAck ();
 
     size_t
@@ -109,9 +123,10 @@ public:
     // supplied connection URL.
     //------------------------------------------------------------------
     lldb_private::Error
-    StartDebugserverProcess (const char *connect_url,
-                             const char *unix_socket_name,
-                             lldb_private::ProcessLaunchInfo &launch_info); 
+    StartDebugserverProcess (const char *hostname,
+                             uint16_t in_port, // If set to zero, then out_port will contain the bound port on exit
+                             lldb_private::ProcessLaunchInfo &launch_info,
+                             uint16_t &out_port);
 
     void
     DumpHistory(lldb_private::Stream &strm);
@@ -223,15 +238,15 @@ protected:
         mutable bool m_dumped_to_log;
     };
 
-    size_t
+    PacketResult
     SendPacket (const char *payload,
                 size_t payload_length);
 
-    size_t
+    PacketResult
     SendPacketNoLock (const char *payload, 
                       size_t payload_length);
 
-    size_t
+    PacketResult
     WaitForPacketWithTimeoutMicroSecondsNoLock (StringExtractorGDBRemote &response, 
                                                 uint32_t timeout_usec);
 
@@ -242,7 +257,7 @@ protected:
     // Classes that inherit from GDBRemoteCommunication can see and modify these
     //------------------------------------------------------------------
     uint32_t m_packet_timeout;
-#ifdef LLDB_CONFIGURATION_DEBUG
+#ifdef ENABLE_MUTEX_ERROR_CHECKING
     lldb_private::TrackingMutex m_sequence_mutex;
 #else
     lldb_private::Mutex m_sequence_mutex;    // Restrict access to sending/receiving packets to a single thread at a time
@@ -256,9 +271,21 @@ protected:
                         // a single process
     
 
+    lldb_private::Error
+    StartListenThread (const char *hostname = "127.0.0.1",
+                       uint16_t port = 0);
 
+    bool
+    JoinListenThread ();
+
+    static lldb::thread_result_t
+    ListenThread (lldb::thread_arg_t arg);
 
 private:
+  lldb_private::HostThread m_listen_thread;
+    std::string m_listen_url;
+    
+
     //------------------------------------------------------------------
     // For GDBRemoteCommunication only
     //------------------------------------------------------------------

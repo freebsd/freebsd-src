@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -70,8 +70,7 @@
  */
 int zil_replay_disable = 0;
 SYSCTL_DECL(_vfs_zfs);
-TUNABLE_INT("vfs.zfs.zil_replay_disable", &zil_replay_disable);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, zil_replay_disable, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, zil_replay_disable, CTLFLAG_RWTUN,
     &zil_replay_disable, 0, "Disable intent logging replay");
 
 /*
@@ -80,12 +79,10 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, zil_replay_disable, CTLFLAG_RW,
  * out-of-order write cache is enabled.
  */
 boolean_t zfs_nocacheflush = B_FALSE;
-TUNABLE_INT("vfs.zfs.cache_flush_disable", &zfs_nocacheflush);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, cache_flush_disable, CTLFLAG_RDTUN,
     &zfs_nocacheflush, 0, "Disable cache flush");
 boolean_t zfs_trim_enabled = B_TRUE;
 SYSCTL_DECL(_vfs_zfs_trim);
-TUNABLE_INT("vfs.zfs.trim.enabled", &zfs_trim_enabled);
 SYSCTL_INT(_vfs_zfs_trim, OID_AUTO, enabled, CTLFLAG_RDTUN, &zfs_trim_enabled, 0,
     "Enable ZFS TRIM");
 
@@ -149,9 +146,14 @@ int
 zil_bp_tree_add(zilog_t *zilog, const blkptr_t *bp)
 {
 	avl_tree_t *t = &zilog->zl_bp_tree;
-	const dva_t *dva = BP_IDENTITY(bp);
+	const dva_t *dva;
 	zil_bp_node_t *zn;
 	avl_index_t where;
+
+	if (BP_IS_EMBEDDED(bp))
+		return (0);
+
+	dva = BP_IDENTITY(bp);
 
 	if (avl_find(t, dva, &where) != NULL)
 		return (SET_ERROR(EEXIST));
@@ -188,9 +190,9 @@ zil_read_log_block(zilog_t *zilog, const blkptr_t *bp, blkptr_t *nbp, void *dst,
     char **end)
 {
 	enum zio_flag zio_flags = ZIO_FLAG_CANFAIL;
-	uint32_t aflags = ARC_WAIT;
+	arc_flags_t aflags = ARC_FLAG_WAIT;
 	arc_buf_t *abuf = NULL;
-	zbookmark_t zb;
+	zbookmark_phys_t zb;
 	int error;
 
 	if (zilog->zl_header->zh_claim_txg == 0)
@@ -227,6 +229,7 @@ zil_read_log_block(zilog_t *zilog, const blkptr_t *bp, blkptr_t *nbp, void *dst,
 			    sizeof (cksum)) || BP_IS_HOLE(&zilc->zc_next_blk)) {
 				error = SET_ERROR(ECKSUM);
 			} else {
+				ASSERT3U(len, <=, SPA_OLD_MAXBLOCKSIZE);
 				bcopy(lr, dst, len);
 				*end = (char *)dst + len;
 				*nbp = zilc->zc_next_blk;
@@ -241,6 +244,8 @@ zil_read_log_block(zilog_t *zilog, const blkptr_t *bp, blkptr_t *nbp, void *dst,
 			    (zilc->zc_nused > (size - sizeof (*zilc)))) {
 				error = SET_ERROR(ECKSUM);
 			} else {
+				ASSERT3U(zilc->zc_nused, <=,
+				    SPA_OLD_MAXBLOCKSIZE);
 				bcopy(lr, dst, zilc->zc_nused);
 				*end = (char *)dst + zilc->zc_nused;
 				*nbp = zilc->zc_next_blk;
@@ -261,9 +266,9 @@ zil_read_log_data(zilog_t *zilog, const lr_write_t *lr, void *wbuf)
 {
 	enum zio_flag zio_flags = ZIO_FLAG_CANFAIL;
 	const blkptr_t *bp = &lr->lr_blkptr;
-	uint32_t aflags = ARC_WAIT;
+	arc_flags_t aflags = ARC_FLAG_WAIT;
 	arc_buf_t *abuf = NULL;
-	zbookmark_t zb;
+	zbookmark_phys_t zb;
 	int error;
 
 	if (BP_IS_HOLE(bp)) {
@@ -324,7 +329,7 @@ zil_parse(zilog_t *zilog, zil_parse_blk_func_t *parse_blk_func,
 	 * If the log has been claimed, stop if we encounter a sequence
 	 * number greater than the highest claimed sequence number.
 	 */
-	lrbuf = zio_buf_alloc(SPA_MAXBLOCKSIZE);
+	lrbuf = zio_buf_alloc(SPA_OLD_MAXBLOCKSIZE);
 	zil_bp_tree_init(zilog);
 
 	for (blk = zh->zh_log; !BP_IS_HOLE(&blk); blk = next_blk) {
@@ -371,7 +376,7 @@ done:
 	    (max_blk_seq == claim_blk_seq && max_lr_seq == claim_lr_seq));
 
 	zil_bp_tree_fini(zilog);
-	zio_buf_free(lrbuf, SPA_MAXBLOCKSIZE);
+	zio_buf_free(lrbuf, SPA_OLD_MAXBLOCKSIZE);
 
 	return (error);
 }
@@ -642,7 +647,14 @@ zil_claim(const char *osname, void *txarg)
 
 	error = dmu_objset_own(osname, DMU_OST_ANY, B_FALSE, FTAG, &os);
 	if (error != 0) {
-		cmn_err(CE_WARN, "can't open objset for %s", osname);
+		/*
+		 * EBUSY indicates that the objset is inconsistent, in which
+		 * case it can not have a ZIL.
+		 */
+		if (error != EBUSY) {
+			cmn_err(CE_WARN, "can't open objset for %s, error %u",
+			    osname, error);
+		}
 		return (0);
 	}
 
@@ -843,7 +855,7 @@ zil_lwb_write_done(zio_t *zio)
 	ASSERT(BP_GET_BYTEORDER(zio->io_bp) == ZFS_HOST_BYTEORDER);
 	ASSERT(!BP_IS_GANG(zio->io_bp));
 	ASSERT(!BP_IS_HOLE(zio->io_bp));
-	ASSERT(zio->io_bp->blk_fill == 0);
+	ASSERT(BP_GET_FILL(zio->io_bp) == 0);
 
 	/*
 	 * Ensure the lwb buffer pointer is cleared before releasing
@@ -873,7 +885,7 @@ zil_lwb_write_done(zio_t *zio)
 static void
 zil_lwb_write_init(zilog_t *zilog, lwb_t *lwb)
 {
-	zbookmark_t zb;
+	zbookmark_phys_t zb;
 
 	SET_BOOKMARK(&zb, lwb->lwb_blk.blk_cksum.zc_word[ZIL_ZC_OBJSET],
 	    ZB_ZIL_OBJECT, ZB_ZIL_LEVEL,
@@ -896,7 +908,7 @@ zil_lwb_write_init(zilog_t *zilog, lwb_t *lwb)
  *
  * These must be a multiple of 4KB. Note only the amount used (again
  * aligned to 4KB) actually gets written. However, we can't always just
- * allocate SPA_MAXBLOCKSIZE as the slog space could be exhausted.
+ * allocate SPA_OLD_MAXBLOCKSIZE as the slog space could be exhausted.
  */
 uint64_t zil_block_buckets[] = {
     4096,		/* non TX_WRITE */
@@ -978,7 +990,7 @@ zil_lwb_write_start(zilog_t *zilog, lwb_t *lwb)
 		continue;
 	zil_blksz = zil_block_buckets[i];
 	if (zil_blksz == UINT64_MAX)
-		zil_blksz = SPA_MAXBLOCKSIZE;
+		zil_blksz = SPA_OLD_MAXBLOCKSIZE;
 	zilog->zl_prev_blks[zilog->zl_prev_rotor] = zil_blksz;
 	for (i = 0; i < ZIL_PREV_BLKS; i++)
 		zil_blksz = MAX(zil_blksz, zilog->zl_prev_blks[i]);
@@ -2078,7 +2090,6 @@ zil_replay(objset_t *os, void *arg, zil_replay_func_t *replay_func[TX_MAX_TYPE])
 		zil_destroy(zilog, B_TRUE);
 		return;
 	}
-	//printf("ZFS: Replaying ZIL on %s...\n", os->os->os_spa->spa_name);
 
 	zr.zr_replay = replay_func;
 	zr.zr_arg = arg;
@@ -2100,7 +2111,6 @@ zil_replay(objset_t *os, void *arg, zil_replay_func_t *replay_func[TX_MAX_TYPE])
 	zil_destroy(zilog, B_FALSE);
 	txg_wait_synced(zilog->zl_dmu_pool, zilog->zl_destroy_txg);
 	zilog->zl_replay = B_FALSE;
-	//printf("ZFS: Replay of ZIL on %s finished.\n", os->os->os_spa->spa_name);
 }
 
 boolean_t

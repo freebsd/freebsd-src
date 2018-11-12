@@ -31,11 +31,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_syscons.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/consio.h>				/* struct vt_mode */
+#include <sys/endian.h>
 #include <sys/fbio.h>				/* video_adapter_t */
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -53,8 +56,8 @@ __FBSDID("$FreeBSD$");
 /*
  * Device driver for the Terasic Multitouch LCD (MTL).  Three separate
  * sub-drivers that support, respectively, access to device control registers,
- * the pixel frame buffer, and the text frame buffer.  The last of these is
- * also hooked up to syscons.
+ * the pixel frame buffer, and the text frame buffer.  The pixel frame buffer
+ * is hooked up to vt(4), and the text frame buffer to syscons(4). 
  *
  * Eventually, the frame buffer control registers and touch screen input FIFO
  * will end up being separate sub-drivers as well.
@@ -81,16 +84,27 @@ terasic_mtl_attach(struct terasic_mtl_softc *sc)
 	if (error)
 		goto error;
 	/*
-	 * XXXRW: Once we've attached syscons, we can't detach it, so do it
-	 * last.
+	 * XXXRW: Once we've attached syscons or vt, we can't detach it, so do
+	 * it last.
 	 */
+#if defined(DEV_VT)
+	terasic_mtl_reg_pixel_endian_set(sc, BYTE_ORDER == BIG_ENDIAN);
+	error = terasic_mtl_fbd_attach(sc);
+	if (error)
+		goto error;
+	terasic_mtl_blend_pixel_set(sc, TERASIC_MTL_ALPHA_OPAQUE);
+	terasic_mtl_blend_textfg_set(sc, TERASIC_MTL_ALPHA_TRANSPARENT);
+	terasic_mtl_blend_textbg_set(sc, TERASIC_MTL_ALPHA_TRANSPARENT);
+#endif
+#if defined(DEV_SC)
 	error = terasic_mtl_syscons_attach(sc);
 	if (error)
 		goto error;
-	terasic_mtl_blend_default_set(sc, TERASIC_MTL_COLOR_BLACK);
 	terasic_mtl_blend_pixel_set(sc, TERASIC_MTL_ALPHA_TRANSPARENT);
 	terasic_mtl_blend_textfg_set(sc, TERASIC_MTL_ALPHA_OPAQUE);
 	terasic_mtl_blend_textbg_set(sc, TERASIC_MTL_ALPHA_OPAQUE);
+#endif
+	terasic_mtl_blend_default_set(sc, TERASIC_MTL_COLOR_BLACK);
 	return (0);
 error:
 	terasic_mtl_text_detach(sc);
@@ -103,8 +117,13 @@ void
 terasic_mtl_detach(struct terasic_mtl_softc *sc)
 {
 
-	/* XXXRW: syscons can't detach, but we try anyway, only to panic. */
+	/* XXXRW: syscons and vt can't detach, but try anyway, only to panic. */
+#if defined(DEV_SC)
 	terasic_mtl_syscons_detach(sc);
+#endif
+#if defined(DEV_VT)
+	terasic_mtl_fbd_detach(sc);
+#endif
 
 	/* All other aspects of the driver can detach just fine. */
 	terasic_mtl_text_detach(sc);

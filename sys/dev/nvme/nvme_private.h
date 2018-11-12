@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012-2013 Intel Corporation
+ * Copyright (C) 2012-2014 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,13 +49,6 @@
 #define DEVICE2SOFTC(dev) ((struct nvme_controller *) device_get_softc(dev))
 
 MALLOC_DECLARE(M_NVME);
-
-#define CHATHAM2
-
-#ifdef CHATHAM2
-#define CHATHAM_PCI_ID		0x20118086
-#define CHATHAM_CONTROL_BAR	0
-#endif
 
 #define IDT32_PCI_ID		0x80d0111d /* 32 channel board */
 #define IDT8_PCI_ID		0x80d2111d /* 8 channel board */
@@ -211,6 +204,7 @@ struct nvme_qpair {
 	struct nvme_completion	*cpl;
 
 	bus_dma_tag_t		dma_tag;
+	bus_dma_tag_t		dma_tag_payload;
 
 	bus_dmamap_t		cmd_dma_map;
 	uint64_t		cmd_bus_addr;
@@ -266,13 +260,6 @@ struct nvme_controller {
 	int			bar4_resource_id;
 	struct resource		*bar4_resource;
 
-#ifdef CHATHAM2
-	bus_space_tag_t		chatham_bus_tag;
-	bus_space_handle_t	chatham_bus_handle;
-	int			chatham_resource_id;
-	struct resource		*chatham_resource;
-#endif
-
 	uint32_t		msix_enabled;
 	uint32_t		force_intx;
 	uint32_t		enable_aborts;
@@ -288,6 +275,8 @@ struct nvme_controller {
 	struct task		reset_task;
 	struct task		fail_req_task;
 	struct taskqueue	*taskqueue;
+
+	struct resource		*msi_res[MAXCPU + 1];
 
 	/* For shared legacy interrupt. */
 	int			rid;
@@ -330,15 +319,12 @@ struct nvme_controller {
 
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
 
-	uint32_t		is_resetting;
+	uint32_t			is_resetting;
+	uint32_t			is_initialized;
+	uint32_t			notification_sent;
 
 	boolean_t			is_failed;
 	STAILQ_HEAD(, nvme_request)	fail_req;
-
-#ifdef CHATHAM2
-	uint64_t		chatham_size;
-	uint64_t		chatham_lbas;
-#endif
 };
 
 #define nvme_mmio_offsetof(reg)						       \
@@ -360,22 +346,6 @@ struct nvme_controller {
 		    nvme_mmio_offsetof(reg)+4,				       \
 		    (val & 0xFFFFFFFF00000000UL) >> 32);		       \
 	} while (0);
-
-#ifdef CHATHAM2
-#define chatham_read_4(softc, reg) \
-	bus_space_read_4((softc)->chatham_bus_tag,			       \
-	    (softc)->chatham_bus_handle, reg)
-
-#define chatham_write_8(sc, reg, val)					       \
-	do {								       \
-		bus_space_write_4((sc)->chatham_bus_tag,		       \
-		    (sc)->chatham_bus_handle, reg, val & 0xffffffff);	       \
-		bus_space_write_4((sc)->chatham_bus_tag,		       \
-		    (sc)->chatham_bus_handle, reg+4,			       \
-		    (val & 0xFFFFFFFF00000000UL) >> 32);		       \
-	} while (0);
-
-#endif /* CHATHAM2 */
 
 #if __FreeBSD_version < 800054
 #define wmb()	__asm volatile("sfence" ::: "memory")
@@ -487,6 +457,8 @@ nvme_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 {
 	uint64_t *bus_addr = (uint64_t *)arg;
 
+	if (error != 0)
+		printf("nvme_single_map err %d\n", error);
 	*bus_addr = seg[0].ds_addr;
 }
 
@@ -556,5 +528,6 @@ void	nvme_notify_async_consumers(struct nvme_controller *ctrlr,
 				    uint32_t log_page_id, void *log_page_buffer,
 				    uint32_t log_page_size);
 void	nvme_notify_fail_consumers(struct nvme_controller *ctrlr);
+void	nvme_notify_new_controller(struct nvme_controller *ctrlr);
 
 #endif /* __NVME_PRIVATE_H__ */

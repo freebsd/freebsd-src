@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/uio.h>
+#include <sys/vmem.h>
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -69,29 +71,149 @@ __FBSDID("$FreeBSD$");
  */
 
 static bool
-dmar_bus_dma_is_dev_disabled(device_t dev)
+dmar_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
 {
 	char str[128], *env;
-	int domain, bus, slot, func;
 
-	domain = pci_get_domain(dev);
-	bus = pci_get_bus(dev);
-	slot = pci_get_slot(dev);
-	func = pci_get_function(dev);
 	snprintf(str, sizeof(str), "hw.busdma.pci%d.%d.%d.%d.bounce",
 	    domain, bus, slot, func);
-	env = getenv(str);
+	env = kern_getenv(str);
 	if (env == NULL)
 		return (false);
 	freeenv(env);
 	return (true);
 }
 
+/*
+ * Given original device, find the requester ID that will be seen by
+ * the DMAR unit and used for page table lookup.  PCI bridges may take
+ * ownership of transactions from downstream devices, so it may not be
+ * the same as the BSF of the target device.  In those cases, all
+ * devices downstream of the bridge must share a single mapping
+ * domain, and must collectively be assigned to use either DMAR or
+ * bounce mapping.
+ */
+device_t
+dmar_get_requester(device_t dev, uint16_t *rid)
+{
+	devclass_t pci_class;
+	device_t l, pci, pcib, pcip, pcibp, requester;
+	int cap_offset;
+	uint16_t pcie_flags;
+	bool bridge_is_pcie;
+
+	pci_class = devclass_find("pci");
+	l = requester = dev;
+
+	*rid = pci_get_rid(dev);
+
+	/*
+	 * Walk the bridge hierarchy from the target device to the
+	 * host port to find the translating bridge nearest the DMAR
+	 * unit.
+	 */
+	for (;;) {
+		pci = device_get_parent(l);
+		KASSERT(pci != NULL, ("dmar_get_requester(%s): NULL parent "
+		    "for %s", device_get_name(dev), device_get_name(l)));
+		KASSERT(device_get_devclass(pci) == pci_class,
+		    ("dmar_get_requester(%s): non-pci parent %s for %s",
+		    device_get_name(dev), device_get_name(pci),
+		    device_get_name(l)));
+
+		pcib = device_get_parent(pci);
+		KASSERT(pcib != NULL, ("dmar_get_requester(%s): NULL bridge "
+		    "for %s", device_get_name(dev), device_get_name(pci)));
+
+		/*
+		 * The parent of our "bridge" isn't another PCI bus,
+		 * so pcib isn't a PCI->PCI bridge but rather a host
+		 * port, and the requester ID won't be translated
+		 * further.
+		 */
+		pcip = device_get_parent(pcib);
+		if (device_get_devclass(pcip) != pci_class)
+			break;
+		pcibp = device_get_parent(pcip);
+
+		if (pci_find_cap(l, PCIY_EXPRESS, &cap_offset) == 0) {
+			/*
+			 * Do not stop the loop even if the target
+			 * device is PCIe, because it is possible (but
+			 * unlikely) to have a PCI->PCIe bridge
+			 * somewhere in the hierarchy.
+			 */
+			l = pcib;
+		} else {
+			/*
+			 * Device is not PCIe, it cannot be seen as a
+			 * requester by DMAR unit.  Check whether the
+			 * bridge is PCIe.
+			 */
+			bridge_is_pcie = pci_find_cap(pcib, PCIY_EXPRESS,
+			    &cap_offset) == 0;
+			requester = pcib;
+
+			/*
+			 * Check for a buggy PCIe/PCI bridge that
+			 * doesn't report the express capability.  If
+			 * the bridge above it is express but isn't a
+			 * PCI bridge, then we know pcib is actually a
+			 * PCIe/PCI bridge.
+			 */
+			if (!bridge_is_pcie && pci_find_cap(pcibp,
+			    PCIY_EXPRESS, &cap_offset) == 0) {
+				pcie_flags = pci_read_config(pcibp,
+				    cap_offset + PCIER_FLAGS, 2);
+				if ((pcie_flags & PCIEM_FLAGS_TYPE) !=
+				    PCIEM_TYPE_PCI_BRIDGE)
+					bridge_is_pcie = true;
+			}
+
+			if (bridge_is_pcie) {
+				/*
+				 * The current device is not PCIe, but
+				 * the bridge above it is.  This is a
+				 * PCIe->PCI bridge.  Assume that the
+				 * requester ID will be the secondary
+				 * bus number with slot and function
+				 * set to zero.
+				 *
+				 * XXX: Doesn't handle the case where
+				 * the bridge is PCIe->PCI-X, and the
+				 * bridge will only take ownership of
+				 * requests in some cases.  We should
+				 * provide context entries with the
+				 * same page tables for taken and
+				 * non-taken transactions.
+				 */
+				*rid = PCI_RID(pci_get_bus(l), 0, 0);
+				l = pcibp;
+			} else {
+				/*
+				 * Neither the device nor the bridge
+				 * above it are PCIe.  This is a
+				 * conventional PCI->PCI bridge, which
+				 * will use the bridge's BSF as the
+				 * requester ID.
+				 */
+				*rid = pci_get_rid(pcib);
+				l = pcib;
+			}
+		}
+	}
+	return (requester);
+}
+
 struct dmar_ctx *
 dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
 {
+	device_t requester;
 	struct dmar_ctx *ctx;
 	bool disabled;
+	uint16_t rid;
+
+	requester = dmar_get_requester(dev, &rid);
 
 	/*
 	 * If the user requested the IOMMU disabled for the device, we
@@ -100,11 +222,12 @@ dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
 	 * Instead provide the identity mapping for the device
 	 * context.
 	 */
-	disabled = dmar_bus_dma_is_dev_disabled(dev);
-	ctx = dmar_get_ctx(dmar, dev, disabled, rmrr);
+	disabled = dmar_bus_dma_is_dev_disabled(pci_get_domain(requester), 
+	    pci_get_bus(requester), pci_get_slot(requester), 
+	    pci_get_function(requester));
+	ctx = dmar_get_ctx(dmar, requester, rid, disabled, rmrr);
 	if (ctx == NULL)
 		return (NULL);
-	ctx->ctx_tag.owner = dev;
 	if (disabled) {
 		/*
 		 * Keep the first reference on context, release the
@@ -132,6 +255,8 @@ dmar_get_dma_tag(device_t dev, device_t child)
 	dmar = dmar_find(child);
 	/* Not in scope of any DMAR ? */
 	if (dmar == NULL)
+		return (NULL);
+	if (!dmar->dma_enabled)
 		return (NULL);
 	dmar_quirks_pre_use(dmar);
 	dmar_instantiate_rmrr_ctxs(dmar);
@@ -237,7 +362,7 @@ dmar_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	map->cansleep = false;
 	tag->map_count++;
 	*mapp = (bus_dmamap_t)map;
-	
+
 	return (0);
 }
 
@@ -280,7 +405,7 @@ dmar_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	mflags |= (flags & BUS_DMA_ZERO) != 0 ? M_ZERO : 0;
 	attr = (flags & BUS_DMA_NOCACHE) != 0 ? VM_MEMATTR_UNCACHEABLE :
 	    VM_MEMATTR_DEFAULT;
-	
+
 	tag = (struct bus_dma_tag_dmar *)dmat;
 	map = (struct bus_dmamap_dmar *)*mapp;
 
@@ -337,6 +462,7 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 	bus_size_t buflen1;
 	int error, idx, gas_flags, seg;
 
+	KASSERT(offset < DMAR_PAGE_SIZE, ("offset %d", offset));
 	if (segs == NULL)
 		segs = tag->segments;
 	ctx = tag->ctx;
@@ -351,7 +477,6 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		}
 		buflen1 = buflen > tag->common.maxsegsz ?
 		    tag->common.maxsegsz : buflen;
-		buflen -= buflen1;
 		size = round_page(offset + buflen1);
 
 		/*
@@ -362,7 +487,7 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		if (seg + 1 < tag->common.nsegments)
 			gas_flags |= DMAR_GM_CANSPLIT;
 
-		error = dmar_gas_map(ctx, &tag->common, size,
+		error = dmar_gas_map(ctx, &tag->common, size, offset,
 		    DMAR_MAP_ENTRY_READ | DMAR_MAP_ENTRY_WRITE,
 		    gas_flags, ma + idx, &entry);
 		if (error != 0)
@@ -381,6 +506,10 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 			    (uintmax_t)size, (uintmax_t)entry->start,
 			    (uintmax_t)entry->end));
 		}
+		if (offset + buflen1 > size)
+			buflen1 = size - offset;
+		if (buflen1 > tag->common.maxsegsz)
+			buflen1 = tag->common.maxsegsz;
 
 		KASSERT(((entry->start + offset) & (tag->common.alignment - 1))
 		    == 0,
@@ -394,15 +523,16 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		    (uintmax_t)entry->start, (uintmax_t)entry->end,
 		    (uintmax_t)tag->common.lowaddr,
 		    (uintmax_t)tag->common.highaddr));
-		KASSERT(dmar_test_boundary(entry->start, entry->end -
-		    entry->start, tag->common.boundary),
+		KASSERT(dmar_test_boundary(entry->start + offset, buflen1,
+		    tag->common.boundary),
 		    ("boundary failed: ctx %p start 0x%jx end 0x%jx "
 		    "boundary 0x%jx", ctx, (uintmax_t)entry->start,
 		    (uintmax_t)entry->end, (uintmax_t)tag->common.boundary));
 		KASSERT(buflen1 <= tag->common.maxsegsz,
 		    ("segment too large: ctx %p start 0x%jx end 0x%jx "
-		    "maxsegsz 0x%jx", ctx, (uintmax_t)entry->start,
-		    (uintmax_t)entry->end, (uintmax_t)tag->common.maxsegsz));
+		    "buflen1 0x%jx maxsegsz 0x%jx", ctx,
+		    (uintmax_t)entry->start, (uintmax_t)entry->end,
+		    (uintmax_t)buflen1, (uintmax_t)tag->common.maxsegsz));
 
 		DMAR_CTX_LOCK(ctx);
 		TAILQ_INSERT_TAIL(&map->map_entries, entry, dmamap_link);
@@ -416,6 +546,7 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		idx += OFF_TO_IDX(trunc_page(offset + buflen1));
 		offset += buflen1;
 		offset &= DMAR_PAGE_MASK;
+		buflen -= buflen1;
 	}
 	if (error == 0)
 		*segp = seg;
@@ -687,7 +818,6 @@ dmar_bus_task_dmamap(void *arg, int pending)
 	struct bus_dma_tag_dmar *tag;
 	struct bus_dmamap_dmar *map;
 	struct dmar_unit *unit;
-	struct dmar_ctx *ctx;
 
 	unit = arg;
 	DMAR_LOCK(unit);
@@ -695,7 +825,6 @@ dmar_bus_task_dmamap(void *arg, int pending)
 		TAILQ_REMOVE(&unit->delayed_maps, map, delay_link);
 		DMAR_UNLOCK(unit);
 		tag = map->tag;
-		ctx = map->tag->ctx;
 		map->cansleep = true;
 		map->locked = false;
 		bus_dmamap_load_mem((bus_dma_tag_t)tag, (bus_dmamap_t)map,
@@ -716,9 +845,7 @@ dmar_bus_task_dmamap(void *arg, int pending)
 static void
 dmar_bus_schedule_dmamap(struct dmar_unit *unit, struct bus_dmamap_dmar *map)
 {
-	struct dmar_ctx *ctx;
 
-	ctx = map->tag->ctx;
 	map->locked = false;
 	DMAR_LOCK(unit);
 	TAILQ_INSERT_TAIL(&unit->delayed_maps, map, delay_link);
@@ -730,6 +857,8 @@ int
 dmar_init_busdma(struct dmar_unit *unit)
 {
 
+	unit->dma_enabled = 1;
+	TUNABLE_INT_FETCH("hw.dmar.dma", &unit->dma_enabled);
 	TAILQ_INIT(&unit->delayed_maps);
 	TASK_INIT(&unit->dmamap_load_task, 0, dmar_bus_task_dmamap, unit);
 	unit->delayed_taskqueue = taskqueue_create("dmar", M_WAITOK,

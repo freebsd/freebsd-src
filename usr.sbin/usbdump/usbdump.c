@@ -473,7 +473,6 @@ print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 	 */
 	up->up_totlen = le32toh(up->up_totlen);
 	up->up_busunit = le32toh(up->up_busunit);
-	up->up_address = le32toh(up->up_address);
 	up->up_flags = le32toh(up->up_flags);
 	up->up_status = le32toh(up->up_status);
 	up->up_error = le32toh(up->up_error);

@@ -43,6 +43,7 @@
 #define	ISCSI_ADDR_LEN		47	/* INET6_ADDRSTRLEN + '\0' */
 #define	ISCSI_ALIAS_LEN		256	/* XXX: Where did it come from? */
 #define	ISCSI_SECRET_LEN	17	/* 16 + '\0' */
+#define	ISCSI_OFFLOAD_LEN	8
 #define	ISCSI_REASON_LEN	64
 
 #define	ISCSI_DIGEST_NONE	0
@@ -65,7 +66,16 @@ struct iscsi_session_conf {
 	int		isc_header_digest;
 	int		isc_data_digest;
 	int		isc_iser;
-	int		isc_spare[4];
+	char		isc_offload[ISCSI_OFFLOAD_LEN];
+	int		isc_spare[2];
+};
+
+/*
+ * Additional constraints imposed by chosen ICL offload module;
+ * iscsid(8) must obey those when negotiating operational parameters.
+ */
+struct iscsi_session_limits {
+	size_t		isl_max_data_segment_length;
 };
 
 /*
@@ -81,29 +91,30 @@ struct iscsi_session_state {
 	int		iss_immediate_data;
 	int		iss_connected;
 	char		iss_reason[ISCSI_REASON_LEN];
-	int		iss_spare[4];
+	char		iss_offload[ISCSI_OFFLOAD_LEN];
+	int		iss_spare[2];
 };
 
 /*
- * For use with iscsid(8).
+ * The following ioctls are used by iscsid(8).
  */
-
 struct iscsi_daemon_request {
 	unsigned int			idr_session_id;
 	struct iscsi_session_conf	idr_conf;
-	uint8_t				idr_spare_isid[6];
-	uint16_t			idr_spare_tsih;
+	uint8_t				idr_isid[6];
+	uint16_t			idr_tsih;
 	uint16_t			idr_spare_cid;
-	int				idr_spare[4];
+	struct iscsi_session_limits	idr_limits;
+	int				idr_spare[2];
 };
 
 struct iscsi_daemon_handoff {
 	unsigned int			idh_session_id;
 	int				idh_socket;
 	char				idh_target_alias[ISCSI_ALIAS_LEN];
-	uint8_t				idh_isid[6];
-	uint16_t			idr_spare_tsih;
-	uint16_t			idr_spare_cid;
+	uint8_t				idh_spare_isid[6];
+	uint16_t			idh_tsih;
+	uint16_t			idh_spare_cid;
 	uint32_t			idh_statsn;
 	int				idh_header_digest;
 	int				idh_data_digest;
@@ -129,9 +140,9 @@ struct iscsi_daemon_fail {
 
 /*
  * When ICL_KERNEL_PROXY is not defined, the iscsid(8) is responsible
- * for creating the socket, connecting, performing Login Phase using
- * socked in the usual userspace way, and then passing the socket file
- * descriptor to the kernel part using ISCSIDHANDOFF.
+ * for creating the socket, connecting, and performing Login Phase using
+ * the socket in the usual userspace way, and then passing the socket
+ * file descriptor to the kernel part using ISCSIDHANDOFF.
  *
  * When ICL_KERNEL_PROXY is defined, the iscsid(8) creates the session
  * using ISCSICONNECT, performs Login Phase using ISCSISEND/ISCSIRECEIVE
@@ -162,7 +173,7 @@ struct iscsi_daemon_send {
 	void				*ids_spare2;
 	size_t				ids_data_segment_len;
 	void				*ids_data_segment;
-	int				ids_spare[4];
+	int				ids_spare3[4];
 };
 
 struct iscsi_daemon_receive {
@@ -172,25 +183,18 @@ struct iscsi_daemon_receive {
 	void				*idr_spare2;
 	size_t				idr_data_segment_len;
 	void				*idr_data_segment;
-	int				idr_spare[4];
-};
-
-struct iscsi_daemon_close {
-	int				idc_session_id;
-	int				idc_spare[4];
+	int				idr_spare3[4];
 };
 
 #define	ISCSIDCONNECT	_IOWR('I', 0x04, struct iscsi_daemon_connect)
 #define	ISCSIDSEND	_IOWR('I', 0x05, struct iscsi_daemon_send)
 #define	ISCSIDRECEIVE	_IOWR('I', 0x06, struct iscsi_daemon_receive)
-#define	ISCSIDCLOSE	_IOWR('I', 0x07, struct iscsi_daemon_close)
 
 #endif /* ICL_KERNEL_PROXY */
 
 /*
- * For use with iscsictl(8).
+ * The following ioctls are used by iscsictl(8).
  */
-
 struct iscsi_session_add {
 	struct iscsi_session_conf	isa_conf;
 	int				isa_spare[4];
@@ -208,8 +212,15 @@ struct iscsi_session_list {
 	int				isl_spare[4];
 };
 
+struct iscsi_session_modify {
+	unsigned int			ism_session_id;
+	struct iscsi_session_conf	ism_conf;
+	int				ism_spare[4];
+};
+
 #define	ISCSISADD	_IOW('I', 0x11, struct iscsi_session_add)
 #define	ISCSISREMOVE	_IOW('I', 0x12, struct iscsi_session_remove)
 #define	ISCSISLIST	_IOWR('I', 0x13, struct iscsi_session_list)
+#define	ISCSISMODIFY	_IOWR('I', 0x14, struct iscsi_session_modify)
 
 #endif /* !ISCSI_IOCTL_H */

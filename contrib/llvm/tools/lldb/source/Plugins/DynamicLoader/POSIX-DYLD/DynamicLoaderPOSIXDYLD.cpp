@@ -111,27 +111,88 @@ DynamicLoaderPOSIXDYLD::~DynamicLoaderPOSIXDYLD()
 void
 DynamicLoaderPOSIXDYLD::DidAttach()
 {
-    ModuleSP executable;
-    addr_t load_offset;
+    Log *log (GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+    if (log)
+        log->Printf ("DynamicLoaderPOSIXDYLD::%s() pid %" PRIu64, __FUNCTION__, m_process ? m_process->GetID () : LLDB_INVALID_PROCESS_ID);
 
     m_auxv.reset(new AuxVector(m_process));
+    if (log)
+        log->Printf ("DynamicLoaderPOSIXDYLD::%s pid %" PRIu64 " reloaded auxv data", __FUNCTION__, m_process ? m_process->GetID () : LLDB_INVALID_PROCESS_ID);
 
-    executable = GetTargetExecutable();
-    load_offset = ComputeLoadOffset();
+    ModuleSP executable_sp = GetTargetExecutable();
+    ModuleSpec process_module_spec;
+    if (GetProcessModuleSpec(process_module_spec))
+    {
+        if (executable_sp == nullptr || !executable_sp->MatchesModuleSpec(process_module_spec))
+        {
+            executable_sp.reset(new Module(process_module_spec));
+            assert(m_process != nullptr);
+            m_process->GetTarget().SetExecutableModule(executable_sp, false);
+        }
+    }
 
-    if (executable.get() && load_offset != LLDB_INVALID_ADDRESS)
+    addr_t load_offset = ComputeLoadOffset();
+    if (log)
+        log->Printf ("DynamicLoaderPOSIXDYLD::%s pid %" PRIu64 " executable '%s', load_offset 0x%" PRIx64, __FUNCTION__, m_process ? m_process->GetID () : LLDB_INVALID_PROCESS_ID, executable_sp ? executable_sp->GetFileSpec().GetPath().c_str () : "<null executable>", load_offset);
+
+
+    if (executable_sp && load_offset != LLDB_INVALID_ADDRESS)
     {
         ModuleList module_list;
-        module_list.Append(executable);
-        UpdateLoadedSections(executable, LLDB_INVALID_ADDRESS, load_offset);
-        LoadAllCurrentModules();
+
+        module_list.Append(executable_sp);
+        if (log)
+            log->Printf ("DynamicLoaderPOSIXDYLD::%s pid %" PRIu64 " added executable '%s' to module load list",
+                         __FUNCTION__,
+                         m_process ? m_process->GetID () : LLDB_INVALID_PROCESS_ID,
+                         executable_sp->GetFileSpec().GetPath().c_str ());
+
+        UpdateLoadedSections(executable_sp, LLDB_INVALID_ADDRESS, load_offset);
+
+        // When attaching to a target, there are two possible states:
+        // (1) We already crossed the entry point and therefore the rendezvous
+        //     structure is ready to be used and we can load the list of modules
+        //     and place the rendezvous breakpoint.
+        // (2) We didn't cross the entry point yet, so these structures are not
+        //     ready; we should behave as if we just launched the target and
+        //     call ProbeEntry(). This will place a breakpoint on the entry
+        //     point which itself will be hit after the rendezvous structure is
+        //     set up and will perform actions described in (1).
+        if (m_rendezvous.Resolve())
+        {
+            if (log)
+                log->Printf ("DynamicLoaderPOSIXDYLD::%s() pid %" PRIu64 " rendezvous could resolve: attach assuming dynamic loader info is available now", __FUNCTION__, m_process ? m_process->GetID () : LLDB_INVALID_PROCESS_ID);
+            LoadAllCurrentModules();
+            SetRendezvousBreakpoint();
+        }
+        else
+        {
+            if (log)
+                log->Printf ("DynamicLoaderPOSIXDYLD::%s() pid %" PRIu64 " rendezvous could not yet resolve: adding breakpoint to catch future rendezvous setup", __FUNCTION__, m_process ? m_process->GetID () : LLDB_INVALID_PROCESS_ID);
+            ProbeEntry();
+        }
+
         m_process->GetTarget().ModulesDidLoad(module_list);
+        if (log)
+        {
+            log->Printf ("DynamicLoaderPOSIXDYLD::%s told the target about the modules that loaded:", __FUNCTION__);
+            for (auto module_sp : module_list.Modules ())
+            {
+                log->Printf ("-- [module] %s (pid %" PRIu64 ")",
+                             module_sp ? module_sp->GetFileSpec().GetPath().c_str () : "<null>",
+                             m_process ? m_process->GetID () : LLDB_INVALID_PROCESS_ID);
+            }
+        }
     }
 }
 
 void
 DynamicLoaderPOSIXDYLD::DidLaunch()
 {
+    Log *log (GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+    if (log)
+        log->Printf ("DynamicLoaderPOSIXDYLD::%s()", __FUNCTION__);
+
     ModuleSP executable;
     addr_t load_offset;
 
@@ -145,49 +206,13 @@ DynamicLoaderPOSIXDYLD::DidLaunch()
         ModuleList module_list;
         module_list.Append(executable);
         UpdateLoadedSections(executable, LLDB_INVALID_ADDRESS, load_offset);
+
+        if (log)
+            log->Printf ("DynamicLoaderPOSIXDYLD::%s about to call ProbeEntry()", __FUNCTION__);
         ProbeEntry();
+
         m_process->GetTarget().ModulesDidLoad(module_list);
     }
-}
-
-ModuleSP
-DynamicLoaderPOSIXDYLD::GetTargetExecutable()
-{
-    Target &target = m_process->GetTarget();
-    ModuleSP executable = target.GetExecutableModule();
-
-    if (executable.get())
-    {
-        if (executable->GetFileSpec().Exists())
-        {
-            ModuleSpec module_spec (executable->GetFileSpec(), executable->GetArchitecture());
-            ModuleSP module_sp (new Module (module_spec));
-
-            // Check if the executable has changed and set it to the target executable if they differ.
-            if (module_sp.get() && module_sp->GetUUID().IsValid() && executable->GetUUID().IsValid())
-            {
-                if (module_sp->GetUUID() != executable->GetUUID())
-                    executable.reset();
-            }
-            else if (executable->FileHasChanged())
-            {
-                executable.reset();
-            }
-
-            if (!executable.get())
-            {
-                executable = target.GetSharedModule(module_spec);
-                if (executable.get() != target.GetExecutableModulePointer())
-                {
-                    // Don't load dependent images since we are in dyld where we will know
-                    // and find out about all images that are loaded
-                    const bool get_dependent_images = false;
-                    target.SetExecutableModule(executable, get_dependent_images);
-                }
-            }
-        }
-    }
-    return executable;
 }
 
 Error
@@ -211,62 +236,44 @@ DynamicLoaderPOSIXDYLD::CanLoadImage()
 void
 DynamicLoaderPOSIXDYLD::UpdateLoadedSections(ModuleSP module, addr_t link_map_addr, addr_t base_addr)
 {
-    SectionLoadList &load_list = m_process->GetTarget().GetSectionLoadList();
-    const SectionList *sections = GetSectionListFromModule(module);
-
-    assert(sections && "SectionList missing from loaded module.");
-
     m_loaded_modules[module] = link_map_addr;
 
-    const size_t num_sections = sections->GetSize();
-
-    for (unsigned i = 0; i < num_sections; ++i)
-    {
-        SectionSP section_sp (sections->GetSectionAtIndex(i));
-        lldb::addr_t new_load_addr = section_sp->GetFileAddress() + base_addr;
-        lldb::addr_t old_load_addr = load_list.GetSectionLoadAddress(section_sp);
-
-        // If the file address of the section is zero then this is not an
-        // allocatable/loadable section (property of ELF sh_addr).  Skip it.
-        if (new_load_addr == base_addr)
-            continue;
-
-        if (old_load_addr == LLDB_INVALID_ADDRESS ||
-            old_load_addr != new_load_addr)
-            load_list.SetSectionLoadAddress(section_sp, new_load_addr);
-    }
+    UpdateLoadedSectionsCommon(module, base_addr);
 }
 
 void
 DynamicLoaderPOSIXDYLD::UnloadSections(const ModuleSP module)
 {
-    SectionLoadList &load_list = m_process->GetTarget().GetSectionLoadList();
-    const SectionList *sections = GetSectionListFromModule(module);
-
-    assert(sections && "SectionList missing from unloaded module.");
-
     m_loaded_modules.erase(module);
 
-    const size_t num_sections = sections->GetSize();
-    for (size_t i = 0; i < num_sections; ++i)
-    {
-        SectionSP section_sp (sections->GetSectionAtIndex(i));
-        load_list.SetSectionUnloaded(section_sp);
-    }
+    UnloadSectionsCommon(module);
 }
 
 void
 DynamicLoaderPOSIXDYLD::ProbeEntry()
 {
-    Breakpoint *entry_break;
-    addr_t entry;
+    Log *log (GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
 
-    if ((entry = GetEntryPoint()) == LLDB_INVALID_ADDRESS)
+    const addr_t entry = GetEntryPoint();
+    if (entry == LLDB_INVALID_ADDRESS)
+    {
+        if (log)
+            log->Printf ("DynamicLoaderPOSIXDYLD::%s pid %" PRIu64 " GetEntryPoint() returned no address, not setting entry breakpoint", __FUNCTION__, m_process ? m_process->GetID () : LLDB_INVALID_PROCESS_ID);
         return;
-    
-    entry_break = m_process->GetTarget().CreateBreakpoint(entry, true, false).get();
-    entry_break->SetCallback(EntryBreakpointHit, this, true);
-    entry_break->SetBreakpointKind("shared-library-event");
+    }
+
+    if (log)
+        log->Printf ("DynamicLoaderPOSIXDYLD::%s pid %" PRIu64 " GetEntryPoint() returned address 0x%" PRIx64 ", setting entry breakpoint", __FUNCTION__, m_process ? m_process->GetID () : LLDB_INVALID_PROCESS_ID, entry);
+
+    if (m_process)
+    {
+        Breakpoint *const entry_break = m_process->GetTarget().CreateBreakpoint(entry, true, false).get();
+        entry_break->SetCallback(EntryBreakpointHit, this, true);
+        entry_break->SetBreakpointKind("shared-library-event");
+
+        // Shoudn't hit this more than once.
+        entry_break->SetOneShot (true);
+    }
 }
 
 // The runtime linker has run and initialized the rendezvous structure once the
@@ -281,9 +288,40 @@ DynamicLoaderPOSIXDYLD::EntryBreakpointHit(void *baton,
                                            user_id_t break_id, 
                                            user_id_t break_loc_id)
 {
-    DynamicLoaderPOSIXDYLD* dyld_instance;
+    assert(baton && "null baton");
+    if (!baton)
+        return false;
 
-    dyld_instance = static_cast<DynamicLoaderPOSIXDYLD*>(baton);
+    Log *log (GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+    DynamicLoaderPOSIXDYLD *const dyld_instance = static_cast<DynamicLoaderPOSIXDYLD*>(baton);
+    if (log)
+        log->Printf ("DynamicLoaderPOSIXDYLD::%s called for pid %" PRIu64, __FUNCTION__, dyld_instance->m_process ? dyld_instance->m_process->GetID () : LLDB_INVALID_PROCESS_ID);
+
+    // Disable the breakpoint --- if a stop happens right after this, which we've seen on occasion, we don't
+    // want the breakpoint stepping thread-plan logic to show a breakpoint instruction at the disassembled
+    // entry point to the program.  Disabling it prevents it.  (One-shot is not enough - one-shot removal logic
+    // only happens after the breakpoint goes public, which wasn't happening in our scenario).
+    if (dyld_instance->m_process)
+    {
+        BreakpointSP breakpoint_sp = dyld_instance->m_process->GetTarget().GetBreakpointByID (break_id);
+        if (breakpoint_sp)
+        {
+            if (log)
+                log->Printf ("DynamicLoaderPOSIXDYLD::%s pid %" PRIu64 " disabling breakpoint id %" PRIu64, __FUNCTION__, dyld_instance->m_process->GetID (), break_id);
+            breakpoint_sp->SetEnabled (false);
+        }
+        else
+        {
+            if (log)
+                log->Printf ("DynamicLoaderPOSIXDYLD::%s pid %" PRIu64 " failed to find breakpoint for breakpoint id %" PRIu64, __FUNCTION__, dyld_instance->m_process->GetID (), break_id);
+        }
+    }
+    else
+    {
+        if (log)
+            log->Printf ("DynamicLoaderPOSIXDYLD::%s breakpoint id %" PRIu64 " no Process instance!  Cannot disable breakpoint", __FUNCTION__, break_id);
+    }
+
     dyld_instance->LoadAllCurrentModules();
     dyld_instance->SetRendezvousBreakpoint();
     return false; // Continue running.
@@ -292,15 +330,24 @@ DynamicLoaderPOSIXDYLD::EntryBreakpointHit(void *baton,
 void
 DynamicLoaderPOSIXDYLD::SetRendezvousBreakpoint()
 {
+    Log *log (GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+
     addr_t break_addr = m_rendezvous.GetBreakAddress();
     Target &target = m_process->GetTarget();
 
     if (m_dyld_bid == LLDB_INVALID_BREAK_ID)
     {
+        if (log)
+            log->Printf ("DynamicLoaderPOSIXDYLD::%s pid %" PRIu64 " setting rendezvous break address at 0x%" PRIx64, __FUNCTION__, m_process ? m_process->GetID () : LLDB_INVALID_PROCESS_ID, break_addr);
         Breakpoint *dyld_break = target.CreateBreakpoint (break_addr, true, false).get();
         dyld_break->SetCallback(RendezvousBreakpointHit, this, true);
         dyld_break->SetBreakpointKind ("shared-library-event");
         m_dyld_bid = dyld_break->GetID();
+    }
+    else
+    {
+        if (log)
+            log->Printf ("DynamicLoaderPOSIXDYLD::%s pid %" PRIu64 " reusing break id %" PRIu32 ", address at 0x%" PRIx64, __FUNCTION__, m_process ? m_process->GetID () : LLDB_INVALID_PROCESS_ID, m_dyld_bid, break_addr);
     }
 
     // Make sure our breakpoint is at the right address.
@@ -313,13 +360,22 @@ DynamicLoaderPOSIXDYLD::RendezvousBreakpointHit(void *baton,
                                                 user_id_t break_id, 
                                                 user_id_t break_loc_id)
 {
-    DynamicLoaderPOSIXDYLD* dyld_instance;
+    assert (baton && "null baton");
+    if (!baton)
+        return false;
 
-    dyld_instance = static_cast<DynamicLoaderPOSIXDYLD*>(baton);
+    Log *log (GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+    DynamicLoaderPOSIXDYLD *const dyld_instance = static_cast<DynamicLoaderPOSIXDYLD*>(baton);
+    if (log)
+        log->Printf ("DynamicLoaderPOSIXDYLD::%s called for pid %" PRIu64, __FUNCTION__, dyld_instance->m_process ? dyld_instance->m_process->GetID () : LLDB_INVALID_PROCESS_ID);
+
     dyld_instance->RefreshModules();
 
     // Return true to stop the target, false to just let the target run.
-    return dyld_instance->GetStopWhenImagesChange();
+    const bool stop_when_images_change = dyld_instance->GetStopWhenImagesChange();
+    if (log)
+        log->Printf ("DynamicLoaderPOSIXDYLD::%s pid %" PRIu64 " stop_when_images_change=%s", __FUNCTION__, dyld_instance->m_process ? dyld_instance->m_process->GetID () : LLDB_INVALID_PROCESS_ID, stop_when_images_change ? "true" : "false");
+    return stop_when_images_change;
 }
 
 void
@@ -481,26 +537,6 @@ DynamicLoaderPOSIXDYLD::LoadAllCurrentModules()
     m_process->GetTarget().ModulesDidLoad(module_list);
 }
 
-ModuleSP
-DynamicLoaderPOSIXDYLD::LoadModuleAtAddress(const FileSpec &file, addr_t link_map_addr, addr_t base_addr)
-{
-    Target &target = m_process->GetTarget();
-    ModuleList &modules = target.GetImages();
-    ModuleSP module_sp;
-
-    ModuleSpec module_spec (file, target.GetArchitecture());
-    if ((module_sp = modules.FindFirstModule (module_spec))) 
-    {
-        UpdateLoadedSections(module_sp, link_map_addr, base_addr);
-    }
-    else if ((module_sp = target.GetSharedModule(module_spec))) 
-    {
-        UpdateLoadedSections(module_sp, link_map_addr, base_addr);
-    }
-
-    return module_sp;
-}
-
 addr_t
 DynamicLoaderPOSIXDYLD::ComputeLoadOffset()
 {
@@ -541,42 +577,14 @@ DynamicLoaderPOSIXDYLD::GetEntryPoint()
         return LLDB_INVALID_ADDRESS;
 
     m_entry_point = static_cast<addr_t>(I->value);
+
+    const ArchSpec &arch = m_process->GetTarget().GetArchitecture();
+
+    // On ppc64, the entry point is actually a descriptor.  Dereference it.
+    if (arch.GetMachine() == llvm::Triple::ppc64)
+        m_entry_point = ReadUnsignedIntWithSizeInBytes(m_entry_point, 8);
+
     return m_entry_point;
-}
-
-const SectionList *
-DynamicLoaderPOSIXDYLD::GetSectionListFromModule(const ModuleSP module) const
-{
-    SectionList *sections = nullptr;
-    if (module.get())
-    {
-        ObjectFile *obj_file = module->GetObjectFile();
-        if (obj_file)
-        {
-            sections = obj_file->GetSectionList();
-        }
-    }
-    return sections;
-}
-
-static int ReadInt(Process *process, addr_t addr)
-{
-    Error error;
-    int value = (int)process->ReadUnsignedIntegerFromMemory(addr, sizeof(uint32_t), 0, error);
-    if (error.Fail())
-        return -1;
-    else
-        return value;
-}
-
-static addr_t ReadPointer(Process *process, addr_t addr)
-{
-    Error error;
-    addr_t value = process->ReadPointerFromMemory(addr, error);
-    if (error.Fail())
-        return LLDB_INVALID_ADDRESS;
-    else
-        return value;
 }
 
 lldb::addr_t
@@ -600,26 +608,42 @@ DynamicLoaderPOSIXDYLD::GetThreadLocalData (const lldb::ModuleSP module, const l
         return LLDB_INVALID_ADDRESS;
 
     // Find the module's modid.
-    int modid = ReadInt (m_process, link_map + metadata.modid_offset);
+    int modid_size = 4;  // FIXME(spucci): This isn't right for big-endian 64-bit
+    int64_t modid = ReadUnsignedIntWithSizeInBytes (link_map + metadata.modid_offset, modid_size);
     if (modid == -1)
         return LLDB_INVALID_ADDRESS;
 
-    // Lookup the DTV stucture for this thread.
+    // Lookup the DTV structure for this thread.
     addr_t dtv_ptr = tp + metadata.dtv_offset;
-    addr_t dtv = ReadPointer (m_process, dtv_ptr);
+    addr_t dtv = ReadPointer (dtv_ptr);
     if (dtv == LLDB_INVALID_ADDRESS)
         return LLDB_INVALID_ADDRESS;
 
     // Find the TLS block for this module.
     addr_t dtv_slot = dtv + metadata.dtv_slot_size*modid;
-    addr_t tls_block = ReadPointer (m_process, dtv_slot + metadata.tls_offset);
+    addr_t tls_block = ReadPointer (dtv_slot + metadata.tls_offset);
 
     Module *mod = module.get();
     Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
     if (log)
         log->Printf("DynamicLoaderPOSIXDYLD::Performed TLS lookup: "
-                    "module=%s, link_map=0x%" PRIx64 ", tp=0x%" PRIx64 ", modid=%i, tls_block=0x%" PRIx64 "\n",
-                    mod->GetObjectName().AsCString(""), link_map, tp, modid, tls_block);
+                    "module=%s, link_map=0x%" PRIx64 ", tp=0x%" PRIx64 ", modid=%" PRId64 ", tls_block=0x%" PRIx64 "\n",
+                    mod->GetObjectName().AsCString(""), link_map, tp, (int64_t)modid, tls_block);
 
     return tls_block;
+}
+
+bool
+DynamicLoaderPOSIXDYLD::GetProcessModuleSpec (ModuleSpec& module_spec)
+{
+    if (m_process == nullptr)
+        return false;
+
+    auto& target = m_process->GetTarget ();
+    ProcessInstanceInfo process_info;
+    if (!target.GetPlatform ()->GetProcessInfo (m_process->GetID (), process_info))
+        return false;
+
+    module_spec = ModuleSpec (process_info.GetExecutableFile (), process_info.GetArchitecture ());
+    return true;
 }

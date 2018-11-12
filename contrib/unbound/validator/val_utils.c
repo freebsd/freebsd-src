@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -486,7 +486,7 @@ val_verify_DNSKEY_with_DS(struct module_env* env, struct val_env* ve,
 		/* Once we see a single DS with a known digestID and 
 		 * algorithm, we cannot return INSECURE (with a 
 		 * "null" KeyEntry). */
-		has_useful_ds = true;
+		has_useful_ds = 1;
 
 		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset, 
 			ds_rrset, i, reason);
@@ -596,7 +596,7 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 		/* Once we see a single DS with a known digestID and 
 		 * algorithm, we cannot return INSECURE (with a 
 		 * "null" KeyEntry). */
-		has_useful_ta = true;
+		has_useful_ta = 1;
 
 		sec = verify_dnskeys_with_ds_rr(env, ve, dnskey_rrset, 
 			ta_ds, i, reason);
@@ -622,7 +622,7 @@ val_verify_DNSKEY_with_TA(struct module_env* env, struct val_env* ve,
 			continue;
 
 		/* we saw a useful TA */
-		has_useful_ta = true;
+		has_useful_ta = 1;
 
 		sec = dnskey_verify_rrset(env, ve, dnskey_rrset,
 			ta_dnskey, i, reason);
@@ -773,6 +773,8 @@ rrset_has_signer(struct ub_packed_rrset_key* rrset, uint8_t* name, size_t len)
 	for(i = d->count; i< d->count+d->rrsig_count; i++) {
 		if(d->rr_len[i] > 2+18+len) {
 			/* at least rdatalen + signature + signame (+1 sig)*/
+			if(!dname_valid(d->rr_data[i]+2+18, d->rr_len[i]-2-18))
+				continue;
 			if(query_dname_compare(name, d->rr_data[i]+2+18) == 0)
 			{
 				return 1;
@@ -842,6 +844,18 @@ val_fill_reply(struct reply_info* chase, struct reply_info* orig,
 	}
 	chase->rrset_count = chase->an_numrrsets + chase->ns_numrrsets + 
 		chase->ar_numrrsets;
+}
+
+void val_reply_remove_auth(struct reply_info* rep, size_t index)
+{
+	log_assert(index < rep->rrset_count);
+	log_assert(index >= rep->an_numrrsets);
+	log_assert(index < rep->an_numrrsets+rep->ns_numrrsets);
+	memmove(rep->rrsets+index, rep->rrsets+index+1,
+		sizeof(struct ub_packed_rrset_key*)*
+		(rep->rrset_count - index - 1));
+	rep->ns_numrrsets--;
+	rep->rrset_count--;
 }
 
 void

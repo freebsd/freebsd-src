@@ -5380,11 +5380,13 @@ svn_fs_fs__get_file_delta_stream(svn_txdelta_stream_t **stream_p,
       /* Read target's base rep if any. */
       SVN_ERR(create_rep_state(&rep_state, &rep_args, NULL, NULL,
                                target->data_rep, fs, pool));
-      /* If that matches source, then use this delta as is. */
+
+      /* If that matches source, then use this delta as is.
+         Note that we want an actual delta here.  E.g. a self-delta would
+         not be good enough. */
       if (rep_args->is_delta
-          && (rep_args->is_delta_vs_empty
-              || (rep_args->base_revision == source->data_rep->revision
-                  && rep_args->base_offset == source->data_rep->offset)))
+          && rep_args->base_revision == source->data_rep->revision
+          && rep_args->base_offset == source->data_rep->offset)
         {
           /* Create the delta read baton. */
           struct delta_read_baton *drb = apr_pcalloc(pool, sizeof(*drb));
@@ -8875,7 +8877,12 @@ svn_fs_fs__create(svn_fs_t *fs,
 
   SVN_ERR(write_revision_zero(fs));
 
-  SVN_ERR(write_config(fs, pool));
+  /* Create the fsfs.conf file if supported.  Older server versions would
+     simply ignore the file but that might result in a different behavior
+     than with the later releases.  Also, hotcopy would ignore, i.e. not
+     copy, a fsfs.conf with old formats. */
+  if (ffd->format >= SVN_FS_FS__MIN_CONFIG_FILE)
+    SVN_ERR(write_config(fs, pool));
 
   SVN_ERR(read_config(ffd, fs->path, pool));
 

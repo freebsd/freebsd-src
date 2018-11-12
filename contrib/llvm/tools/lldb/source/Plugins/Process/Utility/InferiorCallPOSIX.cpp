@@ -34,9 +34,16 @@
 using namespace lldb;
 using namespace lldb_private;
 
-bool lldb_private::InferiorCallMmap(Process *process, addr_t &allocated_addr,
-                                    addr_t addr, addr_t length, unsigned prot,
-                                    unsigned flags, addr_t fd, addr_t offset) {
+bool
+lldb_private::InferiorCallMmap (Process *process,
+                                addr_t &allocated_addr,
+                                addr_t addr,
+                                addr_t length,
+                                unsigned prot,
+                                unsigned flags,
+                                addr_t fd,
+                                addr_t offset)
+{
     Thread *thread = process->GetThreadList().GetSelectedThread().get();
     if (thread == NULL)
         return false;
@@ -91,13 +98,11 @@ bool lldb_private::InferiorCallMmap(Process *process, addr_t &allocated_addr,
                 ClangASTContext *clang_ast_context = process->GetTarget().GetScratchClangASTContext();
                 ClangASTType clang_void_ptr_type = clang_ast_context->GetBasicType(eBasicTypeVoid).GetPointerType();
                 lldb::addr_t args[] = { addr, length, prot_arg, flags_arg, fd, offset };
-                ThreadPlanCallFunction *call_function_thread_plan
-                  = new ThreadPlanCallFunction (*thread,
-                                                mmap_range.GetBaseAddress(),
-                                                clang_void_ptr_type,
-                                                args,
-                                                options);
-                lldb::ThreadPlanSP call_plan_sp (call_function_thread_plan);
+                lldb::ThreadPlanSP call_plan_sp (new ThreadPlanCallFunction (*thread,
+                                                                             mmap_range.GetBaseAddress(),
+                                                                             clang_void_ptr_type,
+                                                                             args,
+                                                                             options));
                 if (call_plan_sp)
                 {
                     StreamFile error_strm;
@@ -110,11 +115,11 @@ bool lldb_private::InferiorCallMmap(Process *process, addr_t &allocated_addr,
                     {
                         ExecutionContext exe_ctx;
                         frame->CalculateExecutionContext (exe_ctx);
-                        ExecutionResults result = process->RunThreadPlan (exe_ctx,
+                        ExpressionResults result = process->RunThreadPlan (exe_ctx,
                                                                           call_plan_sp,
                                                                           options,
                                                                           error_strm);
-                        if (result == eExecutionCompleted)
+                        if (result == eExpressionCompleted)
                         {
                             
                             allocated_addr = call_plan_sp->GetReturnValueObject()->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
@@ -139,8 +144,11 @@ bool lldb_private::InferiorCallMmap(Process *process, addr_t &allocated_addr,
     return false;
 }
 
-bool lldb_private::InferiorCallMunmap(Process *process, addr_t addr,
-                                      addr_t length) {
+bool
+lldb_private::InferiorCallMunmap (Process *process,
+                                  addr_t addr,
+                                  addr_t length)
+{
    Thread *thread = process->GetThreadList().GetSelectedThread().get();
    if (thread == NULL)
        return false;
@@ -192,11 +200,11 @@ bool lldb_private::InferiorCallMunmap(Process *process, addr_t addr,
                     {
                         ExecutionContext exe_ctx;
                         frame->CalculateExecutionContext (exe_ctx);
-                        ExecutionResults result = process->RunThreadPlan (exe_ctx,
+                        ExpressionResults result = process->RunThreadPlan (exe_ctx,
                                                                           call_plan_sp,
                                                                           options,
                                                                           error_strm);
-                        if (result == eExecutionCompleted)
+                        if (result == eExpressionCompleted)
                         {
                             return true;
                         }
@@ -209,7 +217,14 @@ bool lldb_private::InferiorCallMunmap(Process *process, addr_t addr,
     return false;
 }
 
-bool lldb_private::InferiorCall(Process *process, const Address *address, addr_t &returned_func) {
+// FIXME: This has nothing to do with Posix, it is just a convenience function that calls a
+// function of the form "void * (*)(void)".  We should find a better place to put this.
+
+bool
+lldb_private::InferiorCall (Process *process,
+                            const Address *address,
+                            addr_t &returned_func)
+{
     Thread *thread = process->GetThreadList().GetSelectedThread().get();
     if (thread == NULL || address == NULL)
         return false;
@@ -224,16 +239,14 @@ bool lldb_private::InferiorCall(Process *process, const Address *address, addr_t
 
     ClangASTContext *clang_ast_context = process->GetTarget().GetScratchClangASTContext();
     ClangASTType clang_void_ptr_type = clang_ast_context->GetBasicType(eBasicTypeVoid).GetPointerType();
-    ThreadPlanCallFunction *call_function_thread_plan
-        = new ThreadPlanCallFunction (*thread,
-                                      *address,
-                                      clang_void_ptr_type,
-                                      llvm::ArrayRef<addr_t>(),
-                                      options);
-    lldb::ThreadPlanSP call_plan_sp (call_function_thread_plan);
+    lldb::ThreadPlanSP call_plan_sp (new ThreadPlanCallFunction (*thread,
+                                                                 *address,
+                                                                 clang_void_ptr_type,
+                                                                 llvm::ArrayRef<addr_t>(),
+                                                                 options));
     if (call_plan_sp)
     {
-        StreamFile error_strm;
+        StreamString error_strm;
         // This plan is a utility plan, so set it to discard itself when done.
         call_plan_sp->SetIsMasterPlan (true);
         call_plan_sp->SetOkayToDiscard(true);
@@ -243,11 +256,11 @@ bool lldb_private::InferiorCall(Process *process, const Address *address, addr_t
         {
             ExecutionContext exe_ctx;
             frame->CalculateExecutionContext (exe_ctx);
-            ExecutionResults result = process->RunThreadPlan (exe_ctx,
+            ExpressionResults result = process->RunThreadPlan (exe_ctx,
                                                               call_plan_sp,
                                                               options,
                                                               error_strm);
-            if (result == eExecutionCompleted)
+            if (result == eExpressionCompleted)
             {
                 returned_func = call_plan_sp->GetReturnValueObject()->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
 

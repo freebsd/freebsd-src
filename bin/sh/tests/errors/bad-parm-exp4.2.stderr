@@ -1,1 +1,1 @@
-./errors/bad-parm-exp4.2: ${foo:@...}: Bad substitution
+eval: ${foo:@...}: Bad substitution

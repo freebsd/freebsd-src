@@ -18,7 +18,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600004
+%VERSREQ=	600012
 
 STD8X16FONT?=	iso
 
@@ -37,12 +37,8 @@ INCLUDES+= -I$S/contrib/libfdt
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
-MKMODULESENV+= MACHINE=amd64
-
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-ASM_CFLAGS.acpi_wakecode.S=	${CLANG_NO_IAS}
-ASM_CFLAGS.mpboot.S=		${CLANG_NO_IAS}
-ASM_CFLAGS+=			${ASM_CFLAGS.${.IMPSRC:T}}
+ASM_CFLAGS.acpi_wakecode.S=	${CLANG_NO_IAS34}
+ASM_CFLAGS.mpboot.S=		${CLANG_NO_IAS34}
 
 %BEFORE_DEPEND
 

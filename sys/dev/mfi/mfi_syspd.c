@@ -143,6 +143,7 @@ mfi_syspd_attach(device_t dev)
 		sc->pd_disk->d_fwheads = 64;
 		sc->pd_disk->d_fwsectors = 32;
 	}
+	sc->pd_disk->d_flags = DISKFLAG_UNMAPPED_BIO;
 	disk_create(sc->pd_disk, DISK_VERSION);
 
 	device_printf(dev, " SYSPD volume attached\n");

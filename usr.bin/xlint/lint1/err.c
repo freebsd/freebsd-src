@@ -1,4 +1,4 @@
-/*	$NetBSD: err.c,v 1.17 2002/01/31 19:36:54 tv Exp $	*/
+/*	$NetBSD: err.c,v 1.40 2009/04/15 01:20:57 christos Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(lint)
-__RCSID("$NetBSD: err.c,v 1.17 2002/01/31 19:36:54 tv Exp $");
+__RCSID("$NetBSD: err.c,v 1.40 2009/04/15 01:20:57 christos Exp $");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -76,7 +76,7 @@ const	char *msgs[] = {
 	"null dimension",					      /* 17 */
 	"illegal use of 'void'",				      /* 18 */
 	"void type for %s",					      /* 19 */
-	"zero or negative array dimension",			      /* 20 */
+	"negative array dimension (%d)",			      /* 20 */
 	"redeclaration of formal parameter %s",			      /* 21 */
 	"incomplete or misplaced function definition",		      /* 22 */
 	"undefined label %s",					      /* 23 */
@@ -95,7 +95,7 @@ const	char *msgs[] = {
 	"illegal bit-field size",				      /* 36 */
 	"zero size bit-field",					      /* 37 */
 	"function illegal in structure or union",		      /* 38 */
-	"illegal zero sized structure member: %s",		      /* 39 */
+	"zero sized array in struct is a C99 extension: %s",	      /* 39 */
 	"unknown size: %s",					      /* 40 */
 	"illegal use of bit-field",				      /* 41 */
 	"forward reference to enum type",			      /* 42 */
@@ -103,7 +103,7 @@ const	char *msgs[] = {
 	"declaration introduces new type in ANSI C: %s %s",	      /* 44 */
 	"base type is really '%s %s'",				      /* 45 */
 	"(%s) tag redeclared",					      /* 46 */
-	"zero sized %s",					      /* 47 */
+	"zero sized %s is a C9X feature",			      /* 47 */
 	"overflow in enumeration values: %s",			      /* 48 */
 	"struct or union member must be named",			      /* 49 */
 	"a function is declared as an argument: %s",		      /* 50 */
@@ -188,7 +188,7 @@ const	char *msgs[] = {
 	"expression has null effect",				      /* 129 */
 	"enum type mismatch, op %s",				      /* 130 */
 	"conversion to '%s' may sign-extend incorrectly",	      /* 131 */
-	"conversion from '%s' may lose accuracy",		      /* 132 */
+	"conversion from '%s' to '%s' may lose accuracy",	      /* 132 */
 	"conversion of pointer to '%s' loses bits",		      /* 133 */
 	"conversion of pointer to '%s' may lose bits",		      /* 134 */
 	"possible pointer alignment problem",			      /* 135 */
@@ -232,7 +232,7 @@ const	char *msgs[] = {
 	"too many array initializers",				      /* 173 */
 	"too many initializers",				      /* 174 */
 	"initialisation of an incomplete type",			      /* 175 */
-	"invalid initializer",					      /* 176 */
+	"invalid initializer type %s",				      /* 176 */
 	"non-constant initializer",				      /* 177 */
 	"initializer does not fit",				      /* 178 */
 	"cannot initialize struct/union with no named member",	      /* 179 */
@@ -354,7 +354,7 @@ const	char *msgs[] = {
 	"conversion of '%s' to '%s' is out of range, arg #%d",	      /* 295 */
 	"conversion of negative constant to unsigned type, arg #%d",  /* 296 */
 	"conversion to '%s' may sign-extend incorrectly, arg #%d",    /* 297 */
-	"conversion from '%s' may lose accuracy, arg #%d",	      /* 298 */
+	"conversion from '%s' to '%s' may lose accuracy, arg #%d",    /* 298 */
 	"prototype does not match old style definition, arg #%d",     /* 299 */
 	"old style definition",					      /* 300 */
 	"array of incomplete type",				      /* 301 */
@@ -369,6 +369,16 @@ const	char *msgs[] = {
 	"symbol renaming can't be used on function arguments",	      /* 310 */
 	"symbol renaming can't be used on automatic variables",	      /* 311 */
 	"%s C does not support // comments",			      /* 312 */
+	"struct or union member name in initializer is a C9X feature",/* 313 */
+	"%s is not a structure or a union",			      /* 314 */
+	"GCC style struct or union member name in initializer",	      /* 315 */
+	"__FUNCTION__ is a GCC extension",			      /* 316 */
+	"__func__ is a C9X feature",				      /* 317 */
+	"variable array dimension is a C99/GCC extension",	      /* 318 */
+	"compound literals are a C9X/GCC extension",		      /* 319 */
+	"({ }) is a GCC extension",				      /* 320 */
+	"array initializer with designators is a C9X feature",	      /* 321 */
+	"zero sized array is a C99 extension",			      /* 322 */
 };
 
 /*
@@ -377,10 +387,10 @@ const	char *msgs[] = {
 void
 msglist(void)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < sizeof(msgs) / sizeof(msgs[0]); i++)
-		printf("%d\t%s\n", i, msgs[i]);
+		printf("%zu\t%s\n", i, msgs[i]);
 }
 
 /*
@@ -451,14 +461,15 @@ error(int n, ...)
 }
 
 void
-lerror(const char *msg, ...)
+lerror(const char *file, int line, const char *msg, ...)
 {
 	va_list	ap;
 	const	char *fn;
 
 	va_start(ap, msg);
 	fn = lbasename(curr_pos.p_file);
-	(void)fprintf(stderr, "%s(%d): lint error: ", fn, curr_pos.p_line);
+	(void)fprintf(stderr, "%s(%d): lint error: %s, %d", fn, curr_pos.p_line,
+	    file, line);
 	(void)vfprintf(stderr, msg, ap);
 	(void)fprintf(stderr, "\n");
 	va_end(ap);
@@ -490,6 +501,33 @@ message(int n, ...)
 	(void)vprintf(msgs[n], ap);
 	(void)printf(" [%d]\n", n);
 	va_end(ap);
+}
+
+/*
+ * XXX I think the logic is possibly somewhat screwed up here. The
+ * question is, how do we want to interpret the -s and -S flags going
+ * forward? We need to answer that and then we can fix this to be
+ * "right"... [perry, 2 Nov 2002]
+*/
+int
+c99ism(int n, ...)
+{
+	va_list	ap;
+	int	msg;
+
+	va_start(ap, n);
+	if (sflag && !(Sflag || gflag)) {
+		verror(n, ap);
+		msg = 1;
+	} else if (!sflag && (Sflag || gflag)) {
+		msg = 0;
+	} else {
+		vwarning(n, ap);
+		msg = 1;
+	}
+	va_end(ap);
+
+	return (msg);
 }
 
 int

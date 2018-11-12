@@ -19,6 +19,8 @@ import sys
 import os
 import re
 
+EnsureSConsVersion(2,3,0)
+
 HEADER_FILES = ['serf.h',
                 'serf_bucket_types.h',
                 'serf_bucket_util.h',
@@ -34,23 +36,35 @@ def _converter(val):
     if val == 'none':
       val = []
     else:
-      val = val.split(',')
+      val = val.split(' ')
     return val
 
 def RawListVariable(key, help, default):
     """
     The input parameters describe a 'raw string list' option. This class
-    accepts a comma separated list and converts it to a space separated
-    list.
+    accepts a space-separated string and converts it to a list.
     """
     return (key, '%s' % (help), default, None, lambda val: _converter(val))
 
+# Custom path validator, creates directory when a specified option is set.
+# To be used to ensure a PREFIX directory is only created when installing.
+def createPathIsDirCreateWithTarget(target):
+  def my_validator(key, val, env):
+    build_targets = (map(str, BUILD_TARGETS))
+    if target in build_targets:
+      return PathVariable.PathIsDirCreate(key, val, env)
+    else:
+      return PathVariable.PathAccept(key, val, env)
+  return my_validator
+
 # default directories
 if sys.platform == 'win32':
+  default_incdir='..'
   default_libdir='..'
   default_prefix='Debug'
 else:
-  default_libdir='/usr'
+  default_incdir='/usr'
+  default_libdir='$PREFIX/lib'
   default_prefix='/usr/local'
 
 opts = Variables(files=[SAVED_CONFIG])
@@ -58,22 +72,26 @@ opts.AddVariables(
   PathVariable('PREFIX',
                'Directory to install under',
                default_prefix,
-               PathVariable.PathIsDir),
+               createPathIsDirCreateWithTarget('install')),
+  PathVariable('LIBDIR',
+               'Directory to install architecture dependent libraries under',
+               default_libdir,
+               createPathIsDirCreateWithTarget('install')),
   PathVariable('APR',
                "Path to apr-1-config, or to APR's install area",
-               default_libdir,
+               default_incdir,
                PathVariable.PathAccept),
   PathVariable('APU',
                "Path to apu-1-config, or to APR's install area",
-               default_libdir,
+               default_incdir,
                PathVariable.PathAccept),
   PathVariable('OPENSSL',
                "Path to OpenSSL's install area",
-               default_libdir,
+               default_incdir,
                PathVariable.PathIsDir),
   PathVariable('ZLIB',
                "Path to zlib's install area",
-               default_libdir,
+               default_incdir,
                PathVariable.PathIsDir),
   PathVariable('GSSAPI',
                "Path to GSSAPI's install area",
@@ -86,14 +104,14 @@ opts.AddVariables(
                "Enable using a static compiled APR",
                False),
   RawListVariable('CC', "Command name or path of the C compiler", None),
-  RawListVariable('CFLAGS', "Extra flags for the C compiler (comma separated)",
+  RawListVariable('CFLAGS', "Extra flags for the C compiler (space-separated)",
                   None),
   RawListVariable('LIBS', "Extra libraries passed to the linker, "
-                  "e.g. -l<library> (comma separated)", None),
-  RawListVariable('LINKFLAGS', "Extra flags for the linker (comma separated)",
+                  "e.g. \"-l<library1> -l<library2>\" (space separated)", None),
+  RawListVariable('LINKFLAGS', "Extra flags for the linker (space-separated)",
                   None),
   RawListVariable('CPPFLAGS', "Extra flags for the C preprocessor "
-                  "(comma separated)", None), 
+                  "(space separated)", None), 
   )
 
 if sys.platform == 'win32':
@@ -146,6 +164,8 @@ match = re.search('SERF_MAJOR_VERSION ([0-9]+).*'
                   re.DOTALL)
 MAJOR, MINOR, PATCH = [int(x) for x in match.groups()]
 env.Append(MAJOR=str(MAJOR))
+env.Append(MINOR=str(MINOR))
+env.Append(PATCH=str(PATCH))
 
 # Calling external programs is okay if we're not cleaning or printing help.
 # (cleaning: no sense in fetching information; help: we may not know where
@@ -181,10 +201,18 @@ opts.Save(SAVED_CONFIG, env)
 # PLATFORM-SPECIFIC BUILD TWEAKS
 
 thisdir = os.getcwd()
-libdir = '$PREFIX/lib'
+libdir = '$LIBDIR'
 incdir = '$PREFIX/include/serf-$MAJOR'
 
-LIBNAME = 'libserf-${MAJOR}'
+# This version string is used in the dynamic library name, and for Mac OS X also
+# for the current_version and compatibility_version options in the .dylib
+#
+# Unfortunately we can't set the .dylib compatibility_version option separately
+# from current_version, so don't use the PATCH level to avoid that build and
+# runtime patch levels have to be identical.
+env['SHLIBVERSION'] = '%d.%d.%d' % (MAJOR, MINOR, 0)
+
+LIBNAME = 'libserf-%d' % (MAJOR,)
 if sys.platform != 'win32':
   LIBNAMESTATIC = LIBNAME
 else:
@@ -196,23 +224,17 @@ env.Append(RPATH=libdir,
 if sys.platform == 'darwin':
 #  linkflags.append('-Wl,-install_name,@executable_path/%s.dylib' % (LIBNAME,))
   env.Append(LINKFLAGS='-Wl,-install_name,%s/%s.dylib' % (thisdir, LIBNAME,))
-  # 'man ld' says positive non-zero for the first number, so we add one.
-  # Mac's interpretation of compatibility is the same as our MINOR version.
-  env.Append(LINKFLAGS='-Wl,-compatibility_version,%d' % (MINOR+1,))
-  env.Append(LINKFLAGS='-Wl,-current_version,%d.%d' % (MINOR+1, PATCH,))
 
 if sys.platform != 'win32':
   ### gcc only. figure out appropriate test / better way to check these
   ### flags, and check for gcc.
   env.Append(CFLAGS='-std=c89')
-  env.Append(CCFLAGS=[
-               '-Wdeclaration-after-statement',
-               '-Wmissing-prototypes',
-             ])
 
-  ### -Wall is not available on Solaris
+  ### These warnings are not available on Solaris
   if sys.platform != 'sunos5': 
-    env.Append(CCFLAGS='-Wall')
+    env.Append(CCFLAGS=['-Wdeclaration-after-statement',
+                        '-Wmissing-prototypes',
+                        '-Wall'])
 
   if debug:
     env.Append(CCFLAGS='-g')
@@ -239,6 +261,7 @@ else:
     # Optimize for speed, use DLL runtime
     env.Append(CCFLAGS=['/O2', '/MD'])
     env.Append(CPPDEFINES='NDEBUG')
+    env.Append(LINKFLAGS='/RELEASE')
 
 # PLAN THE BUILD
 SHARED_SOURCES = []
@@ -334,28 +357,32 @@ else:
 
 # If build with gssapi, get its information and define SERF_HAVE_GSSAPI
 if gssapi and CALLOUT_OKAY:
-    env.ParseConfig('$GSSAPI --libs gssapi')
+    env.ParseConfig('$GSSAPI --cflags gssapi')
+    def parse_libs(env, cmd, unique=1):
+        env['GSSAPI_LIBS'] = cmd.strip()
+        return env.MergeFlags(cmd, unique)
+    env.ParseConfig('$GSSAPI --libs gssapi', parse_libs)
     env.Append(CPPDEFINES='SERF_HAVE_GSSAPI')
 if sys.platform == 'win32':
   env.Append(CPPDEFINES=['SERF_HAVE_SSPI'])
 
-# On Solaris, the -R values that APR describes never make it into actual
+# On some systems, the -R values that APR describes never make it into actual
 # RPATH flags. We'll manually map all directories in LIBPATH into new
 # flags to set RPATH values.
-if sys.platform == 'sunos5':
-  for d in env['LIBPATH']:
-    env.Append(RPATH=d)
+for d in env['LIBPATH']:
+  env.Append(RPATH=':'+d)
 
 # Set up the construction of serf-*.pc
-# TODO: add gssapi libs
 pkgconfig = env.Textfile('serf-%d.pc' % (MAJOR,),
                          env.File('build/serf.pc.in'),
                          SUBST_DICT = {
                            '@MAJOR@': str(MAJOR),
                            '@PREFIX@': '$PREFIX',
+                           '@LIBDIR@': '$LIBDIR',
                            '@INCLUDE_SUBDIR@': 'serf-%d' % (MAJOR,),
                            '@VERSION@': '%d.%d.%d' % (MAJOR, MINOR, PATCH),
-                           '@LIBS@': '%s %s -lz' % (apu_libs, apr_libs),
+                           '@LIBS@': '%s %s %s -lz' % (apu_libs, apr_libs,
+                                                       env.get('GSSAPI_LIBS', '')),
                            })
 
 env.Default(lib_static, lib_shared, pkgconfig)
@@ -371,16 +398,22 @@ if CALLOUT_OKAY:
 # INSTALLATION STUFF
 
 install_static = env.Install(libdir, lib_static)
-install_shared = env.Install(libdir, lib_shared)
+install_shared = env.InstallVersionedLib(libdir, lib_shared)
 
 if sys.platform == 'darwin':
+  # Change the shared library install name (id) to its final name and location.
+  # Notes:
+  # If --install-sandbox=<path> is specified, install_shared_path will point
+  # to a path in the sandbox. We can't use that path because the sandbox is
+  # only a temporary location. The id should be the final target path.
+  # Also, we shouldn't use the complete version number for id, as that'll
+  # make applications depend on the exact major.minor.patch version of serf.
+
   install_shared_path = install_shared[0].abspath
+  target_install_shared_path = os.path.join(libdir, '%s.dylib' % LIBNAME)
   env.AddPostAction(install_shared, ('install_name_tool -id %s %s'
-                                     % (install_shared_path,
+                                     % (target_install_shared_path,
                                         install_shared_path)))
-  ### construct shared lib symlinks. this also means install the lib
-  ### as libserf-2.1.0.0.dylib, then add the symlinks.
-  ### note: see InstallAs
 
 env.Alias('install-lib', [install_static, install_shared,
                           ])

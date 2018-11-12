@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*	$NetBSD: citrus_iso2022.c,v 1.19 2008/06/14 16:01:07 tnozaki Exp $	*/
+/*	$NetBSD: citrus_iso2022.c,v 1.20 2010/12/07 22:01:45 joerg Exp $	*/
 
 /*-
  * Copyright (c)1999, 2002 Citrus Project,
@@ -78,9 +78,9 @@
 #define CS96MULTI	(3U)
 
 typedef struct {
-	unsigned char	 interm;
-	unsigned char	 final;
 	unsigned char	 type;
+	unsigned char	 final;
+	unsigned char	 interm;
 	unsigned char	 vers;
 } _ISO2022Charset;
 
@@ -574,7 +574,7 @@ terminate:
 
 static wchar_t
 _ISO2022_sgetwchar(_ISO2022EncodingInfo * __restrict ei __unused,
-    const char * __restrict string, size_t n, const char ** __restrict result,
+    char * __restrict string, size_t n, char ** __restrict result,
     _ISO2022State * __restrict psenc)
 {
 	const struct seqtable *sp;
@@ -842,10 +842,10 @@ asis:
 
 static int
 _citrus_ISO2022_mbrtowc_priv(_ISO2022EncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, const char ** __restrict s,
+    wchar_t * __restrict pwc, char ** __restrict s,
     size_t n, _ISO2022State * __restrict psenc, size_t * __restrict nresult)
 {
-	const char *p, *result, *s0;
+	char *p, *result, *s0;
 	wchar_t wchar;
 	int c, chlenbak;
 

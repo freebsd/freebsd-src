@@ -28,6 +28,10 @@
 					 * reg */
 #define	FTDI_SIO_SET_EVENT_CHAR	6	/* Set the event character */
 #define	FTDI_SIO_SET_ERROR_CHAR	7	/* Set the error character */
+#define	FTDI_SIO_SET_LATENCY	9	/* Set the latency timer */
+#define	FTDI_SIO_GET_LATENCY	10	/* Read the latency timer */
+#define	FTDI_SIO_SET_BITMODE	11	/* Set the bit bang I/O mode */
+#define	FTDI_SIO_GET_BITMODE	12	/* Read pin states in bit bang mode */
 
 /* Port Identifier Table */
 #define	FTDI_PIT_DEFAULT 	0	/* SIOA */
@@ -36,12 +40,10 @@
 #define	FTDI_PIT_PARALLEL	3	/* Parallel */
 
 /* Values for driver_info */
-#define	UFTDI_TYPE_MASK		0x000000ff
-#define	UFTDI_TYPE_SIO		0x00000001
-#define	UFTDI_TYPE_8U232AM	0x00000002
-#define	UFTDI_TYPE_AUTO		(UFTDI_TYPE_SIO | UFTDI_TYPE_8U232AM)
-#define	UFTDI_FLAG_MASK		0x0000ff00
-#define	UFTDI_FLAG_JTAG		0x00000100
+#define	UFTDI_JTAG_IFACE(i)	(1 << i)	/* Flag interface as jtag */
+#define	UFTDI_JTAG_IFACES_MAX	8		/* Allow up to 8 jtag intfs */
+#define	UFTDI_JTAG_CHECK_STRING	0xff		/* Check product names table */
+#define	UFTDI_JTAG_MASK		0xff
 
 /*
  * BmRequestType:  0100 0000B
@@ -75,30 +77,12 @@
 /*
  * BmRequestType:  0100 0000B
  * bRequest:       FTDI_SIO_SET_BAUDRATE
- * wValue:         BaudRate value - see below
- * wIndex:         Port
+ * wValue:         BaudRate low bits
+ * wIndex:         Port and BaudRate high bits 
  * wLength:        0
  * Data:           None
  */
 /* FTDI_SIO_SET_BAUDRATE */
-enum {
-	ftdi_sio_b300 = 0,
-	ftdi_sio_b600 = 1,
-	ftdi_sio_b1200 = 2,
-	ftdi_sio_b2400 = 3,
-	ftdi_sio_b4800 = 4,
-	ftdi_sio_b9600 = 5,
-	ftdi_sio_b19200 = 6,
-	ftdi_sio_b38400 = 7,
-	ftdi_sio_b57600 = 8,
-	ftdi_sio_b115200 = 9
-};
-
-#define	FTDI_8U232AM_FREQ 3000000
-
-/* Bounds for normal divisors as 4-bit fixed precision ints. */
-#define	FTDI_8U232AM_MIN_DIV 0x20
-#define	FTDI_8U232AM_MAX_DIV 0x3fff8
 
 /*
  * BmRequestType:  0100 0000B

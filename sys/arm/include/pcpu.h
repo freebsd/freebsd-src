@@ -46,9 +46,8 @@ struct vmspace;
 	unsigned int pc_vfpsid;						\
 	unsigned int pc_vfpmvfr0;					\
 	unsigned int pc_vfpmvfr1;					\
-	struct thread *pc_vfpcthread;					\
 	struct pmap *pc_curpmap;					\
-	char __pad[133]
+	char __pad[137]
 #else
 #define PCPU_MD_FIELDS							\
 	char __pad[157]
@@ -62,21 +61,35 @@ struct pcpu;
 extern struct pcpu *pcpup;
 #if ARM_ARCH_6 || ARM_ARCH_7A
 /* or ARM_TP_ADDRESS 	mark REMOVE ME NOTE */
-static inline struct pcpu *
-get_pcpu(void)
-{
-	void *pcpu;
 
-	__asm __volatile("mrc p15, 0, %0, c13, c0, 4" : "=r" (pcpu));
-	return (pcpu);
+#define CPU_MASK (0xf)
+
+#ifndef SMP
+#define get_pcpu() (pcpup)
+#else
+#define get_pcpu() __extension__ ({			  		\
+    	int id;								\
+        __asm __volatile("mrc p15, 0, %0, c0, c0, 5" : "=r" (id));	\
+    	(pcpup + (id & CPU_MASK));					\
+    })
+#endif
+	
+static inline struct thread *
+get_curthread(void)
+{
+	void *ret;
+
+	__asm __volatile("mrc p15, 0, %0, c13, c0, 4" : "=r" (ret));
+	return (ret);
 }
 
 static inline void
-set_pcpu(void *pcpu)
+set_curthread(struct thread *td)
 {
 
-	__asm __volatile("mcr p15, 0, %0, c13, c0, 4" : : "r" (pcpu));
+	__asm __volatile("mcr p15, 0, %0, c13, c0, 4" : : "r" (td));
 }
+
 
 static inline void *
 get_tls(void)
@@ -93,6 +106,9 @@ set_tls(void *tls)
 
 	__asm __volatile("mcr p15, 0, %0, c13, c0, 3" : : "r" (tls));
 }
+
+#define curthread get_curthread()
+
 #else
 #define get_pcpu()	pcpup
 #endif

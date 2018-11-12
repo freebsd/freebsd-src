@@ -759,6 +759,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_kern_flag |= MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 
 	if (pmp->pm_flags & MSDOSFS_LARGEFS)
@@ -796,13 +797,17 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	struct msdosfsmount *pmp;
 	int error, flags;
 
-	flags = 0;
-	if (mntflags & MNT_FORCE)
-		flags |= FORCECLOSE;
-	error = vflush(mp, 0, flags, curthread);
-	if (error && error != ENXIO)
-		return error;
+	error = flags = 0;
 	pmp = VFSTOMSDOSFS(mp);
+	if ((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0)
+		error = msdosfs_sync(mp, MNT_WAIT);
+	if ((mntflags & MNT_FORCE) != 0)
+		flags |= FORCECLOSE;
+	else if (error != 0)
+		return (error);
+	error = vflush(mp, 0, flags, curthread);
+	if (error != 0 && error != ENXIO)
+		return (error);
 	if ((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0) {
 		error = markvoldirty(pmp, 0);
 		if (error && error != ENXIO) {

@@ -39,25 +39,36 @@ static struct {
 	unsigned char b;	/* Blue percentage value. */
 } color_def[16] = {
 	{0,	0,	0},	/* black */
-	{0,	0,	50},	/* dark blue */
-	{0,	50,	0},	/* dark green */
-	{0,	50,	50},	/* dark cyan */
 	{50,	0,	0},	/* dark red */
+	{0,	50,	0},	/* dark green */
+	{77,	63,	0},	/* dark yellow */
+	{20,	40,	64},	/* dark blue */
 	{50,	0,	50},	/* dark magenta */
-	{50,	50,	0},	/* brown */
+	{0,	50,	50},	/* dark cyan */
 	{75,	75,	75},	/* light gray */
-	{50,	50,	50},	/* dark gray */
-	{0,	0,	100},	/* light blue */
-	{0,	100,	0},	/* light green */
-	{0,	100,	100},	/* light cyan */
+
+	{18,	20,	21},	/* dark gray */
 	{100,	0,	0},	/* light red */
+	{0,	100,	0},	/* light green */
+	{100,	100,	0},	/* light yellow */
+	{45,	62,	81},	/* light blue */
 	{100,	0,	100},	/* light magenta */
-	{100,	100,	0},	/* yellow */
+	{0,	100,	100},	/* light cyan */
 	{100,	100,	100},	/* white */
 };
 
+/*
+ * Between console's palette and VGA's one:
+ *   - blue and red are swapped (1 <-> 4)
+ *   - yellow ad cyan are swapped (3 <-> 6)
+ */
+static const int cons_to_vga_colors[16] = {
+	0, 4, 2, 6, 1, 5, 3, 7,
+	0, 4, 2, 6, 1, 5, 3, 7
+};
+
 int
-vt_generate_vga_palette(uint32_t *palette, int format, uint32_t rmax, int roffset,
+vt_generate_cons_palette(uint32_t *palette, int format, uint32_t rmax, int roffset,
     uint32_t gmax, int goffset, uint32_t bmax, int boffset)
 {
 	int i;
@@ -66,7 +77,7 @@ vt_generate_vga_palette(uint32_t *palette, int format, uint32_t rmax, int roffse
 	for (i = 0; i < 16; i++) {
 		switch (format) {
 		case COLOR_FORMAT_VGA:
-			palette[i] = i;
+			palette[i] = cons_to_vga_colors[i];
 			break;
 		case COLOR_FORMAT_RGB:
 			palette[i] = CF(r, i) | CF(g, i) | CF(b, i);

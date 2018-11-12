@@ -103,6 +103,7 @@ struct powerpc_intr {
 	enum intr_trigger trig;
 	enum intr_polarity pol;
 	int	fwcode;
+	int	ipi;
 };
 
 struct pic {
@@ -125,6 +126,11 @@ static u_int nirqs = 16;	/* Allocated IRQS (ISA pre-allocated). */
 static u_int nirqs = 0;		/* Allocated IRQs. */
 #endif
 static u_int stray_count;
+
+u_long intrcnt[INTR_VECTORS];
+char intrnames[INTR_VECTORS * MAXCOMLEN];
+size_t sintrcnt = sizeof(intrcnt);
+size_t sintrnames = sizeof(intrnames);
 
 device_t root_pic;
 
@@ -203,6 +209,8 @@ intr_lookup(u_int irq)
 	i->irq = irq;
 	i->pic = NULL;
 	i->vector = -1;
+	i->fwcode = 0;
+	i->ipi = 0;
 
 #ifdef SMP
 	i->cpu = all_cpus;
@@ -290,7 +298,7 @@ powerpc_intr_post_ithread(void *arg)
 }
 
 static int
-powerpc_assign_intr_cpu(void *arg, u_char cpu)
+powerpc_assign_intr_cpu(void *arg, int cpu)
 {
 #ifdef SMP
 	struct powerpc_intr *i = arg;
@@ -415,6 +423,15 @@ powerpc_enable_intr(void)
 				printf("unable to setup IPI handler\n");
 				return (error);
 			}
+
+			/*
+			 * Some subterfuge: disable late EOI and mark this
+			 * as an IPI to the dispatch layer.
+			 */
+			i = intr_lookup(MAP_IRQ(piclist[n].node,
+			    piclist[n].irqs));
+			i->event->ie_post_filter = NULL;
+			i->ipi = 1;
 		}
 	}
 #endif
@@ -567,6 +584,13 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 
 	ie = i->event;
 	KASSERT(ie != NULL, ("%s: interrupt without an event", __func__));
+
+	/*
+	 * IPIs are magical and need to be EOI'ed before filtering.
+	 * This prevents races in IPI handling.
+	 */
+	if (i->ipi)
+		PIC_EOI(i->pic, i->intline);
 
 	if (intr_event_handle(ie, tf) != 0) {
 		goto stray;

@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -211,7 +211,7 @@ int fptr_whitelist_hash_markdelfunc(lruhash_markdelfunc_t fptr);
  */
 int fptr_whitelist_modenv_send_query(struct outbound_entry* (*fptr)(
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass, 
-	uint16_t flags, int dnssec, int want_dnssec,
+	uint16_t flags, int dnssec, int want_dnssec, int nocaps,
 	struct sockaddr_storage* addr, socklen_t addrlen, 
 	uint8_t* zone, size_t zonelen,
 	struct module_qstate* q));
@@ -233,7 +233,7 @@ int fptr_whitelist_modenv_detach_subs(void (*fptr)(
  */
 int fptr_whitelist_modenv_attach_sub(int (*fptr)(
 	struct module_qstate* qstate, struct query_info* qinfo, 
-	uint16_t qflags, int prime, struct module_qstate** newq));
+	uint16_t qflags, int prime, int valrec, struct module_qstate** newq));
 
 /**
  * Check function pointer whitelist for module_env kill_sub callback values.
@@ -251,7 +251,7 @@ int fptr_whitelist_modenv_kill_sub(void (*fptr)(struct module_qstate* newq));
  */
 int fptr_whitelist_modenv_detect_cycle(int (*fptr)(
 	struct module_qstate* qstate, struct query_info* qinfo, 
-	uint16_t flags, int prime));
+	uint16_t flags, int prime, int valrec));
 
 /**
  * Check function pointer whitelist for module init call values.

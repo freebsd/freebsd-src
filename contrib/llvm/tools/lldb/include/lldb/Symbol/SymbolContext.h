@@ -17,6 +17,7 @@
 #include "lldb/Core/Address.h"
 #include "lldb/Core/Mangled.h"
 #include "lldb/Symbol/LineEntry.h"
+#include "lldb/Utility/Iterable.h"
 
 namespace lldb_private {
 
@@ -139,7 +140,7 @@ public:
     /// supplied stream \a s.
     ///
     /// @param[in] s
-    ///     The stream to which to dump the object descripton.
+    ///     The stream to which to dump the object description.
     //------------------------------------------------------------------
     void
     Dump (Stream *s, Target *target) const;
@@ -156,7 +157,7 @@ public:
     /// was stopped will be displayed.
     ///
     /// @param[in] s
-    ///     The stream to which to dump the object descripton.
+    ///     The stream to which to dump the object description.
     ///
     /// @param[in] so_addr
     ///     The resolved section offset address.
@@ -167,7 +168,8 @@ public:
                      const Address &so_addr,
                      bool show_fullpaths,
                      bool show_module,
-                     bool show_inlined_frames) const;
+                     bool show_inlined_frames,
+                     bool show_function_arguments) const;
 
     //------------------------------------------------------------------
     /// Get the address range contained within a symbol context.
@@ -408,7 +410,7 @@ private:
 /// the result of a query that can contain a multiple results. Examples
 /// of such queries include:
 ///     @li Looking up a function by name.
-///     @li Finding all addressses for a specified file and line number.
+///     @li Finding all addresses for a specified file and line number.
 //----------------------------------------------------------------------
 class SymbolContextList
 {
@@ -464,7 +466,7 @@ public:
     /// the list to the supplied stream \a s.
     ///
     /// @param[in] s
-    ///     The stream to which to dump the object descripton.
+    ///     The stream to which to dump the object description.
     //------------------------------------------------------------------
     void
     Dump(Stream *s, Target *target) const;
@@ -552,6 +554,14 @@ protected:
     // Member variables.
     //------------------------------------------------------------------
     collection m_symbol_contexts; ///< The list of symbol contexts.
+
+public:
+    typedef AdaptedIterable<collection, SymbolContext, vector_adapter> SymbolContextIterable;
+    SymbolContextIterable
+    SymbolContexts()
+    {
+        return SymbolContextIterable(m_symbol_contexts);
+    }
 };
 
 bool operator== (const SymbolContext& lhs, const SymbolContext& rhs);

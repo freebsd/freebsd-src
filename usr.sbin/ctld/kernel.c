@@ -32,8 +32,10 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -43,7 +45,7 @@
 #include <sys/queue.h>
 #include <sys/callout.h>
 #include <sys/sbuf.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <assert.h>
 #include <bsdxml.h>
 #include <ctype.h>
@@ -65,11 +67,13 @@
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_scsi_all.h>
 
+#include "ctld.h"
+
 #ifdef ICL_KERNEL_PROXY
 #include <netdb.h>
 #endif
 
-#include "ctld.h"
+extern bool proxy_mode;
 
 static int	ctl_fd = 0;
 
@@ -101,7 +105,7 @@ struct cctl_lun_nv {
 };
 
 /*
- * Backend LUN information.  
+ * Backend LUN information.
  */
 struct cctl_lun {
 	uint64_t lun_id;
@@ -110,17 +114,29 @@ struct cctl_lun {
 	uint32_t blocksize;
 	char *serial_number;
 	char *device_id;
-	char *cfiscsi_target;
-	char *cfiscsi_target_alias;
-	int cfiscsi_lun;
+	char *ctld_name;
 	STAILQ_HEAD(,cctl_lun_nv) attr_list;
 	STAILQ_ENTRY(cctl_lun) links;
+};
+
+struct cctl_port {
+	uint32_t port_id;
+	char *port_name;
+	int cfiscsi_state;
+	char *cfiscsi_target;
+	uint16_t cfiscsi_portal_group_tag;
+	char *ctld_portal_group_name;
+	STAILQ_HEAD(,cctl_lun_nv) attr_list;
+	STAILQ_ENTRY(cctl_port) links;
 };
 
 struct cctl_devlist_data {
 	int num_luns;
 	STAILQ_HEAD(,cctl_lun) lun_list;
 	struct cctl_lun *cur_lun;
+	int num_ports;
+	STAILQ_HEAD(,cctl_port) port_list;
+	struct cctl_port *cur_port;
 	int level;
 	struct sbuf *cur_sb[32];
 };
@@ -214,18 +230,13 @@ cctl_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "device_id") == 0) {
 		cur_lun->device_id = str;
 		str = NULL;
-	} else if (strcmp(name, "cfiscsi_target") == 0) {
-		cur_lun->cfiscsi_target = str;
+	} else if (strcmp(name, "ctld_name") == 0) {
+		cur_lun->ctld_name = str;
 		str = NULL;
-	} else if (strcmp(name, "cfiscsi_target_alias") == 0) {
-		cur_lun->cfiscsi_target_alias = str;
-		str = NULL;
-	} else if (strcmp(name, "cfiscsi_lun") == 0) {
-		cur_lun->cfiscsi_lun = strtoul(str, NULL, 0);
 	} else if (strcmp(name, "lun") == 0) {
 		devlist->cur_lun = NULL;
 	} else if (strcmp(name, "ctllunlist") == 0) {
-		
+		/* Nothing. */
 	} else {
 		struct cctl_lun_nv *nv;
 
@@ -239,6 +250,117 @@ cctl_end_element(void *user_data, const char *name)
 		nv->value = str;
 		str = NULL;
 		STAILQ_INSERT_TAIL(&cur_lun->attr_list, nv, links);
+	}
+
+	free(str);
+}
+
+static void
+cctl_start_pelement(void *user_data, const char *name, const char **attr)
+{
+	int i;
+	struct cctl_devlist_data *devlist;
+	struct cctl_port *cur_port;
+
+	devlist = (struct cctl_devlist_data *)user_data;
+	cur_port = devlist->cur_port;
+	devlist->level++;
+	if ((u_int)devlist->level >= (sizeof(devlist->cur_sb) /
+	    sizeof(devlist->cur_sb[0])))
+		log_errx(1, "%s: too many nesting levels, %zd max", __func__,
+		     sizeof(devlist->cur_sb) / sizeof(devlist->cur_sb[0]));
+
+	devlist->cur_sb[devlist->level] = sbuf_new_auto();
+	if (devlist->cur_sb[devlist->level] == NULL)
+		log_err(1, "%s: unable to allocate sbuf", __func__);
+
+	if (strcmp(name, "targ_port") == 0) {
+		if (cur_port != NULL)
+			log_errx(1, "%s: improper port element nesting (%s)",
+			    __func__, name);
+
+		cur_port = calloc(1, sizeof(*cur_port));
+		if (cur_port == NULL)
+			log_err(1, "%s: cannot allocate %zd bytes", __func__,
+			    sizeof(*cur_port));
+
+		devlist->num_ports++;
+		devlist->cur_port = cur_port;
+
+		STAILQ_INIT(&cur_port->attr_list);
+		STAILQ_INSERT_TAIL(&devlist->port_list, cur_port, links);
+
+		for (i = 0; attr[i] != NULL; i += 2) {
+			if (strcmp(attr[i], "id") == 0) {
+				cur_port->port_id = strtoul(attr[i+1], NULL, 0);
+			} else {
+				log_errx(1, "%s: invalid LUN attribute %s = %s",
+				     __func__, attr[i], attr[i+1]);
+			}
+		}
+	}
+}
+
+static void
+cctl_end_pelement(void *user_data, const char *name)
+{
+	struct cctl_devlist_data *devlist;
+	struct cctl_port *cur_port;
+	char *str;
+
+	devlist = (struct cctl_devlist_data *)user_data;
+	cur_port = devlist->cur_port;
+
+	if ((cur_port == NULL)
+	 && (strcmp(name, "ctlportlist") != 0))
+		log_errx(1, "%s: cur_port == NULL! (name = %s)", __func__, name);
+
+	if (devlist->cur_sb[devlist->level] == NULL)
+		log_errx(1, "%s: no valid sbuf at level %d (name %s)", __func__,
+		     devlist->level, name);
+
+	sbuf_finish(devlist->cur_sb[devlist->level]);
+	str = checked_strdup(sbuf_data(devlist->cur_sb[devlist->level]));
+
+	if (strlen(str) == 0) {
+		free(str);
+		str = NULL;
+	}
+
+	sbuf_delete(devlist->cur_sb[devlist->level]);
+	devlist->cur_sb[devlist->level] = NULL;
+	devlist->level--;
+
+	if (strcmp(name, "port_name") == 0) {
+		cur_port->port_name = str;
+		str = NULL;
+	} else if (strcmp(name, "cfiscsi_target") == 0) {
+		cur_port->cfiscsi_target = str;
+		str = NULL;
+	} else if (strcmp(name, "cfiscsi_state") == 0) {
+		cur_port->cfiscsi_state = strtoul(str, NULL, 0);
+	} else if (strcmp(name, "cfiscsi_portal_group_tag") == 0) {
+		cur_port->cfiscsi_portal_group_tag = strtoul(str, NULL, 0);
+	} else if (strcmp(name, "ctld_portal_group_name") == 0) {
+		cur_port->ctld_portal_group_name = str;
+		str = NULL;
+	} else if (strcmp(name, "targ_port") == 0) {
+		devlist->cur_port = NULL;
+	} else if (strcmp(name, "ctlportlist") == 0) {
+		/* Nothing. */
+	} else {
+		struct cctl_lun_nv *nv;
+
+		nv = calloc(1, sizeof(*nv));
+		if (nv == NULL)
+			log_err(1, "%s: can't allocate %zd bytes for nv pair",
+			    __func__, sizeof(*nv));
+
+		nv->name = checked_strdup(name);
+
+		nv->value = str;
+		str = NULL;
+		STAILQ_INSERT_TAIL(&cur_port->attr_list, nv, links);
 	}
 
 	free(str);
@@ -259,55 +381,59 @@ conf_new_from_kernel(void)
 {
 	struct conf *conf = NULL;
 	struct target *targ;
+	struct portal_group *pg;
+	struct pport *pp;
+	struct port *cp;
 	struct lun *cl;
 	struct lun_option *lo;
 	struct ctl_lun_list list;
 	struct cctl_devlist_data devlist;
 	struct cctl_lun *lun;
+	struct cctl_port *port;
 	XML_Parser parser;
-	char *lun_str = NULL;
-	int lun_len;
-	int retval;
-
-	lun_len = 4096;
+	char *str;
+	int len, retval;
 
 	bzero(&devlist, sizeof(devlist));
 	STAILQ_INIT(&devlist.lun_list);
+	STAILQ_INIT(&devlist.port_list);
 
 	log_debugx("obtaining previously configured CTL luns from the kernel");
 
+	str = NULL;
+	len = 4096;
 retry:
-	lun_str = realloc(lun_str, lun_len);
-	if (lun_str == NULL)
+	str = realloc(str, len);
+	if (str == NULL)
 		log_err(1, "realloc");
 
 	bzero(&list, sizeof(list));
-	list.alloc_len = lun_len;
+	list.alloc_len = len;
 	list.status = CTL_LUN_LIST_NONE;
-	list.lun_xml = lun_str;
+	list.lun_xml = str;
 
 	if (ioctl(ctl_fd, CTL_LUN_LIST, &list) == -1) {
 		log_warn("error issuing CTL_LUN_LIST ioctl");
-		free(lun_str);
+		free(str);
 		return (NULL);
 	}
 
 	if (list.status == CTL_LUN_LIST_ERROR) {
 		log_warnx("error returned from CTL_LUN_LIST ioctl: %s",
 		    list.error_str);
-		free(lun_str);
+		free(str);
 		return (NULL);
 	}
 
 	if (list.status == CTL_LUN_LIST_NEED_MORE_SPACE) {
-		lun_len = lun_len << 1;
+		len = len << 1;
 		goto retry;
 	}
 
 	parser = XML_ParserCreate(NULL);
 	if (parser == NULL) {
 		log_warnx("unable to create XML parser");
-		free(lun_str);
+		free(str);
 		return (NULL);
 	}
 
@@ -315,9 +441,58 @@ retry:
 	XML_SetElementHandler(parser, cctl_start_element, cctl_end_element);
 	XML_SetCharacterDataHandler(parser, cctl_char_handler);
 
-	retval = XML_Parse(parser, lun_str, strlen(lun_str), 1);
+	retval = XML_Parse(parser, str, strlen(str), 1);
 	XML_ParserFree(parser);
-	free(lun_str);
+	free(str);
+	if (retval != 1) {
+		log_warnx("XML_Parse failed");
+		return (NULL);
+	}
+
+	str = NULL;
+	len = 4096;
+retry_port:
+	str = realloc(str, len);
+	if (str == NULL)
+		log_err(1, "realloc");
+
+	bzero(&list, sizeof(list));
+	list.alloc_len = len;
+	list.status = CTL_LUN_LIST_NONE;
+	list.lun_xml = str;
+
+	if (ioctl(ctl_fd, CTL_PORT_LIST, &list) == -1) {
+		log_warn("error issuing CTL_PORT_LIST ioctl");
+		free(str);
+		return (NULL);
+	}
+
+	if (list.status == CTL_PORT_LIST_ERROR) {
+		log_warnx("error returned from CTL_PORT_LIST ioctl: %s",
+		    list.error_str);
+		free(str);
+		return (NULL);
+	}
+
+	if (list.status == CTL_LUN_LIST_NEED_MORE_SPACE) {
+		len = len << 1;
+		goto retry_port;
+	}
+
+	parser = XML_ParserCreate(NULL);
+	if (parser == NULL) {
+		log_warnx("unable to create XML parser");
+		free(str);
+		return (NULL);
+	}
+
+	XML_SetUserData(parser, &devlist);
+	XML_SetElementHandler(parser, cctl_start_pelement, cctl_end_pelement);
+	XML_SetCharacterDataHandler(parser, cctl_char_handler);
+
+	retval = XML_Parse(parser, str, strlen(str), 1);
+	XML_ParserFree(parser);
+	free(str);
 	if (retval != 1) {
 		log_warnx("XML_Parse failed");
 		return (NULL);
@@ -325,41 +500,89 @@ retry:
 
 	conf = conf_new();
 
-	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
-		struct cctl_lun_nv *nv;
+	STAILQ_FOREACH(port, &devlist.port_list, links) {
 
-		if (lun->cfiscsi_target == NULL) {
-			log_debugx("CTL lun %ju wasn't managed by ctld; "
-			    "ignoring", (uintmax_t)lun->lun_id);
+		if (port->cfiscsi_target == NULL) {
+			log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
+			    port->port_id, port->port_name);
+			pp = pport_find(conf, port->port_name);
+			if (pp == NULL) {
+#if 0
+				log_debugx("found new kernel port %u \"%s\"",
+				    port->port_id, port->port_name);
+#endif
+				pp = pport_new(conf, port->port_name, port->port_id);
+				if (pp == NULL) {
+					log_warnx("pport_new failed");
+					continue;
+				}
+			}
+			continue;
+		}
+		if (port->cfiscsi_state != 1) {
+			log_debugx("CTL port %ju is not active (%d); ignoring",
+			    (uintmax_t)port->port_id, port->cfiscsi_state);
 			continue;
 		}
 
-		targ = target_find(conf, lun->cfiscsi_target);
+		targ = target_find(conf, port->cfiscsi_target);
 		if (targ == NULL) {
 #if 0
-			log_debugx("found new kernel target %s for CTL lun %ld",
-			    lun->cfiscsi_target, lun->lun_id);
+			log_debugx("found new kernel target %s for CTL port %ld",
+			    port->cfiscsi_target, port->port_id);
 #endif
-			targ = target_new(conf, lun->cfiscsi_target);
+			targ = target_new(conf, port->cfiscsi_target);
 			if (targ == NULL) {
 				log_warnx("target_new failed");
 				continue;
 			}
 		}
 
-		cl = lun_find(targ, lun->cfiscsi_lun);
-		if (cl != NULL) {
-			log_warnx("found CTL lun %ju, backing lun %d, target "
-			    "%s, also backed by CTL lun %d; ignoring",
-			    (uintmax_t) lun->lun_id, cl->l_lun,
-			    cl->l_target->t_iqn, cl->l_ctl_lun);
+		if (port->ctld_portal_group_name == NULL)
+			continue;
+		pg = portal_group_find(conf, port->ctld_portal_group_name);
+		if (pg == NULL) {
+#if 0
+			log_debugx("found new kernel portal group %s for CTL port %ld",
+			    port->ctld_portal_group_name, port->port_id);
+#endif
+			pg = portal_group_new(conf, port->ctld_portal_group_name);
+			if (pg == NULL) {
+				log_warnx("portal_group_new failed");
+				continue;
+			}
+		}
+		pg->pg_tag = port->cfiscsi_portal_group_tag;
+		cp = port_new(conf, targ, pg);
+		if (cp == NULL) {
+			log_warnx("port_new failed");
+			continue;
+		}
+		cp->p_ctl_port = port->port_id;
+	}
+
+	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
+		struct cctl_lun_nv *nv;
+
+		if (lun->ctld_name == NULL) {
+			log_debugx("CTL lun %ju wasn't managed by ctld; "
+			    "ignoring", (uintmax_t)lun->lun_id);
 			continue;
 		}
 
-		log_debugx("found CTL lun %ju, backing lun %d, target %s",
-		    (uintmax_t)lun->lun_id, lun->cfiscsi_lun, lun->cfiscsi_target);
+		cl = lun_find(conf, lun->ctld_name);
+		if (cl != NULL) {
+			log_warnx("found CTL lun %ju \"%s\", "
+			    "also backed by CTL lun %d; ignoring",
+			    (uintmax_t)lun->lun_id, lun->ctld_name,
+			    cl->l_ctl_lun);
+			continue;
+		}
 
-		cl = lun_new(targ, lun->cfiscsi_lun);
+		log_debugx("found CTL lun %ju \"%s\"",
+		    (uintmax_t)lun->lun_id, lun->ctld_name);
+
+		cl = lun_new(conf, lun->ctld_name);
 		if (cl == NULL) {
 			log_warnx("lun_new failed");
 			continue;
@@ -380,13 +603,24 @@ retry:
 			lo = lun_option_new(cl, nv->name, nv->value);
 			if (lo == NULL)
 				log_warnx("unable to add CTL lun option %s "
-				    "for CTL lun %ju for lun %d, target %s",
+				    "for CTL lun %ju \"%s\"",
 				    nv->name, (uintmax_t) lun->lun_id,
-				    cl->l_lun, cl->l_target->t_iqn);
+				    cl->l_name);
 		}
 	}
 
 	return (conf);
+}
+
+static void
+str_arg(struct ctl_be_arg *arg, const char *name, const char *value)
+{
+
+	arg->namelen = strlen(name) + 1;
+	arg->name = __DECONST(char *, name);
+	arg->vallen = strlen(value) + 1;
+	arg->value = __DECONST(char *, value);
+	arg->flags = CTL_BEARG_ASCII | CTL_BEARG_RD;
 }
 
 int
@@ -394,7 +628,6 @@ kernel_lun_add(struct lun *lun)
 {
 	struct lun_option *lo;
 	struct ctl_lun_req req;
-	char *tmp;
 	int error, i, num_options;
 
 	bzero(&req, sizeof(req));
@@ -411,13 +644,13 @@ kernel_lun_add(struct lun *lun)
 	req.reqdata.create.device_type = T_DIRECT;
 
 	if (lun->l_serial != NULL) {
-		strlcpy(req.reqdata.create.serial_num, lun->l_serial,
+		strncpy(req.reqdata.create.serial_num, lun->l_serial,
 			sizeof(req.reqdata.create.serial_num));
 		req.reqdata.create.flags |= CTL_LUN_FLAG_SERIAL_NUM;
 	}
 
 	if (lun->l_device_id != NULL) {
-		strlcpy(req.reqdata.create.device_id, lun->l_device_id,
+		strncpy(req.reqdata.create.device_id, lun->l_device_id,
 			sizeof(req.reqdata.create.device_id));
 		req.reqdata.create.flags |= CTL_LUN_FLAG_DEVID;
 	}
@@ -432,36 +665,17 @@ kernel_lun_add(struct lun *lun)
 		}
 	}
 
-	lo = lun_option_find(lun, "cfiscsi_target");
+	lo = lun_option_find(lun, "ctld_name");
 	if (lo != NULL) {
-		lun_option_set(lo, lun->l_target->t_iqn);
+		lun_option_set(lo, lun->l_name);
 	} else {
-		lo = lun_option_new(lun, "cfiscsi_target",
-		    lun->l_target->t_iqn);
+		lo = lun_option_new(lun, "ctld_name", lun->l_name);
 		assert(lo != NULL);
 	}
 
-	if (lun->l_target->t_alias != NULL) {
-		lo = lun_option_find(lun, "cfiscsi_target_alias");
-		if (lo != NULL) {
-			lun_option_set(lo, lun->l_target->t_alias);
-		} else {
-			lo = lun_option_new(lun, "cfiscsi_target_alias",
-			    lun->l_target->t_alias);
-			assert(lo != NULL);
-		}
-	}
-
-	asprintf(&tmp, "%d", lun->l_lun);
-	if (tmp == NULL)
-		log_errx(1, "asprintf");
-	lo = lun_option_find(lun, "cfiscsi_lun");
-	if (lo != NULL) {
-		lun_option_set(lo, tmp);
-		free(tmp);
-	} else {
-		lo = lun_option_new(lun, "cfiscsi_lun", tmp);
-		free(tmp);
+	lo = lun_option_find(lun, "scsiname");
+	if (lo == NULL && lun->l_scsiname != NULL) {
+		lo = lun_option_new(lun, "scsiname", lun->l_scsiname);
 		assert(lo != NULL);
 	}
 
@@ -480,14 +694,7 @@ kernel_lun_add(struct lun *lun)
 
 		i = 0;
 		TAILQ_FOREACH(lo, &lun->l_options, lo_next) {
-			 /*
-			  * +1 for the terminating '\0'
-			  */
-			req.be_args[i].namelen = strlen(lo->lo_name) + 1;
-			req.be_args[i].name = lo->lo_name;
-			req.be_args[i].vallen = strlen(lo->lo_value) + 1;
-			req.be_args[i].value = lo->lo_value;
-			req.be_args[i].flags = CTL_BEARG_ASCII | CTL_BEARG_RD;
+			str_arg(&req.be_args[i], lo->lo_name, lo->lo_value);
 			i++;
 		}
 		assert(i == num_options);
@@ -500,20 +707,22 @@ kernel_lun_add(struct lun *lun)
 		return (1);
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		log_warnx("error returned from LUN creation request: %s",
-		    req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		log_warnx("LUN creation error: %s", req.error_str);
 		return (1);
-	}
-
-	if (req.status != CTL_LUN_OK) {
-		log_warnx("unknown LUN creation request status %d",
+	case CTL_LUN_WARNING:
+		log_warnx("LUN creation warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		log_warnx("unknown LUN creation status: %d",
 		    req.status);
 		return (1);
 	}
 
 	lun_set_ctl_lun(lun, req.reqdata.create.req_lun_id);
-
 	return (0);
 }
 
@@ -535,14 +744,17 @@ kernel_lun_resize(struct lun *lun)
 		return (1);
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		log_warnx("error returned from LUN modification request: %s",
-		    req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		log_warnx("LUN modification error: %s", req.error_str);
 		return (1);
-	}
-
-	if (req.status != CTL_LUN_OK) {
-		log_warnx("unknown LUN modification request status %d",
+	case CTL_LUN_WARNING:
+		log_warnx("LUN modification warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		log_warnx("unknown LUN modification status: %d",
 		    req.status);
 		return (1);
 	}
@@ -567,14 +779,17 @@ kernel_lun_remove(struct lun *lun)
 		return (1);
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		log_warnx("error returned from LUN removal request: %s",
-		    req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		log_warnx("LUN removal error: %s", req.error_str);
 		return (1);
-	}
-	
-	if (req.status != CTL_LUN_OK) {
-		log_warnx("unknown LUN removal request status %d", req.status);
+	case CTL_LUN_WARNING:
+		log_warnx("LUN removal warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		log_warnx("unknown LUN removal status: %d", req.status);
 		return (1);
 	}
 
@@ -597,9 +812,23 @@ kernel_handoff(struct connection *conn)
 		strlcpy(req.data.handoff.initiator_alias,
 		    conn->conn_initiator_alias, sizeof(req.data.handoff.initiator_alias));
 	}
+	memcpy(req.data.handoff.initiator_isid, conn->conn_initiator_isid,
+	    sizeof(req.data.handoff.initiator_isid));
 	strlcpy(req.data.handoff.target_name,
-	    conn->conn_target->t_iqn, sizeof(req.data.handoff.target_name));
+	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
+	if (conn->conn_portal->p_portal_group->pg_offload != NULL) {
+		strlcpy(req.data.handoff.offload,
+		    conn->conn_portal->p_portal_group->pg_offload,
+		    sizeof(req.data.handoff.offload));
+	}
+#ifdef ICL_KERNEL_PROXY
+	if (proxy_mode)
+		req.data.handoff.connection_id = conn->conn_socket;
+	else
+		req.data.handoff.socket = conn->conn_socket;
+#else
 	req.data.handoff.socket = conn->conn_socket;
+#endif
 	req.data.handoff.portal_group_tag =
 	    conn->conn_portal->p_portal_group->pg_tag;
 	if (conn->conn_header_digest == CONN_DIGEST_CRC32C)
@@ -613,26 +842,137 @@ kernel_handoff(struct connection *conn)
 	req.data.handoff.max_burst_length = conn->conn_max_burst_length;
 	req.data.handoff.immediate_data = conn->conn_immediate_data;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "
 		    "dropping connection");
+	}
 
-	if (req.status != CTL_ISCSI_OK)
+	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI handoff request: "
 		    "%s; dropping connection", req.error_str);
+	}
+}
+
+void
+kernel_limits(const char *offload, size_t *max_data_segment_length)
+{
+	struct ctl_iscsi req;
+
+	bzero(&req, sizeof(req));
+
+	req.type = CTL_ISCSI_LIMITS;
+	if (offload != NULL) {
+		strlcpy(req.data.limits.offload, offload,
+		    sizeof(req.data.limits.offload));
+	}
+
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
+		log_err(1, "error issuing CTL_ISCSI ioctl; "
+		    "dropping connection");
+	}
+
+	if (req.status != CTL_ISCSI_OK) {
+		log_errx(1, "error returned from CTL iSCSI limits request: "
+		    "%s; dropping connection", req.error_str);
+	}
+
+	*max_data_segment_length = req.data.limits.data_segment_limit;
+	if (offload != NULL) {
+		log_debugx("MaxRecvDataSegment kernel limit for offload "
+		    "\"%s\" is %zd", offload, *max_data_segment_length);
+	} else {
+		log_debugx("MaxRecvDataSegment kernel limit is %zd",
+		    *max_data_segment_length);
+	}
 }
 
 int
-kernel_port_on(void)
+kernel_port_add(struct port *port)
 {
 	struct ctl_port_entry entry;
-	int error;
+	struct ctl_req req;
+	struct ctl_lun_map lm;
+	struct target *targ = port->p_target;
+	struct portal_group *pg = port->p_portal_group;
+	char tagstr[16];
+	int error, i, n;
 
+	/* Create iSCSI port. */
+	if (port->p_portal_group) {
+		bzero(&req, sizeof(req));
+		strlcpy(req.driver, "iscsi", sizeof(req.driver));
+		req.reqtype = CTL_REQ_CREATE;
+		req.num_args = 5;
+		req.args = malloc(req.num_args * sizeof(*req.args));
+		if (req.args == NULL)
+			log_err(1, "malloc");
+		n = 0;
+		req.args[n].namelen = sizeof("port_id");
+		req.args[n].name = __DECONST(char *, "port_id");
+		req.args[n].vallen = sizeof(port->p_ctl_port);
+		req.args[n].value = &port->p_ctl_port;
+		req.args[n++].flags = CTL_BEARG_WR;
+		str_arg(&req.args[n++], "cfiscsi_target", targ->t_name);
+		snprintf(tagstr, sizeof(tagstr), "%d", pg->pg_tag);
+		str_arg(&req.args[n++], "cfiscsi_portal_group_tag", tagstr);
+		if (targ->t_alias)
+			str_arg(&req.args[n++], "cfiscsi_target_alias", targ->t_alias);
+		str_arg(&req.args[n++], "ctld_portal_group_name", pg->pg_name);
+		req.num_args = n;
+		error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
+		free(req.args);
+		if (error != 0) {
+			log_warn("error issuing CTL_PORT_REQ ioctl");
+			return (1);
+		}
+		if (req.status == CTL_LUN_ERROR) {
+			log_warnx("error returned from port creation request: %s",
+			    req.error_str);
+			return (1);
+		}
+		if (req.status != CTL_LUN_OK) {
+			log_warnx("unknown port creation request status %d",
+			    req.status);
+			return (1);
+		}
+	} else if (port->p_pport) {
+		port->p_ctl_port = port->p_pport->pp_ctl_port;
+
+		if (strncmp(targ->t_name, "naa.", 4) == 0 &&
+		    strlen(targ->t_name) == 20) {
+			bzero(&entry, sizeof(entry));
+			entry.port_type = CTL_PORT_NONE;
+			entry.targ_port = port->p_ctl_port;
+			entry.flags |= CTL_PORT_WWNN_VALID;
+			entry.wwnn = strtoull(targ->t_name + 4, NULL, 16);
+			if (ioctl(ctl_fd, CTL_SET_PORT_WWNS, &entry) == -1)
+				log_warn("CTL_SET_PORT_WWNS ioctl failed");
+		}
+	}
+
+	/* Explicitly enable mapping to block any access except allowed. */
+	lm.port = port->p_ctl_port;
+	lm.plun = UINT32_MAX;
+	lm.lun = 0;
+	error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
+	if (error != 0)
+		log_warn("CTL_LUN_MAP ioctl failed");
+
+	/* Map configured LUNs */
+	for (i = 0; i < MAX_LUNS; i++) {
+		if (targ->t_luns[i] == NULL)
+			continue;
+		lm.port = port->p_ctl_port;
+		lm.plun = i;
+		lm.lun = targ->t_luns[i]->l_ctl_lun;
+		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
+		if (error != 0)
+			log_warn("CTL_LUN_MAP ioctl failed");
+	}
+
+	/* Enable port */
 	bzero(&entry, sizeof(entry));
-
-	entry.port_type = CTL_PORT_ISCSI;
-	entry.targ_port = -1;
-
+	entry.targ_port = port->p_ctl_port;
 	error = ioctl(ctl_fd, CTL_ENABLE_PORT, &entry);
 	if (error != 0) {
 		log_warn("CTL_ENABLE_PORT ioctl failed");
@@ -643,28 +983,90 @@ kernel_port_on(void)
 }
 
 int
-kernel_port_off(void)
+kernel_port_update(struct port *port)
+{
+	struct ctl_lun_map lm;
+	struct target *targ = port->p_target;
+	int error, i;
+
+	/* Map configured LUNs and unmap others */
+	for (i = 0; i < MAX_LUNS; i++) {
+		lm.port = port->p_ctl_port;
+		lm.plun = i;
+		if (targ->t_luns[i] == NULL)
+			lm.lun = UINT32_MAX;
+		else
+			lm.lun = targ->t_luns[i]->l_ctl_lun;
+		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
+		if (error != 0)
+			log_warn("CTL_LUN_MAP ioctl failed");
+	}
+	return (0);
+}
+
+int
+kernel_port_remove(struct port *port)
 {
 	struct ctl_port_entry entry;
+	struct ctl_lun_map lm;
+	struct ctl_req req;
+	char tagstr[16];
+	struct target *targ = port->p_target;
+	struct portal_group *pg = port->p_portal_group;
 	int error;
 
+	/* Disable port */
 	bzero(&entry, sizeof(entry));
-
-	entry.port_type = CTL_PORT_ISCSI;
-	entry.targ_port = -1;
-
+	entry.targ_port = port->p_ctl_port;
 	error = ioctl(ctl_fd, CTL_DISABLE_PORT, &entry);
 	if (error != 0) {
 		log_warn("CTL_DISABLE_PORT ioctl failed");
 		return (-1);
 	}
 
+	/* Remove iSCSI port. */
+	if (port->p_portal_group) {
+		bzero(&req, sizeof(req));
+		strlcpy(req.driver, "iscsi", sizeof(req.driver));
+		req.reqtype = CTL_REQ_REMOVE;
+		req.num_args = 2;
+		req.args = malloc(req.num_args * sizeof(*req.args));
+		if (req.args == NULL)
+			log_err(1, "malloc");
+		str_arg(&req.args[0], "cfiscsi_target", targ->t_name);
+		snprintf(tagstr, sizeof(tagstr), "%d", pg->pg_tag);
+		str_arg(&req.args[1], "cfiscsi_portal_group_tag", tagstr);
+		error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
+		free(req.args);
+		if (error != 0) {
+			log_warn("error issuing CTL_PORT_REQ ioctl");
+			return (1);
+		}
+		if (req.status == CTL_LUN_ERROR) {
+			log_warnx("error returned from port removal request: %s",
+			    req.error_str);
+			return (1);
+		}
+		if (req.status != CTL_LUN_OK) {
+			log_warnx("unknown port removal request status %d",
+			    req.status);
+			return (1);
+		}
+	} else {
+		/* Disable LUN mapping. */
+		lm.port = port->p_ctl_port;
+		lm.plun = UINT32_MAX;
+		lm.lun = UINT32_MAX;
+		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
+		if (error != 0)
+			log_warn("CTL_LUN_MAP ioctl failed");
+	}
 	return (0);
 }
 
 #ifdef ICL_KERNEL_PROXY
 void
-kernel_listen(struct addrinfo *ai, bool iser)
+kernel_listen(struct addrinfo *ai, bool iser, int portal_id)
 {
 	struct ctl_iscsi req;
 
@@ -677,26 +1079,41 @@ kernel_listen(struct addrinfo *ai, bool iser)
 	req.data.listen.protocol = ai->ai_protocol;
 	req.data.listen.addr = ai->ai_addr;
 	req.data.listen.addrlen = ai->ai_addrlen;
+	req.data.listen.portal_id = portal_id;
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
-		log_warn("error issuing CTL_ISCSI_LISTEN ioctl");
+		log_err(1, "error issuing CTL_ISCSI ioctl");
+
+	if (req.status != CTL_ISCSI_OK) {
+		log_errx(1, "error returned from CTL iSCSI listen: %s",
+		    req.error_str);
+	}
 }
 
-int
-kernel_accept(void)
+void
+kernel_accept(int *connection_id, int *portal_id,
+    struct sockaddr *client_sa, socklen_t *client_salen)
 {
 	struct ctl_iscsi req;
+	struct sockaddr_storage ss;
 
 	bzero(&req, sizeof(req));
 
 	req.type = CTL_ISCSI_ACCEPT;
+	req.data.accept.initiator_addr = (struct sockaddr *)&ss;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
-		log_warn("error issuing CTL_ISCSI_LISTEN ioctl");
-		return (0);
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+		log_err(1, "error issuing CTL_ISCSI ioctl");
+
+	if (req.status != CTL_ISCSI_OK) {
+		log_errx(1, "error returned from CTL iSCSI accept: %s",
+		    req.error_str);
 	}
 
-	return (req.data.accept.connection_id);
+	*connection_id = req.data.accept.connection_id;
+	*portal_id = req.data.accept.portal_id;
+	*client_salen = req.data.accept.initiator_addrlen;
+	memcpy(client_sa, &ss, *client_salen);
 }
 
 void
@@ -712,13 +1129,15 @@ kernel_send(struct pdu *pdu)
 	req.data.send.data_segment_len = pdu->pdu_data_len;
 	req.data.send.data_segment = pdu->pdu_data;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "
 		    "dropping connection");
+	}
 
-	if (req.status != CTL_ISCSI_OK)
+	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI send: "
 		    "%s; dropping connection", req.error_str);
+	}
 }
 
 void
@@ -738,13 +1157,15 @@ kernel_receive(struct pdu *pdu)
 	req.data.receive.data_segment_len = MAX_DATA_SEGMENT_LENGTH;
 	req.data.receive.data_segment = pdu->pdu_data;
 
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1)
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "
 		    "dropping connection");
+	}
 
-	if (req.status != CTL_ISCSI_OK)
+	if (req.status != CTL_ISCSI_OK) {
 		log_errx(1, "error returned from CTL iSCSI receive: "
 		    "%s; dropping connection", req.error_str);
+	}
 
 }
 

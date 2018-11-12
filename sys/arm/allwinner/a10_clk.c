@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include "a10_clk.h"
 
@@ -69,6 +68,10 @@ static struct a10_ccm_softc *a10_ccm_sc = NULL;
 static int
 a10_ccm_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "allwinner,sun4i-ccm")) {
 		device_set_desc(dev, "Allwinner Clock Control Module");
 		return(BUS_PROBE_DEFAULT);
@@ -123,12 +126,12 @@ a10_clk_usb_activate(void)
 	uint32_t reg_value;
 
 	if (sc == NULL)
-		return ENXIO;
+		return (ENXIO);
 
 	/* Gating AHB clock for USB */
 	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
 	reg_value |= CCM_AHB_GATING_USB0; /* AHB clock gate usb0 */
-	reg_value |= CCM_AHB_GATING_EHCI0; /* AHB clock gate ehci1 */
+	reg_value |= CCM_AHB_GATING_EHCI0; /* AHB clock gate ehci0 */
 	reg_value |= CCM_AHB_GATING_EHCI1; /* AHB clock gate ehci1 */
 	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
 
@@ -150,7 +153,7 @@ a10_clk_usb_deactivate(void)
 	uint32_t reg_value;
 
 	if (sc == NULL)
-		return ENXIO;
+		return (ENXIO);
 
 	/* Disable clock for USB */
 	reg_value = ccm_read_4(sc, CCM_USB_CLK);
@@ -163,9 +166,134 @@ a10_clk_usb_deactivate(void)
 	/* Disable gating AHB clock for USB */
 	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
 	reg_value &= ~CCM_AHB_GATING_USB0; /* disable AHB clock gate usb0 */
+	reg_value &= ~CCM_AHB_GATING_EHCI0; /* disable AHB clock gate ehci0 */
 	reg_value &= ~CCM_AHB_GATING_EHCI1; /* disable AHB clock gate ehci1 */
 	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
 
 	return (0);
 }
 
+int
+a10_clk_emac_activate(void)
+{
+	struct a10_ccm_softc *sc = a10_ccm_sc;
+	uint32_t reg_value;
+
+	if (sc == NULL)
+		return (ENXIO);
+
+	/* Gating AHB clock for EMAC */
+	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
+	reg_value |= CCM_AHB_GATING_EMAC;
+	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
+
+	return (0);
+}
+
+static void
+a10_clk_pll6_enable(void)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+
+	/*
+	 * SATA needs PLL6 to be a 100MHz clock.
+	 * The SATA output frequency is 24MHz * n * k / m / 6.
+	 * To get to 100MHz, k & m must be equal and n must be 25.
+	 * For other uses the output frequency is 24MHz * n * k / 2.
+	 */
+	sc = a10_ccm_sc;
+	reg_value = ccm_read_4(sc, CCM_PLL6_CFG);
+	reg_value &= ~CCM_PLL_CFG_BYPASS;
+	reg_value &= ~(CCM_PLL_CFG_FACTOR_K | CCM_PLL_CFG_FACTOR_M |
+	    CCM_PLL_CFG_FACTOR_N);
+	reg_value |= (25 << CCM_PLL_CFG_FACTOR_N_SHIFT);
+	reg_value |= CCM_PLL6_CFG_SATA_CLKEN;
+	reg_value |= CCM_PLL_CFG_ENABLE;
+	ccm_write_4(sc, CCM_PLL6_CFG, reg_value);
+}
+
+static unsigned int
+a10_clk_pll6_get_rate(void)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t k, n, reg_value;
+
+	sc = a10_ccm_sc;
+	reg_value = ccm_read_4(sc, CCM_PLL6_CFG);
+	n = ((reg_value & CCM_PLL_CFG_FACTOR_N) >> CCM_PLL_CFG_FACTOR_N_SHIFT);
+	k = ((reg_value & CCM_PLL_CFG_FACTOR_K) >> CCM_PLL_CFG_FACTOR_K_SHIFT) +
+	    1;
+
+	return ((CCM_CLK_REF_FREQ * n * k) / 2);
+}
+
+int
+a10_clk_mmc_activate(int devid)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	a10_clk_pll6_enable();
+
+	/* Gating AHB clock for SD/MMC */
+	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
+	reg_value |= CCM_AHB_GATING_SDMMC0 << devid;
+	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
+
+	return (0);
+}
+
+int
+a10_clk_mmc_cfg(int devid, int freq)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t clksrc, m, n, ophase, phase, reg_value;
+	unsigned int pll_freq;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	freq /= 1000;
+	if (freq <= 400) {
+		pll_freq = CCM_CLK_REF_FREQ / 1000;
+		clksrc = CCM_SD_CLK_SRC_SEL_OSC24M;
+		ophase = 0;
+		phase = 0;
+		n = 2;
+	} else if (freq <= 25000) {
+		pll_freq = a10_clk_pll6_get_rate() / 1000;
+		clksrc = CCM_SD_CLK_SRC_SEL_PLL6;
+		ophase = 0;
+		phase = 5;
+		n = 2;
+	} else if (freq <= 50000) {
+		pll_freq = a10_clk_pll6_get_rate() / 1000;
+		clksrc = CCM_SD_CLK_SRC_SEL_PLL6;
+		ophase = 3;
+		phase = 5;
+		n = 0;
+	} else
+		return (EINVAL);
+	m = ((pll_freq / (1 << n)) / (freq)) - 1;
+	reg_value = ccm_read_4(sc, CCM_MMC0_SCLK_CFG + (devid * 4));
+	reg_value &= ~CCM_SD_CLK_SRC_SEL;
+	reg_value |= (clksrc << CCM_SD_CLK_SRC_SEL_SHIFT);
+	reg_value &= ~CCM_SD_CLK_PHASE_CTR;
+	reg_value |= (phase << CCM_SD_CLK_PHASE_CTR_SHIFT);
+	reg_value &= ~CCM_SD_CLK_DIV_RATIO_N;
+	reg_value |= (n << CCM_SD_CLK_DIV_RATIO_N_SHIFT);
+	reg_value &= ~CCM_SD_CLK_OPHASE_CTR;
+	reg_value |= (ophase << CCM_SD_CLK_OPHASE_CTR_SHIFT);
+	reg_value &= ~CCM_SD_CLK_DIV_RATIO_M;
+	reg_value |= m;
+	reg_value |= CCM_PLL_CFG_ENABLE;
+	ccm_write_4(sc, CCM_MMC0_SCLK_CFG + (devid * 4), reg_value);
+
+	return (0);
+}

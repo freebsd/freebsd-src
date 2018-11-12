@@ -4,6 +4,7 @@
 #ifndef MACHINE_CPU_H
 #define MACHINE_CPU_H
 
+#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/frame.h>
 
@@ -11,14 +12,20 @@ void	cpu_halt(void);
 void	swi_vm(void *);
 
 #ifdef _KERNEL
+#if __ARM_ARCH >= 6
+#include <machine/cpu-v6.h>
+#endif
 static __inline uint64_t
 get_cyclecount(void)
 {
+#if __ARM_ARCH >= 6
+	return cp15_pmccntr_get();
+#else /* No performance counters, so use binuptime(9). This is slooooow */
 	struct bintime bt;
 
 	binuptime(&bt);
 	return ((uint64_t)bt.sec << 56 | bt.frac >> 8);
-			
+#endif
 }
 #endif
 
@@ -35,12 +42,19 @@ get_cyclecount(void)
 
 extern vm_offset_t vector_page;
 
+/*
+ * Params passed into initarm. If you change the size of this you will
+ * need to update locore.S to allocate more memory on the stack before
+ * it calls initarm.
+ */
 struct arm_boot_params {
 	register_t	abp_size;	/* Size of this structure */
 	register_t	abp_r0;		/* r0 from the boot loader */
 	register_t	abp_r1;		/* r1 from the boot loader */
 	register_t	abp_r2;		/* r2 from the boot loader */
 	register_t	abp_r3;		/* r3 from the boot loader */
+	vm_offset_t	abp_physaddr;	/* The kernel physical address */
+	vm_offset_t	abp_pagetable;	/* The early page table */
 };
 
 void	arm_vector_init(vm_offset_t, int);

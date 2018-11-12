@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CODEGENTBAA_H
-#define CLANG_CODEGEN_CODEGENTBAA_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CODEGENTBAA_H
+#define LLVM_CLANG_LIB_CODEGEN_CODEGENTBAA_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
@@ -117,7 +117,7 @@ public:
   llvm::MDNode *getTBAAStructTagInfo(QualType BaseQType,
                                      llvm::MDNode *AccessNode, uint64_t Offset);
 
-  /// Get the sclar tag MDNode for a given scalar type.
+  /// Get the scalar tag MDNode for a given scalar type.
   llvm::MDNode *getTBAAScalarTagInfo(llvm::MDNode *AccessNode);
 };
 

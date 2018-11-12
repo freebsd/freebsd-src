@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: msp.m4,v 1.34 2013/11/22 20:51:11 ca Exp $')
+VERSIONID(`$Id: msp.m4,v 1.34 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 undefine(`ALIAS_FILE')
 define(`confDELIVERY_MODE', `i')

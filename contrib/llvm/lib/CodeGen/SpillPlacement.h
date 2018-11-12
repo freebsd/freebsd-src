@@ -24,12 +24,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_SPILLPLACEMENT_H
-#define LLVM_CODEGEN_SPILLPLACEMENT_H
+#ifndef LLVM_LIB_CODEGEN_SPILLPLACEMENT_H
+#define LLVM_LIB_CODEGEN_SPILLPLACEMENT_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/Support/BlockFrequency.h"
 
 namespace llvm {
 
@@ -37,12 +38,14 @@ class BitVector;
 class EdgeBundles;
 class MachineBasicBlock;
 class MachineLoopInfo;
+class MachineBlockFrequencyInfo;
 
-class SpillPlacement  : public MachineFunctionPass {
+class SpillPlacement : public MachineFunctionPass {
   struct Node;
   const MachineFunction *MF;
   const EdgeBundles *bundles;
   const MachineLoopInfo *loops;
+  const MachineBlockFrequencyInfo *MBFI;
   Node *nodes;
 
   // Nodes that are active in the current computation. Owned by the prepare()
@@ -57,12 +60,16 @@ class SpillPlacement  : public MachineFunctionPass {
   SmallVector<unsigned, 8> RecentPositive;
 
   // Block frequencies are computed once. Indexed by block number.
-  SmallVector<float, 4> BlockFrequency;
+  SmallVector<BlockFrequency, 8> BlockFrequencies;
+
+  /// Decision threshold. A node gets the output value 0 if the weighted sum of
+  /// its inputs falls in the open interval (-Threshold;Threshold).
+  BlockFrequency Threshold;
 
 public:
   static char ID; // Pass identification, replacement for typeid.
 
-  SpillPlacement() : MachineFunctionPass(ID), nodes(0) {}
+  SpillPlacement() : MachineFunctionPass(ID), nodes(nullptr) {}
   ~SpillPlacement() { releaseMemory(); }
 
   /// BorderConstraint - A basic block has separate constraints for entry and
@@ -139,16 +146,17 @@ public:
 
   /// getBlockFrequency - Return the estimated block execution frequency per
   /// function invocation.
-  float getBlockFrequency(unsigned Number) const {
-    return BlockFrequency[Number];
+  BlockFrequency getBlockFrequency(unsigned Number) const {
+    return BlockFrequencies[Number];
   }
 
 private:
-  virtual bool runOnMachineFunction(MachineFunction&);
-  virtual void getAnalysisUsage(AnalysisUsage&) const;
-  virtual void releaseMemory();
+  bool runOnMachineFunction(MachineFunction&) override;
+  void getAnalysisUsage(AnalysisUsage&) const override;
+  void releaseMemory() override;
 
   void activate(unsigned);
+  void setThreshold(const BlockFrequency &Entry);
 };
 
 } // end namespace llvm

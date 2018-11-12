@@ -28,6 +28,8 @@
  *
  */
 
+#include "opt_ddb.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -37,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
+#include <sys/kdb.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
@@ -226,7 +229,7 @@ wd_timeout_cb(void *arg)
 #ifdef DDB
 	if ((wd_pretimeout_act & WD_SOFT_DDB)) {
 		char kdb_why[80];
-		snprintf(kdb_why, sizeof(buf), "watchdog %s timeout", type);
+		snprintf(kdb_why, sizeof(kdb_why), "watchdog %s timeout", type);
 		kdb_backtrace();
 		kdb_enter(KDB_WHY_WATCHDOG, kdb_why);
 	}
@@ -386,8 +389,8 @@ watchdog_modevent(module_t mod __unused, int type, void *data __unused)
 {
 	switch(type) {
 	case MOD_LOAD:
-		callout_init(&wd_pretimeo_handle, true);
-		callout_init(&wd_softtimeo_handle, true);
+		callout_init(&wd_pretimeo_handle, 1);
+		callout_init(&wd_softtimeo_handle, 1);
 		wd_dev = make_dev(&wd_cdevsw, 0,
 		    UID_ROOT, GID_WHEEL, 0600, _PATH_WATCHDOG);
 		return 0;

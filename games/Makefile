@@ -1,8 +1,8 @@
-#	@(#)Makefile	8.2 (Berkeley) 3/31/94
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 SUBDIR= \
-	bcd \
 	caesar \
 	factor \
 	fortune \
@@ -10,8 +10,12 @@ SUBDIR= \
 	morse \
 	number \
 	pom \
-	ppt \
 	primes \
-	random
+	random \
+	${_tests}
+
+.if ${MK_TESTS} != "no"
+_tests=	tests
+.endif
 
 .include <bsd.subdir.mk>

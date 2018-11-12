@@ -10,8 +10,14 @@
 #ifdef HAVE___CHKSTK
   EXPLICIT_SYMBOL(__chkstk)
 #endif
+#ifdef HAVE___CHKSTK_MS
+  EXPLICIT_SYMBOL(__chkstk_ms)
+#endif
 #ifdef HAVE____CHKSTK
   EXPLICIT_SYMBOL(___chkstk)
+#endif
+#ifdef HAVE____CHKSTK_MS
+  EXPLICIT_SYMBOL(___chkstk_ms)
 #endif
 #ifdef HAVE___MAIN
   EXPLICIT_SYMBOL(__main) // FIXME: Don't call it.
@@ -63,4 +69,34 @@
 /* msvcrt */
 #if defined(_MSC_VER)
   EXPLICIT_SYMBOL2(alloca, _alloca_probe)
+
+#ifdef _M_IX86
+#define INLINE_DEF_FLOAT_SYMBOL(SYM, ARGC) INLINE_DEF_SYMBOL##ARGC(float, SYM)
+  INLINE_DEF_FLOAT_SYMBOL(acosf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(asinf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(atanf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(atan2f, 2)
+  INLINE_DEF_FLOAT_SYMBOL(ceilf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(cosf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(coshf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(expf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(floorf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(fmodf, 2)
+  INLINE_DEF_FLOAT_SYMBOL(logf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(powf, 2)
+  INLINE_DEF_FLOAT_SYMBOL(sinf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(sinhf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(sqrtf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(tanf, 1)
+  INLINE_DEF_FLOAT_SYMBOL(tanhf, 1)
+
+  // These were added in VS 2013.
+#if (1800 <= _MSC_VER && _MSC_VER < 1900)
+  INLINE_DEF_FLOAT_SYMBOL(copysignf, 2)
+  INLINE_DEF_FLOAT_SYMBOL(fminf, 2)
+  INLINE_DEF_FLOAT_SYMBOL(fmaxf, 2)
+#endif
+#undef INLINE_DEF_FLOAT_SYMBOL
+#endif
+
 #endif

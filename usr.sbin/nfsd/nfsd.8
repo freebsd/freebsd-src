@@ -28,7 +28,7 @@
 .\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2011
+.Dd April 25, 2015
 .Dt NFSD 8
 .Os
 .Sh NAME
@@ -38,11 +38,11 @@
 server
 .Sh SYNOPSIS
 .Nm
-.Op Fl arduteo
+.Op Fl ardute
 .Op Fl n Ar num_servers
 .Op Fl h Ar bindip
-.Op Fl maxthreads Ar max_threads
-.Op Fl minthreads Ar min_threads
+.Op Fl Fl maxthreads Ar max_threads
+.Op Fl Fl minthreads Ar min_threads
 .Sh DESCRIPTION
 The
 .Nm
@@ -53,7 +53,7 @@ At least one
 .Nm
 must be running for a machine to operate as a server.
 .Pp
-Unless otherwise specified, four servers for
+Unless otherwise specified, eight servers per CPU for
 .Tn UDP
 transport are started.
 .Pp
@@ -78,14 +78,14 @@ service with
 without creating any servers.
 .It Fl n Ar threads
 Specifies how many servers to create.  This option is equivalent to specifying
-.Fl maxthreads
+.Fl Fl maxthreads
 and
-.Fl minthreads
+.Fl Fl minthreads
 with their respective arguments to
 .Ar threads .
-.It Fl maxthreads Ar threads
+.It Fl Fl maxthreads Ar threads
 Specifies the maximum servers that will be kept around to service requests.
-.It Fl minthreads Ar threads
+.It Fl Fl minthreads Ar threads
 Specifies the minimum servers that will be kept around to service requests.
 .It Fl h Ar bindip
 Specifies which IP address or hostname to bind to on the local host.
@@ -112,11 +112,7 @@ Serve
 .Tn UDP NFS
 clients.
 .It Fl e
-The new NFS server that includes NFSv4 support is now the default, so this
-option is now a no-op and should be considered deprecated.
-.It Fl o
-Forces the use of the old NFS server that does not include NFSv4 support
-in it.
+Ignored; included for backward compatibility.
 .El
 .Pp
 For example,
@@ -174,6 +170,24 @@ The
 utility
 would then be used to block nfs-related packets that come in on the outside
 interface.
+.Pp
+If the server has stopped servicing clients and has generated a console message
+like
+.Dq Li "nfsd server cache flooded..." ,
+the value for vfs.nfsd.tcphighwater needs to be increased.
+This should allow the server to again handle requests without a reboot.
+Also, you may want to consider decreasing the value for
+vfs.nfsd.tcpcachetimeo to several minutes (in seconds) instead of 12 hours
+when this occurs.
+.Pp
+Unfortunately making vfs.nfsd.tcphighwater too large can result in the mbuf
+limit being reached, as indicated by a console message
+like
+.Dq Li "kern.ipc.nmbufs limit reached" .
+If you cannot find values of the above
+.Nm sysctl
+values that work, you can disable the DRC cache for TCP by setting
+vfs.nfsd.cachetcp to 0.
 .Pp
 The
 .Nm

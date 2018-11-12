@@ -4,7 +4,7 @@
 
 PROG=	ipdivert
 SRCS=	ipdivert.c
-NO_MAN=
+MAN=
 
 WARNS?=	2
 

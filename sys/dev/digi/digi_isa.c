@@ -292,7 +292,7 @@ digi_isa_probe(device_t dev)
 	/* Temporarily map our memory */
 	sc->res.mrid = 0;
 	sc->res.mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->res.mrid,
-	    0ul, ~0ul, sc->win_size, RF_ALLOCATED);
+	    0ul, ~0ul, sc->win_size, 0);
 	if (sc->res.mem == NULL) {
 		device_printf(dev, "0x%lx: Memory range is in use\n", sc->pmem);
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->res.iorid,

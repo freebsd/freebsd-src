@@ -394,14 +394,6 @@ ctl_ioctl.h:
 This defines all ioctls available through the CTL character device, and
 the data structures needed for those ioctls.
 
-ctl_mem_pool.c
-ctl_mem_pool.h:
---------------
-
-Generic memory pool implementation.  This is currently only used by the
-internal frontend.  The internal frontend can probably be rewritten to use
-UMA zones and this can be removed.
-
 ctl_private.h:
 -------------
 

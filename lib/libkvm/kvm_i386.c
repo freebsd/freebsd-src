@@ -87,7 +87,7 @@ struct vmstate {
 /*
  * Map the ELF headers into the process' address space. We do this in two
  * steps: first the ELF header itself and using that information the whole
- * set of headers. (Taken from kvm_ia64.c)
+ * set of headers.
  */
 static int
 _kvm_maphdrs(kvm_t *kd, size_t sz)
@@ -111,7 +111,6 @@ _kvm_maphdrs(kvm_t *kd, size_t sz)
 
 /*
  * Translate a physical memory address to a file-offset in the crash-dump.
- * (Taken from kvm_ia64.c)
  */
 static size_t
 _kvm_pa2off(kvm_t *kd, uint64_t pa, off_t *ofs)

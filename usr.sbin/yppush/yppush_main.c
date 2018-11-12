@@ -137,11 +137,11 @@ yppush_show_status(ypxfrstat status, unsigned long tid)
 								job->tid);
 	}
 
-	if (status != YPPUSH_SUCC || verbose) {
+	if (status != YPXFR_SUCC || verbose) {
 		yp_error("transfer of map %s to server %s %s",
-		 	job->map, job->server, status == YPPUSH_SUCC ?
+		 	job->map, job->server, status == YPXFR_SUCC ?
 		 	"succeeded" : "failed");
-		yp_error("status returned by ypxfr: %s", status > YPPUSH_AGE ?
+		yp_error("status returned by ypxfr: %s", status > YPXFR_AGE ?
 			yppusherr_string(status) :
 			ypxfrerr_string(status));
 	}
@@ -365,7 +365,7 @@ create udp handle to NIS server"));
  * request to the internal list, send the YPPROC_XFR request to ypserv
  * do other magic things.
  */
-int
+static int
 yp_push(char *server, char *map, unsigned long tid)
 {
 	unsigned long prognum;
@@ -433,7 +433,7 @@ yp_push(char *server, char *map, unsigned long tid)
  * Called for each entry in the ypservers map from yp_get_map(), which
  * is our private yp_all() routine.
  */
-int
+static int
 yppush_foreach(int status, char *key, int keylen, char *val, int vallen,
     char *data)
 {

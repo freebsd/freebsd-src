@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <arm/freescale/imx/imx_machdep.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
 
 #include "opt_platform.h"
 
@@ -161,6 +161,9 @@ static int
 imx_ehci_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data != 0) {
 		device_set_desc(dev, "Freescale i.MX integrated USB controller");
 		return (BUS_PROBE_DEFAULT);
@@ -234,7 +237,9 @@ imx_ehci_attach(device_t dev)
 	esc->sc_bus.parent = dev;
 	esc->sc_bus.devices = esc->sc_devices;
 	esc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	esc->sc_bus.dma_bits = 32;
 
+	/* allocate all DMA memory */
 	if (usb_bus_mem_alloc_all(&esc->sc_bus, USB_GET_DMA_TAG(dev),
 	    &ehci_iterate_hw_softc) != 0) {
 		device_printf(dev, "usb_bus_mem_alloc_all() failed\n");

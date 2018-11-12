@@ -80,6 +80,9 @@ static int
 mv_ic_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "mrvl,pic"))
 		return (ENXIO);
 

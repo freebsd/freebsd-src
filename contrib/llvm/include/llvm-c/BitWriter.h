@@ -16,8 +16,8 @@
 |*                                                                            *|
 \*===----------------------------------------------------------------------===*/
 
-#ifndef LLVM_C_BITCODEWRITER_H
-#define LLVM_C_BITCODEWRITER_H
+#ifndef LLVM_C_BITWRITER_H
+#define LLVM_C_BITWRITER_H
 
 #include "llvm-c/Core.h"
 
@@ -34,7 +34,7 @@ extern "C" {
 
 /*===-- Operations on modules ---------------------------------------------===*/
 
-/** Writes a module to the specified path. Returns 0 on success. */ 
+/** Writes a module to the specified path. Returns 0 on success. */
 int LLVMWriteBitcodeToFile(LLVMModuleRef M, const char *Path);
 
 /** Writes a module to an open file descriptor. Returns 0 on success. */
@@ -42,8 +42,11 @@ int LLVMWriteBitcodeToFD(LLVMModuleRef M, int FD, int ShouldClose,
                          int Unbuffered);
 
 /** Deprecated for LLVMWriteBitcodeToFD. Writes a module to an open file
-    descriptor. Returns 0 on success. Closes the Handle. */ 
+    descriptor. Returns 0 on success. Closes the Handle. */
 int LLVMWriteBitcodeToFileHandle(LLVMModuleRef M, int Handle);
+
+/** Writes a module to a new memory buffer and returns it. */
+LLVMMemoryBufferRef LLVMWriteBitcodeToMemoryBuffer(LLVMModuleRef M);
 
 /**
  * @}

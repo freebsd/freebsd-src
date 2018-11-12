@@ -31,7 +31,7 @@
 .\"     @(#)wc.1	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2008
+.Dd November 4, 2014
 .Dt WC 1
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nd word, line, character, and byte count
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl Lclmw
 .Op Ar
 .Sh DESCRIPTION
@@ -174,7 +175,9 @@ option of the GNU
 .Nm
 utility.
 .Sh SEE ALSO
-.Xr iswspace 3
+.Xr iswspace 3 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3
 .Sh STANDARDS
 The
 .Nm

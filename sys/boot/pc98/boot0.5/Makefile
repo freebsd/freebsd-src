@@ -3,7 +3,7 @@
 PROG=	${BOOT}.out
 INTERNALPROG=
 FILES=	${BOOT}
-NO_MAN=
+MAN=
 SRCS=	start.s boot.s boot0.5.s disk.s selector.s support.s syscons.s \
 	putssjis.s
 CLEANFILES= ${BOOT} ${BOOT}.bin
@@ -21,6 +21,6 @@ ${BOOT}: ${BOOT}.bin
 	cat ${BOOT}.bin /dev/zero | dd of=${BOOT} bs=1 count=7168
 
 ${BOOT}.bin: ${BOOT}.out
-	objcopy -S -O binary ${BOOT}.out ${.TARGET}
+	${OBJCOPY} -S -O binary ${BOOT}.out ${.TARGET}
 
 .include <bsd.prog.mk>

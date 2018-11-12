@@ -154,6 +154,11 @@ struct run_softc {
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 	struct ifnet			*sc_ifp;
+	int				sc_need_fwload;
+
+	int				sc_flags;
+#define	RUN_FLAG_FWLOAD_NEEDED		0x01
+
 	uint16_t			wcid_stats[RT2870_WCID_MAX + 1][3];
 #define	RUN_TXCNT	0
 #define	RUN_SUCCESS	1

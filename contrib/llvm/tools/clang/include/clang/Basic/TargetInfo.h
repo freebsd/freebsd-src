@@ -16,9 +16,9 @@
 #define LLVM_CLANG_BASIC_TARGETINFO_H
 
 #include "clang/Basic/AddressSpaces.h"
-#include "clang/Basic/TargetCXXABI.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/Specifiers.h"
+#include "clang/Basic/TargetCXXABI.h"
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/VersionTuple.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -47,7 +47,7 @@ namespace Builtin { struct Info; }
 /// \brief Exposes information about the current target.
 ///
 class TargetInfo : public RefCountedBase<TargetInfo> {
-  IntrusiveRefCntPtr<TargetOptions> TargetOpts;
+  std::shared_ptr<TargetOptions> TargetOpts;
   llvm::Triple Triple;
 protected:
   // Target values set by the ctor of the actual target implementation.  Default
@@ -86,7 +86,7 @@ protected:
   unsigned ComplexLongDoubleUsesFP2Ret : 1;
 
   // TargetInfo Constructor.  Default initializes all fields.
-  TargetInfo(const std::string &T);
+  TargetInfo(const llvm::Triple &T);
 
 public:
   /// \brief Construct a target for the given options.
@@ -94,8 +94,9 @@ public:
   /// \param Opts - The options to use to initialize the target. The target may
   /// modify the options to canonicalize the target feature information to match
   /// what the backend expects.
-  static TargetInfo* CreateTargetInfo(DiagnosticsEngine &Diags,
-                                      TargetOptions *Opts);
+  static TargetInfo *
+  CreateTargetInfo(DiagnosticsEngine &Diags,
+                   const std::shared_ptr<TargetOptions> &Opts);
 
   virtual ~TargetInfo();
 
@@ -105,13 +106,11 @@ public:
     return *TargetOpts; 
   }
 
-  void setTargetOpts(TargetOptions *TargetOpts) {
-    this->TargetOpts = TargetOpts;
-  }
-
   ///===---- Target Data Type Query Methods -------------------------------===//
   enum IntType {
     NoInt = 0,
+    SignedChar,
+    UnsignedChar,
     SignedShort,
     UnsignedShort,
     SignedInt,
@@ -123,6 +122,7 @@ public:
   };
 
   enum RealType {
+    NoFloat = 255,
     Float = 0,
     Double,
     LongDouble
@@ -170,7 +170,7 @@ public:
   };
 
 protected:
-  IntType SizeType, IntMaxType, UIntMaxType, PtrDiffType, IntPtrType, WCharType,
+  IntType SizeType, IntMaxType, PtrDiffType, IntPtrType, WCharType,
           WIntType, Char16Type, Char32Type, Int64Type, SigAtomicType,
           ProcessIDType;
 
@@ -199,26 +199,64 @@ protected:
   /// zero length bitfield, regardless of the zero length bitfield type.
   unsigned ZeroLengthBitfieldBoundary;
 
+  /// \brief Specify if mangling based on address space map should be used or
+  /// not for language specific address spaces
+  bool UseAddrSpaceMapMangling;
+
 public:
   IntType getSizeType() const { return SizeType; }
   IntType getIntMaxType() const { return IntMaxType; }
-  IntType getUIntMaxType() const { return UIntMaxType; }
+  IntType getUIntMaxType() const {
+    return getCorrespondingUnsignedType(IntMaxType);
+  }
   IntType getPtrDiffType(unsigned AddrSpace) const {
     return AddrSpace == 0 ? PtrDiffType : getPtrDiffTypeV(AddrSpace);
   }
   IntType getIntPtrType() const { return IntPtrType; }
+  IntType getUIntPtrType() const {
+    return getCorrespondingUnsignedType(IntPtrType);
+  }
   IntType getWCharType() const { return WCharType; }
   IntType getWIntType() const { return WIntType; }
   IntType getChar16Type() const { return Char16Type; }
   IntType getChar32Type() const { return Char32Type; }
   IntType getInt64Type() const { return Int64Type; }
+  IntType getUInt64Type() const {
+    return getCorrespondingUnsignedType(Int64Type);
+  }
   IntType getSigAtomicType() const { return SigAtomicType; }
   IntType getProcessIDType() const { return ProcessIDType; }
+
+  static IntType getCorrespondingUnsignedType(IntType T) {
+    switch (T) {
+    case SignedChar:
+      return UnsignedChar;
+    case SignedShort:
+      return UnsignedShort;
+    case SignedInt:
+      return UnsignedInt;
+    case SignedLong:
+      return UnsignedLong;
+    case SignedLongLong:
+      return UnsignedLongLong;
+    default:
+      llvm_unreachable("Unexpected signed integer type");
+    }
+  }
 
   /// \brief Return the width (in bits) of the specified integer type enum.
   ///
   /// For example, SignedInt -> getIntWidth().
   unsigned getTypeWidth(IntType T) const;
+
+  /// \brief Return integer type with specified width.
+  IntType getIntTypeByWidth(unsigned BitWidth, bool IsSigned) const;
+
+  /// \brief Return the smallest integer type with at least the specified width.
+  IntType getLeastIntTypeByWidth(unsigned BitWidth, bool IsSigned) const;
+
+  /// \brief Return floating point type with specified width.
+  RealType getRealTypeByWidth(unsigned BitWidth) const;
 
   /// \brief Return the alignment (in bits) of the specified integer type enum.
   ///
@@ -270,7 +308,7 @@ public:
   unsigned getLongLongAlign() const { return LongLongAlign; }
 
   /// \brief Determine whether the __int128 type is supported on this target.
-  bool hasInt128Type() const { return getPointerWidth(0) >= 64; } // FIXME
+  virtual bool hasInt128Type() const { return getPointerWidth(0) >= 64; } // FIXME
 
   /// \brief Return the alignment that is suitable for storing any
   /// object with a fundamental alignment requirement.
@@ -332,6 +370,15 @@ public:
   /// \brief Return the maximum width lock-free atomic operation which can be
   /// inlined given the supported features of the given target.
   unsigned getMaxAtomicInlineWidth() const { return MaxAtomicInlineWidth; }
+  /// \brief Returns true if the given target supports lock-free atomic
+  /// operations at the specified width and alignment.
+  virtual bool hasBuiltinAtomic(uint64_t AtomicSizeInBits,
+                                uint64_t AlignmentInBits) const {
+    return AtomicSizeInBits <= AlignmentInBits &&
+           AtomicSizeInBits <= getMaxAtomicInlineWidth() &&
+           (AtomicSizeInBits <= getCharWidth() ||
+            llvm::isPowerOf2_64(AtomicSizeInBits / getCharWidth()));
+  }
 
   /// \brief Return the maximum vector alignment supported for the given target.
   unsigned getMaxVectorAlign() const { return MaxVectorAlign; }
@@ -345,11 +392,11 @@ public:
   unsigned getUnwindWordWidth() const { return getPointerWidth(0); }
 
   /// \brief Return the "preferred" register width on this target.
-  uint64_t getRegisterWidth() const {
+  unsigned getRegisterWidth() const {
     // Currently we assume the register width on the target matches the pointer
     // width, we can introduce a new variable for this if/when some target wants
     // it.
-    return LongWidth; 
+    return PointerWidth;
   }
 
   /// \brief Returns the default value of the __USER_LABEL_PREFIX__ macro,
@@ -408,7 +455,13 @@ public:
   /// \brief Return the constant suffix for the specified integer type enum.
   ///
   /// For example, SignedLong -> "L".
-  static const char *getTypeConstantSuffix(IntType T);
+  const char *getTypeConstantSuffix(IntType T) const;
+
+  /// \brief Return the printf format modifier for the specified
+  /// integer type enum.
+  ///
+  /// For example, SignedLong -> "l".
+  static const char *getTypeFormatModifier(IntType T);
 
   /// \brief Check whether the given real type should use the "fpret" flavor of
   /// Objective-C message passing on this target.
@@ -420,6 +473,12 @@ public:
   /// of Objective-C message passing on this target.
   bool useObjCFP2RetForComplexLongDouble() const {
     return ComplexLongDoubleUsesFP2Ret;
+  }
+
+  /// \brief Specify if mangling based on address space map should be used or
+  /// not for language specific address spaces
+  bool useAddressSpaceMapMangling() const {
+    return UseAddrSpaceMapMangling;
   }
 
   ///===---- Other target property query methods --------------------------===//
@@ -469,22 +528,31 @@ public:
       CI_None = 0x00,
       CI_AllowsMemory = 0x01,
       CI_AllowsRegister = 0x02,
-      CI_ReadWrite = 0x04,       // "+r" output constraint (read and write).
-      CI_HasMatchingInput = 0x08 // This output operand has a matching input.
+      CI_ReadWrite = 0x04,         // "+r" output constraint (read and write).
+      CI_HasMatchingInput = 0x08,  // This output operand has a matching input.
+      CI_ImmediateConstant = 0x10, // This operand must be an immediate constant
+      CI_EarlyClobber = 0x20,      // "&" output constraint (early clobber).
     };
     unsigned Flags;
     int TiedOperand;
+    struct {
+      int Min;
+      int Max;
+    } ImmRange;
 
     std::string ConstraintStr;  // constraint: "=rm"
     std::string Name;           // Operand name: [foo] with no []'s.
   public:
     ConstraintInfo(StringRef ConstraintStr, StringRef Name)
-      : Flags(0), TiedOperand(-1), ConstraintStr(ConstraintStr.str()),
-      Name(Name.str()) {}
+        : Flags(0), TiedOperand(-1), ConstraintStr(ConstraintStr.str()),
+          Name(Name.str()) {
+      ImmRange.Min = ImmRange.Max = 0;
+    }
 
     const std::string &getConstraintStr() const { return ConstraintStr; }
     const std::string &getName() const { return Name; }
     bool isReadWrite() const { return (Flags & CI_ReadWrite) != 0; }
+    bool earlyClobber() { return (Flags & CI_EarlyClobber) != 0; }
     bool allowsRegister() const { return (Flags & CI_AllowsRegister) != 0; }
     bool allowsMemory() const { return (Flags & CI_AllowsMemory) != 0; }
 
@@ -503,10 +571,22 @@ public:
       return (unsigned)TiedOperand;
     }
 
+    bool requiresImmediateConstant() const {
+      return (Flags & CI_ImmediateConstant) != 0;
+    }
+    int getImmConstantMin() const { return ImmRange.Min; }
+    int getImmConstantMax() const { return ImmRange.Max; }
+
     void setIsReadWrite() { Flags |= CI_ReadWrite; }
+    void setEarlyClobber() { Flags |= CI_EarlyClobber; }
     void setAllowsMemory() { Flags |= CI_AllowsMemory; }
     void setAllowsRegister() { Flags |= CI_AllowsRegister; }
     void setHasMatchingInput() { Flags |= CI_HasMatchingInput; }
+    void setRequiresImmediate(int Min, int Max) {
+      Flags |= CI_ImmediateConstant;
+      ImmRange.Min = Min;
+      ImmRange.Max = Max;
+    }
 
     /// \brief Indicate that this is an input operand that is tied to
     /// the specified output operand. 
@@ -527,13 +607,21 @@ public:
   bool validateInputConstraint(ConstraintInfo *OutputConstraints,
                                unsigned NumOutputs,
                                ConstraintInfo &info) const;
+
+  virtual bool validateOutputSize(StringRef /*Constraint*/,
+                                  unsigned /*Size*/) const {
+    return true;
+  }
+
   virtual bool validateInputSize(StringRef /*Constraint*/,
                                  unsigned /*Size*/) const {
     return true;
   }
-  virtual bool validateConstraintModifier(StringRef /*Constraint*/,
-                                          const char /*Modifier*/,
-                                          unsigned /*Size*/) const {
+  virtual bool
+  validateConstraintModifier(StringRef /*Constraint*/,
+                             char /*Modifier*/,
+                             unsigned /*Size*/,
+                             std::string &/*SuggestedModifier*/) const {
     return true;
   }
   bool resolveSymbolicName(const char *&Name,
@@ -560,6 +648,7 @@ public:
   }
 
   const char *getTargetDescription() const {
+    assert(DescriptionString);
     return DescriptionString;
   }
 
@@ -585,24 +674,6 @@ public:
   /// either; the entire thing is pretty badly mangled.
   virtual bool hasProtectedVisibility() const { return true; }
 
-  /// \brief Return the section to use for CFString literals, or 0 if no
-  /// special section is used.
-  virtual const char *getCFStringSection() const {
-    return "__DATA,__cfstring";
-  }
-
-  /// \brief Return the section to use for NSString literals, or 0 if no
-  /// special section is used.
-  virtual const char *getNSStringSection() const {
-    return "__OBJC,__cstring_object,regular,no_dead_strip";
-  }
-
-  /// \brief Return the section to use for NSString literals, or 0 if no
-  /// special section is used (NonFragile ABI).
-  virtual const char *getNSStringNonFragileABISection() const {
-    return "__DATA, __objc_stringobj, regular, no_dead_strip";
-  }
-
   /// \brief An optional hook that targets can implement to perform semantic
   /// checking on attribute((section("foo"))) specifiers.
   ///
@@ -622,7 +693,7 @@ public:
   ///
   /// Apply changes to the target information with respect to certain
   /// language options which change the target configuration.
-  virtual void setForcedLangOptions(LangOptions &Opts);
+  virtual void adjust(const LangOptions &Opts);
 
   /// \brief Get the default set of target features for the CPU;
   /// this should include all legal feature strings on the target.
@@ -630,9 +701,7 @@ public:
   }
 
   /// \brief Get the ABI currently in use.
-  virtual const char *getABI() const {
-    return "";
-  }
+  virtual StringRef getABI() const { return StringRef(); }
 
   /// \brief Get the C++ ABI currently in use.
   TargetCXXABI getCXXABI() const {
@@ -650,6 +719,13 @@ public:
   ///
   /// \return False on error (invalid ABI name).
   virtual bool setABI(const std::string &Name) {
+    return false;
+  }
+
+  /// \brief Use the specified unit for FP math.
+  ///
+  /// \return False on error (invalid unit name).
+  virtual bool setFPMath(StringRef Name) {
     return false;
   }
 
@@ -672,12 +748,10 @@ public:
 
   /// \brief Enable or disable a specific target feature;
   /// the feature name must be valid.
-  ///
-  /// \return False on error (invalid feature name).
-  virtual bool setFeatureEnabled(llvm::StringMap<bool> &Features,
+  virtual void setFeatureEnabled(llvm::StringMap<bool> &Features,
                                  StringRef Name,
                                  bool Enabled) const {
-    return false;
+    Features[Name] = Enabled;
   }
 
   /// \brief Perform initialization based on the user configured
@@ -687,7 +761,11 @@ public:
   ///
   /// The target may modify the features list, to change which options are
   /// passed onwards to the backend.
-  virtual void HandleTargetFeatures(std::vector<std::string> &Features) {
+  ///
+  /// \return  False on error.
+  virtual bool handleTargetFeatures(std::vector<std::string> &Features,
+                                    DiagnosticsEngine &Diags) {
+    return true;
   }
 
   /// \brief Determine whether the given target has the given feature.
@@ -724,7 +802,7 @@ public:
 
   /// \brief Return the section to use for C++ static initialization functions.
   virtual const char *getStaticInitSectionSpecifier() const {
-    return 0;
+    return nullptr;
   }
 
   const LangAS::Map &getAddressSpaceMap() const {
@@ -770,9 +848,14 @@ public:
       default:
         return CCCR_Warning;
       case CC_C:
-      case CC_Default:
         return CCCR_OK;
     }
+  }
+
+  /// Controls if __builtin_longjmp / __builtin_setjmp can be lowered to
+  /// llvm.eh.sjlj.longjmp / llvm.eh.sjlj.setjmp.
+  virtual bool hasSjLjLowering() const {
+    return false;
   }
 
 protected:
@@ -790,8 +873,8 @@ protected:
   virtual void getGCCRegAliases(const GCCRegAlias *&Aliases,
                                 unsigned &NumAliases) const = 0;
   virtual void getGCCAddlRegNames(const AddlRegName *&Addl,
-				  unsigned &NumAddl) const {
-    Addl = 0;
+                                  unsigned &NumAddl) const {
+    Addl = nullptr;
     NumAddl = 0;
   }
   virtual bool validateAsmConstraint(const char *&Name,

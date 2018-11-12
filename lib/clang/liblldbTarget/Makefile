@@ -10,14 +10,28 @@ SRCDIR=	tools/lldb/source/Target
 SRCS=	ABI.cpp \
 	CPPLanguageRuntime.cpp \
 	ExecutionContext.cpp \
+	FileAction.cpp \
+	InstrumentationRuntime.cpp \
+	InstrumentationRuntimeStopInfo.cpp \
+	JITLoader.cpp \
+	JITLoaderList.cpp \
 	LanguageRuntime.cpp \
 	Memory.cpp \
+	MemoryHistory.cpp \
+	NativeRegisterContext.cpp \
+	NativeRegisterContextRegisterInfo.cpp \
 	ObjCLanguageRuntime.cpp \
 	OperatingSystem.cpp \
 	PathMappingList.cpp \
 	Platform.cpp \
 	Process.cpp \
+	ProcessInfo.cpp \
+	ProcessLaunchInfo.cpp \
+	Queue.cpp \
+	QueueItem.cpp \
+	QueueList.cpp \
 	RegisterContext.cpp \
+	SectionLoadHistory.cpp \
 	SectionLoadList.cpp \
 	StackFrame.cpp \
 	StackFrameList.cpp \
@@ -27,11 +41,13 @@ SRCS=	ABI.cpp \
 	Target.cpp \
 	TargetList.cpp \
 	Thread.cpp \
+	ThreadCollection.cpp \
 	ThreadList.cpp \
 	ThreadPlan.cpp \
 	ThreadPlanBase.cpp \
 	ThreadPlanCallFunction.cpp \
 	ThreadPlanCallUserExpression.cpp \
+	ThreadPlanPython.cpp \
 	ThreadPlanRunToAddress.cpp \
 	ThreadPlanShouldStopHere.cpp \
 	ThreadPlanStepInRange.cpp \
@@ -47,7 +63,9 @@ SRCS=	ABI.cpp \
 	UnixSignals.cpp \
 	UnwindAssembly.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	AttrList \
+	Attrs \
+	DiagnosticCommonKinds \
 	DeclNodes \
 	StmtNodes \
 	CommentCommandList

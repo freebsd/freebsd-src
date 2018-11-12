@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 1998
+.Dd October 25, 2014
 .Dt PTHREAD_CLEANUP_POP 3
 .Os
 .Sh NAME
@@ -50,6 +50,14 @@ If there is no cleanup routine
 then
 .Fn pthread_cleanup_pop
 does nothing.
+.Pp
+The
+.Fn pthread_cleanup_pop
+function is implemented as a macro that closes a block.
+Invocations of this function must appear as standalone statements that are
+paired with an earlier call of
+.Xr pthread_cleanup_push 3
+in the same lexical scope.
 .Sh RETURN VALUES
 The
 .Fn pthread_cleanup_pop

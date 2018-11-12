@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -119,6 +119,10 @@ struct config_file {
 	size_t infra_cache_slabs;
 	/** max number of hosts in the infra cache */
 	size_t infra_cache_numhosts;
+	/** min value for infra cache rtt */
+	int infra_cache_min_rtt;
+	/** delay close of udp-timeouted ports, if 0 no delayclose. in msec */
+	int delay_close;
 
 	/** the target fetch policy for the iterator */
 	char* target_fetch_policy;
@@ -130,6 +134,8 @@ struct config_file {
 	size_t so_rcvbuf;
 	/** SO_SNDBUF size to set on port 53 UDP socket */
 	size_t so_sndbuf;
+	/** SO_REUSEPORT requested on port 53 sockets */
+	int so_reuseport;
 
 	/** number of interfaces to open. If 0 default all interfaces. */
 	int num_ifs;
@@ -269,6 +275,8 @@ struct config_file {
 	struct config_strlist* local_zones_nodefault;
 	/** local data RRs configged */
 	struct config_strlist* local_data;
+	/** unblock lan zones (reverse lookups for 10/8 and so on) */
+	int unblock_lan_zones;
 
 	/** remote control section. enable toggle. */
 	int remote_control_enable;
@@ -276,6 +284,8 @@ struct config_file {
 	struct config_strlist* control_ifs;
 	/** port number for the control port */
 	int control_port;
+	/** use certificates for remote control */
+	int remote_control_use_cert;
 	/** private key file for server */
 	char* server_key_file;
 	/** certificate file for server */
@@ -296,7 +306,47 @@ struct config_file {
 
 	/* RRSet roundrobin */
 	int rrset_roundrobin;
+
+	/* maximum UDP response size */
+	size_t max_udp_size;
+
+	/* DNS64 prefix */
+	char* dns64_prefix;
+
+	/* Synthetize all AAAA record despite the presence of an authoritative one */
+	int dns64_synthall;
+
+	/** true to enable dnstap support */
+	int dnstap;
+	/** dnstap socket path */
+	char* dnstap_socket_path;
+	/** true to send "identity" via dnstap */
+	int dnstap_send_identity;
+	/** true to send "version" via dnstap */
+	int dnstap_send_version;
+	/** dnstap "identity", hostname is used if "". */
+	char* dnstap_identity;
+	/** dnstap "version", package version is used if "". */
+	char* dnstap_version;
+
+	/** true to log dnstap RESOLVER_QUERY message events */
+	int dnstap_log_resolver_query_messages;
+	/** true to log dnstap RESOLVER_RESPONSE message events */
+	int dnstap_log_resolver_response_messages;
+	/** true to log dnstap CLIENT_QUERY message events */
+	int dnstap_log_client_query_messages;
+	/** true to log dnstap CLIENT_RESPONSE message events */
+	int dnstap_log_client_response_messages;
+	/** true to log dnstap FORWARDER_QUERY message events */
+	int dnstap_log_forwarder_query_messages;
+	/** true to log dnstap FORWARDER_RESPONSE message events */
+	int dnstap_log_forwarder_response_messages;
 };
+
+/** from cfg username, after daemonise setup performed */
+extern uid_t cfg_uid;
+/** from cfg username, after daemonise setup performed */
+extern gid_t cfg_gid;
 
 /**
  * Stub config options
@@ -380,6 +430,12 @@ void config_delete(struct config_file* config);
  * @param config: to apply. Side effect: global constants change.
  */
 void config_apply(struct config_file* config);
+
+/**
+ * Find username, sets cfg_uid and cfg_gid.
+ * @param config: the config structure.
+ */
+void config_lookup_uid(struct config_file* config);
 
 /**
  * Set the given keyword to the given value.
@@ -493,7 +549,7 @@ void config_delstubs(struct config_stub* list);
  * @param str: string of 14 digits
  * @return time value or 0 for error.
  */
-uint32_t cfg_convert_timeval(const char* str);
+time_t cfg_convert_timeval(const char* str);
 
 /**
  * Count number of values in the string.
@@ -632,6 +688,8 @@ struct config_parser_state {
 
 /** global config parser object used during config parsing */
 extern struct config_parser_state* cfg_parser;
+/** init lex state */
+void init_cfg_parse(void);
 /** lex in file */
 extern FILE* ub_c_in;
 /** lex out file */

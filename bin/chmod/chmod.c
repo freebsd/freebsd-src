@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <fts.h>
 #include <limits.h>
 #include <stdio.h>
@@ -62,7 +63,7 @@ main(int argc, char *argv[])
 	FTS *ftsp;
 	FTSENT *p;
 	mode_t *set;
-	int Hflag, Lflag, Rflag, ch, error, fflag, fts_options, hflag, rval;
+	int Hflag, Lflag, Rflag, ch, fflag, fts_options, hflag, rval;
 	int vflag;
 	char *mode;
 	mode_t newmode;
@@ -126,18 +127,23 @@ done:	argv += optind;
 		usage();
 
 	if (Rflag) {
-		fts_options = FTS_PHYSICAL;
 		if (hflag)
-			errx(1,
-		"the -R and -h options may not be specified together.");
-		if (Hflag)
-			fts_options |= FTS_COMFOLLOW;
+			errx(1, "the -R and -h options may not be "
+			    "specified together.");
 		if (Lflag) {
-			fts_options &= ~FTS_PHYSICAL;
-			fts_options |= FTS_LOGICAL;
+			fts_options = FTS_LOGICAL;
+		} else {
+			fts_options = FTS_PHYSICAL;
+
+			if (Hflag) {
+				fts_options |= FTS_COMFOLLOW;
+			}
 		}
-	} else
-		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
+	} else if (hflag) {
+		fts_options = FTS_PHYSICAL;
+	} else {
+		fts_options = FTS_LOGICAL;
+	}
 
 	mode = *argv;
 	if ((set = setmode(mode)) == NULL)
@@ -146,12 +152,21 @@ done:	argv += optind;
 	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
 		err(1, "fts_open");
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
+		int atflag;
+
+		if ((fts_options & FTS_LOGICAL) ||
+		    ((fts_options & FTS_COMFOLLOW) &&
+		    p->fts_level == FTS_ROOTLEVEL))
+			atflag = 0;
+		else
+			atflag = AT_SYMLINK_NOFOLLOW;
+
 		switch (p->fts_info) {
 		case FTS_D:			/* Change it at FTS_DP. */
 			if (!Rflag)
 				fts_set(ftsp, p, FTS_SKIP);
 			continue;
-		case FTS_DNR:			/* Warn, chmod, continue. */
+		case FTS_DNR:			/* Warn, chmod. */
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			break;
@@ -160,16 +175,6 @@ done:	argv += optind;
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			continue;
-		case FTS_SL:			/* Ignore. */
-		case FTS_SLNONE:
-			/*
-			 * The only symlinks that end up here are ones that
-			 * don't point to anything and ones that we found
-			 * doing a physical walk.
-			 */
-			if (!hflag)
-				continue;
-			/* FALLTHROUGH */
 		default:
 			break;
 		}
@@ -182,32 +187,25 @@ done:	argv += optind;
 		if (may_have_nfs4acl(p, hflag) == 0 &&
 		    (newmode & ALLPERMS) == (p->fts_statp->st_mode & ALLPERMS))
 				continue;
-		if (hflag)
-			error = lchmod(p->fts_accpath, newmode);
-		else
-			error = chmod(p->fts_accpath, newmode);
-		if (error) {
-			if (!fflag) {
-				warn("%s", p->fts_path);
-				rval = 1;
-			}
-		} else {
-			if (vflag) {
-				(void)printf("%s", p->fts_path);
+		if (fchmodat(AT_FDCWD, p->fts_accpath, newmode, atflag) == -1
+		    && !fflag) {
+			warn("%s", p->fts_path);
+			rval = 1;
+		} else if (vflag) {
+			(void)printf("%s", p->fts_path);
 
-				if (vflag > 1) {
-					char m1[12], m2[12];
+			if (vflag > 1) {
+				char m1[12], m2[12];
 
-					strmode(p->fts_statp->st_mode, m1);
-					strmode((p->fts_statp->st_mode &
-					    S_IFMT) | newmode, m2);
-					(void)printf(": 0%o [%s] -> 0%o [%s]",
-					    p->fts_statp->st_mode, m1,
-					    (p->fts_statp->st_mode & S_IFMT) |
-					    newmode, m2);
-				}
-				(void)printf("\n");
+				strmode(p->fts_statp->st_mode, m1);
+				strmode((p->fts_statp->st_mode &
+				    S_IFMT) | newmode, m2);
+				(void)printf(": 0%o [%s] -> 0%o [%s]",
+				    p->fts_statp->st_mode, m1,
+				    (p->fts_statp->st_mode & S_IFMT) |
+				    newmode, m2);
 			}
+			(void)printf("\n");
 		}
 	}
 	if (errno)

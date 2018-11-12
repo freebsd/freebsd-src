@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdint.h>
@@ -88,6 +89,14 @@ static void	 print_from(wchar_t *, unsigned char *, unsigned char *);
 
 static void usage(void);
 
+static struct option longopts[] = {
+	{ "alternative",no_argument,	NULL, 'a' },
+	{ "alphanum",	no_argument,	NULL, 'd' },
+	{ "ignore-case",no_argument,	NULL, 'i' },
+	{ "terminate",	required_argument, NULL, 't'},
+	{ NULL,		0,		NULL, 0 },
+};
+
 int
 main(int argc, char *argv[])
 {
@@ -102,8 +111,11 @@ main(int argc, char *argv[])
 
 	file = _path_words;
 	termchar = L'\0';
-	while ((ch = getopt(argc, argv, "dft:")) != -1)
+	while ((ch = getopt_long(argc, argv, "+adft:", longopts, NULL)) != -1)
 		switch(ch) {
+		case 'a':
+			/* COMPATIBILITY */
+			break;
 		case 'd':
 			dflag = 1;
 			break;

@@ -34,12 +34,27 @@
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/random.h>
+#include <linux/moduleparam.h>
+#include <linux/rbtree.h>
 
 #include <rdma/ib_cache.h>
 #include "sa.h"
 
+static int mcast_leave_retries = 3;
+
+/*static const struct kernel_param_ops retry_ops = {
+	.set = param_set_int,
+	.get = param_get_int,
+};
+
+module_param_cb(mcast_leave_retries, &retry_ops, &mcast_leave_retries, 0644);
+MODULE_PARM_DESC(mcast_leave_retries, "Number of retries for multicast leave "
+				      "requests before giving up (default: 3)");
+*/
 static void mcast_add_one(struct ib_device *device);
 static void mcast_remove_one(struct ib_device *device);
 
@@ -250,6 +265,34 @@ static u8 get_leave_state(struct mcast_group *group)
 	return leave_state & group->rec.join_state;
 }
 
+static int check_selector(ib_sa_comp_mask comp_mask,
+			  ib_sa_comp_mask selector_mask,
+			  ib_sa_comp_mask value_mask,
+			  u8 selector, u8 src_value, u8 dst_value)
+{
+	int err;
+
+	if (!(comp_mask & selector_mask) || !(comp_mask & value_mask))
+		return 0;
+
+	switch (selector) {
+	case IB_SA_GT:
+		err = (src_value <= dst_value);
+		break;
+	case IB_SA_LT:
+		err = (src_value >= dst_value);
+		break;
+	case IB_SA_EQ:
+		err = (src_value != dst_value);
+		break;
+	default:
+		err = 0;
+		break;
+	}
+
+	return err;
+}
+
 static int cmp_rec(struct ib_sa_mcmember_rec *src,
 		   struct ib_sa_mcmember_rec *dst, ib_sa_comp_mask comp_mask)
 {
@@ -262,7 +305,7 @@ static int cmp_rec(struct ib_sa_mcmember_rec *src,
 		return -EINVAL;
 	if (comp_mask & IB_SA_MCMEMBER_REC_MLID && src->mlid != dst->mlid)
 		return -EINVAL;
-	if (ib_sa_check_selector(comp_mask, IB_SA_MCMEMBER_REC_MTU_SELECTOR,
+	if (check_selector(comp_mask, IB_SA_MCMEMBER_REC_MTU_SELECTOR,
 				 IB_SA_MCMEMBER_REC_MTU, dst->mtu_selector,
 				 src->mtu, dst->mtu))
 		return -EINVAL;
@@ -271,11 +314,11 @@ static int cmp_rec(struct ib_sa_mcmember_rec *src,
 		return -EINVAL;
 	if (comp_mask & IB_SA_MCMEMBER_REC_PKEY && src->pkey != dst->pkey)
 		return -EINVAL;
-	if (ib_sa_check_selector(comp_mask, IB_SA_MCMEMBER_REC_RATE_SELECTOR,
+	if (check_selector(comp_mask, IB_SA_MCMEMBER_REC_RATE_SELECTOR,
 				 IB_SA_MCMEMBER_REC_RATE, dst->rate_selector,
 				 src->rate, dst->rate))
 		return -EINVAL;
-	if (ib_sa_check_selector(comp_mask,
+	if (check_selector(comp_mask,
 				 IB_SA_MCMEMBER_REC_PACKET_LIFE_TIME_SELECTOR,
 				 IB_SA_MCMEMBER_REC_PACKET_LIFE_TIME,
 				 dst->packet_life_time_selector,
@@ -517,11 +560,15 @@ static void leave_handler(int status, struct ib_sa_mcmember_rec *rec,
 {
 	struct mcast_group *group = context;
 
-	if (status && (group->retries > 0) &&
+	if (status && group->retries > 0 &&
 	    !send_leave(group, group->leave_state))
 		group->retries--;
-	else
+	else {
+		if (status && group->retries <= 0)
+			printk(KERN_WARNING "reached max retry count. "
+			       "status=%d. Giving up\n", status);
 		mcast_work_handler(&group->work);
+	}
 }
 
 static struct mcast_group *acquire_group(struct mcast_port *port,
@@ -544,7 +591,7 @@ static struct mcast_group *acquire_group(struct mcast_port *port,
 	if (!group)
 		return NULL;
 
-	group->retries = 3;
+	group->retries = mcast_leave_retries;
 	group->port = port;
 	group->rec.mgid = *mgid;
 	group->pkey_index = MCAST_INVALID_PKEY_INDEX;
@@ -754,7 +801,6 @@ static void mcast_event_handler(struct ib_event_handler *handler,
 	switch (event->event) {
 	case IB_EVENT_PORT_ERR:
 	case IB_EVENT_LID_CHANGE:
-	case IB_EVENT_SM_CHANGE:
 	case IB_EVENT_CLIENT_REREGISTER:
 		mcast_groups_event(&dev->port[index], MCAST_GROUP_ERROR);
 		break;

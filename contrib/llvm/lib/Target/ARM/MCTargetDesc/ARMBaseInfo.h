@@ -14,8 +14,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARMBASEINFO_H
-#define ARMBASEINFO_H
+#ifndef LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMBASEINFO_H
+#define LLVM_LIB_TARGET_ARM_MCTARGETDESC_ARMBASEINFO_H
 
 #include "ARMMCTargetDesc.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -121,45 +121,89 @@ namespace ARM_MB {
   // the option field for memory barrier operations.
   enum MemBOpt {
     RESERVED_0 = 0,
-    RESERVED_1 = 1,
+    OSHLD = 1,
     OSHST = 2,
     OSH   = 3,
     RESERVED_4 = 4,
-    RESERVED_5 = 5,
+    NSHLD = 5,
     NSHST = 6,
     NSH   = 7,
     RESERVED_8 = 8,
-    RESERVED_9 = 9,
+    ISHLD = 9,
     ISHST = 10,
     ISH   = 11,
     RESERVED_12 = 12,
-    RESERVED_13 = 13,
+    LD = 13,
     ST    = 14,
     SY    = 15
   };
 
-  inline static const char *MemBOptToString(unsigned val) {
+  inline static const char *MemBOptToString(unsigned val, bool HasV8) {
     switch (val) {
     default: llvm_unreachable("Unknown memory operation");
     case SY:    return "sy";
     case ST:    return "st";
-    case RESERVED_13: return "#0xd";
+    case LD: return HasV8 ? "ld" : "#0xd";
     case RESERVED_12: return "#0xc";
     case ISH:   return "ish";
     case ISHST: return "ishst";
-    case RESERVED_9: return "#0x9";
+    case ISHLD: return HasV8 ?  "ishld" : "#0x9";
     case RESERVED_8: return "#0x8";
     case NSH:   return "nsh";
     case NSHST: return "nshst";
-    case RESERVED_5: return "#0x5";
+    case NSHLD: return HasV8 ? "nshld" : "#0x5";
     case RESERVED_4: return "#0x4";
     case OSH:   return "osh";
     case OSHST: return "oshst";
-    case RESERVED_1: return "#0x1";
+    case OSHLD: return HasV8 ? "oshld" : "#0x1";
     case RESERVED_0: return "#0x0";
     }
   }
 } // namespace ARM_MB
+
+namespace ARM_ISB {
+  enum InstSyncBOpt {
+    RESERVED_0 = 0,
+    RESERVED_1 = 1,
+    RESERVED_2 = 2,
+    RESERVED_3 = 3,
+    RESERVED_4 = 4,
+    RESERVED_5 = 5,
+    RESERVED_6 = 6,
+    RESERVED_7 = 7,
+    RESERVED_8 = 8,
+    RESERVED_9 = 9,
+    RESERVED_10 = 10,
+    RESERVED_11 = 11,
+    RESERVED_12 = 12,
+    RESERVED_13 = 13,
+    RESERVED_14 = 14,
+    SY = 15
+  };
+
+  inline static const char *InstSyncBOptToString(unsigned val) {
+    switch (val) {
+    default:
+      llvm_unreachable("Unknown memory operation");
+      case RESERVED_0:  return "#0x0";
+      case RESERVED_1:  return "#0x1";
+      case RESERVED_2:  return "#0x2";
+      case RESERVED_3:  return "#0x3";
+      case RESERVED_4:  return "#0x4";
+      case RESERVED_5:  return "#0x5";
+      case RESERVED_6:  return "#0x6";
+      case RESERVED_7:  return "#0x7";
+      case RESERVED_8:  return "#0x8";
+      case RESERVED_9:  return "#0x9";
+      case RESERVED_10: return "#0xa";
+      case RESERVED_11: return "#0xb";
+      case RESERVED_12: return "#0xc";
+      case RESERVED_13: return "#0xd";
+      case RESERVED_14: return "#0xe";
+      case SY:          return "sy";
+    }
+  }
+} // namespace ARM_ISB
 
 /// isARMLowRegister - Returns true if the register is a low register (r0-r7).
 ///
@@ -235,42 +279,41 @@ namespace ARMII {
     //===------------------------------------------------------------------===//
     // ARM Specific MachineOperand flags.
 
-    MO_NO_FLAG,
+    MO_NO_FLAG = 0,
 
     /// MO_LO16 - On a symbol operand, this represents a relocation containing
     /// lower 16 bit of the address. Used only via movw instruction.
-    MO_LO16,
+    MO_LO16 = 0x1,
 
     /// MO_HI16 - On a symbol operand, this represents a relocation containing
     /// higher 16 bit of the address. Used only via movt instruction.
-    MO_HI16,
-
-    /// MO_LO16_NONLAZY - On a symbol operand "FOO", this represents a
-    /// relocation containing lower 16 bit of the non-lazy-ptr indirect symbol,
-    /// i.e. "FOO$non_lazy_ptr".
-    /// Used only via movw instruction.
-    MO_LO16_NONLAZY,
-
-    /// MO_HI16_NONLAZY - On a symbol operand "FOO", this represents a
-    /// relocation containing lower 16 bit of the non-lazy-ptr indirect symbol,
-    /// i.e. "FOO$non_lazy_ptr". Used only via movt instruction.
-    MO_HI16_NONLAZY,
-
-    /// MO_LO16_NONLAZY_PIC - On a symbol operand "FOO", this represents a
-    /// relocation containing lower 16 bit of the PC relative address of the
-    /// non-lazy-ptr indirect symbol, i.e. "FOO$non_lazy_ptr - LABEL".
-    /// Used only via movw instruction.
-    MO_LO16_NONLAZY_PIC,
-
-    /// MO_HI16_NONLAZY_PIC - On a symbol operand "FOO", this represents a
-    /// relocation containing lower 16 bit of the PC relative address of the
-    /// non-lazy-ptr indirect symbol, i.e. "FOO$non_lazy_ptr - LABEL".
-    /// Used only via movt instruction.
-    MO_HI16_NONLAZY_PIC,
+    MO_HI16 = 0x2,
 
     /// MO_PLT - On a symbol operand, this represents an ELF PLT reference on a
     /// call operand.
-    MO_PLT
+    MO_PLT = 0x3,
+
+    /// MO_OPTION_MASK - Most flags are mutually exclusive; this mask selects
+    /// just that part of the flag set.
+    MO_OPTION_MASK = 0x3f,
+
+    /// MO_DLLIMPORT - On a symbol operand, this represents that the reference
+    /// to the symbol is for an import stub.  This is used for DLL import
+    /// storage class indication on Windows.
+    MO_DLLIMPORT = 0x40,
+
+    /// MO_NONLAZY - This is an independent flag, on a symbol operand "FOO" it
+    /// represents a symbol which, if indirect, will get special Darwin mangling
+    /// as a non-lazy-ptr indirect symbol (i.e. "L_FOO$non_lazy_ptr"). Can be
+    /// combined with MO_LO16, MO_HI16 or MO_NO_FLAG (in a constant-pool, for
+    /// example).
+    MO_NONLAZY = 0x80,
+
+    // It's undefined behaviour if an enum overflows the range between its
+    // smallest and largest values, but since these are |ed together, it can
+    // happen. Put a sentinel in (values of this enum are stored as "unsigned
+    // char").
+    MO_UNUSED_MAXIMUM = 0xff
   };
 
   enum {

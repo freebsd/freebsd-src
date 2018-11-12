@@ -4,7 +4,7 @@
 .error bsd.incs.mk cannot be included directly.
 .endif
 
-.if !defined(NO_INCS) && ${MK_TOOLCHAIN} != "no"
+.if ${MK_INCLUDES} != "no"
 
 INCSGROUPS?=	INCS
 
@@ -23,7 +23,7 @@ all: buildincludes
 ${group}OWN?=	${BINOWN}
 ${group}GRP?=	${BINGRP}
 ${group}MODE?=	${NOBINMODE}
-${group}DIR?=	${INCLUDEDIR}
+${group}DIR?=	${INCLUDEDIR}${PRIVATELIB:D/private/${LIB}}
 
 _${group}INCS=
 .for header in ${${group}}
@@ -81,4 +81,4 @@ installincludes:
 realinstall: installincludes
 .ORDER: beforeinstall installincludes
 
-.endif # !defined(NO_INCS) && ${MK_TOOLCHAIN} != "no"
+.endif # ${MK_TOOLCHAIN} != "no"

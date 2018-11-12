@@ -8,6 +8,7 @@
  */
 
 #include <ldns/config.h>
+#ifdef USE_DANE
 
 #include <ldns/ldns.h>
 #include <ldns/dane.h>
@@ -15,8 +16,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
+#ifdef HAVE_NETDB_H
 #include <netdb.h>
+#endif
 
 #ifdef HAVE_SSL
 #include <openssl/ssl.h>
@@ -119,13 +124,13 @@ ldns_dane_cert2rdf(ldns_rdf** rdf, X509* cert,
 	
 	case LDNS_TLSA_MATCHING_TYPE_SHA256:
 
-		digest = LDNS_XMALLOC(unsigned char, SHA256_DIGEST_LENGTH);
+		digest = LDNS_XMALLOC(unsigned char, LDNS_SHA256_DIGEST_LENGTH);
 		if (digest == NULL) {
 			LDNS_FREE(buf);
 			return LDNS_STATUS_MEM_ERR;
 		}
 		(void) ldns_sha256(buf, (unsigned int)len, digest);
-		*rdf = ldns_rdf_new(LDNS_RDF_TYPE_HEX, SHA256_DIGEST_LENGTH,
+		*rdf = ldns_rdf_new(LDNS_RDF_TYPE_HEX, LDNS_SHA256_DIGEST_LENGTH,
 				digest);
 		LDNS_FREE(buf);
 
@@ -134,13 +139,13 @@ ldns_dane_cert2rdf(ldns_rdf** rdf, X509* cert,
 
 	case LDNS_TLSA_MATCHING_TYPE_SHA512:
 
-		digest = LDNS_XMALLOC(unsigned char, SHA512_DIGEST_LENGTH);
+		digest = LDNS_XMALLOC(unsigned char, LDNS_SHA512_DIGEST_LENGTH);
 		if (digest == NULL) {
 			LDNS_FREE(buf);
 			return LDNS_STATUS_MEM_ERR;
 		}
 		(void) ldns_sha512(buf, (unsigned int)len, digest);
-		*rdf = ldns_rdf_new(LDNS_RDF_TYPE_HEX, SHA512_DIGEST_LENGTH,
+		*rdf = ldns_rdf_new(LDNS_RDF_TYPE_HEX, LDNS_SHA512_DIGEST_LENGTH,
 				digest);
 		LDNS_FREE(buf);
 
@@ -740,3 +745,4 @@ ldns_dane_verify(ldns_rr_list* tlsas,
 	return s;
 }
 #endif /* HAVE_SSL */
+#endif /* USE_DANE */

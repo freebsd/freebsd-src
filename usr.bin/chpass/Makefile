@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/2/94
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}/../../usr.sbin/pwd_mkdb ${.CURDIR}/../../lib/libc/gen
 
@@ -16,11 +16,9 @@ CFLAGS+= -DYP
 #CFLAGS+=-DRESTRICT_FULLNAME_CHANGE
 CFLAGS+=-I${.CURDIR}/../../usr.sbin/pwd_mkdb -I${.CURDIR}/../../lib/libc/gen -I.
 
-DPADD=	${LIBCRYPT} ${LIBUTIL}
-LDADD=	-lcrypt -lutil
+LIBADD=	crypt util
 .if ${MK_NIS} != "no"
-DPADD+=	${LIBYPCLNT}
-LDADD+=	-lypclnt
+LIBADD+=	ypclnt
 .endif 
 
 LINKS=	${BINDIR}/chpass ${BINDIR}/chfn

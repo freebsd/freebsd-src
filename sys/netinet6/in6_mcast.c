@@ -158,21 +158,18 @@ static SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, mcast, CTLFLAG_RW, 0,
 
 static u_long in6_mcast_maxgrpsrc = IPV6_MAX_GROUP_SRC_FILTER;
 SYSCTL_ULONG(_net_inet6_ip6_mcast, OID_AUTO, maxgrpsrc,
-    CTLFLAG_RW | CTLFLAG_TUN, &in6_mcast_maxgrpsrc, 0,
+    CTLFLAG_RWTUN, &in6_mcast_maxgrpsrc, 0,
     "Max source filters per group");
-TUNABLE_ULONG("net.inet6.ip6.mcast.maxgrpsrc", &in6_mcast_maxgrpsrc);
 
 static u_long in6_mcast_maxsocksrc = IPV6_MAX_SOCK_SRC_FILTER;
 SYSCTL_ULONG(_net_inet6_ip6_mcast, OID_AUTO, maxsocksrc,
-    CTLFLAG_RW | CTLFLAG_TUN, &in6_mcast_maxsocksrc, 0,
+    CTLFLAG_RWTUN, &in6_mcast_maxsocksrc, 0,
     "Max source filters per socket");
-TUNABLE_ULONG("net.inet6.ip6.mcast.maxsocksrc", &in6_mcast_maxsocksrc);
 
 /* TODO Virtualize this switch. */
 int in6_mcast_loop = IPV6_DEFAULT_MULTICAST_LOOP;
-SYSCTL_INT(_net_inet6_ip6_mcast, OID_AUTO, loop, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_net_inet6_ip6_mcast, OID_AUTO, loop, CTLFLAG_RWTUN,
     &in6_mcast_loop, 0, "Loopback multicast datagrams by default");
-TUNABLE_INT("net.inet6.ip6.mcast.loop", &in6_mcast_loop);
 
 static SYSCTL_NODE(_net_inet6_ip6_mcast, OID_AUTO, filters,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip6_mcast_filters,
@@ -482,7 +479,7 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 	inm->in6m_ifma = ifma;
 	inm->in6m_refcount = 1;
 	inm->in6m_state = MLD_NOT_MEMBER;
-	IFQ_SET_MAXLEN(&inm->in6m_scq, MLD_MAX_STATE_CHANGES);
+	mbufq_init(&inm->in6m_scq, MLD_MAX_STATE_CHANGES);
 
 	inm->in6m_st[0].iss_fmode = MCAST_UNDEFINED;
 	inm->in6m_st[1].iss_fmode = MCAST_UNDEFINED;
@@ -1076,6 +1073,8 @@ in6m_purge(struct in6_multi *inm)
 		free(ims, M_IP6MSOURCE);
 		inm->in6m_nsrc--;
 	}
+	/* Free state-change requests that might be queued. */
+	mbufq_drain(&inm->in6m_scq);
 }
 
 /*
@@ -1450,15 +1449,14 @@ in6p_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 
 	CTR1(KTR_MLD, "%s: merge inm state", __func__);
 	error = in6m_merge(inm, imf);
-	if (error) {
-		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
-		goto out_im6f_rollback;
-	}
-
-	CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-	error = mld_change_state(inm, 0);
 	if (error)
-		CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
+	else {
+		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+		error = mld_change_state(inm, 0);
+		if (error)
+			CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+	}
 
 	IN6_MULTI_UNLOCK();
 
@@ -1781,8 +1779,6 @@ in6p_lookup_mcast_ifp(const struct inpcb *in6p,
 	    ("%s: not INP_IPV6 inpcb", __func__));
 	KASSERT(gsin6->sin6_family == AF_INET6,
 	    ("%s: not AF_INET6 group", __func__));
-	KASSERT(IN6_IS_ADDR_MULTICAST(&gsin6->sin6_addr),
-	    ("%s: not multicast", __func__));
 
 	ifp = NULL;
 	memset(&ro6, 0, sizeof(struct route_in6));
@@ -2046,29 +2042,27 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	if (is_new) {
 		error = in6_mc_join_locked(ifp, &gsa->sin6.sin6_addr, imf,
 		    &inm, 0);
-		if (error)
+		if (error) {
+			IN6_MULTI_UNLOCK();
 			goto out_im6o_free;
+		}
 		imo->im6o_membership[idx] = inm;
 	} else {
 		CTR1(KTR_MLD, "%s: merge inm state", __func__);
 		error = in6m_merge(inm, imf);
-		if (error) {
+		if (error)
 			CTR1(KTR_MLD, "%s: failed to merge inm state",
 			    __func__);
-			goto out_im6f_rollback;
-		}
-		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-		error = mld_change_state(inm, 0);
-		if (error) {
-			CTR1(KTR_MLD, "%s: failed mld downcall",
-			    __func__);
-			goto out_im6f_rollback;
+		else {
+			CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+			error = mld_change_state(inm, 0);
+			if (error)
+				CTR1(KTR_MLD, "%s: failed mld downcall",
+				    __func__);
 		}
 	}
 
 	IN6_MULTI_UNLOCK();
-
-out_im6f_rollback:
 	INP_WLOCK_ASSERT(inp);
 	if (error) {
 		im6f_rollback(imf);
@@ -2295,23 +2289,20 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	} else {
 		CTR1(KTR_MLD, "%s: merge inm state", __func__);
 		error = in6m_merge(inm, imf);
-		if (error) {
+		if (error)
 			CTR1(KTR_MLD, "%s: failed to merge inm state",
 			    __func__);
-			goto out_im6f_rollback;
-		}
-
-		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-		error = mld_change_state(inm, 0);
-		if (error) {
-			CTR1(KTR_MLD, "%s: failed mld downcall",
-			    __func__);
+		else {
+			CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+			error = mld_change_state(inm, 0);
+			if (error)
+				CTR1(KTR_MLD, "%s: failed mld downcall",
+				    __func__);
 		}
 	}
 
 	IN6_MULTI_UNLOCK();
 
-out_im6f_rollback:
 	if (error)
 		im6f_rollback(imf);
 	else
@@ -2357,11 +2348,15 @@ in6p_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 		return (error);
 	if (V_if_index < ifindex)
 		return (EINVAL);
-
-	ifp = ifnet_byindex(ifindex);
-	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
-		return (EADDRNOTAVAIL);
-
+	if (ifindex == 0)
+		ifp = NULL;
+	else {
+		ifp = ifnet_byindex(ifindex);
+		if (ifp == NULL)
+			return (EINVAL);
+		if ((ifp->if_flags & IFF_MULTICAST) == 0)
+			return (EADDRNOTAVAIL);
+	}
 	imo = in6p_findmoptions(inp);
 	imo->im6o_multicast_ifp = ifp;
 	INP_WUNLOCK(inp);
@@ -2520,15 +2515,14 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	 */
 	CTR1(KTR_MLD, "%s: merge inm state", __func__);
 	error = in6m_merge(inm, imf);
-	if (error) {
-		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
-		goto out_im6f_rollback;
-	}
-
-	CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-	error = mld_change_state(inm, 0);
 	if (error)
-		CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
+	else {
+		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+		error = mld_change_state(inm, 0);
+		if (error)
+			CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+	}
 
 	IN6_MULTI_UNLOCK();
 
@@ -2814,7 +2808,7 @@ in6m_print(const struct in6_multi *inm)
 	    inm->in6m_timer,
 	    in6m_state_str(inm->in6m_state),
 	    inm->in6m_refcount,
-	    inm->in6m_scq.ifq_len);
+	    mbufq_len(&inm->in6m_scq));
 	printf("mli %p nsrc %lu sctimer %u scrv %u\n",
 	    inm->in6m_mli,
 	    inm->in6m_nsrc,

@@ -186,10 +186,12 @@ struct vm_object {
 #define	OBJ_NOSPLIT	0x0010		/* dont split this object */
 #define OBJ_PIPWNT	0x0040		/* paging in progress wanted */
 #define OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty, only for vnode */
+#define	OBJ_TMPFS_NODE	0x0200		/* object belongs to tmpfs VREG node */
+#define	OBJ_TMPFS_DIRTY	0x0400		/* dirty tmpfs obj */
 #define	OBJ_COLORED	0x1000		/* pg_color is defined */
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 #define	OBJ_DISCONNECTWNT 0x4000	/* disconnect from vnode wanted */
-#define	OBJ_TMPFS	0x8000
+#define	OBJ_TMPFS	0x8000		/* has tmpfs vnode allocated */
 
 #define IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
 #define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
@@ -198,7 +200,7 @@ struct vm_object {
 
 #define OBJPC_SYNC	0x1			/* sync I/O */
 #define OBJPC_INVAL	0x2			/* invalidate */
-#define OBJPC_NOSYNC	0x4			/* skip if PG_NOSYNC */
+#define OBJPC_NOSYNC	0x4			/* skip if VPO_NOSYNC */
 
 /*
  * The following options are supported by vm_object_page_remove().
@@ -224,6 +226,8 @@ extern struct vm_object kmem_object_store;
 	rw_assert(&(object)->lock, RA_RLOCKED)
 #define	VM_OBJECT_ASSERT_WLOCKED(object)				\
 	rw_assert(&(object)->lock, RA_WLOCKED)
+#define	VM_OBJECT_ASSERT_UNLOCKED(object)				\
+	rw_assert(&(object)->lock, RA_UNLOCKED)
 #define	VM_OBJECT_LOCK_DOWNGRADE(object)				\
 	rw_downgrade(&(object)->lock)
 #define	VM_OBJECT_RLOCK(object)						\
@@ -236,6 +240,8 @@ extern struct vm_object kmem_object_store;
 	rw_try_rlock(&(object)->lock)
 #define	VM_OBJECT_TRYWLOCK(object)					\
 	rw_try_wlock(&(object)->lock)
+#define	VM_OBJECT_TRYUPGRADE(object)					\
+	rw_try_upgrade(&(object)->lock)
 #define	VM_OBJECT_WLOCK(object)						\
 	rw_wlock(&(object)->lock)
 #define	VM_OBJECT_WUNLOCK(object)					\
@@ -249,6 +255,30 @@ vm_object_set_flag(vm_object_t object, u_short bits)
 {
 
 	object->flags |= bits;
+}
+
+/*
+ *	Conditionally set the object's color, which (1) enables the allocation
+ *	of physical memory reservations for anonymous objects and larger-than-
+ *	superpage-sized named objects and (2) determines the first page offset
+ *	within the object at which a reservation may be allocated.  In other
+ *	words, the color determines the alignment of the object with respect
+ *	to the largest superpage boundary.  When mapping named objects, like
+ *	files or POSIX shared memory objects, the color should be set to zero
+ *	before a virtual address is selected for the mapping.  In contrast,
+ *	for anonymous objects, the color may be set after the virtual address
+ *	is selected.
+ *
+ *	The object must be locked.
+ */
+static __inline void
+vm_object_color(vm_object_t object, u_short color)
+{
+
+	if ((object->flags & OBJ_COLORED) == 0) {
+		object->pg_color = color;
+		object->flags |= OBJ_COLORED;
+	}
 }
 
 void vm_object_clear_flag(vm_object_t object, u_short bits);
@@ -290,6 +320,9 @@ void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
 void vm_object_split(vm_map_entry_t);
 boolean_t vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
     boolean_t);
+void vm_object_unwire(vm_object_t object, vm_ooffset_t offset,
+    vm_size_t length, uint8_t queue);
+struct vnode *vm_object_vnode(vm_object_t object);
 #endif				/* _KERNEL */
 
 #endif				/* _VM_OBJECT_ */

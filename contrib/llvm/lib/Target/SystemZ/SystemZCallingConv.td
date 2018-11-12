@@ -13,7 +13,7 @@ class CCIfExtend<CCAction A>
   : CCIf<"ArgFlags.isSExt() || ArgFlags.isZExt()", A>;
 
 //===----------------------------------------------------------------------===//
-// SVR4 return value calling convention
+// z/Linux return value calling convention
 //===----------------------------------------------------------------------===//
 def RetCC_SystemZ : CallingConv<[
   // Promote i32 to i64 if it has an explicit extension type.
@@ -23,7 +23,7 @@ def RetCC_SystemZ : CallingConv<[
   // call-clobbered argument registers available for code that doesn't
   // care about the ABI.  (R6 is an argument register too, but is
   // call-saved and therefore not suitable for return values.)
-  CCIfType<[i32], CCAssignToReg<[R2W, R3W, R4W, R5W]>>,
+  CCIfType<[i32], CCAssignToReg<[R2L, R3L, R4L, R5L]>>,
   CCIfType<[i64], CCAssignToReg<[R2D, R3D, R4D, R5D]>>,
 
   // ABI-complaint code returns float and double in F0.  Make the
@@ -39,7 +39,7 @@ def RetCC_SystemZ : CallingConv<[
 ]>;
 
 //===----------------------------------------------------------------------===//
-// SVR4 argument calling conventions
+// z/Linux argument calling conventions
 //===----------------------------------------------------------------------===//
 def CC_SystemZ : CallingConv<[
   // Promote i32 to i64 if it has an explicit extension type.
@@ -53,7 +53,7 @@ def CC_SystemZ : CallingConv<[
 
   // The first 5 integer arguments are passed in R2-R6.  Note that R6
   // is call-saved.
-  CCIfType<[i32], CCAssignToReg<[R2W, R3W, R4W, R5W, R6W]>>,
+  CCIfType<[i32], CCAssignToReg<[R2L, R3L, R4L, R5L, R6L]>>,
   CCIfType<[i64], CCAssignToReg<[R2D, R3D, R4D, R5D, R6D]>>,
 
   // The first 4 float and double arguments are passed in even registers F0-F6.
@@ -63,3 +63,9 @@ def CC_SystemZ : CallingConv<[
   // Other arguments are passed in 8-byte-aligned 8-byte stack slots.
   CCIfType<[i32, i64, f32, f64], CCAssignToStack<8, 8>>
 ]>;
+
+//===----------------------------------------------------------------------===//
+// z/Linux callee-saved registers
+//===----------------------------------------------------------------------===//
+def CSR_SystemZ : CalleeSavedRegs<(add (sequence "R%dD", 6, 15),
+                                       (sequence "F%dD", 8, 15))>;

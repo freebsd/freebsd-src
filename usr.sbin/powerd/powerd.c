@@ -127,6 +127,12 @@ static int	devd_pipe = -1;
 #define DEVD_RETRY_INTERVAL 60 /* seconds */
 static struct timeval tried_devd;
 
+/*
+ * This function returns summary load of all CPUs.  It was made so
+ * intentionally to not reduce performance in scenarios when several
+ * threads are processing requests as a pipeline -- running one at
+ * a time on different CPUs and waiting for each other.
+ */
 static int
 read_usage_times(int *load)
 {
@@ -279,6 +285,7 @@ static void
 acline_init(void)
 {
 	acline_mib_len = 4;
+	acline_status = SRC_UNKNOWN;
 
 	if (sysctlnametomib(ACPIAC, acline_mib, &acline_mib_len) == 0) {
 		acline_mode = ac_sysctl;

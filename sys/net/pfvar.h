@@ -35,6 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/counter.h>
 #include <sys/refcount.h>
 #include <sys/tree.h>
 
@@ -191,21 +192,20 @@ extern struct rwlock pf_rules_lock;
 
 #define PF_AEQ(a, b, c) \
 	((c == AF_INET && (a)->addr32[0] == (b)->addr32[0]) || \
-	((a)->addr32[3] == (b)->addr32[3] && \
+	(c == AF_INET6 && (a)->addr32[3] == (b)->addr32[3] && \
 	(a)->addr32[2] == (b)->addr32[2] && \
 	(a)->addr32[1] == (b)->addr32[1] && \
 	(a)->addr32[0] == (b)->addr32[0])) \
 
 #define PF_ANEQ(a, b, c) \
-	((c == AF_INET && (a)->addr32[0] != (b)->addr32[0]) || \
-	((a)->addr32[3] != (b)->addr32[3] || \
-	(a)->addr32[2] != (b)->addr32[2] || \
+	((a)->addr32[0] != (b)->addr32[0] || \
 	(a)->addr32[1] != (b)->addr32[1] || \
-	(a)->addr32[0] != (b)->addr32[0])) \
+	(a)->addr32[2] != (b)->addr32[2] || \
+	(a)->addr32[3] != (b)->addr32[3]) \
 
 #define PF_AZERO(a, c) \
 	((c == AF_INET && !(a)->addr32[0]) || \
-	(!(a)->addr32[0] && !(a)->addr32[1] && \
+	(c == AF_INET6 && !(a)->addr32[0] && !(a)->addr32[1] && \
 	!(a)->addr32[2] && !(a)->addr32[3] )) \
 
 #define PF_MATCHA(n, a, m, b, f) \
@@ -512,13 +512,9 @@ struct pf_rule {
 
 	int			 rtableid;
 	u_int32_t		 timeout[PFTM_MAX];
-	u_int32_t		 states_cur;
-	u_int32_t		 states_tot;
 	u_int32_t		 max_states;
-	u_int32_t		 src_nodes;
 	u_int32_t		 max_src_nodes;
 	u_int32_t		 max_src_states;
-	u_int32_t		 spare1;			/* netgraph */
 	u_int32_t		 max_src_conn;
 	struct {
 		u_int32_t		limit;
@@ -531,6 +527,10 @@ struct pf_rule {
 	u_int32_t		 prob;
 	uid_t			 cuid;
 	pid_t			 cpid;
+
+	counter_u64_t		 states_cur;
+	counter_u64_t		 states_tot;
+	counter_u64_t		 src_nodes;
 
 	u_int16_t		 return_icmp;
 	u_int16_t		 return_icmp6;
@@ -579,6 +579,10 @@ struct pf_rule {
 		struct pf_addr		addr;
 		u_int16_t		port;
 	}			divert;
+
+	uint64_t		 u_states_cur;
+	uint64_t		 u_states_tot;
+	uint64_t		 u_src_nodes;
 };
 
 /* rule flags */
@@ -1118,27 +1122,6 @@ struct pf_pdesc {
 #define PF_DPORT_RANGE	0x01		/* Dest port uses range */
 #define PF_RPORT_RANGE	0x02		/* RDR'ed port uses range */
 
-/* Counters for other things we want to keep track of */
-#define LCNT_STATES		0	/* states */
-#define LCNT_SRCSTATES		1	/* max-src-states */
-#define LCNT_SRCNODES		2	/* max-src-nodes */
-#define LCNT_SRCCONN		3	/* max-src-conn */
-#define LCNT_SRCCONNRATE	4	/* max-src-conn-rate */
-#define LCNT_OVERLOAD_TABLE	5	/* entry added to overload table */
-#define LCNT_OVERLOAD_FLUSH	6	/* state entries flushed */
-#define LCNT_MAX		7	/* total+1 */
-
-#define LCNT_NAMES { \
-	"max states per rule", \
-	"max-src-states", \
-	"max-src-nodes", \
-	"max-src-conn", \
-	"max-src-conn-rate", \
-	"overload table insertion", \
-	"overload flush states", \
-	NULL \
-}
-
 /* UDP state enumeration */
 #define PFUDPS_NO_TRAFFIC	0
 #define PFUDPS_SINGLE		1
@@ -1167,16 +1150,6 @@ struct pf_pdesc {
 	NULL \
 }
 
-#define FCNT_STATE_SEARCH	0
-#define FCNT_STATE_INSERT	1
-#define FCNT_STATE_REMOVALS	2
-#define FCNT_MAX		3
-
-#define SCNT_SRC_NODE_SEARCH	0
-#define SCNT_SRC_NODE_INSERT	1
-#define SCNT_SRC_NODE_REMOVALS	2
-#define SCNT_MAX		3
-
 #define ACTION_SET(a, x) \
 	do { \
 		if ((a) != NULL) \
@@ -1188,24 +1161,22 @@ struct pf_pdesc {
 		if ((a) != NULL) \
 			*(a) = (x); \
 		if (x < PFRES_MAX) \
-			V_pf_status.counters[x]++; \
+			counter_u64_add(V_pf_status.counters[x], 1); \
 	} while (0)
 
-struct pf_status {
-	u_int64_t	counters[PFRES_MAX];
-	u_int64_t	lcounters[LCNT_MAX];	/* limit counters */
-	u_int64_t	fcounters[FCNT_MAX];
-	u_int64_t	scounters[SCNT_MAX];
-	u_int64_t	pcounters[2][2][3];
-	u_int64_t	bcounters[2][2];
-	u_int32_t	running;
-	u_int32_t	states;
-	u_int32_t	src_nodes;
-	u_int32_t	since;
-	u_int32_t	debug;
-	u_int32_t	hostid;
+struct pf_kstatus {
+	counter_u64_t	counters[PFRES_MAX]; /* reason for passing/dropping */
+	counter_u64_t	lcounters[LCNT_MAX]; /* limit counters */
+	counter_u64_t	fcounters[FCNT_MAX]; /* state operation counters */
+	counter_u64_t	scounters[SCNT_MAX]; /* src_node operation counters */
+	uint32_t	states;
+	uint32_t	src_nodes;
+	uint32_t	running;
+	uint32_t	since;
+	uint32_t	debug;
+	uint32_t	hostid;
 	char		ifname[IFNAMSIZ];
-	u_int8_t	pf_chksum[PF_MD5_DIGEST_LENGTH];
+	uint8_t		pf_chksum[PF_MD5_DIGEST_LENGTH];
 };
 
 struct pf_divert {
@@ -1483,19 +1454,17 @@ struct pf_idhash {
 	struct mtx			lock;
 };
 
+extern u_long		pf_hashmask;
+extern u_long		pf_srchashmask;
 #define	PF_HASHSIZ	(32768)
 VNET_DECLARE(struct pf_keyhash *, pf_keyhash);
 VNET_DECLARE(struct pf_idhash *, pf_idhash);
-VNET_DECLARE(u_long, pf_hashmask);
 #define V_pf_keyhash	VNET(pf_keyhash)
 #define	V_pf_idhash	VNET(pf_idhash)
-#define	V_pf_hashmask	VNET(pf_hashmask)
 VNET_DECLARE(struct pf_srchash *, pf_srchash);
-VNET_DECLARE(u_long, pf_srchashmask);
 #define	V_pf_srchash	VNET(pf_srchash)
-#define V_pf_srchashmask VNET(pf_srchashmask)
 
-#define PF_IDHASH(s)	(be64toh((s)->id) % (V_pf_hashmask + 1))
+#define PF_IDHASH(s)	(be64toh((s)->id) % (pf_hashmask + 1))
 
 VNET_DECLARE(void *, pf_swi_cookie);
 #define V_pf_swi_cookie	VNET(pf_swi_cookie)
@@ -1526,6 +1495,8 @@ VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);
 #define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)
 
 void				 pf_initialize(void);
+void				 pf_mtag_initialize(void);
+void				 pf_mtag_cleanup(void);
 void				 pf_cleanup(void);
 
 struct pf_mtag			*pf_get_mtag(struct mbuf *);
@@ -1578,7 +1549,6 @@ extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 extern struct pf_src_node	*pf_find_src_node(struct pf_addr *,
 				    struct pf_rule *, sa_family_t, int);
 extern void			 pf_unlink_src_node(struct pf_src_node *);
-extern void			 pf_unlink_src_node_locked(struct pf_src_node *);
 extern u_int			 pf_free_src_nodes(struct pf_src_node_list *);
 extern void			 pf_print_state(struct pf_state *);
 extern void			 pf_print_flags(u_int8_t);
@@ -1595,13 +1565,18 @@ void				pf_free_rule(struct pf_rule *);
 
 #ifdef INET
 int	pf_test(int, struct ifnet *, struct mbuf **, struct inpcb *);
+int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
+	    struct pf_pdesc *);
 #endif /* INET */
 
 #ifdef INET6
 int	pf_test6(int, struct ifnet *, struct mbuf **, struct inpcb *);
+int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kif *, u_short *,
+	    struct pf_pdesc *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, u_int8_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
+int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *);
 #endif /* INET6 */
 
 u_int32_t	pf_new_isn(struct pf_state *);
@@ -1617,10 +1592,6 @@ int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 
 void	pf_normalize_init(void);
 void	pf_normalize_cleanup(void);
-int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
-	    struct pf_pdesc *);
-int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kif *, u_short *,
-	    struct pf_pdesc *);
 int	pf_normalize_tcp(int, struct pfi_kif *, struct mbuf *, int, int, void *,
 	    struct pf_pdesc *);
 void	pf_normalize_tcp_cleanup(struct pf_state *);
@@ -1697,10 +1668,12 @@ int		 pfi_clear_flags(const char *, int);
 
 int		 pf_match_tag(struct mbuf *, struct pf_rule *, int *, int);
 int		 pf_tag_packet(struct mbuf *, struct pf_pdesc *, int);
+int		 pf_addr_cmp(struct pf_addr *, struct pf_addr *,
+		    sa_family_t);
 void		 pf_qid2qname(u_int32_t, char *);
 
-VNET_DECLARE(struct pf_status,		 pf_status);
-#define	V_pf_status			 VNET(pf_status)
+VNET_DECLARE(struct pf_kstatus, pf_status);
+#define	V_pf_status	VNET(pf_status)
 
 struct pf_limit {
 	uma_zone_t	zone;

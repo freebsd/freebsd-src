@@ -496,7 +496,7 @@ public:
   NodeRef() {}
 
   /// operator bool - Detect a null ref.
-  operator bool() const { return pip.getOpaqueValue(); }
+  LLVM_EXPLICIT operator bool() const { return pip.getOpaqueValue(); }
 
   /// NodeRef - Create a reference to the node p with n elements.
   template <typename NodeT>
@@ -612,7 +612,7 @@ public:
 /// insertFrom - Add mapping of [a;b] to y if possible, coalescing as much as
 /// possible. This may cause the node to grow by 1, or it may cause the node
 /// to shrink because of coalescing.
-/// @param i    Starting index = insertFrom(0, size, a)
+/// @param Pos  Starting index = insertFrom(0, size, a)
 /// @param Size Number of elements in node.
 /// @param a    Interval start.
 /// @param b    Interval stop.
@@ -1177,7 +1177,7 @@ branchRoot(unsigned Position) {
   if (Nodes == 1)
     size[0] = rootSize;
   else
-    NewOffset = distribute(Nodes, rootSize, Leaf::Capacity,  NULL, size,
+    NewOffset = distribute(Nodes, rootSize, Leaf::Capacity,  nullptr, size,
                            Position, true);
 
   // Allocate new nodes.
@@ -1218,7 +1218,7 @@ splitRoot(unsigned Position) {
   if (Nodes == 1)
     Size[0] = rootSize;
   else
-    NewOffset = distribute(Nodes, rootSize, Leaf::Capacity,  NULL, Size,
+    NewOffset = distribute(Nodes, rootSize, Leaf::Capacity,  nullptr, Size,
                            Position, true);
 
   // Allocate new nodes.
@@ -1346,7 +1346,7 @@ protected:
 
 public:
   /// const_iterator - Create an iterator that isn't pointing anywhere.
-  const_iterator() : map(0) {}
+  const_iterator() : map(nullptr) {}
 
   /// setMap - Change the map iterated over. This call must be followed by a
   /// call to goToBegin(), goToEnd(), or find()
@@ -1956,7 +1956,7 @@ iterator::eraseNode(unsigned Level) {
 /// overflow - Distribute entries of the current node evenly among
 /// its siblings and ensure that the current node is not full.
 /// This may require allocating a new node.
-/// @param NodeT The type of node at Level (Leaf or Branch).
+/// @tparam NodeT The type of node at Level (Leaf or Branch).
 /// @param Level path index of the overflowing node.
 /// @return True when the tree height was changed.
 template <typename KeyT, typename ValT, unsigned N, typename Traits>

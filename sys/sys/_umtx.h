@@ -33,10 +33,6 @@
 #include <sys/_types.h>
 #include <sys/_timespec.h>
 
-struct umtx {
-	volatile unsigned long	u_owner;	/* Owner of the mutex. */
-};
-
 struct umutex {
 	volatile __lwpid_t	m_owner;	/* Owner of the mutex */
 	__uint32_t		m_flags;	/* Flags of the mutex */
@@ -62,6 +58,11 @@ struct urwlock {
 struct _usem {
 	volatile __uint32_t	_has_waiters;
 	volatile __uint32_t	_count;
+	__uint32_t		_flags;
+};
+
+struct _usem2 {
+	volatile __uint32_t	_count;		/* Waiters flag in high bit. */
 	__uint32_t		_flags;
 };
 

@@ -6,208 +6,105 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-// This file implements the CallGraph class and provides the BasicCallGraph
-// default implementation.
-//
-//===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/CallGraph.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/CallSite.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-namespace {
-
 //===----------------------------------------------------------------------===//
-// BasicCallGraph class definition
+// Implementations of the CallGraph class methods.
 //
-class BasicCallGraph : public ModulePass, public CallGraph {
-  // Root is root of the call graph, or the external node if a 'main' function
-  // couldn't be found.
-  //
-  CallGraphNode *Root;
 
-  // ExternalCallingNode - This node has edges to all external functions and
-  // those internal functions that have their address taken.
-  CallGraphNode *ExternalCallingNode;
+CallGraph::CallGraph(Module &M)
+    : M(M), Root(nullptr), ExternalCallingNode(getOrInsertFunction(nullptr)),
+      CallsExternalNode(new CallGraphNode(nullptr)) {
+  // Add every function to the call graph.
+  for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
+    addToCallGraph(I);
 
-  // CallsExternalNode - This node has edges to it from all functions making
-  // indirect calls or calling an external function.
-  CallGraphNode *CallsExternalNode;
-
-public:
-  static char ID; // Class identification, replacement for typeinfo
-  BasicCallGraph() : ModulePass(ID), Root(0), 
-    ExternalCallingNode(0), CallsExternalNode(0) {
-      initializeBasicCallGraphPass(*PassRegistry::getPassRegistry());
-    }
-
-  // runOnModule - Compute the call graph for the specified module.
-  virtual bool runOnModule(Module &M) {
-    CallGraph::initialize(M);
-    
-    ExternalCallingNode = getOrInsertFunction(0);
-    CallsExternalNode = new CallGraphNode(0);
-    Root = 0;
-  
-    // Add every function to the call graph.
-    for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
-      addToCallGraph(I);
-  
-    // If we didn't find a main function, use the external call graph node
-    if (Root == 0) Root = ExternalCallingNode;
-    
-    return false;
-  }
-
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.setPreservesAll();
-  }
-
-  virtual void print(raw_ostream &OS, const Module *) const {
-    OS << "CallGraph Root is: ";
-    if (Function *F = getRoot()->getFunction())
-      OS << F->getName() << "\n";
-    else {
-      OS << "<<null function: 0x" << getRoot() << ">>\n";
-    }
-    
-    CallGraph::print(OS, 0);
-  }
-
-  virtual void releaseMemory() {
-    destroy();
-  }
-  
-  /// getAdjustedAnalysisPointer - This method is used when a pass implements
-  /// an analysis interface through multiple inheritance.  If needed, it should
-  /// override this to adjust the this pointer as needed for the specified pass
-  /// info.
-  virtual void *getAdjustedAnalysisPointer(AnalysisID PI) {
-    if (PI == &CallGraph::ID)
-      return (CallGraph*)this;
-    return this;
-  }
-  
-  CallGraphNode* getExternalCallingNode() const { return ExternalCallingNode; }
-  CallGraphNode* getCallsExternalNode()   const { return CallsExternalNode; }
-
-  // getRoot - Return the root of the call graph, which is either main, or if
-  // main cannot be found, the external node.
-  //
-  CallGraphNode *getRoot()             { return Root; }
-  const CallGraphNode *getRoot() const { return Root; }
-
-private:
-  //===---------------------------------------------------------------------
-  // Implementation of CallGraph construction
-  //
-
-  // addToCallGraph - Add a function to the call graph, and link the node to all
-  // of the functions that it calls.
-  //
-  void addToCallGraph(Function *F) {
-    CallGraphNode *Node = getOrInsertFunction(F);
-
-    // If this function has external linkage, anything could call it.
-    if (!F->hasLocalLinkage()) {
-      ExternalCallingNode->addCalledFunction(CallSite(), Node);
-
-      // Found the entry point?
-      if (F->getName() == "main") {
-        if (Root)    // Found multiple external mains?  Don't pick one.
-          Root = ExternalCallingNode;
-        else
-          Root = Node;          // Found a main, keep track of it!
-      }
-    }
-
-    // If this function has its address taken, anything could call it.
-    if (F->hasAddressTaken())
-      ExternalCallingNode->addCalledFunction(CallSite(), Node);
-
-    // If this function is not defined in this translation unit, it could call
-    // anything.
-    if (F->isDeclaration() && !F->isIntrinsic())
-      Node->addCalledFunction(CallSite(), CallsExternalNode);
-
-    // Look for calls by this function.
-    for (Function::iterator BB = F->begin(), BBE = F->end(); BB != BBE; ++BB)
-      for (BasicBlock::iterator II = BB->begin(), IE = BB->end();
-           II != IE; ++II) {
-        CallSite CS(cast<Value>(II));
-        if (CS) {
-          const Function *Callee = CS.getCalledFunction();
-          if (!Callee)
-            // Indirect calls of intrinsics are not allowed so no need to check.
-            Node->addCalledFunction(CS, CallsExternalNode);
-          else if (!Callee->isIntrinsic())
-            Node->addCalledFunction(CS, getOrInsertFunction(Callee));
-        }
-      }
-  }
-
-  //
-  // destroy - Release memory for the call graph
-  virtual void destroy() {
-    /// CallsExternalNode is not in the function map, delete it explicitly.
-    if (CallsExternalNode) {
-      CallsExternalNode->allReferencesDropped();
-      delete CallsExternalNode;
-      CallsExternalNode = 0;
-    }
-    CallGraph::destroy();
-  }
-};
-
-} //End anonymous namespace
-
-INITIALIZE_ANALYSIS_GROUP(CallGraph, "Call Graph", BasicCallGraph)
-INITIALIZE_AG_PASS(BasicCallGraph, CallGraph, "basiccg",
-                   "Basic CallGraph Construction", false, true, true)
-
-char CallGraph::ID = 0;
-char BasicCallGraph::ID = 0;
-
-void CallGraph::initialize(Module &M) {
-  Mod = &M;
+  // If we didn't find a main function, use the external call graph node
+  if (!Root)
+    Root = ExternalCallingNode;
 }
 
-void CallGraph::destroy() {
-  if (FunctionMap.empty()) return;
-  
-  // Reset all node's use counts to zero before deleting them to prevent an
-  // assertion from firing.
+CallGraph::~CallGraph() {
+  // CallsExternalNode is not in the function map, delete it explicitly.
+  CallsExternalNode->allReferencesDropped();
+  delete CallsExternalNode;
+
+// Reset all node's use counts to zero before deleting them to prevent an
+// assertion from firing.
 #ifndef NDEBUG
   for (FunctionMapTy::iterator I = FunctionMap.begin(), E = FunctionMap.end();
        I != E; ++I)
     I->second->allReferencesDropped();
 #endif
-  
   for (FunctionMapTy::iterator I = FunctionMap.begin(), E = FunctionMap.end();
-      I != E; ++I)
+       I != E; ++I)
     delete I->second;
-  FunctionMap.clear();
 }
 
-void CallGraph::print(raw_ostream &OS, Module*) const {
+void CallGraph::addToCallGraph(Function *F) {
+  CallGraphNode *Node = getOrInsertFunction(F);
+
+  // If this function has external linkage, anything could call it.
+  if (!F->hasLocalLinkage()) {
+    ExternalCallingNode->addCalledFunction(CallSite(), Node);
+
+    // Found the entry point?
+    if (F->getName() == "main") {
+      if (Root) // Found multiple external mains?  Don't pick one.
+        Root = ExternalCallingNode;
+      else
+        Root = Node; // Found a main, keep track of it!
+    }
+  }
+
+  // If this function has its address taken, anything could call it.
+  if (F->hasAddressTaken())
+    ExternalCallingNode->addCalledFunction(CallSite(), Node);
+
+  // If this function is not defined in this translation unit, it could call
+  // anything.
+  if (F->isDeclaration() && !F->isIntrinsic())
+    Node->addCalledFunction(CallSite(), CallsExternalNode);
+
+  // Look for calls by this function.
+  for (Function::iterator BB = F->begin(), BBE = F->end(); BB != BBE; ++BB)
+    for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE;
+         ++II) {
+      CallSite CS(cast<Value>(II));
+      if (CS) {
+        const Function *Callee = CS.getCalledFunction();
+        if (!Callee)
+          // Indirect calls of intrinsics are not allowed so no need to check.
+          Node->addCalledFunction(CS, CallsExternalNode);
+        else if (!Callee->isIntrinsic())
+          Node->addCalledFunction(CS, getOrInsertFunction(Callee));
+      }
+    }
+}
+
+void CallGraph::print(raw_ostream &OS) const {
+  OS << "CallGraph Root is: ";
+  if (Function *F = Root->getFunction())
+    OS << F->getName() << "\n";
+  else {
+    OS << "<<null function: 0x" << Root << ">>\n";
+  }
+
   for (CallGraph::const_iterator I = begin(), E = end(); I != E; ++I)
     I->second->print(OS);
 }
-#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-void CallGraph::dump() const {
-  print(dbgs(), 0);
-}
-#endif
 
-//===----------------------------------------------------------------------===//
-// Implementations of public modification methods
-//
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+void CallGraph::dump() const { print(dbgs()); }
+#endif
 
 // removeFunctionFromModule - Unlink the function from this module, returning
 // it.  Because this removes the function from the module, the call graph node
@@ -222,7 +119,7 @@ Function *CallGraph::removeFunctionFromModule(CallGraphNode *CGN) {
   delete CGN;                       // Delete the call graph node for this func
   FunctionMap.erase(F);             // Remove the call graph node from the map
 
-  Mod->getFunctionList().remove(F);
+  M.getFunctionList().remove(F);
   return F;
 }
 
@@ -246,11 +143,16 @@ void CallGraph::spliceFunction(const Function *From, const Function *To) {
 // not already exist.
 CallGraphNode *CallGraph::getOrInsertFunction(const Function *F) {
   CallGraphNode *&CGN = FunctionMap[F];
-  if (CGN) return CGN;
-  
-  assert((!F || F->getParent() == Mod) && "Function not in current module!");
+  if (CGN)
+    return CGN;
+
+  assert((!F || F->getParent() == &M) && "Function not in current module!");
   return CGN = new CallGraphNode(const_cast<Function*>(F));
 }
+
+//===----------------------------------------------------------------------===//
+// Implementations of the CallGraphNode class methods.
+//
 
 void CallGraphNode::print(raw_ostream &OS) const {
   if (Function *F = getFunction())
@@ -308,7 +210,7 @@ void CallGraphNode::removeOneAbstractEdgeTo(CallGraphNode *Callee) {
   for (CalledFunctionsVector::iterator I = CalledFunctions.begin(); ; ++I) {
     assert(I != CalledFunctions.end() && "Cannot find callee to remove!");
     CallRecord &CR = *I;
-    if (CR.second == Callee && CR.first == 0) {
+    if (CR.second == Callee && CR.first == nullptr) {
       Callee->DropRef();
       *I = CalledFunctions.back();
       CalledFunctions.pop_back();
@@ -334,5 +236,49 @@ void CallGraphNode::replaceCallEdge(CallSite CS,
   }
 }
 
-// Enuse that users of CallGraph.h also link with this file
-DEFINING_FILE_FOR(CallGraph)
+//===----------------------------------------------------------------------===//
+// Out-of-line definitions of CallGraphAnalysis class members.
+//
+
+char CallGraphAnalysis::PassID;
+
+//===----------------------------------------------------------------------===//
+// Implementations of the CallGraphWrapperPass class methods.
+//
+
+CallGraphWrapperPass::CallGraphWrapperPass() : ModulePass(ID) {
+  initializeCallGraphWrapperPassPass(*PassRegistry::getPassRegistry());
+}
+
+CallGraphWrapperPass::~CallGraphWrapperPass() {}
+
+void CallGraphWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
+  AU.setPreservesAll();
+}
+
+bool CallGraphWrapperPass::runOnModule(Module &M) {
+  // All the real work is done in the constructor for the CallGraph.
+  G.reset(new CallGraph(M));
+  return false;
+}
+
+INITIALIZE_PASS(CallGraphWrapperPass, "basiccg", "CallGraph Construction",
+                false, true)
+
+char CallGraphWrapperPass::ID = 0;
+
+void CallGraphWrapperPass::releaseMemory() { G.reset(); }
+
+void CallGraphWrapperPass::print(raw_ostream &OS, const Module *) const {
+  if (!G) {
+    OS << "No call graph has been built!\n";
+    return;
+  }
+
+  // Just delegate.
+  G->print(OS);
+}
+
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+void CallGraphWrapperPass::dump() const { print(dbgs(), nullptr); }
+#endif

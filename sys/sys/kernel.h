@@ -92,10 +92,8 @@ enum sysinit_sub_id {
 	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console*/
 	SI_SUB_SETTINGS		= 0x0880000,	/* check and recheck settings */
 	SI_SUB_MTX_POOL_STATIC	= 0x0900000,	/* static mutex pool */
-	SI_SUB_LOCKMGR		= 0x0980000,	/* lockmgr locks */
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
-	SI_SUB_KVM_RSRC		= 0x1A00000,	/* kvm operational limits*/
 	SI_SUB_HYPERVISOR	= 0x1A40000,	/*
 						 * Hypervisor detection and
 						 * virtualization support 
@@ -139,7 +137,6 @@ enum sysinit_sub_id {
 	SI_SUB_CONFIGURE	= 0x3800000,	/* Configure devices */
 	SI_SUB_VFS		= 0x4000000,	/* virtual filesystem*/
 	SI_SUB_CLOCKS		= 0x4800000,	/* real time and stat clocks*/
-	SI_SUB_CLIST		= 0x5800000,	/* clists*/
 	SI_SUB_SYSV_SHM		= 0x6400000,	/* System V shared memory*/
 	SI_SUB_SYSV_SEM		= 0x6800000,	/* System V semaphores*/
 	SI_SUB_SYSV_MSG		= 0x6C00000,	/* System V message queues*/
@@ -169,7 +166,7 @@ enum sysinit_sub_id {
 	SI_SUB_KTHREAD_UPDATE	= 0xec00000,	/* update daemon*/
 	SI_SUB_KTHREAD_IDLE	= 0xee00000,	/* idle procs*/
 	SI_SUB_SMP		= 0xf000000,	/* start the APs*/
-	SI_SUB_RACCTD		= 0xf100000,	/* start raccd*/
+	SI_SUB_RACCTD		= 0xf100000,	/* start racctd*/
 	SI_SUB_LAST		= 0xfffffff	/* final initialization */
 };
 

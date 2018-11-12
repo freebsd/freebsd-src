@@ -24,8 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <ctype.h>
 #include <libelf.h>
@@ -35,7 +33,7 @@
 #include "_libelf.h"
 #include "_libelf_ar.h"
 
-ELFTC_VCSID("$Id: libelf_ar.c 2225 2011-11-26 18:55:54Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_ar.c 3174 2015-03-27 17:13:41Z emaste $");
 
 #define	LIBELF_NALLOC_SIZE	16
 
@@ -110,8 +108,8 @@ Elf_Arhdr *
 _libelf_ar_gethdr(Elf *e)
 {
 	Elf *parent;
-	char *namelen;
 	Elf_Arhdr *eh;
+	char *namelen;
 	size_t n, nlen;
 	struct ar_hdr *arh;
 
@@ -192,7 +190,7 @@ _libelf_ar_gethdr(Elf *e)
 	}
 
 	e->e_flags &= ~LIBELF_F_AR_HEADER;
-	e->e_hdr.e_rawhdr = (char *) arh;
+	e->e_hdr.e_rawhdr = (unsigned char *) arh;
 
 	return (NULL);
 }
@@ -201,10 +199,10 @@ Elf *
 _libelf_ar_open_member(int fd, Elf_Cmd c, Elf *elf)
 {
 	Elf *e;
-	char *member, *namelen;
-	size_t nsz, sz;
 	off_t next;
+	size_t nsz, sz;
 	struct ar_hdr *arh;
+	char *member, *namelen;
 
 	assert(elf->e_kind == ELF_K_AR);
 
@@ -249,12 +247,12 @@ _libelf_ar_open_member(int fd, Elf_Cmd c, Elf *elf)
 		member = (char *) (arh + 1);
 
 
-	if ((e = elf_memory((char *) member, sz)) == NULL)
+	if ((e = elf_memory(member, sz)) == NULL)
 		return (NULL);
 
 	e->e_fd = fd;
 	e->e_cmd = c;
-	e->e_hdr.e_rawhdr = (char *) arh;
+	e->e_hdr.e_rawhdr = (unsigned char *) arh;
 
 	elf->e_u.e_ar.e_nchildren++;
 	e->e_parent = elf;
@@ -274,9 +272,10 @@ _libelf_ar_open_member(int fd, Elf_Cmd c, Elf *elf)
  */
 
 /*
- * A helper macro to read in a 'long' value from the archive.  We use
- * memcpy() since the source pointer may be misaligned with respect to
- * the natural alignment for a C 'long'.
+ * A helper macro to read in a 'long' value from the archive.
+ *
+ * We use memcpy() since the source pointer may be misaligned with
+ * respect to the natural alignment for a C 'long'.
  */
 #define	GET_LONG(P, V)do {				\
 		memcpy(&(V), (P), sizeof(long));	\
@@ -287,9 +286,10 @@ Elf_Arsym *
 _libelf_ar_process_bsd_symtab(Elf *e, size_t *count)
 {
 	Elf_Arsym *symtab, *sym;
+	unsigned int n, nentries;
 	unsigned char *end, *p, *p0, *s, *s0;
-	const unsigned int entrysize = 2 * sizeof(long);
-	long arraysize, fileoffset, n, nentries, stroffset, strtabsize;
+	const size_t entrysize = 2 * sizeof(long);
+	long arraysize, fileoffset, stroffset, strtabsize;
 
 	assert(e != NULL);
 	assert(count != NULL);
@@ -313,7 +313,8 @@ _libelf_ar_process_bsd_symtab(Elf *e, size_t *count)
 	 */
 	GET_LONG(p, arraysize);
 
-	if (p0 + arraysize >= end || (arraysize % entrysize != 0))
+	if (arraysize < 0 || p0 + arraysize >= end ||
+	    ((size_t) arraysize % entrysize != 0))
 		goto symtaberror;
 
 	/*
@@ -323,10 +324,10 @@ _libelf_ar_process_bsd_symtab(Elf *e, size_t *count)
 	GET_LONG(s, strtabsize);
 
 	s0 = s;			/* Start of string table. */
-	if (s0 + strtabsize > end)
+	if (strtabsize < 0 || s0 + strtabsize > end)
 		goto symtaberror;
 
-	nentries = arraysize / entrysize;
+	nentries = (size_t) arraysize / entrysize;
 
 	/*
 	 * Allocate space for the returned Elf_Arsym array.
@@ -341,12 +342,16 @@ _libelf_ar_process_bsd_symtab(Elf *e, size_t *count)
 		GET_LONG(p, stroffset);
 		GET_LONG(p, fileoffset);
 
+		if (stroffset < 0 || fileoffset <  0 ||
+		    (size_t) fileoffset >= e->e_rawsize)
+			goto symtaberror;
+
 		s = s0 + stroffset;
 
 		if (s >= end)
 			goto symtaberror;
 
-		sym->as_off = fileoffset;
+		sym->as_off = (off_t) fileoffset;
 		sym->as_hash = elf_hash((char *) s);
 		sym->as_name = (char *) s;
 	}
@@ -393,7 +398,8 @@ symtaberror:
 Elf_Arsym *
 _libelf_ar_process_svr4_symtab(Elf *e, size_t *count)
 {
-	size_t n, nentries, off;
+	uint32_t off;
+	size_t n, nentries;
 	Elf_Arsym *symtab, *sym;
 	unsigned char *p, *s, *end;
 
@@ -424,15 +430,14 @@ _libelf_ar_process_svr4_symtab(Elf *e, size_t *count)
 	s = p + (nentries * INTSZ); /* start of the string table. */
 
 	for (n = nentries, sym = symtab; n > 0; n--) {
-
 		if (s >= end)
 			goto symtaberror;
 
-		off = 0;
-
 		GET_WORD(p, off);
+		if (off >= e->e_rawsize)
+			goto symtaberror;
 
-		sym->as_off = off;
+		sym->as_off = (off_t) off;
 		sym->as_hash = elf_hash((char *) s);
 		sym->as_name = (char *) s;
 

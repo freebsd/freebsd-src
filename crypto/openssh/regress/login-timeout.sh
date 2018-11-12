@@ -1,9 +1,11 @@
-#	$OpenBSD: login-timeout.sh,v 1.5 2013/05/17 10:23:52 dtucker Exp $
+#	$OpenBSD: login-timeout.sh,v 1.6 2014/02/27 20:04:16 djm Exp $
 #	Placed in the Public Domain.
 
 tid="connect after login grace timeout"
 
 trace "test login grace with privsep"
+cp $OBJ/sshd_config $OBJ/sshd_config.orig
+grep -vi LoginGraceTime $OBJ/sshd_config.orig > $OBJ/sshd_config
 echo "LoginGraceTime 10s" >> $OBJ/sshd_config
 echo "MaxStartups 1" >> $OBJ/sshd_config
 start_sshd

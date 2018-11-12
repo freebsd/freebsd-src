@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.46 2013/06/21 02:26:26 djm Exp $
+#	$OpenBSD: test-exec.sh,v 1.47 2013/11/09 05:41:34 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -133,7 +133,12 @@ fi
 # Path to sshd must be absolute for rexec
 case "$SSHD" in
 /*) ;;
-*) SSHD=`which sshd` ;;
+*) SSHD=`which $SSHD` ;;
+esac
+
+case "$SSHAGENT" in
+/*) ;;
+*) SSHAGENT=`which $SSHAGENT` ;;
 esac
 
 # Logfiles.
@@ -166,13 +171,21 @@ SSH="$SSHLOGWRAP"
 
 # Some test data.  We make a copy because some tests will overwrite it.
 # The tests may assume that $DATA exists and is writable and $COPY does
-# not exist.
+# not exist.  Tests requiring larger data files can call increase_datafile_size
+# [kbytes] to ensure the file is at least that large.
 DATANAME=data
 DATA=$OBJ/${DATANAME}
-cat $SSHD $SSHD $SSHD $SSHD >${DATA}
+cat ${SSHAGENT} >${DATA}
 chmod u+w ${DATA}
 COPY=$OBJ/copy
 rm -f ${COPY}
+
+increase_datafile_size()
+{
+	while [ `du -k ${DATA} | cut -f1` -lt $1 ]; do
+		cat ${SSHAGENT} >>${DATA}
+	done
+}
 
 # these should be used in tests
 export SSH SSHD SSHAGENT SSHADD SSHKEYGEN SSHKEYSCAN SFTP SFTPSERVER SCP

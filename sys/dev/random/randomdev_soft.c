@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Mark R V Murray
+ * Copyright (c) 2000-2014 Mark R V Murray
  * Copyright (c) 2004 Robert N. M. Watson
  * All rights reserved.
  *
@@ -26,6 +26,16 @@
  *
  */
 
+/*
+ * This is the loadable infrastructure base file for software CSPRNG
+ * drivers such as Yarrow or Fortuna.
+ *
+ * It is anticipated that one instance of this file will be used
+ * for _each_ invocation of a CSPRNG, but with different #defines
+ * set. See below.
+ *
+ */
+
 #include "opt_random.h"
 
 #if !defined(RANDOM_YARROW) && !defined(RANDOM_FORTUNA)
@@ -33,15 +43,13 @@
 #elif defined(RANDOM_YARROW) && defined(RANDOM_FORTUNA)
 #error "Must define either RANDOM_YARROW or RANDOM_FORTUNA"
 #endif
-#if defined(RANDOM_FORTUNA)
-#error "Fortuna is not yet implemented"
-#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -50,13 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
 #include <sys/sysctl.h>
-#include <sys/uio.h>
 #include <sys/unistd.h>
-
-#include <machine/bus.h>
-#include <machine/cpu.h>
 
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
@@ -69,111 +72,44 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/fortuna.h>
 #endif
 
-
-static int randomdev_poll(int event, struct thread *td);
-static int randomdev_block(int flag);
-static void randomdev_flush_reseed(void);
-
+static struct random_adaptor random_soft_processor = {
 #if defined(RANDOM_YARROW)
-static struct random_adaptor random_context = {
-	.ident = "Software, Yarrow",
-	.init = randomdev_init,
-	.deinit = randomdev_deinit,
-	.block = randomdev_block,
-	.read = random_yarrow_read,
-	.poll = randomdev_poll,
-	.reseed = randomdev_flush_reseed,
-	.seeded = 0, /* This will be seeded during entropy processing */
-	.priority = 90, /* High priority, so top of the list. Fortuna may still win. */
-};
-#define RANDOM_MODULE_NAME	yarrow
 #define RANDOM_CSPRNG_NAME	"yarrow"
+	.ra_ident = "Yarrow",
+	.ra_priority = 90, /* High priority, so top of the list. Fortuna may still win. */
+	.ra_read = random_yarrow_read,
+	.ra_write = random_yarrow_write,
+	.ra_reseed = random_yarrow_reseed,
+	.ra_seeded = random_yarrow_seeded,
 #endif
-
 #if defined(RANDOM_FORTUNA)
-static struct random_adaptor random_context = {
-	.ident = "Software, Fortuna",
-	.init = randomdev_init,
-	.deinit = randomdev_deinit,
-	.block = randomdev_block,
-	.read = random_fortuna_read,
-	.poll = randomdev_poll,
-	.reseed = randomdev_flush_reseed,
-	.seeded = 0, /* This will be excplicitly seeded at startup when secured */
-	.priority = 100, /* High priority, so top of the list. Beat Yarrow. */
-};
-#define RANDOM_MODULE_NAME	fortuna
 #define RANDOM_CSPRNG_NAME	"fortuna"
+	.ra_ident = "Fortuna",
+	.ra_priority = 100, /* High priority, so top of the list. Beat Yarrow. */
+	.ra_read = random_fortuna_read,
+	.ra_write = random_fortuna_write,
+	.ra_reseed = random_fortuna_reseed,
+	.ra_seeded = random_fortuna_seeded,
 #endif
-
-TUNABLE_INT("kern.random.sys.seeded", &random_context.seeded);
-
-/* List for the dynamic sysctls */
-static struct sysctl_ctx_list random_clist;
-
-/* ARGSUSED */
-static int
-random_check_boolean(SYSCTL_HANDLER_ARGS)
-{
-	if (oidp->oid_arg1 != NULL && *(u_int *)(oidp->oid_arg1) != 0)
-		*(u_int *)(oidp->oid_arg1) = 1;
-	return (sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req));
-}
+	.ra_init = randomdev_init,
+	.ra_deinit = randomdev_deinit,
+};
 
 void
 randomdev_init(void)
 {
-	struct sysctl_oid *random_sys_o, *random_sys_harvest_o;
 
 #if defined(RANDOM_YARROW)
-	random_yarrow_init_alg(&random_clist);
+	random_yarrow_init_alg();
+	random_harvestq_init(random_yarrow_process_event, 2);
 #endif
 #if defined(RANDOM_FORTUNA)
-	random_fortuna_init_alg(&random_clist);
+	random_fortuna_init_alg();
+	random_harvestq_init(random_fortuna_process_event, 32);
 #endif
 
-	random_sys_o = SYSCTL_ADD_NODE(&random_clist,
-	    SYSCTL_STATIC_CHILDREN(_kern_random),
-	    OID_AUTO, "sys", CTLFLAG_RW, 0,
-	    "Entropy Device Parameters");
-
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_o),
-	    OID_AUTO, "seeded", CTLTYPE_INT | CTLFLAG_RW,
-	    &random_context.seeded, 0, random_check_boolean, "I",
-	    "Seeded State");
-
-	random_sys_harvest_o = SYSCTL_ADD_NODE(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_o),
-	    OID_AUTO, "harvest", CTLFLAG_RW, 0,
-	    "Entropy Sources");
-
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_harvest_o),
-	    OID_AUTO, "ethernet", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.ethernet, 1, random_check_boolean, "I",
-	    "Harvest NIC entropy");
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_harvest_o),
-	    OID_AUTO, "point_to_point", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.point_to_point, 1, random_check_boolean, "I",
-	    "Harvest serial net entropy");
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_harvest_o),
-	    OID_AUTO, "interrupt", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.interrupt, 1, random_check_boolean, "I",
-	    "Harvest IRQ entropy");
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_harvest_o),
-	    OID_AUTO, "swi", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.swi, 1, random_check_boolean, "I",
-	    "Harvest SWI entropy");
-
-	random_harvestq_init(random_process_event);
-
 	/* Register the randomness harvesting routine */
-	randomdev_init_harvester(random_harvestq_internal,
-	    random_context.read);
+	randomdev_init_harvester(random_harvestq_internal);
 }
 
 void
@@ -182,118 +118,48 @@ randomdev_deinit(void)
 	/* Deregister the randomness harvesting routine */
 	randomdev_deinit_harvester();
 
-	/*
-	 * Command the hash/reseed thread to end and wait for it to finish
-	 */
-	random_kthread_control = -1;
-	tsleep((void *)&random_kthread_control, 0, "term", 0);
-
 #if defined(RANDOM_YARROW)
 	random_yarrow_deinit_alg();
 #endif
 #if defined(RANDOM_FORTUNA)
 	random_fortuna_deinit_alg();
 #endif
-
-	sysctl_ctx_free(&random_clist);
 }
 
-void
-randomdev_unblock(void)
-{
-	if (!random_context.seeded) {
-		selwakeuppri(&random_context.rsel, PUSER);
-		wakeup(&random_context);
-                printf("random: unblocking device.\n");
-		random_context.seeded = 1;
-	}
-	/* Do arc4random(9) a favour while we are about it. */
-	(void)atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_NONE,
-	    ARC4_ENTR_HAVE);
-}
-
+/* ARGSUSED */
 static int
-randomdev_poll(int events, struct thread *td)
-{
-	int revents = 0;
-
-	mtx_lock(&random_reseed_mtx);
-
-	if (random_context.seeded)
-		revents = events & (POLLIN | POLLRDNORM);
-	else
-		selrecord(td, &random_context.rsel);
-
-	mtx_unlock(&random_reseed_mtx);
-	return (revents);
-}
-
-static int
-randomdev_block(int flag)
+randomdev_soft_modevent(module_t mod __unused, int type, void *unused __unused)
 {
 	int error = 0;
 
-	mtx_lock(&random_reseed_mtx);
+	switch (type) {
+	case MOD_LOAD:
+		printf("random: SOFT: %s init()\n", RANDOM_CSPRNG_NAME);
+		random_adaptor_register(RANDOM_CSPRNG_NAME, &random_soft_processor);
+		break;
 
-	/* Blocking logic */
-	while (!random_context.seeded && !error) {
-		if (flag & O_NONBLOCK)
-			error = EWOULDBLOCK;
-		else {
-			printf("random: blocking on read.\n");
-			error = msleep(&random_context,
-			    &random_reseed_mtx,
-			    PUSER | PCATCH, "block", 0);
-		}
+	case MOD_UNLOAD:
+		random_adaptor_deregister(RANDOM_CSPRNG_NAME);
+		break;
+
+	case MOD_SHUTDOWN:
+		break;
+
+	default:
+		error = EOPNOTSUPP;
+		break;
+
 	}
-	mtx_unlock(&random_reseed_mtx);
-
 	return (error);
 }
 
-/* Helper routine to perform explicit reseeds */
-static void
-randomdev_flush_reseed(void)
-{
-	/* Command a entropy queue flush and wait for it to finish */
-	random_kthread_control = 1;
-	while (random_kthread_control)
-		pause("-", hz / 10);
-
 #if defined(RANDOM_YARROW)
-	/* This ultimately calls randomdev_unblock() */
-	random_yarrow_reseed();
+DEV_MODULE(yarrow, randomdev_soft_modevent, NULL);
+MODULE_VERSION(yarrow, 1);
+MODULE_DEPEND(yarrow, randomdev, 1, 1, 1);
 #endif
 #if defined(RANDOM_FORTUNA)
-	/* This ultimately calls randomdev_unblock() */
-	random_fortuna_reseed();
+DEV_MODULE(fortuna, randomdev_soft_modevent, NULL);
+MODULE_VERSION(fortuna, 1);
+MODULE_DEPEND(fortuna, randomdev, 1, 1, 1);
 #endif
-}
-
-static int
-randomdev_modevent(module_t mod __unused, int type, void *unused __unused)
-{
-
-	switch (type) {
-	case MOD_LOAD:
-		random_adaptor_register(RANDOM_CSPRNG_NAME, &random_context);
-		/*
-		 * For statically built kernels that contain both device
-		 * random and options PADLOCK_RNG/RDRAND_RNG/etc..,
-		 * this event handler will do nothing, since the random
-		 * driver-specific handlers are loaded after these HW
-		 * consumers, and hence hasn't yet registered for this event.
-		 *
-		 * In case where both the random driver and RNG's are built
-		 * as seperate modules, random.ko is loaded prior to *_rng.ko's
-		 * (by dependency). This event handler is there to delay
-		 * creation of /dev/{u,}random and attachment of this *_rng.ko.
-		 */
-		EVENTHANDLER_INVOKE(random_adaptor_attach, &random_context);
-		return (0);
-	}
-
-	return (EINVAL);
-}
-
-RANDOM_ADAPTOR_MODULE(RANDOM_MODULE_NAME, randomdev_modevent, 1);

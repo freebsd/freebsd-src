@@ -6,15 +6,18 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-//  This file provides a function objects and specializations that
-//  allow QualType values to be sorted, used in std::maps, std::sets,
-//  llvm::DenseMaps, and llvm::DenseSets.
-//
+///
+/// \file
+/// \brief Allows QualTypes to be sorted and hence used in maps and sets.
+///
+/// Defines clang::QualTypeOrdering, a total ordering on clang::QualType,
+/// and hence enables QualType values to be sorted and to be used in
+/// std::maps, std::sets, llvm::DenseMaps, and llvm::DenseSets.
+///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TYPE_ORDERING_H
-#define LLVM_CLANG_TYPE_ORDERING_H
+#ifndef LLVM_CLANG_AST_TYPEORDERING_H
+#define LLVM_CLANG_AST_TYPEORDERING_H
 
 #include "clang/AST/CanonicalType.h"
 #include "clang/AST/Type.h"
@@ -22,8 +25,7 @@
 
 namespace clang {
 
-/// QualTypeOrdering - Function object that provides a total ordering
-/// on QualType values.
+/// \brief Function object that provides a total ordering on QualType values.
 struct QualTypeOrdering : std::binary_function<QualType, QualType, bool> {
   bool operator()(QualType T1, QualType T2) const {
     return std::less<void*>()(T1.getAsOpaquePtr(), T2.getAsOpaquePtr());

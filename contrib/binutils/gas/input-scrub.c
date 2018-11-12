@@ -335,7 +335,7 @@ input_scrub_next_buffer (char **bufp)
 
   if (partial_size)
     {
-      memcpy (buffer_start + BEFORE_SIZE, partial_where,
+      memmove (buffer_start + BEFORE_SIZE, partial_where,
 	      (unsigned int) partial_size);
       memcpy (buffer_start + BEFORE_SIZE, save_source, AFTER_SIZE);
     }

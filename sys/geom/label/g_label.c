@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_geom.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -48,8 +50,7 @@ FEATURE(geom_label, "GEOM labeling support");
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, label, CTLFLAG_RW, 0, "GEOM_LABEL stuff");
 u_int g_label_debug = 0;
-TUNABLE_INT("kern.geom.label.debug", &g_label_debug);
-SYSCTL_UINT(_kern_geom_label, OID_AUTO, debug, CTLFLAG_RW, &g_label_debug, 0,
+SYSCTL_UINT(_kern_geom_label, OID_AUTO, debug, CTLFLAG_RWTUN, &g_label_debug, 0,
     "Debug level");
 
 static int g_label_destroy_geom(struct gctl_req *req, struct g_class *mp,
@@ -80,6 +81,9 @@ struct g_class g_label_class = {
  * 6. Add your file system to manual page sbin/geom/class/label/glabel.8.
  */
 const struct g_label_desc *g_labels[] = {
+	&g_label_gpt,
+	&g_label_gpt_uuid,
+#ifdef GEOM_LABEL
 	&g_label_ufs_id,
 	&g_label_ufs_volume,
 	&g_label_iso9660,
@@ -87,9 +91,8 @@ const struct g_label_desc *g_labels[] = {
 	&g_label_ext2fs,
 	&g_label_reiserfs,
 	&g_label_ntfs,
-	&g_label_gpt,
-	&g_label_gpt_uuid,
 	&g_label_disk_ident,
+#endif
 	NULL
 };
 

@@ -11,10 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "mips-isel"
 #include "Mips16ISelDAGToDAG.h"
-#include "Mips.h"
 #include "MCTargetDesc/MipsBaseInfo.h"
+#include "Mips.h"
 #include "MipsAnalyzeImmediate.h"
 #include "MipsMachineFunction.h"
 #include "MipsRegisterInfo.h"
@@ -24,27 +23,30 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Type.h"
-#include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "mips-isel"
+
 bool Mips16DAGToDAGISel::runOnMachineFunction(MachineFunction &MF) {
-  if (!Subtarget.inMips16Mode())
+  Subtarget = &TM.getSubtarget<MipsSubtarget>();
+  if (!Subtarget->inMips16Mode())
     return false;
   return MipsDAGToDAGISel::runOnMachineFunction(MF);
 }
 /// Select multiply instructions.
 std::pair<SDNode*, SDNode*>
-Mips16DAGToDAGISel::selectMULT(SDNode *N, unsigned Opc, DebugLoc DL, EVT Ty,
+Mips16DAGToDAGISel::selectMULT(SDNode *N, unsigned Opc, SDLoc DL, EVT Ty,
                                bool HasLo, bool HasHi) {
-  SDNode *Lo = 0, *Hi = 0;
+  SDNode *Lo = nullptr, *Hi = nullptr;
   SDNode *Mul = CurDAG->getMachineNode(Opc, DL, MVT::Glue, N->getOperand(0),
                                        N->getOperand(1));
   SDValue InFlag = SDValue(Mul, 0);
@@ -70,20 +72,20 @@ void Mips16DAGToDAGISel::initGlobalBaseReg(MachineFunction &MF) {
   MachineBasicBlock &MBB = MF.front();
   MachineBasicBlock::iterator I = MBB.begin();
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc DL = I != MBB.end() ? I->getDebugLoc() : DebugLoc();
   unsigned V0, V1, V2, GlobalBaseReg = MipsFI->getGlobalBaseReg();
-  const TargetRegisterClass *RC =
-    (const TargetRegisterClass*)&Mips::CPU16RegsRegClass;
+  const TargetRegisterClass *RC = &Mips::CPU16RegsRegClass;
 
   V0 = RegInfo.createVirtualRegister(RC);
   V1 = RegInfo.createVirtualRegister(RC);
   V2 = RegInfo.createVirtualRegister(RC);
 
-  BuildMI(MBB, I, DL, TII.get(Mips::LiRxImmX16), V0)
-    .addExternalSymbol("_gp_disp", MipsII::MO_ABS_HI);
-  BuildMI(MBB, I, DL, TII.get(Mips::AddiuRxPcImmX16), V1)
-    .addExternalSymbol("_gp_disp", MipsII::MO_ABS_LO);
+  BuildMI(MBB, I, DL, TII.get(Mips::GotPrologue16), V0).
+    addReg(V1, RegState::Define).
+    addExternalSymbol("_gp_disp", MipsII::MO_ABS_HI).
+    addExternalSymbol("_gp_disp", MipsII::MO_ABS_LO);
+
   BuildMI(MBB, I, DL, TII.get(Mips::SllX16), V2).addReg(V0).addImm(16);
   BuildMI(MBB, I, DL, TII.get(Mips::AdduRxRyRz16), GlobalBaseReg)
     .addReg(V1).addReg(V2);
@@ -100,7 +102,7 @@ void Mips16DAGToDAGISel::initMips16SPAliasReg(MachineFunction &MF) {
 
   MachineBasicBlock &MBB = MF.front();
   MachineBasicBlock::iterator I = MBB.begin();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc DL = I != MBB.end() ? I->getDebugLoc() : DebugLoc();
   unsigned Mips16SPAliasReg = MipsFI->getMips16SPAliasReg();
 
@@ -118,11 +120,13 @@ void Mips16DAGToDAGISel::processFunctionAfterISel(MachineFunction &MF) {
 SDValue Mips16DAGToDAGISel::getMips16SPAliasReg() {
   unsigned Mips16SPAliasReg =
     MF->getInfo<MipsFunctionInfo>()->getMips16SPAliasReg();
-  return CurDAG->getRegister(Mips16SPAliasReg, TLI.getPointerTy());
+  return CurDAG->getRegister(Mips16SPAliasReg,
+                             getTargetLowering()->getPointerTy());
 }
 
 void Mips16DAGToDAGISel::getMips16SPRefReg(SDNode *Parent, SDValue &AliasReg) {
-  SDValue AliasFPReg = CurDAG->getRegister(Mips::S0, TLI.getPointerTy());
+  SDValue AliasFPReg = CurDAG->getRegister(Mips::S0,
+                                           getTargetLowering()->getPointerTy());
   if (Parent) {
     switch (Parent->getOpcode()) {
       case ISD::LOAD: {
@@ -130,8 +134,9 @@ void Mips16DAGToDAGISel::getMips16SPRefReg(SDNode *Parent, SDValue &AliasReg) {
         switch (SD->getMemoryVT().getSizeInBits()) {
         case 8:
         case 16:
-          AliasReg = TM.getFrameLowering()->hasFP(*MF)?
-            AliasFPReg: getMips16SPAliasReg();
+          AliasReg = TM.getSubtargetImpl()->getFrameLowering()->hasFP(*MF)
+                         ? AliasFPReg
+                         : getMips16SPAliasReg();
           return;
         }
         break;
@@ -141,15 +146,16 @@ void Mips16DAGToDAGISel::getMips16SPRefReg(SDNode *Parent, SDValue &AliasReg) {
         switch (SD->getMemoryVT().getSizeInBits()) {
         case 8:
         case 16:
-          AliasReg = TM.getFrameLowering()->hasFP(*MF)?
-            AliasFPReg: getMips16SPAliasReg();
+          AliasReg = TM.getSubtargetImpl()->getFrameLowering()->hasFP(*MF)
+                         ? AliasFPReg
+                         : getMips16SPAliasReg();
           return;
         }
         break;
       }
     }
   }
-  AliasReg = CurDAG->getRegister(Mips::SP, TLI.getPointerTy());
+  AliasReg = CurDAG->getRegister(Mips::SP, getTargetLowering()->getPointerTy());
   return;
 
 }
@@ -221,10 +227,12 @@ bool Mips16DAGToDAGISel::selectAddr16(
     // If an indexed floating point load/store can be emitted, return false.
     const LSBaseSDNode *LS = dyn_cast<LSBaseSDNode>(Parent);
 
-    if (LS &&
-        (LS->getMemoryVT() == MVT::f32 || LS->getMemoryVT() == MVT::f64) &&
-        Subtarget.hasFPIdx())
-      return false;
+    if (LS) {
+      if (LS->getMemoryVT() == MVT::f32 && Subtarget->hasMips4_32r2())
+        return false;
+      if (LS->getMemoryVT() == MVT::f64 && Subtarget->hasMips4_32r2())
+        return false;
+    }
   }
   Base   = Addr;
   Offset = CurDAG->getTargetConstant(0, ValTy);
@@ -235,7 +243,7 @@ bool Mips16DAGToDAGISel::selectAddr16(
 /// expanded, promoted and normal instructions
 std::pair<bool, SDNode*> Mips16DAGToDAGISel::selectNode(SDNode *Node) {
   unsigned Opcode = Node->getOpcode();
-  DebugLoc DL = Node->getDebugLoc();
+  SDLoc DL(Node);
 
   ///
   // Instruction Selection not handled by the auto-generated
@@ -294,7 +302,7 @@ std::pair<bool, SDNode*> Mips16DAGToDAGISel::selectNode(SDNode *Node) {
     if (!SDValue(Node, 1).use_empty())
       ReplaceUses(SDValue(Node, 1), SDValue(LoHi.second, 0));
 
-    return std::make_pair(true, (SDNode*)NULL);
+    return std::make_pair(true, nullptr);
   }
 
   case ISD::MULHS:
@@ -305,7 +313,7 @@ std::pair<bool, SDNode*> Mips16DAGToDAGISel::selectNode(SDNode *Node) {
   }
   }
 
-  return std::make_pair(false, (SDNode*)NULL);
+  return std::make_pair(false, nullptr);
 }
 
 FunctionPass *llvm::createMips16ISelDag(MipsTargetMachine &TM) {

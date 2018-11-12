@@ -18,11 +18,12 @@
 #ifndef LLVM_IR_FUNCTION_H
 #define LLVM_IR_FUNCTION_H
 
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CallingConv.h"
-#include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/GlobalObject.h"
 #include "llvm/Support/Compiler.h"
 
 namespace llvm {
@@ -67,8 +68,7 @@ private:
   mutable ilist_half_node<Argument> Sentinel;
 };
 
-class Function : public GlobalValue,
-                 public ilist_node<Function> {
+class Function : public GlobalObject, public ilist_node<Function> {
 public:
   typedef iplist<Argument> ArgumentListType;
   typedef iplist<BasicBlock> BasicBlockListType;
@@ -87,11 +87,14 @@ private:
   ValueSymbolTable *SymTab;               ///< Symbol table of args/instructions
   AttributeSet AttributeSets;             ///< Parameter attributes
 
-  // HasLazyArguments is stored in Value::SubclassData.
-  /*bool HasLazyArguments;*/
-
-  // The Calling Convention is stored in Value::SubclassData.
-  /*CallingConv::ID CallingConvention;*/
+  /*
+   * Value::SubclassData
+   *
+   * bit 0  : HasLazyArguments
+   * bit 1  : HasPrefixData
+   * bit 2  : HasPrologueData
+   * bit 3-6: CallingConvention
+   */
 
   friend class SymbolTableListTraits<Function, Module>;
 
@@ -102,7 +105,7 @@ private:
   /// needs it.  The hasLazyArguments predicate returns true if the arg list
   /// hasn't been set up yet.
   bool hasLazyArguments() const {
-    return getSubclassDataFromValue() & 1;
+    return getSubclassDataFromValue() & (1<<0);
   }
   void CheckLazyArguments() const {
     if (hasLazyArguments())
@@ -122,11 +125,11 @@ private:
   /// the module.
   ///
   Function(FunctionType *Ty, LinkageTypes Linkage,
-           const Twine &N = "", Module *M = 0);
+           const Twine &N = "", Module *M = nullptr);
 
 public:
   static Function *Create(FunctionType *Ty, LinkageTypes Linkage,
-                          const Twine &N = "", Module *M = 0) {
+                          const Twine &N = "", Module *M = nullptr) {
     return new(0) Function(Ty, Linkage, N, M);
   }
 
@@ -142,6 +145,9 @@ public:
   /// isVarArg - Return true if this function takes a variable number of
   /// arguments.
   bool isVarArg() const;
+
+  bool isMaterializable() const;
+  void setIsMaterializable(bool V);
 
   /// getIntrinsicID - This method returns the ID number of the specified
   /// function, or Intrinsic::not_intrinsic if the function is not an
@@ -159,42 +165,57 @@ public:
   /// calling convention of this function.  The enum values for the known
   /// calling conventions are defined in CallingConv.h.
   CallingConv::ID getCallingConv() const {
-    return static_cast<CallingConv::ID>(getSubclassDataFromValue() >> 1);
+    return static_cast<CallingConv::ID>(getSubclassDataFromValue() >> 3);
   }
   void setCallingConv(CallingConv::ID CC) {
-    setValueSubclassData((getSubclassDataFromValue() & 1) |
-                         (static_cast<unsigned>(CC) << 1));
+    setValueSubclassData((getSubclassDataFromValue() & 7) |
+                         (static_cast<unsigned>(CC) << 3));
   }
 
-  /// getAttributes - Return the attribute list for this Function.
-  ///
+  /// @brief Return the attribute list for this Function.
   AttributeSet getAttributes() const { return AttributeSets; }
 
-  /// setAttributes - Set the attribute list for this Function.
-  ///
+  /// @brief Set the attribute list for this Function.
   void setAttributes(AttributeSet attrs) { AttributeSets = attrs; }
 
-  /// addFnAttr - Add function attributes to this function.
-  ///
+  /// @brief Add function attributes to this function.
   void addFnAttr(Attribute::AttrKind N) {
     setAttributes(AttributeSets.addAttribute(getContext(),
                                              AttributeSet::FunctionIndex, N));
   }
 
-  /// addFnAttr - Add function attributes to this function.
-  ///
+  /// @brief Remove function attributes from this function.
+  void removeFnAttr(Attribute::AttrKind N) {
+    setAttributes(AttributeSets.removeAttribute(
+        getContext(), AttributeSet::FunctionIndex, N));
+  }
+
+  /// @brief Add function attributes to this function.
   void addFnAttr(StringRef Kind) {
     setAttributes(
       AttributeSets.addAttribute(getContext(),
                                  AttributeSet::FunctionIndex, Kind));
   }
+  void addFnAttr(StringRef Kind, StringRef Value) {
+    setAttributes(
+      AttributeSets.addAttribute(getContext(),
+                                 AttributeSet::FunctionIndex, Kind, Value));
+  }
 
-  /// \brief Return true if the function has the attribute.
+  /// @brief Return true if the function has the attribute.
   bool hasFnAttribute(Attribute::AttrKind Kind) const {
     return AttributeSets.hasAttribute(AttributeSet::FunctionIndex, Kind);
   }
   bool hasFnAttribute(StringRef Kind) const {
     return AttributeSets.hasAttribute(AttributeSet::FunctionIndex, Kind);
+  }
+
+  /// @brief Return the attribute for the given attribute kind.
+  Attribute getFnAttribute(Attribute::AttrKind Kind) const {
+    return AttributeSets.getAttribute(AttributeSet::FunctionIndex, Kind);
+  }
+  Attribute getFnAttribute(StringRef Kind) const {
+    return AttributeSets.getAttribute(AttributeSet::FunctionIndex, Kind);
   }
 
   /// hasGC/getGC/setGC/clearGC - The name of the garbage collection algorithm
@@ -216,6 +237,12 @@ public:
   /// @brief Extract the alignment for a call or parameter (0=unknown).
   unsigned getParamAlignment(unsigned i) const {
     return AttributeSets.getParamAlignment(i);
+  }
+
+  /// @brief Extract the number of dereferenceable bytes for a call or
+  /// parameter (0=unknown).
+  uint64_t getDereferenceableBytes(unsigned i) const {
+    return AttributeSets.getDereferenceableBytes(i);
   }
 
   /// @brief Determine if the function does not access memory.
@@ -282,7 +309,8 @@ public:
   /// @brief Determine if the function returns a structure through first
   /// pointer argument.
   bool hasStructRetAttr() const {
-    return AttributeSets.hasAttribute(1, Attribute::StructRet);
+    return AttributeSets.hasAttribute(1, Attribute::StructRet) ||
+           AttributeSets.hasAttribute(2, Attribute::StructRet);
   }
 
   /// @brief Determine if the parameter does not alias other parameters.
@@ -303,9 +331,24 @@ public:
     addAttribute(n, Attribute::NoCapture);
   }
 
+  bool doesNotAccessMemory(unsigned n) const {
+    return AttributeSets.hasAttribute(n, Attribute::ReadNone);
+  }
+  void setDoesNotAccessMemory(unsigned n) {
+    addAttribute(n, Attribute::ReadNone);
+  }
+
+  bool onlyReadsMemory(unsigned n) const {
+    return doesNotAccessMemory(n) ||
+      AttributeSets.hasAttribute(n, Attribute::ReadOnly);
+  }
+  void setOnlyReadsMemory(unsigned n) {
+    addAttribute(n, Attribute::ReadOnly);
+  }
+
   /// copyAttributesFrom - copy all additional attributes (those not needed to
   /// create a Function) from the Function Src to this one.
-  void copyAttributesFrom(const GlobalValue *Src);
+  void copyAttributesFrom(const GlobalValue *Src) override;
 
   /// deleteBody - This method deletes the body of the function, and converts
   /// the linkage to external.
@@ -318,12 +361,12 @@ public:
   /// removeFromParent - This method unlinks 'this' from the containing module,
   /// but does not delete it.
   ///
-  virtual void removeFromParent();
+  void removeFromParent() override;
 
   /// eraseFromParent - This method unlinks 'this' from the containing module
   /// and deletes it.
   ///
-  virtual void eraseFromParent();
+  void eraseFromParent() override;
 
 
   /// Get the underlying elements of the Function... the basic block list is
@@ -374,9 +417,9 @@ public:
   const BasicBlock        &back() const { return BasicBlocks.back();  }
         BasicBlock        &back()       { return BasicBlocks.back();  }
 
-  //===--------------------------------------------------------------------===//
-  // Argument iterator forwarding functions
-  //
+/// @name Function Argument Iteration
+/// @{
+
   arg_iterator arg_begin() {
     CheckLazyArguments();
     return ArgumentList.begin();
@@ -394,8 +437,32 @@ public:
     return ArgumentList.end();
   }
 
+  iterator_range<arg_iterator> args() {
+    return iterator_range<arg_iterator>(arg_begin(), arg_end());
+  }
+
+  iterator_range<const_arg_iterator> args() const {
+    return iterator_range<const_arg_iterator>(arg_begin(), arg_end());
+  }
+
+/// @}
+
   size_t arg_size() const;
   bool arg_empty() const;
+
+  bool hasPrefixData() const {
+    return getSubclassDataFromValue() & (1<<1);
+  }
+
+  Constant *getPrefixData() const;
+  void setPrefixData(Constant *PrefixData);
+
+  bool hasPrologueData() const {
+    return getSubclassDataFromValue() & (1<<2);
+  }
+
+  Constant *getPrologueData() const;
+  void setPrologueData(Constant *PrologueData);
 
   /// viewCFG - This function is meant for use from the debugger.  You can just
   /// say 'call F->viewCFG()' and a ghostview window should pop up from the
@@ -435,7 +502,7 @@ public:
   /// other than direct calls or invokes to it, or blockaddress expressions.
   /// Optionally passes back an offending user for diagnostic purposes.
   ///
-  bool hasAddressTaken(const User** = 0) const;
+  bool hasAddressTaken(const User** = nullptr) const;
 
   /// isDefTriviallyDead - Return true if it is trivially safe to remove
   /// this function definition from the module (because it isn't externally
@@ -457,12 +524,12 @@ private:
 
 inline ValueSymbolTable *
 ilist_traits<BasicBlock>::getSymTab(Function *F) {
-  return F ? &F->getValueSymbolTable() : 0;
+  return F ? &F->getValueSymbolTable() : nullptr;
 }
 
 inline ValueSymbolTable *
 ilist_traits<Argument>::getSymTab(Function *F) {
-  return F ? &F->getValueSymbolTable() : 0;
+  return F ? &F->getValueSymbolTable() : nullptr;
 }
 
 } // End llvm namespace

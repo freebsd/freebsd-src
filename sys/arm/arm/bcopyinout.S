@@ -52,12 +52,12 @@ __FBSDID("$FreeBSD$");
 #else
 
 	.text
-	.align	0
+	.align	2
 
 #ifdef _ARM_ARCH_6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
-	add	tmp, tmp, #(PC_CURPCB)
+	add	tmp, tmp, #(TD_PCB)
 #else
 .Lcurpcb:
 	.word	_C_LABEL(__pcpu) + PC_CURPCB
@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 
 #define SAVE_REGS	stmfd	sp!, {r4-r11}
 #define RESTORE_REGS	ldmfd	sp!, {r4-r11}
-		
+
 #if defined(_ARM_ARCH_5E)
 #define HELLOCPP #
 #define PREFETCH(rx,o)	pld	[ rx , HELLOCPP (o) ]
@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
  * r4-r11 are scratch
  */
 ENTRY(copyin)
-	/* Quick exit if length is zero */	
+	/* Quick exit if length is zero */
 	teq	r2, #0
 	moveq	r0, #0
 	RETeq
@@ -326,7 +326,7 @@ END(copyin)
  */
 
 ENTRY(copyout)
-	/* Quick exit if length is zero */	
+	/* Quick exit if length is zero */
 	teq	r2, #0
 	moveq	r0, #0
 	RETeq

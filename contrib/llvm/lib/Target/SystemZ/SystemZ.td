@@ -14,13 +14,10 @@
 include "llvm/Target/Target.td"
 
 //===----------------------------------------------------------------------===//
-// SystemZ supported processors
+// SystemZ supported processors and features
 //===----------------------------------------------------------------------===//
 
-class Proc<string Name, list<SubtargetFeature> Features>
- : Processor<Name, NoItineraries, Features>;
-
-def : Proc<"z10", []>;
+include "SystemZProcessors.td"
 
 //===----------------------------------------------------------------------===//
 // Register file description
@@ -56,20 +53,10 @@ def SystemZAsmParser : AsmParser {
 }
 
 //===----------------------------------------------------------------------===//
-// Assembly writer
-//===----------------------------------------------------------------------===//
-
-def SystemZAsmWriter : AsmWriter {
-  string AsmWriterClassName = "InstPrinter";
-  bit isMCAsmWriter = 1;
-}
-
-//===----------------------------------------------------------------------===//
 // Top-level target declaration
 //===----------------------------------------------------------------------===//
 
 def SystemZ : Target {
   let InstructionSet = SystemZInstrInfo;
   let AssemblyParsers = [SystemZAsmParser];
-  let AssemblyWriters = [SystemZAsmWriter];
 }

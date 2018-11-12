@@ -726,15 +726,17 @@ static void
 devstats(int perf_select, long double etime, int havelast)
 {
 	int dn;
-	long double transfers_per_second, transfers_per_second_read, transfers_per_second_write;
-	long double kb_per_transfer, mb_per_second, mb_per_second_read, mb_per_second_write;
+	long double transfers_per_second, transfers_per_second_read;
+	long double transfers_per_second_write;
+	long double kb_per_transfer, mb_per_second, mb_per_second_read;
+	long double mb_per_second_write;
 	u_int64_t total_bytes, total_transfers, total_blocks;
 	u_int64_t total_bytes_read, total_transfers_read;
 	u_int64_t total_bytes_write, total_transfers_write;
 	long double busy_pct, busy_time;
 	u_int64_t queue_len;
-	long double total_mb;
-	long double blocks_per_second, ms_per_transaction, total_duration;
+	long double total_mb, blocks_per_second, total_duration;
+	long double ms_per_other, ms_per_read, ms_per_write, ms_per_transaction;
 	int firstline = 1;
 	char *devname;
 
@@ -746,8 +748,8 @@ devstats(int perf_select, long double etime, int havelast)
 			printf("           cpu ");
 		printf("\n");
 		if (Iflag == 0) {
-			printf("device     r/s   w/s    kr/s    kw/s qlen "
-			    "svc_t  %%b  ");
+			printf("device     r/s   w/s     kr/s     kw/s "
+			    " ms/r  ms/w  ms/o  ms/t qlen  %%b  ");
 		} else {
 			printf("device           r/i         w/i         kr/i"
 			    "         kw/i qlen   tsvc_t/i      sb/i  ");
@@ -786,6 +788,9 @@ devstats(int perf_select, long double etime, int havelast)
 		    DSM_MB_PER_SECOND_WRITE, &mb_per_second_write,
 		    DSM_BLOCKS_PER_SECOND, &blocks_per_second,
 		    DSM_MS_PER_TRANSACTION, &ms_per_transaction,
+		    DSM_MS_PER_TRANSACTION_READ, &ms_per_read,
+		    DSM_MS_PER_TRANSACTION_WRITE, &ms_per_write,
+		    DSM_MS_PER_TRANSACTION_OTHER, &ms_per_other,
 		    DSM_BUSY_PCT, &busy_pct,
 		    DSM_QUEUE_LENGTH, &queue_len,
 		    DSM_TOTAL_DURATION, &total_duration,
@@ -820,13 +825,18 @@ devstats(int perf_select, long double etime, int havelast)
 			    mb_per_second_write > ((long double).0005)/1024 ||
 			    busy_pct > 0.5) {
 				if (Iflag == 0)
-					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4" PRIu64 " %5.1Lf %3.0Lf ",
-					    devname, transfers_per_second_read,
-					    transfers_per_second_write,
+					printf("%-8.8s %5d %5d %8.1Lf "
+					    "%8.1Lf %5d %5d %5d %5d "
+					    "%4" PRIu64 " %3.0Lf ",
+					    devname,
+					    (int)transfers_per_second_read,
+					    (int)transfers_per_second_write,
 					    mb_per_second_read * 1024,
 					    mb_per_second_write * 1024,
-					    queue_len,
-					    ms_per_transaction, busy_pct);
+					    (int)ms_per_read, (int)ms_per_write,
+					    (int)ms_per_other,
+					    (int)ms_per_transaction,
+					    queue_len, busy_pct);
 				else
 					printf("%-8.8s %11.1Lf %11.1Lf "
 					    "%12.1Lf %12.1Lf %4" PRIu64

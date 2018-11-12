@@ -56,6 +56,8 @@ proc_regget(struct proc_handle *phdl, proc_reg_t reg, unsigned long *regvalue)
 	case REG_PC:
 #if defined(__amd64__)
 		*regvalue = regs.r_rip;
+#elif defined(__arm__)
+		*regvalue = regs.r_pc;
 #elif defined(__i386__)
 		*regvalue = regs.r_eip;
 #elif defined(__mips__)
@@ -67,6 +69,8 @@ proc_regget(struct proc_handle *phdl, proc_reg_t reg, unsigned long *regvalue)
 	case REG_SP:
 #if defined(__amd64__)
 		*regvalue = regs.r_rsp;
+#elif defined(__arm__)
+		*regvalue = regs.r_sp;
 #elif defined(__i386__)
 		*regvalue = regs.r_esp;
 #elif defined(__mips__)
@@ -99,6 +103,8 @@ proc_regset(struct proc_handle *phdl, proc_reg_t reg, unsigned long regvalue)
 	case REG_PC:
 #if defined(__amd64__)
 		regs.r_rip = regvalue;
+#elif defined(__arm__)
+		regs.r_pc = regvalue;
 #elif defined(__i386__)
 		regs.r_eip = regvalue;
 #elif defined(__mips__)
@@ -110,6 +116,8 @@ proc_regset(struct proc_handle *phdl, proc_reg_t reg, unsigned long regvalue)
 	case REG_SP:
 #if defined(__amd64__)
 		regs.r_rsp = regvalue;
+#elif defined(__arm__)
+		regs.r_sp = regvalue;
 #elif defined(__i386__)
 		regs.r_esp = regvalue;
 #elif defined(__mips__)

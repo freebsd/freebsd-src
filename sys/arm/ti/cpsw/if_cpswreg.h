@@ -118,6 +118,8 @@
 #define CPSW_CPPI_RAM_OFFSET		0x2000
 #define	CPSW_CPPI_RAM_SIZE		0x2000
 
+#define	CPSW_MEMWINDOW_SIZE		0x4000
+
 #define CPDMA_BD_SOP		(1<<15)
 #define CPDMA_BD_EOP		(1<<14)
 #define CPDMA_BD_OWNER		(1<<13)

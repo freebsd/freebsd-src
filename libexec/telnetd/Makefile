@@ -3,7 +3,7 @@
 # Do not define -DKLUDGELINEMODE, as it does not interact well with many
 # telnet implementations.
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 TELNETDIR=	${.CURDIR}/../../contrib/telnet
 .PATH:		${TELNETDIR}/telnetd
@@ -25,26 +25,21 @@ CFLAGS+=	-DINET6
 .endif
 
 CFLAGS+=	-I${TELNETDIR}
+CFLAGS+=	-I${TELNETDIR}/telnet
 
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 
-DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
-LDADD=		-lutil -ltermcap ${LIBTELNET}
+LIBADD=		telnet util ncursesw
 
-# XXX for src/release/picobsd
-.if !defined(RELEASE_CRUNCH)
 .if ${MK_OPENSSL} != "no"
 SRCS+=		authenc.c
 CFLAGS+=	-DAUTHENTICATION -DENCRYPTION
-DPADD+=		${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} ${LIBPAM}
-LDADD+=		-lmp -lcrypto -lcrypt ${MINUSLPAM}
+LIBADD+=	mp crypto pam
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
-DPADD+=		${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR}
-LDADD+=		-lkrb5 -lhx509 -lasn1 -lroken -lcom_err
-.endif
+LIBADD+=	krb5 roken
 .endif
 
 .include <bsd.prog.mk>

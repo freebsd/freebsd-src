@@ -1,6 +1,6 @@
-#	$OpenBSD: Makefile,v 1.65 2013/04/18 02:46:12 djm Exp $
+#	$OpenBSD: Makefile,v 1.68 2014/01/25 04:35:32 dtucker Exp $
 
-REGRESS_TARGETS=	t1 t2 t3 t4 t5 t6 t7 t8 t9 t-exec
+REGRESS_TARGETS=	t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t-exec
 tests:		$(REGRESS_TARGETS)
 
 # Interop tests are not run by default
@@ -44,6 +44,7 @@ LTESTS= 	connect \
 		sftp-badcmds \
 		sftp-batch \
 		sftp-glob \
+		sftp-perm \
 		reconfigure \
 		dynamic-forward \
 		forwarding \
@@ -64,6 +65,7 @@ LTESTS= 	connect \
 		forward-control \
 		integrity \
 		krl
+#		dhgex \
 
 INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
 #INTEROP_TESTS+=ssh-com ssh-com-client ssh-com-keygen ssh-com-sftp
@@ -72,7 +74,7 @@ INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
 
 USER!=		id -un
 CLEANFILES=	t2.out t3.out t6.out1 t6.out2 t7.out t7.out.pub copy.1 copy.2 \
-		t8.out t8.out.pub t9.out t9.out.pub \
+		t8.out t8.out.pub t9.out t9.out.pub t10.out t10.out.pub \
 		authorized_keys_${USER} known_hosts pidfile testdata \
 		ssh_config sshd_config.orig ssh_proxy sshd_config sshd_proxy \
 		rsa.pub rsa rsa1.pub rsa1 host.rsa host.rsa1 \
@@ -86,7 +88,10 @@ CLEANFILES=	t2.out t3.out t6.out1 t6.out2 t7.out t7.out.pub copy.1 copy.2 \
 		authorized_principals_${USER} expect actual ready \
 		sshd_proxy.* authorized_keys_${USER}.* modpipe revoked-* krl-* \
 		ssh.log failed-ssh.log sshd.log failed-sshd.log \
-		regress.log failed-regress.log ssh-log-wrapper.sh
+		regress.log failed-regress.log ssh-log-wrapper.sh \
+		sftp-server.sh sftp-server.log sftp.log setuid-allowed \
+		data ed25519-agent ed25519-agent.pub key.ed25519-512 \
+		key.ed25519-512.pub
 
 SUDO_CLEAN+=	/var/run/testdata_${USER} /var/run/keycommand_${USER}
 
@@ -150,6 +155,14 @@ t9: $(OBJ)/t9.out
 	${TEST_SSH_SSHKEYGEN} -lf $(OBJ)/t9.out > /dev/null
 	test "${TEST_SSH_ECC}" != yes || \
 	${TEST_SSH_SSHKEYGEN} -Bf $(OBJ)/t9.out > /dev/null
+
+
+$(OBJ)/t10.out:
+	${TEST_SSH_SSHKEYGEN} -q -t ed25519 -N '' -f $@
+
+t10: $(OBJ)/t10.out
+	${TEST_SSH_SSHKEYGEN} -lf $(OBJ)/t10.out > /dev/null
+	${TEST_SSH_SSHKEYGEN} -Bf $(OBJ)/t10.out > /dev/null
 
 t-exec:	${LTESTS:=.sh}
 	@if [ "x$?" = "x" ]; then exit 0; fi; \

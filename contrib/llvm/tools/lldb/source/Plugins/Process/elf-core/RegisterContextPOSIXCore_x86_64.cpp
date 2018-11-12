@@ -10,7 +10,7 @@
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Target/Thread.h"
-#include "RegisterContextPOSIX.h"
+#include "Plugins/Process/Utility/RegisterContextPOSIX.h"
 #include "RegisterContextPOSIXCore_x86_64.h"
 
 using namespace lldb_private;
@@ -63,8 +63,16 @@ RegisterContextCorePOSIX_x86_64::WriteFPR()
 bool
 RegisterContextCorePOSIX_x86_64::ReadRegister(const RegisterInfo *reg_info, RegisterValue &value)
 {
-    value = *(uint64_t *)(m_gpregset + reg_info->byte_offset);
-    return true;
+    switch (reg_info->byte_size)
+    {
+        case 4:
+            value = *(uint32_t *)(m_gpregset + reg_info->byte_offset);
+            return true;
+        case 8:
+            value = *(uint64_t *)(m_gpregset + reg_info->byte_offset);
+            return true;
+    }
+    return false;
 }
 
 bool

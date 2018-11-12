@@ -23,7 +23,7 @@ using namespace ento;
 
 namespace {
   class BoolAssignmentChecker : public Checker< check::Bind > {
-    mutable OwningPtr<BuiltinBug> BT;
+    mutable std::unique_ptr<BuiltinBug> BT;
     void emitReport(ProgramStateRef state, CheckerContext &C) const;
   public:
     void checkBind(SVal loc, SVal val, const Stmt *S, CheckerContext &C) const;
@@ -34,7 +34,7 @@ void BoolAssignmentChecker::emitReport(ProgramStateRef state,
                                        CheckerContext &C) const {
   if (ExplodedNode *N = C.addTransition(state)) {
     if (!BT)
-      BT.reset(new BuiltinBug("Assignment of a non-Boolean value"));    
+      BT.reset(new BuiltinBug(this, "Assignment of a non-Boolean value"));
     C.emitReport(new BugReport(*BT, BT->getDescription(), N));
   }
 }
@@ -96,7 +96,7 @@ void BoolAssignmentChecker::checkBind(SVal loc, SVal val, const Stmt *S,
   }
   
   ProgramStateRef stateLT, stateGE;
-  llvm::tie(stateGE, stateLT) = CM.assumeDual(state, *greaterThanEqualToZero);
+  std::tie(stateGE, stateLT) = CM.assumeDual(state, *greaterThanEqualToZero);
   
   // Is it possible for the value to be less than zero?
   if (stateLT) {
@@ -132,7 +132,7 @@ void BoolAssignmentChecker::checkBind(SVal loc, SVal val, const Stmt *S,
   }
   
   ProgramStateRef stateGT, stateLE;
-  llvm::tie(stateLE, stateGT) = CM.assumeDual(state, *lessThanEqToOne);
+  std::tie(stateLE, stateGT) = CM.assumeDual(state, *lessThanEqToOne);
   
   // Is it possible for the value to be greater than one?
   if (stateGT) {

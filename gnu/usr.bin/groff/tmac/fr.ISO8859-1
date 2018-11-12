@@ -86,7 +86,6 @@
 .\" XXX ds doc-str-Lb-libgeom     Userland API Library for kernel GEOM subsystem (libgeom, \-lgeom)
 .ds doc-str-Lb-libi386     Bibliothèque de l'architecture i386 (libi386, \-li386)
 .ds doc-str-Lb-libipsec    Bibliothèque de contrôle de politique IPsec (libipsec, \-lipsec)
-.ds doc-str-Lb-libipx      Bibliothèque de support des conversions des adresses IPX (libipx, \-lipx)
 .ds doc-str-Lb-libkvm      Bibliothèque d'accès aux données du noyau (libkvm, \-lkvm)
 .ds doc-str-Lb-libm        Bibliothèque mathématique (libm, \-lm)
 .ds doc-str-Lb-libmd       Bibliothèque de support des signatures (MD4, MD5, etc.) (libmd, \-lmd)

@@ -17,6 +17,10 @@ FBSDprivate_1.0 {
 	__aeabi_dcmpgt;
 	__aeabi_dcmpun;
 
+	__aeabi_cdcmpeq;
+	__aeabi_cdcmple;
+	__aeabi_cdrcmple;
+
 	__aeabi_d2iz;
 	__aeabi_d2f;
 
@@ -32,6 +36,10 @@ FBSDprivate_1.0 {
 	__aeabi_fcmpge;
 	__aeabi_fcmpgt;
 	__aeabi_fcmpun;
+
+	__aeabi_cfcmpeq;
+	__aeabi_cfcmple;
+	__aeabi_cfrcmple;
 
 	__aeabi_f2iz;
 	__aeabi_f2d;

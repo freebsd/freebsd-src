@@ -112,6 +112,12 @@ vulnerability affecting CBC ciphers, which cannot be handled by some
 broken SSL implementations.  This option has no effect for connections
 using other ciphers.
 
+=item SSL_OP_TLSEXT_PADDING
+
+Adds a padding extension to ensure the ClientHello size is never between
+256 and 511 bytes in length. This is needed as a workaround for some
+implementations.
+
 =item SSL_OP_ALL
 
 All of the above bug workarounds.
@@ -152,15 +158,7 @@ temporary/ephemeral DH parameters are used.
 
 =item SSL_OP_EPHEMERAL_RSA
 
-Always use ephemeral (temporary) RSA key when doing RSA operations
-(see L<SSL_CTX_set_tmp_rsa_callback(3)|SSL_CTX_set_tmp_rsa_callback(3)>).
-According to the specifications this is only done, when a RSA key
-can only be used for signature operations (namely under export ciphers
-with restricted RSA keylength). By setting this option, ephemeral
-RSA keys are always used. This option breaks compatibility with the
-SSL/TLS specifications and may lead to interoperability problems with
-clients and should therefore never be used. Ciphers with EDH (ephemeral
-Diffie-Hellman) key exchange should be used instead.
+This option is no longer implemented and is treated as no op.
 
 =item SSL_OP_CIPHER_SERVER_PREFERENCE
 
@@ -250,7 +248,7 @@ Connections and renegotiation are always permitted by OpenSSL implementations.
 
 =head2 Unpatched client and patched OpenSSL server
 
-The initial connection suceeds but client renegotiation is denied by the
+The initial connection succeeds but client renegotiation is denied by the
 server with a B<no_renegotiation> warning alert if TLS v1.0 is used or a fatal
 B<handshake_failure> alert in SSL v3.0.
 

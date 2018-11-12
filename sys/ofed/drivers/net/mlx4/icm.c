@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -35,6 +35,7 @@
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/math64.h>
 
 #include <linux/mlx4/cmd.h>
 
@@ -288,10 +289,14 @@ void mlx4_table_put(struct mlx4_dev *dev, struct mlx4_icm_table *table, u32 obj)
 
 	if (--table->icm[i]->refcount == 0) {
 		offset = (u64) i * MLX4_TABLE_CHUNK_SIZE;
-		mlx4_UNMAP_ICM(dev, table->virt + offset,
-			       MLX4_TABLE_CHUNK_SIZE / MLX4_ICM_PAGE_SIZE);
-		mlx4_free_icm(dev, table->icm[i], table->coherent);
-		table->icm[i] = NULL;
+
+		if (!mlx4_UNMAP_ICM(dev, table->virt + offset,
+				    MLX4_TABLE_CHUNK_SIZE / MLX4_ICM_PAGE_SIZE)) {
+			mlx4_free_icm(dev, table->icm[i], table->coherent);
+			table->icm[i] = NULL;
+		} else {
+			pr_warn("mlx4_core: mlx4_UNMAP_ICM failed.\n");
+		}
 	}
 
 	mutex_unlock(&table->mutex);
@@ -378,7 +383,7 @@ void mlx4_table_put_range(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 }
 
 int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
-			u64 virt, int obj_size,	u32 nobj, int reserved,
+			u64 virt, int obj_size,	u64 nobj, int reserved,
 			int use_lowmem, int use_coherent)
 {
 	int obj_per_chunk;
@@ -388,7 +393,7 @@ int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 	u64 size;
 
 	obj_per_chunk = MLX4_TABLE_CHUNK_SIZE / obj_size;
-	num_icm = (nobj + obj_per_chunk - 1) / obj_per_chunk;
+	num_icm = div_u64((nobj + obj_per_chunk - 1), obj_per_chunk);
 
 	table->icm      = kcalloc(num_icm, sizeof *table->icm, GFP_KERNEL);
 	if (!table->icm)
@@ -431,11 +436,15 @@ int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 err:
 	for (i = 0; i < num_icm; ++i)
 		if (table->icm[i]) {
-			mlx4_UNMAP_ICM(dev, virt + i * MLX4_TABLE_CHUNK_SIZE,
-				       MLX4_TABLE_CHUNK_SIZE / MLX4_ICM_PAGE_SIZE);
-			mlx4_free_icm(dev, table->icm[i], use_coherent);
+			if (!mlx4_UNMAP_ICM(dev,
+					    virt + i * MLX4_TABLE_CHUNK_SIZE,
+					    MLX4_TABLE_CHUNK_SIZE / MLX4_ICM_PAGE_SIZE)) {
+				mlx4_free_icm(dev, table->icm[i], use_coherent);
+			} else {
+				pr_warn("mlx4_core: mlx4_UNMAP_ICM failed.\n");
+				return -ENOMEM;
+			}
 		}
-
 	kfree(table->icm);
 
 	return -ENOMEM;
@@ -443,14 +452,22 @@ err:
 
 void mlx4_cleanup_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table)
 {
-	int i;
+	int i, err = 0;
 
 	for (i = 0; i < table->num_icm; ++i)
 		if (table->icm[i]) {
-			mlx4_UNMAP_ICM(dev, table->virt + i * MLX4_TABLE_CHUNK_SIZE,
-				       MLX4_TABLE_CHUNK_SIZE / MLX4_ICM_PAGE_SIZE);
-			mlx4_free_icm(dev, table->icm[i], table->coherent);
+			err = mlx4_UNMAP_ICM(dev,
+					     table->virt + i * MLX4_TABLE_CHUNK_SIZE,
+					     MLX4_TABLE_CHUNK_SIZE / MLX4_ICM_PAGE_SIZE);
+			if (!err) {
+				mlx4_free_icm(dev, table->icm[i],
+					      table->coherent);
+			} else {
+				pr_warn("mlx4_core: mlx4_UNMAP_ICM failed.\n");
+				break;
+			}
 		}
 
-	kfree(table->icm);
+	if (!err)
+		kfree(table->icm);
 }

@@ -1,0 +1,12 @@
+dma for Debian
+--------------
+
+Smarthost operation by default - needs to be configured!
+
+After first installing dma, you need to configure it for proper operation -
+whether it should deliver all outgoing e-mail messages through a single
+smarthost or attempt to contact the remote mail servers directly.  This should
+be configured through the debconf questions, but you may change the setting
+using the SMARTHOST directive in the /etc/dma/dma.conf file.
+
+ -- Simon Schubert <2@0x2c.org>  Fri, 29 Oct 2010 00:25:48 +0200

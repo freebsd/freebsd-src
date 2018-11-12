@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2013
+.Dd November 14, 2014
 .Dt BOOT 8 i386
 .Os
 .Sh NAME
@@ -55,6 +55,11 @@ known as drive C:, or as drive 0x80 to the BIOS).
 Some BIOSes allow
 you to change this default sequence, and may also include a CD-ROM
 drive as a boot device.
+.Pp
+Some newer PCs boot using UEFI firmware, not BIOS.
+That process is described
+in
+.Xr uefi 8 .
 .Pp
 By default, a three-stage bootstrap is employed, and control is
 automatically passed from the boot blocks (bootstrap stages one and
@@ -113,7 +118,6 @@ boot device, as a hint about available boot files.
 .Ic ?\&
 may also be specified as the last segment of a path, in which case
 the listing will be of the relevant subdirectory.)
-.Pp
 .It Xo
 .Sm off
 .Ar bios_drive : interface ( unit , Oo Ar slice , Oc Ar part )
@@ -356,7 +360,8 @@ requirement has not been adhered to.
 .Xr loader 8 ,
 .Xr nextboot 8 ,
 .Xr reboot 8 ,
-.Xr shutdown 8
+.Xr shutdown 8 ,
+.Xr uefi 8
 .Sh BUGS
 The bsdlabel format used by this version of
 .Bx

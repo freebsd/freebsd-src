@@ -99,12 +99,17 @@ void sleep_for(const chrono::duration<Rep, Period>& rel_time);
 #include <tuple>
 #endif
 #include <pthread.h>
+#include <sched.h>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header
 #endif
 
 #define __STDCPP_THREADS__ __cplusplus
+
+#ifdef _LIBCPP_HAS_NO_THREADS
+#error <thread> is not supported on this single threaded system
+#else // !_LIBCPP_HAS_NO_THREADS
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
@@ -185,10 +190,9 @@ _LIBCPP_INLINE_VISIBILITY __thread_id get_id() _NOEXCEPT;
 
 }  // this_thread
 
-class _LIBCPP_TYPE_VIS __thread_id;
-template<> struct _LIBCPP_TYPE_VIS hash<__thread_id>;
+template<> struct _LIBCPP_TYPE_VIS_ONLY hash<__thread_id>;
 
-class _LIBCPP_TYPE_VIS __thread_id
+class _LIBCPP_TYPE_VIS_ONLY __thread_id
 {
     // FIXME: pthread_t is a pointer on Darwin but a long on Linux.
     // NULL is the no-thread value on Darwin.  Someone needs to check
@@ -231,11 +235,11 @@ private:
 
     friend __thread_id this_thread::get_id() _NOEXCEPT;
     friend class _LIBCPP_TYPE_VIS thread;
-    friend struct _LIBCPP_TYPE_VIS hash<__thread_id>;
+    friend struct _LIBCPP_TYPE_VIS_ONLY hash<__thread_id>;
 };
 
 template<>
-struct _LIBCPP_TYPE_VIS hash<__thread_id>
+struct _LIBCPP_TYPE_VIS_ONLY hash<__thread_id>
     : public unary_function<__thread_id, size_t>
 {
     _LIBCPP_INLINE_VISIBILITY
@@ -307,7 +311,7 @@ class __assoc_sub_state;
 
 class _LIBCPP_HIDDEN __thread_struct_imp;
 
-class __thread_struct
+class _LIBCPP_TYPE_VIS __thread_struct
 {
     __thread_struct_imp* __p_;
 
@@ -321,7 +325,7 @@ public:
     void __make_ready_at_thread_exit(__assoc_sub_state*);
 };
 
-__thread_specific_ptr<__thread_struct>& __thread_local_data();
+_LIBCPP_FUNC_VIS __thread_specific_ptr<__thread_struct>& __thread_local_data();
 
 #ifndef _LIBCPP_HAS_NO_VARIADICS
 
@@ -405,7 +409,7 @@ void swap(thread& __x, thread& __y) _NOEXCEPT {__x.swap(__y);}
 namespace this_thread
 {
 
-void sleep_for(const chrono::nanoseconds& ns);
+_LIBCPP_FUNC_VIS void sleep_for(const chrono::nanoseconds& ns);
 
 template <class _Rep, class _Period>
 void
@@ -455,5 +459,7 @@ void yield() _NOEXCEPT {sched_yield();}
 }  // this_thread
 
 _LIBCPP_END_NAMESPACE_STD
+
+#endif // !_LIBCPP_HAS_NO_THREADS
 
 #endif  // _LIBCPP_THREAD

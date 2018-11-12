@@ -45,21 +45,16 @@
 # error "please don't include this file directly"
 #endif
 
+extern char *hypercall_page;
+
 #define __STR(x) #x
 #define STR(x) __STR(x)
 #define	ENOXENSYS	38
 #define CONFIG_XEN_COMPAT	0x030002
 #define __must_check
 
-#ifdef XEN
 #define HYPERCALL_STR(name)					\
 	"call hypercall_page + ("STR(__HYPERVISOR_##name)" * 32)"
-#else
-#define HYPERCALL_STR(name)					\
-	"mov $("STR(__HYPERVISOR_##name)" * 32),%%eax; "\
-	"add hypercall_stubs(%%rip),%%rax; "			\
-	"call *%%rax"
-#endif
 
 #define _hypercall0(type, name)			\
 ({						\
@@ -140,6 +135,26 @@
 		: "memory" );					\
 	__res;							\
 })
+
+static inline int
+privcmd_hypercall(long op, long a1, long a2, long a3, long a4, long a5)
+{
+	int __res;
+	long __ign1, __ign2, __ign3;
+	register long __arg4 __asm__("r10") = (long)(a4);
+	register long __arg5 __asm__("r8") = (long)(a5);
+	long __call = (long)&hypercall_page + (op * 32);
+
+	__asm__ volatile (
+		"call *%[call]"
+		: "=a" (__res), "=D" (__ign1), "=S" (__ign2),
+		  "=d" (__ign3), "+r" (__arg4), "+r" (__arg5)
+		: "1" ((long)(a1)), "2" ((long)(a2)),
+		  "3" ((long)(a3)), [call] "a" (__call)
+		: "memory" );
+
+	return (__res);
+}
 
 static inline int __must_check
 HYPERVISOR_set_trap_table(

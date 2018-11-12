@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_top.c,v 1.10 2004/12/11 23:29:34 tom Exp $")
+MODULE_ID("$Id: m_item_top.c,v 1.11 2010/01/23 21:20:10 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -54,7 +54,7 @@ set_top_row(MENU * menu, int row)
 {
   ITEM *item;
 
-  T((T_CALLED("set_top_row(%p,%d)"), menu, row));
+  T((T_CALLED("set_top_row(%p,%d)"), (void *)menu, row));
 
   if (menu)
     {
@@ -94,7 +94,7 @@ set_top_row(MENU * menu, int row)
 NCURSES_EXPORT(int)
 top_row(const MENU * menu)
 {
-  T((T_CALLED("top_row(%p)"), menu));
+  T((T_CALLED("top_row(%p)"), (const void *)menu));
   if (menu && menu->items && *(menu->items))
     {
       assert((menu->toprow >= 0) && (menu->toprow < menu->rows));

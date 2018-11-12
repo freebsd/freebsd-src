@@ -47,21 +47,22 @@
  * Locking key:
  *      b - created at fork, never changes
  *      c - locked by proc mtx
- *      j - locked by proc slock
  *      k - only accessed by curthread
+ *      w - locked by proc itim lock
+ *	w2 - locked by proc prof lock
  */
 struct pstats {
 #define	pstat_startzero	p_cru
 	struct	rusage p_cru;		/* Stats for reaped children. */
-	struct	itimerval p_timer[3];	/* (j) Virtual-time timers. */
+	struct	itimerval p_timer[3];	/* (w) Virtual-time timers. */
 #define	pstat_endzero	pstat_startcopy
 
 #define	pstat_startcopy	p_prof
 	struct uprof {			/* Profile arguments. */
-		caddr_t	pr_base;	/* (c + j) Buffer base. */
-		u_long	pr_size;	/* (c + j) Buffer size. */
-		u_long	pr_off;		/* (c + j) PC offset. */
-		u_long	pr_scale;	/* (c + j) PC scaling. */
+		caddr_t	pr_base;	/* (c + w2) Buffer base. */
+		u_long	pr_size;	/* (c + w2) Buffer size. */
+		u_long	pr_off;		/* (c + w2) PC offset. */
+		u_long	pr_scale;	/* (c + w2) PC scaling. */
 	} p_prof;
 #define	pstat_endcopy	p_start
 	struct	timeval p_start;	/* (b) Starting time. */
@@ -102,7 +103,9 @@ struct uidinfo {
 	long	ui_kqcnt;		/* (b) number of kqueues */
 	uid_t	ui_uid;			/* (a) uid */
 	u_int	ui_ref;			/* (b) reference count */
+#ifdef	RACCT
 	struct racct *ui_racct;		/* (a) resource accounting */
+#endif
 };
 
 #define	UIDINFO_VMSIZE_LOCK(ui)		mtx_lock(&((ui)->ui_vmsize_mtx))
@@ -148,8 +151,10 @@ struct uidinfo
 void	 uifree(struct uidinfo *uip);
 void	 uihashinit(void);
 void	 uihold(struct uidinfo *uip);
+#ifdef	RACCT
 void	 ui_racct_foreach(void (*callback)(struct racct *racct,
 	    void *arg2, void *arg3), void *arg2, void *arg3);
+#endif
 
 #endif /* _KERNEL */
 #endif /* !_SYS_RESOURCEVAR_H_ */

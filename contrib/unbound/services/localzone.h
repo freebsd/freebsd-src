@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -48,6 +48,8 @@ struct regional;
 struct config_file;
 struct edns_data;
 struct query_info;
+struct sldns_buffer;
+struct comm_reply;
 
 /**
  * Local zone type
@@ -69,7 +71,9 @@ enum localzone_type {
 	local_zone_redirect,
 	/** remove default AS112 blocking contents for zone
 	 * nodefault is used in config not during service. */
-	local_zone_nodefault
+	local_zone_nodefault,
+	/** log client address, but no block (transparent) */
+	local_zone_inform
 };
 
 /**
@@ -77,7 +81,7 @@ enum localzone_type {
  */
 struct local_zones {
 	/** lock on the localzone tree */
-	lock_quick_t lock;
+	lock_rw_t lock;
 	/** rbtree of struct local_zone */
 	rbtree_t ztree;
 };
@@ -219,12 +223,14 @@ void local_zones_print(struct local_zones* zones);
  * @param edns: edns info (parsed).
  * @param buf: buffer with query ID and flags, also for reply.
  * @param temp: temporary storage region.
+ * @param repinfo: source address for checks. may be NULL.
  * @return true if answer is in buffer. false if query is not answered 
  * by authority data. If the reply should be dropped altogether, the return 
  * value is true, but the buffer is cleared (empty).
  */
 int local_zones_answer(struct local_zones* zones, struct query_info* qinfo,
-	struct edns_data* edns, ldns_buffer* buf, struct regional* temp);
+	struct edns_data* edns, struct sldns_buffer* buf, struct regional* temp,
+	struct comm_reply* repinfo);
 
 /**
  * Parse the string into localzone type.
@@ -286,11 +292,9 @@ void local_zones_del_zone(struct local_zones* zones, struct local_zone* zone);
  * name of the RR is created.
  * @param zones: the zones tree. Not locked by caller.
  * @param rr: string with on RR.
- * @param buf: buffer for scratch.
  * @return false on failure.
  */
-int local_zones_add_RR(struct local_zones* zones, const char* rr, 
-	ldns_buffer* buf);
+int local_zones_add_RR(struct local_zones* zones, const char* rr);
 
 /**
  * Remove data from domain name in the tree.

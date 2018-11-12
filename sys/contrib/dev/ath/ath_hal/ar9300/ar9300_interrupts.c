@@ -142,6 +142,21 @@ ar9300_get_pending_interrupts(
         sync_en_def = AR9340_INTR_SYNC_DEFAULT;
     }
 
+    /* Store away the async and sync cause registers */
+    /* XXX Do this before the filtering done below */
+#ifdef	AH_INTERRUPT_DEBUGGING
+	ah->ah_intrstate[0] = OS_REG_READ(ah, AR_ISR);
+	ah->ah_intrstate[1] = OS_REG_READ(ah, AR_ISR_S0);
+	ah->ah_intrstate[2] = OS_REG_READ(ah, AR_ISR_S1);
+	ah->ah_intrstate[3] = OS_REG_READ(ah, AR_ISR_S2);
+	ah->ah_intrstate[4] = OS_REG_READ(ah, AR_ISR_S3);
+	ah->ah_intrstate[5] = OS_REG_READ(ah, AR_ISR_S4);
+	ah->ah_intrstate[6] = OS_REG_READ(ah, AR_ISR_S5);
+
+	/* XXX double reading? */
+	ah->ah_syncstate = OS_REG_READ(ah, AR_HOSTIF_REG(ah, AR_INTR_SYNC_CAUSE));
+#endif
+
     sync_cause =
         OS_REG_READ(ah, AR_HOSTIF_REG(ah, AR_INTR_SYNC_CAUSE)) &
         (sync_en_def | AR_INTR_SYNC_MASK_GPIO);

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_PATH_DIAGNOSTIC_CLIENTS_H
-#define LLVM_CLANG_GR_PATH_DIAGNOSTIC_CLIENTS_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHDIAGNOSTICCONSUMERS_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHDIAGNOSTICCONSUMERS_H
 
 #include <string>
 #include <vector>
@@ -27,18 +27,12 @@ namespace ento {
 class PathDiagnosticConsumer;
 typedef std::vector<PathDiagnosticConsumer*> PathDiagnosticConsumers;
 
-#define CREATE_CONSUMER(NAME)\
-void create ## NAME ## DiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,\
-                                          PathDiagnosticConsumers &C,\
-                                          const std::string& prefix,\
-                                          const Preprocessor &PP);
-
-CREATE_CONSUMER(HTML)
-CREATE_CONSUMER(Plist)
-CREATE_CONSUMER(PlistMultiFile)
-CREATE_CONSUMER(TextPath)
-
-#undef CREATE_CONSUMER
+#define ANALYSIS_DIAGNOSTICS(NAME, CMDFLAG, DESC, CREATEFN)\
+void CREATEFN(AnalyzerOptions &AnalyzerOpts,\
+              PathDiagnosticConsumers &C,\
+              const std::string &Prefix,\
+              const Preprocessor &PP);
+#include "clang/StaticAnalyzer/Core/Analyses.def"
 
 } // end 'ento' namespace
 } // end 'clang' namespace

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
 
 LOADER?=	loader
@@ -41,7 +41,11 @@ HAVE_ISABUS=	yes
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
+.if ${MACHINE_CPUARCH} == "amd64"
+LIBFICL=	${.OBJDIR}/../../ficl32/libficl.a
+.else
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.endif
 .endif
 
 .if defined(LOADER_BZIP2_SUPPORT)
@@ -68,6 +72,8 @@ LDFLAGS=	-static -Ttext 0x0
 # i386 standalone support library
 LIBI386=	${.OBJDIR}/../libi386/libi386.a
 CFLAGS+=	-I${.CURDIR}/..
+
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 
 # BTX components
 CFLAGS+=	-I${.CURDIR}/../btx/lib
@@ -100,11 +106,8 @@ FILESMODE_${LOADER}= ${BINMODE} -b
 
 .if !defined(LOADER_ONLY)
 .PATH: ${.CURDIR}/../../forth
-FILES+=	loader.help loader.4th support.4th loader.conf
-FILES+= screen.4th frames.4th beastie.4th
-FILES+= brand.4th check-password.4th color.4th delay.4th
-FILES+= menu.4th menu-commands.4th menusets.4th shortcuts.4th version.4th
-FILESDIR_loader.conf=	/boot/defaults
+.include	"${.CURDIR}/../../forth/Makefile.inc"
+FILES+=	pcibios.4th
 
 .if !exists(${DESTDIR}/boot/loader.rc)
 FILES+=	loader.rc
@@ -126,6 +129,6 @@ LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBSTAND}
 beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
 CFLAGS+=	-DLOADER_PREFER_AMD64
-machine:
+machine: .NOPATH
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif

@@ -15,6 +15,8 @@
 #include "MCTargetDesc/MipsBaseInfo.h"
 #include "Mips16InstrInfo.h"
 #include "MipsInstrInfo.h"
+#include "MipsRegisterInfo.h"
+#include "MipsSubtarget.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -27,11 +29,14 @@
 
 using namespace llvm;
 
+Mips16FrameLowering::Mips16FrameLowering(const MipsSubtarget &STI)
+    : MipsFrameLowering(STI, STI.stackAlignment()) {}
+
 void Mips16FrameLowering::emitPrologue(MachineFunction &MF) const {
   MachineBasicBlock &MBB = MF.front();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   const Mips16InstrInfo &TII =
-    *static_cast<const Mips16InstrInfo*>(MF.getTarget().getInstrInfo());
+      *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
   MachineBasicBlock::iterator MBBI = MBB.begin();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
   uint64_t StackSize = MFI->getStackSize();
@@ -40,38 +45,37 @@ void Mips16FrameLowering::emitPrologue(MachineFunction &MF) const {
   if (StackSize == 0 && !MFI->adjustsStack()) return;
 
   MachineModuleInfo &MMI = MF.getMMI();
-  std::vector<MachineMove> &Moves = MMI.getFrameMoves();
+  const MCRegisterInfo *MRI = MMI.getContext().getRegisterInfo();
   MachineLocation DstML, SrcML;
 
   // Adjust stack.
   TII.makeFrame(Mips::SP, StackSize, MBB, MBBI);
 
   // emit ".cfi_def_cfa_offset StackSize"
-  MCSymbol *AdjustSPLabel = MMI.getContext().CreateTempSymbol();
-  BuildMI(MBB, MBBI, dl,
-          TII.get(TargetOpcode::PROLOG_LABEL)).addSym(AdjustSPLabel);
-  DstML = MachineLocation(MachineLocation::VirtualFP);
-  SrcML = MachineLocation(MachineLocation::VirtualFP, -StackSize);
-  Moves.push_back(MachineMove(AdjustSPLabel, DstML, SrcML));
+  unsigned CFIIndex = MMI.addFrameInst(
+      MCCFIInstruction::createDefCfaOffset(nullptr, -StackSize));
+  BuildMI(MBB, MBBI, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
+      .addCFIIndex(CFIIndex);
 
-  MCSymbol *CSLabel = MMI.getContext().CreateTempSymbol();
-  BuildMI(MBB, MBBI, dl,
-          TII.get(TargetOpcode::PROLOG_LABEL)).addSym(CSLabel);
-  DstML = MachineLocation(MachineLocation::VirtualFP, -8);
-  SrcML = MachineLocation(Mips::S1);
-  Moves.push_back(MachineMove(CSLabel, DstML, SrcML));
+  const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
 
-  DstML = MachineLocation(MachineLocation::VirtualFP, -12);
-  SrcML = MachineLocation(Mips::S0);
-  Moves.push_back(MachineMove(CSLabel, DstML, SrcML));
+  if (CSI.size()) {
+    const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
 
-  DstML = MachineLocation(MachineLocation::VirtualFP, -4);
-  SrcML = MachineLocation(Mips::RA);
-  Moves.push_back(MachineMove(CSLabel, DstML, SrcML));
-
+    for (std::vector<CalleeSavedInfo>::const_iterator I = CSI.begin(),
+         E = CSI.end(); I != E; ++I) {
+      int64_t Offset = MFI->getObjectOffset(I->getFrameIdx());
+      unsigned Reg = I->getReg();
+      unsigned DReg = MRI->getDwarfRegNum(Reg, true);
+      unsigned CFIIndex = MMI.addFrameInst(
+          MCCFIInstruction::createOffset(nullptr, DReg, Offset));
+      BuildMI(MBB, MBBI, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
+          .addCFIIndex(CFIIndex);
+    }
+  }
   if (hasFP(MF))
     BuildMI(MBB, MBBI, dl, TII.get(Mips::MoveR3216), Mips::S0)
-      .addReg(Mips::SP);
+      .addReg(Mips::SP).setMIFlag(MachineInstr::FrameSetup);
 
 }
 
@@ -80,7 +84,7 @@ void Mips16FrameLowering::emitEpilogue(MachineFunction &MF,
   MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   const Mips16InstrInfo &TII =
-    *static_cast<const Mips16InstrInfo*>(MF.getTarget().getInstrInfo());
+      *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
   DebugLoc dl = MBBI->getDebugLoc();
   uint64_t StackSize = MFI->getStackSize();
 
@@ -150,7 +154,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
       Amount = -Amount;
 
     const Mips16InstrInfo &TII =
-      *static_cast<const Mips16InstrInfo*>(MF.getTarget().getInstrInfo());
+        *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
 
     TII.adjustStackPtr(Mips::SP, Amount, MBB, I);
   }
@@ -169,9 +173,15 @@ Mips16FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
 void Mips16FrameLowering::
 processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                      RegScavenger *RS) const {
-  MF.getRegInfo().setPhysRegUsed(Mips::RA);
-  MF.getRegInfo().setPhysRegUsed(Mips::S0);
-  MF.getRegInfo().setPhysRegUsed(Mips::S1);
+  const Mips16InstrInfo &TII =
+      *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
+  const MipsRegisterInfo &RI = TII.getRegisterInfo();
+  const BitVector Reserved = RI.getReservedRegs(MF);
+  bool SaveS2 = Reserved[Mips::S2];
+  if (SaveS2)
+    MF.getRegInfo().setPhysRegUsed(Mips::S2);
+  if (hasFP(MF))
+    MF.getRegInfo().setPhysRegUsed(Mips::S0);
 }
 
 const MipsFrameLowering *

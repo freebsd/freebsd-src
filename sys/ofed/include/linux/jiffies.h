@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,14 +42,15 @@ msecs_to_jiffies(int msec)
 
 	tv.tv_sec = msec / 1000;
 	tv.tv_usec = (msec % 1000) * 1000;
-	return (tvtohz(&tv));
+	return (tvtohz(&tv) - 1);
 }
 
-#define	jiffies	ticks
+#define jiffies                 ticks
+#define jiffies_to_msecs(x)     (((int64_t)(x)) * 1000 / hz)
 
-#define	time_after(a, b)	((long)(b) - (long)(a) < 0)
+#define	time_after(a, b)	((int)((b) - (a)) < 0)
 #define	time_before(a, b)	time_after(b,a)
-#define	time_after_eq(a, b)	((long)(a) - (long)(b) >= 0)
+#define	time_after_eq(a, b)	((int)((a) - (b)) >= 0)
 #define	time_before_eq(a, b)	time_after_eq(b, a)
 
 #define	HZ	hz

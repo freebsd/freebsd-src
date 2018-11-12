@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -43,6 +43,7 @@
 #define UTIL_DATA_MSGREPLY_H
 #include "util/storage/lruhash.h"
 #include "util/data/packed_rrset.h"
+struct sldns_buffer;
 struct comm_reply;
 struct alloc_cache;
 struct iovec;
@@ -116,21 +117,21 @@ struct reply_info {
 	 */
 	uint8_t qdcount;
 
+	/** 32 bit padding to pad struct member alignment to 64 bits. */
+	uint32_t padding;
+
 	/** 
 	 * TTL of the entire reply (for negative caching).
 	 * only for use when there are 0 RRsets in this message.
 	 * if there are RRsets, check those instead.
 	 */
-	uint32_t ttl;
+	time_t ttl;
 
 	/**
 	 * TTL for prefetch. After it has expired, a prefetch is suitable.
 	 * Smaller than the TTL, otherwise the prefetch would not happen.
 	 */
-	uint32_t prefetch_ttl;
-
-	/** 32 bit padding to pad struct member alignment to 64 bits. */
-	uint32_t padding;
+	time_t prefetch_ttl;
 
 	/**
 	 * The security status from DNSSEC validation of this message.
@@ -191,6 +192,26 @@ struct msgreply_entry {
 	struct lruhash_entry entry;
 };
 
+/**
+ * Constructor for replyinfo.
+ * @param region: where to allocate the results, pass NULL to use malloc.
+ * @param flags: flags for the replyinfo.
+ * @param qd: qd count
+ * @param ttl: TTL of replyinfo
+ * @param prettl: prefetch ttl
+ * @param an: an count
+ * @param ns: ns count
+ * @param ar: ar count
+ * @param total: total rrset count (presumably an+ns+ar).
+ * @param sec: security status of the reply info.
+ * @return the reply_info base struct with the array for putting the rrsets
+ * in.  The array has been zeroed.  Returns NULL on malloc failure.
+ */
+struct reply_info*
+construct_reply_info_base(struct regional* region, uint16_t flags, size_t qd,
+		time_t ttl, time_t prettl, size_t an, size_t ns, size_t ar,
+		size_t total, enum sec_status sec);
+
 /** 
  * Parse wire query into a queryinfo structure, return 0 on parse error. 
  * initialises the (prealloced) queryinfo structure as well.
@@ -201,7 +222,7 @@ struct msgreply_entry {
  * @param query: the wireformat packet query. starts with ID.
  * @return: 0 on format error.
  */
-int query_info_parse(struct query_info* m, ldns_buffer* query);
+int query_info_parse(struct query_info* m, struct sldns_buffer* query);
 
 /**
  * Parse query reply.
@@ -218,7 +239,7 @@ int query_info_parse(struct query_info* m, ldns_buffer* query);
  *	o FORMERR for parse errors.
  *	o SERVFAIL for memory allocation errors.
  */
-int reply_info_parse(ldns_buffer* pkt, struct alloc_cache* alloc,
+int reply_info_parse(struct sldns_buffer* pkt, struct alloc_cache* alloc,
 	struct query_info* qinf, struct reply_info** rep, 
 	struct regional* region, struct edns_data* edns);
 
@@ -237,7 +258,7 @@ int reply_info_parse(ldns_buffer* pkt, struct alloc_cache* alloc,
  *	and no rrset_ref array in the reply is built up.
  * @return 0 if allocation failed.
  */
-int parse_create_msg(ldns_buffer* pkt, struct msg_parse* msg,
+int parse_create_msg(struct sldns_buffer* pkt, struct msg_parse* msg,
         struct alloc_cache* alloc, struct query_info* qinf,
 	struct reply_info** rep, struct regional* region);
 
@@ -253,7 +274,7 @@ void reply_info_sortref(struct reply_info* rep);
  *	Also refs must be filled in.
  * @param timenow: the current time.
  */
-void reply_info_set_ttls(struct reply_info* rep, uint32_t timenow);
+void reply_info_set_ttls(struct reply_info* rep, time_t timenow);
 
 /** 
  * Delete reply_info and packed_rrsets (while they are not yet added to the
@@ -284,8 +305,9 @@ void query_entry_delete(void *q, void* arg);
 /** delete reply_info data structure */
 void reply_info_delete(void* d, void* arg);
 
-/** calculate hash value of query_info, lowercases the qname */
-hashvalue_t query_info_hash(struct query_info *q);
+/** calculate hash value of query_info, lowercases the qname,
+ * uses CD flag for AAAA qtype */
+hashvalue_t query_info_hash(struct query_info *q, uint16_t flags);
 
 /**
  * Setup query info entry
@@ -322,7 +344,7 @@ struct reply_info* reply_info_copy(struct reply_info* rep,
  *	Note that TTL will still be relative on return.
  * @return false on alloc failure.
  */
-int parse_copy_decompress_rrset(ldns_buffer* pkt, struct msg_parse* msg,
+int parse_copy_decompress_rrset(struct sldns_buffer* pkt, struct msg_parse* msg,
 	struct rrset_parse *pset, struct regional* region, 
 	struct ub_packed_rrset_key* pk);
 

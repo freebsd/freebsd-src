@@ -132,8 +132,6 @@ typedef	u_int32_t u32;
 #define MEMORY_BARRIER()	do { ; } while(0)
 #elif	defined	__powerpc__
 #define MEMORY_BARRIER()	__asm__ volatile("eieio; sync" : : : "memory")
-#elif	defined	__ia64__
-#define MEMORY_BARRIER()	__asm__ volatile("mf.a; mf" : : : "memory")
 #elif	defined	__sparc64__
 #define MEMORY_BARRIER()	__asm__ volatile("membar #Sync" : : : "memory")
 #elif	defined	__arm__
@@ -617,11 +615,8 @@ out_err:
 		bus_dmamap_unload(mp->dmat, vbp->dmamap);
 	if (vaddr)
 		bus_dmamem_free(mp->dmat, vaddr, vbp->dmamap);
-	if (vbp) {
-		if (vbp->dmamap)
-			bus_dmamap_destroy(mp->dmat, vbp->dmamap);
+	if (vbp)
 		__sym_mfree(&mp0, vbp, sizeof(*vbp), "VTOB");
-	}
 	return 0;
 }
 
@@ -639,7 +634,6 @@ static void ___dma_freep(m_pool_s *mp, m_addr_t m)
 		*vbpp = (*vbpp)->next;
 		bus_dmamap_unload(mp->dmat, vbp->dmamap);
 		bus_dmamem_free(mp->dmat, (void *) vbp->vaddr, vbp->dmamap);
-		bus_dmamap_destroy(mp->dmat, vbp->dmamap);
 		__sym_mfree(&mp0, vbp, sizeof(*vbp), "VTOB");
 		--mp->nump;
 	}
@@ -2335,8 +2329,8 @@ static void sym_enqueue_cam_ccb(ccb_p cp)
 	assert(!(ccb->ccb_h.status & CAM_SIM_QUEUED));
 	ccb->ccb_h.status = CAM_REQ_INPROG;
 
-	callout_reset(&cp->ch, ccb->ccb_h.timeout * hz / 1000, sym_callout,
-			(caddr_t) ccb);
+	callout_reset_sbt(&cp->ch, SBT_1MS * ccb->ccb_h.timeout, 0, sym_callout,
+	    (caddr_t)ccb, 0);
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	ccb->ccb_h.sym_hcb_ptr = np;
 

@@ -36,8 +36,8 @@ unsigned MCELF::GetBinding(const MCSymbolData &SD) {
 void MCELF::SetType(MCSymbolData &SD, unsigned Type) {
   assert(Type == ELF::STT_NOTYPE || Type == ELF::STT_OBJECT ||
          Type == ELF::STT_FUNC || Type == ELF::STT_SECTION ||
-         Type == ELF::STT_FILE || Type == ELF::STT_COMMON ||
-         Type == ELF::STT_TLS || Type == ELF::STT_GNU_IFUNC);
+         Type == ELF::STT_COMMON || Type == ELF::STT_TLS ||
+         Type == ELF::STT_GNU_IFUNC);
 
   uint32_t OtherFlags = SD.getFlags() & ~(0xf << ELF_STT_Shift);
   SD.setFlags(OtherFlags | (Type << ELF_STT_Shift));
@@ -47,8 +47,7 @@ unsigned MCELF::GetType(const MCSymbolData &SD) {
   uint32_t Type = (SD.getFlags() & (0xf << ELF_STT_Shift)) >> ELF_STT_Shift;
   assert(Type == ELF::STT_NOTYPE || Type == ELF::STT_OBJECT ||
          Type == ELF::STT_FUNC || Type == ELF::STT_SECTION ||
-         Type == ELF::STT_FILE || Type == ELF::STT_COMMON ||
-         Type == ELF::STT_TLS || Type == ELF::STT_GNU_IFUNC);
+         Type == ELF::STT_COMMON || Type == ELF::STT_TLS || Type == ELF::STT_GNU_IFUNC);
   return Type;
 }
 
@@ -62,7 +61,7 @@ void MCELF::SetVisibility(MCSymbolData &SD, unsigned Visibility) {
   SD.setFlags(OtherFlags | (Visibility << ELF_STV_Shift));
 }
 
-unsigned MCELF::GetVisibility(MCSymbolData &SD) {
+unsigned MCELF::GetVisibility(const MCSymbolData &SD) {
   unsigned Visibility =
     (SD.getFlags() & (0x3 << ELF_STV_Shift)) >> ELF_STV_Shift;
   assert(Visibility == ELF::STV_DEFAULT || Visibility == ELF::STV_INTERNAL ||
@@ -73,13 +72,13 @@ unsigned MCELF::GetVisibility(MCSymbolData &SD) {
 // Other is stored in the last six bits of st_other
 // st_other values are stored in the second byte of get/setFlags
 void MCELF::setOther(MCSymbolData &SD, unsigned Other) {
-  uint32_t OtherFlags = SD.getFlags() & ~(0x3f << ELF_Other_Shift);
-  SD.setFlags(OtherFlags | (Other << ELF_Other_Shift));
+  uint32_t OtherFlags = SD.getFlags() & ~(0x3f << ELF_STO_Shift);
+  SD.setFlags(OtherFlags | (Other << ELF_STO_Shift));
 }
 
-unsigned MCELF::getOther(MCSymbolData &SD) {
+unsigned MCELF::getOther(const MCSymbolData &SD) {
   unsigned Other =
-    (SD.getFlags() & (0x3f << ELF_Other_Shift)) >> ELF_Other_Shift;
+    (SD.getFlags() & (0x3f << ELF_STO_Shift)) >> ELF_STO_Shift;
   return Other;
 }
 

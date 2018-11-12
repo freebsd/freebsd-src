@@ -37,6 +37,10 @@
  */
 #define MCALL_MSG_SIZE 24
 
+void clnt_bck_svccall(void *, struct mbuf *, uint32_t);
+enum clnt_stat clnt_bck_call(CLIENT *, struct rpc_callextra *, rpcproc_t,
+    struct mbuf *, struct mbuf **, struct timeval, SVCXPRT *);
+
 /*
  * A pending RPC request which awaits a reply. Requests which have
  * received their reply will have cr_xid set to zero and cr_mrep to

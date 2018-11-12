@@ -112,32 +112,10 @@ ctl_scsi_command_string(struct ctl_scsiio *ctsio,
 void
 ctl_scsi_path_string(union ctl_io *io, char *path_str, int len)
 {
-	if (io->io_hdr.nexus.targ_target.wwid[0] == 0) {
-		snprintf(path_str, len, "(%ju:%d:%ju:%d): ",
-			 (uintmax_t)io->io_hdr.nexus.initid.id,
-			 io->io_hdr.nexus.targ_port,
-			 (uintmax_t)io->io_hdr.nexus.targ_target.id,
-			 io->io_hdr.nexus.targ_lun);
-	} else {
-		/*
-		 * XXX KDM find a better way to display FC WWIDs.
-		 */
-#ifdef _KERNEL
-		snprintf(path_str, len, "(%ju:%d:%#jx,%#jx:%d): ",
-			 (uintmax_t)io->io_hdr.nexus.initid.id,
-			 io->io_hdr.nexus.targ_port,
-			 (intmax_t)io->io_hdr.nexus.targ_target.wwid[0],
-			 (intmax_t)io->io_hdr.nexus.targ_target.wwid[1],
-			 io->io_hdr.nexus.targ_lun);
-#else /* _KERNEL */
-		snprintf(path_str, len, "(%ju:%d:%#jx,%#jx:%d): ",
-			 (uintmax_t)io->io_hdr.nexus.initid.id,
-			 io->io_hdr.nexus.targ_port,
-			 (intmax_t)io->io_hdr.nexus.targ_target.wwid[0],
-			 (intmax_t)io->io_hdr.nexus.targ_target.wwid[1],
-			 io->io_hdr.nexus.targ_lun);
-#endif /* _KERNEL */
-	}
+
+	snprintf(path_str, len, "(%u:%u:%u/%u): ",
+	    io->io_hdr.nexus.initid.id, io->io_hdr.nexus.targ_port,
+	    io->io_hdr.nexus.targ_lun, io->io_hdr.nexus.targ_mapped_lun);
 }
 
 /*

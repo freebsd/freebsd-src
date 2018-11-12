@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}/../../contrib/tcp_wrappers
 
@@ -15,8 +15,7 @@ CFLAGS+=-DREAL_DAEMON_DIR=\"/usr/libexec\" \
 CFLAGS+=-DINET6
 .endif
 
-DPADD=	${LIBWRAP}
-LDADD=	-lwrap
+LIBADD=	wrap
 
 WARNS?=	1
 

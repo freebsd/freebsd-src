@@ -160,7 +160,6 @@ fi
 set -e
 
 log_it() (
-	set +x
 	a="$*"
 	set `cat /tmp/_sb_log`
 	TX=`date +%s`
@@ -175,7 +174,6 @@ log_it() (
 
 
 ports_recurse() (
-	set +x
 	t=$1
 	shift
 	if [ "x$t" = "x." ] ; then
@@ -218,9 +216,12 @@ ports_recurse() (
 )
 
 ports_build() (
-	set +x
 
 	ports_recurse . $PORTS_WE_WANT 
+
+	if [ "x${PKG_DIR}" != "x" ] ; then
+		mkdir -p ${PKG_DIR}
+	fi
 
 	# Now build & install them
 	for p in `cat /tmp/_.plist`
@@ -229,17 +230,18 @@ ports_build() (
 		t=`echo $p | sed 's,/usr/ports/,,'`
 		pn=`cd $p && make package-name`
 
-		if pkg info $pn > /dev/null 2>&1 ; then
-			log_it "Already installed: $t ($pn)"
-			continue
-		fi
-
-		if [ "x$p" == "x/usr/ports/ports-mgmt/pkg" ] ; then
+		if [ "x`basename $p`" == "xpkg" ] ; then
 			log_it "Very Special: $t ($pn)"
+
 			(
 			cd $p
 			make clean all install ${PORTS_OPTS}
 			) > _.$b 2>&1 < /dev/null
+			continue
+		fi
+
+		if pkg info $pn > /dev/null 2>&1 ; then
+			log_it "Already installed: $t ($pn)"
 			continue
 		fi
 
@@ -380,7 +382,6 @@ done
 #######################################################################
 
 if [ "x$1" = "xchroot_script" ] ; then
-	set +x
 	set -e
 
 	shift

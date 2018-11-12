@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -49,14 +49,19 @@
 #include "util/log.h"
 #include "util/config_file.h"
 #include "util/net_help.h"
+#include "ldns/sbuffer.h"
 
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
 #include <fcntl.h>
 
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
+
 /** number of queued TCP connections for listen() */
-#define TCP_BACKLOG 5 
+#define TCP_BACKLOG 256 
 
 /**
  * Debug print of the getaddrinfo returned address.
@@ -75,7 +80,7 @@ verbose_print_addr(struct addrinfo *addr)
 #endif /* INET6 */
 		if(inet_ntop(addr->ai_family, sinaddr, buf,
 			(socklen_t)sizeof(buf)) == 0) {
-			strncpy(buf, "(null)", sizeof(buf));
+			(void)strlcpy(buf, "(null)", sizeof(buf));
 		}
 		buf[sizeof(buf)-1] = 0;
 		verbose(VERB_ALGO, "creating %s%s socket %s %d", 
@@ -91,10 +96,10 @@ verbose_print_addr(struct addrinfo *addr)
 int
 create_udp_sock(int family, int socktype, struct sockaddr* addr,
         socklen_t addrlen, int v6only, int* inuse, int* noproto,
-	int rcv, int snd)
+	int rcv, int snd, int listen, int* reuseport)
 {
 	int s;
-#if defined(IPV6_USE_MIN_MTU)
+#if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_USE_MIN_MTU)
 	int on=1;
 #endif
 #ifdef IPV6_MTU
@@ -128,6 +133,50 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #endif
 		*noproto = 0;
 		return -1;
+	}
+	if(listen) {
+#ifdef SO_REUSEADDR
+		if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void*)&on, 
+			(socklen_t)sizeof(on)) < 0) {
+#ifndef USE_WINSOCK
+			log_err("setsockopt(.. SO_REUSEADDR ..) failed: %s",
+				strerror(errno));
+			if(errno != ENOSYS) {
+				close(s);
+				*noproto = 0;
+				*inuse = 0;
+				return -1;
+			}
+#else
+			log_err("setsockopt(.. SO_REUSEADDR ..) failed: %s",
+				wsa_strerror(WSAGetLastError()));
+			closesocket(s);
+			*noproto = 0;
+			*inuse = 0;
+			return -1;
+#endif
+		}
+#endif /* SO_REUSEADDR */
+#ifdef SO_REUSEPORT
+		/* try to set SO_REUSEPORT so that incoming
+		 * queries are distributed evenly among the receiving threads.
+		 * Each thread must have its own socket bound to the same port,
+		 * with SO_REUSEPORT set on each socket.
+		 */
+		if (reuseport && *reuseport &&
+		    setsockopt(s, SOL_SOCKET, SO_REUSEPORT, (void*)&on,
+			(socklen_t)sizeof(on)) < 0) {
+#ifdef ENOPROTOOPT
+			if(errno != ENOPROTOOPT || verbosity >= 3)
+				log_warn("setsockopt(.. SO_REUSEPORT ..) failed: %s",
+					strerror(errno));
+#endif
+			/* this option is not essential, we can continue */
+			*reuseport = 0;
+		}
+#else
+		(void)reuseport;
+#endif /* defined(SO_REUSEPORT) */
 	}
 	if(rcv) {
 #ifdef SO_RCVBUF
@@ -317,18 +366,53 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 # endif /* IPv6 MTU */
 	} else if(family == AF_INET) {
 #  if defined(IP_MTU_DISCOVER) && defined(IP_PMTUDISC_DONT)
-		int action = IP_PMTUDISC_DONT;
+/* linux 3.15 has IP_PMTUDISC_OMIT, Hannes Frederic Sowa made it so that
+ * PMTU information is not accepted, but fragmentation is allowed
+ * if and only if the packet size exceeds the outgoing interface MTU
+ * (and also uses the interface mtu to determine the size of the packets).
+ * So there won't be any EMSGSIZE error.  Against DNS fragmentation attacks.
+ * FreeBSD already has same semantics without setting the option. */
+		int omit_set = 0;
+		int action;
+#   if defined(IP_PMTUDISC_OMIT)
+		action = IP_PMTUDISC_OMIT;
 		if (setsockopt(s, IPPROTO_IP, IP_MTU_DISCOVER, 
 			&action, (socklen_t)sizeof(action)) < 0) {
-			log_err("setsockopt(..., IP_MTU_DISCOVER, "
-				"IP_PMTUDISC_DONT...) failed: %s",
-				strerror(errno));
+
+			if (errno != EINVAL) {
+				log_err("setsockopt(..., IP_MTU_DISCOVER, IP_PMTUDISC_OMIT...) failed: %s",
+					strerror(errno));
+
 #    ifndef USE_WINSOCK
-			close(s);
+				close(s);
 #    else
-			closesocket(s);
+				closesocket(s);
 #    endif
-			return -1;
+				*noproto = 0;
+				*inuse = 0;
+				return -1;
+			}
+		}
+		else
+		{
+		    omit_set = 1;
+		}
+#   endif
+		if (omit_set == 0) {
+   			action = IP_PMTUDISC_DONT;
+			if (setsockopt(s, IPPROTO_IP, IP_MTU_DISCOVER,
+				&action, (socklen_t)sizeof(action)) < 0) {
+				log_err("setsockopt(..., IP_MTU_DISCOVER, IP_PMTUDISC_DONT...) failed: %s",
+					strerror(errno));
+#    ifndef USE_WINSOCK
+				close(s);
+#    else
+				closesocket(s);
+#    endif
+				*noproto = 0;
+				*inuse = 0;
+				return -1;
+			}
 		}
 #  elif defined(IP_DONTFRAG)
 		int off = 0;
@@ -341,12 +425,15 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #    else
 			closesocket(s);
 #    endif
+			*noproto = 0;
+			*inuse = 0;
 			return -1;
 		}
 #  endif /* IPv4 MTU */
 	}
 	if(bind(s, (struct sockaddr*)addr, addrlen) != 0) {
 		*noproto = 0;
+		*inuse = 0;
 #ifndef USE_WINSOCK
 #ifdef EADDRINUSE
 		*inuse = (errno == EADDRINUSE);
@@ -354,8 +441,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		if(family==AF_INET6 && errno==EINVAL)
 			*noproto = 1;
 		else if(errno != EADDRINUSE) {
-			log_err("can't bind socket: %s", strerror(errno));
-			log_addr(0, "failed address",
+			log_err_addr("can't bind socket", strerror(errno),
 				(struct sockaddr_storage*)addr, addrlen);
 		}
 #endif /* EADDRINUSE */
@@ -363,9 +449,8 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #else /* USE_WINSOCK */
 		if(WSAGetLastError() != WSAEADDRINUSE &&
 			WSAGetLastError() != WSAEADDRNOTAVAIL) {
-			log_err("can't bind socket: %s", 
-				wsa_strerror(WSAGetLastError()));
-			log_addr(0, "failed address",
+			log_err_addr("can't bind socket", 
+				wsa_strerror(WSAGetLastError()),
 				(struct sockaddr_storage*)addr, addrlen);
 		}
 		closesocket(s);
@@ -386,10 +471,11 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 }
 
 int
-create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto)
+create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
+	int* reuseport)
 {
 	int s;
-#if defined(SO_REUSEADDR) || defined(IPV6_V6ONLY)
+#if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_V6ONLY)
 	int on = 1;
 #endif /* SO_REUSEADDR || IPV6_V6ONLY */
 	verbose_print_addr(addr);
@@ -427,6 +513,26 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto)
 		return -1;
 	}
 #endif /* SO_REUSEADDR */
+#ifdef SO_REUSEPORT
+	/* try to set SO_REUSEPORT so that incoming
+	 * connections are distributed evenly among the receiving threads.
+	 * Each thread must have its own socket bound to the same port,
+	 * with SO_REUSEPORT set on each socket.
+	 */
+	if (reuseport && *reuseport &&
+		setsockopt(s, SOL_SOCKET, SO_REUSEPORT, (void*)&on,
+		(socklen_t)sizeof(on)) < 0) {
+#ifdef ENOPROTOOPT
+		if(errno != ENOPROTOOPT || verbosity >= 3)
+			log_warn("setsockopt(.. SO_REUSEPORT ..) failed: %s",
+				strerror(errno));
+#endif
+		/* this option is not essential, we can continue */
+		*reuseport = 0;
+	}
+#else
+	(void)reuseport;
+#endif /* defined(SO_REUSEPORT) */
 #if defined(IPV6_V6ONLY)
 	if(addr->ai_family == AF_INET6 && v6only) {
 		if(setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, 
@@ -452,16 +558,14 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto)
 		if(addr->ai_family==AF_INET6 && errno==EINVAL)
 			*noproto = 1;
 		else {
-			log_err("can't bind socket: %s", strerror(errno));
-			log_addr(0, "failed address",
+			log_err_addr("can't bind socket", strerror(errno),
 				(struct sockaddr_storage*)addr->ai_addr,
 				addr->ai_addrlen);
 		}
 		close(s);
 #else
-		log_err("can't bind socket: %s", 
-			wsa_strerror(WSAGetLastError()));
-		log_addr(0, "failed address",
+		log_err_addr("can't bind socket", 
+			wsa_strerror(WSAGetLastError()),
 			(struct sockaddr_storage*)addr->ai_addr,
 			addr->ai_addrlen);
 		closesocket(s);
@@ -489,12 +593,70 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto)
 	return s;
 }
 
+int
+create_local_accept_sock(const char *path, int* noproto)
+{
+#ifdef HAVE_SYS_UN_H
+	int s;
+	struct sockaddr_un usock;
+
+	verbose(VERB_ALGO, "creating unix socket %s", path);
+#ifdef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
+	/* this member exists on BSDs, not Linux */
+	usock.sun_len = (socklen_t)sizeof(usock);
+#endif
+	usock.sun_family = AF_LOCAL;
+	/* length is 92-108, 104 on FreeBSD */
+	(void)strlcpy(usock.sun_path, path, sizeof(usock.sun_path));
+
+	if ((s = socket(AF_LOCAL, SOCK_STREAM, 0)) == -1) {
+		log_err("Cannot create local socket %s (%s)",
+			path, strerror(errno));
+		return -1;
+	}
+
+	if (unlink(path) && errno != ENOENT) {
+		/* The socket already exists and cannot be removed */
+		log_err("Cannot remove old local socket %s (%s)",
+			path, strerror(errno));
+		return -1;
+	}
+
+	if (bind(s, (struct sockaddr *)&usock,
+		(socklen_t)sizeof(struct sockaddr_un)) == -1) {
+		log_err("Cannot bind local socket %s (%s)",
+			path, strerror(errno));
+		return -1;
+	}
+
+	if (!fd_set_nonblock(s)) {
+		log_err("Cannot set non-blocking mode");
+		return -1;
+	}
+
+	if (listen(s, TCP_BACKLOG) == -1) {
+		log_err("can't listen: %s", strerror(errno));
+		return -1;
+	}
+
+	(void)noproto; /*unused*/
+	return s;
+#else
+	(void)path;
+	log_err("Local sockets are not supported");
+	*noproto = 1;
+	return -1;
+#endif
+}
+
+
 /**
  * Create socket from getaddrinfo results
  */
 static int
 make_sock(int stype, const char* ifname, const char* port, 
-	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd)
+	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd,
+	int* reuseport)
 {
 	struct addrinfo *res = NULL;
 	int r, s, inuse, noproto;
@@ -521,14 +683,15 @@ make_sock(int stype, const char* ifname, const char* port,
 		verbose_print_addr(res);
 		s = create_udp_sock(res->ai_family, res->ai_socktype,
 			(struct sockaddr*)res->ai_addr, res->ai_addrlen,
-			v6only, &inuse, &noproto, (int)rcv, (int)snd);
+			v6only, &inuse, &noproto, (int)rcv, (int)snd, 1,
+			reuseport);
 		if(s == -1 && inuse) {
 			log_err("bind: address already in use");
 		} else if(s == -1 && noproto && hints->ai_family == AF_INET6){
 			*noip6 = 1;
 		}
 	} else	{
-		s = create_tcp_accept_sock(res, v6only, &noproto);
+		s = create_tcp_accept_sock(res, v6only, &noproto, reuseport);
 		if(s == -1 && noproto && hints->ai_family == AF_INET6){
 			*noip6 = 1;
 		}
@@ -540,7 +703,8 @@ make_sock(int stype, const char* ifname, const char* port,
 /** make socket and first see if ifname contains port override info */
 static int
 make_sock_port(int stype, const char* ifname, const char* port, 
-	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd)
+	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd,
+	int* reuseport)
 {
 	char* s = strchr(ifname, '@');
 	if(s) {
@@ -557,14 +721,15 @@ make_sock_port(int stype, const char* ifname, const char* port,
 			*noip6 = 0;
 			return -1;
 		}
-		strncpy(newif, ifname, sizeof(newif));
+		(void)strlcpy(newif, ifname, sizeof(newif));
 		newif[s-ifname] = 0;
-		strncpy(p, s+1, sizeof(p));
+		(void)strlcpy(p, s+1, sizeof(p));
 		p[strlen(s+1)]=0;
 		return make_sock(stype, newif, p, hints, v6only, noip6,
-			rcv, snd);
+			rcv, snd, reuseport);
 	}
-	return make_sock(stype, ifname, port, hints, v6only, noip6, rcv, snd);
+	return make_sock(stype, ifname, port, hints, v6only, noip6, rcv, snd,
+		reuseport);
 }
 
 /**
@@ -656,19 +821,21 @@ set_recvpktinfo(int s, int family)
  * @param rcv: receive buffer size for UDP
  * @param snd: send buffer size for UDP
  * @param ssl_port: ssl service port number
+ * @param reuseport: try to set SO_REUSEPORT if nonNULL and true.
+ * 	set to false on exit if reuseport failed due to no kernel support.
  * @return: returns false on error.
  */
 static int
 ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp, 
 	struct addrinfo *hints, const char* port, struct listen_port** list,
-	size_t rcv, size_t snd, int ssl_port)
+	size_t rcv, size_t snd, int ssl_port, int* reuseport)
 {
 	int s, noip6=0;
 	if(!do_udp && !do_tcp)
 		return 0;
 	if(do_auto) {
 		if((s = make_sock_port(SOCK_DGRAM, ifname, port, hints, 1, 
-			&noip6, rcv, snd)) == -1) {
+			&noip6, rcv, snd, reuseport)) == -1) {
 			if(noip6) {
 				log_warn("IPv6 protocol not available");
 				return 1;
@@ -695,7 +862,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 	} else if(do_udp) {
 		/* regular udp socket */
 		if((s = make_sock_port(SOCK_DGRAM, ifname, port, hints, 1, 
-			&noip6, rcv, snd)) == -1) {
+			&noip6, rcv, snd, reuseport)) == -1) {
 			if(noip6) {
 				log_warn("IPv6 protocol not available");
 				return 1;
@@ -716,7 +883,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 			atoi(strchr(ifname, '@')+1) == ssl_port) ||
 			(!strchr(ifname, '@') && atoi(port) == ssl_port));
 		if((s = make_sock_port(SOCK_STREAM, ifname, port, hints, 1, 
-			&noip6, 0, 0)) == -1) {
+			&noip6, 0, 0, reuseport)) == -1) {
 			if(noip6) {
 				/*log_warn("IPv6 protocol not available");*/
 				return 1;
@@ -760,14 +927,14 @@ listen_cp_insert(struct comm_point* c, struct listen_dnsport* front)
 struct listen_dnsport* 
 listen_create(struct comm_base* base, struct listen_port* ports,
 	size_t bufsize, int tcp_accept_count, void* sslctx,
-	comm_point_callback_t* cb, void *cb_arg)
+	struct dt_env* dtenv, comm_point_callback_t* cb, void *cb_arg)
 {
 	struct listen_dnsport* front = (struct listen_dnsport*)
 		malloc(sizeof(struct listen_dnsport));
 	if(!front)
 		return NULL;
 	front->cps = NULL;
-	front->udp_buff = ldns_buffer_new(bufsize);
+	front->udp_buff = sldns_buffer_new(bufsize);
 	if(!front->udp_buff) {
 		free(front);
 		return NULL;
@@ -794,6 +961,7 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 			listen_delete(front);
 			return NULL;
 		}
+		cp->dtenv = dtenv;
 		cp->do_not_close = 1;
 		if(!listen_cp_insert(cp, front)) {
 			log_err("malloc failed");
@@ -830,12 +998,12 @@ listen_delete(struct listen_dnsport* front)
 	if(!front) 
 		return;
 	listen_list_delete(front->cps);
-	ldns_buffer_free(front->udp_buff);
+	sldns_buffer_free(front->udp_buff);
 	free(front);
 }
 
 struct listen_port* 
-listening_ports_open(struct config_file* cfg)
+listening_ports_open(struct config_file* cfg, int* reuseport)
 {
 	struct listen_port* list = NULL;
 	struct addrinfo hints;
@@ -871,7 +1039,7 @@ listening_ports_open(struct config_file* cfg)
 				do_auto, cfg->do_udp, do_tcp, 
 				&hints, portbuf, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port)) {
+				cfg->ssl_port, reuseport)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -882,7 +1050,7 @@ listening_ports_open(struct config_file* cfg)
 				do_auto, cfg->do_udp, do_tcp, 
 				&hints, portbuf, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port)) {
+				cfg->ssl_port, reuseport)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -895,7 +1063,7 @@ listening_ports_open(struct config_file* cfg)
 			if(!ports_create_if(cfg->ifs[i], 0, cfg->do_udp, 
 				do_tcp, &hints, portbuf, &list, 
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port)) {
+				cfg->ssl_port, reuseport)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -906,7 +1074,7 @@ listening_ports_open(struct config_file* cfg)
 			if(!ports_create_if(cfg->ifs[i], 0, cfg->do_udp, 
 				do_tcp, &hints, portbuf, &list, 
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port)) {
+				cfg->ssl_port, reuseport)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -936,7 +1104,7 @@ size_t listen_get_mem(struct listen_dnsport* listen)
 {
 	size_t s = sizeof(*listen) + sizeof(*listen->base) + 
 		sizeof(*listen->udp_buff) + 
-		ldns_buffer_capacity(listen->udp_buff);
+		sldns_buffer_capacity(listen->udp_buff);
 	struct listen_list* p;
 	for(p = listen->cps; p; p = p->next) {
 		s += sizeof(*p);
