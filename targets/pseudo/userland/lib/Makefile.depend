@@ -60,6 +60,7 @@ DIRDEPS = \
 	lib/libdevdctl \
 	lib/libdevinfo \
 	lib/libdevstat \
+	lib/libdl \
 	lib/libdwarf \
 	lib/libedit/edit/readline \
 	lib/libelf \
@@ -212,10 +213,6 @@ DIRDEPS+= \
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
     ${MACHINE_CPUARCH} == "powerpc"
 DIRDEPS+= stand/libsa32
-.endif
-
-.if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mfilter}
-DIRDEPS+= lib/libdl
 .endif
 
 .if ${MK_NAND} != "no"
