@@ -86,9 +86,6 @@ ${X_}LINKER_FEATURES=
 ${X_}LINKER_FEATURES+=	build-id
 ${X_}LINKER_FEATURES+=	ifunc
 .endif
-.if ${${X_}LINKER_TYPE} != "lld" || ${${X_}LINKER_VERSION} >= 50000
-${X_}LINKER_FEATURES+=	filter
-.endif
 .if ${${X_}LINKER_TYPE} == "lld" && ${${X_}LINKER_VERSION} >= 60000
 ${X_}LINKER_FEATURES+=	retpoline
 .endif
