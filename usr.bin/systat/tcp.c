@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <paths.h>
@@ -237,7 +238,7 @@ showtcp(void)
 	domode(&stats);
 
 #define DO(stat, row, col) \
-	mvwprintw(wnd, row, col, "%12lu", stats.stat)
+	mvwprintw(wnd, row, col, "%12"PRIu64, stats.stat)
 #define	L(row, stat) DO(stat, row, 0)
 #define	R(row, stat) DO(stat, row, 38)
 	L(1, tcps_connattempt);		R(1, tcps_sndtotal);
