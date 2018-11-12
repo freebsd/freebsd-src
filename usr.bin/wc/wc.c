@@ -146,7 +146,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (caph_enter_capser() < 0) {
+	if (caph_enter_casper() < 0) {
 		xo_warn("Unable to enter capability mode");
 		fileargs_free(fa);
 		exit(1);
