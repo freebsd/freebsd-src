@@ -40,11 +40,15 @@ struct ipfw_nptv6_stats {
 typedef struct _ipfw_nptv6_cfg {
 	char		name[64];	/* NPTv6 instance name */
 	struct in6_addr	internal;	/* NPTv6 internal prefix */
-	struct in6_addr	external;	/* NPTv6 external prefix */
+	union {
+		struct in6_addr	external; /* NPTv6 external prefix */
+		char	if_name[IF_NAMESIZE];
+	};
 	uint8_t		plen;		/* Prefix length */
 	uint8_t		set;		/* Named instance set [0..31] */
 	uint8_t		spare[2];
 	uint32_t	flags;
+#define	NPTV6_DYNAMIC_PREFIX	1	/* Use dynamic external prefix */
 } ipfw_nptv6_cfg;
 
 #endif /* _NETINET6_IP_FW_NPTV6_H_ */
